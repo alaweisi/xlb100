@@ -2,3 +2,4 @@ export { createApiClient, type ApiClient, type ApiClientOptions } from "./create
 export { customerApi } from "./customer.js";
 export { workerApi } from "./worker.js";
 export { adminApi } from "./admin.js";
+export { ledgerApi } from "./ledger.js";

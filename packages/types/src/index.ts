@@ -31,7 +31,14 @@ export type {
   PaymentPaidEventPayload,
   OrderCreatedEventPayload,
 } from "./eventOutbox.js";
-export type { LedgerPlaceholder } from "./ledger.js";
+export type {
+  LedgerAccountType,
+  LedgerEntryDirection,
+  LedgerAccrualStatus,
+  LedgerAccount,
+  LedgerEntry,
+  LedgerAccrual,
+} from "./ledger.js";
 export type {
   DispatchTask,
   DispatchTaskStatus,

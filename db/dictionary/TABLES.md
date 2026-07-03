@@ -75,3 +75,14 @@
 owning worker and city. `completion_note` is optional text only. Completion does
 not mutate orders or payment orders and does not create ledger, settlement,
 payout, refund, or aftersale records.
+
+## Phase 8A ledger accrual foundation
+
+| Table | Purpose | city_code |
+|-------|---------|-----------|
+| `ledger_accounts` | Platform, worker, and customer accrual accounts | required |
+| `ledger_entries` | Immutable entries sourced only from `fulfillment.completed` | required |
+| `ledger_accruals` | One gross/fee/receivable snapshot per completed fulfillment | required |
+
+**Rules:** Phase 8A records accruals only. It does not settle, pay out, withdraw,
+refund, reverse, or mutate order/payment/fulfillment state.
