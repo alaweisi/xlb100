@@ -42,6 +42,10 @@ function mapBindingRow(row: WorkerBindingRow): WorkerCityBinding {
 }
 
 export class WorkerRepository extends RepositoryBase {
+  constructor(pool?: Pool) {
+    super(pool);
+  }
+
   async findProfileById(workerId: string): Promise<WorkerProfile | null> {
     const [rows] = await this.pool.query<WorkerProfileRow[]>(
       `SELECT worker_id, display_name, phone_masked, status, created_at, updated_at
