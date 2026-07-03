@@ -15,11 +15,12 @@ function context(cityCode: string): RequestContext {
 }
 
 describe.skipIf(!runDb)("catalogService", () => {
-  it("returns demo catalog for hangzhou only", async () => {
+  it("returns official catalog for hangzhou with 16 categories", async () => {
     const catalog = await catalogService.getCatalog(context("hangzhou"));
     expect(catalog.cityCode).toBe("hangzhou");
-    expect(catalog.categories.length).toBeGreaterThan(0);
-    expect(catalog.categories[0]?.categoryId).toBe("demo_cleaning_category");
+    expect(catalog.categories.length).toBe(16);
+    expect(catalog.categories.every((c) => c.categoryId.startsWith("cat_"))).toBe(true);
+    expect(catalog.categories.some((c) => c.categoryId === "demo_cleaning_category")).toBe(false);
   });
 
   it("shanghai catalog is city-scoped", async () => {

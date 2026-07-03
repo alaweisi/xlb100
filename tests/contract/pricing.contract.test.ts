@@ -25,23 +25,29 @@ describe("pricing contract", () => {
     expect(negative.success).toBe(false);
   });
 
-  it("accepts valid CNY price rule", () => {
+  it("accepts valid CNY price rule with display fields", () => {
     const result = priceRuleSchema.safeParse({
       priceRuleId: "p1",
       cityCode: "hangzhou",
-      skuId: "demo_cleaning_sku",
-      basePrice: 99,
+      skuId: "sku_home_daily_2h",
+      basePrice: 89,
       currency: "CNY",
+      priceText: "¥89/2小时",
+      priceType: "fixed",
+      minPrice: 89,
+      maxPrice: 89,
+      pricingNote: null,
       isEnabled: true,
       version: 1,
     });
     expect(result.success).toBe(true);
   });
 
-  it("PriceQuote schema requires cityCode", () => {
+  it("PriceQuote schema requires priceText and priceType", () => {
     const result = priceQuoteSchema.safeParse({
-      skuId: "demo_cleaning_sku",
-      basePrice: 99,
+      cityCode: "hangzhou",
+      skuId: "sku_home_daily_2h",
+      basePrice: 89,
       currency: "CNY",
       priceRuleId: "p1",
       version: 1,

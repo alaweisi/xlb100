@@ -22,14 +22,14 @@ function runScript(script: string): { code: number; output: string } {
 }
 
 describe("officialCatalogRequiredBeforeOrder", () => {
-  it("blocks Phase 4 when official catalog seeds are missing", () => {
+  it("passes when official catalog seeds are imported", () => {
     const result = runScript("check-official-catalog-ready.ps1");
-    expect(result.code).not.toBe(0);
-    expect(result.output).toMatch(/Phase 4|Official catalog not imported|007_official|FAILED/i);
+    expect(result.code).toBe(0);
+    expect(result.output).toMatch(/passed/i);
   });
 
-  it("source file still indicates waiting for user", () => {
+  it("source file is confirmed", () => {
     const result = runScript("check-official-catalog-ready.ps1");
-    expect(result.output).toMatch(/waiting for user|007_official|008_official|WAITING_FOR_USER/i);
+    expect(result.output).not.toMatch(/waiting for user confirmation/i);
   });
 });

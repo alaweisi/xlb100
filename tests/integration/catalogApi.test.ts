@@ -5,7 +5,7 @@ import { XLB_HEADERS } from "@xlb/types";
 const runDb = process.env.XLB_SKIP_DB_TESTS !== "1";
 
 describe.skipIf(!runDb)("catalogApi integration", () => {
-  it("GET /api/catalog returns city-scoped demo catalog", async () => {
+  it("GET /api/catalog returns city-scoped official catalog", async () => {
     const app = await buildApp();
     const response = await app.inject({
       method: "GET",
@@ -20,6 +20,7 @@ describe.skipIf(!runDb)("catalogApi integration", () => {
     const body = response.json();
     expect(body.ok).toBe(true);
     expect(body.catalog.cityCode).toBe("hangzhou");
+    expect(body.catalog.categories.length).toBeGreaterThanOrEqual(16);
     await app.close();
   });
 

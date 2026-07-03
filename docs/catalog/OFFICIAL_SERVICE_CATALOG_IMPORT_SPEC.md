@@ -18,11 +18,21 @@
 
 | 步骤 | 动作 |
 |------|------|
-| 1 | 用户在 `OFFICIAL_SERVICE_CATALOG_SOURCE.md` 粘贴/确认正式清单 |
-| 2 | 人工或脚本生成 `007_official_catalog.seed.sql` · `008_official_pricing.seed.sql` |
-| 3 | 可选执行 `006_disable_demo_catalog.seed.sql` 禁用 demo 条目 |
-| 4 | 运行 `scripts/seed-local.ps1` |
+| 1 | 用户在 `OFFICIAL_SERVICE_CATALOG_SOURCE.md` 确认正式清单（TSV） |
+| 2 | 运行 `scripts/generate-official-catalog-seeds.mjs` 生成 `006` / `007` / `008` seed |
+| 3 | 执行 migration `005_official_pricing_display_fields.sql` |
+| 4 | 执行 `scripts/seed-local.ps1`（含 `006_disable_demo_catalog`） |
 | 5 | 运行 `scripts/check-official-catalog-ready.ps1` — 通过后方可进入 Phase 4 |
+
+## 价格展示字段（Phase 3A-1）
+
+`price_rules` 扩展字段：
+
+- `price_text` — 原始价格文本（如 `¥89/2小时`）
+- `price_type` — `fixed` · `range` · `from` · `estimate_from` · `onsite_quote`
+- `min_price` · `max_price` · `pricing_note`
+
+`base_price` 仅为兼容字段；展示与后续报价优先使用 `price_text` / `price_type`。
 
 ## Seed 命名
 

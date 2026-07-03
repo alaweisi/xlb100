@@ -13,6 +13,11 @@ type PriceRuleRow = RowDataPacket & {
   city_code: string;
   sku_id: string;
   base_price: string;
+  price_text: string;
+  price_type: string;
+  min_price: string | null;
+  max_price: string | null;
+  pricing_note: string | null;
   currency: string;
   version: number;
   is_enabled: number;
@@ -25,6 +30,11 @@ function mapPriceRule(row: PriceRuleRow): PriceRule {
     skuId: row.sku_id,
     basePrice: Number(row.base_price),
     currency: row.currency,
+    priceText: row.price_text,
+    priceType: row.price_type as PriceRule["priceType"],
+    minPrice: row.min_price === null ? null : Number(row.min_price),
+    maxPrice: row.max_price === null ? null : Number(row.max_price),
+    pricingNote: row.pricing_note,
     isEnabled: row.is_enabled === 1,
     version: row.version,
   };
@@ -48,7 +58,8 @@ export class PricingRepository extends RepositoryBase {
 
     const where = buildCityScopedWhere(cityCode);
     const [rows] = await this.pool.query<PriceRuleRow[]>(
-      `SELECT price_rule_id, city_code, sku_id, base_price, currency, version, is_enabled
+      `SELECT price_rule_id, city_code, sku_id, base_price, price_text, price_type,
+              min_price, max_price, pricing_note, currency, version, is_enabled
        FROM price_rules
        WHERE ${where.clause} AND sku_id = ? AND is_enabled = 1
        ORDER BY version DESC

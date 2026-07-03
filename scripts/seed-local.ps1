@@ -9,9 +9,12 @@ $files = Get-ChildItem -Path $seedDir -Filter "*.sql" | Sort-Object Name
 
 foreach ($file in $files) {
   Write-Host "SEED $($file.Name)"
-  $sql = Get-Content -Path $file.FullName -Raw -Encoding UTF8
-  $sql | docker exec -i xlb-mysql-local mysql -uxlb -pxlb_local_password xlb_local
+  $containerPath = "/tmp/xlb_seed_$($file.Name)"
+  docker cp $file.FullName "xlb-mysql-local:${containerPath}" | Out-Null
   if ($LASTEXITCODE -ne 0) { exit 1 }
+  cmd /c "docker exec xlb-mysql-local mysql -uxlb -pxlb_local_password --default-character-set=utf8mb4 xlb_local -e `"source ${containerPath}`" 2>nul"
+  if ($LASTEXITCODE -ne 0) { exit 1 }
+  cmd /c "docker exec xlb-mysql-local rm -f ${containerPath} 2>nul" | Out-Null
 }
 
 Write-Host "seed-local: passed"

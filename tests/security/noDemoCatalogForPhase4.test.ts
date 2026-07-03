@@ -24,10 +24,10 @@ function runScript(script: string): { code: number; output: string } {
 }
 
 describe("noDemoCatalogForPhase4", () => {
-  it("blocks Phase 4 when only demo catalog is available", () => {
+  it("passes when official catalog replaces demo-only state", () => {
     const result = runScript("check-no-demo-catalog-for-phase4.ps1");
-    expect(result.code).not.toBe(0);
-    expect(result.output).toMatch(/Phase 4|demo/i);
+    expect(result.code).toBe(0);
+    expect(result.output).toMatch(/passed/i);
   });
 
   it("rejects __global__ as catalog cityCode (not valid business city)", async () => {
