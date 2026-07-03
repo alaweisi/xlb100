@@ -13,6 +13,7 @@
 | 000_init | schema_migrations 表 |
 | 001_city_foundation | cities · admin_city_scopes |
 | 002_dal_scope_foundation | 索引增强 |
+| 003_admin_scope_global_marker | 移除 admin FK；清理 cities 中误插的 `__global__` |
 
 ## Seed Runner
 

@@ -8,7 +8,7 @@ export type AdminQueryGuardResult =
   | { ok: true }
   | { ok: false; statusCode: 403; message: string };
 
-/** Explicit global admin marker in admin_city_scopes */
+/** Global admin permission marker — admin_city_scopes only, NOT a row in cities */
 export const GLOBAL_ADMIN_CITY_MARKER = "__global__";
 
 export class AdminScopeError extends Error {

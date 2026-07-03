@@ -27,3 +27,9 @@
 ## 本阶段不做
 
 CityConfig · Catalog · Pricing · 订单 · 支付 · 派单 · 账本 · 资质 · 退款
+
+## __global__ 规则（Phase 2-Lock）
+
+- `cities` 表仅含真实城市（hangzhou / shanghai / beijing）
+- `__global__` 仅存在于 `admin_city_scopes`，表示 global admin 权限
+- global admin 仍须显式指定业务 `cityCode`，禁止无 scope 全国查询

@@ -6,7 +6,7 @@ Phase 2 global tables (no per-order city_code requirement on the table itself):
 |-------|---------|-------|
 | `schema_migrations` | Migration tracking | No city_code |
 | `cities` | City registry SSOT | PK is `city_code` |
-| `admin_city_scopes` | Admin RLS scope | FK to `cities.city_code` |
+| `admin_city_scopes` | Admin RLS scope | Real cities or `__global__` marker (no FK after 003) |
 
 Future business tables (Phase 3+) are **not** global — they must include `city_code`.
 

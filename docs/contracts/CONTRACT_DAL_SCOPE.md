@@ -24,7 +24,9 @@
 | `assertAdminCanAccessCity(context, cityCode)` | 结合 RequestContext |
 | `forbidUnscopedAdminQuery()` | 禁止无 scope 的 admin 查询 |
 
-**Global admin：** `admin_city_scopes.city_code = '__global__'`，访问任意城市但仍须**显式**指定 `city_code` 过滤。
+**Global admin：** `admin_city_scopes.city_code = '__global__'`（**仅**存在于 scope 表，**不在** `cities` 表），访问任意城市但仍须**显式**指定业务 `city_code` 过滤。
+
+**Reserved：** `__global__` 不得作为业务 `cityCode`（validator 拒绝）。
 
 ## 禁止默认全国
 
