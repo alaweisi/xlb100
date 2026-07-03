@@ -4,6 +4,7 @@ import { cityCodeSchema } from "./cityCodeSchema.js";
 export const dispatchTaskStatusSchema = z.enum([
   "pending",
   "queued",
+  "accepted",
   "failed",
   "cancelled",
 ]);

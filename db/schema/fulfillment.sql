@@ -1,0 +1,2 @@
+-- Phase 7A fulfillment skeleton schema reference
+-- See migration 010_worker_accept_fulfillment_skeleton_foundation.sql

@@ -11,7 +11,7 @@ import {
 import { taskPoolService } from "./taskPoolService.js";
 import { assertCityScopedContext } from "../dal/scopedExecutor.js";
 
-export async function registerWorkerModule(app: FastifyInstance): Promise<void> {
+export async function registerTaskPoolRoutes(app: FastifyInstance): Promise<void> {
   app.get(
     "/api/worker/task-pool",
     { preHandler: createRequestContextMiddleware({ requireCityCode: true }) },
@@ -54,4 +54,4 @@ export async function registerWorkerModule(app: FastifyInstance): Promise<void> 
   );
 }
 
-export const workerModule = registerWorkerModule;
+export const taskPoolModule = registerTaskPoolRoutes;

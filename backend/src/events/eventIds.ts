@@ -23,3 +23,11 @@ export function generateCertificationId(): string {
 export function generateQualificationRuleId(): string {
   return `rule_${Date.now().toString(36)}_${randomBytes(4).toString("hex")}`;
 }
+
+export function generateAcceptanceId(): string {
+  return `acc_${Date.now().toString(36)}_${randomBytes(4).toString("hex")}`;
+}
+
+export function generateFulfillmentId(): string {
+  return `ful_${Date.now().toString(36)}_${randomBytes(4).toString("hex")}`;
+}

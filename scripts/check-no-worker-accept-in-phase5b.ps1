@@ -1,9 +1,10 @@
-# Phase 5B gate: no worker accept or assignment
+# Phase 5B historical gate: task pool read-only only (Phase 7A+ accept lives in separate files)
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 
-$paths = @(
-  (Join-Path $Root "backend\src\worker"),
+$files = @(
+  (Join-Path $Root "backend\src\worker\taskPoolRoutes.ts"),
+  (Join-Path $Root "backend\src\worker\taskPoolService.ts"),
   (Join-Path $Root "db\migrations\008_worker_pool_taskpool_readiness_foundation.sql")
 )
 
@@ -16,19 +17,11 @@ $forbidden = @(
 )
 
 $hits = @()
-foreach ($dir in $paths) {
-  if (-not (Test-Path $dir)) { continue }
-  if (Test-Path $dir -PathType Leaf) {
-    $files = @(Get-Item $dir)
-  } else {
-    $files = Get-ChildItem -Path $dir -Filter "*.ts" -Recurse -ErrorAction SilentlyContinue
-    $files += Get-ChildItem -Path $dir -Filter "*.sql" -ErrorAction SilentlyContinue
-  }
-  foreach ($file in $files) {
-    foreach ($pattern in $forbidden) {
-      $found = Select-String -Path $file.FullName -Pattern $pattern -SimpleMatch -ErrorAction SilentlyContinue
-      if ($found) { $hits += $found }
-    }
+foreach ($file in $files) {
+  if (-not (Test-Path $file)) { continue }
+  foreach ($pattern in $forbidden) {
+    $found = Select-String -Path $file -Pattern $pattern -SimpleMatch -ErrorAction SilentlyContinue
+    if ($found) { $hits += $found }
   }
 }
 

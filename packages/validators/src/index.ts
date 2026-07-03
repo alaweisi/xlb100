@@ -90,6 +90,22 @@ export {
   type WorkerEligibilityResponseInput,
 } from "./eligibilitySchema.js";
 export {
+  workerTaskAcceptanceSchema,
+  workerTaskAcceptanceStatusSchema,
+  workerAcceptBodySchema,
+  workerAcceptResponseSchema,
+  fulfillmentSkeletonSchema,
+  type WorkerTaskAcceptanceInput,
+  type WorkerAcceptBodyInput,
+} from "./workerAcceptSchema.js";
+export {
+  fulfillmentSchema,
+  fulfillmentStatusSchema,
+  fulfillmentListResponseSchema,
+  fulfillmentDetailResponseSchema,
+  type FulfillmentInput,
+} from "./fulfillmentSchema.js";
+export {
   appTypeSchema,
   roleSchema,
   requestContextSchema,

@@ -1,10 +1,9 @@
-# Phase 6 gate: no accept or worker assignment in compliance/worker modules
+# Phase 6 historical gate: certification module only (Phase 7A accept in workerAccept*)
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 
 $paths = @(
   (Join-Path $Root "backend\src\compliance"),
-  (Join-Path $Root "backend\src\worker"),
   (Join-Path $Root "db\migrations\009_certification_worker_eligibility_foundation.sql")
 )
 

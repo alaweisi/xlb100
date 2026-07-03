@@ -53,5 +53,15 @@ export type {
   ServiceQualificationRule,
 } from "./qualification.js";
 export type { WorkerDispatchEligibility } from "./eligibility.js";
+export type {
+  WorkerTaskAcceptance,
+  WorkerTaskAcceptanceStatus,
+  DispatchAcceptedEventPayload,
+} from "./workerAccept.js";
+export type {
+  Fulfillment,
+  FulfillmentStatus,
+  FulfillmentCreatedEventPayload,
+} from "./fulfillment.js";
 export type { RefundPlaceholder } from "./refund.js";
 export type { ModulePlaceholder } from "./module.js";

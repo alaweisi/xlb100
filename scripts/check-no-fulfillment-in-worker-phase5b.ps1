@@ -1,34 +1,25 @@
-# Phase 5B gate: no fulfillment in worker module
+# Phase 5B historical gate: task pool files only (Phase 7A+ fulfillment lives in backend/src/fulfillment)
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 
-$workerDir = Join-Path $Root "backend\src\worker"
-$migration = Join-Path $Root "db\migrations\008_worker_pool_taskpool_readiness_foundation.sql"
+$files = @(
+  (Join-Path $Root "backend\src\worker\taskPoolRoutes.ts"),
+  (Join-Path $Root "backend\src\worker\taskPoolService.ts"),
+  (Join-Path $Root "db\migrations\008_worker_pool_taskpool_readiness_foundation.sql")
+)
 
 $forbidden = @(
   "fulfillment",
-  "from '../fulfillment",
-  "from `"../fulfillment",
+  'from "../fulfillment',
   "backend/src/fulfillment"
 )
 
 $hits = @()
-if (Test-Path $workerDir) {
+foreach ($file in $files) {
+  if (-not (Test-Path $file)) { continue }
   foreach ($pattern in $forbidden) {
-    $found = Select-String -Path (Join-Path $workerDir "*.ts") -Pattern $pattern -SimpleMatch -ErrorAction SilentlyContinue
-    if ($found) {
-      foreach ($f in $found) {
-        if ($f.Path -notmatch "README") { $hits += $f }
-      }
-    }
-  }
-}
-
-if (Test-Path $migration) {
-  $sql = Get-Content $migration -Raw
-  if ($sql -match "CREATE TABLE.*fulfillment") {
-    Write-Host "check-no-fulfillment-in-worker-phase5b FAILED: fulfillment table in migration"
-    exit 1
+    $found = Select-String -Path $file -Pattern $pattern -SimpleMatch -ErrorAction SilentlyContinue
+    if ($found) { $hits += $found }
   }
 }
 
