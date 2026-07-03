@@ -123,24 +123,41 @@
 
 ## 8. Docker Compose Local 结果
 
+### 8.1 首次封版（2026-07-03）
+
+**结果：** **未验证通过**
+
+**原因：** Docker Desktop 未运行。
+
+### 8.2 补验（2026-07-03 — Docker Desktop 已启动）
+
 **命令：**
 
 ```bash
 docker compose -f deploy/compose/docker-compose.local.yml up -d
 docker compose -f deploy/compose/docker-compose.local.yml ps
+docker ps
 ```
 
-**结果：** **未验证通过**
+**执行结果：** **通过**
 
-**原因：** Docker Desktop 未运行。Docker CLI 报错：
+| 容器 | 镜像 | 服务 | 端口 | 运行状态 | Health |
+|------|------|------|------|----------|--------|
+| `xlb-mysql-local` | mysql:8 | mysql | 3306 | **running** | **healthy** |
+| `xlb-redis-local` | redis:7 | redis | 6379 | **running** | **healthy** |
 
-```
-failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine
-```
+**MySQL 连接信息（compose 配置）：**
 
-**配置状态：** `deploy/compose/docker-compose.local.yml` 已定义 MySQL 8 + Redis 7（库名 `xlb_local`，用户 `xlb`，端口 3306/6379）。配置本身未发现问题。
+- 库名：`xlb_local`
+- 用户：`xlb`
+- 密码：`xlb_local_password`
+- Host：`localhost:3306`
 
-**后续操作：** 启动 Docker Desktop 后重新执行 compose 命令，确认 `xlb-mysql-local` 与 `xlb-redis-local` 为 healthy。
+**Redis：** `localhost:6379`
+
+**compose 配置是否修改：** **否** — `deploy/compose/docker-compose.local.yml` 无需改动，首次 `up -d` 即成功。
+
+**结论：** Docker Compose local 补验 **通过**，MySQL 与 Redis 均为 **healthy / running**。
 
 ---
 
@@ -169,10 +186,10 @@ failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine
 
 | 风险 | 级别 | 说明 |
 |------|------|------|
-| Docker 未验证 | 中 | 本地 MySQL/Redis 容器未启动，Phase 1 migration 前需补验 |
 | pnpm 未全局安装 | 低 | 需使用 `npx pnpm` 或安装 pnpm 到 PATH |
 | Backend 未接 DB | 预期 | Phase 0 设计范围，Phase 1 再连接 |
 | Security tests 为 todo | 低 | 占位通过，Phase 1 实装守门逻辑 |
+| 本机其他 Docker 容器 | 低 | 同机存在旧 sdj99 等容器，与 XLB compose 无冲突；XLB 使用独立 volume |
 
 ---
 
@@ -186,9 +203,9 @@ failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine
 | 品牌统一，无 `@sdj99` 业务残留 | 已满足 |
 | Phase 0 报告已归档 | 已满足 |
 | git commit + tag `xlb-phase0-foundation` | 已满足 |
-| Docker Compose local healthy | **待补验**（Docker Desktop 未运行） |
+| Docker Compose local healthy | **已满足**（2026-07-03 补验通过） |
 
-**建议：** Phase 1 开工前先在本地完成 Docker compose 补验。
+**结论：** Phase 1 开工条件 **已全部满足**（Docker 补验完成）。
 
 ---
 
