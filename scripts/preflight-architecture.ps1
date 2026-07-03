@@ -77,6 +77,20 @@ $requiredFiles = @(
   "tests/unit/orderStateMachine.test.ts",
   "tests/integration/orderCreate.test.ts",
   "tests/security/paymentNoDispatch.test.ts",
+  "backend/src/dispatch/dispatchService.ts",
+  "backend/src/dispatch/dispatchRepository.ts",
+  "backend/src/streams/cityStreamNames.ts",
+  "backend/src/streams/dispatchStreamPublisher.ts",
+  "db/migrations/007_dispatch_outbox_city_stream_foundation.sql",
+  "docs/contracts/CONTRACT_DISPATCH_STREAM.md",
+  "docs/architecture/07_XLB_DISPATCH_OUTBOX_CITY_STREAM_FOUNDATION.md",
+  "scripts/check-no-national-dispatch-stream.ps1",
+  "scripts/check-dispatch-consumes-outbox-only.ps1",
+  "scripts/check-no-payment-to-dispatch-import.ps1",
+  "scripts/check-dispatch-no-worker-assignment-yet.ps1",
+  "tests/unit/cityStreamNames.test.ts",
+  "tests/integration/dispatchRunOnce.test.ts",
+  "tests/security/noNationalDispatchStream.test.ts",
   "tests/unit/cityResolver.test.ts",
   "tests/unit/scopedExecutor.test.ts",
   "tests/unit/adminQueryGuard.test.ts",
@@ -160,3 +174,4 @@ Write-Host "XLB Phase 3 cityconfig-catalog-pricing preflight passed."
 Write-Host "XLB Phase 3A official catalog import protocol preflight passed."
 Write-Host "XLB Phase 3A-1 official service catalog seed import preflight passed."
 Write-Host "XLB Phase 4 order payment outbox foundation preflight passed."
+Write-Host "XLB Phase 5A dispatch outbox city stream foundation preflight passed."

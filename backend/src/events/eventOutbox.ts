@@ -124,6 +124,58 @@ export class EventOutboxRepository extends RepositoryBase {
 
     return rows.map(mapOutboxRow);
   }
+
+  async findPendingEventsByType(
+    context: RequestContext,
+    cityCode: CityCode,
+    eventType: OutboxEventType,
+    limit = 100,
+  ): Promise<EventOutbox[]> {
+    this.requireContext(context);
+    assertCityScopedContext(context);
+    if (context.cityCode !== cityCode) {
+      throw new Error("city_code mismatch in outbox query");
+    }
+
+    const where = buildCityScopedWhere(cityCode);
+    const [rows] = await this.pool.query<OutboxRow[]>(
+      `SELECT event_id, event_type, aggregate_type, aggregate_id, city_code,
+              payload_json, status, created_at, published_at
+       FROM event_outbox
+       WHERE ${where.clause} AND status = 'pending' AND event_type = ?
+       ORDER BY created_at ASC
+       LIMIT ?`,
+      [...where.params, eventType, limit],
+    );
+
+    return rows.map(mapOutboxRow);
+  }
+
+  async markEventPublished(
+    connection: PoolConnection,
+    eventId: string,
+    cityCode: CityCode,
+  ): Promise<void> {
+    await connection.query(
+      `UPDATE event_outbox
+       SET status = 'published', published_at = CURRENT_TIMESTAMP
+       WHERE event_id = ? AND city_code = ? AND status = 'pending'`,
+      [eventId, cityCode],
+    );
+  }
+
+  async markEventFailed(
+    connection: PoolConnection,
+    eventId: string,
+    cityCode: CityCode,
+  ): Promise<void> {
+    await connection.query(
+      `UPDATE event_outbox
+       SET status = 'failed'
+       WHERE event_id = ? AND city_code = ?`,
+      [eventId, cityCode],
+    );
+  }
 }
 
 export const eventOutboxRepository = new EventOutboxRepository();

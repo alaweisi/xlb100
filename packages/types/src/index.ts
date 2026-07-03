@@ -32,7 +32,11 @@ export type {
   OrderCreatedEventPayload,
 } from "./eventOutbox.js";
 export type { LedgerPlaceholder } from "./ledger.js";
-export type { DispatchPlaceholder } from "./dispatch.js";
+export type {
+  DispatchTask,
+  DispatchTaskStatus,
+  DispatchStreamMessage,
+} from "./dispatch.js";
 export type { CertificationPlaceholder } from "./certification.js";
 export type { RefundPlaceholder } from "./refund.js";
 export type { ModulePlaceholder } from "./module.js";

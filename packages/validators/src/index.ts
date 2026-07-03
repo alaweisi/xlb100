@@ -45,6 +45,13 @@ export {
   type OrderPaidEventPayloadInput,
 } from "./eventOutboxSchema.js";
 export {
+  dispatchTaskSchema,
+  dispatchTaskStatusSchema,
+  dispatchStreamMessageSchema,
+  type DispatchTaskInput,
+  type DispatchStreamMessageInput,
+} from "./dispatchSchema.js";
+export {
   appTypeSchema,
   roleSchema,
   requestContextSchema,
