@@ -9,7 +9,8 @@ $files = Get-ChildItem -Path $seedDir -Filter "*.sql" | Sort-Object Name
 
 foreach ($file in $files) {
   Write-Host "SEED $($file.Name)"
-  cmd /c type "$($file.FullName)" | docker exec -i xlb-mysql-local mysql -uxlb -pxlb_local_password xlb_local
+  $sql = Get-Content -Path $file.FullName -Raw -Encoding UTF8
+  $sql | docker exec -i xlb-mysql-local mysql -uxlb -pxlb_local_password xlb_local
   if ($LASTEXITCODE -ne 0) { exit 1 }
 }
 
