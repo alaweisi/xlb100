@@ -134,6 +134,19 @@ $requiredFiles = @(
   "scripts/check-no-fulfillment-complete-in-phase7a.ps1",
   "tests/integration/workerAcceptApi.test.ts",
   "tests/security/acceptRequiresEligibility.test.ts",
+  "backend/src/fulfillment/fulfillmentService.ts",
+  "backend/src/fulfillment/fulfillmentRoutes.ts",
+  "db/migrations/011_fulfillment_start_complete_foundation.sql",
+  "docs/contracts/CONTRACT_FULFILLMENT_LIFECYCLE.md",
+  "docs/architecture/11_XLB_FULFILLMENT_START_COMPLETE_FOUNDATION.md",
+  "scripts/check-fulfillment-complete-no-ledger.ps1",
+  "scripts/check-fulfillment-city-worker-scoped.ps1",
+  "scripts/check-no-settlement-in-phase7b.ps1",
+  "scripts/check-no-refund-aftersale-in-phase7b.ps1",
+  "scripts/check-order-payment-not-mutated-by-fulfillment.ps1",
+  "tests/integration/fulfillmentStartApi.test.ts",
+  "tests/integration/fulfillmentCompleteApi.test.ts",
+  "tests/contract/fulfillmentLifecycle.contract.test.ts",
   "tests/unit/cityResolver.test.ts",
   "tests/unit/scopedExecutor.test.ts",
   "tests/unit/adminQueryGuard.test.ts",
@@ -221,3 +234,4 @@ Write-Host "XLB Phase 5A dispatch outbox city stream foundation preflight passed
 Write-Host "XLB Phase 5B worker pool taskpool readiness foundation preflight passed."
 Write-Host "XLB Phase 6 certification worker eligibility foundation preflight passed."
 Write-Host "XLB Phase 7A worker accept fulfillment skeleton foundation preflight passed."
+Write-Host "XLB Phase 7B fulfillment start complete foundation preflight passed."

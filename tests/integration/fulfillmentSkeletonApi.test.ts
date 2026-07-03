@@ -44,14 +44,6 @@ describe.skipIf(!runDb)("fulfillmentSkeletonApi integration", { timeout: 30000 }
     expect(detail.json().fulfillment.startedAt).toBeNull();
     expect(detail.json().fulfillment.completedAt).toBeNull();
 
-    const complete = await app.inject({
-      method: "POST",
-      url: `/api/worker/fulfillments/${fulfillmentId}/complete`,
-      headers: workerHangzhouHeaders,
-      payload: {},
-    });
-    expect([404, 405]).toContain(complete.statusCode);
-
     await app.close();
   });
 });

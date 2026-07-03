@@ -19,8 +19,23 @@ export const fulfillmentSchema = z.object({
   status: fulfillmentStatusSchema,
   startedAt: z.string().nullable().optional(),
   completedAt: z.string().nullable().optional(),
+  completionNote: z.string().max(255).nullable().optional(),
   createdAt: z.string().min(1),
   updatedAt: z.string().min(1),
+});
+
+export const startFulfillmentSchema = z.object({}).strict();
+
+export const completeFulfillmentSchema = z
+  .object({
+    completionNote: z.string().max(255).optional(),
+  })
+  .strict();
+
+export const fulfillmentLifecycleResponseSchema = z.object({
+  ok: z.literal(true),
+  fulfillment: fulfillmentSchema,
+  idempotent: z.boolean(),
 });
 
 export const fulfillmentListResponseSchema = z.object({
@@ -35,3 +50,5 @@ export const fulfillmentDetailResponseSchema = z.object({
 });
 
 export type FulfillmentInput = z.infer<typeof fulfillmentSchema>;
+export type StartFulfillmentInput = z.infer<typeof startFulfillmentSchema>;
+export type CompleteFulfillmentInput = z.infer<typeof completeFulfillmentSchema>;

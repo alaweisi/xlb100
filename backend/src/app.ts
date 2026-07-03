@@ -23,14 +23,14 @@ export async function buildApp(): Promise<FastifyInstance> {
   app.get("/health", async () => ({
     status: "ok",
     service: "xlb-backend",
-    phase: "7A",
+    phase: "7B",
     brand: "喜乐帮 / XLB",
   }));
 
   app.get("/api/system/status", async () => ({
     ok: true,
     project: "XLB",
-    phase: "7A",
+    phase: "7B",
     apps: ["customer", "worker", "admin"],
     backend: "ready",
     foundation: "worker-accept-fulfillment-skeleton",
@@ -41,7 +41,7 @@ export async function buildApp(): Promise<FastifyInstance> {
     if (!health.ok) {
       return reply.status(503).send(health);
     }
-    return { ...health, phase: "7A" };
+    return { ...health, phase: "7B" };
   });
 
   app.get(

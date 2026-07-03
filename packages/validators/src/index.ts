@@ -103,7 +103,12 @@ export {
   fulfillmentStatusSchema,
   fulfillmentListResponseSchema,
   fulfillmentDetailResponseSchema,
+  startFulfillmentSchema,
+  completeFulfillmentSchema,
+  fulfillmentLifecycleResponseSchema,
   type FulfillmentInput,
+  type StartFulfillmentInput,
+  type CompleteFulfillmentInput,
 } from "./fulfillmentSchema.js";
 export {
   appTypeSchema,

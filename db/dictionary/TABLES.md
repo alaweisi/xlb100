@@ -68,3 +68,10 @@
 | `fulfillments` | Fulfillment skeleton (status=accepted in 7A) | required |
 
 **Rules:** Accept requires eligibility. One acceptance per dispatch_task. dispatch_tasks.status updated to accepted only (no worker_id column). No start/complete in Phase 7A.
+
+## Phase 7B fulfillment lifecycle
+
+`fulfillments` advances only through `accepted → in_progress → completed` for the
+owning worker and city. `completion_note` is optional text only. Completion does
+not mutate orders or payment orders and does not create ledger, settlement,
+payout, refund, or aftersale records.

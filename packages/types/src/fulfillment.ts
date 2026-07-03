@@ -17,6 +17,7 @@ export interface Fulfillment {
   status: FulfillmentStatus;
   startedAt?: string | null;
   completedAt?: string | null;
+  completionNote?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -30,4 +31,27 @@ export interface FulfillmentCreatedEventPayload {
   workerId: string;
   skuId: string;
   status: FulfillmentStatus;
+}
+
+export interface FulfillmentStartedEventPayload {
+  fulfillmentId: string;
+  acceptanceId: string;
+  dispatchTaskId: string;
+  orderId: string;
+  cityCode: CityCode;
+  workerId: string;
+  skuId: string;
+  startedAt: string;
+}
+
+export interface FulfillmentCompletedEventPayload {
+  fulfillmentId: string;
+  acceptanceId: string;
+  dispatchTaskId: string;
+  orderId: string;
+  cityCode: CityCode;
+  workerId: string;
+  skuId: string;
+  completedAt: string;
+  completionNote: string | null;
 }
