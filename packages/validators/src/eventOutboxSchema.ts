@@ -7,6 +7,8 @@ export const outboxEventTypeSchema = z.enum([
   "order.created",
   "order.paid",
   "payment.paid",
+  "dispatch.accepted",
+  "fulfillment.created",
 ]);
 
 export const eventOutboxSchema = z.object({

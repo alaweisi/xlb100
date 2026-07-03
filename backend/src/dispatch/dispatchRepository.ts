@@ -193,6 +193,41 @@ export class DispatchRepository extends RepositoryBase {
 
     return rows.map(mapDispatchTaskRow);
   }
+
+  async findByDispatchTaskId(
+    context: RequestContext,
+    cityCode: CityCode,
+    dispatchTaskId: string,
+  ): Promise<DispatchTask | null> {
+    this.requireContext(context);
+    assertCityScopedContext(context);
+
+    const where = buildCityScopedWhere(cityCode);
+    const [rows] = await this.pool.query<DispatchTaskRow[]>(
+      `SELECT dispatch_task_id, city_code, order_id, customer_id, sku_id, amount,
+              source_event_id, stream_name, stream_entry_id, status, created_at, updated_at
+       FROM dispatch_tasks
+       WHERE ${where.clause} AND dispatch_task_id = ?
+       LIMIT 1`,
+      [...where.params, dispatchTaskId],
+    );
+
+    return rows[0] ? mapDispatchTaskRow(rows[0]) : null;
+  }
+
+  async markAccepted(
+    connection: PoolConnection,
+    dispatchTaskId: string,
+    cityCode: CityCode,
+  ): Promise<boolean> {
+    const [result] = await connection.query(
+      `UPDATE dispatch_tasks
+       SET status = 'accepted'
+       WHERE dispatch_task_id = ? AND city_code = ? AND status = 'queued'`,
+      [dispatchTaskId, cityCode],
+    );
+    return (result as { affectedRows: number }).affectedRows === 1;
+  }
 }
 
 export const dispatchRepository = new DispatchRepository();

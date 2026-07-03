@@ -59,3 +59,12 @@
 | `worker_qualifications` | Worker eligibility snapshot per sku | required PK part |
 
 **Rules:** Phase 6 computes eligibility only. No accept, no dispatch_tasks mutation, no fulfillment.
+
+## Phase 7A tables (accept / fulfillment skeleton)
+
+| Table | Purpose | city_code |
+|-------|---------|-----------|
+| `worker_task_acceptances` | Worker accept record per dispatch_task | required |
+| `fulfillments` | Fulfillment skeleton (status=accepted in 7A) | required |
+
+**Rules:** Accept requires eligibility. One acceptance per dispatch_task. dispatch_tasks.status updated to accepted only (no worker_id column). No start/complete in Phase 7A.

@@ -19,6 +19,13 @@ Phase 1 city foundation. All city-scoped business tables (Phase 2+) **must** inc
 |-------|------------------|-------|
 | `dispatch_tasks` | required FK | One task per order; city-scoped Redis stream |
 
+## Phase 7A tables with city_code
+
+| Table | city_code column | Notes |
+|-------|------------------|-------|
+| `worker_task_acceptances` | required FK | One acceptance per dispatch_task; worker accept record |
+| `fulfillments` | required FK | Fulfillment skeleton; one per acceptance / dispatch_task |
+
 ## Rules
 
 1. No default nationwide `city_code`

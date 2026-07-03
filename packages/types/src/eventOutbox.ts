@@ -2,7 +2,12 @@ import type { CityCode } from "./city.js";
 
 export type OutboxEventStatus = "pending" | "published" | "failed";
 
-export type OutboxEventType = "order.created" | "order.paid" | "payment.paid";
+export type OutboxEventType =
+  | "order.created"
+  | "order.paid"
+  | "payment.paid"
+  | "dispatch.accepted"
+  | "fulfillment.created";
 
 export interface EventOutbox {
   eventId: string;

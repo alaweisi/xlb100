@@ -1,6 +1,11 @@
 import type { CityCode } from "./city.js";
 
-export type DispatchTaskStatus = "pending" | "queued" | "failed" | "cancelled";
+export type DispatchTaskStatus =
+  | "pending"
+  | "queued"
+  | "accepted"
+  | "failed"
+  | "cancelled";
 
 export interface DispatchTask {
   dispatchTaskId: string;

@@ -1,2 +1,71 @@
-/** Phase 1+ worker API */
-export const workerApi = {};
+/** Phase 7A worker accept + fulfillment skeleton API */
+import type { ApiClient } from "./createApiClient.js";
+
+export interface WorkerTaskAcceptanceResponse {
+  acceptanceId: string;
+  dispatchTaskId: string;
+  cityCode: string;
+  orderId: string;
+  workerId: string;
+  skuId: string;
+  status: "accepted" | "cancelled";
+  acceptedAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FulfillmentResponse {
+  fulfillmentId: string;
+  acceptanceId: string;
+  dispatchTaskId: string;
+  orderId: string;
+  cityCode: string;
+  workerId: string;
+  skuId: string;
+  status: "accepted" | "in_progress" | "completed" | "cancelled";
+  startedAt?: string | null;
+  completedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type AcceptTaskResponse = {
+  ok: true;
+  acceptance: WorkerTaskAcceptanceResponse;
+  fulfillment: FulfillmentResponse;
+  idempotent: boolean;
+};
+
+export type FulfillmentListResponse = {
+  ok: true;
+  cityCode: string;
+  fulfillments: FulfillmentResponse[];
+};
+
+export type FulfillmentDetailResponse = {
+  ok: true;
+  fulfillment: FulfillmentResponse;
+};
+
+export function createWorkerApi(client: ApiClient) {
+  return {
+    acceptTask(dispatchTaskId: string): Promise<AcceptTaskResponse> {
+      return client.post<AcceptTaskResponse>(
+        `/api/worker/tasks/${encodeURIComponent(dispatchTaskId)}/accept`,
+        {},
+      );
+    },
+    getMyFulfillments(): Promise<FulfillmentListResponse> {
+      return client.get<FulfillmentListResponse>("/api/worker/fulfillments");
+    },
+    getFulfillment(fulfillmentId: string): Promise<FulfillmentDetailResponse> {
+      return client.get<FulfillmentDetailResponse>(
+        `/api/worker/fulfillments/${encodeURIComponent(fulfillmentId)}`,
+      );
+    },
+  };
+}
+
+export const workerApi = {
+  create: createWorkerApi,
+};
