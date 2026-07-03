@@ -1,15 +1,45 @@
 import { describe, it, expect } from "vitest";
 import { requestContextSchema } from "@xlb/validators";
+import { buildRequestContext } from "../../backend/src/context/requestContext.js";
+import { XLB_HEADERS } from "@xlb/types";
 
 describe("requestContext", () => {
-  it("validates minimal request context", () => {
+  it("validates full request context", () => {
     const result = requestContextSchema.safeParse({
       traceId: "trace-1",
       appType: "customer",
       role: "customer",
+      cityCode: "hangzhou",
+      requestStartedAt: new Date().toISOString(),
     });
     expect(result.success).toBe(true);
   });
 
-  it.todo("Phase 1: enforce city_code rules");
+  it("builds context with auto traceId when missing", () => {
+    const result = buildRequestContext({
+      headers: {
+        [XLB_HEADERS.appType]: "customer",
+        [XLB_HEADERS.role]: "customer",
+        [XLB_HEADERS.cityCode]: "hangzhou",
+      },
+      requireCityCode: true,
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.context.traceId).toBeTruthy();
+      expect(result.context.cityCode).toBe("hangzhou");
+      expect(result.context.requestStartedAt).toBeTruthy();
+    }
+  });
+
+  it("rejects missing required headers", () => {
+    const result = buildRequestContext({
+      headers: {},
+      requireCityCode: true,
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.statusCode).toBe(400);
+    }
+  });
 });

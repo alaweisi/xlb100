@@ -114,6 +114,9 @@ importers:
       '@xlb/types':
         specifier: workspace:*
         version: link:../packages/types
+      '@xlb/validators':
+        specifier: workspace:*
+        version: link:../packages/validators
       fastify:
         specifier: ^5.2.0
         version: 5.9.0

@@ -13,6 +13,7 @@
   "dependencies": {
     "@xlb/config": "workspace:*",
     "@xlb/types": "workspace:*",
+    "@xlb/validators": "workspace:*",
     "fastify": "^5.2.0"
   },
   "devDependencies": {

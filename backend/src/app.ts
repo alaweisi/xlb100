@@ -1,5 +1,12 @@
 import Fastify from "fastify";
 import type { FastifyInstance } from "fastify";
+import { XLB_HEADERS } from "@xlb/types";
+import {
+  createRequestContextMiddleware,
+  getRequestContext,
+} from "./context/requestContextMiddleware.js";
+import { authorizeRequest } from "./gateway/authz.js";
+import { cityRouter } from "./city/cityRouter.js";
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({ logger: true });
@@ -7,17 +14,56 @@ export async function buildApp(): Promise<FastifyInstance> {
   app.get("/health", async () => ({
     status: "ok",
     service: "xlb-backend",
-    phase: "0",
+    phase: "1",
     brand: "喜乐帮 / XLB",
   }));
 
   app.get("/api/system/status", async () => ({
     ok: true,
     project: "XLB",
-    phase: "0",
+    phase: "1",
     apps: ["customer", "worker", "admin"],
     backend: "ready",
+    foundation: "request-context-city",
   }));
+
+  app.get(
+    "/api/debug/context",
+    { preHandler: createRequestContextMiddleware({ requireCityCode: true }) },
+    async (request, reply) => {
+      const context = getRequestContext(request);
+
+      const authz = authorizeRequest(context);
+      if (!authz.ok) {
+        return reply.status(authz.statusCode).send({
+          ok: false,
+          error: authz.message,
+        });
+      }
+
+      const routeDecision = cityRouter(context);
+      if (!routeDecision.allowed) {
+        return reply.status(routeDecision.statusCode).send({
+          ok: false,
+          error: routeDecision.message,
+        });
+      }
+
+      reply.header(XLB_HEADERS.traceId, context.traceId);
+
+      return {
+        ok: true,
+        traceId: context.traceId,
+        appType: context.appType,
+        role: context.role,
+        cityCode: context.cityCode,
+        userId: context.userId,
+        requestStartedAt: context.requestStartedAt,
+        requestId: context.requestId,
+        correlationId: context.correlationId,
+      };
+    },
+  );
 
   return app;
 }

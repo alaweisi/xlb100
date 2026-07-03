@@ -8,4 +8,7 @@ export interface RequestContext {
   role: Role;
   cityCode?: CityCode;
   userId?: string;
+  requestStartedAt: string;
+  requestId?: string;
+  correlationId?: string;
 }

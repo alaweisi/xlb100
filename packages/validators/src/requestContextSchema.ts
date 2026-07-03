@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { cityCodeSchema } from "./cityCodeSchema.js";
 
 export const appTypeSchema = z.enum([
   "customer",
@@ -16,14 +17,28 @@ export const roleSchema = z.enum([
   "auditor",
 ]);
 
-export const cityCodeSchema = z.string().min(1);
-
 export const requestContextSchema = z.object({
   traceId: z.string().min(1),
   appType: appTypeSchema,
   role: roleSchema,
   cityCode: cityCodeSchema.optional(),
   userId: z.string().optional(),
+  requestStartedAt: z.string().datetime(),
+  requestId: z.string().optional(),
+  correlationId: z.string().optional(),
 });
 
 export type RequestContextInput = z.infer<typeof requestContextSchema>;
+
+/** Headers required for context-aware API routes */
+export const requestContextHeadersSchema = z.object({
+  "x-xlb-trace-id": z.string().min(1).optional(),
+  "x-xlb-app-type": appTypeSchema,
+  "x-xlb-role": roleSchema,
+  "x-xlb-city-code": cityCodeSchema.optional(),
+  "x-xlb-user-id": z.string().optional(),
+});
+
+export type RequestContextHeadersInput = z.infer<
+  typeof requestContextHeadersSchema
+>;
