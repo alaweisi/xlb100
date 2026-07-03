@@ -103,6 +103,22 @@ $requiredFiles = @(
   "scripts/check-worker-taskpool-city-scoped.ps1",
   "tests/integration/workerTaskPoolApi.test.ts",
   "tests/security/noWorkerAcceptInPhase5B.test.ts",
+  "backend/src/compliance/workerCertification/workerCertificationService.ts",
+  "backend/src/compliance/certMatcher/workerDispatchEligibility.ts",
+  "backend/src/compliance/qualification/qualificationService.ts",
+  "db/migrations/009_certification_worker_eligibility_foundation.sql",
+  "db/seed/010_certification_demo.seed.sql",
+  "docs/contracts/CONTRACT_WORKER_CERTIFICATION.md",
+  "docs/contracts/CONTRACT_WORKER_QUALIFICATION.md",
+  "docs/contracts/CONTRACT_WORKER_ELIGIBILITY.md",
+  "docs/architecture/09_XLB_CERTIFICATION_WORKER_ELIGIBILITY_FOUNDATION.md",
+  "scripts/check-certification-no-accept.ps1",
+  "scripts/check-certification-city-scoped.ps1",
+  "scripts/check-eligibility-no-dispatch-mutation.ps1",
+  "scripts/check-worker-eligibility-required-before-accept.ps1",
+  "tests/integration/workerCertificationApi.test.ts",
+  "tests/integration/workerEligibilityApi.test.ts",
+  "tests/security/noAcceptInPhase6.test.ts",
   "tests/unit/cityResolver.test.ts",
   "tests/unit/scopedExecutor.test.ts",
   "tests/unit/adminQueryGuard.test.ts",
@@ -188,3 +204,4 @@ Write-Host "XLB Phase 3A-1 official service catalog seed import preflight passed
 Write-Host "XLB Phase 4 order payment outbox foundation preflight passed."
 Write-Host "XLB Phase 5A dispatch outbox city stream foundation preflight passed."
 Write-Host "XLB Phase 5B worker pool taskpool readiness foundation preflight passed."
+Write-Host "XLB Phase 6 certification worker eligibility foundation preflight passed."
