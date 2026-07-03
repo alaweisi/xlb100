@@ -1,3 +1,13 @@
-# TABLES.md
+# TABLES.md — 喜乐帮 / XLB
 
-Phase 1+ 表字典占位。完整表清单将在 Phase 1 migration 后补充。
+## Phase 1 tables
+
+| Table | Purpose |
+|-------|---------|
+| `schema_migrations` | Migration tracking (000_init) |
+| `cities` | City registry — SSOT for city_code |
+| `admin_city_scopes` | Admin city scope (RLS foundation) |
+
+## Phase 2+ (placeholder)
+
+Business tables (orders, payments, ledger, etc.) will be added in later phases.
