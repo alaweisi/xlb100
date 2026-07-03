@@ -32,6 +32,6 @@ export async function checkDbHealth(): Promise<DbHealthStatus> {
     mysql: mysqlOk ? "ok" : "error",
     redis: redisOk ? "ok" : "error",
     database: env.mysqlDatabase,
-    phase: "2",
+    phase: "3",
   };
 }

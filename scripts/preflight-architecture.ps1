@@ -40,6 +40,14 @@ $requiredFiles = @(
   "docs/contracts/CONTRACT_DB_MIGRATION.md",
   "docs/architecture/03_XLB_REQUEST_CONTEXT_CITY_FOUNDATION.md",
   "docs/architecture/04_XLB_DATABASE_SCOPE_DAL_FOUNDATION.md",
+  "backend/src/cityConfig/cityConfigService.ts",
+  "backend/src/catalog/catalogService.ts",
+  "backend/src/pricing/pricingService.ts",
+  "db/migrations/004_cityconfig_catalog_pricing_foundation.sql",
+  "docs/contracts/CONTRACT_CITY_CONFIG.md",
+  "docs/contracts/CONTRACT_CATALOG.md",
+  "docs/contracts/CONTRACT_PRICING.md",
+  "docs/architecture/05_XLB_CITYCONFIG_CATALOG_PRICING_FOUNDATION.md",
   "tests/unit/cityResolver.test.ts",
   "tests/unit/scopedExecutor.test.ts",
   "tests/unit/adminQueryGuard.test.ts",
@@ -112,3 +120,4 @@ if ($missing.Count -gt 0) {
 Write-Host "XLB Phase 0 architecture preflight passed."
 Write-Host "XLB Phase 1 request-context-city preflight passed."
 Write-Host "XLB Phase 2 database-scope-dal preflight passed."
+Write-Host "XLB Phase 3 cityconfig-catalog-pricing preflight passed."
