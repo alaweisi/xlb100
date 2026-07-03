@@ -15,6 +15,7 @@ import { registerOrderModule } from "./order/orderModule.js";
 import { registerPaymentModule } from "./payment/paymentModule.js";
 import { registerDispatchModule } from "./dispatch/dispatchModule.js";
 import { registerWorkerModule } from "./worker/workerModule.js";
+import { registerWorkerCertificationModule } from "./compliance/complianceModule.js";
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({ logger: true });
@@ -22,17 +23,17 @@ export async function buildApp(): Promise<FastifyInstance> {
   app.get("/health", async () => ({
     status: "ok",
     service: "xlb-backend",
-    phase: "5B",
+    phase: "6",
     brand: "喜乐帮 / XLB",
   }));
 
   app.get("/api/system/status", async () => ({
     ok: true,
     project: "XLB",
-    phase: "5B",
+    phase: "6",
     apps: ["customer", "worker", "admin"],
     backend: "ready",
-    foundation: "worker-pool-taskpool-readiness",
+    foundation: "certification-worker-eligibility",
   }));
 
   app.get("/api/system/db-health", async (_request, reply) => {
@@ -40,7 +41,7 @@ export async function buildApp(): Promise<FastifyInstance> {
     if (!health.ok) {
       return reply.status(503).send(health);
     }
-    return { ...health, phase: "5B" };
+    return { ...health, phase: "6" };
   });
 
   app.get(
@@ -88,6 +89,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await registerPaymentModule(app);
   await registerDispatchModule(app);
   await registerWorkerModule(app);
+  await registerWorkerCertificationModule(app);
 
   return app;
 }

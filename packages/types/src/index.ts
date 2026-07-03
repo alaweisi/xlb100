@@ -44,6 +44,14 @@ export type {
   WorkerOnlineStatus,
 } from "./worker.js";
 export type { WorkerTaskPoolItem } from "./taskPool.js";
-export type { CertificationPlaceholder } from "./certification.js";
+export type {
+  WorkerCertification,
+  WorkerCertificationStatus,
+} from "./certification.js";
+export type {
+  WorkerQualification,
+  ServiceQualificationRule,
+} from "./qualification.js";
+export type { WorkerDispatchEligibility } from "./eligibility.js";
 export type { RefundPlaceholder } from "./refund.js";
 export type { ModulePlaceholder } from "./module.js";

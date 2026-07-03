@@ -49,3 +49,13 @@
 | `worker_online_status` | Online status per city | required PK part |
 
 **Rules:** Phase 5B task pool reads `dispatch_tasks` (status=queued) read-only. No accept, no worker assignment on dispatch_tasks.
+
+## Phase 6 tables (certification / eligibility)
+
+| Table | Purpose | city_code |
+|-------|---------|-----------|
+| `worker_certifications` | Worker certification applications | required |
+| `service_qualification_rules` | SKU required cert types per city | required |
+| `worker_qualifications` | Worker eligibility snapshot per sku | required PK part |
+
+**Rules:** Phase 6 computes eligibility only. No accept, no dispatch_tasks mutation, no fulfillment.

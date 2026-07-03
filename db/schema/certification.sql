@@ -1,1 +1,2 @@
--- Phase 1+ certification tables placeholder
+-- Phase 6 certification + eligibility schema reference
+-- See migration 009_certification_worker_eligibility_foundation.sql

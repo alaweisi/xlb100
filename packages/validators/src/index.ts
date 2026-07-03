@@ -67,6 +67,29 @@ export {
   type WorkerTaskPoolResponseInput,
 } from "./taskPoolSchema.js";
 export {
+  workerCertificationSchema,
+  workerCertificationStatusSchema,
+  submitWorkerCertificationSchema,
+  rejectWorkerCertificationSchema,
+  type WorkerCertificationInput,
+  type SubmitWorkerCertificationInput,
+  type RejectWorkerCertificationInput,
+} from "./certificationSchema.js";
+export {
+  workerQualificationSchema,
+  serviceQualificationRuleSchema,
+  type WorkerQualificationInput,
+  type ServiceQualificationRuleInput,
+} from "./qualificationSchema.js";
+export {
+  workerDispatchEligibilitySchema,
+  workerEligibilityQuerySchema,
+  workerEligibilityResponseSchema,
+  type WorkerDispatchEligibilityInput,
+  type WorkerEligibilityQueryInput,
+  type WorkerEligibilityResponseInput,
+} from "./eligibilitySchema.js";
+export {
   appTypeSchema,
   roleSchema,
   requestContextSchema,
