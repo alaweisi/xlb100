@@ -137,8 +137,18 @@ Confirmed: task pool reads `dispatch_tasks` only; no status mutation; no accept 
 ### Lock fix applied during re-verification
 
 - `backend/src/worker/workerRepository.ts`: added public `constructor(pool?: Pool)` calling `super(pool)` — required for build/typecheck (protected `RepositoryBase` constructor).
+- `tests/integration/workerTaskPoolApi.test.ts`: loop dispatch run-once until target order reaches `queued` before asserting read-only behavior (stable under outbox backlog).
 
-### Merge readiness
+### Post-merge main verification
+
+| Command | Result |
+|---------|--------|
+| `npx pnpm build` | passed |
+| `npx pnpm typecheck` | passed |
+| `npx pnpm test` | **181 passed** (after test stabilization commit) |
+| `npx pnpm preflight` | passed |
+
+**Tag:** `xlb-phase5b-worker-pool-taskpool-readiness` on main merge commit chain.
 
 **Yes** — all Phase 5B-Lock checks passed. Ready to merge `main` and tag `xlb-phase5b-worker-pool-taskpool-readiness`.
 
