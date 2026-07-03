@@ -11,3 +11,7 @@ export function generatePaymentOrderId(): string {
 export function generateEventId(): string {
   return `evt_${Date.now().toString(36)}_${randomBytes(4).toString("hex")}`;
 }
+
+export function generateDispatchTaskId(): string {
+  return `dpt_${Date.now().toString(36)}_${randomBytes(4).toString("hex")}`;
+}

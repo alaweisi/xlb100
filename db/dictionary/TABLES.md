@@ -31,3 +31,11 @@
 | `event_outbox` | Transactional domain events | required |
 
 **Rules:** orders bind official SKU + price_rules snapshot. Payment success writes outbox only — no dispatch in Phase 4.
+
+## Phase 5A tables (dispatch / city stream)
+
+| Table | Purpose | city_code |
+|-------|---------|-----------|
+| `dispatch_tasks` | City-scoped dispatch task from `order.paid` outbox | required |
+
+**Rules:** dispatch_tasks created only by consuming `event_outbox.order.paid`. One task per order. Redis stream per city: `xlb:dispatch:{cityCode}:orders`. No worker assignment in Phase 5A.

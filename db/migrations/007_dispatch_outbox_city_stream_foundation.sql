@@ -1,5 +1,5 @@
--- Phase 5A: dispatch_tasks — city-scoped dispatch task from order.paid outbox events
--- Actual DDL: db/migrations/007_dispatch_outbox_city_stream_foundation.sql
+-- Phase 5A: Dispatch outbox → city Redis stream foundation
+-- Depends on: 006_order_payment_outbox_foundation.sql
 
 CREATE TABLE IF NOT EXISTS dispatch_tasks (
   dispatch_task_id VARCHAR(64) NOT NULL,
@@ -24,3 +24,6 @@ CREATE TABLE IF NOT EXISTS dispatch_tasks (
   INDEX idx_dispatch_tasks_source_event_id (source_event_id),
   INDEX idx_dispatch_tasks_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO schema_migrations (version) VALUES ('007_dispatch_outbox_city_stream_foundation')
+ON DUPLICATE KEY UPDATE version = version;

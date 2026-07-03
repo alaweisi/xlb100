@@ -13,6 +13,12 @@ Phase 1 city foundation. All city-scoped business tables (Phase 2+) **must** inc
 | `cities` | PK `city_code` | Global registry; uses `is_open` (not `status`) |
 | `admin_city_scopes` | FK `city_code` | Admin RLS scope |
 
+## Phase 5A tables with city_code
+
+| Table | city_code column | Notes |
+|-------|------------------|-------|
+| `dispatch_tasks` | required FK | One task per order; city-scoped Redis stream |
+
 ## Rules
 
 1. No default nationwide `city_code`
