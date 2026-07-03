@@ -52,6 +52,21 @@ export {
   type DispatchStreamMessageInput,
 } from "./dispatchSchema.js";
 export {
+  workerProfileSchema,
+  workerProfileStatusSchema,
+  workerCityBindingSchema,
+  workerOnlineStatusSchema,
+  type WorkerProfileInput,
+  type WorkerCityBindingInput,
+  type WorkerOnlineStatusInput,
+} from "./workerSchema.js";
+export {
+  workerTaskPoolItemSchema,
+  workerTaskPoolResponseSchema,
+  type WorkerTaskPoolItemInput,
+  type WorkerTaskPoolResponseInput,
+} from "./taskPoolSchema.js";
+export {
   appTypeSchema,
   roleSchema,
   requestContextSchema,

@@ -39,3 +39,13 @@
 | `dispatch_tasks` | City-scoped dispatch task from `order.paid` outbox | required |
 
 **Rules:** dispatch_tasks created only by consuming `event_outbox.order.paid`. One task per order. Redis stream per city: `xlb:dispatch:{cityCode}:orders`. No worker assignment in Phase 5A.
+
+## Phase 5B tables (worker pool / task pool readiness)
+
+| Table | Purpose | city_code |
+|-------|---------|-----------|
+| `worker_profiles` | Worker profile (global registry) | N/A (PK worker_id) |
+| `worker_city_bindings` | Worker ↔ city binding | required PK part |
+| `worker_online_status` | Online status per city | required PK part |
+
+**Rules:** Phase 5B task pool reads `dispatch_tasks` (status=queued) read-only. No accept, no worker assignment on dispatch_tasks.

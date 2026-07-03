@@ -168,6 +168,31 @@ export class DispatchRepository extends RepositoryBase {
 
     return rows.map(mapDispatchTaskRow);
   }
+
+  async listQueuedTasks(
+    context: RequestContext,
+    cityCode: CityCode,
+    limit = 100,
+  ): Promise<DispatchTask[]> {
+    this.requireContext(context);
+    assertCityScopedContext(context);
+    if (context.cityCode !== cityCode) {
+      throw new Error("city_code mismatch in dispatch task query");
+    }
+
+    const where = buildCityScopedWhere(cityCode);
+    const [rows] = await this.pool.query<DispatchTaskRow[]>(
+      `SELECT dispatch_task_id, city_code, order_id, customer_id, sku_id, amount,
+              source_event_id, stream_name, stream_entry_id, status, created_at, updated_at
+       FROM dispatch_tasks
+       WHERE ${where.clause} AND status = 'queued'
+       ORDER BY created_at ASC
+       LIMIT ?`,
+      [...where.params, limit],
+    );
+
+    return rows.map(mapDispatchTaskRow);
+  }
 }
 
 export const dispatchRepository = new DispatchRepository();

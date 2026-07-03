@@ -37,6 +37,13 @@ export type {
   DispatchTaskStatus,
   DispatchStreamMessage,
 } from "./dispatch.js";
+export type {
+  WorkerProfile,
+  WorkerProfileStatus,
+  WorkerCityBinding,
+  WorkerOnlineStatus,
+} from "./worker.js";
+export type { WorkerTaskPoolItem } from "./taskPool.js";
 export type { CertificationPlaceholder } from "./certification.js";
 export type { RefundPlaceholder } from "./refund.js";
 export type { ModulePlaceholder } from "./module.js";
