@@ -7,6 +7,7 @@ import {
 } from "./context/requestContextMiddleware.js";
 import { authorizeRequest } from "./gateway/authz.js";
 import { cityRouter } from "./city/cityRouter.js";
+import { checkDbHealth } from "./observability/health.js";
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({ logger: true });
@@ -14,18 +15,26 @@ export async function buildApp(): Promise<FastifyInstance> {
   app.get("/health", async () => ({
     status: "ok",
     service: "xlb-backend",
-    phase: "1",
+    phase: "2",
     brand: "喜乐帮 / XLB",
   }));
 
   app.get("/api/system/status", async () => ({
     ok: true,
     project: "XLB",
-    phase: "1",
+    phase: "2",
     apps: ["customer", "worker", "admin"],
     backend: "ready",
-    foundation: "request-context-city",
+    foundation: "database-scope-dal",
   }));
+
+  app.get("/api/system/db-health", async (_request, reply) => {
+    const health = await checkDbHealth();
+    if (!health.ok) {
+      return reply.status(503).send(health);
+    }
+    return health;
+  });
 
   app.get(
     "/api/debug/context",

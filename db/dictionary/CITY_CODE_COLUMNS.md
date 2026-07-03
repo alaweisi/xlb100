@@ -10,7 +10,7 @@ Phase 1 city foundation. All city-scoped business tables (Phase 2+) **must** inc
 
 | Table | city_code column | Notes |
 |-------|------------------|-------|
-| `cities` | PK `city_code` | Global city registry |
+| `cities` | PK `city_code` | Global registry; uses `is_open` (not `status`) |
 | `admin_city_scopes` | FK `city_code` | Admin RLS scope |
 
 ## Rules
