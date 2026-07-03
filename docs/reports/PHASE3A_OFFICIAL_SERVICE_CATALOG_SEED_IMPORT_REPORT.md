@@ -120,11 +120,93 @@ hangzhou / shanghai / beijing 当前均使用 TSV 同一套价格文本与数值
 
 ## 14. 是否可以进入 Phase 3A-1-Lock
 
-**是** — 待用户确认后可 merge main 并打 tag。
+**已完成** — 见下方 Phase 3A-1-Lock 复验节。
 
 ## 15. 是否仍未进入 Phase 4
 
 **是** — 本阶段仅导入 catalog / pricing seed，未做订单、支付、派单、履约、账本、退款、资质审核或三端业务页面修改。
+
+---
+
+## Phase 3A-1-Lock 复验（2026-07-03）
+
+> Lock 分支：`phase3a-official-service-catalog-seed-import` @ `3e76598`  
+> Tag（合并后）：`xlb-phase3a-official-catalog-seeds`
+
+### 工程命令
+
+| 命令 | 结果 |
+|------|------|
+| `npx pnpm build` | ✅ passed |
+| `npx pnpm typecheck` | ✅ passed |
+| `npx pnpm test` | ✅ **101 passed** \| 1 todo |
+| `npx pnpm preflight` | ✅ passed（含 Phase 3A-1） |
+
+### Docker 状态
+
+| 服务 | 状态 |
+|------|------|
+| `xlb-mysql-local` | ✅ healthy |
+| `xlb-redis-local` | ✅ healthy |
+
+### migration / seed
+
+| 脚本 | 结果 |
+|------|------|
+| `scripts/migrate-local.ps1` | ✅ passed（000–005 均已应用） |
+| `scripts/seed-local.ps1` | ✅ passed（001–008 全部执行） |
+
+### 数据库核心数量（enabled，排除 demo）
+
+| 表 | beijing | hangzhou | shanghai |
+|----|---------|----------|----------|
+| `service_categories` | 16 | 16 | 16 |
+| `service_items` | 404 | 404 | 404 |
+| `service_skus` | 492 | 492 | 492 |
+| `price_rules` | 492 | 492 | 492 |
+
+### demo catalog 禁用
+
+`demo_cleaning_category` 三城均存在且 `is_enabled = 0` ✅
+
+### `__global__` 业务表检查
+
+`service_categories` / `service_items` / `service_skus` / `price_rules` 中 `city_code='__global__'` 计数均为 **0** ✅
+
+### 中文 price_text
+
+DB（utf8mb4）：`sku_home_daily_2h` @ hangzhou → `price_text = ¥89/2小时`，`price_type = fixed`，`base_price = 89` ✅  
+API 返回同样正确；部分 Windows 终端可能显示乱码，不影响 DB 与 API。
+
+### Catalog API（Lock 复验）
+
+- hangzhou → **16** 大类，`cityCode = hangzhou`，无 `demo_cleaning_category` ✅
+- 缺 cityCode → **400** ✅
+- `__global__` → **400** ✅
+
+### Pricing API（Lock 复验）
+
+- `sku_home_daily_2h` @ hangzhou → `priceText = ¥89/2小时`，`priceType = fixed`，`basePrice = 89` ✅
+- 缺 cityCode → **400** ✅
+
+### Phase 4 守门脚本
+
+| 脚本 | 结果 |
+|------|------|
+| `check-official-catalog-ready.ps1` | ✅ passed |
+| `check-no-demo-catalog-for-phase4.ps1` | ✅ passed |
+
+### 业务越界
+
+**无** — 未进入 Phase 4（订单 / 支付 / 派单 / 履约 / 账本 / 退款 / 资质 / 三端页面均未改动）。
+
+### 合并 main 条件
+
+**具备** — 全部复验通过后 merge `main` 并打 tag `xlb-phase3a-official-catalog-seeds`。
+
+### Phase 4 就绪说明
+
+正式 catalog / pricing seed 已导入且守门脚本通过；**技术上已解除 Phase 4 的 catalog 阻塞**，但本次 Lock **未启动 Phase 4 业务开发**。
 
 ## 生成与验收命令
 
