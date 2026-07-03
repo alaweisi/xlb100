@@ -7,7 +7,7 @@
 ```
 
 - Lowercase only
-- Length: 1–64 characters
+- Length: 2–64 characters
 - Allowed: letters, digits, hyphen, underscore
 
 ## Normalization

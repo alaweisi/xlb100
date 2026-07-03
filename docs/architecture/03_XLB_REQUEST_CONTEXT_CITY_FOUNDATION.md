@@ -22,6 +22,15 @@
 2. Admin 查询必须经过 `adminQueryGuard`
 3. 数据访问必须经过 `scopedExecutor`（Phase 2+ 实装 DB）
 
+## CityCode 规则（Phase 1 标准）
+
+- 类型：`string`
+- 长度：2–64
+- 格式：`^[a-z0-9_-]+$`
+- 规范化：trim + lowercase
+- 示例：`hangzhou`、`shanghai`、`beijing`、`hz_01`
+- 禁止默认全国；缺失或非法 → 400
+
 ## 本阶段不做
 
 订单、支付、派单、JWT 登录、真实 DB 查询

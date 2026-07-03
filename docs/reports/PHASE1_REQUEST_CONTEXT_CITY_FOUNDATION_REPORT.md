@@ -45,7 +45,7 @@
 
 ## 4. CityCode 规则
 
-- 格式：`^[a-z0-9_-]+$`（小写，1–64 字符）
+- 格式：`^[a-z0-9_-]+$`（小写，2–64 字符）
 - 规范化：`trim` + `toLowerCase`
 - 种子城市：`hangzhou` · `shanghai` · `beijing`
 - 未知城市 → 400
@@ -184,16 +184,100 @@
 
 ---
 
-## 12. Commit / Phase 2
+## 12. Phase 1-Lock 封版（2026-07-03）
 
-- **可 commit：** 是（建议 commit 在 `phase1-request-context-city-foundation` 分支）
-- **可合并 main：** 待用户确认
-- **可进入 Phase 2：** 是 — CityConfig + Catalog + Pricing 可在 Phase 1 地基上开工
+### 12.1 复验命令结果
+
+| 命令 | 结果 |
+|------|------|
+| `npx pnpm install` | ✅ |
+| `npx pnpm build` | ✅ |
+| `npx pnpm typecheck` | ✅ |
+| `npx pnpm test` | ✅ 21 passed · 2 todo |
+| `npx pnpm preflight` | ✅ |
+
+### 12.2 CityCode 最终标准
+
+| 规则 | 值 |
+|------|-----|
+| 类型 | `string` |
+| 最小长度 | **2** |
+| 最大长度 | **64** |
+| 正则 | `^[a-z0-9_-]+$` |
+| 规范化 | trim + lowercase |
+| 示例 | `hangzhou` · `shanghai` · `beijing` · `hz_01` |
+| 禁止 | 默认全国 |
+| 错误码 | 缺失或非法 → **400** |
+
+**封版修正：** `packages/validators/src/cityCodeSchema.ts` 由 `min(1)` 统一为 `min(2)`；文档同步更新。
+
+### 12.3 Docker MySQL Migration 实跑
+
+**容器状态：** `xlb-mysql-local` · `xlb-redis-local` — healthy
+
+**执行脚本：**
+
+```powershell
+cmd /c type db\migrations\000_init.sql | docker exec -i xlb-mysql-local mysql -uxlb -pxlb_local_password xlb_local
+cmd /c type db\migrations\001_city_foundation.sql | docker exec -i xlb-mysql-local mysql -uxlb -pxlb_local_password xlb_local
+cmd /c type db\seed\cities.seed.sql | docker exec -i xlb-mysql-local mysql -uxlb -pxlb_local_password xlb_local
+```
+
+**结果：** ✅ 全部成功
+
+**SHOW TABLES：**
+
+- `schema_migrations`
+- `cities`
+- `admin_city_scopes`
+
+**schema_migrations：** `001_city_foundation`
+
+**cities seed：**
+
+| city_code | city_name | is_open |
+|-----------|-----------|---------|
+| beijing | 北京 | 1 |
+| hangzhou | 杭州 | 1 |
+| shanghai | 上海 | 1 |
+
+> 注：表字段为 `is_open`（非 `status`）。
+
+### 12.4 封版修改文件
+
+- `packages/validators/src/cityCodeSchema.ts` — min(2)
+- `docs/contracts/CONTRACT_CITY_CODE.md`
+- `docs/architecture/03_XLB_REQUEST_CONTEXT_CITY_FOUNDATION.md`
+- `docs/reports/PHASE1_REQUEST_CONTEXT_CITY_FOUNDATION_REPORT.md`
+
+**未修改：** 业务代码 · compose · migration SQL 结构
+
+### 12.5 业务越界
+
+✅ 无越界
+
+### 12.6 合并 main 条件
+
+✅ 已全部满足
 
 ---
 
-## 13. 风险
+## 13. Git 封版标记
 
-- Migration 尚未对 Docker MySQL 执行（Phase 1 无真实 DB 连接，符合设计）
+- **分支：** `phase1-request-context-city-foundation`
+- **Tag：** `xlb-phase1-request-context-city`（合并 main 后打在 merge commit）
+
+---
+
+## 14. Phase 2 开工
+
+- **可进入 Phase 2：** 是（CityConfig + Catalog + Pricing）
+- **前提：** Phase 1 已合并 main 并打 tag
+
+---
+
+## 15. 风险（更新）
+
 - Header 鉴权为 skeleton，非 JWT（Phase 1 预期）
-- 端口 3000 若已有旧进程需重启 backend 以加载新代码
+- Backend 尚未连接 MySQL（Phase 2 实装 cityConfig 缓存时再接）
+- 中文字段在部分终端可能显示乱码，数据库内 UTF-8 存储正常

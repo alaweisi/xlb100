@@ -3,7 +3,7 @@ import { z } from "zod";
 /** Canonical city_code: lowercase letters, digits, hyphen, underscore */
 export const cityCodeSchema = z
   .string()
-  .min(1)
+  .min(2)
   .max(64)
   .regex(
     /^[a-z0-9_-]+$/,
