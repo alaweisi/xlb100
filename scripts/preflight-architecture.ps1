@@ -63,6 +63,20 @@ $requiredFiles = @(
   "tests/contract/officialCatalogSource.contract.test.ts",
   "tests/contract/officialCatalogSeed.contract.test.ts",
   "tests/contract/officialPricingSeed.contract.test.ts",
+  "backend/src/order/orderService.ts",
+  "backend/src/payment/paymentOrderService.ts",
+  "backend/src/events/eventOutbox.ts",
+  "db/migrations/006_order_payment_outbox_foundation.sql",
+  "docs/contracts/CONTRACT_ORDER.md",
+  "docs/contracts/CONTRACT_PAYMENT.md",
+  "docs/contracts/CONTRACT_EVENT_OUTBOX.md",
+  "docs/architecture/06_XLB_ORDER_PAYMENT_OUTBOX_FOUNDATION.md",
+  "scripts/check-payment-no-dispatch.ps1",
+  "scripts/check-order-requires-official-sku.ps1",
+  "scripts/check-outbox-required.ps1",
+  "tests/unit/orderStateMachine.test.ts",
+  "tests/integration/orderCreate.test.ts",
+  "tests/security/paymentNoDispatch.test.ts",
   "tests/unit/cityResolver.test.ts",
   "tests/unit/scopedExecutor.test.ts",
   "tests/unit/adminQueryGuard.test.ts",
@@ -145,3 +159,4 @@ Write-Host "XLB Phase 2 database-scope-dal preflight passed."
 Write-Host "XLB Phase 3 cityconfig-catalog-pricing preflight passed."
 Write-Host "XLB Phase 3A official catalog import protocol preflight passed."
 Write-Host "XLB Phase 3A-1 official service catalog seed import preflight passed."
+Write-Host "XLB Phase 4 order payment outbox foundation preflight passed."

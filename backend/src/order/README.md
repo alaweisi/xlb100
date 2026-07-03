@@ -1,3 +1,4 @@
-﻿# backend/src/order
+﻿# Order module — Phase 4
 
-Phase 1+ module placeholder.
+City-scoped order creation with official SKU + price snapshot.
+Writes `order.created` to event_outbox. No dispatch.

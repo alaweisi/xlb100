@@ -11,6 +11,8 @@ import { checkDbHealth } from "./observability/health.js";
 import { registerCityConfigModule } from "./cityConfig/cityConfigModule.js";
 import { registerCatalogModule } from "./catalog/catalogModule.js";
 import { registerPricingModule } from "./pricing/pricingModule.js";
+import { registerOrderModule } from "./order/orderModule.js";
+import { registerPaymentModule } from "./payment/paymentModule.js";
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({ logger: true });
@@ -18,17 +20,17 @@ export async function buildApp(): Promise<FastifyInstance> {
   app.get("/health", async () => ({
     status: "ok",
     service: "xlb-backend",
-    phase: "3",
+    phase: "4",
     brand: "喜乐帮 / XLB",
   }));
 
   app.get("/api/system/status", async () => ({
     ok: true,
     project: "XLB",
-    phase: "3",
+    phase: "4",
     apps: ["customer", "worker", "admin"],
     backend: "ready",
-    foundation: "cityconfig-catalog-pricing",
+    foundation: "order-payment-outbox",
   }));
 
   app.get("/api/system/db-health", async (_request, reply) => {
@@ -36,7 +38,7 @@ export async function buildApp(): Promise<FastifyInstance> {
     if (!health.ok) {
       return reply.status(503).send(health);
     }
-    return { ...health, phase: "3" };
+    return { ...health, phase: "4" };
   });
 
   app.get(
@@ -80,6 +82,8 @@ export async function buildApp(): Promise<FastifyInstance> {
   await registerCityConfigModule(app);
   await registerCatalogModule(app);
   await registerPricingModule(app);
+  await registerOrderModule(app);
+  await registerPaymentModule(app);
 
   return app;
 }

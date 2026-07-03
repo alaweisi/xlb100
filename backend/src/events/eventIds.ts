@@ -1,0 +1,13 @@
+import { randomBytes } from "node:crypto";
+
+export function generateOrderId(): string {
+  return `ord_${Date.now().toString(36)}_${randomBytes(4).toString("hex")}`;
+}
+
+export function generatePaymentOrderId(): string {
+  return `pay_${Date.now().toString(36)}_${randomBytes(4).toString("hex")}`;
+}
+
+export function generateEventId(): string {
+  return `evt_${Date.now().toString(36)}_${randomBytes(4).toString("hex")}`;
+}

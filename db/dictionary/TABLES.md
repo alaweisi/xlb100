@@ -22,6 +22,12 @@
 
 **Official catalog:** Phase 3A-1 — 16 categories / 492 SKUs imported from `docs/catalog/服务类目完整清单.tsv`. Demo seed (`demo_cleaning_*`) disabled by `006_disable_demo_catalog.seed.sql`.
 
-## Phase 4+ (placeholder)
+## Phase 4 tables (order / payment / outbox)
 
-Business tables (orders, payments, ledger, etc.) will be added in later phases.
+| Table | Purpose | city_code |
+|-------|---------|-----------|
+| `orders` | Customer order with price snapshot | required |
+| `payment_orders` | Mock payment order | required |
+| `event_outbox` | Transactional domain events | required |
+
+**Rules:** orders bind official SKU + price_rules snapshot. Payment success writes outbox only — no dispatch in Phase 4.

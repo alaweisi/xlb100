@@ -1,3 +1,4 @@
-﻿# backend/src/events
+﻿# Events / Outbox — Phase 4
 
-Phase 1+ module placeholder.
+Transactional outbox only. eventPublisher lists pending events.
+No Redis dispatch stream until Phase 5.
