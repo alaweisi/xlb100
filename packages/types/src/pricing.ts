@@ -1,5 +1,12 @@
 import type { CityCode } from "./city.js";
 
+export type PriceType =
+  | "fixed"
+  | "range"
+  | "from"
+  | "estimate_from"
+  | "onsite_quote";
+
 /** City-scoped price rule — not payment or order */
 export interface PriceRule {
   priceRuleId: string;
@@ -7,6 +14,11 @@ export interface PriceRule {
   skuId: string;
   basePrice: number;
   currency: string;
+  priceText: string;
+  priceType: PriceType;
+  minPrice: number | null;
+  maxPrice: number | null;
+  pricingNote: string | null;
   isEnabled: boolean;
   version: number;
 }
@@ -24,6 +36,11 @@ export interface PriceQuote {
   skuId: string;
   basePrice: number;
   currency: string;
+  priceText: string;
+  priceType: PriceType;
+  minPrice: number | null;
+  maxPrice: number | null;
+  pricingNote: string | null;
   priceRuleId: string;
   version: number;
 }

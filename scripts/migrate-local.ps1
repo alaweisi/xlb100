@@ -9,16 +9,19 @@ $files = Get-ChildItem -Path $migrationDir -Filter "*.sql" | Sort-Object Name
 
 foreach ($file in $files) {
   $version = $file.BaseName
-  $existsRaw = docker exec xlb-mysql-local mysql -uxlb -pxlb_local_password xlb_local -N -e "SELECT COUNT(*) FROM schema_migrations WHERE version='$version'" 2>$null
+  $existsRaw = cmd /c "docker exec xlb-mysql-local mysql -uxlb -pxlb_local_password xlb_local -N -e `"SELECT COUNT(*) FROM schema_migrations WHERE version='$version'`" 2>nul"
   $exists = ($existsRaw | Out-String).Trim()
   if ($exists -eq "1") {
     Write-Host "SKIP $version (already applied)"
     continue
   }
   Write-Host "APPLY $version"
-  $sql = Get-Content -Path $file.FullName -Raw -Encoding UTF8
-  $sql | docker exec -i xlb-mysql-local mysql -uxlb -pxlb_local_password xlb_local
+  $containerPath = "/tmp/xlb_migration_$($file.Name)"
+  docker cp $file.FullName "xlb-mysql-local:${containerPath}" | Out-Null
   if ($LASTEXITCODE -ne 0) { exit 1 }
+  cmd /c "docker exec xlb-mysql-local mysql -uxlb -pxlb_local_password --default-character-set=utf8mb4 xlb_local -e `"source ${containerPath}`" 2>nul"
+  if ($LASTEXITCODE -ne 0) { exit 1 }
+  cmd /c "docker exec xlb-mysql-local rm -f ${containerPath} 2>nul" | Out-Null
 }
 
 Write-Host "migrate-local: passed"

@@ -11,6 +11,7 @@ export type {
 } from "./catalog.js";
 export type {
   PriceRule,
+  PriceType,
   PricingSnapshot,
   PriceQuote,
 } from "./pricing.js";

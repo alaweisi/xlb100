@@ -39,6 +39,11 @@ export class PricingService {
         skuId: rule.skuId,
         basePrice: rule.basePrice,
         currency: rule.currency as "CNY",
+        priceText: rule.priceText,
+        priceType: rule.priceType,
+        minPrice: rule.minPrice,
+        maxPrice: rule.maxPrice,
+        pricingNote: rule.pricingNote,
         priceRuleId: rule.priceRuleId,
         version: rule.version,
       };

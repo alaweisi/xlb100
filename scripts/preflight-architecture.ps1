@@ -44,6 +44,11 @@ $requiredFiles = @(
   "backend/src/catalog/catalogService.ts",
   "backend/src/pricing/pricingService.ts",
   "db/migrations/004_cityconfig_catalog_pricing_foundation.sql",
+  "db/migrations/005_official_pricing_display_fields.sql",
+  "db/seed/006_disable_demo_catalog.seed.sql",
+  "db/seed/007_official_catalog.seed.sql",
+  "db/seed/008_official_pricing.seed.sql",
+  "scripts/generate-official-catalog-seeds.mjs",
   "docs/contracts/CONTRACT_CITY_CONFIG.md",
   "docs/contracts/CONTRACT_CATALOG.md",
   "docs/contracts/CONTRACT_PRICING.md",
@@ -55,6 +60,9 @@ $requiredFiles = @(
   "scripts/check-no-demo-catalog-for-phase4.ps1",
   "tests/security/officialCatalogRequiredBeforeOrder.test.ts",
   "tests/security/noDemoCatalogForPhase4.test.ts",
+  "tests/contract/officialCatalogSource.contract.test.ts",
+  "tests/contract/officialCatalogSeed.contract.test.ts",
+  "tests/contract/officialPricingSeed.contract.test.ts",
   "tests/unit/cityResolver.test.ts",
   "tests/unit/scopedExecutor.test.ts",
   "tests/unit/adminQueryGuard.test.ts",
@@ -118,6 +126,12 @@ foreach ($d in $requiredDirs) {
   }
 }
 
+$catalogTsvDir = Join-Path $Root "docs\catalog"
+$catalogTsvFiles = @(Get-ChildItem -LiteralPath $catalogTsvDir -Filter "*.tsv" -ErrorAction SilentlyContinue)
+if ($catalogTsvFiles.Count -eq 0) {
+  $missing += "docs/catalog/*.tsv (official service catalog source TSV missing)"
+}
+
 if ($missing.Count -gt 0) {
   Write-Host "XLB architecture preflight FAILED."
   Write-Host "Missing:"
@@ -130,3 +144,4 @@ Write-Host "XLB Phase 1 request-context-city preflight passed."
 Write-Host "XLB Phase 2 database-scope-dal preflight passed."
 Write-Host "XLB Phase 3 cityconfig-catalog-pricing preflight passed."
 Write-Host "XLB Phase 3A official catalog import protocol preflight passed."
+Write-Host "XLB Phase 3A-1 official service catalog seed import preflight passed."

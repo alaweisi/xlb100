@@ -15,10 +15,17 @@ foreach ($pattern in $patterns) {
 }
 
 $seedPath = Join-Path $Root "db\seed\005_pricing_demo.seed.sql"
+$officialSeed = Join-Path $Root "db\seed\008_official_pricing.seed.sql"
 if (Test-Path $seedPath) {
   $seed = Get-Content $seedPath -Raw
   if ($seed -match "'__global__'") {
     $hits += "db/seed/005_pricing_demo.seed.sql contains __global__"
+  }
+}
+if (Test-Path $officialSeed) {
+  $seed = Get-Content $officialSeed -Raw -Encoding UTF8
+  if ($seed -match "'__global__'") {
+    $hits += "db/seed/008_official_pricing.seed.sql contains __global__"
   }
 }
 

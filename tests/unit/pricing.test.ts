@@ -15,18 +15,21 @@ function context(cityCode: string): RequestContext {
 }
 
 describe.skipIf(!runDb)("pricingService", () => {
-  it("returns hangzhou price for demo sku", async () => {
-    const quote = await pricingService.getQuote(context("hangzhou"), "demo_cleaning_sku");
+  it("returns hangzhou price for official sku with priceText", async () => {
+    const quote = await pricingService.getQuote(context("hangzhou"), "sku_home_daily_2h");
     expect(quote.cityCode).toBe("hangzhou");
-    expect(quote.skuId).toBe("demo_cleaning_sku");
+    expect(quote.skuId).toBe("sku_home_daily_2h");
     expect(quote.currency).toBe("CNY");
-    expect(quote.basePrice).toBe(99);
+    expect(quote.basePrice).toBe(89);
+    expect(quote.priceText).toBe("¥89/2小时");
+    expect(quote.priceType).toBe("fixed");
   });
 
-  it("shanghai price differs from hangzhou", async () => {
-    const quote = await pricingService.getQuote(context("shanghai"), "demo_cleaning_sku");
+  it("shanghai has independent price rule with same value", async () => {
+    const quote = await pricingService.getQuote(context("shanghai"), "sku_home_daily_2h");
     expect(quote.cityCode).toBe("shanghai");
-    expect(quote.basePrice).toBe(109);
+    expect(quote.basePrice).toBe(89);
+    expect(quote.priceRuleId).toBe("price_shanghai_sku_home_daily_2h");
   });
 });
 
