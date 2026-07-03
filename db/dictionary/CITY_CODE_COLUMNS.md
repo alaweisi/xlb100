@@ -24,7 +24,7 @@ Phase 1 city foundation. All city-scoped business tables (Phase 2+) **must** inc
 | Table | city_code column | Notes |
 |-------|------------------|-------|
 | `worker_task_acceptances` | required FK | One acceptance per dispatch_task; worker accept record |
-| `fulfillments` | required FK | Fulfillment skeleton; one per acceptance / dispatch_task |
+| `fulfillments` | required FK + non-global check | One per acceptance / dispatch_task; lifecycle remains city scoped |
 
 ## Rules
 

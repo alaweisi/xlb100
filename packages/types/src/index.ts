@@ -62,6 +62,8 @@ export type {
   Fulfillment,
   FulfillmentStatus,
   FulfillmentCreatedEventPayload,
+  FulfillmentStartedEventPayload,
+  FulfillmentCompletedEventPayload,
 } from "./fulfillment.js";
 export type { RefundPlaceholder } from "./refund.js";
 export type { ModulePlaceholder } from "./module.js";

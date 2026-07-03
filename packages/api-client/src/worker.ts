@@ -1,4 +1,4 @@
-/** Phase 7A worker accept + fulfillment skeleton API */
+/** Phase 7A/7B worker accept + fulfillment lifecycle API */
 import type { ApiClient } from "./createApiClient.js";
 
 export interface WorkerTaskAcceptanceResponse {
@@ -25,6 +25,7 @@ export interface FulfillmentResponse {
   status: "accepted" | "in_progress" | "completed" | "cancelled";
   startedAt?: string | null;
   completedAt?: string | null;
+  completionNote?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -47,6 +48,16 @@ export type FulfillmentDetailResponse = {
   fulfillment: FulfillmentResponse;
 };
 
+export type FulfillmentLifecycleResponse = {
+  ok: true;
+  fulfillment: FulfillmentResponse;
+  idempotent: boolean;
+};
+
+export type CompleteFulfillmentInput = {
+  completionNote?: string;
+};
+
 export function createWorkerApi(client: ApiClient) {
   return {
     acceptTask(dispatchTaskId: string): Promise<AcceptTaskResponse> {
@@ -61,6 +72,21 @@ export function createWorkerApi(client: ApiClient) {
     getFulfillment(fulfillmentId: string): Promise<FulfillmentDetailResponse> {
       return client.get<FulfillmentDetailResponse>(
         `/api/worker/fulfillments/${encodeURIComponent(fulfillmentId)}`,
+      );
+    },
+    startFulfillment(fulfillmentId: string): Promise<FulfillmentLifecycleResponse> {
+      return client.post<FulfillmentLifecycleResponse>(
+        `/api/worker/fulfillments/${encodeURIComponent(fulfillmentId)}/start`,
+        {},
+      );
+    },
+    completeFulfillment(
+      fulfillmentId: string,
+      input: CompleteFulfillmentInput = {},
+    ): Promise<FulfillmentLifecycleResponse> {
+      return client.post<FulfillmentLifecycleResponse>(
+        `/api/worker/fulfillments/${encodeURIComponent(fulfillmentId)}/complete`,
+        input,
       );
     },
   };

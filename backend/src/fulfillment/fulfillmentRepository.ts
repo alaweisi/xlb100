@@ -14,6 +14,7 @@ type FulfillmentRow = RowDataPacket & {
   status: string;
   started_at: Date | null;
   completed_at: Date | null;
+  completion_note: string | null;
   created_at: Date;
   updated_at: Date;
 };
@@ -30,6 +31,7 @@ function mapFulfillmentRow(row: FulfillmentRow): Fulfillment {
     status: row.status as Fulfillment["status"],
     startedAt: row.started_at?.toISOString() ?? null,
     completedAt: row.completed_at?.toISOString() ?? null,
+    completionNote: row.completion_note,
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),
   };
@@ -76,7 +78,8 @@ export class FulfillmentRepository extends RepositoryBase {
     const where = buildCityScopedWhere(cityCode);
     const [rows] = await this.pool.query<FulfillmentRow[]>(
       `SELECT fulfillment_id, acceptance_id, dispatch_task_id, order_id, city_code,
-              worker_id, sku_id, status, started_at, completed_at, created_at, updated_at
+              worker_id, sku_id, status, started_at, completed_at, completion_note,
+              created_at, updated_at
        FROM fulfillments
        WHERE dispatch_task_id = ? AND ${where.clause}
        LIMIT 1`,
@@ -92,7 +95,8 @@ export class FulfillmentRepository extends RepositoryBase {
     const where = buildCityScopedWhere(cityCode);
     const [rows] = await this.pool.query<FulfillmentRow[]>(
       `SELECT fulfillment_id, acceptance_id, dispatch_task_id, order_id, city_code,
-              worker_id, sku_id, status, started_at, completed_at, created_at, updated_at
+              worker_id, sku_id, status, started_at, completed_at, completion_note,
+              created_at, updated_at
        FROM fulfillments
        WHERE acceptance_id = ? AND ${where.clause}
        LIMIT 1`,
@@ -109,13 +113,71 @@ export class FulfillmentRepository extends RepositoryBase {
     const where = buildCityScopedWhere(cityCode);
     const [rows] = await this.pool.query<FulfillmentRow[]>(
       `SELECT fulfillment_id, acceptance_id, dispatch_task_id, order_id, city_code,
-              worker_id, sku_id, status, started_at, completed_at, created_at, updated_at
+              worker_id, sku_id, status, started_at, completed_at, completion_note,
+              created_at, updated_at
        FROM fulfillments
        WHERE fulfillment_id = ? AND worker_id = ? AND ${where.clause}
        LIMIT 1`,
       [fulfillmentId, workerId, ...where.params],
     );
     return rows[0] ? mapFulfillmentRow(rows[0]) : null;
+  }
+
+  async findByIdForWorkerForUpdate(
+    connection: PoolConnection,
+    fulfillmentId: string,
+    cityCode: CityCode,
+    workerId: string,
+  ): Promise<Fulfillment | null> {
+    const [rows] = await connection.query<FulfillmentRow[]>(
+      `SELECT fulfillment_id, acceptance_id, dispatch_task_id, order_id, city_code,
+              worker_id, sku_id, status, started_at, completed_at, completion_note,
+              created_at, updated_at
+       FROM fulfillments
+       WHERE fulfillment_id = ? AND city_code = ? AND worker_id = ?
+       LIMIT 1 FOR UPDATE`,
+      [fulfillmentId, cityCode, workerId],
+    );
+    return rows[0] ? mapFulfillmentRow(rows[0]) : null;
+  }
+
+  async markStarted(
+    connection: PoolConnection,
+    fulfillmentId: string,
+    cityCode: CityCode,
+    workerId: string,
+    startedAt: Date,
+  ): Promise<void> {
+    const [result] = await connection.query(
+      `UPDATE fulfillments
+       SET status = 'in_progress', started_at = ?
+       WHERE fulfillment_id = ? AND city_code = ? AND worker_id = ?
+         AND status = 'accepted'`,
+      [startedAt, fulfillmentId, cityCode, workerId],
+    );
+    if ((result as { affectedRows: number }).affectedRows !== 1) {
+      throw new Error("Fulfillment start update lost its scoped state lock");
+    }
+  }
+
+  async markCompleted(
+    connection: PoolConnection,
+    fulfillmentId: string,
+    cityCode: CityCode,
+    workerId: string,
+    completedAt: Date,
+    completionNote: string | null,
+  ): Promise<void> {
+    const [result] = await connection.query(
+      `UPDATE fulfillments
+       SET status = 'completed', completed_at = ?, completion_note = ?
+       WHERE fulfillment_id = ? AND city_code = ? AND worker_id = ?
+         AND status = 'in_progress'`,
+      [completedAt, completionNote, fulfillmentId, cityCode, workerId],
+    );
+    if ((result as { affectedRows: number }).affectedRows !== 1) {
+      throw new Error("Fulfillment complete update lost its scoped state lock");
+    }
   }
 
   async listByWorker(
@@ -126,7 +188,8 @@ export class FulfillmentRepository extends RepositoryBase {
     const where = buildCityScopedWhere(cityCode);
     const [rows] = await this.pool.query<FulfillmentRow[]>(
       `SELECT fulfillment_id, acceptance_id, dispatch_task_id, order_id, city_code,
-              worker_id, sku_id, status, started_at, completed_at, created_at, updated_at
+              worker_id, sku_id, status, started_at, completed_at, completion_note,
+              created_at, updated_at
        FROM fulfillments
        WHERE worker_id = ? AND ${where.clause}
        ORDER BY created_at DESC
