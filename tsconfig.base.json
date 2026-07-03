@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "forceConsistentCasingInFileNames": true,
+    "paths": {
+      "@xlb/types": ["./packages/types/src/index.ts"],
+      "@xlb/validators": ["./packages/validators/src/index.ts"],
+      "@xlb/config": ["./packages/config/src/index.ts"],
+      "@xlb/api-client": ["./packages/api-client/src/index.ts"],
+      "@xlb/ui": ["./packages/ui/src/index.ts"],
+      "@xlb/module-loader": ["./packages/module-loader/src/index.ts"]
+    }
+  }
+}

@@ -1,0 +1,14 @@
+---
+description: 喜乐帮 / XLB 强制工程架构规则
+globs:
+alwaysApply: true
+---
+
+# 喜乐帮 / XLB Architecture Mandatory
+
+- 品牌：喜乐帮 / XLB，包前缀 `@xlb/*`
+- 禁止 `@sdj99`、`sdj99` 作为新项目命名
+- Phase 0 禁止业务实现
+- 禁止未批准一级目录
+- 三端不得复制后端类型，须通过 `@xlb/api-client` 访问后端
+- 业务须进入对应 backend 模块，禁止旁路

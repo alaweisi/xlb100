@@ -1,0 +1,18 @@
+name: Architecture Guard
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Preflight architecture
+        run: pwsh -NoProfile -File scripts/preflight-architecture.ps1
+
+      - name: Mandatory checks
+        run: pwsh -NoProfile -File scripts/check-architecture-mandatory.ps1

@@ -1,0 +1,15 @@
+name: Contract Check
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Contract check placeholder
+        run: pwsh -NoProfile -File scripts/check-contracts.ps1

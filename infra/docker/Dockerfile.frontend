@@ -1,0 +1,5 @@
+# Frontend Dockerfile skeleton — Phase 8+
+
+FROM node:20-alpine AS base
+WORKDIR /app
+# Phase 0: skeleton only
