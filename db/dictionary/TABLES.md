@@ -20,6 +20,8 @@
 
 **Rules:** all Phase 3 config tables require `city_code`. No `__global__`. No nationwide fallback.
 
+**Official catalog:** Phase 3A — formal 16 categories pending user confirmation. See `docs/catalog/OFFICIAL_SERVICE_CATALOG_IMPORT_SPEC.md`. Demo seed (`demo_cleaning_*`) is Phase 3 validation only; Phase 4 requires `007` / `008` official seeds.
+
 ## Phase 4+ (placeholder)
 
 Business tables (orders, payments, ledger, etc.) will be added in later phases.

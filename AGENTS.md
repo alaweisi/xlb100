@@ -36,10 +36,17 @@
 3. 后续 Phase 必须先走 **RequestContext → CityCode → Contract → Guard**
 4. CI 守门脚本失败 = 不得合并
 
+## Phase 3A 约束（正式类目导入协议）
+
+- **禁止 Cursor 凭空生成正式 16 大类**
+- 正式类目必须用户在 `docs/catalog/OFFICIAL_SERVICE_CATALOG_SOURCE.md` 确认后导入
+- Phase 4 开工前必须运行 `scripts/check-official-catalog-ready.ps1` 并通过
+- `demo_cleaning_*` 仅用于 Phase 3 验证，不得作为订单 SKU 基础
+
 ## 后续 Phase 预告
 
-- **Phase 1：** RequestContext、CityRouter、ScopedExecutor、权限地基
-- **Phase 2+：** Catalog、Order、Payment、Dispatch、Ledger 等业务模块
+- **Phase 3A-1：** 用户确认后导入正式 catalog / pricing seed
+- **Phase 4+：** Order、Payment、Dispatch、Ledger 等业务模块（须先完成正式 SKU 导入）
 
 ## 必读文档
 
