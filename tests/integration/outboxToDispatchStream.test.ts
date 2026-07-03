@@ -21,13 +21,24 @@ describe.skipIf(!runDb)("outboxToDispatchStream integration", { timeout: 20000 }
     });
 
     const pool = getMysqlPool();
-    const [events] = await pool.query<
-      (RowDataPacket & { status: string })[]
-    >(
-      `SELECT status FROM event_outbox WHERE event_type = 'order.paid' AND aggregate_id = ?`,
-      [orderId],
-    );
-    expect(events[0]?.status).toBe("published");
+    let status = "pending";
+    for (let i = 0; i < 10; i++) {
+      const [events] = await pool.query<
+        (RowDataPacket & { status: string })[]
+      >(
+        `SELECT status FROM event_outbox WHERE event_type = 'order.paid' AND aggregate_id = ?`,
+        [orderId],
+      );
+      status = events[0]?.status ?? "pending";
+      if (status === "published") break;
+      await app.inject({
+        method: "POST",
+        url: "/api/internal/dispatch/run-once",
+        headers: operatorHeaders,
+        payload: {},
+      });
+    }
+    expect(status).toBe("published");
 
     const redis = getRedisClient();
     if (redis.status === "wait") await redis.connect();

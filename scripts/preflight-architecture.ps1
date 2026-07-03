@@ -91,6 +91,18 @@ $requiredFiles = @(
   "tests/unit/cityStreamNames.test.ts",
   "tests/integration/dispatchRunOnce.test.ts",
   "tests/security/noNationalDispatchStream.test.ts",
+  "backend/src/worker/taskPoolService.ts",
+  "backend/src/worker/workerRepository.ts",
+  "db/migrations/008_worker_pool_taskpool_readiness_foundation.sql",
+  "db/seed/009_worker_demo.seed.sql",
+  "docs/contracts/CONTRACT_WORKER_TASK_POOL.md",
+  "docs/architecture/08_XLB_WORKER_POOL_TASKPOOL_READINESS_FOUNDATION.md",
+  "scripts/check-worker-taskpool-readonly.ps1",
+  "scripts/check-no-worker-accept-in-phase5b.ps1",
+  "scripts/check-no-fulfillment-in-worker-phase5b.ps1",
+  "scripts/check-worker-taskpool-city-scoped.ps1",
+  "tests/integration/workerTaskPoolApi.test.ts",
+  "tests/security/noWorkerAcceptInPhase5B.test.ts",
   "tests/unit/cityResolver.test.ts",
   "tests/unit/scopedExecutor.test.ts",
   "tests/unit/adminQueryGuard.test.ts",
@@ -175,3 +187,4 @@ Write-Host "XLB Phase 3A official catalog import protocol preflight passed."
 Write-Host "XLB Phase 3A-1 official service catalog seed import preflight passed."
 Write-Host "XLB Phase 4 order payment outbox foundation preflight passed."
 Write-Host "XLB Phase 5A dispatch outbox city stream foundation preflight passed."
+Write-Host "XLB Phase 5B worker pool taskpool readiness foundation preflight passed."
