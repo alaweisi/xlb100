@@ -95,12 +95,22 @@ describe.skipIf(!runDb)("workerTaskPoolApi integration", { timeout: 20000 }, () 
   it("does not modify dispatch_tasks status", async () => {
     const app = await buildApp();
     const orderId = await createPaidOrderForDispatch(app);
-    await app.inject({
-      method: "POST",
-      url: "/api/internal/dispatch/run-once",
-      headers: operatorHeaders,
-      payload: {},
-    });
+    const pool = getMysqlPool();
+
+    for (let i = 0; i < 15; i++) {
+      await app.inject({
+        method: "POST",
+        url: "/api/internal/dispatch/run-once",
+        headers: operatorHeaders,
+        payload: {},
+      });
+
+      const [tasks] = await pool.query<(RowDataPacket & { status: string })[]>(
+        `SELECT status FROM dispatch_tasks WHERE order_id = ?`,
+        [orderId],
+      );
+      if (tasks[0]?.status === "queued") break;
+    }
 
     await app.inject({
       method: "GET",
@@ -108,7 +118,6 @@ describe.skipIf(!runDb)("workerTaskPoolApi integration", { timeout: 20000 }, () 
       headers: workerHangzhouHeaders,
     });
 
-    const pool = getMysqlPool();
     const [rows] = await pool.query<(RowDataPacket & { status: string })[]>(
       `SELECT status FROM dispatch_tasks WHERE order_id = ?`,
       [orderId],
