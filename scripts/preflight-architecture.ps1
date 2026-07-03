@@ -48,6 +48,13 @@ $requiredFiles = @(
   "docs/contracts/CONTRACT_CATALOG.md",
   "docs/contracts/CONTRACT_PRICING.md",
   "docs/architecture/05_XLB_CITYCONFIG_CATALOG_PRICING_FOUNDATION.md",
+  "docs/catalog/OFFICIAL_SERVICE_CATALOG_IMPORT_SPEC.md",
+  "docs/catalog/OFFICIAL_SERVICE_CATALOG_SOURCE.md",
+  "docs/catalog/OFFICIAL_SERVICE_CATALOG_SEED_PLAN.md",
+  "scripts/check-official-catalog-ready.ps1",
+  "scripts/check-no-demo-catalog-for-phase4.ps1",
+  "tests/security/officialCatalogRequiredBeforeOrder.test.ts",
+  "tests/security/noDemoCatalogForPhase4.test.ts",
   "tests/unit/cityResolver.test.ts",
   "tests/unit/scopedExecutor.test.ts",
   "tests/unit/adminQueryGuard.test.ts",
@@ -91,7 +98,8 @@ $requiredDirs = @(
   "backend/src/gateway",
   "backend/src/dal",
   "docs/architecture",
-  "docs/contracts"
+  "docs/contracts",
+  "docs/catalog"
 )
 
 $missing = @()
@@ -121,3 +129,4 @@ Write-Host "XLB Phase 0 architecture preflight passed."
 Write-Host "XLB Phase 1 request-context-city preflight passed."
 Write-Host "XLB Phase 2 database-scope-dal preflight passed."
 Write-Host "XLB Phase 3 cityconfig-catalog-pricing preflight passed."
+Write-Host "XLB Phase 3A official catalog import protocol preflight passed."
