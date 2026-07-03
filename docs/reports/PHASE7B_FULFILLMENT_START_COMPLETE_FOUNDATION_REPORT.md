@@ -65,7 +65,49 @@ to Hangzhou. Order and payment remained `paid`.
 - Accepted cannot complete directly; completed cannot start.
 - Strict validators reject amount, settlement, refund, and evidence fields.
 
-## Readiness
+## Phase 7B-Lock re-verification (2026-07-04)
 
-Phase 7B foundation is ready for its lock/re-verification step. It has not been
-merged to main, tagged, or extended into Phase 8.
+### Lock engineering and infrastructure
+
+| Check | Result |
+|-------|--------|
+| build / typecheck | passed |
+| test | 259 passed, 1 todo |
+| preflight | Phase 0–7B passed |
+| five Phase 7B gate scripts | all passed |
+| MySQL / Redis | healthy / healthy |
+| migration / seed | passed; 011 already applied |
+| fulfillment lifecycle columns | started_at, completed_at, completion_note present |
+| forbidden DB columns | no ledger_id, settlement_id, refund_id, or payout |
+| source/build artifacts | no `packages/types/src/*.js` or uncommitted build output |
+
+### Lock Live API evidence
+
+| Item | Result |
+|------|--------|
+| order | `ord_mr54o7fv_25666e35`, paid |
+| payment order | `pay_mr54o7ge_e9c8a6b2`, paid |
+| queued dispatch task | `dpt_mr54o7h6_d2e78b89`, hangzhou, `sku_home_daily_2h` |
+| accepted fulfillment | `ful_mr54o7mo_09d483ef`, accepted, timestamps NULL |
+| start | HTTP 200, in_progress, idempotent=false, started_at set |
+| repeat start while in_progress | HTTP 200, idempotent=true |
+| complete | HTTP 200, completed, idempotent=false, completed_at set |
+| completion note | `Phase 7B lock test completed` persisted |
+| start after completed | HTTP 409; no state rollback |
+| repeat complete | HTTP 200, idempotent=true |
+| repeat complete mutation | original completed_at and completion_note unchanged |
+
+### Lock outbox and scope evidence
+
+- `fulfillment.created`, `fulfillment.started`, and `fulfillment.completed`
+  each exist exactly once for the fulfillment, with `city_code=hangzhou`.
+- All three payloads contain fulfillmentId, cityCode, workerId, and skuId.
+- Wrong worker and wrong city return HTTP 403; missing cityCode returns HTTP
+  400; non-worker app/role returns HTTP 403.
+- Order and payment order remain `paid` after completion.
+
+### Lock boundary conclusion
+
+All boundary searches and gates confirm no ledger, settlement, payout, refund,
+aftersale, reversal, evidence, OSS, image upload, or order/payment mutation.
+Phase 7B is ready to merge to main and has not entered Phase 8.
