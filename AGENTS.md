@@ -50,6 +50,30 @@
 
 ## 必读文档
 
+- `docs/CURRENT_STATE.md` — **当前 Phase / tag / 分支唯一事实源（每次 Lock 更新）**
 - `docs/architecture/00_XLB_ENGINEERING_ARCHITECTURE_MANDATORY.md`
 - `docs/architecture/02_XLB_ENGINEERING_FOUNDATION.md`
 - `.cursor/rules/xlb-architecture-mandatory.mdc`
+
+## Agent Skills（`.cursor/skills/`）
+
+**开工顺序（必须）：**
+
+1. `xlb-session-sync` — git 状态 + `docs/CURRENT_STATE.md`，禁止依赖旧记忆
+2. `xlb-context-map` — 按领域读 3–5 个文件（含 `reference.md` 模块树）
+3. `xlb-current-vs-target` — 蓝图 vs 当前实现 vs 差距 vs 禁止项
+4. `xlb-phase-boundary` — 当前 Phase 允许/禁止 + gate 索引
+
+**Lock 任务额外执行：** `xlb-phase-lock`
+
+**事实优先级：** git + `CURRENT_STATE` + `reference.md` + 实际代码 > 会话记忆 > 外部 prompt。若 prompt 与上述文件冲突，**停止并汇报**，不得擅自施工。
+
+| Skill | 用途 |
+|-------|------|
+| `xlb-session-sync` | git + CURRENT_STATE 同步，禁止依赖旧会话记忆 |
+| `xlb-context-map` | 按领域导航该读哪些文件，避免全库搜索 |
+| `xlb-current-vs-target` | SDJ99 蓝图 ≠ 当前实现 |
+| `xlb-phase-boundary` | 当前 Phase 允许 / 禁止做什么 |
+| `xlb-phase-lock` | Phase Lock 复验、合并 main、打 tag |
+
+快捷脚本：`powershell -File scripts/agent-context-snapshot.ps1`
