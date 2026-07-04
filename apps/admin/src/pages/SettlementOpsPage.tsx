@@ -22,7 +22,11 @@ interface GapScan {
   summary: { totalGaps: number; gapsByType: Record<string, number> };
 }
 
-export function SettlementOpsPage() {
+interface Props {
+  onNavigate?: (statementId: string) => void;
+}
+
+export function SettlementOpsPage({ onNavigate }: Props) {
   const [cityCode, setCityCode] = useState("hangzhou");
   const [statements, setStatements] = useState<AuditItem[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -60,7 +64,8 @@ export function SettlementOpsPage() {
       <section><h2>Statement Audit</h2>
         {statements.length === 0 ? <p>No statements</p> :
           <ul>{statements.slice(0, 10).map((s) => (
-            <li key={s.statementId}>{s.statementId} — worker {s.workerId} — {s.status}
+            <li key={s.statementId} style={{ cursor: "pointer", padding: "4px 0" }}
+                onClick={() => onNavigate?.(s.statementId)}>{s.statementId} — worker {s.workerId} — {s.status}
               {s.review ? ` — review: ${s.review.decision}` : " — pending review"}
               {s["export"] ? ` — hash: ${s["export"].contentHash?.slice(0, 8)}` : ""}
             </li>

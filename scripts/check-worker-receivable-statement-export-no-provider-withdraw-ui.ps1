@@ -10,6 +10,7 @@ $phase9aAllowed = @(
   "apps/admin/src/pages/SettlementOpsPage.tsx",
   "apps/admin/src/app/App.tsx",
   "apps/admin/vite.config.ts"
+  "apps/admin/src/pages/SettlementStatementDetailPage.tsx"
 )
 $UiChanges = @(git -C $Root diff --name-only 16793276ff6ddfa82341c10d2ed4c5f49d16746a -- apps/customer apps/worker apps/admin 2>$null | Where-Object { $_ -match '\.(tsx?|jsx?)$' -and $_ -notmatch 'node_modules' })
 $nonPhase9Ui = $UiChanges | Where-Object { $phase9aAllowed -notcontains $_ }
