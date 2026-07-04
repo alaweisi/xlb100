@@ -3,6 +3,7 @@
 ## Baseline and scope
 
 - Branch: `phase8c-settlement-confirmation-foundation`
+- Phase 8C body commit: `0c425ba9dcf6a28fcc72d326abd2f18426225309`
 - Baseline main commit: `bfea4e9651f477abf4a57d98b41c52d11e69f93d`
 - Baseline tag: `xlb-phase8b-settlement-preparation`
 - Objective: atomically confirm a prepared city-scoped settlement batch and
@@ -18,46 +19,91 @@
 - API: `POST /api/internal/settlement/batches/:batchId/confirm`
 - Service/repository: city-scoped row locks, snapshot verification, atomic
   batch/item transition, and idempotent retry
-- Outbox: exactly one `settlement.confirmed`; `settlement.prepared` is untouched
+- Outbox: exactly one `settlement.confirmed` per batch; `settlement.prepared`
+  is untouched by confirmation
 
-## Verification
+## Phase 8C-Lock verification (2026-07-04)
 
-- Build: passed (10 tasks)
-- Typecheck: passed (14 tasks)
-- Tests: 176 files passed; 316 tests passed; 1 pre-existing todo
-- Architecture preflight: passed through Phase 8C
-- All six Phase 8B gates and all eight Phase 8C gates: passed
-- Docker MySQL 8 and Redis 7: healthy; database/Redis health endpoint passed
-- `migrate-local`: passed, including migration 014
-- `seed-local`: passed without a Phase 8C business seed
+### Engineering
 
-## Live API verification
+| Check | Result |
+|-------|--------|
+| build | 10/10 passed |
+| typecheck | 14/14 passed |
+| test | 176 files / **316 passed** / 1 todo |
+| preflight | passed (Phase 0–8C) |
 
-- Prepared batch: `stb_mr5q3oqa_e42a4cd7`, Hangzhou, CNY, one item
-- Prepared item: `sti_mr5q3oqa_f55da841`, source accrual
-  `lar_mr5q3oou_4e390b6d`
-- First confirm: status confirmed, `idempotent=false`
-- Confirmation audit: `confirmed_at=2026-07-04T02:11:04.000Z`,
-  `confirmed_by=operator-phase8c-final`
-- Retry: `idempotent=true` with identical confirmed time, actor, and amounts
-- Confirmed outbox: `evt_mr5q734t_2f268d0a`; exactly one
-  `settlement.confirmed` event for the batch
-- The original `settlement.prepared` event remained pending
-- Shanghai confirmation and batch-item access returned 404
-- Batch/item amounts remained CNY 89.00 gross, 8.90 platform fee, and 80.10
-  worker receivable
-- Upstream states remained order paid, payment paid, fulfillment completed, and
-  ledger accrual accrued
-- The source fulfillment retained exactly three ledger entries
+### Gate scripts
+
+| Phase | Result |
+|-------|--------|
+| Phase 8B (6 gates) | 6/6 passed |
+| Phase 8C (8 gates) | 8/8 passed |
+
+### Infrastructure
+
+| Check | Result |
+|-------|--------|
+| Docker MySQL | healthy |
+| Docker Redis | healthy |
+| migrate-local | passed (014 applied) |
+| seed-local | passed |
+
+### Live API chain (Lock run)
+
+IDs from Lock verification on `phase8c-settlement-confirmation-foundation`:
+
+| Step | ID / result |
+|------|-------------|
+| Order | `ord_mr5qkw9v_dfa355e9` |
+| Payment | `pay_mr5qkwah_c766f559` |
+| Fulfillment | `ful_mr5qkwgi_e9dbaaa6` |
+| Accrual | `lar_mr5qkwho_0f65acc2` (89.00 / 8.90 / 80.10, accrued) |
+| Ledger run-once | processed=1 |
+| Prepare-once | processed=1, batch `stb_mr5qkwko_c1d26d99` |
+| Confirm 1st | status=confirmed, idempotent=false, confirmed_by=operator-phase8c-lock |
+| Confirm 2nd | idempotent=true; confirmed_at / confirmed_by unchanged |
+| Confirm Shanghai | HTTP 404 |
+| GET items Shanghai | HTTP 404 |
+| settlement.confirmed outbox | exactly 1 row (`evt_mr5qkwl5_e0417017`) |
+| Batch items | 1 item, status=confirmed |
+| ledger_entries | 3 (unchanged) |
+| Upstream | order=paid, payment=paid, fulfillment=completed, accrual=accrued |
+
+### Idempotency
+
+- Second confirm returns `idempotent=true` with identical audit fields and amounts.
+- No duplicate `settlement.confirmed` outbox rows for the batch.
+
+### Cross-city isolation
+
+- Shanghai confirm and batch-item read both return 404 for Hangzhou batch.
+
+### Upstream immutability
+
+- orders / payment_orders / fulfillments / ledger_accruals unchanged by confirm.
+- ledger_entries count remains 3 for source fulfillment.
 
 ## Boundary declaration
 
 Phase 8C confirmation is not payment or funds movement. It does not implement
-payout, paid settlement, mock payout, withdrawal, provider splitting, refund,
-aftersale, reversal, or UI changes. It does not create ledger entries or mutate
-orders, payments, fulfillments, or ledger accruals.
+payout, paid settlement, mock payout, withdrawal, provider splitting (WeChat /
+Alipay), refund, aftersale, reversal, or UI changes. It does not create ledger
+entries or mutate orders, payments, fulfillments, or ledger accruals.
 
-## Current conclusion
+**Phase 8D not started.**
 
-Phase 8C Settlement Confirmation Foundation 主体已完成并通过验证；尚未
-Lock、尚未合并 main、尚未打 tag，且未进入 Phase 8D。
+## Lock status
+
+| Item | Value |
+|------|-------|
+| Body complete | yes |
+| Lock report finalized | yes (this commit) |
+| Merged to main | pending → see merge commit after Lock |
+| Tag | pending → `xlb-phase8c-settlement-confirmation` |
+
+## Prior development verification
+
+Earlier dev run (pre-Lock): batch `stb_mr5q3oqa_e42a4cd7`, confirm by
+`operator-phase8c-final` — same behavioral results (idempotent, 404 cross-city,
+amounts preserved).
