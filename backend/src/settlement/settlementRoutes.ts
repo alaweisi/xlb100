@@ -53,6 +53,15 @@ import {
   WorkerReceivableStatementExportError,
 } from "./workerReceivableStatementExportService.js";
 
+import {
+  workerReceivableStatementAuditService,
+  WorkerReceivableStatementAuditError,
+} from "./workerReceivableStatementAuditService.js";
+import {
+  statementAuditQuerySchema,
+  exportAuditQuerySchema,
+} from "@xlb/validators";
+
 async function requireSettlementOperator(request: FastifyRequest, reply: FastifyReply): Promise<void> {
   const context = getRequestContext(request);
   if (context.appType !== "admin" || context.role !== "operator") {
@@ -344,6 +353,74 @@ export async function registerSettlementRoutes(app: FastifyInstance): Promise<vo
         return reply.status(404).send({ ok: false, error: "worker receivable statement export not found in city scope" });
       }
       return getWorkerReceivableStatementExportResponseSchema.parse({ ok: true, export: exportRecord });
+    },
+  );
+
+  // ── Phase 8I: Audit Query Routes ──
+
+  // Fixed path first — registered before parameterised route to avoid ambiguity
+  app.get(
+    "/api/internal/settlement/worker-statement-audit",
+    { preHandler },
+    async (request, reply) => {
+      const context = getRequestContext(request);
+      const parsed = statementAuditQuerySchema.safeParse(request.query ?? {});
+      if (!parsed.success) {
+        return reply.status(400).send({ ok: false, error: "invalid audit query parameters" });
+      }
+      try {
+        const result = await workerReceivableStatementAuditService.listStatementAudit(context, parsed.data);
+        return { ok: true, items: result.items, nextCursor: result.nextCursor };
+      } catch (error) {
+        if (error instanceof WorkerReceivableStatementAuditError) {
+          return reply.status(400).send({ ok: false, error: error.message });
+        }
+        throw error;
+      }
+    },
+  );
+
+  app.get<{ Params: { statementId: string } }>(
+    "/api/internal/settlement/worker-statement-audit/:statementId",
+    { preHandler },
+    async (request, reply) => {
+      const context = getRequestContext(request);
+      try {
+        const detail = await workerReceivableStatementAuditService.getStatementAuditDetail(
+          context,
+          request.params.statementId,
+        );
+        if (detail === null) {
+          return reply.status(404).send({ ok: false, error: "worker receivable statement audit not found in city scope" });
+        }
+        return { ok: true, ...detail };
+      } catch (error) {
+        if (error instanceof WorkerReceivableStatementAuditError) {
+          return reply.status(400).send({ ok: false, error: error.message });
+        }
+        throw error;
+      }
+    },
+  );
+
+  app.get(
+    "/api/internal/settlement/worker-statement-export-audit",
+    { preHandler },
+    async (request, reply) => {
+      const context = getRequestContext(request);
+      const parsed = exportAuditQuerySchema.safeParse(request.query ?? {});
+      if (!parsed.success) {
+        return reply.status(400).send({ ok: false, error: "invalid export audit query parameters" });
+      }
+      try {
+        const result = await workerReceivableStatementAuditService.listExportAudit(context, parsed.data);
+        return { ok: true, items: result.items, nextCursor: result.nextCursor };
+      } catch (error) {
+        if (error instanceof WorkerReceivableStatementAuditError) {
+          return reply.status(400).send({ ok: false, error: error.message });
+        }
+        throw error;
+      }
     },
   );
 }

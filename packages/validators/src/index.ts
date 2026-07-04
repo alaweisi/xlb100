@@ -159,6 +159,13 @@ export {
   workerReceivableStatementExportedEventPayloadSchema,
   exportWorkerReceivableStatementResponseSchema,
   getWorkerReceivableStatementExportResponseSchema,
+  statementAuditQuerySchema,
+  statementAuditItemSchema,
+  statementAuditListResponseSchema,
+  statementAuditDetailResponseSchema,
+  exportAuditQuerySchema,
+  exportAuditItemSchema,
+  exportAuditListResponseSchema,
   type SettlementBatchInput,
   type SettlementItemInput,
   type SettlementPayableInput,
@@ -191,6 +198,8 @@ export {
   type WorkerReceivableStatementExportedEventPayloadInput,
   type ExportWorkerReceivableStatementResponseInput,
   type GetWorkerReceivableStatementExportResponseInput,
+  type StatementAuditQueryInput,
+  type ExportAuditQueryInput,
 } from "./settlementSchema.js";
 export {
   appTypeSchema,

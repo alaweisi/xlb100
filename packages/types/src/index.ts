@@ -63,6 +63,12 @@ export type {
   WorkerReceivableStatementExportPayloadVersion,
   WorkerReceivableStatementExport,
   WorkerReceivableStatementExportedEventPayload,
+  StatementAuditQuery,
+  StatementAuditItem,
+  StatementAuditListResponse,
+  StatementAuditDetailResponse,
+  ExportAuditQuery,
+  ExportAuditItem,
 } from "./settlement.js";
 export type {
   DispatchTask,

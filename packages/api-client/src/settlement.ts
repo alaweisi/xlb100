@@ -38,6 +38,29 @@ export function createSettlementApi(client: ApiClient) {
         `/api/internal/settlement/batches/${encodeURIComponent(batchId)}/confirm`,
         {},
       ),
+    // ── Phase 8I: Audit Query ──
+    listStatementAudit: (query?: Record<string, string>) => {
+      const qs = query ? "?" + new URLSearchParams(query).toString() : "";
+      return client.get<{ ok: true; items: unknown[]; nextCursor: string | null }>(
+        `/api/internal/settlement/worker-statement-audit${qs}`,
+      );
+    },
+    getStatementAuditDetail: (statementId: string) =>
+      client.get<{
+        ok: true;
+        statement: unknown;
+        review: unknown | null;
+        export: unknown | null;
+        exportedOutboxEvent: unknown | null;
+      }>(
+        `/api/internal/settlement/worker-statement-audit/${encodeURIComponent(statementId)}`,
+      ),
+    listExportAudit: (query?: Record<string, string>) => {
+      const qs = query ? "?" + new URLSearchParams(query).toString() : "";
+      return client.get<{ ok: true; items: unknown[]; nextCursor: string | null }>(
+        `/api/internal/settlement/worker-statement-export-audit${qs}`,
+      );
+    },
   };
 }
 
