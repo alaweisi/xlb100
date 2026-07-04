@@ -239,7 +239,7 @@ export class WorkerReceivableStatementAuditRepository extends RepositoryBase {
     assertCityScopedContext(context);
     const cityCode = context.cityCode! as CityCode;
 
-    const { clause, params } = buildCityScopedWhere(cityCode, "s");
+    const { clause, params } = buildCityScopedWhere(cityCode, "s.city_code");
     const sql = `
       SELECT s.statement_id, s.city_code, s.queue_id, s.settlement_payable_id,
              s.settlement_batch_id, s.worker_id, s.currency,

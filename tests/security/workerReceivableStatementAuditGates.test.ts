@@ -2,19 +2,19 @@ import { describe, expect, it } from "vitest";
 import { runPowerShellGate } from "./helpers/runPowerShellGate.js";
 
 const gates = [
-  "check-worker-receivable-statement-audit-list-only.ps1",
-  "check-worker-receivable-statement-audit-city-scoped.ps1",
-  "check-worker-receivable-statement-audit-no-ledger-entries.ps1",
-  "check-worker-receivable-statement-audit-no-upstream-mutation.ps1",
-  "check-worker-receivable-statement-audit-no-payout-paid.ps1",
-  "check-worker-receivable-statement-audit-no-provider-withdraw-ui.ps1",
-  "check-worker-receivable-statement-audit-no-refund-aftersale-reversal.ps1",
-  "check-worker-receivable-statement-export-audit-city-scoped.ps1",
+  "check-worker-receivable-statement-audit-readonly.ps1",
+  "check-worker-receivable-statement-audit-no-mutation-routes.ps1",
+  "check-worker-receivable-statement-audit-city-scope.ps1",
+  "check-worker-receivable-statement-audit-index-only-migration.ps1",
+  "check-worker-receivable-statement-audit-no-ui.ps1",
+  "check-worker-receivable-statement-audit-forbidden-zone.ps1",
+  "check-worker-receivable-statement-audit-no-outbox-write.ps1",
+  "check-worker-receivable-statement-audit-route-order.ps1",
 ] as const;
 
 describe("Phase 8I architecture gates", () => {
   it.each(gates)("passes %s", (gate) => {
-    expect(runPowerShellGate(gate)).toContain("PASS");
+    expect(runPowerShellGate(gate)).toMatch(/passed/i);
   });
 });
 
@@ -58,7 +58,7 @@ describe("Phase 8I audit mutation boundary", () => {
     );
     const auditSection = routes.split("Phase 8I: Audit Query Routes")[1] ?? "";
     // All audit routes should have preHandler for auth/scoping
-    const getMatches = auditSection.match(/app\.get\(/g);
+    const getMatches = auditSection.match(/app\.get[<(]/g);
     expect(getMatches).toHaveLength(3); // list, detail, export list
   });
 

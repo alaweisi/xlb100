@@ -247,7 +247,7 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
           if (firstBody.nextCursor) {
             const second = await app.inject({
               method: "GET",
-              url: `/api/internal/settlement/worker-statement-audit?cursor=${firstBody.nextCursor}&limit=1`,
+              url: `/api/internal/settlement/worker-statement-audit?cursor=${encodeURIComponent(firstBody.nextCursor)}&limit=1`,
               headers: {
                 "x-xlb-app-type": "admin",
                 "x-xlb-role": "operator",

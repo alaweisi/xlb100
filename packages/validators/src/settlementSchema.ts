@@ -366,8 +366,8 @@ export const statementAuditQuerySchema = z.object({
   workerId: idSchema.optional(),
   statementId: idSchema.optional(),
   reviewDecision: workerReceivableStatementReviewDecisionSchema.optional(),
-  hasReview: z.boolean().optional(),
-  hasExport: z.boolean().optional(),
+  hasReview: z.preprocess((v) => (v === "true" ? true : v === "false" ? false : v), z.boolean()).optional(),
+  hasExport: z.preprocess((v) => (v === "true" ? true : v === "false" ? false : v), z.boolean()).optional(),
   exportFormat: workerReceivableStatementExportFormatSchema.optional(),
   statementCreatedFrom: z.string().min(1).optional(),
   statementCreatedTo: z.string().min(1).optional(),
@@ -375,7 +375,7 @@ export const statementAuditQuerySchema = z.object({
   reviewedTo: z.string().min(1).optional(),
   exportedFrom: z.string().min(1).optional(),
   exportedTo: z.string().min(1).optional(),
-  limit: z.number().int().min(1).max(200).optional(),
+  limit: z.preprocess((v) => (typeof v === "string" ? Number(v) : v), z.number().int().min(1).max(200)).optional(),
   cursor: z.string().min(1).max(128).optional(),
 }).strict();
 
@@ -445,7 +445,7 @@ export const exportAuditQuerySchema = z.object({
   contentHash: z.string().min(1).max(128).optional(),
   exportedFrom: z.string().min(1).optional(),
   exportedTo: z.string().min(1).optional(),
-  limit: z.number().int().min(1).max(200).optional(),
+  limit: z.preprocess((v) => (typeof v === "string" ? Number(v) : v), z.number().int().min(1).max(200)).optional(),
   cursor: z.string().min(1).max(128).optional(),
 }).strict();
 
