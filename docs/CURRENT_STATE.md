@@ -3,18 +3,16 @@
 > **Single source of truth for AI agents.** Update this file at every Phase Lock.
 > Do not trust conversation memory — read this file first.
 
-Last updated: 2026-07-04 (Phase 8E in progress on feature branch)
+Last updated: 2026-07-04 (Phase 8E Lock in progress)
 
 ## Git snapshot
 
 | Item | Value |
 |------|-------|
-| **main HEAD (8D locked)** | `921f297` — docs(state): align current state with phase 8d tag head |
-| **main merge commit (8D)** | `2036acd` — merge: XLB phase 8D settlement payable readiness foundation |
-| **main latest tag** | `xlb-phase8d-settlement-payable-readiness` → `e60bba7` |
-| **Phase 8C tag (retained)** | `xlb-phase8c-settlement-confirmation` → `48fb9e1` |
-| **Phase 8D body commit** | `3dd99d0` — feat(phase8d): establish settlement payable readiness foundation |
-| **Active branch** | `phase8e-settlement-payable-queue-foundation` — **NOT locked** |
+| **main HEAD (8D locked + state fix)** | `921f297` — docs(state): align current state with phase 8d tag head |
+| **main latest tag (8D)** | `xlb-phase8d-settlement-payable-readiness` → `e60bba7` |
+| **Phase 8E body commit** | `20e5608` — feat(phase8e): establish settlement payable queue foundation |
+| **Active branch** | `phase8e-settlement-payable-queue-foundation` — **Lock in progress** |
 
 Note: Phase 8D tag @ `e60bba7` is the stable business baseline through payable readiness.
 Main @ `921f297` adds only CURRENT_STATE tag alignment docs after Lock.
@@ -30,7 +28,7 @@ Main @ `921f297` adds only CURRENT_STATE tag alignment docs after Lock.
 
 | Phase | Status |
 |-------|--------|
-| **8E** | **In progress** on `phase8e-settlement-payable-queue-foundation` — payable queue only; not Lock / not merge / not tag |
+| **8E** | **Lock in progress** on `phase8e-settlement-payable-queue-foundation` — body @ `20e5608` |
 | **8F** | **NOT started** |
 
 ## Event chain (8E branch extends 8D)
