@@ -234,6 +234,14 @@ $requiredFiles = @(
   "scripts/check-worker-receivable-statement-export-no-payout-paid.ps1",
   "scripts/check-worker-receivable-statement-export-no-provider-withdraw-ui.ps1",
   "scripts/check-worker-receivable-statement-export-no-refund-aftersale-reversal.ps1",
+  "scripts/check-worker-receivable-statement-audit-readonly.ps1",
+  "scripts/check-worker-receivable-statement-audit-no-mutation-routes.ps1",
+  "scripts/check-worker-receivable-statement-audit-city-scope.ps1",
+  "scripts/check-worker-receivable-statement-audit-index-only-migration.ps1",
+  "scripts/check-worker-receivable-statement-audit-no-ui.ps1",
+  "scripts/check-worker-receivable-statement-audit-forbidden-zone.ps1",
+  "scripts/check-worker-receivable-statement-audit-no-outbox-write.ps1",
+  "scripts/check-worker-receivable-statement-audit-route-order.ps1",
   "tests/unit/cityResolver.test.ts",
   "tests/unit/scopedExecutor.test.ts",
   "tests/unit/adminQueryGuard.test.ts",
@@ -330,3 +338,12 @@ Write-Host "XLB Phase 8E settlement payable queue foundation preflight passed."
 Write-Host "XLB Phase 8F worker receivable statement foundation preflight passed."
 Write-Host "XLB Phase 8G worker receivable statement review foundation preflight passed."
 Write-Host "XLB Phase 8H worker receivable statement export package foundation preflight passed."
+& "$PSScriptRoot\check-worker-receivable-statement-audit-readonly.ps1"
+& "$PSScriptRoot\check-worker-receivable-statement-audit-no-mutation-routes.ps1"
+& "$PSScriptRoot\check-worker-receivable-statement-audit-city-scope.ps1"
+& "$PSScriptRoot\check-worker-receivable-statement-audit-index-only-migration.ps1"
+& "$PSScriptRoot\check-worker-receivable-statement-audit-no-ui.ps1"
+& "$PSScriptRoot\check-worker-receivable-statement-audit-forbidden-zone.ps1"
+& "$PSScriptRoot\check-worker-receivable-statement-audit-no-outbox-write.ps1"
+& "$PSScriptRoot\check-worker-receivable-statement-audit-route-order.ps1"
+Write-Host "XLB Phase 8I statement audit query foundation preflight passed."
