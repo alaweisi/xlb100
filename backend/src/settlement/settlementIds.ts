@@ -11,3 +11,4 @@ export const generateSettlementPayableQueueId = (): string => id("spq");
 export const generateWorkerReceivableStatementId = (): string => id("wrs");
 export const generateWorkerReceivableStatementLineId = (): string => id("wrl");
 export const generateWorkerReceivableStatementReviewId = (): string => id("wrr");
+export const generateWorkerReceivableStatementExportId = (): string => id("wre");

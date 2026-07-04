@@ -49,3 +49,22 @@ export function assertWorkerReceivableStatementReviewable(statementStatus: "crea
     throw new Error(`worker receivable statement status ${statementStatus} cannot be reviewed`);
   }
 }
+
+export function canExportWorkerReceivableStatement(
+  statementStatus: "created",
+  reviewDecision: "approved",
+): boolean {
+  return statementStatus === "created" && reviewDecision === "approved";
+}
+
+export function assertWorkerReceivableStatementExportable(
+  statementStatus: "created",
+  reviewDecision: "approved" | "rejected",
+): void {
+  if (statementStatus !== "created") {
+    throw new Error(`worker receivable statement status ${statementStatus} cannot be exported`);
+  }
+  if (reviewDecision !== "approved") {
+    throw new Error("worker receivable statement review is not approved for export");
+  }
+}

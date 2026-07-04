@@ -59,6 +59,10 @@ export type {
   WorkerReceivableStatementReviewDecision,
   WorkerReceivableStatementReview,
   WorkerReceivableStatementReviewedEventPayload,
+  WorkerReceivableStatementExportFormat,
+  WorkerReceivableStatementExportPayloadVersion,
+  WorkerReceivableStatementExport,
+  WorkerReceivableStatementExportedEventPayload,
 } from "./settlement.js";
 export type {
   DispatchTask,

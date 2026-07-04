@@ -211,3 +211,40 @@ export interface WorkerReceivableStatementReviewedEventPayload {
   reviewedAt: string;
   reviewedBy: string;
 }
+
+export type WorkerReceivableStatementExportFormat = "internal_v1";
+export type WorkerReceivableStatementExportPayloadVersion = "v1";
+
+export interface WorkerReceivableStatementExport {
+  exportId: string;
+  cityCode: CityCode;
+  statementId: string;
+  reviewId: string;
+  queueId: string;
+  settlementPayableId: string;
+  settlementBatchId: string;
+  workerId: string;
+  exportFormat: WorkerReceivableStatementExportFormat;
+  payloadVersion: WorkerReceivableStatementExportPayloadVersion;
+  contentHash: string;
+  exportedAt: string;
+  exportedBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WorkerReceivableStatementExportedEventPayload {
+  exportId: string;
+  statementId: string;
+  reviewId: string;
+  queueId: string;
+  payableId: string;
+  batchId: string;
+  cityCode: CityCode;
+  workerId: string;
+  exportFormat: WorkerReceivableStatementExportFormat;
+  payloadVersion: WorkerReceivableStatementExportPayloadVersion;
+  contentHash: string;
+  exportedAt: string;
+  exportedBy: string;
+}

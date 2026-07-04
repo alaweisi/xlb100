@@ -82,6 +82,24 @@ export const reviewWorkerReceivableStatementOnce = (
 export const getWorkerReceivableStatementReview = (app: FastifyInstance, statementId: string, cityCode = "hangzhou") =>
   app.inject({ method: "GET", url: `/api/internal/settlement/worker-statements/${statementId}/review`, headers: settlementHeaders(cityCode) });
 
+export const exportWorkerReceivableStatementOnce = (app: FastifyInstance, statementId: string, cityCode = "hangzhou") =>
+  app.inject({
+    method: "POST",
+    url: `/api/internal/settlement/worker-statements/${statementId}/export-once`,
+    headers: settlementHeaders(cityCode),
+    payload: {},
+  });
+
+export const getWorkerReceivableStatementExport = (app: FastifyInstance, statementId: string, cityCode = "hangzhou") =>
+  app.inject({ method: "GET", url: `/api/internal/settlement/worker-statements/${statementId}/export`, headers: settlementHeaders(cityCode) });
+
+export async function createApprovedStatementSettlement(app: FastifyInstance) {
+  const ready = await createStatementReadySettlement(app);
+  const review = await reviewWorkerReceivableStatementOnce(app, ready.statementId, { decision: "approved" });
+  if (review.statusCode !== 200) throw new Error(`Failed to review statement: ${review.body}`);
+  return { ...ready, review: review.json().review };
+}
+
 export async function createStatementReadySettlement(app: FastifyInstance) {
   const queued = await createQueuedSettlement(app);
   const generated = await generateWorkerReceivableStatements(app, queued.payable.settlementPayableId);

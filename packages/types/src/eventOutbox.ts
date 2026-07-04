@@ -15,7 +15,8 @@ export type OutboxEventType =
   | "settlement.payable"
   | "settlement.payable.queued"
   | "worker.receivable.statement.created"
-  | "worker.receivable.statement.reviewed";
+  | "worker.receivable.statement.reviewed"
+  | "worker.receivable.statement.exported";
 
 export interface EventOutbox {
   eventId: string;
