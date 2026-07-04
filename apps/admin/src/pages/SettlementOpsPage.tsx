@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { settlementApi, createApiClient } from "@xlb/api-client";
+import { buildHash, parseHashParams } from "../hashParams";
 
 const client = createApiClient({ baseUrl: "http://localhost:3000", headers: { "x-xlb-app-type": "admin", "x-xlb-role": "operator" } });
 const api = settlementApi.create(client);
@@ -29,7 +30,8 @@ interface Props {
 }
 
 export function SettlementOpsPage({ onNavigate, onNavigateToExports, initialCityCode }: Props) {
-  const [cityCode, setCityCode] = useState(initialCityCode || "hangzhou");
+  const params = parseHashParams();
+  const [cityCode, setCityCode] = useState(initialCityCode || params.get("cityCode") || "hangzhou");
   const [statements, setStatements] = useState<AuditItem[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -66,10 +68,10 @@ export function SettlementOpsPage({ onNavigate, onNavigateToExports, initialCity
 
   // Sync cityCode to URL hash
   useEffect(() => {
-    if (window.location.hash.includes("cityCode=")) return;
-    const sp = new URLSearchParams(window.location.hash.replace(/^#.*\?/, ""));
-    if (sp.get("cityCode") !== cityCode && cityCode !== "hangzhou") {
-      // Preserve cityCode in hash if non-default
+    const h = buildHash("", cityCode !== "hangzhou" ? { cityCode } : {});
+    const target = h === "#" ? "" : h;
+    if (window.location.hash !== target) {
+      window.location.hash = target;
     }
   }, [cityCode]);
 
