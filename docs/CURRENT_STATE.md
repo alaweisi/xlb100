@@ -9,9 +9,9 @@ Last updated: 2026-07-04 (Phase 8D locked on main)
 
 | Item | Value |
 |------|-------|
-| **main HEAD** | `912ae04` — docs(phase8d): record settlement payable readiness post-lock state |
+| **main HEAD** | `e60bba7` — docs(phase8d): align lock report with post-lock tag HEAD |
 | **main merge commit (8D)** | `2036acd` — merge: XLB phase 8D settlement payable readiness foundation |
-| **main latest tag** | `xlb-phase8d-settlement-payable-readiness` → `912ae04` |
+| **main latest tag** | `xlb-phase8d-settlement-payable-readiness` → `e60bba7` |
 | **agent infra commit** | `4563ca9` — chore(agent): add xlb cursor skills and current state workflow |
 | **Phase 8C tag (retained)** | `xlb-phase8c-settlement-confirmation` → `48fb9e1` |
 | **Phase 8D body commit** | `3dd99d0` — feat(phase8d): establish settlement payable readiness foundation |
