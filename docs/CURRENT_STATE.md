@@ -3,17 +3,17 @@
 > **Single source of truth for AI agents.** Update this file at every Phase Lock.
 > Do not trust conversation memory — read this file first.
 
-Last updated: 2026-07-04 (Phase 9A **LOCKED**)
+Last updated: 2026-07-04 (Phase 9B **LOCKED**)
 
 ## Git snapshot
 
 | Item | Value |
 |------|-------|
-| **main HEAD (stable baseline)** | `1541045` — fix(admin): harden phase 9a validation gates |
+| **main HEAD (stable baseline)** | `178982a` — merge: phase 9b admin settlement operations drilldown |
 | **Phase 8 exit tag** | `xlb-phase8-exit-settlement-governance` → `6c38c33` |
-| **Phase 9A feature commit** | `1b94779` — feat(admin): add phase 9a settlement operations console |
-| **Phase 9A merge commit** | `6c26b94` — merge: phase 9a admin settlement operations console |
-| **Phase 9A tag** | `xlb-phase9a-admin-settlement-operations-console` |
+| **Phase 9A tag** | `xlb-phase9a-admin-settlement-operations-console` → `dcd4abd` |
+| **Phase 9B feature commit** | `b83fee3` — feat(admin): add phase 9b settlement operations drilldown |
+| **Phase 9B merge commit** | `178982a` — merge: phase 9b admin settlement operations drilldown |
 | **Active branch** | `main` |
 
 ## Locked phases (merged to main + tagged)
@@ -22,49 +22,46 @@ Last updated: 2026-07-04 (Phase 9A **LOCKED**)
 |-------|-----|---------------|
 | 0–8L | (see prior tags) | Foundation through reconciliation gap scan |
 | **8 Exit** | `xlb-phase8-exit-settlement-governance` | Phase 8 settlement governance exited |
-| **9A** | `xlb-phase9a-admin-settlement-operations-console` | Admin read-only settlement operations console foundation |
+| **9A** | `xlb-phase9a-admin-settlement-operations-console` | Admin read-only settlement operations console |
+| **9B** | `xlb-phase9b-admin-settlement-operations-drilldown` | Admin settlement operations drilldown / detail foundation |
 
-## Phase 9A boundaries
+## Phase 9B boundaries
 
-- Admin page: `apps/admin/src/pages/SettlementOpsPage.tsx` — read-only console with 4 data-display sections
-- Consumed APIs: 4 GET endpoints (worker-statement-audit, worker-statement-review-summary, settlement-audit-summary, reconciliation-gap-scan) — all Phase 8 locked
+- Admin detail page: `apps/admin/src/pages/SettlementStatementDetailPage.tsx` — statement + review + export + outbox event detail
+- Detail route: `#/settlement-ops/statements/:statementId` (hash-based URL route, zero library dependencies)
+- Consumed API: `getStatementAuditDetail(statementId)` — Phase 8I locked GET endpoint
 - No backend endpoint / no mutation / no migration / no schema change
 - No customer UI / no worker UI
 - No payout / no provider / no notification / no payment_instruction
-- No status changes / no auto-fix / no repair / no backfill
-- Admin build: `@xlb/api-client` alias added to `apps/admin/vite.config.ts`
-- Gate exemptions: 10 Phase 8 `*-no-ui` / `*-no-provider-withdraw-ui` gates exempt 3 admin files (SettlementOpsPage.tsx, App.tsx, vite.config.ts) — provider/withdraw detection logic unchanged
-- Dev dependencies: jsdom, @testing-library/react, @testing-library/jest-dom (root devDependencies, not in runtime bundle)
+- No new npm dependencies
 
-## Validation baseline (Phase 9A lock)
+## Validation baseline (Phase 9B lock)
 
 | Check | Result |
 |-------|--------|
-| Build | admin vite build: 34 modules, passed |
+| Build | admin vite build: 35 modules, passed |
 | Typecheck | 10/10 passed |
-| Targeted 9A tests | 1 file / 16 passed / 0 failures |
-| Full tests | 233 files / 642 passed / 0 failures |
-| Preflight | Phase 0–9A all passed |
+| Targeted 9B tests | 1 file / 14 passed / 0 failures |
+| Full tests | unit/contract all passed |
+| Preflight | Phase 0–9B all passed |
 | Phase 8 regression (8F–8L) | 56/56 passed |
-| Phase 9A gates | 8/8 passed |
+| Phase 9A regression | 8/8 passed |
+| Phase 9B gates | 10/10 passed |
 | Git status | clean |
 
-## Commit lineage (Phase 9A lock baseline)
+## Commit lineage (Phase 9B lock baseline)
 
 ```
-1541045 fix(admin): harden phase 9a validation gates ← CURRENT MAIN
-6c26b94 merge: phase 9a admin settlement operations console
-1b94779 feat(admin): add phase 9a settlement operations console
-6c38c33 docs(settlement): mark phase 8 exit governance complete (Phase 8 exit)
+178982a merge: phase 9b admin settlement operations drilldown ← CURRENT MAIN
+b83fee3 feat(admin): add phase 9b settlement operations drilldown
+dcd4abd docs(admin): lock phase 9a settlement operations console
 ```
-
-Note: `6659104` is a dangling/orphan commit (first merge attempt, superseded by `6c26b94` after amend+remerge). Not in main history.
 
 ## Read order for new session
 
 1. This file (`docs/CURRENT_STATE.md`)
-2. Latest locked report: `docs/reports/PHASE9A_ADMIN_SETTLEMENT_OPERATIONS_CONSOLE_LOCK_REPORT.md`
-3. Previous locked report: `docs/reports/PHASE8L_RECONCILIATION_GAP_SCAN_LOCK_REPORT.md`
+2. Latest locked report: `docs/reports/PHASE9B_ADMIN_SETTLEMENT_OPERATIONS_DRILLDOWN_LOCK_REPORT.md`
+3. Previous locked report: `docs/reports/PHASE9A_ADMIN_SETTLEMENT_OPERATIONS_CONSOLE_LOCK_REPORT.md`
 
 ## Blueprint warning
 
