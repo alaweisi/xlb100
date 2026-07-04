@@ -8,6 +8,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@xlb/types": path.resolve(__dirname, "../../packages/types/src/index.ts"),
+      "@xlb/api-client": path.resolve(__dirname, "../../packages/api-client/src/index.ts"),
       "@xlb/ui": path.resolve(__dirname, "../../packages/ui/src/index.ts"),
     },
   },

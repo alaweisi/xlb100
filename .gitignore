@@ -11,3 +11,5 @@ coverage/
 Thumbs.db
 .vite/
 *.tsbuildinfo
+.codewhale/
+.deepseek/
