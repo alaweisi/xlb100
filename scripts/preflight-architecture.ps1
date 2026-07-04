@@ -159,6 +159,12 @@ $requiredFiles = @(
   "scripts/check-fulfillment-no-direct-ledger.ps1",
   "scripts/check-ledger-no-refund-aftersale.ps1",
   "scripts/check-ledger-no-order-payment-mutation.ps1",
+  "backend/src/settlement/settlementPreparationService.ts",
+  "backend/src/settlement/settlementRepository.ts",
+  "backend/src/settlement/settlementRoutes.ts",
+  "db/migrations/013_settlement_preparation_foundation.sql",
+  "docs/contracts/CONTRACT_SETTLEMENT_PREPARATION.md",
+  "docs/architecture/13_XLB_SETTLEMENT_PREPARATION_FOUNDATION.md",
   "tests/unit/cityResolver.test.ts",
   "tests/unit/scopedExecutor.test.ts",
   "tests/unit/adminQueryGuard.test.ts",
@@ -248,3 +254,4 @@ Write-Host "XLB Phase 6 certification worker eligibility foundation preflight pa
 Write-Host "XLB Phase 7A worker accept fulfillment skeleton foundation preflight passed."
 Write-Host "XLB Phase 7B fulfillment start complete foundation preflight passed."
 Write-Host "XLB Phase 8A ledger accrual foundation preflight passed."
+Write-Host "XLB Phase 8B settlement preparation foundation preflight passed."

@@ -1,0 +1,175 @@
+import type { Pool, PoolConnection, RowDataPacket } from "mysql2/promise";
+import type {
+  CityCode,
+  LedgerAccrual,
+  RequestContext,
+  SettlementBatch,
+  SettlementItem,
+} from "@xlb/types";
+import { RepositoryBase } from "../dal/repositoryBase.js";
+import {
+  assertCityScopedContext,
+  buildCityScopedWhere,
+} from "../dal/scopedExecutor.js";
+
+type BatchRow = RowDataPacket & {
+  settlement_batch_id: string; city_code: string; currency: "CNY";
+  total_gross_amount: string; total_platform_fee: string;
+  total_worker_receivable: string; item_count: number;
+  status: SettlementBatch["status"]; prepared_at: Date;
+  created_at: Date; updated_at: Date;
+};
+
+type ItemRow = RowDataPacket & {
+  settlement_item_id: string; settlement_batch_id: string; city_code: string;
+  accrual_id: string; fulfillment_id: string; order_id: string;
+  payment_order_id: string; worker_id: string; customer_id: string; sku_id: string;
+  gross_amount: string; platform_fee: string; worker_receivable: string;
+  currency: "CNY"; status: SettlementItem["status"];
+  created_at: Date; updated_at: Date;
+};
+
+type AccrualRow = RowDataPacket & {
+  accrual_id: string; city_code: string; fulfillment_id: string; order_id: string;
+  payment_order_id: string; worker_id: string; customer_id: string; sku_id: string;
+  gross_amount: string; platform_fee: string; worker_receivable: string;
+  currency: "CNY"; source_event_id: string; status: LedgerAccrual["status"];
+  created_at: Date;
+};
+
+const mapBatch = (row: BatchRow): SettlementBatch => ({
+  settlementBatchId: row.settlement_batch_id,
+  cityCode: row.city_code as CityCode,
+  currency: row.currency,
+  totalGrossAmount: Number(row.total_gross_amount),
+  totalPlatformFee: Number(row.total_platform_fee),
+  totalWorkerReceivable: Number(row.total_worker_receivable),
+  itemCount: row.item_count,
+  status: row.status,
+  preparedAt: row.prepared_at.toISOString(),
+  createdAt: row.created_at.toISOString(),
+  updatedAt: row.updated_at.toISOString(),
+});
+
+const mapItem = (row: ItemRow): SettlementItem => ({
+  settlementItemId: row.settlement_item_id,
+  settlementBatchId: row.settlement_batch_id,
+  cityCode: row.city_code as CityCode,
+  accrualId: row.accrual_id,
+  fulfillmentId: row.fulfillment_id,
+  orderId: row.order_id,
+  paymentOrderId: row.payment_order_id,
+  workerId: row.worker_id,
+  customerId: row.customer_id,
+  skuId: row.sku_id,
+  grossAmount: Number(row.gross_amount),
+  platformFee: Number(row.platform_fee),
+  workerReceivable: Number(row.worker_receivable),
+  currency: row.currency,
+  status: row.status,
+  createdAt: row.created_at.toISOString(),
+  updatedAt: row.updated_at.toISOString(),
+});
+
+const mapAccrual = (row: AccrualRow): LedgerAccrual => ({
+  accrualId: row.accrual_id,
+  cityCode: row.city_code as CityCode,
+  fulfillmentId: row.fulfillment_id,
+  orderId: row.order_id,
+  paymentOrderId: row.payment_order_id,
+  workerId: row.worker_id,
+  customerId: row.customer_id,
+  skuId: row.sku_id,
+  grossAmount: Number(row.gross_amount),
+  platformFee: Number(row.platform_fee),
+  workerReceivable: Number(row.worker_receivable),
+  currency: row.currency,
+  sourceEventId: row.source_event_id,
+  status: row.status,
+  createdAt: row.created_at.toISOString(),
+});
+
+export class SettlementRepository extends RepositoryBase {
+  constructor(pool?: Pool) { super(pool); }
+
+  async findUnpreparedAccruals(
+    connection: PoolConnection,
+    cityCode: CityCode,
+  ): Promise<LedgerAccrual[]> {
+    const [rows] = await connection.query<AccrualRow[]>(
+      `SELECT la.* FROM ledger_accruals la
+       WHERE la.city_code = ? AND la.status = 'accrued'
+         AND NOT EXISTS (
+           SELECT 1 FROM settlement_items si
+           WHERE si.accrual_id = la.accrual_id AND si.city_code = la.city_code
+         )
+       ORDER BY la.created_at ASC, la.accrual_id ASC
+       FOR UPDATE`,
+      [cityCode],
+    );
+    return rows.map(mapAccrual);
+  }
+
+  async insertBatch(connection: PoolConnection, batch: SettlementBatch): Promise<void> {
+    await connection.query(
+      `INSERT INTO settlement_batches
+        (settlement_batch_id, city_code, currency, total_gross_amount,
+         total_platform_fee, total_worker_receivable, item_count, status, prepared_at)
+       VALUES (?, ?, 'CNY', ?, ?, ?, ?, 'prepared', ?)`,
+      [batch.settlementBatchId, batch.cityCode, batch.totalGrossAmount,
+        batch.totalPlatformFee, batch.totalWorkerReceivable, batch.itemCount,
+        new Date(batch.preparedAt)],
+    );
+  }
+
+  async insertItem(connection: PoolConnection, item: SettlementItem): Promise<void> {
+    await connection.query(
+      `INSERT INTO settlement_items
+        (settlement_item_id, settlement_batch_id, city_code, accrual_id,
+         fulfillment_id, order_id, payment_order_id, worker_id, customer_id,
+         sku_id, gross_amount, platform_fee, worker_receivable, currency, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'CNY', 'prepared')`,
+      [item.settlementItemId, item.settlementBatchId, item.cityCode, item.accrualId,
+        item.fulfillmentId, item.orderId, item.paymentOrderId, item.workerId,
+        item.customerId, item.skuId, item.grossAmount, item.platformFee,
+        item.workerReceivable],
+    );
+  }
+
+  async listBatches(context: RequestContext, cityCode: CityCode): Promise<SettlementBatch[]> {
+    this.requireContext(context);
+    if (assertCityScopedContext(context) !== cityCode) throw new Error("city_code mismatch in settlement query");
+    const where = buildCityScopedWhere(cityCode);
+    const [rows] = await this.pool.query<BatchRow[]>(
+      `SELECT * FROM settlement_batches WHERE ${where.clause}
+       ORDER BY prepared_at DESC, settlement_batch_id DESC`,
+      where.params,
+    );
+    return rows.map(mapBatch);
+  }
+
+  async listBatchItems(
+    context: RequestContext,
+    cityCode: CityCode,
+    batchId: string,
+  ): Promise<SettlementItem[] | null> {
+    this.requireContext(context);
+    if (assertCityScopedContext(context) !== cityCode) throw new Error("city_code mismatch in settlement query");
+    const where = buildCityScopedWhere(cityCode);
+    const [batches] = await this.pool.query<RowDataPacket[]>(
+      `SELECT settlement_batch_id FROM settlement_batches
+       WHERE ${where.clause} AND settlement_batch_id = ? LIMIT 1`,
+      [...where.params, batchId],
+    );
+    if (!batches[0]) return null;
+    const [rows] = await this.pool.query<ItemRow[]>(
+      `SELECT * FROM settlement_items
+       WHERE ${where.clause} AND settlement_batch_id = ?
+       ORDER BY created_at ASC, settlement_item_id ASC`,
+      [...where.params, batchId],
+    );
+    return rows.map(mapItem);
+  }
+}
+
+export const settlementRepository = new SettlementRepository();

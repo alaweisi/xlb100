@@ -36,6 +36,13 @@ Phase 1 city foundation. All city-scoped business tables (Phase 2+) **must** inc
 | `ledger_entries` | required FK + non-global check | Accrual entry source stays city scoped |
 | `ledger_accruals` | required FK + non-global check | Completed fulfillment accrual snapshot |
 
+## Phase 8B tables with city_code
+
+| Table | city_code column | Notes |
+|-------|------------------|-------|
+| `settlement_batches` | required FK + non-global check | One preparation run inside one city |
+| `settlement_items` | required FK + non-global check | Accrual and batch remain in the same city |
+
 1. No default nationwide `city_code`
 2. Admin queries must filter by scoped `city_code`
 3. Canonical form: lowercase `[a-z0-9_-]+`

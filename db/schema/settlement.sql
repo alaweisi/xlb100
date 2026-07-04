@@ -1,0 +1,2 @@
+-- Phase 8B settlement preparation schema reference.
+-- See db/migrations/013_settlement_preparation_foundation.sql.

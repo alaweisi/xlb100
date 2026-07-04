@@ -86,3 +86,13 @@ payout, refund, or aftersale records.
 
 **Rules:** Phase 8A records accruals only. It does not settle, pay out, withdraw,
 refund, reverse, or mutate order/payment/fulfillment state.
+
+## Phase 8B settlement preparation foundation
+
+| Table | Purpose | city_code |
+|-------|---------|-----------|
+| `settlement_batches` | Totals for one city-scoped preparation run | required |
+| `settlement_items` | One immutable preparation snapshot per ledger accrual | required |
+
+**Rules:** items originate only from `ledger_accruals`; one accrual can appear in
+only one item. Prepared means ready for later review, not that money moved.

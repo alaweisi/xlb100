@@ -40,6 +40,13 @@ export type {
   LedgerAccrual,
 } from "./ledger.js";
 export type {
+  SettlementBatchStatus,
+  SettlementItemStatus,
+  SettlementBatch,
+  SettlementItem,
+  SettlementPreparedEventPayload,
+} from "./settlement.js";
+export type {
   DispatchTask,
   DispatchTaskStatus,
   DispatchStreamMessage,
