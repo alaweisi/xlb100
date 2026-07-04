@@ -248,3 +248,99 @@ export interface WorkerReceivableStatementExportedEventPayload {
   exportedAt: string;
   exportedBy: string;
 }
+
+// ── Phase 8I: Audit Query Types ──
+
+export interface StatementAuditQuery {
+  cityCode?: CityCode;
+  workerId?: string;
+  statementId?: string;
+  reviewDecision?: WorkerReceivableStatementReviewDecision;
+  hasReview?: boolean;
+  hasExport?: boolean;
+  exportFormat?: WorkerReceivableStatementExportFormat;
+  statementCreatedFrom?: string;
+  statementCreatedTo?: string;
+  reviewedFrom?: string;
+  reviewedTo?: string;
+  exportedFrom?: string;
+  exportedTo?: string;
+  limit?: number;
+  cursor?: string;
+}
+
+export interface StatementAuditItem {
+  statementId: string;
+  cityCode: CityCode;
+  workerId: string;
+  queueId: string;
+  settlementPayableId: string;
+  settlementBatchId: string;
+  currency: "CNY";
+  grossAmount: number;
+  platformFeeAmount: number;
+  workerReceivableAmount: number;
+  itemCount: number;
+  status: WorkerReceivableStatementStatus;
+  generatedAt: string;
+  generatedBy: string;
+  review: {
+    reviewId: string;
+    decision: WorkerReceivableStatementReviewDecision;
+    reviewNote: string | null;
+    reviewedAt: string;
+    reviewedBy: string;
+  } | null;
+  export: {
+    exportId: string;
+    exportFormat: WorkerReceivableStatementExportFormat;
+    payloadVersion: WorkerReceivableStatementExportPayloadVersion;
+    contentHash: string;
+    exportedAt: string;
+    exportedBy: string;
+    outboxEventId: string | null;
+  } | null;
+}
+
+export interface StatementAuditListResponse {
+  items: StatementAuditItem[];
+  nextCursor: string | null;
+}
+
+export interface StatementAuditDetailResponse {
+  statement: WorkerReceivableStatement;
+  review: WorkerReceivableStatementReview | null;
+  export: WorkerReceivableStatementExport | null;
+  exportedOutboxEvent: {
+    eventId: string;
+    eventType: string;
+    status: string;
+    publishedAt: string | null;
+  } | null;
+}
+
+export interface ExportAuditQuery {
+  cityCode?: CityCode;
+  workerId?: string;
+  statementId?: string;
+  exportFormat?: WorkerReceivableStatementExportFormat;
+  contentHash?: string;
+  exportedFrom?: string;
+  exportedTo?: string;
+  limit?: number;
+  cursor?: string;
+}
+
+export interface ExportAuditItem {
+  exportId: string;
+  cityCode: CityCode;
+  statementId: string;
+  reviewId: string;
+  workerId: string;
+  exportFormat: WorkerReceivableStatementExportFormat;
+  payloadVersion: WorkerReceivableStatementExportPayloadVersion;
+  contentHash: string;
+  exportedAt: string;
+  exportedBy: string;
+  outboxEventId: string | null;
+}

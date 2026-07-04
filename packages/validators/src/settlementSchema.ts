@@ -358,3 +358,116 @@ export type WorkerReceivableStatementExportInput = z.infer<typeof workerReceivab
 export type WorkerReceivableStatementExportedEventPayloadInput = z.infer<typeof workerReceivableStatementExportedEventPayloadSchema>;
 export type ExportWorkerReceivableStatementResponseInput = z.infer<typeof exportWorkerReceivableStatementResponseSchema>;
 export type GetWorkerReceivableStatementExportResponseInput = z.infer<typeof getWorkerReceivableStatementExportResponseSchema>;
+
+// ── Phase 8I: Audit Query Schemas ──
+
+export const statementAuditQuerySchema = z.object({
+  cityCode: cityCodeSchema.optional(),
+  workerId: idSchema.optional(),
+  statementId: idSchema.optional(),
+  reviewDecision: workerReceivableStatementReviewDecisionSchema.optional(),
+  hasReview: z.boolean().optional(),
+  hasExport: z.boolean().optional(),
+  exportFormat: workerReceivableStatementExportFormatSchema.optional(),
+  statementCreatedFrom: z.string().min(1).optional(),
+  statementCreatedTo: z.string().min(1).optional(),
+  reviewedFrom: z.string().min(1).optional(),
+  reviewedTo: z.string().min(1).optional(),
+  exportedFrom: z.string().min(1).optional(),
+  exportedTo: z.string().min(1).optional(),
+  limit: z.number().int().min(1).max(200).optional(),
+  cursor: z.string().min(1).max(128).optional(),
+}).strict();
+
+const statementAuditReviewSchema = z.object({
+  reviewId: idSchema,
+  decision: workerReceivableStatementReviewDecisionSchema,
+  reviewNote: z.string().max(512).nullable(),
+  reviewedAt: z.string().min(1),
+  reviewedBy: idSchema,
+}).strict();
+
+const statementAuditExportSchema = z.object({
+  exportId: idSchema,
+  exportFormat: workerReceivableStatementExportFormatSchema,
+  payloadVersion: workerReceivableStatementExportPayloadVersionSchema,
+  contentHash: z.string().min(1).max(128),
+  exportedAt: z.string().min(1),
+  exportedBy: idSchema,
+  outboxEventId: idSchema.nullable(),
+}).strict();
+
+export const statementAuditItemSchema = z.object({
+  statementId: idSchema,
+  cityCode: cityCodeSchema,
+  workerId: idSchema,
+  queueId: idSchema,
+  settlementPayableId: idSchema,
+  settlementBatchId: idSchema,
+  currency: z.literal("CNY"),
+  grossAmount: amountSchema,
+  platformFeeAmount: amountSchema,
+  workerReceivableAmount: amountSchema,
+  itemCount: z.number().int().min(1),
+  status: workerReceivableStatementStatusSchema,
+  generatedAt: z.string().min(1),
+  generatedBy: idSchema,
+  review: statementAuditReviewSchema.nullable(),
+  export: statementAuditExportSchema.nullable(),
+}).strict();
+
+export const statementAuditListResponseSchema = z.object({
+  ok: z.literal(true),
+  items: z.array(statementAuditItemSchema),
+  nextCursor: idSchema.nullable(),
+}).strict();
+
+const exportedOutboxEventSchema = z.object({
+  eventId: idSchema,
+  eventType: z.string().min(1),
+  status: z.string().min(1),
+  publishedAt: z.string().min(1).nullable(),
+}).strict();
+
+export const statementAuditDetailResponseSchema = z.object({
+  ok: z.literal(true),
+  statement: workerReceivableStatementSchema,
+  review: workerReceivableStatementReviewSchema.nullable(),
+  export: workerReceivableStatementExportSchema.nullable(),
+  exportedOutboxEvent: exportedOutboxEventSchema.nullable(),
+}).strict();
+
+export const exportAuditQuerySchema = z.object({
+  cityCode: cityCodeSchema.optional(),
+  workerId: idSchema.optional(),
+  statementId: idSchema.optional(),
+  exportFormat: workerReceivableStatementExportFormatSchema.optional(),
+  contentHash: z.string().min(1).max(128).optional(),
+  exportedFrom: z.string().min(1).optional(),
+  exportedTo: z.string().min(1).optional(),
+  limit: z.number().int().min(1).max(200).optional(),
+  cursor: z.string().min(1).max(128).optional(),
+}).strict();
+
+export const exportAuditItemSchema = z.object({
+  exportId: idSchema,
+  cityCode: cityCodeSchema,
+  statementId: idSchema,
+  reviewId: idSchema,
+  workerId: idSchema,
+  exportFormat: workerReceivableStatementExportFormatSchema,
+  payloadVersion: workerReceivableStatementExportPayloadVersionSchema,
+  contentHash: z.string().min(1).max(128),
+  exportedAt: z.string().min(1),
+  exportedBy: idSchema,
+  outboxEventId: idSchema.nullable(),
+}).strict();
+
+export const exportAuditListResponseSchema = z.object({
+  ok: z.literal(true),
+  items: z.array(exportAuditItemSchema),
+  nextCursor: idSchema.nullable(),
+}).strict();
+
+export type StatementAuditQueryInput = z.infer<typeof statementAuditQuerySchema>;
+export type ExportAuditQueryInput = z.infer<typeof exportAuditQuerySchema>;
