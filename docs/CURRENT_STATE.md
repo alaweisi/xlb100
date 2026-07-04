@@ -3,20 +3,22 @@
 > **Single source of truth for AI agents.** Update this file at every Phase Lock.
 > Do not trust conversation memory — read this file first.
 
-Last updated: 2026-07-04 (Phase 8D Lock in progress)
+Last updated: 2026-07-04 (Phase 8D locked on main)
 
 ## Git snapshot
 
 | Item | Value |
 |------|-------|
-| **main HEAD** | `1041079` — merge: add xlb agent skills and current state workflow |
+| **main HEAD** | `2036acd` — merge: XLB phase 8D settlement payable readiness foundation |
+| **main latest tag** | `xlb-phase8d-settlement-payable-readiness` → `2036acd` |
 | **agent infra commit** | `4563ca9` — chore(agent): add xlb cursor skills and current state workflow |
-| **Phase 8C business baseline tag** | `xlb-phase8c-settlement-confirmation` → `48fb9e1` |
+| **Phase 8C tag (retained)** | `xlb-phase8c-settlement-confirmation` → `48fb9e1` |
 | **Phase 8D body commit** | `3dd99d0` — feat(phase8d): establish settlement payable readiness foundation |
-| **Active branch** | `phase8d-settlement-payable-readiness-foundation` — **Lock in progress** |
+| **Phase 8D docs finalize** | `6358293` — docs(phase8d): finalize settlement payable readiness lock report |
+| **backend phase (main)** | `8D` — settlement-payable-readiness-foundation |
 
-Note: main @ `1041079` includes agent infrastructure only; Phase 8C business
-semantics remain frozen at tag `48fb9e1`.
+Note: Phase 8C tag @ `48fb9e1` is retained as historical business baseline; main
+now includes Phase 8D payable readiness on top of agent infra @ `1041079`.
 
 ## Locked phases (merged to main + tagged)
 
@@ -36,21 +38,21 @@ semantics remain frozen at tag `48fb9e1`.
 | 8A | `xlb-phase8a-ledger-accrual` | Ledger accrual from fulfillment.completed |
 | 8B | `xlb-phase8b-settlement-preparation` | Settlement batch prep from accruals |
 | 8C | `xlb-phase8c-settlement-confirmation` | prepared → confirmed, settlement.confirmed outbox |
+| 8D | `xlb-phase8d-settlement-payable-readiness` | confirmed → payable readiness, settlement.payable outbox |
 
 ## In progress (NOT locked)
 
 | Phase | Status |
 |-------|--------|
-| **8D** | **Lock in progress** on `phase8d-settlement-payable-readiness-foundation` — body @ `3dd99d0` |
-| **8E** | **NOT started** |
+| **8E** | **NOT started** — do not implement payout / paid settlement / provider split |
 
-## Backend modules present (main @ 8C + 8D branch work)
+## Backend modules present (main @ 8D)
 
 ```
 context, city, cityConfig, catalog, pricing,
 order, payment, events, streams, dispatch,
 worker, compliance, fulfillment, ledger,
-settlement (prep + confirm + payable readiness on 8D branch)
+settlement (prep + confirm + payable readiness)
 ```
 
 ## Not implemented yet
@@ -62,7 +64,7 @@ settlement (prep + confirm + payable readiness on 8D branch)
 - oa / dashboard apps
 - auto worker assignment
 
-## Event chain (8D branch extends 8C)
+## Event chain (implemented through 8D)
 
 ```
 order.created → order.paid → dispatch (queued)
@@ -74,28 +76,23 @@ order.created → order.paid → dispatch (queued)
 → settlement payable readiness (8D, settlement.payable outbox)
 ```
 
-## Phase 8C boundaries (frozen on tag 48fb9e1)
+## Phase 8D boundaries (frozen)
 
-- ledger_entries unchanged by settlement confirm (still 3 per fulfillment)
+- Payable readiness is not payout, paid settlement, or funds movement
+- ledger_entries unchanged (still 3 per fulfillment)
 - order / payment / fulfillment / accruals: paid / paid / completed / accrued
-- Amount snapshot: 89.00 / 8.90 / 80.10 (Hangzhou demo SKU)
+- Amount snapshot: 89.00 / 8.90 / 80.10 (Hangzhou demo SKU per fulfillment)
+- settlement_batches.status stays `confirmed` after mark-payable
 - No payout, paid settlement, refund, aftersale, reversal, provider split, withdrawal, UI
-
-## Phase 8D boundaries (in progress)
-
-- Payable readiness is not payout or paid settlement
-- No ledger_entries writes; no upstream mutation
-- settlement_batches.status stays `confirmed`
 
 ## Read order for new session
 
 1. This file (`docs/CURRENT_STATE.md`)
 2. Run `scripts/agent-context-snapshot.ps1`
 3. Execute skills: `xlb-session-sync` → `xlb-context-map` → `xlb-current-vs-target` → `xlb-phase-boundary`
-4. Latest locked report: `docs/reports/PHASE8C_SETTLEMENT_CONFIRMATION_FOUNDATION_REPORT.md`
-5. In-progress report: `docs/reports/PHASE8D_SETTLEMENT_PAYABLE_READINESS_FOUNDATION_REPORT.md`
-6. Architecture: `docs/architecture/15_XLB_SETTLEMENT_PAYABLE_READINESS_FOUNDATION.md`
-7. Context map reference: `.cursor/skills/xlb-context-map/reference.md`
+4. Latest locked report: `docs/reports/PHASE8D_SETTLEMENT_PAYABLE_READINESS_FOUNDATION_REPORT.md`
+5. Architecture: `docs/architecture/15_XLB_SETTLEMENT_PAYABLE_READINESS_FOUNDATION.md`
+6. Context map reference: `.cursor/skills/xlb-context-map/reference.md`
 
 ## Agent skills (project)
 

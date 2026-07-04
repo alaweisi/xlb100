@@ -97,13 +97,26 @@ withdrawal, provider splitting (WeChat / Alipay), refund, aftersale, reversal, o
 changes. It does not create ledger entries or mutate orders, payments, fulfillments,
 or ledger accruals.
 
-**Phase 8D Lock in progress — preparing merge to main. Phase 8E not started.**
+**Phase 8D Lock complete. Phase 8E not started.**
 
 ## Lock status
 
 | Item | Value |
 |------|-------|
 | Body complete | yes |
-| Lock report finalized | yes (this commit) |
-| Merged to main | pending |
-| Tag | pending → `xlb-phase8d-settlement-payable-readiness` |
+| Lock report finalized | yes |
+| Merged to main | yes — `2036acd62f9ece4644835cbee4d495a5c69f1f83` |
+| Tag | `xlb-phase8d-settlement-payable-readiness` → main HEAD |
+| Phase 8D body commit | `3dd99d0` |
+| Phase 8D docs finalize | `6358293` |
+| Phase 8C tag | retained @ `48fb9e1` (not moved) |
+
+## Lock conclusion
+
+- Merged: yes
+- main commit: `2036acd`
+- tag: `xlb-phase8d-settlement-payable-readiness`
+- tests: 184 files / 337 passed / 1 todo
+- gates: Phase 8B 6/6, 8C 8/8, 8D 8/8
+- live verification: full chain passed on Lock run
+- Next phase: Phase 8E not entered
