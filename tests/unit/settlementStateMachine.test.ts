@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assertSettlementConfirmable, assertSettlementPayableEnqueueable, assertSettlementPayableReady, canConfirmSettlement, canEnqueueSettlementPayable, canMarkSettlementPayable } from "../../backend/src/settlement/settlementStateMachine.js";
+import { assertSettlementConfirmable, assertSettlementPayableEnqueueable, assertSettlementPayableReady, assertWorkerReceivableStatementGeneratable, canConfirmSettlement, canEnqueueSettlementPayable, canGenerateWorkerReceivableStatements, canMarkSettlementPayable } from "../../backend/src/settlement/settlementStateMachine.js";
 
 describe("settlementStateMachine", () => {
   it("allows only prepared to enter confirmation", () => {
@@ -21,5 +21,10 @@ describe("settlementStateMachine", () => {
   it("allows only payable to enter queue", () => {
     expect(canEnqueueSettlementPayable("payable")).toBe(true);
     expect(() => assertSettlementPayableEnqueueable("payable")).not.toThrow();
+  });
+
+  it("allows only queued to enter worker receivable statements", () => {
+    expect(canGenerateWorkerReceivableStatements("queued")).toBe(true);
+    expect(() => assertWorkerReceivableStatementGeneratable("queued")).not.toThrow();
   });
 });

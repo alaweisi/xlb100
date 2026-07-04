@@ -125,3 +125,57 @@ export interface SettlementPayableQueuedEventPayload {
   enqueuedAt: string;
   enqueuedBy: string;
 }
+
+export type WorkerReceivableStatementStatus = "created";
+
+export interface WorkerReceivableStatement {
+  statementId: string;
+  cityCode: CityCode;
+  queueId: string;
+  settlementPayableId: string;
+  settlementBatchId: string;
+  workerId: string;
+  currency: "CNY";
+  grossAmount: number;
+  platformFeeAmount: number;
+  workerReceivableAmount: number;
+  itemCount: number;
+  status: WorkerReceivableStatementStatus;
+  generatedAt: string;
+  generatedBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WorkerReceivableStatementLine {
+  lineId: string;
+  statementId: string;
+  cityCode: CityCode;
+  settlementItemId: string;
+  settlementBatchId: string;
+  workerId: string;
+  orderId: string;
+  fulfillmentId: string;
+  skuId: string;
+  currency: "CNY";
+  grossAmount: number;
+  platformFeeAmount: number;
+  workerReceivableAmount: number;
+  createdAt: string;
+}
+
+export interface WorkerReceivableStatementCreatedEventPayload {
+  statementId: string;
+  queueId: string;
+  payableId: string;
+  batchId: string;
+  cityCode: CityCode;
+  workerId: string;
+  currency: "CNY";
+  grossAmount: number;
+  platformFeeAmount: number;
+  workerReceivableAmount: number;
+  itemCount: number;
+  generatedAt: string;
+  generatedBy: string;
+}

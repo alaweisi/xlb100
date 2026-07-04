@@ -17,3 +17,9 @@ Phase 8E adds internal queueing for **payable** rows only. One
 `settlement_payable_queue` row and one `settlement.payable.queued` outbox event are
 written per payable. Queueing is an internal readiness layer — not payout, paid
 settlement, or funds movement. Payable and batch status remain unchanged.
+
+Phase 8F adds worker receivable statement snapshots for **queued** payables only.
+Statements aggregate immutable `settlement_items` by `worker_id` and emit
+`worker.receivable.statement.created` outbox events. This is an audit snapshot
+layer — not payout, paid settlement, withdrawal, or funds movement. Queue, payable,
+batch, and upstream domain state remain unchanged.

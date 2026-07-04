@@ -3,19 +3,16 @@
 > **Single source of truth for AI agents.** Update this file at every Phase Lock.
 > Do not trust conversation memory — read this file first.
 
-Last updated: 2026-07-04 (Phase 8E **LOCKED**)
+Last updated: 2026-07-04 (Phase 8F in progress on feature branch)
 
 ## Git snapshot
 
 | Item | Value |
 |------|-------|
-| **main HEAD** | post-lock main (merge + post-lock docs) |
-| **main merge commit (8E)** | `a8893e4` — merge: XLB phase 8E settlement payable queue foundation |
-| **Phase 8E body commit** | `20e5608` — feat(phase8e): establish settlement payable queue foundation |
-| **Baseline main (pre-8E merge)** | `921f297` — docs(state): align current state with phase 8d tag head |
-| **main latest tag (8E)** | `xlb-phase8e-settlement-payable-queue` → post-lock main HEAD |
+| **main HEAD (8E locked)** | `9a0e7ae` — docs(phase8e): record settlement payable queue post-lock state |
+| **main latest tag (8E)** | `xlb-phase8e-settlement-payable-queue` → `9a0e7ae` |
 | **Phase 8D tag (retained)** | `xlb-phase8d-settlement-payable-readiness` → `e60bba7` |
-| **Active branch** | `main` — **stable commercial baseline through Phase 8E** |
+| **Active branch** | `phase8f-worker-receivable-statement-foundation` — **NOT locked** |
 
 ## Locked phases (merged to main + tagged)
 
@@ -29,20 +26,22 @@ Last updated: 2026-07-04 (Phase 8E **LOCKED**)
 
 | Phase | Status |
 |-------|--------|
-| **8F** | **NOT started** |
+| **8F** | **In progress** on `phase8f-worker-receivable-statement-foundation` — worker receivable statement only; not Lock / not merge / not tag |
+| **8G** | **NOT started** |
 
-## Event chain (through 8E locked)
+## Event chain (8F branch extends 8E)
 
 ```
-… → settlement payable readiness (8D, settlement.payable outbox)
-→ settlement payable queue (8E, settlement.payable.queued outbox)
+… → settlement payable queue (8E, settlement.payable.queued outbox)
+→ worker receivable statement (8F, worker.receivable.statement.created outbox)
 ```
 
-## Phase 8E boundaries (locked)
+## Phase 8F boundaries (in progress)
 
-- Payable queue is not payout, paid settlement, or funds movement
+- Worker receivable statement is not payout, paid settlement, or funds movement
 - No ledger_entries writes; no upstream mutation
 - settlement_payables.status stays `payable`; settlement_batches.status stays `confirmed`
+- settlement_payable_queue.status stays `queued`
 
 ## Read order for new session
 

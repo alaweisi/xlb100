@@ -29,3 +29,13 @@ export function assertSettlementPayableEnqueueable(payableStatus: "payable"): vo
     throw new Error(`settlement payable status ${payableStatus} cannot be enqueued`);
   }
 }
+
+export function canGenerateWorkerReceivableStatements(queueStatus: "queued"): boolean {
+  return queueStatus === "queued";
+}
+
+export function assertWorkerReceivableStatementGeneratable(queueStatus: "queued"): void {
+  if (!canGenerateWorkerReceivableStatements(queueStatus)) {
+    throw new Error(`settlement payable queue status ${queueStatus} cannot generate worker receivable statements`);
+  }
+}

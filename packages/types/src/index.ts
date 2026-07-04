@@ -52,6 +52,10 @@ export type {
   SettlementConfirmedEventPayload,
   SettlementPayableEventPayload,
   SettlementPayableQueuedEventPayload,
+  WorkerReceivableStatementStatus,
+  WorkerReceivableStatement,
+  WorkerReceivableStatementLine,
+  WorkerReceivableStatementCreatedEventPayload,
 } from "./settlement.js";
 export type {
   DispatchTask,

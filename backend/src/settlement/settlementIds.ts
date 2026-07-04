@@ -8,3 +8,5 @@ export const generateSettlementBatchId = (): string => id("stb");
 export const generateSettlementItemId = (): string => id("sti");
 export const generateSettlementPayableId = (): string => id("spy");
 export const generateSettlementPayableQueueId = (): string => id("spq");
+export const generateWorkerReceivableStatementId = (): string => id("wrs");
+export const generateWorkerReceivableStatementLineId = (): string => id("wrl");
