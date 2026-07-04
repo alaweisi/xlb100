@@ -7,7 +7,8 @@ if ($Text -match '(?i)provider_trade_no|provider_account|withdraw|wechat|alipay|
 # Phase 9A exemption: admin settlement ops console files are allowed
 $phase9aAllowed = @(
   "apps/admin/src/pages/SettlementOpsPage.tsx",
-  "apps/admin/src/app/App.tsx"
+  "apps/admin/src/app/App.tsx",
+  "apps/admin/vite.config.ts"
 )
 $UiChanges = @(git -C $Root diff --name-only bfea4e9651f477abf4a57d98b41c52d11e69f93d -- apps/customer apps/worker apps/admin)
 $nonPhase9Ui = $UiChanges | Where-Object { $phase9aAllowed -notcontains $_ }

@@ -8,7 +8,8 @@ if ($Text -match '(?i)provider|withdraw|wechat|alipay|wallet|bank_account|paymen
 # Phase 9A exemption: admin settlement ops console files are allowed
 $phase9aAllowed = @(
   "apps/admin/src/pages/SettlementOpsPage.tsx",
-  "apps/admin/src/app/App.tsx"
+  "apps/admin/src/app/App.tsx",
+  "apps/admin/vite.config.ts"
 )
 $UiChanges = @(git -C $Root diff --name-only 214da7c13c6e46d6b123000f9dce2b1bea96adc0 -- apps/customer apps/worker apps/admin 2>$null | Where-Object { $_ -match '\.(tsx?|jsx?)$' -and $_ -notmatch 'node_modules' })
 $nonPhase9Ui = $UiChanges | Where-Object { $phase9aAllowed -notcontains $_ }

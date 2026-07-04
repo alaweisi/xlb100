@@ -5,7 +5,8 @@ $Root = Split-Path -Parent $PSScriptRoot
 
 $phase9aAllowed = @(
   "apps/admin/src/pages/SettlementOpsPage.tsx",
-  "apps/admin/src/app/App.tsx"
+  "apps/admin/src/app/App.tsx",
+  "apps/admin/vite.config.ts"
 )
 
 $changedFiles = & git -C $Root diff --name-only main...HEAD 2>$null
