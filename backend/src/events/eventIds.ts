@@ -31,3 +31,15 @@ export function generateAcceptanceId(): string {
 export function generateFulfillmentId(): string {
   return `ful_${Date.now().toString(36)}_${randomBytes(4).toString("hex")}`;
 }
+
+export function generateLedgerAccountId(): string {
+  return `lac_${Date.now().toString(36)}_${randomBytes(4).toString("hex")}`;
+}
+
+export function generateLedgerEntryId(): string {
+  return `len_${Date.now().toString(36)}_${randomBytes(4).toString("hex")}`;
+}
+
+export function generateLedgerAccrualId(): string {
+  return `lar_${Date.now().toString(36)}_${randomBytes(4).toString("hex")}`;
+}

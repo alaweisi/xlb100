@@ -1,1 +1,2 @@
--- Phase 1+ ledger tables placeholder
+-- Phase 8A ledger accrual schema reference.
+-- See db/migrations/012_ledger_accrual_foundation.sql.

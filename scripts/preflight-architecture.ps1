@@ -147,6 +147,18 @@ $requiredFiles = @(
   "tests/integration/fulfillmentStartApi.test.ts",
   "tests/integration/fulfillmentCompleteApi.test.ts",
   "tests/contract/fulfillmentLifecycle.contract.test.ts",
+  "backend/src/ledger/ledgerAccrualService.ts",
+  "backend/src/ledger/ledgerOutboxConsumer.ts",
+  "backend/src/ledger/ledgerRepository.ts",
+  "db/migrations/012_ledger_accrual_foundation.sql",
+  "docs/contracts/CONTRACT_LEDGER_ACCRUAL.md",
+  "docs/architecture/12_XLB_LEDGER_ACCRUAL_FOUNDATION.md",
+  "scripts/check-ledger-consumes-outbox-only.ps1",
+  "scripts/check-ledger-no-settlement-payout.ps1",
+  "scripts/check-ledger-city-scoped.ps1",
+  "scripts/check-fulfillment-no-direct-ledger.ps1",
+  "scripts/check-ledger-no-refund-aftersale.ps1",
+  "scripts/check-ledger-no-order-payment-mutation.ps1",
   "tests/unit/cityResolver.test.ts",
   "tests/unit/scopedExecutor.test.ts",
   "tests/unit/adminQueryGuard.test.ts",
@@ -235,3 +247,4 @@ Write-Host "XLB Phase 5B worker pool taskpool readiness foundation preflight pas
 Write-Host "XLB Phase 6 certification worker eligibility foundation preflight passed."
 Write-Host "XLB Phase 7A worker accept fulfillment skeleton foundation preflight passed."
 Write-Host "XLB Phase 7B fulfillment start complete foundation preflight passed."
+Write-Host "XLB Phase 8A ledger accrual foundation preflight passed."

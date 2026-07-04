@@ -28,6 +28,14 @@ Phase 1 city foundation. All city-scoped business tables (Phase 2+) **must** inc
 
 ## Rules
 
+## Phase 8A tables with city_code
+
+| Table | city_code column | Notes |
+|-------|------------------|-------|
+| `ledger_accounts` | required FK + non-global check | Account identity is unique inside a city |
+| `ledger_entries` | required FK + non-global check | Accrual entry source stays city scoped |
+| `ledger_accruals` | required FK + non-global check | Completed fulfillment accrual snapshot |
+
 1. No default nationwide `city_code`
 2. Admin queries must filter by scoped `city_code`
 3. Canonical form: lowercase `[a-z0-9_-]+`
