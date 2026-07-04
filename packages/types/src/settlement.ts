@@ -92,3 +92,36 @@ export interface SettlementPayableEventPayload {
   markedAt: string;
   markedBy: string;
 }
+
+export type SettlementPayableQueueStatus = "queued";
+
+export interface SettlementPayableQueue {
+  queueId: string;
+  cityCode: CityCode;
+  settlementPayableId: string;
+  settlementBatchId: string;
+  currency: "CNY";
+  grossAmount: number;
+  platformFeeAmount: number;
+  workerReceivableAmount: number;
+  itemCount: number;
+  status: SettlementPayableQueueStatus;
+  enqueuedAt: string;
+  enqueuedBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SettlementPayableQueuedEventPayload {
+  queueId: string;
+  payableId: string;
+  batchId: string;
+  cityCode: CityCode;
+  currency: "CNY";
+  grossAmount: number;
+  platformFeeAmount: number;
+  workerReceivableAmount: number;
+  itemCount: number;
+  enqueuedAt: string;
+  enqueuedBy: string;
+}

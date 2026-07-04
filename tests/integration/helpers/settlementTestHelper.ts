@@ -44,6 +44,19 @@ export async function createConfirmedSettlement(app: FastifyInstance) {
   return { ...prepared, batch: confirm.json().batch };
 }
 
+export async function createPayableSettlement(app: FastifyInstance) {
+  const confirmed = await createConfirmedSettlement(app);
+  const mark = await markSettlementPayable(app, confirmed.batch.settlementBatchId);
+  if (mark.statusCode !== 200) throw new Error(`Failed to mark payable: ${mark.body}`);
+  return { ...confirmed, payable: mark.json().payable as { settlementPayableId: string; grossAmount: number; platformFeeAmount: number; workerReceivableAmount: number; itemCount: number } };
+}
+
+export const enqueueSettlementPayable = (app: FastifyInstance, payableId: string, cityCode = "hangzhou") =>
+  app.inject({ method: "POST", url: `/api/internal/settlement/payables/${payableId}/enqueue-once`, headers: settlementHeaders(cityCode), payload: {} });
+
+export const getSettlementPayableQueue = (app: FastifyInstance, payableId: string, cityCode = "hangzhou") =>
+  app.inject({ method: "GET", url: `/api/internal/settlement/payables/${payableId}/queue`, headers: settlementHeaders(cityCode) });
+
 export async function createPreparedSettlement(app: FastifyInstance) {
   const source = await createLedgerAccrual(app);
   const response = await prepareSettlementOnce(app);

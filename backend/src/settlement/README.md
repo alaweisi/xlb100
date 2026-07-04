@@ -12,3 +12,8 @@ Phase 8D adds payable readiness for **confirmed** batches only. One
 `settlement_payables` row and one `settlement.payable` outbox event are written
 per batch. Payable readiness is an audit snapshot — not payout, paid settlement,
 or funds movement. Batch status remains `confirmed`.
+
+Phase 8E adds internal queueing for **payable** rows only. One
+`settlement_payable_queue` row and one `settlement.payable.queued` outbox event are
+written per payable. Queueing is an internal readiness layer — not payout, paid
+settlement, or funds movement. Payable and batch status remain unchanged.

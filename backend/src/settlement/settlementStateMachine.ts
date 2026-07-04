@@ -19,3 +19,13 @@ export function assertSettlementPayableReady(status: SettlementBatchStatus): voi
     throw new Error(`settlement batch status ${status} cannot be marked payable`);
   }
 }
+
+export function canEnqueueSettlementPayable(payableStatus: "payable"): boolean {
+  return payableStatus === "payable";
+}
+
+export function assertSettlementPayableEnqueueable(payableStatus: "payable"): void {
+  if (!canEnqueueSettlementPayable(payableStatus)) {
+    throw new Error(`settlement payable status ${payableStatus} cannot be enqueued`);
+  }
+}

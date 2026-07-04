@@ -6,8 +6,10 @@ import {
 import { settlementPreparationService } from "./settlementPreparationService.js";
 import {
   confirmSettlementBatchRequestSchema,
+  enqueueSettlementPayableRequestSchema,
   markSettlementPayableRequestSchema,
   settlementConfirmationResponseSchema,
+  settlementPayableQueueResponseSchema,
   settlementPayableResponseSchema,
 } from "@xlb/validators";
 import {
@@ -19,6 +21,11 @@ import {
   settlementPayableService,
   SettlementPayableError,
 } from "./settlementPayableService.js";
+import {
+  settlementPayableQueueService,
+  SettlementPayableNotFoundError,
+  SettlementPayableQueueError,
+} from "./settlementPayableQueueService.js";
 
 async function requireSettlementOperator(request: FastifyRequest, reply: FastifyReply): Promise<void> {
   const context = getRequestContext(request);
@@ -117,6 +124,45 @@ export async function registerSettlementRoutes(app: FastifyInstance): Promise<vo
         return reply.status(404).send({ ok: false, error: "settlement payable not found in city scope" });
       }
       return { ok: true, payable };
+    },
+  );
+
+  app.post<{ Params: { payableId: string } }>(
+    "/api/internal/settlement/payables/:payableId/enqueue-once",
+    { preHandler },
+    async (request, reply) => {
+      const context = getRequestContext(request);
+      if (!context.userId) {
+        return reply.status(403).send({ ok: false, error: "settlement payable queue requires operator userId" });
+      }
+      if (!enqueueSettlementPayableRequestSchema.safeParse(request.body ?? {}).success) {
+        return reply.status(400).send({ ok: false, error: "invalid settlement payable queue body" });
+      }
+      try {
+        const result = await settlementPayableQueueService.enqueueSettlementPayable(context, request.params.payableId);
+        return settlementPayableQueueResponseSchema.parse({ ok: true, ...result });
+      } catch (error) {
+        if (error instanceof SettlementPayableNotFoundError) {
+          return reply.status(404).send({ ok: false, error: error.message });
+        }
+        if (error instanceof SettlementPayableQueueError) {
+          return reply.status(409).send({ ok: false, error: error.message });
+        }
+        throw error;
+      }
+    },
+  );
+
+  app.get<{ Params: { payableId: string } }>(
+    "/api/internal/settlement/payables/:payableId/queue",
+    { preHandler },
+    async (request, reply) => {
+      const context = getRequestContext(request);
+      const queue = await settlementPayableQueueService.getQueueByPayable(context, request.params.payableId);
+      if (queue === null) {
+        return reply.status(404).send({ ok: false, error: "settlement payable queue not found in city scope" });
+      }
+      return { ok: true, queue };
     },
   );
 }
