@@ -30,9 +30,11 @@ interface DetailData {
 interface Props {
   statementId: string;
   onBack: () => void;
+  cityCode?: string;
+  onNavigateToExports?: (extra?: Record<string, string>) => void;
 }
 
-export function SettlementStatementDetailPage({ statementId, onBack }: Props) {
+export function SettlementStatementDetailPage({ statementId, onBack, cityCode, onNavigateToExports }: Props) {
   const [data, setData] = useState<DetailData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -72,6 +74,11 @@ export function SettlementStatementDetailPage({ statementId, onBack }: Props) {
     <div style={{ padding: 24 }}>
       <button onClick={onBack}>← Back to Console</button>
       <h1>Statement Detail</h1>
+
+      {onNavigateToExports && cityCode && (
+        <p><button onClick={() => onNavigateToExports({ statementId, cityCode })}>
+          View Exports for {cityCode}</button></p>
+      )}
 
       {statement && (
         <section>

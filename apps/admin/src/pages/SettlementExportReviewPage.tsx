@@ -15,10 +15,12 @@ interface ExportItem {
 interface Props {
   onBack: () => void;
   onNavigateToDetail?: (statementId: string) => void;
+  filterStatementId?: string;
+  filterCityCode?: string;
 }
 
-export function SettlementExportReviewPage({ onBack, onNavigateToDetail }: Props) {
-  const [cityCode, setCityCode] = useState("hangzhou");
+export function SettlementExportReviewPage({ onBack, onNavigateToDetail, filterStatementId, filterCityCode }: Props) {
+  const [cityCode, setCityCode] = useState(filterCityCode || "hangzhou");
   const [items, setItems] = useState<ExportItem[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -30,6 +32,7 @@ export function SettlementExportReviewPage({ onBack, onNavigateToDetail }: Props
     try {
       const query: Record<string, string> = { cityCode };
       if (cursor) query.cursor = cursor;
+      if (filterStatementId) query.statementId = filterStatementId;
       const res = await api.listExportAudit(query);
       if (res.ok) {
         setItems(res.items as ExportItem[]);
