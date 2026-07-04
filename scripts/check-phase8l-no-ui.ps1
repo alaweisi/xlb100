@@ -9,6 +9,7 @@ $phase9aAllowed = @(
   "apps/admin/vite.config.ts"
   "apps/admin/src/pages/SettlementStatementDetailPage.tsx"
   "apps/admin/src/pages/SettlementExportReviewPage.tsx"
+  "apps/admin/src/hashParams.ts"
 )
 
 $changedFiles = & git -C $Root diff --name-only main...HEAD 2>$null
