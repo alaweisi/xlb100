@@ -3,7 +3,7 @@
 > **Single source of truth for AI agents.** Update this file at every Phase Lock.
 > Do not trust conversation memory — read this file first.
 
-Last updated: 2026-07-04 (Phase 8K **LOCKED**)
+Last updated: 2026-07-04 (Phase 8 **EXITED**)
 
 ## Git snapshot
 
@@ -26,15 +26,17 @@ Last updated: 2026-07-04 (Phase 8K **LOCKED**)
 | **8I** | `xlb-phase8i-statement-audit-query` | Statement audit query foundation |
 | **8J** | `xlb-phase8j-review-summary-governance` | Review summary / batch governance foundation |
 | **8K** | `xlb-phase8k-settlement-audit-summary` | Settlement audit summary foundation |
+| **8L** | `xlb-phase8l-reconciliation-gap-scan` | Reconciliation gap scan foundation |
+| **8 Exit** | `xlb-phase8-exit-settlement-governance` | Phase 8 settlement governance exited |
 
 ## In progress (NOT locked)
 
 | Phase | Status |
 |-------|--------|
-| **8L** | **LOCKED** |
+| **Phase 8** | **EXITED** |
 | **Phase 9** | **NOT started** |
 
-## Event chain (8L Lock target)
+## Settlement governance chain (Phase 8: EXITED)
 
 ```
 … → statement review (8G)
