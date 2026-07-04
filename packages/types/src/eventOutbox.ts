@@ -9,7 +9,8 @@ export type OutboxEventType =
   | "dispatch.accepted"
   | "fulfillment.created"
   | "fulfillment.started"
-  | "fulfillment.completed";
+  | "fulfillment.completed"
+  | "settlement.prepared";
 
 export interface EventOutbox {
   eventId: string;

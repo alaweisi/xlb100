@@ -10,5 +10,6 @@ Phase 1+: primary sharding / partition key is **`city_code`**.
 | Worker task acceptances | `city_code` | Phase 7A |
 | Fulfillments | `city_code` | Phase 7A skeleton; Phase 7B lifecycle |
 | Ledger accounts, entries, accruals | `city_code` | Phase 8A |
+| Settlement batches and items | `city_code` | Phase 8B preparation |
 
 Phase 1: single DB (S0); `city_code` enforced at application layer.

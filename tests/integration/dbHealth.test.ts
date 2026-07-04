@@ -21,7 +21,7 @@ describe("dbHealth integration", () => {
     expect(body.mysql).toBe("ok");
     expect(body.redis).toBe("ok");
     expect(body.database).toBe("xlb_local");
-    expect(body.phase).toBe("8A");
+    expect(body.phase).toBe("8B");
     await app.close();
   });
 });
