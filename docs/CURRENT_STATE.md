@@ -3,7 +3,7 @@
 > **Single source of truth for AI agents.** Update this file at every Phase Lock.
 > Do not trust conversation memory — read this file first.
 
-Last updated: 2026-07-04 (Phase 8D in progress on feature branch)
+Last updated: 2026-07-04 (Phase 8D Lock in progress)
 
 ## Git snapshot
 
@@ -12,9 +12,8 @@ Last updated: 2026-07-04 (Phase 8D in progress on feature branch)
 | **main HEAD** | `1041079` — merge: add xlb agent skills and current state workflow |
 | **agent infra commit** | `4563ca9` — chore(agent): add xlb cursor skills and current state workflow |
 | **Phase 8C business baseline tag** | `xlb-phase8c-settlement-confirmation` → `48fb9e1` |
-| **Phase 8C body commit** | `0c425ba` — feat(phase8c): establish settlement confirmation foundation |
-| **Phase 8C docs finalize** | `87d6723` — docs(phase8c): finalize settlement confirmation lock report |
-| **Active branch** | `phase8d-settlement-payable-readiness-foundation` — **NOT locked** |
+| **Phase 8D body commit** | `3dd99d0` — feat(phase8d): establish settlement payable readiness foundation |
+| **Active branch** | `phase8d-settlement-payable-readiness-foundation` — **Lock in progress** |
 
 Note: main @ `1041079` includes agent infrastructure only; Phase 8C business
 semantics remain frozen at tag `48fb9e1`.
@@ -42,7 +41,7 @@ semantics remain frozen at tag `48fb9e1`.
 
 | Phase | Status |
 |-------|--------|
-| **8D** | **In progress** on `phase8d-settlement-payable-readiness-foundation` — payable readiness only; not Lock / not merge / not tag |
+| **8D** | **Lock in progress** on `phase8d-settlement-payable-readiness-foundation` — body @ `3dd99d0` |
 | **8E** | **NOT started** |
 
 ## Backend modules present (main @ 8C + 8D branch work)
