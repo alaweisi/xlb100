@@ -66,6 +66,30 @@ export const listWorkerReceivableStatements = (app: FastifyInstance, payableId: 
 export const getWorkerReceivableStatement = (app: FastifyInstance, statementId: string, cityCode = "hangzhou") =>
   app.inject({ method: "GET", url: `/api/internal/settlement/worker-statements/${statementId}`, headers: settlementHeaders(cityCode) });
 
+export const reviewWorkerReceivableStatementOnce = (
+  app: FastifyInstance,
+  statementId: string,
+  payload: { decision: "approved" | "rejected"; reviewNote?: string },
+  cityCode = "hangzhou",
+) =>
+  app.inject({
+    method: "POST",
+    url: `/api/internal/settlement/worker-statements/${statementId}/review-once`,
+    headers: settlementHeaders(cityCode),
+    payload,
+  });
+
+export const getWorkerReceivableStatementReview = (app: FastifyInstance, statementId: string, cityCode = "hangzhou") =>
+  app.inject({ method: "GET", url: `/api/internal/settlement/worker-statements/${statementId}/review`, headers: settlementHeaders(cityCode) });
+
+export async function createStatementReadySettlement(app: FastifyInstance) {
+  const queued = await createQueuedSettlement(app);
+  const generated = await generateWorkerReceivableStatements(app, queued.payable.settlementPayableId);
+  if (generated.statusCode !== 200) throw new Error(`Failed to generate statements: ${generated.body}`);
+  const statementId = generated.json().statements[0].statementId as string;
+  return { ...queued, statementId, statements: generated.json().statements };
+}
+
 export async function createQueuedSettlement(app: FastifyInstance) {
   const payableSettlement = await createPayableSettlement(app);
   const enqueue = await enqueueSettlementPayable(app, payableSettlement.payable.settlementPayableId);
