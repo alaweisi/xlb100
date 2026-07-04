@@ -3,18 +3,18 @@
 > **Single source of truth for AI agents.** Update this file at every Phase Lock.
 > Do not trust conversation memory — read this file first.
 
-Last updated: 2026-07-04 (Phase 8J **LOCKED**)
+Last updated: 2026-07-04 (Phase 8K **LOCKED**)
 
 ## Git snapshot
 
 | Item | Value |
 |------|-------|
 | **main HEAD (stable baseline)** | `b69cd62` — merge: phase 8i statement audit query foundation |
-| **Phase 8J tag** | `xlb-phase8j-review-summary-governance` |
-| **Phase 8J merge commit** | `af7ae25` |
-| **Phase 8J feature commit** | `6f285ab` |
+| **Phase 8K tag** | `xlb-phase8k-settlement-audit-summary` |
+| **Phase 8K merge commit** | `af1894b` |
+| **Phase 8K feature commit** | `1b177a3` |
 | **Phase 8I tag (retained)** | `xlb-phase8i-statement-audit-query` |
-| **Phase 8H tag (retained)** | `xlb-phase8h-worker-receivable-statement-export-package` |
+| **Phase 8J tag (retained)** | `xlb-phase8j-review-summary-governance` |
 | **Active branch** | `main` |
 
 ## Locked phases (merged to main + tagged)
@@ -25,26 +25,28 @@ Last updated: 2026-07-04 (Phase 8J **LOCKED**)
 | **8H** | `xlb-phase8h-worker-receivable-statement-export-package` | Worker receivable statement export package foundation |
 | **8I** | `xlb-phase8i-statement-audit-query` | Statement audit query foundation |
 | **8J** | `xlb-phase8j-review-summary-governance` | Review summary / batch governance foundation |
+| **8K** | `xlb-phase8k-settlement-audit-summary` | Settlement audit summary foundation |
 
 ## In progress (NOT locked)
 
 | Phase | Status |
 |-------|--------|
-| **8J** | **LOCKED** |
-| **8K** | **NOT started** |
+| **8K** | **LOCKED** |
+| **8L** | **NOT started** |
 
-## Event chain (8J Lock target)
+## Event chain (8K Lock target)
 
 ```
 … → statement review (8G)
 → export package (8H)
 → statement audit query (8I)
-→ review summary / batch governance (8J) ← LOCKED
+→ review summary (8J)
+→ settlement audit summary (8K) ← LOCKED
 ```
 
-## Phase 8J boundaries
+## Phase 8K boundaries
 
-- Review summary is read-only (1 GET endpoint, zero writes, aggregation only)
+- Settlement audit summary is read-only (1 GET endpoint, zero writes, batch/payable/queue aggregation)
 - No mutation / no UI / no payout / no provider / no notification
 - No ledger_entries writes
 - worker_receivable_statements.status stays `created`
