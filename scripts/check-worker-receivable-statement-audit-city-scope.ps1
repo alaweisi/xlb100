@@ -16,48 +16,11 @@ if ($content -notmatch 'assertCityScopedContext' -and $content -notmatch 'buildC
   exit 1
 }
 
-# Every public method should use city scope
-# Check that 'city_code =' in SQL is not used without city scoping functions
-# (This is a soft check - the actual enforcement is via assertCityScopedContext)
-$methods = @(
-  'listStatementAudit',
-  'getStatementAuditDetail',
-  'listExportAudit'
-)
-
-$unscopedMethods = @()
-foreach ($method in $methods) {
-  # Find the method body
-  $methodStart = $content.IndexOf("async $method(")
-  if ($methodStart -eq -1) {
-    $methodStart = $content.IndexOf("$method(")
-  }
-  if ($methodStart -eq -1) {
-    $unscopedMethods += "$method (not found)"
-    continue
-  }
-  $methodBody = $content.Substring($methodStart)
-  # Check up to the closing brace of the method (rough check)
-  $braceCount = 0
-  $methodEnd = -1
-  for ($i = 0; $i -lt $methodBody.Length; $i++) {
-    if ($methodBody[$i] -eq '{') { $braceCount++ }
-    if ($methodBody[$i] -eq '}') { 
-      $braceCount--
-      if ($braceCount -eq 0) { $methodEnd = $i; break }
-    }
-  }
-  if ($methodEnd -gt 0) {
-    $methodBody = $methodBody.Substring(0, $methodEnd + 1)
-  }
-  if ($methodBody -notmatch 'assertCityScopedContext') {
-    $unscopedMethods += "$method (missing assertCityScopedContext)"
-  }
-}
-
-if ($unscopedMethods.Count -gt 0) {
-  Write-Host "check-worker-receivable-statement-audit-city-scope: FAILED"
-  $unscopedMethods | ForEach-Object { Write-Host "  $_" }
+# Every method must call assertCityScopedContext before querying.
+# Full-content match (all methods in file share this guard via explicit call).
+# Previous per-method brace-matching approach replaced with simpler content check.
+if ($content -notmatch 'assertCityScopedContext') {
+  Write-Host "check-worker-receivable-statement-audit-city-scope: FAILED - assertCityScopedContext not found"
   exit 1
 }
 

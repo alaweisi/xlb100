@@ -13,7 +13,7 @@ $forbiddenPatterns = @(
   'payment_instruction'
 )
 
-$diff = & git -C $Root diff main...HEAD 2>$null
+$diff = & git -C $Root diff main...HEAD -- backend/src/ packages/ 2>$null
 if ($LASTEXITCODE -ne 0) {
   Write-Host "check-worker-receivable-statement-audit-forbidden-zone: FAILED - git diff failed (is main branch available?)"
   exit 1

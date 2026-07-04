@@ -49,7 +49,8 @@ foreach ($line in $lines) {
   if ($inPhase8I -and $line -match '^\s*app\.(post|put|patch|delete)\s*\(') {
     # Only flag if the route path contains "audit"
     $nextLine = $lines[$lineNum]  # 0-based index, lineNum is 1-based
-    $combined = $line + " " + ($nextLine ?? "")
+    if (-not $nextLine) { $nextLine = "" }
+    $combined = $line + " " + $nextLine
     if ($combined -match 'audit') {
       Write-Host "check-worker-receivable-statement-audit-no-mutation-routes: FAILED - mutation route in Phase 8I section at line $lineNum"
       Write-Host "  $line"
