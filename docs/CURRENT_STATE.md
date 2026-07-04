@@ -31,20 +31,21 @@ Last updated: 2026-07-04 (Phase 8K **LOCKED**)
 
 | Phase | Status |
 |-------|--------|
-| **8K** | **LOCKED** |
-| **8L** | **NOT started** |
+| **8L** | **LOCKED** |
+| **Phase 9** | **NOT started** |
 
-## Event chain (8K Lock target)
+## Event chain (8L Lock target)
 
 ```
 … → statement review (8G)
 → export package (8H)
 → statement audit query (8I)
 → review summary (8J)
-→ settlement audit summary (8K) ← LOCKED
+→ settlement audit summary (8K)
+→ reconciliation gap scan (8L) ← LOCKED
 ```
 
-## Phase 8K boundaries
+## Phase 8L boundaries
 
 - Settlement audit summary is read-only (1 GET endpoint, zero writes, batch/payable/queue aggregation)
 - No mutation / no UI / no payout / no provider / no notification
