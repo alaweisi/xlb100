@@ -509,3 +509,57 @@ export const workerStatementReviewSummaryResponseSchema = z.object({
 }).strict();
 
 export type WorkerStatementReviewSummaryQueryInput = z.infer<typeof workerStatementReviewSummaryQuerySchema>;
+
+// ── Phase 8K: Settlement Audit Summary ──
+
+export const settlementAuditGroupBySchema = z.enum(["none", "status", "batch"]);
+
+export const settlementAuditSummaryQuerySchema = z.object({
+  cityCode: cityCodeSchema.optional(),
+  dateFrom: z.string().min(1).optional(),
+  dateTo: z.string().min(1).optional(),
+  status: settlementBatchStatusSchema.optional(),
+  groupBy: settlementAuditGroupBySchema.optional(),
+}).strict();
+
+const settlementAuditCountsSchema = z.object({
+  totalBatches: z.number().int().min(0),
+  totalItems: z.number().int().min(0),
+  totalPayables: z.number().int().min(0),
+  totalQueueItems: z.number().int().min(0),
+}).strict();
+
+const settlementAuditStatusCountsSchema = z.object({
+  status: z.string().min(1),
+  count: z.number().int().min(0),
+}).strict();
+
+const settlementAuditAmountsSchema = z.object({
+  itemsGrossAmount: z.number().min(0),
+  itemsPlatformFee: z.number().min(0),
+  itemsWorkerReceivable: z.number().min(0),
+  payableGrossAmount: z.number().min(0),
+  payablePlatformFee: z.number().min(0),
+  payableWorkerReceivable: z.number().min(0),
+  queueGrossAmount: z.number().min(0),
+  queuePlatformFee: z.number().min(0),
+  queueWorkerReceivable: z.number().min(0),
+}).strict();
+
+const settlementAuditBatchGroupSchema = z.object({
+  settlementBatchId: idSchema,
+  status: settlementBatchStatusSchema,
+  itemCount: z.number().int().min(0),
+  payableCount: z.number().int().min(0),
+  queueCount: z.number().int().min(0),
+}).strict();
+
+export const settlementAuditSummaryResponseSchema = z.object({
+  ok: z.literal(true),
+  counts: settlementAuditCountsSchema,
+  statusBreakdown: z.array(settlementAuditStatusCountsSchema),
+  amounts: settlementAuditAmountsSchema,
+  groups: z.array(settlementAuditBatchGroupSchema).nullable(),
+}).strict();
+
+export type SettlementAuditSummaryQueryInput = z.infer<typeof settlementAuditSummaryQuerySchema>;

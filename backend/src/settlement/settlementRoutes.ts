@@ -61,11 +61,16 @@ import {
   statementAuditQuerySchema,
   exportAuditQuerySchema,
   workerStatementReviewSummaryQuerySchema,
+  settlementAuditSummaryQuerySchema,
 } from "@xlb/validators";
 import {
   workerReceivableStatementReviewSummaryService,
   WorkerStatementReviewSummaryError,
 } from "./workerReceivableStatementReviewSummaryService.js";
+import {
+  settlementAuditSummaryService,
+  SettlementAuditSummaryError,
+} from "./settlementAuditSummaryService.js";
 
 async function requireSettlementOperator(request: FastifyRequest, reply: FastifyReply): Promise<void> {
   const context = getRequestContext(request);
@@ -446,6 +451,24 @@ export async function registerSettlementRoutes(app: FastifyInstance): Promise<vo
         if (error instanceof WorkerStatementReviewSummaryError) {
           return reply.status(400).send({ ok: false, error: error.message });
         }
+        throw error;
+      }
+    },
+  );
+
+  // ── Phase 8K: Settlement Audit Summary ──
+  app.get(
+    "/api/internal/settlement/settlement-audit-summary",
+    { preHandler },
+    async (request, reply) => {
+      const context = getRequestContext(request);
+      const parsed = settlementAuditSummaryQuerySchema.safeParse(request.query ?? {});
+      if (!parsed.success) return reply.status(400).send({ ok: false, error: "invalid audit summary query" });
+      try {
+        const result = await settlementAuditSummaryService.getAuditSummary(context, parsed.data);
+        return { ok: true, ...result };
+      } catch (error) {
+        if (error instanceof SettlementAuditSummaryError) return reply.status(400).send({ ok: false, error: error.message });
         throw error;
       }
     },
