@@ -103,3 +103,14 @@ only one item. Prepared means ready for later review, not that money moved.
 `confirmed`. The batch records `confirmed_at` and `confirmed_by` and emits one
 `settlement.confirmed` event. Confirmation is an administrative audit state and
 does not change amounts, upstream states, or ledger entries.
+
+## Phase 8D settlement payable readiness foundation
+
+| Table | Purpose | city_code |
+|-------|---------|-----------|
+| `settlement_payables` | One payable readiness snapshot per confirmed batch | required |
+
+**Rules:** payable readiness is not payout, paid settlement, or funds movement.
+Items must originate from a `confirmed` batch with matching item snapshots.
+One batch maps to one payable row. Emits `settlement.payable` outbox only.
+Does not mutate ledger entries, orders, payments, fulfillments, or accruals.

@@ -75,3 +75,47 @@ export type SettlementItemInput = z.infer<typeof settlementItemSchema>;
 export type ConfirmSettlementBatchRequestInput = z.infer<typeof confirmSettlementBatchRequestSchema>;
 export type SettlementConfirmedEventPayloadInput = z.infer<typeof settlementConfirmedEventPayloadSchema>;
 export type SettlementConfirmationResponseInput = z.infer<typeof settlementConfirmationResponseSchema>;
+
+export const settlementPayableStatusSchema = z.enum(["payable"]);
+
+export const settlementPayableSchema = z.object({
+  settlementPayableId: idSchema,
+  cityCode: cityCodeSchema,
+  settlementBatchId: idSchema,
+  currency: z.literal("CNY"),
+  grossAmount: amountSchema,
+  platformFeeAmount: amountSchema,
+  workerReceivableAmount: amountSchema,
+  itemCount: z.number().int().min(1),
+  status: settlementPayableStatusSchema,
+  markedAt: z.string().min(1),
+  markedBy: idSchema,
+  createdAt: z.string().min(1),
+  updatedAt: z.string().min(1),
+}).strict();
+
+export const markSettlementPayableRequestSchema = z.object({}).strict();
+
+export const settlementPayableEventPayloadSchema = z.object({
+  payableId: idSchema,
+  batchId: idSchema,
+  cityCode: cityCodeSchema,
+  currency: z.literal("CNY"),
+  grossAmount: amountSchema,
+  platformFeeAmount: amountSchema,
+  workerReceivableAmount: amountSchema,
+  itemCount: z.number().int().min(1),
+  markedAt: z.string().min(1),
+  markedBy: idSchema,
+}).strict();
+
+export const settlementPayableResponseSchema = z.object({
+  ok: z.literal(true),
+  payable: settlementPayableSchema,
+  idempotent: z.boolean(),
+}).strict();
+
+export type SettlementPayableInput = z.infer<typeof settlementPayableSchema>;
+export type MarkSettlementPayableRequestInput = z.infer<typeof markSettlementPayableRequestSchema>;
+export type SettlementPayableEventPayloadInput = z.infer<typeof settlementPayableEventPayloadSchema>;
+export type SettlementPayableResponseInput = z.infer<typeof settlementPayableResponseSchema>;

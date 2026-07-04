@@ -6,13 +6,19 @@ import {
 import { settlementPreparationService } from "./settlementPreparationService.js";
 import {
   confirmSettlementBatchRequestSchema,
+  markSettlementPayableRequestSchema,
   settlementConfirmationResponseSchema,
+  settlementPayableResponseSchema,
 } from "@xlb/validators";
 import {
   settlementConfirmationService,
   SettlementBatchNotFoundError,
   SettlementConfirmationError,
 } from "./settlementConfirmationService.js";
+import {
+  settlementPayableService,
+  SettlementPayableError,
+} from "./settlementPayableService.js";
 
 async function requireSettlementOperator(request: FastifyRequest, reply: FastifyReply): Promise<void> {
   const context = getRequestContext(request);
@@ -72,6 +78,45 @@ export async function registerSettlementRoutes(app: FastifyInstance): Promise<vo
         }
         throw error;
       }
+    },
+  );
+
+  app.post<{ Params: { batchId: string } }>(
+    "/api/internal/settlement/batches/:batchId/mark-payable",
+    { preHandler },
+    async (request, reply) => {
+      const context = getRequestContext(request);
+      if (!context.userId) {
+        return reply.status(403).send({ ok: false, error: "settlement payable readiness requires operator userId" });
+      }
+      if (!markSettlementPayableRequestSchema.safeParse(request.body ?? {}).success) {
+        return reply.status(400).send({ ok: false, error: "invalid settlement payable readiness body" });
+      }
+      try {
+        const result = await settlementPayableService.markSettlementPayable(context, request.params.batchId);
+        return settlementPayableResponseSchema.parse({ ok: true, ...result });
+      } catch (error) {
+        if (error instanceof SettlementBatchNotFoundError) {
+          return reply.status(404).send({ ok: false, error: error.message });
+        }
+        if (error instanceof SettlementPayableError) {
+          return reply.status(409).send({ ok: false, error: error.message });
+        }
+        throw error;
+      }
+    },
+  );
+
+  app.get<{ Params: { batchId: string } }>(
+    "/api/internal/settlement/batches/:batchId/payable",
+    { preHandler },
+    async (request, reply) => {
+      const context = getRequestContext(request);
+      const payable = await settlementPayableService.getPayableByBatch(context, request.params.batchId);
+      if (payable === null) {
+        return reply.status(404).send({ ok: false, error: "settlement payable not found in city scope" });
+      }
+      return { ok: true, payable };
     },
   );
 }

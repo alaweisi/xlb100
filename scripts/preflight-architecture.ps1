@@ -178,6 +178,18 @@ $requiredFiles = @(
   "scripts/check-settlement-confirm-no-refund-aftersale-reversal.ps1",
   "scripts/check-settlement-confirm-no-provider-withdraw-ui.ps1",
   "scripts/check-settlement-confirm-outbox-idempotent.ps1",
+  "backend/src/settlement/settlementPayableService.ts",
+  "db/migrations/015_settlement_payable_readiness.sql",
+  "docs/contracts/CONTRACT_SETTLEMENT_PAYABLE_READINESS.md",
+  "docs/architecture/15_XLB_SETTLEMENT_PAYABLE_READINESS_FOUNDATION.md",
+  "scripts/check-settlement-payable-confirmed-only.ps1",
+  "scripts/check-settlement-payable-city-scoped.ps1",
+  "scripts/check-settlement-payable-outbox-idempotent.ps1",
+  "scripts/check-settlement-payable-no-ledger-entries.ps1",
+  "scripts/check-settlement-payable-no-upstream-mutation.ps1",
+  "scripts/check-settlement-payable-no-payout-paid.ps1",
+  "scripts/check-settlement-payable-no-provider-withdraw-ui.ps1",
+  "scripts/check-settlement-payable-no-refund-aftersale-reversal.ps1",
   "tests/unit/cityResolver.test.ts",
   "tests/unit/scopedExecutor.test.ts",
   "tests/unit/adminQueryGuard.test.ts",
@@ -269,3 +281,4 @@ Write-Host "XLB Phase 7B fulfillment start complete foundation preflight passed.
 Write-Host "XLB Phase 8A ledger accrual foundation preflight passed."
 Write-Host "XLB Phase 8B settlement preparation foundation preflight passed."
 Write-Host "XLB Phase 8C settlement confirmation foundation preflight passed."
+Write-Host "XLB Phase 8D settlement payable readiness foundation preflight passed."

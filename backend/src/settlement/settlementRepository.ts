@@ -5,6 +5,7 @@ import type {
   RequestContext,
   SettlementBatch,
   SettlementItem,
+  SettlementPayable,
 } from "@xlb/types";
 import { RepositoryBase } from "../dal/repositoryBase.js";
 import {
@@ -36,6 +37,13 @@ type AccrualRow = RowDataPacket & {
   gross_amount: string; platform_fee: string; worker_receivable: string;
   currency: "CNY"; source_event_id: string; status: LedgerAccrual["status"];
   created_at: Date;
+};
+
+type PayableRow = RowDataPacket & {
+  settlement_payable_id: string; city_code: string; settlement_batch_id: string;
+  currency: "CNY"; gross_amount: string; platform_fee_amount: string;
+  worker_receivable_amount: string; item_count: number; status: SettlementPayable["status"];
+  marked_at: Date; marked_by: string; created_at: Date; updated_at: Date;
 };
 
 const mapBatch = (row: BatchRow): SettlementBatch => ({
@@ -92,6 +100,22 @@ const mapAccrual = (row: AccrualRow): LedgerAccrual => ({
   createdAt: row.created_at.toISOString(),
 });
 
+const mapPayable = (row: PayableRow): SettlementPayable => ({
+  settlementPayableId: row.settlement_payable_id,
+  cityCode: row.city_code as CityCode,
+  settlementBatchId: row.settlement_batch_id,
+  currency: row.currency,
+  grossAmount: Number(row.gross_amount),
+  platformFeeAmount: Number(row.platform_fee_amount),
+  workerReceivableAmount: Number(row.worker_receivable_amount),
+  itemCount: row.item_count,
+  status: row.status,
+  markedAt: row.marked_at.toISOString(),
+  markedBy: row.marked_by,
+  createdAt: row.created_at.toISOString(),
+  updatedAt: row.updated_at.toISOString(),
+});
+
 export class SettlementRepository extends RepositoryBase {
   constructor(pool?: Pool) { super(pool); }
 
@@ -144,6 +168,14 @@ export class SettlementRepository extends RepositoryBase {
     cityCode: CityCode,
     batchId: string,
   ): Promise<SettlementBatch | null> {
+    return this.findBatchForUpdate(connection, cityCode, batchId);
+  }
+
+  async findBatchForUpdate(
+    connection: PoolConnection,
+    cityCode: CityCode,
+    batchId: string,
+  ): Promise<SettlementBatch | null> {
     const [rows] = await connection.query<BatchRow[]>(
       `SELECT * FROM settlement_batches
        WHERE city_code = ? AND settlement_batch_id = ?
@@ -151,6 +183,63 @@ export class SettlementRepository extends RepositoryBase {
       [cityCode, batchId],
     );
     return rows[0] ? mapBatch(rows[0]) : null;
+  }
+
+  async findPayableForBatch(
+    connection: PoolConnection,
+    cityCode: CityCode,
+    batchId: string,
+  ): Promise<SettlementPayable | null> {
+    const [rows] = await connection.query<PayableRow[]>(
+      `SELECT * FROM settlement_payables
+       WHERE city_code = ? AND settlement_batch_id = ?
+       LIMIT 1`,
+      [cityCode, batchId],
+    );
+    return rows[0] ? mapPayable(rows[0]) : null;
+  }
+
+  async insertPayable(connection: PoolConnection, payable: SettlementPayable): Promise<void> {
+    await connection.query(
+      `INSERT INTO settlement_payables
+        (settlement_payable_id, city_code, settlement_batch_id, currency,
+         gross_amount, platform_fee_amount, worker_receivable_amount, item_count,
+         status, marked_at, marked_by)
+       VALUES (?, ?, ?, 'CNY', ?, ?, ?, ?, 'payable', ?, ?)`,
+      [
+        payable.settlementPayableId,
+        payable.cityCode,
+        payable.settlementBatchId,
+        payable.grossAmount,
+        payable.platformFeeAmount,
+        payable.workerReceivableAmount,
+        payable.itemCount,
+        new Date(payable.markedAt),
+        payable.markedBy,
+      ],
+    );
+  }
+
+  async getPayableByBatch(
+    context: RequestContext,
+    cityCode: CityCode,
+    batchId: string,
+  ): Promise<SettlementPayable | null> {
+    this.requireContext(context);
+    if (assertCityScopedContext(context) !== cityCode) throw new Error("city_code mismatch in settlement query");
+    const where = buildCityScopedWhere(cityCode);
+    const [batches] = await this.pool.query<RowDataPacket[]>(
+      `SELECT settlement_batch_id FROM settlement_batches
+       WHERE ${where.clause} AND settlement_batch_id = ? LIMIT 1`,
+      [...where.params, batchId],
+    );
+    if (!batches[0]) return null;
+    const [rows] = await this.pool.query<PayableRow[]>(
+      `SELECT * FROM settlement_payables
+       WHERE ${where.clause} AND settlement_batch_id = ? LIMIT 1`,
+      [...where.params, batchId],
+    );
+    return rows[0] ? mapPayable(rows[0]) : null;
   }
 
   async lockBatchItems(
