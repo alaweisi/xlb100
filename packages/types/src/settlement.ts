@@ -344,3 +344,38 @@ export interface ExportAuditItem {
   exportedBy: string;
   outboxEventId: string | null;
 }
+
+// ── Phase 8J: Review Summary / Batch Governance ──
+
+export type WorkerStatementReviewGroupBy = "none" | "worker";
+
+export interface WorkerStatementReviewSummaryQuery {
+  cityCode?: CityCode;
+  dateFrom?: string;
+  dateTo?: string;
+  groupBy?: WorkerStatementReviewGroupBy;
+}
+
+export interface WorkerStatementReviewSummaryCounts {
+  totalStatements: number;
+  reviewedStatements: number;
+  approvedStatements: number;
+  rejectedStatements: number;
+  pendingReviewStatements: number;
+  exportedStatements: number;
+  pendingExportStatements: number;
+  noExportStatements: number;
+}
+
+export interface WorkerStatementReviewSummaryGroup {
+  workerId: string;
+  counts: WorkerStatementReviewSummaryCounts;
+}
+
+export interface WorkerStatementReviewSummaryResponse {
+  cityCode: CityCode;
+  dateFrom: string | null;
+  dateTo: string | null;
+  overall: WorkerStatementReviewSummaryCounts;
+  groups: WorkerStatementReviewSummaryGroup[] | null;
+}

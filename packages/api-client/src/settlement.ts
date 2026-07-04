@@ -61,6 +61,15 @@ export function createSettlementApi(client: ApiClient) {
         `/api/internal/settlement/worker-statement-export-audit${qs}`,
       );
     },
+    // ── Phase 8J: Review Summary ──
+    getReviewSummary: (query?: Record<string, string>) => {
+      const qs = query ? "?" + new URLSearchParams(query).toString() : "";
+      return client.get<{
+        ok: true;
+        cityCode: string; dateFrom: string | null; dateTo: string | null;
+        overall: Record<string, number>; groups: unknown[] | null;
+      }>(`/api/internal/settlement/worker-statement-review-summary${qs}`);
+    },
   };
 }
 

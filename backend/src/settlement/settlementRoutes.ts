@@ -60,7 +60,12 @@ import {
 import {
   statementAuditQuerySchema,
   exportAuditQuerySchema,
+  workerStatementReviewSummaryQuerySchema,
 } from "@xlb/validators";
+import {
+  workerReceivableStatementReviewSummaryService,
+  WorkerStatementReviewSummaryError,
+} from "./workerReceivableStatementReviewSummaryService.js";
 
 async function requireSettlementOperator(request: FastifyRequest, reply: FastifyReply): Promise<void> {
   const context = getRequestContext(request);
@@ -417,6 +422,28 @@ export async function registerSettlementRoutes(app: FastifyInstance): Promise<vo
         return { ok: true, items: result.items, nextCursor: result.nextCursor };
       } catch (error) {
         if (error instanceof WorkerReceivableStatementAuditError) {
+          return reply.status(400).send({ ok: false, error: error.message });
+        }
+        throw error;
+      }
+    },
+  );
+
+  // ── Phase 8J: Review Summary ──
+  app.get(
+    "/api/internal/settlement/worker-statement-review-summary",
+    { preHandler },
+    async (request, reply) => {
+      const context = getRequestContext(request);
+      const parsed = workerStatementReviewSummaryQuerySchema.safeParse(request.query ?? {});
+      if (!parsed.success) {
+        return reply.status(400).send({ ok: false, error: "invalid review summary query" });
+      }
+      try {
+        const result = await workerReceivableStatementReviewSummaryService.getReviewSummary(context, parsed.data);
+        return { ok: true, ...result };
+      } catch (error) {
+        if (error instanceof WorkerStatementReviewSummaryError) {
           return reply.status(400).send({ ok: false, error: error.message });
         }
         throw error;
