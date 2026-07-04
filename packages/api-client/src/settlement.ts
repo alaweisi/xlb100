@@ -77,6 +77,13 @@ export function createSettlementApi(client: ApiClient) {
         `/api/internal/settlement/settlement-audit-summary${qs}`,
       );
     },
+    // ── Phase 8L: Reconciliation Gap Scan ──
+    scanReconciliationGaps: (query?: Record<string, string>) => {
+      const qs = query ? "?" + new URLSearchParams(query).toString() : "";
+      return client.get<{ ok: true; summary: Record<string, number>; gaps: unknown[] }>(
+        `/api/internal/settlement/reconciliation-gap-scan${qs}`,
+      );
+    },
   };
 }
 

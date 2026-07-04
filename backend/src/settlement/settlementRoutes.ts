@@ -62,6 +62,7 @@ import {
   exportAuditQuerySchema,
   workerStatementReviewSummaryQuerySchema,
   settlementAuditSummaryQuerySchema,
+  reconciliationGapScanQuerySchema,
 } from "@xlb/validators";
 import {
   workerReceivableStatementReviewSummaryService,
@@ -71,6 +72,10 @@ import {
   settlementAuditSummaryService,
   SettlementAuditSummaryError,
 } from "./settlementAuditSummaryService.js";
+import {
+  reconciliationGapScanService,
+  ReconciliationGapScanError,
+} from "./reconciliationGapScanService.js";
 
 async function requireSettlementOperator(request: FastifyRequest, reply: FastifyReply): Promise<void> {
   const context = getRequestContext(request);
@@ -469,6 +474,24 @@ export async function registerSettlementRoutes(app: FastifyInstance): Promise<vo
         return { ok: true, ...result };
       } catch (error) {
         if (error instanceof SettlementAuditSummaryError) return reply.status(400).send({ ok: false, error: error.message });
+        throw error;
+      }
+    },
+  );
+
+  // ── Phase 8L: Reconciliation Gap Scan ──
+  app.get(
+    "/api/internal/settlement/reconciliation-gap-scan",
+    { preHandler },
+    async (request, reply) => {
+      const context = getRequestContext(request);
+      const parsed = reconciliationGapScanQuerySchema.safeParse(request.query ?? {});
+      if (!parsed.success) return reply.status(400).send({ ok: false, error: "invalid gap scan query" });
+      try {
+        const result = await reconciliationGapScanService.scanGaps(context, parsed.data);
+        return { ok: true, ...result };
+      } catch (error) {
+        if (error instanceof ReconciliationGapScanError) return reply.status(400).send({ ok: false, error: error.message });
         throw error;
       }
     },

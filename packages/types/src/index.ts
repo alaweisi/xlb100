@@ -81,6 +81,11 @@ export type {
   SettlementAuditAmounts,
   SettlementAuditBatchGroup,
   SettlementAuditSummaryResponse,
+  ReconciliationGapType,
+  ReconciliationGapScanQuery,
+  ReconciliationGapItem,
+  ReconciliationGapScanSummary,
+  ReconciliationGapScanResponse,
 } from "./settlement.js";
 export type {
   DispatchTask,
