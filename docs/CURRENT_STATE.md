@@ -3,18 +3,18 @@
 > **Single source of truth for AI agents.** Update this file at every Phase Lock.
 > Do not trust conversation memory — read this file first.
 
-Last updated: 2026-07-04 (Phase 8I **LOCKED**)
+Last updated: 2026-07-04 (Phase 8J **LOCKED**)
 
 ## Git snapshot
 
 | Item | Value |
 |------|-------|
 | **main HEAD (stable baseline)** | `b69cd62` — merge: phase 8i statement audit query foundation |
-| **Phase 8I tag** | `xlb-phase8i-statement-audit-query` |
-| **Phase 8I merge commit** | `b69cd62` |
-| **Phase 8I lock report commit** | `eae2a9b` |
+| **Phase 8J tag** | `xlb-phase8j-review-summary-governance` |
+| **Phase 8J merge commit** | `af7ae25` |
+| **Phase 8J feature commit** | `6f285ab` |
+| **Phase 8I tag (retained)** | `xlb-phase8i-statement-audit-query` |
 | **Phase 8H tag (retained)** | `xlb-phase8h-worker-receivable-statement-export-package` |
-| **Phase 8G tag (retained)** | `xlb-phase8g-worker-receivable-statement-review` → `1679327` |
 | **Active branch** | `main` |
 
 ## Locked phases (merged to main + tagged)
@@ -24,25 +24,27 @@ Last updated: 2026-07-04 (Phase 8I **LOCKED**)
 | 0–8G | (see prior tags) | Foundation through worker receivable statement review |
 | **8H** | `xlb-phase8h-worker-receivable-statement-export-package` | Worker receivable statement export package foundation |
 | **8I** | `xlb-phase8i-statement-audit-query` | Statement audit query foundation |
+| **8J** | `xlb-phase8j-review-summary-governance` | Review summary / batch governance foundation |
 
 ## In progress (NOT locked)
 
 | Phase | Status |
 |-------|--------|
-| **8I** | **LOCKED** |
-| **8J** | **NOT started** |
+| **8J** | **LOCKED** |
+| **8K** | **NOT started** |
 
-## Event chain (8I Lock target)
+## Event chain (8J Lock target)
 
 ```
 … → statement review (8G)
 → export package (8H)
-→ statement audit query (8I) ← LOCKED
+→ statement audit query (8I)
+→ review summary / batch governance (8J) ← LOCKED
 ```
 
-## Phase 8I boundaries
+## Phase 8J boundaries
 
-- Statement audit query is read-only (3 GET endpoints, zero writes)
+- Review summary is read-only (1 GET endpoint, zero writes, aggregation only)
 - No mutation / no UI / no payout / no provider / no notification
 - No ledger_entries writes
 - worker_receivable_statements.status stays `created`
