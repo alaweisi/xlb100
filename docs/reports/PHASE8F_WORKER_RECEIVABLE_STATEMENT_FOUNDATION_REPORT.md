@@ -368,11 +368,78 @@ ledger_accruals → prepare-once → confirm → mark-payable → enqueue-once
 
 | 项 | 结论 |
 |----|------|
-| 本 Phase 主体是否完成 | **是** — 最小闭环已实现并复验通过 |
-| 是否已 Lock | **否** |
-| 是否已 merge main | **否** |
-| 是否已打 tag | **否** |
-| 是否可以进入下一步 Lock | **是** — 待总指挥确认后执行 Phase 8F-Lock 仪式 |
+| 本 Phase 主体是否完成 | **是** |
+| 是否已 Lock | **Lock 进行中**（本节以下为 Lock 复验） |
+| 是否已 merge main | **否**（Lock 前） |
+| 是否已打 tag | **否**（Lock 前） |
+| 是否可以进入下一步 Lock | **是** — 正在执行 Phase 8F-Lock |
 | 下一 Phase 是否未启动 | **是** — Phase 8G 未启动 |
 
-**声明：** 本报告基于 git commit `66b6419`、真实 migration/API/测试/守门脚本及 2026-07-04 复验命令输出编写。Worker receivable statement 是**对账单快照层**，不是付款、不是打款、不是 paid settlement、不是 payout、不是提现、不是分账、不是支付平台、不是 payment instruction。
+---
+
+## 8. Phase 8F-Lock 复验（2026-07-04，Lock 前）
+
+### 8.1 基线
+
+| 项 | 值 |
+|----|-----|
+| 分支 | `phase8f-worker-receivable-statement-foundation` |
+| Phase 8F 主体 commit | `66b6419` |
+| 过程报告 commit | `6d519d7` |
+| 基线 main | `9a0e7ae` |
+| Phase 8E tag | `xlb-phase8e-settlement-payable-queue` → `9a0e7ae` |
+
+### 8.2 工程验证
+
+| Check | Result |
+|-------|--------|
+| build | 10/10 passed |
+| typecheck | 14/14 passed |
+| test | **201 files / 381 passed / 1 todo** |
+| preflight | passed (Phase 0–8F) |
+
+### 8.3 守门脚本
+
+| Phase | Result |
+|-------|--------|
+| Phase 8B (6) | 6/6 passed |
+| Phase 8C (8) | 8/8 passed |
+| Phase 8D (8) | 8/8 passed |
+| Phase 8E (8) | 8/8 passed |
+| Phase 8F (8) | 8/8 passed |
+
+### 8.4 基础设施
+
+| Check | Result |
+|-------|--------|
+| Docker MySQL | healthy |
+| Docker Redis | healthy |
+| migrate-local | passed (017 applied) |
+| seed-local | passed |
+
+### 8.5 Live API 复验（Lock run）
+
+| Step | ID / result |
+|------|-------------|
+| prepare-once | processed=1 |
+| confirm | status=confirmed |
+| mark-payable | status=payable |
+| enqueue | status=queued |
+| generate 1st | status=created, idempotent=false |
+| generate 2nd | idempotent=true; generatedAt / generatedBy unchanged |
+| Statement | `wrs_mr5splu8_1aa20208` |
+| Line | `wrl_mr5splu9_4a51640a` |
+| worker.receivable.statement.created | `evt_mr5splua_a594e207` |
+| queue / payable / batch | queued / payable / confirmed |
+| Amount snapshot | 89.00 / 8.90 / 80.10 |
+| Not queued generate | HTTP 404 |
+| Cross-city | HTTP 404 |
+| ledger_entries | 3 per fulfillment (unchanged) |
+
+### 8.6 越界检查
+
+无 payout / paid / payment instruction / provider / withdraw / refund / aftersale / reversal / UI / ledger 写入 / 上游 mutation / queue·payable·batch status 变更。
+
+**Phase 8F Lock 准备完成 — 待 merge main。Phase 8G 未启动。**
+
+**声明：** Worker receivable statement 是**对账单快照层**，不是付款、不是打款、不是 paid settlement、不是 payout、不是提现、不是分账、不是支付平台、不是 payment instruction。

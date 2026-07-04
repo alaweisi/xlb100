@@ -3,16 +3,16 @@
 > **Single source of truth for AI agents.** Update this file at every Phase Lock.
 > Do not trust conversation memory — read this file first.
 
-Last updated: 2026-07-04 (Phase 8F in progress on feature branch)
+Last updated: 2026-07-04 (Phase 8F **Lock in progress**)
 
 ## Git snapshot
 
 | Item | Value |
 |------|-------|
-| **main HEAD (8E locked)** | `9a0e7ae` — docs(phase8e): record settlement payable queue post-lock state |
-| **main latest tag (8E)** | `xlb-phase8e-settlement-payable-queue` → `9a0e7ae` |
-| **Phase 8D tag (retained)** | `xlb-phase8d-settlement-payable-readiness` → `e60bba7` |
-| **Active branch** | `phase8f-worker-receivable-statement-foundation` — **NOT locked** |
+| **main HEAD (8E locked)** | `9a0e7ae` |
+| **Phase 8E tag** | `xlb-phase8e-settlement-payable-queue` → `9a0e7ae` |
+| **Phase 8F body commit** | `66b6419` |
+| **Active branch** | `phase8f-worker-receivable-statement-foundation` — **Lock in progress** |
 
 ## Locked phases (merged to main + tagged)
 
@@ -26,7 +26,7 @@ Last updated: 2026-07-04 (Phase 8F in progress on feature branch)
 
 | Phase | Status |
 |-------|--------|
-| **8F** | **In progress** on `phase8f-worker-receivable-statement-foundation` — worker receivable statement only; not Lock / not merge / not tag |
+| **8F** | **Lock in progress** on `phase8f-worker-receivable-statement-foundation` — body @ `66b6419` |
 | **8G** | **NOT started** |
 
 ## Event chain (8F branch extends 8E)
