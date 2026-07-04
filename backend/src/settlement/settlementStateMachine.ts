@@ -39,3 +39,13 @@ export function assertWorkerReceivableStatementGeneratable(queueStatus: "queued"
     throw new Error(`settlement payable queue status ${queueStatus} cannot generate worker receivable statements`);
   }
 }
+
+export function canReviewWorkerReceivableStatement(statementStatus: "created"): boolean {
+  return statementStatus === "created";
+}
+
+export function assertWorkerReceivableStatementReviewable(statementStatus: "created"): void {
+  if (!canReviewWorkerReceivableStatement(statementStatus)) {
+    throw new Error(`worker receivable statement status ${statementStatus} cannot be reviewed`);
+  }
+}

@@ -15,6 +15,9 @@ import {
   generateWorkerReceivableStatementsResponseSchema,
   listWorkerReceivableStatementsResponseSchema,
   getWorkerReceivableStatementResponseSchema,
+  reviewWorkerReceivableStatementRequestSchema,
+  reviewWorkerReceivableStatementResponseSchema,
+  getWorkerReceivableStatementReviewResponseSchema,
 } from "@xlb/validators";
 import {
   settlementConfirmationService,
@@ -35,6 +38,11 @@ import {
   WorkerReceivableStatementNotFoundError,
   WorkerReceivableStatementError,
 } from "./workerReceivableStatementService.js";
+import {
+  workerReceivableStatementReviewService,
+  WorkerReceivableStatementReviewNotFoundError,
+  WorkerReceivableStatementReviewError,
+} from "./workerReceivableStatementReviewService.js";
 
 async function requireSettlementOperator(request: FastifyRequest, reply: FastifyReply): Promise<void> {
   const context = getRequestContext(request);
@@ -233,6 +241,53 @@ export async function registerSettlementRoutes(app: FastifyInstance): Promise<vo
         return reply.status(404).send({ ok: false, error: "worker receivable statement not found in city scope" });
       }
       return getWorkerReceivableStatementResponseSchema.parse({ ok: true, ...result });
+    },
+  );
+
+  app.post<{ Params: { statementId: string } }>(
+    "/api/internal/settlement/worker-statements/:statementId/review-once",
+    { preHandler },
+    async (request, reply) => {
+      const context = getRequestContext(request);
+      if (!context.userId) {
+        return reply.status(403).send({ ok: false, error: "worker receivable statement review requires operator userId" });
+      }
+      const parsed = reviewWorkerReceivableStatementRequestSchema.safeParse(request.body ?? {});
+      if (!parsed.success) {
+        return reply.status(400).send({ ok: false, error: "invalid worker receivable statement review body" });
+      }
+      try {
+        const result = await workerReceivableStatementReviewService.reviewWorkerReceivableStatementOnce(
+          context,
+          request.params.statementId,
+          parsed.data,
+        );
+        return reviewWorkerReceivableStatementResponseSchema.parse({ ok: true, ...result });
+      } catch (error) {
+        if (error instanceof WorkerReceivableStatementReviewNotFoundError) {
+          return reply.status(404).send({ ok: false, error: error.message });
+        }
+        if (error instanceof WorkerReceivableStatementReviewError) {
+          return reply.status(409).send({ ok: false, error: error.message });
+        }
+        throw error;
+      }
+    },
+  );
+
+  app.get<{ Params: { statementId: string } }>(
+    "/api/internal/settlement/worker-statements/:statementId/review",
+    { preHandler },
+    async (request, reply) => {
+      const context = getRequestContext(request);
+      const review = await workerReceivableStatementReviewService.getWorkerReceivableStatementReview(
+        context,
+        request.params.statementId,
+      );
+      if (review === null) {
+        return reply.status(404).send({ ok: false, error: "worker receivable statement review not found in city scope" });
+      }
+      return getWorkerReceivableStatementReviewResponseSchema.parse({ ok: true, review });
     },
   );
 }

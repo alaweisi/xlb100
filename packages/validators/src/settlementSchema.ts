@@ -239,6 +239,54 @@ export const getWorkerReceivableStatementResponseSchema = z.object({
   lines: z.array(workerReceivableStatementLineSchema),
 }).strict();
 
+export const workerReceivableStatementReviewDecisionSchema = z.enum(["approved", "rejected"]);
+
+export const reviewWorkerReceivableStatementRequestSchema = z.object({
+  decision: workerReceivableStatementReviewDecisionSchema,
+  reviewNote: z.string().max(512).optional(),
+}).strict();
+
+export const workerReceivableStatementReviewSchema = z.object({
+  reviewId: idSchema,
+  cityCode: cityCodeSchema,
+  statementId: idSchema,
+  queueId: idSchema,
+  settlementPayableId: idSchema,
+  settlementBatchId: idSchema,
+  workerId: idSchema,
+  decision: workerReceivableStatementReviewDecisionSchema,
+  reviewNote: z.string().max(512).nullable(),
+  reviewedAt: z.string().min(1),
+  reviewedBy: idSchema,
+  createdAt: z.string().min(1),
+  updatedAt: z.string().min(1),
+}).strict();
+
+export const workerReceivableStatementReviewedEventPayloadSchema = z.object({
+  reviewId: idSchema,
+  statementId: idSchema,
+  queueId: idSchema,
+  payableId: idSchema,
+  batchId: idSchema,
+  cityCode: cityCodeSchema,
+  workerId: idSchema,
+  decision: workerReceivableStatementReviewDecisionSchema,
+  reviewNote: z.string().max(512).nullable(),
+  reviewedAt: z.string().min(1),
+  reviewedBy: idSchema,
+}).strict();
+
+export const reviewWorkerReceivableStatementResponseSchema = z.object({
+  ok: z.literal(true),
+  review: workerReceivableStatementReviewSchema,
+  idempotent: z.boolean(),
+}).strict();
+
+export const getWorkerReceivableStatementReviewResponseSchema = z.object({
+  ok: z.literal(true),
+  review: workerReceivableStatementReviewSchema,
+}).strict();
+
 export type WorkerReceivableStatementInput = z.infer<typeof workerReceivableStatementSchema>;
 export type WorkerReceivableStatementLineInput = z.infer<typeof workerReceivableStatementLineSchema>;
 export type GenerateWorkerReceivableStatementsRequestInput = z.infer<typeof generateWorkerReceivableStatementsRequestSchema>;
@@ -246,3 +294,9 @@ export type WorkerReceivableStatementCreatedEventPayloadInput = z.infer<typeof w
 export type GenerateWorkerReceivableStatementsResponseInput = z.infer<typeof generateWorkerReceivableStatementsResponseSchema>;
 export type ListWorkerReceivableStatementsResponseInput = z.infer<typeof listWorkerReceivableStatementsResponseSchema>;
 export type GetWorkerReceivableStatementResponseInput = z.infer<typeof getWorkerReceivableStatementResponseSchema>;
+export type WorkerReceivableStatementReviewDecisionInput = z.infer<typeof workerReceivableStatementReviewDecisionSchema>;
+export type ReviewWorkerReceivableStatementRequestInput = z.infer<typeof reviewWorkerReceivableStatementRequestSchema>;
+export type WorkerReceivableStatementReviewInput = z.infer<typeof workerReceivableStatementReviewSchema>;
+export type WorkerReceivableStatementReviewedEventPayloadInput = z.infer<typeof workerReceivableStatementReviewedEventPayloadSchema>;
+export type ReviewWorkerReceivableStatementResponseInput = z.infer<typeof reviewWorkerReceivableStatementResponseSchema>;
+export type GetWorkerReceivableStatementReviewResponseInput = z.infer<typeof getWorkerReceivableStatementReviewResponseSchema>;

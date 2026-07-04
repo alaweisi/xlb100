@@ -179,3 +179,35 @@ export interface WorkerReceivableStatementCreatedEventPayload {
   generatedAt: string;
   generatedBy: string;
 }
+
+export type WorkerReceivableStatementReviewDecision = "approved" | "rejected";
+
+export interface WorkerReceivableStatementReview {
+  reviewId: string;
+  cityCode: CityCode;
+  statementId: string;
+  queueId: string;
+  settlementPayableId: string;
+  settlementBatchId: string;
+  workerId: string;
+  decision: WorkerReceivableStatementReviewDecision;
+  reviewNote: string | null;
+  reviewedAt: string;
+  reviewedBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WorkerReceivableStatementReviewedEventPayload {
+  reviewId: string;
+  statementId: string;
+  queueId: string;
+  payableId: string;
+  batchId: string;
+  cityCode: CityCode;
+  workerId: string;
+  decision: WorkerReceivableStatementReviewDecision;
+  reviewNote: string | null;
+  reviewedAt: string;
+  reviewedBy: string;
+}
