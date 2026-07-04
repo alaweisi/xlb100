@@ -5,15 +5,16 @@
 **阶段：** Phase 8H — Worker Receivable Statement Export Package Foundation  
 **报告日期：** 2026-07-04  
 
-## Lock status — **NOT LOCKED**
+## Lock status — **LOCKED** (Interrupted Lock Recovery)
 
 | Item | Value |
 |------|-------|
-| **Merged to main** | no |
-| **Tag** | none |
-| **Baseline main** | `16793276ff6ddfa82341c10d2ed4c5f49d16746a` |
+| **Merged to main** | yes（Interrupted Lock Recovery on main @ e2446c5） |
+| **main merge commit** | `e2446c53ab3718b64f5d162a2d1eba65e0742f79` |
+| **Phase 8H body commit** | `21e8cf7a87c5388eac2700c54974c68ade0bfa8f` |
+| **docs finalize commit (8H branch)** | `89f50dc` |
+| **Tag** | `xlb-phase8h-worker-receivable-statement-export-package`（post-recovery） |
 | **Phase 8G tag (retained)** | `xlb-phase8g-worker-receivable-statement-review` → `1679327` |
-| **Current branch** | `phase8h-worker-receivable-statement-export-package-foundation` |
 | **Phase 8I** | **NOT started** |
 
 ---
@@ -25,9 +26,10 @@
 | Phase 名称 | Phase 8H — Worker Receivable Statement Export Package Foundation |
 | 基线 main commit | `1679327` |
 | 上一阶段稳定 tag | `xlb-phase8g-worker-receivable-statement-review` → `1679327` |
-| 本 Phase commit | `21e8cf7a87c5388eac2700c54974c68ade0bfa8f` — feat(phase8h): establish worker receivable statement export package foundation |
-| 是否 merge main | **否**（Lock 前） |
-| 是否打 tag | **否**（Lock 前） |
+| 本 Phase 主体 commit | `21e8cf7a87c5388eac2700c54974c68ade0bfa8f` — feat(phase8h): establish worker receivable statement export package foundation |
+| docs finalize commit | `89f50dc` — docs(phase8h): finalize worker receivable statement export lock report |
+| 是否 merge main | **是**（Interrupted Lock：merge 已完成但 post-merge verify + tag 缺失，本次 recovery 补全） |
+| 是否打 tag | **是**（post-recovery） |
 | Phase 8I 是否启动 | **否** |
 
 ## 2. 本阶段工程目标
@@ -194,5 +196,43 @@ SHA-256 over statementId + reviewId + amounts + itemCount + exportFormat + paylo
 
 ## 9. Phase 8H Post-Lock
 
-> 本节在 merge + tag 后填写。
+### 9.1 Lock Recovery 背景
 
+Phase 8H 原始 Lock 流程在 merge main 后中断：merge commit `e2446c5` 已进入 main，但 post-merge 验证、tag 和 CURRENT_STATE 更新均未执行。本次为 **Interrupted Lock Recovery**，在 main @ e2446c5 上补全所有缺失步骤。
+
+### 9.2 Post-Merge Recovery 验证（2026-07-04，main @ e2446c5）
+
+| Check | Result |
+|-------|--------|
+| build | 10/10 passed |
+| typecheck | 14/14 passed |
+| test | **211 files / 430 passed / 1 todo** |
+| preflight | Phase 0–8H all passed |
+| Docker MySQL | **healthy** |
+| Docker Redis | **healthy** |
+| migrate-local | passed（all 19 migrations applied） |
+| seed-local | passed |
+
+| Phase Gates | Result |
+|------------|--------|
+| Phase 8B (6) | 6/6 passed |
+| Phase 8C (8) | 8/8 passed |
+| Phase 8D (8) | 8/8 passed |
+| Phase 8E (8) | 8/8 passed |
+| Phase 8F (8) | 8/8 passed |
+| Phase 8G (8) | 8/8 passed |
+| Phase 8H (8) | 8/8 passed |
+
+### 9.3 Post-Merge Live API Recovery 复验
+
+全链路 ledger → export-once 在 main @ e2446c5 上通过：
+prepare-once processed=1 → confirm status=confirmed → mark-payable status=payable → enqueue status=queued → generate statements status=created → review approved → **export 1st** idempotent=false, content_hash=`d92df7f316aa9dfdb42891c90786dca5221e1821055314f72c8117f206a57c9c` → **export 2nd** idempotent=true, 同 hash → rejected export 409 → no review export 409 → 跨城 export 404 → statement status 仍 `created` → review/queue/payable/batch 不变 → outbox `worker.receivable.statement.exported` 每 export 一条 → 金额 89.00/8.90/80.10 不变。
+
+### 9.4 Recovery 结论
+
+| 项 | 值 |
+|----|-----|
+| Recovery 完成 | **是** |
+| main post-recovery HEAD | 见 Post-Lock docs commit |
+| tag | `xlb-phase8h-worker-receivable-statement-export-package` |
+| Phase 8I | **NOT started** |
