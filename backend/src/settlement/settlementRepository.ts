@@ -17,6 +17,7 @@ type BatchRow = RowDataPacket & {
   total_gross_amount: string; total_platform_fee: string;
   total_worker_receivable: string; item_count: number;
   status: SettlementBatch["status"]; prepared_at: Date;
+  confirmed_at: Date | null; confirmed_by: string | null;
   created_at: Date; updated_at: Date;
 };
 
@@ -47,6 +48,8 @@ const mapBatch = (row: BatchRow): SettlementBatch => ({
   itemCount: row.item_count,
   status: row.status,
   preparedAt: row.prepared_at.toISOString(),
+  confirmedAt: row.confirmed_at ? row.confirmed_at.toISOString() : null,
+  confirmedBy: row.confirmed_by,
   createdAt: row.created_at.toISOString(),
   updatedAt: row.updated_at.toISOString(),
 });
@@ -133,6 +136,56 @@ export class SettlementRepository extends RepositoryBase {
         item.fulfillmentId, item.orderId, item.paymentOrderId, item.workerId,
         item.customerId, item.skuId, item.grossAmount, item.platformFee,
         item.workerReceivable],
+    );
+  }
+
+  async findBatchForConfirmation(
+    connection: PoolConnection,
+    cityCode: CityCode,
+    batchId: string,
+  ): Promise<SettlementBatch | null> {
+    const [rows] = await connection.query<BatchRow[]>(
+      `SELECT * FROM settlement_batches
+       WHERE city_code = ? AND settlement_batch_id = ?
+       LIMIT 1 FOR UPDATE`,
+      [cityCode, batchId],
+    );
+    return rows[0] ? mapBatch(rows[0]) : null;
+  }
+
+  async lockBatchItems(
+    connection: PoolConnection,
+    cityCode: CityCode,
+    batchId: string,
+  ): Promise<SettlementItem[]> {
+    const [rows] = await connection.query<ItemRow[]>(
+      `SELECT * FROM settlement_items
+       WHERE city_code = ? AND settlement_batch_id = ?
+       ORDER BY created_at ASC, settlement_item_id ASC
+       FOR UPDATE`,
+      [cityCode, batchId],
+    );
+    return rows.map(mapItem);
+  }
+
+  async markBatchConfirmed(
+    connection: PoolConnection,
+    cityCode: CityCode,
+    batchId: string,
+    confirmedAt: string,
+    confirmedBy: string,
+  ): Promise<void> {
+    await connection.query(
+      `UPDATE settlement_batches
+       SET status = 'confirmed', confirmed_at = ?, confirmed_by = ?, updated_at = ?
+       WHERE city_code = ? AND settlement_batch_id = ? AND status = 'prepared'`,
+      [new Date(confirmedAt), confirmedBy, new Date(confirmedAt), cityCode, batchId],
+    );
+    await connection.query(
+      `UPDATE settlement_items
+       SET status = 'confirmed'
+       WHERE city_code = ? AND settlement_batch_id = ? AND status = 'prepared'`,
+      [cityCode, batchId],
     );
   }
 

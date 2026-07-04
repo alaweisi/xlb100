@@ -4,6 +4,15 @@ import {
   getRequestContext,
 } from "../context/requestContextMiddleware.js";
 import { settlementPreparationService } from "./settlementPreparationService.js";
+import {
+  confirmSettlementBatchRequestSchema,
+  settlementConfirmationResponseSchema,
+} from "@xlb/validators";
+import {
+  settlementConfirmationService,
+  SettlementBatchNotFoundError,
+  SettlementConfirmationError,
+} from "./settlementConfirmationService.js";
 
 async function requireSettlementOperator(request: FastifyRequest, reply: FastifyReply): Promise<void> {
   const context = getRequestContext(request);
@@ -37,6 +46,32 @@ export async function registerSettlementRoutes(app: FastifyInstance): Promise<vo
       );
       if (items === null) return reply.status(404).send({ ok: false, error: "settlement batch not found in city scope" });
       return { ok: true, items };
+    },
+  );
+
+  app.post<{ Params: { batchId: string } }>(
+    "/api/internal/settlement/batches/:batchId/confirm",
+    { preHandler },
+    async (request, reply) => {
+      const context = getRequestContext(request);
+      if (!context.userId) {
+        return reply.status(403).send({ ok: false, error: "settlement confirmation requires operator userId" });
+      }
+      if (!confirmSettlementBatchRequestSchema.safeParse(request.body ?? {}).success) {
+        return reply.status(400).send({ ok: false, error: "invalid settlement confirmation body" });
+      }
+      try {
+        const result = await settlementConfirmationService.confirmBatch(context, request.params.batchId);
+        return settlementConfirmationResponseSchema.parse({ ok: true, ...result });
+      } catch (error) {
+        if (error instanceof SettlementBatchNotFoundError) {
+          return reply.status(404).send({ ok: false, error: error.message });
+        }
+        if (error instanceof SettlementConfirmationError) {
+          return reply.status(409).send({ ok: false, error: error.message });
+        }
+        throw error;
+      }
     },
   );
 }

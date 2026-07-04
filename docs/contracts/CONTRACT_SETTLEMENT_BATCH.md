@@ -1,7 +1,9 @@
 # Settlement Batch Contract (Phase 8B)
 
 A batch belongs to exactly one non-global city and has currency `CNY`. Its
-status is `prepared` or `cancelled`. Totals equal the sums of its items:
+status is `prepared`, `confirmed`, or `cancelled`. Phase 8C permits only
+`prepared → confirmed`; confirmed requires `confirmed_at` and `confirmed_by`.
+Totals equal the sums of its items:
 
 - `total_gross_amount = sum(gross_amount)`
 - `total_platform_fee = sum(platform_fee)`

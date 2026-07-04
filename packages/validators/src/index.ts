@@ -126,8 +126,14 @@ export {
   settlementItemStatusSchema,
   settlementBatchSchema,
   settlementItemSchema,
+  confirmSettlementBatchRequestSchema,
+  settlementConfirmedEventPayloadSchema,
+  settlementConfirmationResponseSchema,
   type SettlementBatchInput,
   type SettlementItemInput,
+  type ConfirmSettlementBatchRequestInput,
+  type SettlementConfirmedEventPayloadInput,
+  type SettlementConfirmationResponseInput,
 } from "./settlementSchema.js";
 export {
   appTypeSchema,

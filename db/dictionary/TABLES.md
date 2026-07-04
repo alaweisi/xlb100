@@ -96,3 +96,10 @@ refund, reverse, or mutate order/payment/fulfillment state.
 
 **Rules:** items originate only from `ledger_accruals`; one accrual can appear in
 only one item. Prepared means ready for later review, not that money moved.
+
+## Phase 8C settlement confirmation foundation
+
+`settlement_batches` and their items transition atomically from `prepared` to
+`confirmed`. The batch records `confirmed_at` and `confirmed_by` and emits one
+`settlement.confirmed` event. Confirmation is an administrative audit state and
+does not change amounts, upstream states, or ledger entries.

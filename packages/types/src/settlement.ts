@@ -1,7 +1,7 @@
 import type { CityCode } from "./city.js";
 
-export type SettlementBatchStatus = "prepared" | "cancelled";
-export type SettlementItemStatus = "prepared" | "cancelled";
+export type SettlementBatchStatus = "prepared" | "confirmed" | "cancelled";
+export type SettlementItemStatus = "prepared" | "confirmed" | "cancelled";
 
 export interface SettlementBatch {
   settlementBatchId: string;
@@ -13,6 +13,8 @@ export interface SettlementBatch {
   itemCount: number;
   status: SettlementBatchStatus;
   preparedAt: string;
+  confirmedAt: string | null;
+  confirmedBy: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -46,4 +48,16 @@ export interface SettlementPreparedEventPayload {
   totalPlatformFee: number;
   totalWorkerReceivable: number;
   preparedAt: string;
+}
+
+export interface SettlementConfirmedEventPayload {
+  settlementBatchId: string;
+  cityCode: CityCode;
+  currency: "CNY";
+  itemCount: number;
+  totalGrossAmount: number;
+  totalPlatformFee: number;
+  totalWorkerReceivable: number;
+  confirmedAt: string;
+  confirmedBy: string;
 }

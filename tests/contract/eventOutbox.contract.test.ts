@@ -8,6 +8,12 @@ describe("eventOutbox contract", () => {
     }
   });
 
+  it("supports settlement preparation and confirmation audit events", () => {
+    for (const eventType of ["settlement.prepared", "settlement.confirmed"]) {
+      expect(outboxEventTypeSchema.safeParse(eventType).success).toBe(true);
+    }
+  });
+
   it("payload must be serializable record", () => {
     const result = eventOutboxSchema.safeParse({
       eventId: "evt_1",
