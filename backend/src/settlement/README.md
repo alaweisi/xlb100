@@ -23,3 +23,13 @@ Statements aggregate immutable `settlement_items` by `worker_id` and emit
 `worker.receivable.statement.created` outbox events. This is an audit snapshot
 layer — not payout, paid settlement, withdrawal, or funds movement. Queue, payable,
 batch, and upstream domain state remain unchanged.
+
+Phase 8G adds internal review records for **created** statements only. One
+`worker_receivable_statement_reviews` row and one `worker.receivable.statement.reviewed`
+outbox event are written per statement. Review is a governance layer — not payout,
+paid settlement, withdrawal, or funds movement. Statement status remains `created`.
+
+Phase 8H adds internal export/archive packages for **approved** reviews only. One
+`worker_receivable_statement_exports` row and one `worker.receivable.statement.exported`
+outbox event are written per statement. Export is an internal archive snapshot — not
+payout, paid settlement, withdrawal, payment instruction, or funds movement.

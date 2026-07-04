@@ -7,3 +7,4 @@
 -- settlement_payable_queue: internal queue snapshot only (8E) — not payout/paid
 -- worker_receivable_statements / worker_receivable_statement_lines: worker statement snapshot only (8F) — not payout/paid
 -- worker_receivable_statement_reviews: internal review record only (8G) — not payout/paid
+-- worker_receivable_statement_exports: internal export/archive snapshot only (8H) — not payout/paid

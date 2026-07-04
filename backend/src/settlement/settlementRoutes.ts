@@ -18,6 +18,9 @@ import {
   reviewWorkerReceivableStatementRequestSchema,
   reviewWorkerReceivableStatementResponseSchema,
   getWorkerReceivableStatementReviewResponseSchema,
+  exportWorkerReceivableStatementRequestSchema,
+  exportWorkerReceivableStatementResponseSchema,
+  getWorkerReceivableStatementExportResponseSchema,
 } from "@xlb/validators";
 import {
   settlementConfirmationService,
@@ -43,6 +46,12 @@ import {
   WorkerReceivableStatementReviewNotFoundError,
   WorkerReceivableStatementReviewError,
 } from "./workerReceivableStatementReviewService.js";
+
+import {
+  workerReceivableStatementExportService,
+  WorkerReceivableStatementExportNotFoundError,
+  WorkerReceivableStatementExportError,
+} from "./workerReceivableStatementExportService.js";
 
 async function requireSettlementOperator(request: FastifyRequest, reply: FastifyReply): Promise<void> {
   const context = getRequestContext(request);
@@ -288,6 +297,53 @@ export async function registerSettlementRoutes(app: FastifyInstance): Promise<vo
         return reply.status(404).send({ ok: false, error: "worker receivable statement review not found in city scope" });
       }
       return getWorkerReceivableStatementReviewResponseSchema.parse({ ok: true, review });
+    },
+  );
+
+  app.post<{ Params: { statementId: string } }>(
+    "/api/internal/settlement/worker-statements/:statementId/export-once",
+    { preHandler },
+    async (request, reply) => {
+      const context = getRequestContext(request);
+      if (!context.userId) {
+        return reply.status(403).send({ ok: false, error: "worker receivable statement export requires operator userId" });
+      }
+      const parsed = exportWorkerReceivableStatementRequestSchema.safeParse(request.body ?? {});
+      if (!parsed.success) {
+        return reply.status(400).send({ ok: false, error: "invalid worker receivable statement export body" });
+      }
+      try {
+        const result = await workerReceivableStatementExportService.exportWorkerReceivableStatementOnce(
+          context,
+          request.params.statementId,
+          parsed.data,
+        );
+        return exportWorkerReceivableStatementResponseSchema.parse({ ok: true, ...result });
+      } catch (error) {
+        if (error instanceof WorkerReceivableStatementExportNotFoundError) {
+          return reply.status(404).send({ ok: false, error: error.message });
+        }
+        if (error instanceof WorkerReceivableStatementExportError) {
+          return reply.status(409).send({ ok: false, error: error.message });
+        }
+        throw error;
+      }
+    },
+  );
+
+  app.get<{ Params: { statementId: string } }>(
+    "/api/internal/settlement/worker-statements/:statementId/export",
+    { preHandler },
+    async (request, reply) => {
+      const context = getRequestContext(request);
+      const exportRecord = await workerReceivableStatementExportService.getWorkerReceivableStatementExport(
+        context,
+        request.params.statementId,
+      );
+      if (exportRecord === null) {
+        return reply.status(404).send({ ok: false, error: "worker receivable statement export not found in city scope" });
+      }
+      return getWorkerReceivableStatementExportResponseSchema.parse({ ok: true, export: exportRecord });
     },
   );
 }
