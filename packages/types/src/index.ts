@@ -74,6 +74,13 @@ export type {
   WorkerStatementReviewSummaryCounts,
   WorkerStatementReviewSummaryGroup,
   WorkerStatementReviewSummaryResponse,
+  SettlementAuditGroupBy,
+  SettlementAuditSummaryQuery,
+  SettlementAuditCounts,
+  SettlementAuditStatusCounts,
+  SettlementAuditAmounts,
+  SettlementAuditBatchGroup,
+  SettlementAuditSummaryResponse,
 } from "./settlement.js";
 export type {
   DispatchTask,

@@ -379,3 +379,54 @@ export interface WorkerStatementReviewSummaryResponse {
   overall: WorkerStatementReviewSummaryCounts;
   groups: WorkerStatementReviewSummaryGroup[] | null;
 }
+
+// ── Phase 8K: Settlement Audit Summary ──
+
+export type SettlementAuditGroupBy = "none" | "status" | "batch";
+
+export interface SettlementAuditSummaryQuery {
+  cityCode?: CityCode;
+  dateFrom?: string;
+  dateTo?: string;
+  status?: SettlementBatchStatus;
+  groupBy?: SettlementAuditGroupBy;
+}
+
+export interface SettlementAuditCounts {
+  totalBatches: number;
+  totalItems: number;
+  totalPayables: number;
+  totalQueueItems: number;
+}
+
+export interface SettlementAuditStatusCounts {
+  status: string;
+  count: number;
+}
+
+export interface SettlementAuditAmounts {
+  itemsGrossAmount: number;
+  itemsPlatformFee: number;
+  itemsWorkerReceivable: number;
+  payableGrossAmount: number;
+  payablePlatformFee: number;
+  payableWorkerReceivable: number;
+  queueGrossAmount: number;
+  queuePlatformFee: number;
+  queueWorkerReceivable: number;
+}
+
+export interface SettlementAuditBatchGroup {
+  settlementBatchId: string;
+  status: SettlementBatchStatus;
+  itemCount: number;
+  payableCount: number;
+  queueCount: number;
+}
+
+export interface SettlementAuditSummaryResponse {
+  counts: SettlementAuditCounts;
+  statusBreakdown: SettlementAuditStatusCounts[];
+  amounts: SettlementAuditAmounts;
+  groups: SettlementAuditBatchGroup[] | null;
+}

@@ -70,6 +70,13 @@ export function createSettlementApi(client: ApiClient) {
         overall: Record<string, number>; groups: unknown[] | null;
       }>(`/api/internal/settlement/worker-statement-review-summary${qs}`);
     },
+    // ── Phase 8K: Settlement Audit Summary ──
+    getSettlementAuditSummary: (query?: Record<string, string>) => {
+      const qs = query ? "?" + new URLSearchParams(query).toString() : "";
+      return client.get<{ ok: true; counts: Record<string, number>; statusBreakdown: unknown[]; amounts: Record<string, number>; groups: unknown[] | null }>(
+        `/api/internal/settlement/settlement-audit-summary${qs}`,
+      );
+    },
   };
 }
 
