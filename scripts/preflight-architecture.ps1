@@ -258,6 +258,14 @@ $requiredFiles = @(
   "scripts/check-phase8k-forbidden-zone.ps1",
   "scripts/check-phase8k-no-outbox-write.ps1",
   "scripts/check-phase8k-route-order.ps1",
+  "scripts/check-phase8l-readonly.ps1",
+  "scripts/check-phase8l-no-mutation-routes.ps1",
+  "scripts/check-phase8l-city-scope.ps1",
+  "scripts/check-phase8l-no-migration.ps1",
+  "scripts/check-phase8l-no-ui.ps1",
+  "scripts/check-phase8l-forbidden-zone.ps1",
+  "scripts/check-phase8l-no-outbox-write.ps1",
+  "scripts/check-phase8l-route-order.ps1",
   "tests/unit/cityResolver.test.ts",
   "tests/unit/scopedExecutor.test.ts",
   "tests/unit/adminQueryGuard.test.ts",
@@ -380,4 +388,13 @@ Write-Host "XLB Phase 8J review summary batch governance foundation preflight pa
 & "$PSScriptRoot\check-phase8k-forbidden-zone.ps1"
 & "$PSScriptRoot\check-phase8k-no-outbox-write.ps1"
 & "$PSScriptRoot\check-phase8k-route-order.ps1"
+& "$PSScriptRoot\check-phase8l-readonly.ps1"
+& "$PSScriptRoot\check-phase8l-no-mutation-routes.ps1"
+& "$PSScriptRoot\check-phase8l-city-scope.ps1"
+& "$PSScriptRoot\check-phase8l-no-migration.ps1"
+& "$PSScriptRoot\check-phase8l-no-ui.ps1"
+& "$PSScriptRoot\check-phase8l-forbidden-zone.ps1"
+& "$PSScriptRoot\check-phase8l-no-outbox-write.ps1"
+& "$PSScriptRoot\check-phase8l-route-order.ps1"
 Write-Host "XLB Phase 8K settlement audit summary foundation preflight passed."
+Write-Host "XLB Phase 8L reconciliation gap scan foundation preflight passed."

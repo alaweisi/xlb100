@@ -563,3 +563,37 @@ export const settlementAuditSummaryResponseSchema = z.object({
 }).strict();
 
 export type SettlementAuditSummaryQueryInput = z.infer<typeof settlementAuditSummaryQuerySchema>;
+
+// ── Phase 8L: Reconciliation Gap Scan ──
+
+export const reconciliationGapTypeSchema = z.enum(["all", "batch-payable", "payable-queue", "queue-statement", "statement-review", "review-export", "export-integrity"]);
+
+export const reconciliationGapScanQuerySchema = z.object({
+  cityCode: cityCodeSchema.optional(),
+  dateFrom: z.string().min(1).optional(),
+  dateTo: z.string().min(1).optional(),
+  gapType: reconciliationGapTypeSchema.optional(),
+}).strict();
+
+const reconciliationGapItemSchema = z.object({
+  type: reconciliationGapTypeSchema,
+  cityCode: cityCodeSchema,
+  relatedId: idSchema,
+  relatedType: z.string().min(1).max(64),
+  severity: z.enum(["warning", "info"]),
+  reason: z.string().min(1).max(512),
+  detectedAt: z.string().min(1),
+}).strict();
+
+const reconciliationGapScanSummarySchema = z.object({
+  totalGaps: z.number().int().min(0),
+  gapsByType: z.record(z.number().int().min(0)),
+}).strict();
+
+export const reconciliationGapScanResponseSchema = z.object({
+  ok: z.literal(true),
+  summary: reconciliationGapScanSummarySchema,
+  gaps: z.array(reconciliationGapItemSchema),
+}).strict();
+
+export type ReconciliationGapScanQueryInput = z.infer<typeof reconciliationGapScanQuerySchema>;

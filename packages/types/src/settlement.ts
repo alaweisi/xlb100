@@ -430,3 +430,34 @@ export interface SettlementAuditSummaryResponse {
   amounts: SettlementAuditAmounts;
   groups: SettlementAuditBatchGroup[] | null;
 }
+
+// ── Phase 8L: Reconciliation Gap Scan ──
+
+export type ReconciliationGapType = "all" | "batch-payable" | "payable-queue" | "queue-statement" | "statement-review" | "review-export" | "export-integrity";
+
+export interface ReconciliationGapScanQuery {
+  cityCode?: CityCode;
+  dateFrom?: string;
+  dateTo?: string;
+  gapType?: ReconciliationGapType;
+}
+
+export interface ReconciliationGapItem {
+  type: ReconciliationGapType;
+  cityCode: CityCode;
+  relatedId: string;
+  relatedType: string;
+  severity: "warning" | "info";
+  reason: string;
+  detectedAt: string;
+}
+
+export interface ReconciliationGapScanSummary {
+  totalGaps: number;
+  gapsByType: Record<string, number>;
+}
+
+export interface ReconciliationGapScanResponse {
+  summary: ReconciliationGapScanSummary;
+  gaps: ReconciliationGapItem[];
+}

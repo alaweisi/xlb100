@@ -172,6 +172,9 @@ export {
   settlementAuditGroupBySchema,
   settlementAuditSummaryQuerySchema,
   settlementAuditSummaryResponseSchema,
+  reconciliationGapTypeSchema,
+  reconciliationGapScanQuerySchema,
+  reconciliationGapScanResponseSchema,
   type SettlementBatchInput,
   type SettlementItemInput,
   type SettlementPayableInput,
@@ -208,6 +211,7 @@ export {
   type ExportAuditQueryInput,
   type WorkerStatementReviewSummaryQueryInput,
   type SettlementAuditSummaryQueryInput,
+  type ReconciliationGapScanQueryInput,
 } from "./settlementSchema.js";
 export {
   appTypeSchema,
