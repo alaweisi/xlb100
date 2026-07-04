@@ -55,6 +55,8 @@ export class SettlementPreparationService {
         ...totals,
         status: "prepared",
         preparedAt,
+        confirmedAt: null,
+        confirmedBy: null,
         createdAt: now,
         updatedAt: now,
       };

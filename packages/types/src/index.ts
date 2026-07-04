@@ -45,6 +45,7 @@ export type {
   SettlementBatch,
   SettlementItem,
   SettlementPreparedEventPayload,
+  SettlementConfirmedEventPayload,
 } from "./settlement.js";
 export type {
   DispatchTask,

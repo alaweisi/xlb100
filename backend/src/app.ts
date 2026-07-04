@@ -25,17 +25,17 @@ export async function buildApp(): Promise<FastifyInstance> {
   app.get("/health", async () => ({
     status: "ok",
     service: "xlb-backend",
-    phase: "8B",
+    phase: "8C",
     brand: "喜乐帮 / XLB",
   }));
 
   app.get("/api/system/status", async () => ({
     ok: true,
     project: "XLB",
-    phase: "8B",
+    phase: "8C",
     apps: ["customer", "worker", "admin"],
     backend: "ready",
-    foundation: "settlement-preparation-foundation",
+    foundation: "settlement-confirmation-foundation",
   }));
 
   app.get("/api/system/db-health", async (_request, reply) => {
@@ -43,7 +43,7 @@ export async function buildApp(): Promise<FastifyInstance> {
     if (!health.ok) {
       return reply.status(503).send(health);
     }
-    return { ...health, phase: "8B" };
+    return { ...health, phase: "8C" };
   });
 
   app.get(
