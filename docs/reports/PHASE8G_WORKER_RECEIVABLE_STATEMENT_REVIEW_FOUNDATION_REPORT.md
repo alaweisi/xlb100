@@ -26,7 +26,7 @@
 | 当前分支 | `phase8g-worker-receivable-statement-review-foundation` |
 | 基线 main commit | `214da7c` — docs(phase8f): record worker receivable statement post-lock state |
 | 上一阶段稳定 tag | `xlb-phase8f-worker-receivable-statement` → `214da7c` |
-| 本 Phase commit | （见 git log — feat(phase8g): establish worker receivable statement review foundation） |
+| 本 Phase commit | `2b34a381008da36d370e6258dca1e291586dcc50` — feat(phase8g): establish worker receivable statement review foundation |
 | 是否 merge main | **否** |
 | 是否打 tag | **否** |
 | Phase 8H 是否启动 | **否** |
@@ -227,9 +227,85 @@ ledger_accruals → prepare → confirm → mark-payable → enqueue
 
 | 项 | 值 |
 |----|-----|
-| Phase 8G 主体是否完成 | **是**（待 Lock 确认） |
-| 是否已 Lock | **否** |
-| 是否已 merge main | **否** |
-| 是否已打 tag | **否** |
-| 是否可进入下一步 Lock | **是**（待总指挥确认） |
+| Phase 8G 主体是否完成 | **是** |
+| 是否已 Lock | **Lock 进行中**（本节以下为 Lock 复验） |
+| 是否已 merge main | **否**（Lock 前） |
+| 是否已打 tag | **否**（Lock 前） |
+| 是否可进入下一步 Lock | **是** — 正在执行 Phase 8G-Lock |
 | Phase 8H 是否未启动 | **是** |
+
+---
+
+## 8. Phase 8G-Lock 复验（2026-07-04，Lock 前）
+
+### 8.1 基线
+
+| 项 | 值 |
+|----|-----|
+| 分支 | `phase8g-worker-receivable-statement-review-foundation` |
+| Phase 8G 主体 commit | `2b34a38` |
+| 基线 main | `214da7c` |
+| Phase 8F tag | `xlb-phase8f-worker-receivable-statement` → `214da7c` |
+| Phase 8E tag | `xlb-phase8e-settlement-payable-queue` → `9a0e7ae` |
+
+### 8.2 工程验证
+
+| Check | Result |
+|-------|--------|
+| build | 10/10 passed |
+| typecheck | 14/14 passed |
+| test | **206 files / 406 passed / 1 todo** |
+| preflight | passed (Phase 0–8G) |
+
+### 8.3 守门脚本
+
+| Phase | Result |
+|-------|--------|
+| Phase 8B (6) | 6/6 passed |
+| Phase 8C (8) | 8/8 passed |
+| Phase 8D (8) | 8/8 passed |
+| Phase 8E (8) | 8/8 passed |
+| Phase 8F (8) | 8/8 passed |
+| Phase 8G (8) | 8/8 passed |
+
+### 8.4 基础设施
+
+| Check | Result |
+|-------|--------|
+| Docker MySQL | healthy (`xlb-mysql-local`) |
+| Docker Redis | healthy (`xlb-redis-local`) |
+| migrate-local | passed (018 applied) |
+| seed-local | passed |
+
+### 8.5 Live API 复验（Lock run）
+
+| Step | ID / result |
+|------|-------------|
+| prepare-once | processed=1 |
+| confirm | status=confirmed |
+| mark-payable | status=payable |
+| enqueue | status=queued |
+| generate statements | status=created |
+| review approved 1st | idempotent=false |
+| review approved 2nd | idempotent=true; reviewedAt / reviewedBy / reviewNote 不变 |
+| review different decision | HTTP 409 |
+| Statement (sample) | `wrs_mr5tgoxd_3a407662` |
+| worker.receivable.statement.reviewed | 每 review 一条 outbox |
+| worker_receivable_statements.status | 仍 `created` |
+| queue / payable / batch | queued / payable / confirmed |
+| Amount snapshot | 89.00 / 8.90 / 80.10 |
+| Cross-city review / GET | HTTP 404 |
+| ledger_entries | 不变（integration 断言通过） |
+
+### 8.6 越界检查
+
+无 payout / paid / payment instruction / provider / withdraw / refund / aftersale / reversal / UI / ledger 写入 / 上游 mutation / statement·queue·payable·batch status 变更。
+
+**Phase 8G Lock 准备完成 — 待 merge main。Phase 8H 未启动。**
+
+---
+
+## 9. Phase 8G Post-Lock
+
+> 本节在 merge + tag 后填写。
+
