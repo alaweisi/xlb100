@@ -1,5 +1,17 @@
 # Phase 8B Settlement Preparation Foundation Report
 
+## Post-Lock snapshot
+
+- Lock conclusion: **locked**
+- Phase 8B main merge commit: `5f6231544cbc09d7f0044505af1168b9f264a230`
+- Tag: `xlb-phase8b-settlement-preparation`
+- The tag points to the Phase 8B Lock main HEAD
+- Phase 8B implementation commit: `58ad7c4`
+- Lock report finalize commit: `ef7ee10`
+- Current branch at Post-Lock verification: `main`
+- Working tree at Post-Lock verification: clean
+- Phase 8B is frozen as the stable commercial baseline
+
 ## Delivered
 
 - Strict shared batch/item contracts and validators
@@ -16,8 +28,7 @@ This phase only prepares settlement accounting snapshots sourced from
 `ledger_accruals`. Prepared does not mean paid. No payout, withdrawal, provider
 split, refund, aftersale, reversal, or upstream state mutation is implemented.
 
-Phase 8C may discuss confirmation/mock payout. Phase 9 owns refund,
-aftersale, and reversal.
+Phase 8C has not been started.
 
 ## Verification
 
@@ -54,9 +65,11 @@ aftersale, and reversal.
 
 ## Lock boundary conclusion
 
-- No payout, settlement-paid, mock-payout, provider split, withdrawal, refund,
-  aftersale, or reversal implementation or database object entered Phase 8B
+- No payout, settlement-paid, mock-payout, WeChat/Alipay provider split,
+  withdrawal, refund, aftersale, or reversal implementation or database object
+  entered Phase 8B
 - No customer, worker, or admin UI file changed
 - Settlement preparation continues to source only `ledger_accruals`
-- Phase 8B settlement preparation foundation satisfies the lock criteria and is
-  ready to merge into the stable main line
+- Phase 8B settlement preparation foundation has been merged into `main` and
+  locked by tag `xlb-phase8b-settlement-preparation` as the stable commercial
+  baseline for the next phase. Phase 8C has not been started.
