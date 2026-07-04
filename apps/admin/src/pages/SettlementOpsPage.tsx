@@ -52,7 +52,7 @@ export function SettlementOpsPage({ onNavigate, onNavigateToExports, initialCity
         api.getSettlementAuditSummary({ cityCode }),
         api.scanReconciliationGaps({ cityCode }),
       ]);
-      setStatements(auditRes.ok ? (auditRes.items as AuditItem[]) : []);
+      setStatements(auditRes.ok && Array.isArray(auditRes.items) ? (auditRes.items as AuditItem[]) : []);
       setNextCursor(auditRes.nextCursor || null);
       setSummary(summaryRes.ok ? (summaryRes as unknown as Summary) : null);
       setSettlement(settlementRes.ok ? (settlementRes as unknown as SettlementAudit) : null);
