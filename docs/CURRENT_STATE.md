@@ -3,19 +3,19 @@
 > **Single source of truth for AI agents.** Update this file at every Phase Lock.
 > Do not trust conversation memory — read this file first.
 
-Last updated: 2026-07-04 (Phase 8E Lock in progress)
+Last updated: 2026-07-04 (Phase 8E **LOCKED**)
 
 ## Git snapshot
 
 | Item | Value |
 |------|-------|
-| **main HEAD (8D locked + state fix)** | `921f297` — docs(state): align current state with phase 8d tag head |
-| **main latest tag (8D)** | `xlb-phase8d-settlement-payable-readiness` → `e60bba7` |
+| **main HEAD** | post-lock main (merge + post-lock docs) |
+| **main merge commit (8E)** | `a8893e4` — merge: XLB phase 8E settlement payable queue foundation |
 | **Phase 8E body commit** | `20e5608` — feat(phase8e): establish settlement payable queue foundation |
-| **Active branch** | `phase8e-settlement-payable-queue-foundation` — **Lock in progress** |
-
-Note: Phase 8D tag @ `e60bba7` is the stable business baseline through payable readiness.
-Main @ `921f297` adds only CURRENT_STATE tag alignment docs after Lock.
+| **Baseline main (pre-8E merge)** | `921f297` — docs(state): align current state with phase 8d tag head |
+| **main latest tag (8E)** | `xlb-phase8e-settlement-payable-queue` → post-lock main HEAD |
+| **Phase 8D tag (retained)** | `xlb-phase8d-settlement-payable-readiness` → `e60bba7` |
+| **Active branch** | `main` — **stable commercial baseline through Phase 8E** |
 
 ## Locked phases (merged to main + tagged)
 
@@ -23,22 +23,22 @@ Main @ `921f297` adds only CURRENT_STATE tag alignment docs after Lock.
 |-------|-----|---------------|
 | 0–8C | (see prior tags) | Foundation through settlement confirmation |
 | 8D | `xlb-phase8d-settlement-payable-readiness` | confirmed → payable readiness, settlement.payable outbox |
+| **8E** | **`xlb-phase8e-settlement-payable-queue`** | payable → queue (status=queued), settlement.payable.queued outbox |
 
 ## In progress (NOT locked)
 
 | Phase | Status |
 |-------|--------|
-| **8E** | **Lock in progress** on `phase8e-settlement-payable-queue-foundation` — body @ `20e5608` |
 | **8F** | **NOT started** |
 
-## Event chain (8E branch extends 8D)
+## Event chain (through 8E locked)
 
 ```
 … → settlement payable readiness (8D, settlement.payable outbox)
 → settlement payable queue (8E, settlement.payable.queued outbox)
 ```
 
-## Phase 8E boundaries (in progress)
+## Phase 8E boundaries (locked)
 
 - Payable queue is not payout, paid settlement, or funds movement
 - No ledger_entries writes; no upstream mutation
@@ -49,9 +49,8 @@ Main @ `921f297` adds only CURRENT_STATE tag alignment docs after Lock.
 1. This file (`docs/CURRENT_STATE.md`)
 2. Run `scripts/agent-context-snapshot.ps1`
 3. Execute skills: `xlb-session-sync` → `xlb-context-map` → `xlb-current-vs-target` → `xlb-phase-boundary`
-4. Latest locked report: `docs/reports/PHASE8D_SETTLEMENT_PAYABLE_READINESS_FOUNDATION_REPORT.md`
-5. In-progress report: `docs/reports/PHASE8E_SETTLEMENT_PAYABLE_QUEUE_FOUNDATION_REPORT.md`
-6. Architecture: `docs/architecture/16_XLB_SETTLEMENT_PAYABLE_QUEUE_FOUNDATION.md`
+4. Latest locked report: `docs/reports/PHASE8E_SETTLEMENT_PAYABLE_QUEUE_FOUNDATION_REPORT.md`
+5. Architecture: `docs/architecture/16_XLB_SETTLEMENT_PAYABLE_QUEUE_FOUNDATION.md`
 
 ## Blueprint warning
 

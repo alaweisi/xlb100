@@ -1,28 +1,36 @@
 # Phase 8E Settlement Payable Queue Foundation Report
 
-## Baseline and scope
+## Lock status — **LOCKED**
 
-- Branch: `phase8e-settlement-payable-queue-foundation`
-- Phase 8E body commit: `20e5608e5ae5aa3a3f60f600adffa07a12eecdb9`
-- Baseline main commit: `921f297d8f5471f2a55f1bedc99a5e9dee396680`
-- Phase 8D tag: `xlb-phase8d-settlement-payable-readiness` → `e60bba7dee06383232f7dc6653889afedf190394`
-- Objective: one-time internal enqueue for payable readiness rows with `settlement.payable.queued` outbox
-- Scope: queue table, internal API, service/repository, outbox, contracts, tests, gate scripts, docs only
+| Item | Value |
+|------|-------|
+| **Merged to main** | yes |
+| **main merge commit** | `a8893e43d930a02439ff7be84c9dbe8e84efb539` |
+| **Phase 8E body commit** | `20e5608e5ae5aa3a3f60f600adffa07a12eecdb9` |
+| **Baseline main (pre-merge)** | `921f297d8f5471f2a55f1bedc99a5e9dee396680` |
+| **Tag** | `xlb-phase8e-settlement-payable-queue` → post-lock main HEAD |
+| **Phase 8D tag (retained)** | `xlb-phase8d-settlement-payable-readiness` → `e60bba7dee06383232f7dc6653889afedf190394` |
+| **Current branch** | `main` |
+| **Phase 8F** | **NOT started** |
+
+## Objective
+
+Establish one-time internal enqueue for payable readiness rows with `settlement.payable.queued` outbox.
 
 **Payable queue is not payout, paid settlement, mock payout, withdrawal, WeChat/Alipay split, payment platform integration, or payment instruction.**
 
-## Implementation
+## Implementation scope
 
 - Migration: `016_settlement_payable_queue.sql` — `settlement_payable_queue` table
 - Status: `queued` only (no `paid`, no payout fields)
 - API:
   - `POST /api/internal/settlement/payables/:payableId/enqueue-once`
   - `GET /api/internal/settlement/payables/:payableId/queue`
-- Service: `settlementPayableQueueService.enqueueSettlementPayable` — payable-only, city-scoped, idempotent
+- Service: `settlementPayableQueueService.enqueueSettlementPayable`
 - Outbox: exactly one `settlement.payable.queued` per payable (aggregate = queue id)
 - `settlement_payables.status` and `settlement_batches.status` remain unchanged
 
-## Phase 8E-Lock verification (2026-07-04)
+## Post-lock verification (2026-07-04, main)
 
 ### Engineering
 
@@ -51,7 +59,7 @@
 | migrate-local | passed (016 applied) |
 | seed-local | passed |
 
-### Live API chain (Lock run)
+### Live API chain (post-lock main)
 
 ```
 ledger_accruals → prepare-once → confirm → mark-payable → enqueue-once
@@ -65,9 +73,9 @@ ledger_accruals → prepare-once → confirm → mark-payable → enqueue-once
 | Mark-payable | status=payable, idempotent=false |
 | Enqueue-once 1st | status=queued, idempotent=false |
 | Enqueue-once 2nd | idempotent=true; enqueuedAt / enqueuedBy unchanged |
-| Payable | `spy_mr5rr0s8_80b16af7` |
-| Queue | `spq_mr5rr0sl_2bf2fe19` |
-| settlement.payable.queued outbox | `evt_mr5rr0sl_8c2cceb1` (exactly 1) |
+| Payable | `spy_mr5rtegm_00461e45` |
+| Queue | `spq_mr5rtegz_2d87e491` |
+| settlement.payable.queued outbox | `evt_mr5rtegz_5cd55fa6` (exactly 1) |
 | payable status after enqueue | `payable` |
 | batch status after enqueue | `confirmed` |
 | Amount snapshot | 89.00 / 8.90 / 80.10 (CNY) |
@@ -96,13 +104,6 @@ Phase 8E payable queue does not implement payout, paid settlement, mock payout,
 withdrawal, provider splitting, payment instructions, refund, aftersale, reversal,
 or UI changes. It does not create ledger entries or mutate upstream domain state.
 
-**Phase 8E Lock in progress — preparing merge to main. Phase 8F not started.**
+## Conclusion
 
-## Lock status
-
-| Item | Value |
-|------|-------|
-| Body complete | yes |
-| Lock report finalized | yes (this commit) |
-| Merged to main | pending |
-| Tag | pending → `xlb-phase8e-settlement-payable-queue` |
+**Phase 8E Settlement Payable Queue Foundation is locked on main and is the stable commercial baseline. Phase 8F has not started.**
