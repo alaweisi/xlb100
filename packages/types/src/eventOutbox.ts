@@ -12,7 +12,8 @@ export type OutboxEventType =
   | "fulfillment.completed"
   | "settlement.prepared"
   | "settlement.confirmed"
-  | "settlement.payable";
+  | "settlement.payable"
+  | "settlement.payable.queued";
 
 export interface EventOutbox {
   eventId: string;

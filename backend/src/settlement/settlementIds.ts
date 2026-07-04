@@ -7,3 +7,4 @@ function id(prefix: string): string {
 export const generateSettlementBatchId = (): string => id("stb");
 export const generateSettlementItemId = (): string => id("sti");
 export const generateSettlementPayableId = (): string => id("spy");
+export const generateSettlementPayableQueueId = (): string => id("spq");

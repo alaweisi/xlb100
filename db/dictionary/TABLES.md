@@ -114,3 +114,14 @@ does not change amounts, upstream states, or ledger entries.
 Items must originate from a `confirmed` batch with matching item snapshots.
 One batch maps to one payable row. Emits `settlement.payable` outbox only.
 Does not mutate ledger entries, orders, payments, fulfillments, or accruals.
+
+## Phase 8E settlement payable queue foundation
+
+| Table | Purpose | city_code |
+|-------|---------|-----------|
+| `settlement_payable_queue` | One internal queue snapshot per payable readiness row | required |
+
+**Rules:** queue is not payout, paid settlement, or funds movement. Input must be
+`settlement_payables.status = payable`. One payable maps to one queue row.
+Emits `settlement.payable.queued` outbox only. Does not mutate payables, batches,
+items, ledger entries, or upstream domain state.

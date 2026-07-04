@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assertSettlementConfirmable, assertSettlementPayableReady, canConfirmSettlement, canMarkSettlementPayable } from "../../backend/src/settlement/settlementStateMachine.js";
+import { assertSettlementConfirmable, assertSettlementPayableEnqueueable, assertSettlementPayableReady, canConfirmSettlement, canEnqueueSettlementPayable, canMarkSettlementPayable } from "../../backend/src/settlement/settlementStateMachine.js";
 
 describe("settlementStateMachine", () => {
   it("allows only prepared to enter confirmation", () => {
@@ -16,5 +16,10 @@ describe("settlementStateMachine", () => {
     expect(canMarkSettlementPayable("cancelled")).toBe(false);
     expect(() => assertSettlementPayableReady("confirmed")).not.toThrow();
     expect(() => assertSettlementPayableReady("prepared")).toThrow(/cannot be marked payable/);
+  });
+
+  it("allows only payable to enter queue", () => {
+    expect(canEnqueueSettlementPayable("payable")).toBe(true);
+    expect(() => assertSettlementPayableEnqueueable("payable")).not.toThrow();
   });
 });
