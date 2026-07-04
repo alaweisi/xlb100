@@ -25,10 +25,10 @@
 | Phase 名称 | Phase 8H — Worker Receivable Statement Export Package Foundation |
 | 基线 main commit | `1679327` |
 | 上一阶段稳定 tag | `xlb-phase8g-worker-receivable-statement-review` → `1679327` |
-| 是否 merge main | **否** |
-| 是否打 tag | **否** |
-
----
+| 本 Phase commit | `21e8cf7a87c5388eac2700c54974c68ade0bfa8f` — feat(phase8h): establish worker receivable statement export package foundation |
+| 是否 merge main | **否**（Lock 前） |
+| 是否打 tag | **否**（Lock 前） |
+| Phase 8I 是否启动 | **否** |
 
 ## 2. 本阶段工程目标
 
@@ -114,6 +114,85 @@ SHA-256 over statementId + reviewId + amounts + itemCount + exportFormat + paylo
 
 | 项 | 值 |
 |----|-----|
-| Phase 8H 主体是否完成 | **是**（待 Lock 确认） |
-| 是否已 Lock | **否** |
+| Phase 8H 主体是否完成 | **是** |
+| 是否已 Lock | **Lock 进行中**（§8 以下为 Lock 复验） |
+| 是否已 merge main | **否**（Lock 前） |
+| 是否已打 tag | **否**（Lock 前） |
 | Phase 8I 是否未启动 | **是** |
+
+---
+
+## 8. Phase 8H-Lock 复验（2026-07-04，Lock 前）
+
+### 8.1 基线
+
+| 项 | 值 |
+|----|-----|
+| 分支 | `phase8h-worker-receivable-statement-export-package-foundation` |
+| Phase 8H 主体 commit | `21e8cf7` |
+| 基线 main | `1679327` |
+| Phase 8G tag | `xlb-phase8g-worker-receivable-statement-review` → `1679327` |
+
+### 8.2 工程验证
+
+| Check | Result |
+|-------|--------|
+| build | 10/10 passed |
+| typecheck | 14/14 passed |
+| test | **211 files / 430 passed / 1 todo** |
+| preflight | passed (Phase 0–8H) |
+
+### 8.3 守门脚本
+
+| Phase | Result |
+|-------|--------|
+| Phase 8B (6) | 6/6 passed |
+| Phase 8C (8) | 8/8 passed |
+| Phase 8D (8) | 8/8 passed |
+| Phase 8E (8) | 8/8 passed |
+| Phase 8F (8) | 8/8 passed |
+| Phase 8G (8) | 8/8 passed |
+| Phase 8H (8) | 8/8 passed |
+
+### 8.4 基础设施（实测）
+
+| Check | Result |
+|-------|--------|
+| Docker MySQL | **healthy** (`xlb-mysql-local` Up 3h) |
+| Docker Redis | **healthy** (`xlb-redis-local` Up 3h) |
+| migrate-local | passed (019 applied) |
+| seed-local | passed |
+
+### 8.5 Live API 复验（Lock run）
+
+| Step | Result |
+|------|--------|
+| prepare-once | processed=1 |
+| confirm | status=confirmed |
+| mark-payable | status=payable |
+| enqueue | status=queued |
+| generate statements | status=created |
+| review approved | idempotent=false |
+| export 1st | idempotent=false |
+| export 2nd | idempotent=true；content_hash 不变 |
+| rejected export | HTTP 409 |
+| no review export | HTTP 409 |
+| worker_receivable_statements.status | 仍 `created` |
+| worker_receivable_statement_reviews | 不变 |
+| queue / payable / batch | queued / payable / confirmed |
+| Amount snapshot | 89.00 / 8.90 / 80.10 |
+| Cross-city export / GET | HTTP 404 |
+| ledger_entries | 不变（integration 断言通过） |
+
+### 8.6 越界检查
+
+无 payout / paid / payment instruction / provider / withdraw / notification 发送 / refund / reversal / UI / ledger 写入 / review·statement·queue·payable·batch 变更。
+
+**Phase 8H Lock 准备完成 — 待 merge main。Phase 8I 未启动。**
+
+---
+
+## 9. Phase 8H Post-Lock
+
+> 本节在 merge + tag 后填写。
+
