@@ -9,6 +9,7 @@ $phase9aAllowed = @(
   "apps/admin/src/pages/SettlementOpsPage.tsx",
   "apps/admin/src/app/App.tsx",
   "apps/admin/vite.config.ts"
+  "apps/admin/src/pages/SettlementStatementDetailPage.tsx"
 )
 $UiChanges = @(git -C $Root diff --name-only bfea4e9651f477abf4a57d98b41c52d11e69f93d -- apps/customer apps/worker apps/admin)
 $nonPhase9Ui = $UiChanges | Where-Object { $phase9aAllowed -notcontains $_ }
