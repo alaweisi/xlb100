@@ -61,3 +61,34 @@ export interface SettlementConfirmedEventPayload {
   confirmedAt: string;
   confirmedBy: string;
 }
+
+export type SettlementPayableStatus = "payable";
+
+export interface SettlementPayable {
+  settlementPayableId: string;
+  cityCode: CityCode;
+  settlementBatchId: string;
+  currency: "CNY";
+  grossAmount: number;
+  platformFeeAmount: number;
+  workerReceivableAmount: number;
+  itemCount: number;
+  status: SettlementPayableStatus;
+  markedAt: string;
+  markedBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SettlementPayableEventPayload {
+  payableId: string;
+  batchId: string;
+  cityCode: CityCode;
+  currency: "CNY";
+  grossAmount: number;
+  platformFeeAmount: number;
+  workerReceivableAmount: number;
+  itemCount: number;
+  markedAt: string;
+  markedBy: string;
+}

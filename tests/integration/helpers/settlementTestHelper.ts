@@ -31,6 +31,19 @@ export const prepareSettlementOnce = (app: FastifyInstance, cityCode = "hangzhou
 export const confirmSettlementBatch = (app: FastifyInstance, batchId: string, cityCode = "hangzhou") =>
   app.inject({ method: "POST", url: `/api/internal/settlement/batches/${batchId}/confirm`, headers: settlementHeaders(cityCode), payload: {} });
 
+export const markSettlementPayable = (app: FastifyInstance, batchId: string, cityCode = "hangzhou") =>
+  app.inject({ method: "POST", url: `/api/internal/settlement/batches/${batchId}/mark-payable`, headers: settlementHeaders(cityCode), payload: {} });
+
+export const getSettlementPayable = (app: FastifyInstance, batchId: string, cityCode = "hangzhou") =>
+  app.inject({ method: "GET", url: `/api/internal/settlement/batches/${batchId}/payable`, headers: settlementHeaders(cityCode) });
+
+export async function createConfirmedSettlement(app: FastifyInstance) {
+  const prepared = await createPreparedSettlement(app);
+  const confirm = await confirmSettlementBatch(app, prepared.batch.settlementBatchId);
+  if (confirm.statusCode !== 200) throw new Error(`Failed to confirm settlement: ${confirm.body}`);
+  return { ...prepared, batch: confirm.json().batch };
+}
+
 export async function createPreparedSettlement(app: FastifyInstance) {
   const source = await createLedgerAccrual(app);
   const response = await prepareSettlementOnce(app);

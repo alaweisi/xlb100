@@ -42,10 +42,13 @@ export type {
 export type {
   SettlementBatchStatus,
   SettlementItemStatus,
+  SettlementPayableStatus,
   SettlementBatch,
   SettlementItem,
+  SettlementPayable,
   SettlementPreparedEventPayload,
   SettlementConfirmedEventPayload,
+  SettlementPayableEventPayload,
 } from "./settlement.js";
 export type {
   DispatchTask,
