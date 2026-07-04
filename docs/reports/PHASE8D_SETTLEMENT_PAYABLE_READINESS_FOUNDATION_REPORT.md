@@ -106,16 +106,18 @@ or ledger accruals.
 | Body complete | yes |
 | Lock report finalized | yes |
 | Merged to main | yes — `2036acd62f9ece4644835cbee4d495a5c69f1f83` |
-| Tag | `xlb-phase8d-settlement-payable-readiness` → main HEAD |
+| Tag | `xlb-phase8d-settlement-payable-readiness` → `912ae04` (post-lock main HEAD) |
 | Phase 8D body commit | `3dd99d0` |
-| Phase 8D docs finalize | `6358293` |
+| Phase 8D docs finalize (pre-merge) | `6358293` |
+| Post-lock docs commit | `912ae04` |
 | Phase 8C tag | retained @ `48fb9e1` (not moved) |
 
 ## Lock conclusion
 
 - Merged: yes
-- main commit: `2036acd`
-- tag: `xlb-phase8d-settlement-payable-readiness`
+- main commit (merge): `2036acd`
+- main HEAD (post-lock): `912ae04`
+- tag: `xlb-phase8d-settlement-payable-readiness` → `912ae04`
 - tests: 184 files / 337 passed / 1 todo
 - gates: Phase 8B 6/6, 8C 8/8, 8D 8/8
 - live verification: full chain passed on Lock run
