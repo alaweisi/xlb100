@@ -5,15 +5,17 @@
 **阶段：** Phase 8G — Worker Receivable Statement Review Foundation  
 **报告日期：** 2026-07-04  
 
-## Lock status — **NOT LOCKED**
+## Lock status — **LOCKED**
 
 | Item | Value |
 |------|-------|
-| **Merged to main** | no |
-| **Tag** | none |
-| **Baseline main** | `214da7c13c6e46d6b123000f9dce2b1bea96adc0` |
+| **Merged to main** | yes |
+| **main merge commit** | `dbe3824253035b9bca2b77a69dfa92d9ae6b1d33` |
+| **Phase 8G body commit** | `2b34a381008da36d370e6258dca1e291586dcc50` |
+| **docs finalize commit** | `2ff8a4d19e9b4295bc93a9924b5de9709f0b3f17` |
+| **Tag** | `xlb-phase8g-worker-receivable-statement-review` → post-lock main HEAD |
 | **Phase 8F tag (retained)** | `xlb-phase8f-worker-receivable-statement` → `214da7c` |
-| **Current branch** | `phase8g-worker-receivable-statement-review-foundation` |
+| **Current branch** | `main` |
 | **Phase 8H** | **NOT started** |
 
 ---
@@ -305,7 +307,45 @@ ledger_accruals → prepare → confirm → mark-payable → enqueue
 
 ---
 
-## 9. Phase 8G Post-Lock
+## 9. Phase 8G Post-Lock（2026-07-04，main）
 
-> 本节在 merge + tag 后填写。
+### 9.1 Git
+
+| 项 | 值 |
+|----|-----|
+| main merge commit | `dbe3824253035b9bca2b77a69dfa92d9ae6b1d33` |
+| Phase 8G body commit | `2b34a38` |
+| docs finalize commit | `2ff8a4d` |
+| Tag | `xlb-phase8g-worker-receivable-statement-review` → post-lock main HEAD |
+| Phase 8F tag | retained @ `214da7c` |
+| Phase 8E tag | retained @ `9a0e7ae` |
+
+### 9.2 Post-lock 复验（main）
+
+| Check | Result |
+|-------|--------|
+| build | 10/10 passed |
+| typecheck | 14/14 passed |
+| test | 206 files / 406 passed / 1 todo |
+| preflight | passed (Phase 0–8G) |
+| Phase 8B–8G gates | 6/6 + 8/8 + 8/8 + 8/8 + 8/8 + 8/8 passed |
+| Docker MySQL / Redis | healthy |
+| migrate-local / seed-local | passed |
+
+### 9.3 Post-lock Live API
+
+| Step | ID / result |
+|------|-------------|
+| Full chain | accrual → prepare → confirm → mark-payable → enqueue → generate → review |
+| review approved 1st / 2nd | idempotent=false / idempotent=true |
+| review conflict | HTTP 409 |
+| Cross-city | HTTP 404 |
+| queue / payable / batch / statement | queued / payable / confirmed / created |
+| Amounts | 89.00 / 8.90 / 80.10 |
+
+### 9.4 最终结论
+
+**Phase 8G Worker Receivable Statement Review Foundation 已 Lock 并成为稳定商用主线。Phase 8H 未启动。**
+
+**声明：** Statement review 是**对账单审核/治理层**，不是付款、不是打款、不是 paid settlement、不是 payout、不是提现、不是分账、不是支付平台、不是 payment instruction。
 
