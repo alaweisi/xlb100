@@ -165,3 +165,84 @@ export type SettlementPayableQueueInput = z.infer<typeof settlementPayableQueueS
 export type EnqueueSettlementPayableRequestInput = z.infer<typeof enqueueSettlementPayableRequestSchema>;
 export type SettlementPayableQueuedEventPayloadInput = z.infer<typeof settlementPayableQueuedEventPayloadSchema>;
 export type SettlementPayableQueueResponseInput = z.infer<typeof settlementPayableQueueResponseSchema>;
+
+export const workerReceivableStatementStatusSchema = z.enum(["created"]);
+
+export const workerReceivableStatementLineSchema = z.object({
+  lineId: idSchema,
+  statementId: idSchema,
+  cityCode: cityCodeSchema,
+  settlementItemId: idSchema,
+  settlementBatchId: idSchema,
+  workerId: idSchema,
+  orderId: idSchema,
+  fulfillmentId: idSchema,
+  skuId: z.string().min(1).max(128),
+  currency: z.literal("CNY"),
+  grossAmount: amountSchema,
+  platformFeeAmount: amountSchema,
+  workerReceivableAmount: amountSchema,
+  createdAt: z.string().min(1),
+}).strict();
+
+export const workerReceivableStatementSchema = z.object({
+  statementId: idSchema,
+  cityCode: cityCodeSchema,
+  queueId: idSchema,
+  settlementPayableId: idSchema,
+  settlementBatchId: idSchema,
+  workerId: idSchema,
+  currency: z.literal("CNY"),
+  grossAmount: amountSchema,
+  platformFeeAmount: amountSchema,
+  workerReceivableAmount: amountSchema,
+  itemCount: z.number().int().min(1),
+  status: workerReceivableStatementStatusSchema,
+  generatedAt: z.string().min(1),
+  generatedBy: idSchema,
+  createdAt: z.string().min(1),
+  updatedAt: z.string().min(1),
+}).strict();
+
+export const generateWorkerReceivableStatementsRequestSchema = z.object({}).strict();
+
+export const workerReceivableStatementCreatedEventPayloadSchema = z.object({
+  statementId: idSchema,
+  queueId: idSchema,
+  payableId: idSchema,
+  batchId: idSchema,
+  cityCode: cityCodeSchema,
+  workerId: idSchema,
+  currency: z.literal("CNY"),
+  grossAmount: amountSchema,
+  platformFeeAmount: amountSchema,
+  workerReceivableAmount: amountSchema,
+  itemCount: z.number().int().min(1),
+  generatedAt: z.string().min(1),
+  generatedBy: idSchema,
+}).strict();
+
+export const generateWorkerReceivableStatementsResponseSchema = z.object({
+  ok: z.literal(true),
+  statements: z.array(workerReceivableStatementSchema),
+  idempotent: z.boolean(),
+}).strict();
+
+export const listWorkerReceivableStatementsResponseSchema = z.object({
+  ok: z.literal(true),
+  statements: z.array(workerReceivableStatementSchema),
+}).strict();
+
+export const getWorkerReceivableStatementResponseSchema = z.object({
+  ok: z.literal(true),
+  statement: workerReceivableStatementSchema,
+  lines: z.array(workerReceivableStatementLineSchema),
+}).strict();
+
+export type WorkerReceivableStatementInput = z.infer<typeof workerReceivableStatementSchema>;
+export type WorkerReceivableStatementLineInput = z.infer<typeof workerReceivableStatementLineSchema>;
+export type GenerateWorkerReceivableStatementsRequestInput = z.infer<typeof generateWorkerReceivableStatementsRequestSchema>;
+export type WorkerReceivableStatementCreatedEventPayloadInput = z.infer<typeof workerReceivableStatementCreatedEventPayloadSchema>;
+export type GenerateWorkerReceivableStatementsResponseInput = z.infer<typeof generateWorkerReceivableStatementsResponseSchema>;
+export type ListWorkerReceivableStatementsResponseInput = z.infer<typeof listWorkerReceivableStatementsResponseSchema>;
+export type GetWorkerReceivableStatementResponseInput = z.infer<typeof getWorkerReceivableStatementResponseSchema>;

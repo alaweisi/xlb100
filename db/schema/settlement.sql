@@ -5,3 +5,4 @@
 -- settlement_batches / settlement_items: preparation + confirmation (8B/8C)
 -- settlement_payables: payable readiness snapshot only (8D) — not payout/paid
 -- settlement_payable_queue: internal queue snapshot only (8E) — not payout/paid
+-- worker_receivable_statements / worker_receivable_statement_lines: worker statement snapshot only (8F) — not payout/paid

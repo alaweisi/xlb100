@@ -8,9 +8,13 @@ import {
   confirmSettlementBatchRequestSchema,
   enqueueSettlementPayableRequestSchema,
   markSettlementPayableRequestSchema,
+  generateWorkerReceivableStatementsRequestSchema,
   settlementConfirmationResponseSchema,
   settlementPayableQueueResponseSchema,
   settlementPayableResponseSchema,
+  generateWorkerReceivableStatementsResponseSchema,
+  listWorkerReceivableStatementsResponseSchema,
+  getWorkerReceivableStatementResponseSchema,
 } from "@xlb/validators";
 import {
   settlementConfirmationService,
@@ -26,6 +30,11 @@ import {
   SettlementPayableNotFoundError,
   SettlementPayableQueueError,
 } from "./settlementPayableQueueService.js";
+import {
+  workerReceivableStatementService,
+  WorkerReceivableStatementNotFoundError,
+  WorkerReceivableStatementError,
+} from "./workerReceivableStatementService.js";
 
 async function requireSettlementOperator(request: FastifyRequest, reply: FastifyReply): Promise<void> {
   const context = getRequestContext(request);
@@ -163,6 +172,67 @@ export async function registerSettlementRoutes(app: FastifyInstance): Promise<vo
         return reply.status(404).send({ ok: false, error: "settlement payable queue not found in city scope" });
       }
       return { ok: true, queue };
+    },
+  );
+
+  app.post<{ Params: { payableId: string } }>(
+    "/api/internal/settlement/payables/:payableId/generate-worker-statements-once",
+    { preHandler },
+    async (request, reply) => {
+      const context = getRequestContext(request);
+      if (!context.userId) {
+        return reply.status(403).send({ ok: false, error: "worker receivable statement generation requires operator userId" });
+      }
+      if (!generateWorkerReceivableStatementsRequestSchema.safeParse(request.body ?? {}).success) {
+        return reply.status(400).send({ ok: false, error: "invalid worker receivable statement generation body" });
+      }
+      try {
+        const result = await workerReceivableStatementService.generateWorkerReceivableStatements(
+          context,
+          request.params.payableId,
+        );
+        return generateWorkerReceivableStatementsResponseSchema.parse({ ok: true, ...result });
+      } catch (error) {
+        if (error instanceof WorkerReceivableStatementNotFoundError) {
+          return reply.status(404).send({ ok: false, error: error.message });
+        }
+        if (error instanceof WorkerReceivableStatementError) {
+          return reply.status(409).send({ ok: false, error: error.message });
+        }
+        throw error;
+      }
+    },
+  );
+
+  app.get<{ Params: { payableId: string } }>(
+    "/api/internal/settlement/payables/:payableId/worker-statements",
+    { preHandler },
+    async (request, reply) => {
+      const context = getRequestContext(request);
+      const statements = await workerReceivableStatementService.listWorkerReceivableStatementsByPayable(
+        context,
+        request.params.payableId,
+      );
+      if (statements === null) {
+        return reply.status(404).send({ ok: false, error: "settlement payable not found in city scope" });
+      }
+      return listWorkerReceivableStatementsResponseSchema.parse({ ok: true, statements });
+    },
+  );
+
+  app.get<{ Params: { statementId: string } }>(
+    "/api/internal/settlement/worker-statements/:statementId",
+    { preHandler },
+    async (request, reply) => {
+      const context = getRequestContext(request);
+      const result = await workerReceivableStatementService.getWorkerReceivableStatement(
+        context,
+        request.params.statementId,
+      );
+      if (result === null) {
+        return reply.status(404).send({ ok: false, error: "worker receivable statement not found in city scope" });
+      }
+      return getWorkerReceivableStatementResponseSchema.parse({ ok: true, ...result });
     },
   );
 }

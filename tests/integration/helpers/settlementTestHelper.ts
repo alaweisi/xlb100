@@ -57,6 +57,22 @@ export const enqueueSettlementPayable = (app: FastifyInstance, payableId: string
 export const getSettlementPayableQueue = (app: FastifyInstance, payableId: string, cityCode = "hangzhou") =>
   app.inject({ method: "GET", url: `/api/internal/settlement/payables/${payableId}/queue`, headers: settlementHeaders(cityCode) });
 
+export const generateWorkerReceivableStatements = (app: FastifyInstance, payableId: string, cityCode = "hangzhou") =>
+  app.inject({ method: "POST", url: `/api/internal/settlement/payables/${payableId}/generate-worker-statements-once`, headers: settlementHeaders(cityCode), payload: {} });
+
+export const listWorkerReceivableStatements = (app: FastifyInstance, payableId: string, cityCode = "hangzhou") =>
+  app.inject({ method: "GET", url: `/api/internal/settlement/payables/${payableId}/worker-statements`, headers: settlementHeaders(cityCode) });
+
+export const getWorkerReceivableStatement = (app: FastifyInstance, statementId: string, cityCode = "hangzhou") =>
+  app.inject({ method: "GET", url: `/api/internal/settlement/worker-statements/${statementId}`, headers: settlementHeaders(cityCode) });
+
+export async function createQueuedSettlement(app: FastifyInstance) {
+  const payableSettlement = await createPayableSettlement(app);
+  const enqueue = await enqueueSettlementPayable(app, payableSettlement.payable.settlementPayableId);
+  if (enqueue.statusCode !== 200) throw new Error(`Failed to enqueue payable: ${enqueue.body}`);
+  return { ...payableSettlement, queue: enqueue.json().queue as { queueId: string; status: string } };
+}
+
 export async function createPreparedSettlement(app: FastifyInstance) {
   const source = await createLedgerAccrual(app);
   const response = await prepareSettlementOnce(app);

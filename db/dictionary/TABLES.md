@@ -125,3 +125,15 @@ Does not mutate ledger entries, orders, payments, fulfillments, or accruals.
 `settlement_payables.status = payable`. One payable maps to one queue row.
 Emits `settlement.payable.queued` outbox only. Does not mutate payables, batches,
 items, ledger entries, or upstream domain state.
+
+## Phase 8F worker receivable statement foundation
+
+| Table | Purpose | city_code |
+|-------|---------|-----------|
+| `worker_receivable_statements` | One worker receivable snapshot per queued payable per worker | required |
+| `worker_receivable_statement_lines` | Immutable settlement item snapshot per statement line | required |
+
+**Rules:** worker receivable statements are not payout, paid settlement, or funds
+movement. Input must be `settlement_payable_queue.status = queued`. One statement
+per `(queue_id, worker_id)`. Emits `worker.receivable.statement.created` outbox only.
+Does not mutate queue, payables, batches, items, ledger entries, or upstream domain state.

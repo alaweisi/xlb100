@@ -202,6 +202,18 @@ $requiredFiles = @(
   "scripts/check-settlement-payable-queue-no-payout-paid.ps1",
   "scripts/check-settlement-payable-queue-no-provider-withdraw-ui.ps1",
   "scripts/check-settlement-payable-queue-no-refund-aftersale-reversal.ps1",
+  "backend/src/settlement/workerReceivableStatementService.ts",
+  "db/migrations/017_worker_receivable_statement.sql",
+  "docs/contracts/CONTRACT_WORKER_RECEIVABLE_STATEMENT.md",
+  "docs/architecture/17_XLB_WORKER_RECEIVABLE_STATEMENT_FOUNDATION.md",
+  "scripts/check-worker-receivable-statement-queued-only.ps1",
+  "scripts/check-worker-receivable-statement-city-scoped.ps1",
+  "scripts/check-worker-receivable-statement-outbox-idempotent.ps1",
+  "scripts/check-worker-receivable-statement-no-ledger-entries.ps1",
+  "scripts/check-worker-receivable-statement-no-upstream-mutation.ps1",
+  "scripts/check-worker-receivable-statement-no-payout-paid.ps1",
+  "scripts/check-worker-receivable-statement-no-provider-withdraw-ui.ps1",
+  "scripts/check-worker-receivable-statement-no-refund-aftersale-reversal.ps1",
   "tests/unit/cityResolver.test.ts",
   "tests/unit/scopedExecutor.test.ts",
   "tests/unit/adminQueryGuard.test.ts",
@@ -295,3 +307,4 @@ Write-Host "XLB Phase 8B settlement preparation foundation preflight passed."
 Write-Host "XLB Phase 8C settlement confirmation foundation preflight passed."
 Write-Host "XLB Phase 8D settlement payable readiness foundation preflight passed."
 Write-Host "XLB Phase 8E settlement payable queue foundation preflight passed."
+Write-Host "XLB Phase 8F worker receivable statement foundation preflight passed."
