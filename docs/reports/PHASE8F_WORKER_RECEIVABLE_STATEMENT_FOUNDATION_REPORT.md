@@ -5,6 +5,19 @@
 **阶段：** Phase 8F — Worker Receivable Statement Foundation  
 **报告日期：** 2026-07-04  
 
+## Lock status — **LOCKED**
+
+| Item | Value |
+|------|-------|
+| **Merged to main** | yes |
+| **main merge commit** | `235496f5aa16abbe39572ce38594fedd08b74cd3` |
+| **Phase 8F body commit** | `66b6419c2211856a9f5c0ac83cc6b421b13e9c77` |
+| **Baseline main (pre-merge)** | `9a0e7ae05f67068e96fcc3e6cad3f85326078481` |
+| **Tag** | `xlb-phase8f-worker-receivable-statement` → post-lock main HEAD |
+| **Phase 8E tag (retained)** | `xlb-phase8e-settlement-payable-queue` → `9a0e7ae` |
+| **Current branch** | `main` |
+| **Phase 8G** | **NOT started** |
+
 ---
 
 ## 1. 阶段基本信息
@@ -440,6 +453,47 @@ ledger_accruals → prepare-once → confirm → mark-payable → enqueue-once
 
 无 payout / paid / payment instruction / provider / withdraw / refund / aftersale / reversal / UI / ledger 写入 / 上游 mutation / queue·payable·batch status 变更。
 
-**Phase 8F Lock 准备完成 — 待 merge main。Phase 8G 未启动。**
+**Phase 8F Lock 准备完成 — 已 merge main。Phase 8G 未启动。**
+
+---
+
+## 9. Phase 8F Post-Lock（2026-07-04，main）
+
+### 9.1 Git
+
+| 项 | 值 |
+|----|-----|
+| main merge commit | `235496f5aa16abbe39572ce38594fedd08b74cd3` |
+| Phase 8F body commit | `66b6419` |
+| docs finalize commit | `3c631b2` |
+| Tag | `xlb-phase8f-worker-receivable-statement` → post-lock main HEAD |
+| Phase 8E tag | retained @ `9a0e7ae` |
+
+### 9.2 Post-lock 复验（main）
+
+| Check | Result |
+|-------|--------|
+| build | 10/10 passed |
+| typecheck | 14/14 passed |
+| test | 201 files / 381 passed / 1 todo |
+| preflight | passed (Phase 0–8F) |
+| Phase 8B–8F gates | 6/6 + 8/8 + 8/8 + 8/8 + 8/8 passed |
+| Docker MySQL / Redis | healthy |
+| migrate-local / seed-local | passed |
+
+### 9.3 Post-lock Live API
+
+| Step | ID / result |
+|------|-------------|
+| Full chain | accrual → prepare → confirm → mark-payable → enqueue → generate |
+| Statement | `wrs_mr5sr01l_42acc172` |
+| Line | `wrl_mr5sr01m_de8ae694` |
+| Outbox | `evt_mr5sr01n_4e6d4aac` |
+| queue / payable / batch | queued / payable / confirmed |
+| Amounts | 89.00 / 8.90 / 80.10 |
+
+### 9.4 最终结论
+
+**Phase 8F Worker Receivable Statement Foundation 已 Lock 并成为稳定商用主线。Phase 8G 未启动。**
 
 **声明：** Worker receivable statement 是**对账单快照层**，不是付款、不是打款、不是 paid settlement、不是 payout、不是提现、不是分账、不是支付平台、不是 payment instruction。
