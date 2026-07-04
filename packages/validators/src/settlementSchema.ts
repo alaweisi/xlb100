@@ -471,3 +471,41 @@ export const exportAuditListResponseSchema = z.object({
 
 export type StatementAuditQueryInput = z.infer<typeof statementAuditQuerySchema>;
 export type ExportAuditQueryInput = z.infer<typeof exportAuditQuerySchema>;
+
+// ── Phase 8J: Review Summary / Batch Governance ──
+
+export const workerStatementReviewGroupBySchema = z.enum(["none", "worker"]);
+
+export const workerStatementReviewSummaryQuerySchema = z.object({
+  cityCode: cityCodeSchema.optional(),
+  dateFrom: z.string().min(1).optional(),
+  dateTo: z.string().min(1).optional(),
+  groupBy: workerStatementReviewGroupBySchema.optional(),
+}).strict();
+
+const workerStatementReviewSummaryCountsSchema = z.object({
+  totalStatements: z.number().int().min(0),
+  reviewedStatements: z.number().int().min(0),
+  approvedStatements: z.number().int().min(0),
+  rejectedStatements: z.number().int().min(0),
+  pendingReviewStatements: z.number().int().min(0),
+  exportedStatements: z.number().int().min(0),
+  pendingExportStatements: z.number().int().min(0),
+  noExportStatements: z.number().int().min(0),
+}).strict();
+
+const workerStatementReviewSummaryGroupSchema = z.object({
+  workerId: idSchema,
+  counts: workerStatementReviewSummaryCountsSchema,
+}).strict();
+
+export const workerStatementReviewSummaryResponseSchema = z.object({
+  ok: z.literal(true),
+  cityCode: cityCodeSchema,
+  dateFrom: z.string().min(1).nullable(),
+  dateTo: z.string().min(1).nullable(),
+  overall: workerStatementReviewSummaryCountsSchema,
+  groups: z.array(workerStatementReviewSummaryGroupSchema).nullable(),
+}).strict();
+
+export type WorkerStatementReviewSummaryQueryInput = z.infer<typeof workerStatementReviewSummaryQuerySchema>;

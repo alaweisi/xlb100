@@ -56,7 +56,8 @@ describe("Phase 8I audit mutation boundary", () => {
       join(process.cwd(), "backend/src/settlement/settlementRoutes.ts"),
       "utf8",
     );
-    const auditSection = routes.split("Phase 8I: Audit Query Routes")[1] ?? "";
+    const after8i = routes.split("Phase 8I: Audit Query Routes")[1] ?? "";
+    const auditSection = after8i.split("Phase 8J")[0];
     // All audit routes should have preHandler for auth/scoping
     const getMatches = auditSection.match(/app\.get[<(]/g);
     expect(getMatches).toHaveLength(3); // list, detail, export list

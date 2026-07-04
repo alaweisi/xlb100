@@ -242,6 +242,14 @@ $requiredFiles = @(
   "scripts/check-worker-receivable-statement-audit-forbidden-zone.ps1",
   "scripts/check-worker-receivable-statement-audit-no-outbox-write.ps1",
   "scripts/check-worker-receivable-statement-audit-route-order.ps1",
+  "scripts/check-phase8j-readonly.ps1",
+  "scripts/check-phase8j-no-mutation-routes.ps1",
+  "scripts/check-phase8j-city-scope.ps1",
+  "scripts/check-phase8j-no-migration.ps1",
+  "scripts/check-phase8j-no-ui.ps1",
+  "scripts/check-phase8j-forbidden-zone.ps1",
+  "scripts/check-phase8j-no-outbox-write.ps1",
+  "scripts/check-phase8j-route-order.ps1",
   "tests/unit/cityResolver.test.ts",
   "tests/unit/scopedExecutor.test.ts",
   "tests/unit/adminQueryGuard.test.ts",
@@ -346,4 +354,13 @@ Write-Host "XLB Phase 8H worker receivable statement export package foundation p
 & "$PSScriptRoot\check-worker-receivable-statement-audit-forbidden-zone.ps1"
 & "$PSScriptRoot\check-worker-receivable-statement-audit-no-outbox-write.ps1"
 & "$PSScriptRoot\check-worker-receivable-statement-audit-route-order.ps1"
+& "$PSScriptRoot\check-phase8j-readonly.ps1"
+& "$PSScriptRoot\check-phase8j-no-mutation-routes.ps1"
+& "$PSScriptRoot\check-phase8j-city-scope.ps1"
+& "$PSScriptRoot\check-phase8j-no-migration.ps1"
+& "$PSScriptRoot\check-phase8j-no-ui.ps1"
+& "$PSScriptRoot\check-phase8j-forbidden-zone.ps1"
+& "$PSScriptRoot\check-phase8j-no-outbox-write.ps1"
+& "$PSScriptRoot\check-phase8j-route-order.ps1"
 Write-Host "XLB Phase 8I statement audit query foundation preflight passed."
+Write-Host "XLB Phase 8J review summary batch governance foundation preflight passed."
