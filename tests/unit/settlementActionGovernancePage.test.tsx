@@ -210,29 +210,29 @@ describe("Phase 10A — Settlement Action Governance Foundation", () => {
       expect(screen.getByText(/Active — Governance Shell/)).toBeTruthy();
     });
 
-    it("displays Phase 10B as Not Started", () => {
+    it("displays Phase 10B as Completed", () => {
       render(<SettlementActionGovernancePage onBack={mockOnBack} />);
-      expect(screen.getByText(/Not Started — Intent Contract/)).toBeTruthy();
+      expect(screen.getByText(/Completed — Intent Contract/)).toBeTruthy();
     });
 
-    it("displays Phase 10C as Not Started", () => {
+    it("displays Phase 10C as Completed", () => {
       render(<SettlementActionGovernancePage onBack={mockOnBack} />);
-      expect(screen.getByText(/Not Started — Persistence/)).toBeTruthy();
+      expect(screen.getByText(/Completed — Persistence/)).toBeTruthy();
     });
 
-    it("displays Phase 10D as Not Started", () => {
+    it("displays Phase 10D as Completed", () => {
       render(<SettlementActionGovernancePage onBack={mockOnBack} />);
-      expect(screen.getByText(/Not Started — Approval Workflow/)).toBeTruthy();
+      expect(screen.getByText(/Completed — Approval Workflow/)).toBeTruthy();
     });
 
-    it("displays Phase 10E as Not Started", () => {
+    it("displays Phase 10E as Completed", () => {
       render(<SettlementActionGovernancePage onBack={mockOnBack} />);
-      expect(screen.getByText(/Not Started — Evidence Bundle/)).toBeTruthy();
+      expect(screen.getByText(/Completed — Evidence Bundle/)).toBeTruthy();
     });
 
-    it("displays Phase 10F as Not Started", () => {
+    it("displays Phase 10F as Completed", () => {
       render(<SettlementActionGovernancePage onBack={mockOnBack} />);
-      expect(screen.getByText(/Not Started — Execution Readiness/)).toBeTruthy();
+      expect(screen.getByText(/Completed — Readiness Packet/)).toBeTruthy();
     });
 
     it("displays Phase 11 as Forbidden", () => {

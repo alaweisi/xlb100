@@ -197,23 +197,23 @@ export function SettlementActionGovernancePage({ onBack }: Props) {
               </tr>
               <tr>
                 <td style={{ padding: "4px 12px 4px 0", fontWeight: "bold" }}>Phase 10B</td>
-                <td style={{ padding: "4px 0", color: "#999" }}>Not Started — Intent Contract</td>
+                <td style={{ padding: "4px 0", color: "#0066cc" }}>Completed — Intent Contract</td>
               </tr>
               <tr>
                 <td style={{ padding: "4px 12px 4px 0", fontWeight: "bold" }}>Phase 10C</td>
-                <td style={{ padding: "4px 0", color: "#999" }}>Not Started — Persistence</td>
+                <td style={{ padding: "4px 0", color: "#0066cc" }}>Completed — Persistence</td>
               </tr>
               <tr>
                 <td style={{ padding: "4px 12px 4px 0", fontWeight: "bold" }}>Phase 10D</td>
-                <td style={{ padding: "4px 0", color: "#999" }}>Not Started — Approval Workflow</td>
+                <td style={{ padding: "4px 0", color: "#0066cc" }}>Completed — Approval Workflow</td>
               </tr>
               <tr>
                 <td style={{ padding: "4px 12px 4px 0", fontWeight: "bold" }}>Phase 10E</td>
-                <td style={{ padding: "4px 0", color: "#999" }}>Not Started — Evidence Bundle</td>
+                <td style={{ padding: "4px 0", color: "#0066cc" }}>Completed — Evidence Bundle / Audit Trail</td>
               </tr>
               <tr>
                 <td style={{ padding: "4px 12px 4px 0", fontWeight: "bold" }}>Phase 10F</td>
-                <td style={{ padding: "4px 0", color: "#999" }}>Not Started — Execution Readiness / Dry-Run</td>
+                <td style={{ padding: "4px 0", color: "#0066cc" }}>Completed — Readiness Packet / Dry-run Guard</td>
               </tr>
               <tr>
                 <td style={{ padding: "4px 12px 4px 0", fontWeight: "bold" }}>Phase 11</td>
