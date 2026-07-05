@@ -1,9 +1,24 @@
-import { useState, useEffect } from "react";
-import { parseHashParams } from "../hashParams";
+import { useState, useEffect, useCallback } from "react";
+import { parseHashParams, buildHash } from "../hashParams";
+import { governancePlannerApi, createApiClient } from "@xlb/api-client";
 
-interface Props { onBack: () => void; }
+const client = createApiClient({ baseUrl: "http://localhost:3000", headers: { "x-xlb-app-type": "admin", "x-xlb-role": "operator" } });
+const plannerApi = governancePlannerApi.create(client);
 
-export function SettlementActionGovernancePage({ onBack }: Props) {
+interface DryRunPlan {
+  planId: string;
+  planHash: string;
+  status: string;
+  packetId: string;
+  cityCode: string;
+  itemCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface Props { onBack: () => void; subView?: string; }
+
+export function SettlementActionGovernancePage({ onBack, subView }: Props) {
   const params = parseHashParams();
   const [cityCode] = useState(params.get("cityCode") || "hangzhou"); void cityCode; // reserved for future city-scoped API integration
 
@@ -13,6 +28,50 @@ export function SettlementActionGovernancePage({ onBack }: Props) {
   const [reason] = useState("");
   const [evidenceRefs] = useState("");
   const [riskNotes] = useState("");
+
+  // ── Phase 11: Dry-run planner state ──
+  const [plans, setPlans] = useState<DryRunPlan[]>([]);
+  const [plansLoading, setPlansLoading] = useState(false);
+  const [plansError, setPlansError] = useState<string | null>(null);
+  const [generatingPlan, setGeneratingPlan] = useState(false);
+
+  const fetchPlans = useCallback(async () => {
+    setPlansLoading(true);
+    setPlansError(null);
+    try {
+      const res = await plannerApi.listSettlementDryRunPlans({ cityCode });
+      setPlans(res.ok && Array.isArray(res.plans) ? res.plans : []);
+    } catch (e) {
+      setPlansError(String(e));
+    } finally {
+      setPlansLoading(false);
+    }
+  }, [cityCode]);
+
+  useEffect(() => {
+    if (subView === "plans") {
+      fetchPlans();
+    }
+  }, [subView, fetchPlans]);
+
+  const handleGeneratePlan = useCallback(async (packetId: string) => {
+    setGeneratingPlan(true);
+    setPlansError(null);
+    try {
+      await plannerApi.createSettlementDryRunPlan(packetId);
+      await fetchPlans();
+      // Navigate to plans sub-view
+      window.location.hash = buildHash("/settlement-ops/governance", { sub: "plans" });
+    } catch (e) {
+      setPlansError(String(e));
+    } finally {
+      setGeneratingPlan(false);
+    }
+  }, [fetchPlans]);
+
+  const handleViewPlans = useCallback(() => {
+    window.location.hash = buildHash("/settlement-ops/governance", { sub: "plans" });
+  }, []);
 
   useEffect(() => { document.title = "Settlement Action Governance — Phase 10"; }, []);
 
@@ -24,7 +83,7 @@ export function SettlementActionGovernancePage({ onBack }: Props) {
     { id: "10D", name: "Approval Workflow", status: "Completed" },
     { id: "10E", name: "Evidence Bundle / Audit Trail", status: "Completed" },
     { id: "10F", name: "Readiness Packet / Dry-run Guard", status: "Completed" },
-    { id: "11", name: "Money Execution", status: "Forbidden" },
+    { id: "11", name: "Dry-run Planner", status: "In Progress" },
   ];
 
   const executionBoundary = {
@@ -34,6 +93,88 @@ export function SettlementActionGovernancePage({ onBack }: Props) {
     downloadEnabled: false, providerDispatchEnabled: false,
   };
 
+  // ── If subView is "plans", render the dry-run plans list ──
+  if (subView === "plans") {
+    return (
+      <div style={{ padding: 24, maxWidth: 900 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+          <div>
+            <h1 style={{ margin: 0 }}>Dry-run Plans</h1>
+            <p style={{ margin: 0, color: "#666" }}>
+              Phase 11 · <strong>Governance Only</strong> · <strong>Execution Disabled</strong>
+            </p>
+          </div>
+          <button onClick={onBack}>← Back to Console</button>
+        </div>
+
+        {/* Governance boundary banner */}
+        <section style={{ border: "1px solid #faad14", backgroundColor: "#fffbe6", padding: 16, borderRadius: 6, marginBottom: 16 }}>
+          <h2>Governance Boundary</h2>
+          <ul>
+            <li>This page does not execute payouts.</li>
+            <li>This page does not execute refunds.</li>
+            <li>This page does not mutate settlement, ledger, payment, or refund results.</li>
+            <li>Phase 11 dry-run plans are read-only governance artifacts. No execution occurs.</li>
+          </ul>
+        </section>
+
+        {/* Plans list */}
+        <section style={{ border: "1px solid #d9d9d9", padding: 16, borderRadius: 6, marginBottom: 16 }}>
+          <h2>Dry-run Plans</h2>
+          {plansLoading && <p>Loading...</p>}
+          {plansError && <p style={{ color: "red" }}>Error: {plansError}</p>}
+          {!plansLoading && !plansError && plans.length === 0 && (
+            <p>No dry-run plans found. Generate one from the governance page.</p>
+          )}
+          {plans.length > 0 && (
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr>
+                  <th style={{ textAlign: "left", padding: "4px 8px", borderBottom: "1px solid #ccc" }}>Plan Hash</th>
+                  <th style={{ textAlign: "left", padding: "4px 8px", borderBottom: "1px solid #ccc" }}>Status</th>
+                  <th style={{ textAlign: "left", padding: "4px 8px", borderBottom: "1px solid #ccc" }}>Packet ID</th>
+                  <th style={{ textAlign: "left", padding: "4px 8px", borderBottom: "1px solid #ccc" }}>Items</th>
+                  <th style={{ textAlign: "left", padding: "4px 8px", borderBottom: "1px solid #ccc" }}>Created At</th>
+                </tr>
+              </thead>
+              <tbody>
+                {plans.map((p) => (
+                  <tr key={p.planId}>
+                    <td style={{ padding: "4px 8px", borderBottom: "1px solid #f0f0f0", fontFamily: "monospace", fontSize: 12 }}>{p.planHash}</td>
+                    <td style={{ padding: "4px 8px", borderBottom: "1px solid #f0f0f0" }}>{p.status}</td>
+                    <td style={{ padding: "4px 8px", borderBottom: "1px solid #f0f0f0", fontFamily: "monospace", fontSize: 12 }}>{p.packetId}</td>
+                    <td style={{ padding: "4px 8px", borderBottom: "1px solid #f0f0f0" }}>{p.itemCount}</td>
+                    <td style={{ padding: "4px 8px", borderBottom: "1px solid #f0f0f0", fontSize: 12 }}>{p.createdAt}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </section>
+
+        {/* Execution Boundary */}
+        <section style={{ border: "1px solid #ff4d4f", padding: 16, borderRadius: 6, marginBottom: 16, backgroundColor: "#fff1f0" }}>
+          <h2>Execution Boundary — All Disabled</h2>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <tbody>
+              {Object.entries(executionBoundary).map(([k, v]) => (
+                <tr key={k}>
+                  <td style={{ padding: "4px 8px", borderBottom: "1px solid #ffccc7" }}>{k}</td>
+                  <td style={{ padding: "4px 8px", borderBottom: "1px solid #ffccc7", color: v ? "#52c41a" : "#cf1322", fontWeight: "bold" }}>
+                    {v ? "❌ ENABLED — BLOCKING" : "DISABLED"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+
+        <button onClick={onBack}>← Back to Console</button>
+      </div>
+    );
+  }
+
+  // ── Main governance view ──
   return (
     <div style={{ padding: 24, maxWidth: 900 }}>
       {/* Header */}
@@ -131,7 +272,29 @@ export function SettlementActionGovernancePage({ onBack }: Props) {
         <p style={{ color: "#faad14" }}><strong>Phase 11 required before execution.</strong></p>
       </section>
 
-      {/* 8. Execution Boundary Summary */}
+      {/* 8. Phase 11 — Dry-run Planner */}
+      <section style={{ border: "1px solid #1890ff", padding: 16, borderRadius: 6, marginBottom: 16, backgroundColor: "#e6f7ff" }}>
+        <h2>Phase 11 — Dry-run Planner <span style={{ fontSize: 14, color: "#1890ff" }}>In Progress</span></h2>
+        <p>Governance-only dry-run planning. Plans are read-only artifacts — no money movement, no execution.</p>
+        <ul>
+          <li>🔒 Read-only plan generation from readiness packets</li>
+          <li>🔒 Plan hash, status, and item count visible</li>
+          <li>🔒 No execution, no payout, no refund, no ledger mutation</li>
+          <li>🔒 No download or export of plan data</li>
+        </ul>
+        <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+          <button onClick={handleViewPlans}>View Dry-run Plans</button>
+          <button
+            onClick={() => handleGeneratePlan("packet-placeholder")}
+            disabled={generatingPlan}
+          >
+            {generatingPlan ? "Generating..." : "Generate Dry-run Plan"}
+          </button>
+        </div>
+        {plansError && <p style={{ color: "red", marginTop: 8 }}>Error: {plansError}</p>}
+      </section>
+
+      {/* 9. Execution Boundary Summary */}
       <section style={{ border: "1px solid #ff4d4f", padding: 16, borderRadius: 6, marginBottom: 16, backgroundColor: "#fff1f0" }}>
         <h2>Execution Boundary — All Disabled</h2>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -148,7 +311,7 @@ export function SettlementActionGovernancePage({ onBack }: Props) {
         </table>
       </section>
 
-      {/* 9. Action Intent Draft (Governance Shell Only) */}
+      {/* 10. Action Intent Draft (Governance Shell Only) */}
       <section style={{ border: "1px solid #d9d9d9", padding: 16, borderRadius: 6, marginBottom: 16 }}>
         <h2>Action Intent Draft (Governance Shell)</h2>
         <p style={{ color: "#888", fontSize: 12 }}>All fields below are disabled and local-only. No data is sent to the server. No persistence occurs from this page.</p>
@@ -159,7 +322,7 @@ export function SettlementActionGovernancePage({ onBack }: Props) {
         <label>Risk Notes (placeholder)<br /><input value={riskNotes} disabled readOnly style={{ width: "100%", opacity: 0.5 }} placeholder="e.g., high value, cross-check" /></label>
       </section>
 
-      {/* 10. Forbidden Actions (Execution Disabled) */}
+      {/* 11. Forbidden Actions (Execution Disabled) */}
       <section style={{ border: "1px solid #ff4d4f", padding: 16, borderRadius: 6, marginBottom: 16 }}>
         <h2>Forbidden Actions (Execution Disabled Until Future Phase)</h2>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
@@ -175,7 +338,7 @@ export function SettlementActionGovernancePage({ onBack }: Props) {
         </p>
       </section>
 
-      {/* 11. Phase Boundary */}
+      {/* 12. Phase Boundary */}
       <section style={{ border: "1px solid #d9d9d9", padding: 16, borderRadius: 6, marginBottom: 16 }}>
         <h2>Phase Boundary</h2>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -185,7 +348,7 @@ export function SettlementActionGovernancePage({ onBack }: Props) {
               <tr key={p.id}>
                 <td style={{ padding: "4px 8px", borderBottom: "1px solid #f0f0f0" }}>Phase {p.id}</td>
                 <td style={{ padding: "4px 8px", borderBottom: "1px solid #f0f0f0" }}>{p.name}</td>
-                <td style={{ padding: "4px 8px", borderBottom: "1px solid #f0f0f0", color: p.status === "Completed" ? "#52c41a" : p.status === "Forbidden" ? "#cf1322" : "#666", fontWeight: "bold" }}>{p.status}</td>
+                <td style={{ padding: "4px 8px", borderBottom: "1px solid #f0f0f0", color: p.status === "Completed" ? "#52c41a" : p.status === "Forbidden" ? "#cf1322" : "#1890ff", fontWeight: "bold" }}>{p.status}</td>
               </tr>
             ))}
           </tbody>

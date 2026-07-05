@@ -32,4 +32,8 @@ export async function registerGovernanceReadinessRoutes(app: FastifyInstance): P
     const ctx = getRequestContext(request);
     try { const p = await governanceReadinessService.archive(ctx, request.params.packetId); if (!p) return reply.status(404).send({ ok:false,error:"not found" }); return { ok:true, packet:p }; } catch(e) { return reply.status(500).send({ ok:false,error:String(e) }); }
   });
+  app.post<{ Params: { packetId: string } }>("/api/internal/settlement-action-governance/readiness-packets/:packetId/mark-ready-for-review", { preHandler }, async (request, reply) => {
+    const ctx = getRequestContext(request);
+    try { const p = await governanceReadinessService.markReadyForFuturePhaseReview(ctx, request.params.packetId); if (!p) return reply.status(404).send({ ok:false,error:"not found" }); return { ok:true, packet:p }; } catch(e) { return reply.status(500).send({ ok:false,error:String(e) }); }
+  });
 }

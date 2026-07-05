@@ -37,7 +37,7 @@ export function App() {
   }, []);
 
   if (view.page === "governance") {
-    return <SettlementActionGovernancePage onBack={navigateToDashboard} />;
+    return <SettlementActionGovernancePage onBack={navigateToDashboard} subView={view.subView} />;
   }
 
   if (view.page === "exports") {
