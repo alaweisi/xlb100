@@ -8,7 +8,7 @@ $planRepo = Join-Path $plannerDir "settlementExecutionDryRunPlannerRepository.ts
 # If planner directory doesn't exist yet, gate passes (pre-creation check)
 if (-not (Test-Path $planRepo)) {
   if (Test-Path $plannerDir) {
-    # Planner dir exists but no repository file yet â€” check all ts files
+    # Planner dir exists but no repository file yet â€?check all ts files
     $tsFiles = Get-ChildItem -Path $plannerDir -Filter "*.ts" -File -Recurse -ErrorAction SilentlyContinue
     $hasDbQueries = $false
     foreach ($file in $tsFiles) {
