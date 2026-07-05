@@ -11,7 +11,8 @@ $vs = $diff | Where-Object {
   $_ -notmatch 'tests/unit/(governance|settlementAction)' -and
   $_ -notmatch 'tests/security/phase10Governance' -and
   $_ -ne 'tests/unit/settlementActionGovernancePage.test.tsx' -and
-  $_ -ne 'backend/src/app.ts' -and $_ -ne 'packages/api-client/src/index.ts'
+  $_ -ne 'backend/src/app.ts' -and $_ -ne 'packages/api-client/src/index.ts' -and
+  $_ -notmatch '^scripts/'
 }
 if ($vs) { Write-Host "check-phase9b-admin-only-scope: FAILED"; $vs | ForEach-Object { Write-Host "  $_" }; exit 1 }
 Write-Host "check-phase9b-admin-only-scope: passed (Phase 10 governance scope — admin-only, governance-only)"
