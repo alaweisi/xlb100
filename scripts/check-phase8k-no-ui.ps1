@@ -1,37 +1,19 @@
-# Phase 8K gate: no UI file changes (settlement audit summary is backend-only)
-# Phase 9A exemption: admin settlement ops console is a Phase 9A deliverable
+# Phase 8K gate: no UI file changes
+# Phase 10A exemption: admin settlement action governance page is a Phase 10A deliverable
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 
-$phase9aAllowed = @(
-  "apps/admin/src/pages/SettlementOpsPage.tsx",
-  "apps/admin/src/app/App.tsx",
-  "apps/admin/vite.config.ts"
-  "apps/admin/src/pages/SettlementStatementDetailPage.tsx"
-  "apps/admin/src/pages/SettlementExportReviewPage.tsx"
-  "apps/admin/src/hashParams.ts"
+$allowedAdminUi = @(
+  "apps/admin/src/pages/SettlementOpsPage.tsx","apps/admin/src/app/App.tsx","apps/admin/vite.config.ts"
+  "apps/admin/src/pages/SettlementStatementDetailPage.tsx","apps/admin/src/pages/SettlementExportReviewPage.tsx"
+  "apps/admin/src/hashParams.ts","apps/admin/src/pages/SettlementActionGovernancePage.tsx"
 )
-
 $changedFiles = & git -C $Root diff --name-only main...HEAD 2>$null
-if ($LASTEXITCODE -ne 0) {
-  Write-Host "check-phase8k-no-ui: FAILED - git diff failed (is main branch available?)"
-  exit 1
+if ($LASTEXITCODE -ne 0) { Write-Host "FAILED - git diff"; exit 1 }
+$violation = @()
+foreach ($f in $changedFiles) {
+  if ($allowedAdminUi -contains $f) { continue }
+  if ($f -match '^apps/customer/' -or $f -match '^apps/worker/' -or $f -match '^apps/admin/') { $violation += $f }
 }
-
-$uiViolations = @()
-foreach ($file in $changedFiles) {
-  if ($phase9aAllowed -contains $file) { continue }
-  if ($file -match '^apps/customer/' -or
-      $file -match '^apps/worker/' -or
-      $file -match '^apps/admin/') {
-    $uiViolations += $file
-  }
-}
-
-if ($uiViolations.Count -gt 0) {
-  Write-Host "check-phase8k-no-ui: FAILED - UI files changed"
-  $uiViolations | ForEach-Object { Write-Host "  $_" }
-  exit 1
-}
-
-Write-Host "check-phase8k-no-ui: passed (Phase 9A UI exempted)"
+if ($violation.Count -gt 0) { Write-Host "FAILED - UI files changed"; $violation | ForEach-Object { Write-Host "  $_" }; exit 1 }
+Write-Host "check-phase8k-no-ui: passed (Phase 10A UI allowed)"

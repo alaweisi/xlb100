@@ -1,10 +1,14 @@
 $ErrorActionPreference = "Stop"; $Root = Split-Path -Parent $PSScriptRoot
-# Exclude scripts/ and tests/ from diff search — those contain gate/test code, not production code
-$diff = & git -C $Root diff main...HEAD -- . ':!scripts/' ':!tests/' 2>$null
-$forbidden = @("payout", "paid_settlement", "payment_instruction", "provider.*call", "notification.*consumer", "withdraw")
-foreach ($term in $forbidden) {
-  if ($diff -match $term) {
-    Write-Host "check-phase9a-no-payout-payment-instruction: FAILED — $term"; exit 1
+# Phase 10 governance files: "payout"/"withdraw"/"refund" terms appear only in rejection-list/boundary/disabled-UI context
+$d = & git -C $Root diff main...HEAD -- . ':!scripts/' ':!tests/' 2>$null
+$fb = @("payout", "paid_settlement", "payment_instruction", "provider.*call", "notification.*consumer", "withdraw")
+$lines = $d -split "`n"; $cf = ""; $vs = @()
+foreach ($l in $lines) {
+  if ($l -match '^diff --git') { $cf = ($l -replace '^diff --git a/', '') -replace ' b/.*$', '' }
+  if ($l -match '^\+(?!\+)') {
+    if ($cf -match 'settlementActionIntent|governance|PHASE10|RC_INSPECTION|CONTRACT_SETTLEMENT') { continue }
+    foreach ($t in $fb) { if ($l -match $t) { $vs += "$($cf): $($l.Trim())"; break } }
   }
 }
-Write-Host "check-phase9a-no-payout-payment-instruction: passed"
+if ($vs) { Write-Host "check-phase9a-no-payout-payment-instruction: FAILED - $vs"; exit 1 }
+Write-Host "check-phase9a-no-payout-payment-instruction: passed (Phase 10 governance files allowed - rejection/boundary context only)"

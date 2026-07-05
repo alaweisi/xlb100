@@ -26,10 +26,11 @@ interface GapScan {
 interface Props {
   onNavigate?: (statementId: string) => void;
   onNavigateToExports?: () => void;
+  onNavigateToGovernance?: () => void;
   initialCityCode?: string;
 }
 
-export function SettlementOpsPage({ onNavigate, onNavigateToExports, initialCityCode }: Props) {
+export function SettlementOpsPage({ onNavigate, onNavigateToExports, onNavigateToGovernance, initialCityCode }: Props) {
   const params = parseHashParams();
   const [cityCode, setCityCode] = useState(initialCityCode || params.get("cityCode") || "hangzhou");
   const [statements, setStatements] = useState<AuditItem[]>([]);
@@ -81,6 +82,7 @@ export function SettlementOpsPage({ onNavigate, onNavigateToExports, initialCity
       <label>City: <input value={cityCode} onChange={(e) => setCityCode(e.target.value)} /></label>
       <button onClick={() => fetchAll()}>Refresh</button>
       {onNavigateToExports && <button onClick={onNavigateToExports}>Settlement Exports</button>}
+      {onNavigateToGovernance && <button onClick={onNavigateToGovernance}>Settlement Governance</button>}
       {loading && <p>Loading...</p>}
       {error && <p style={{ color: "red" }}>Error: {error}</p>}
 

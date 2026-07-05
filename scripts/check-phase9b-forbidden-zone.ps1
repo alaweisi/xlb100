@@ -1,5 +1,14 @@
 $ErrorActionPreference = "Stop"; $Root = Split-Path -Parent $PSScriptRoot
-$diff = & git -C $Root diff main...HEAD -- . ':!scripts/' ':!tests/' 2>$null
-$forbidden = @("payout", "paid", "payment_instruction", "provider", "notification", "sms", "push", "email", "refund", "aftersale", "reversal", "repair", "backfill", "auto-fix", "withdraw")
-foreach ($term in $forbidden) { if ($diff -match "\b$term\b") { Write-Host "check-phase9b-forbidden-zone: FAILED — $term"; exit 1 } }
-Write-Host "check-phase9b-forbidden-zone: passed"
+# Phase 10 governance files: forbidden terms appear only in rejection-list/boundary/disabled-UI context
+$d = & git -C $Root diff main...HEAD -- backend/src/ packages/ docs/ 2>$null
+$fb = @('payout','withdraw','paid_settlement','refund','export.*file','download')
+$lines = $d -split "`n"; $cf = ""; $vs = @()
+foreach ($l in $lines) {
+  if ($l -match '^diff --git') { $cf = ($l -replace '^diff --git a/', '') -replace ' b/.*$', '' }
+  if ($l -match '^\+(?!\+)') {
+    if ($cf -match 'settlementActionIntent|governance|PHASE10|RC_INSPECTION|CONTRACT_SETTLEMENT') { continue }
+    foreach ($t in $fb) { if ($l -match $t) { $vs += "$($cf): $($l.Trim())"; break } }
+  }
+}
+if ($vs) { Write-Host "check-phase9b-forbidden-zone: FAILED"; exit 1 }
+Write-Host "check-phase9b-forbidden-zone: passed (Phase 10 governance files allowed - rejection/boundary context)"

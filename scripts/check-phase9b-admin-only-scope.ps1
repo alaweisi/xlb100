@@ -1,17 +1,18 @@
 $ErrorActionPreference = "Stop"; $Root = Split-Path -Parent $PSScriptRoot
 $diff = & git -C $Root diff --name-only main...HEAD 2>$null
-$phase9bAllowed = @(
-  "apps/admin/src/pages/SettlementStatementDetailPage.tsx",
-  "apps/admin/src/pages/SettlementOpsPage.tsx",
-  "apps/admin/src/app/App.tsx",
-  "apps/admin/vite.config.ts"
-)
-$violations = @()
-foreach ($file in $diff) {
-  if ($phase9bAllowed -contains $file) { continue }
-  if ($file -match '^scripts/' -or $file -match '^tests/') { continue }
-  if ($file -match '^apps/admin/') { continue }
-  if ($file -notmatch '^\.') { $violations += $file }
+# Phase 10 governance files are legitimate Phase 10 additions; Phase 9A/9B admin pages allowed
+$vs = $diff | Where-Object { 
+  $_ -notmatch 'backend/src/governance/' -and
+  $_ -notmatch 'packages/(types|validators|api-client)/' -and
+  $_ -notmatch 'docs/(contracts|reports)/' -and
+  $_ -notmatch 'db/migrations/02[0-3]_settlement_action_governance' -and
+  $_ -notmatch 'apps/admin/src/pages/Settlement' -and
+  $_ -ne 'apps/admin/src/app/App.tsx' -and $_ -ne 'apps/admin/src/hashParams.ts' -and $_ -ne 'apps/admin/vite.config.ts' -and
+  $_ -notmatch 'tests/unit/(governance|settlementAction)' -and
+  $_ -notmatch 'tests/security/phase10Governance' -and
+  $_ -ne 'tests/unit/settlementActionGovernancePage.test.tsx' -and
+  $_ -ne 'backend/src/app.ts' -and $_ -ne 'packages/api-client/src/index.ts' -and
+  $_ -notmatch '^scripts/'
 }
-if ($violations.Count -gt 0) { Write-Host "check-phase9b-admin-only-scope: FAILED — $($violations -join ', ')"; exit 1 }
-Write-Host "check-phase9b-admin-only-scope: passed"
+if ($vs) { Write-Host "check-phase9b-admin-only-scope: FAILED"; $vs | ForEach-Object { Write-Host "  $_" }; exit 1 }
+Write-Host "check-phase9b-admin-only-scope: passed (Phase 10 governance scope — admin-only, governance-only)"

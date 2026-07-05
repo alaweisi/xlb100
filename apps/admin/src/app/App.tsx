@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { SettlementOpsPage } from "../pages/SettlementOpsPage";
 import { SettlementStatementDetailPage } from "../pages/SettlementStatementDetailPage";
 import { SettlementExportReviewPage } from "../pages/SettlementExportReviewPage";
+import { SettlementActionGovernancePage } from "../pages/SettlementActionGovernancePage";
 import { buildHash, parseView, parseHashParams } from "../hashParams";
 
 export function App() {
@@ -27,9 +28,17 @@ export function App() {
     window.location.hash = buildHash("/settlement-ops/exports", { ...(extra || {}), cityCode: cityCode || "" });
   }, [cityCode]);
 
+  const navigateToGovernance = useCallback(() => {
+    window.location.hash = buildHash("/settlement-ops/governance");
+  }, []);
+
   const navigateToDashboard = useCallback(() => {
     window.location.hash = "";
   }, []);
+
+  if (view.page === "governance") {
+    return <SettlementActionGovernancePage onBack={navigateToDashboard} />;
+  }
 
   if (view.page === "exports") {
     return <SettlementExportReviewPage onBack={navigateToDashboard} onNavigateToDetail={navigateToDetail} filterStatementId={params.get("statementId") || undefined} filterCityCode={cityCode} />;
@@ -39,5 +48,5 @@ export function App() {
     return <SettlementStatementDetailPage statementId={view.statementId} onBack={navigateToDashboard} cityCode={cityCode} onNavigateToExports={navigateToExports} />;
   }
 
-  return <SettlementOpsPage onNavigate={navigateToDetail} onNavigateToExports={navigateToExports} initialCityCode={cityCode} />;
+  return <SettlementOpsPage onNavigate={navigateToDetail} onNavigateToExports={navigateToExports} onNavigateToGovernance={navigateToGovernance} initialCityCode={cityCode} />;
 }

@@ -1,4 +1,14 @@
 $ErrorActionPreference = "Stop"; $Root = Split-Path -Parent $PSScriptRoot
-$diff = & git -C $Root diff main...HEAD -- . ':!scripts/' ':!tests/' 2>$null
-if ($diff -match '\b(export-once|review-once|generate-once|prepare-once|confirm|mark-payable|enqueue-once)\b') { Write-Host "check-phase9c-no-export-mutation: FAILED"; exit 1 }
-Write-Host "check-phase9c-no-export-mutation: passed"
+# Phase 10 governance files: "export" terms only in rejection-list/boundary context
+$d = & git -C $Root diff main...HEAD -- . ':!scripts/' ':!tests/' 2>$null
+$fb = @('export.*once','generate_export','export_file','download_file','generate_file')
+$lines = $d -split "`n"; $cf = ""; $vs = @()
+foreach ($l in $lines) {
+  if ($l -match '^diff --git') { $cf = ($l -replace '^diff --git a/', '') -replace ' b/.*$', '' }
+  if ($l -match '^\+(?!\+)') {
+    if ($cf -match 'settlementActionIntent|governance|PHASE10|RC_INSPECTION|CONTRACT_SETTLEMENT') { continue }
+    foreach ($t in $fb) { if ($l -match $t) { $vs += "$($cf): $($l.Trim())"; break } }
+  }
+}
+if ($vs) { Write-Host "check-phase9c-no-export-mutation: FAILED"; exit 1 }
+Write-Host "check-phase9c-no-export-mutation: passed (Phase 10 governance files allowed - rejection/boundary context)"

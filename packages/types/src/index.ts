@@ -122,3 +122,39 @@ export type {
 } from "./fulfillment.js";
 export type { RefundPlaceholder } from "./refund.js";
 export type { ModulePlaceholder } from "./module.js";
+export type {
+  GovernanceActionKind,
+  GovernanceActionStatus,
+  PhaseBoundary,
+  SettlementActionIntent,
+} from "./settlementActionIntent.js";
+export type {
+  GovernanceIntentPhaseBoundary,
+  GovernanceIntentRecord,
+  CreateGovernanceIntentRequest,
+  GovernanceIntentResponse,
+  GovernanceIntentListResponse,
+  GovernanceIntentListQuery,
+} from "./governanceIntent.js";
+export type {
+  GovernanceReviewStatus,
+  GovernanceReviewDecision,
+  GovernanceReviewRecord,
+  SubmitReviewRequest,
+  ReviewDecisionRequest,
+  GovernanceReviewResponse,
+  GovernanceReviewListResponse,
+} from "./governanceReview.js";
+export type {
+  EvidenceBundleStatus,
+  EvidenceRef,
+  Phase9Context,
+  GovernanceEvidenceBundleRecord,
+  CreateEvidenceBundleRequest,
+  AttachEvidenceRefRequest,
+  GovernanceAuditTrailEntry,
+  EvidenceBundleResponse,
+  EvidenceBundleListResponse,
+  AuditTrailResponse,
+} from "./governanceEvidence.js";
+export type { ReadinessPacketStatus, ExecutionBoundary, DryRunGuard, GovernanceReadinessPacketRecord, CreateReadinessPacketRequest, ReadinessPacketResponse, ReadinessPacketListResponse } from "./governanceReadiness.js";

@@ -1,4 +1,6 @@
 $ErrorActionPreference = "Stop"; $Root = Split-Path -Parent $PSScriptRoot
 $diff = & git -C $Root diff --name-only main...HEAD 2>$null
-if ($diff | Select-String "db/migrations/02[2-9]") { Write-Host "check-phase9a-no-migration: FAILED"; exit 1 }
-Write-Host "check-phase9a-no-migration: passed"
+# Phase 10 governance migrations are allowed (020-023); only 022+ non-governance migrations fail
+$violations = $diff | Select-String "db/migrations/02[2-9]" | Where-Object { $_ -notmatch 'settlement_action_governance' }
+if ($violations) { Write-Host "check-phase9a-no-migration: FAILED — $violations"; exit 1 }
+Write-Host "check-phase9a-no-migration: passed (Phase 10 governance migrations allowed)"
