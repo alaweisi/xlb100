@@ -20,6 +20,7 @@ import { registerLedgerRoutes } from "./ledger/ledgerRoutes.js";
 import { registerSettlementRoutes } from "./settlement/settlementRoutes.js";
 import { registerGovernanceIntentRoutes } from "./governance/governanceIntentRoutes.js";
 import { registerGovernanceReviewRoutes } from "./governance/governanceReviewRoutes.js";
+import { registerGovernanceEvidenceRoutes } from "./governance/governanceEvidenceRoutes.js";
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({ logger: true });
@@ -98,6 +99,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await registerSettlementRoutes(app);
   await registerGovernanceIntentRoutes(app);
   await registerGovernanceReviewRoutes(app);
+  await registerGovernanceEvidenceRoutes(app);
 
   return app;
 }

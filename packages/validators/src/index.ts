@@ -256,3 +256,16 @@ export {
   type SubmitReviewRequestInput,
   type ReviewDecisionRequestInput,
 } from "./governanceReviewSchema.js";
+export {
+  evidenceBundleStatusSchema,
+  governanceEvidenceBundleRecordSchema,
+  createEvidenceBundleRequestSchema,
+  attachEvidenceRefRequestSchema,
+  evidenceBundleResponseSchema,
+  evidenceBundleListResponseSchema,
+  auditTrailEntrySchema,
+  auditTrailResponseSchema,
+  type EvidenceBundleStatusInput,
+  type GovernanceEvidenceBundleRecordInput,
+  type CreateEvidenceBundleRequestInput,
+} from "./governanceEvidenceSchema.js";

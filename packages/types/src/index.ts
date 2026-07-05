@@ -145,3 +145,15 @@ export type {
   GovernanceReviewResponse,
   GovernanceReviewListResponse,
 } from "./governanceReview.js";
+export type {
+  EvidenceBundleStatus,
+  EvidenceRef,
+  Phase9Context,
+  GovernanceEvidenceBundleRecord,
+  CreateEvidenceBundleRequest,
+  AttachEvidenceRefRequest,
+  GovernanceAuditTrailEntry,
+  EvidenceBundleResponse,
+  EvidenceBundleListResponse,
+  AuditTrailResponse,
+} from "./governanceEvidence.js";
