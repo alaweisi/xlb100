@@ -122,3 +122,9 @@ export type {
 } from "./fulfillment.js";
 export type { RefundPlaceholder } from "./refund.js";
 export type { ModulePlaceholder } from "./module.js";
+export type {
+  GovernanceActionKind,
+  GovernanceActionStatus,
+  PhaseBoundary,
+  SettlementActionIntent,
+} from "./settlementActionIntent.js";
