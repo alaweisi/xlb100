@@ -1,0 +1,55 @@
+﻿node.exe : npm warn Unknown project config "shamefully-hoist". This will stop working in the next major version of npm.
+所在位置 行:1 字符: 1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (npm warn Unknow...version of npm.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+npm warn Unknown project config "strict-peer-dependencies". This will stop working in the next major version of npm.
+npm warn Unknown project config "auto-install-peers". This will stop working in the next major version of npm.
+
+> xlb@0.0.0 preflight E:\xlb100
+> powershell -NoProfile -ExecutionPolicy Bypass -File scripts/preflight-architecture.ps1
+
+XLB Phase 0 architecture preflight passed.
+XLB Phase 1 request-context-city preflight passed.
+XLB Phase 2 database-scope-dal preflight passed.
+XLB Phase 3 cityconfig-catalog-pricing preflight passed.
+XLB Phase 3A official catalog import protocol preflight passed.
+XLB Phase 3A-1 official service catalog seed import preflight passed.
+XLB Phase 4 order payment outbox foundation preflight passed.
+XLB Phase 5A dispatch outbox city stream foundation preflight passed.
+XLB Phase 5B worker pool taskpool readiness foundation preflight passed.
+XLB Phase 6 certification worker eligibility foundation preflight passed.
+XLB Phase 7A worker accept fulfillment skeleton foundation preflight passed.
+XLB Phase 7B fulfillment start complete foundation preflight passed.
+XLB Phase 8A ledger accrual foundation preflight passed.
+XLB Phase 8B settlement preparation foundation preflight passed.
+XLB Phase 8C settlement confirmation foundation preflight passed.
+XLB Phase 8D settlement payable readiness foundation preflight passed.
+XLB Phase 8E settlement payable queue foundation preflight passed.
+XLB Phase 8F worker receivable statement foundation preflight passed.
+XLB Phase 8G worker receivable statement review foundation preflight passed.
+XLB Phase 8H worker receivable statement export package foundation preflight passed.
+check-worker-receivable-statement-audit-readonly: passed
+check-worker-receivable-statement-audit-no-mutation-routes: passed
+check-worker-receivable-statement-audit-city-scope: passed
+check-worker-receivable-statement-audit-index-only-migration: passed (Phase 10 governance migration 鈥?full table allowed, no execution columns)
+check-worker-receivable-statement-audit-no-ui: passed (Phase 9A + Phase 10A UI allowed)
+check-worker-receivable-statement-audit-forbidden-zone: passed (Phase 10 governance allowed)
+check-worker-receivable-statement-audit-no-outbox-write: passed
+check-worker-receivable-statement-audit-route-order: passed
+check-phase8j-readonly: passed
+check-phase8j-no-mutation-routes: passed
+check-phase8j-city-scope: passed
+check-phase8j-no-migration: passed (Phase 10 governance migrations allowed)
+check-phase8j-no-ui: passed (Phase 9A + Phase 10A UI allowed)
+At E:\xlb100\scripts\check-phase8j-forbidden-zone.ps1:14 char:96
++ ... if ($content -match $pattern) { $violations += "$currentFile: $($line ...
++                                                     ~~~~~~~~~~~~~
+Variable reference is not valid. ':' was not followed by a valid variable name character. Consider using ${} to delimit
+ the name.
+    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : InvalidVariableReferenceWithDrive
+ 
+ ELIFECYCLE  Command failed with exit code 1.
