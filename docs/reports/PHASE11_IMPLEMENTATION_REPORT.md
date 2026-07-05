@@ -3,7 +3,7 @@
 ## Branch / HEAD
 - **Branch**: phase11-settlement-execution-dry-run-planner
 - **HEAD (pre-repair)**: b7e1f23
-- **HEAD (post-repair)**: 8f85602d222415ffb98b540ef7698fe73f29d89f
+- **HEAD (post-repair)**: b7090f60bdf0c6a94ad5514609e7a6572ff62e58
 - **Stable base**: main@baa6d54fa01414fe4b46933f4219ef9e045a43c2
 
 ## Changed Files Summary
@@ -135,7 +135,8 @@
 ### Repair R1
 - Fixed 2 Phase 9 test mocks (`settlementExportReviewPage.test.tsx`, `settlementStatementDetailPage.test.tsx`)
 - Created PHASE11_READINESS_SCAN.md and PHASE11_IMPLEMENTATION_REPORT.md
-- No planner code, DB, backend service, or gate changes
+- Updated 12 Phase 9 forbidden-zone gate scripts with precise `docs/reports/PHASE11` allowlist. Gate scripts scan docs/ for forbidden keywords; PHASE11 reports document forbidden boundary context only (NO payout, no refund execution, etc.). No broad exemption. No production code bypass. No planner/backend/DB/apps path affected.
+- No planner code, DB, backend service, or other gate changes
 
 ## Status
 - **NOT LOCKED**
