@@ -158,3 +158,10 @@ export type {
   AuditTrailResponse,
 } from "./governanceEvidence.js";
 export type { ReadinessPacketStatus, ExecutionBoundary, DryRunGuard, GovernanceReadinessPacketRecord, CreateReadinessPacketRequest, ReadinessPacketResponse, ReadinessPacketListResponse } from "./governanceReadiness.js";
+export type {
+  PreparationEnvelopeStatus,
+  PreparationEnvelopeRecord,
+  PreparationItemRecord,
+  PreparationAuditEntry,
+  CreateEnvelopeRequest,
+} from "./preparation.js";

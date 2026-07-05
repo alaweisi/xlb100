@@ -270,3 +270,15 @@ export {
   type CreateEvidenceBundleRequestInput,
 } from "./governanceEvidenceSchema.js";
 export { readinessPacketStatusSchema, governanceReadinessPacketRecordSchema, createReadinessPacketRequestSchema, readinessPacketResponseSchema, readinessPacketListResponseSchema, type ReadinessPacketStatusInput, type CreateReadinessPacketRequestInput } from "./governanceReadinessSchema.js";
+export {
+  preparationEnvelopeStatusSchema,
+  createEnvelopeRequestSchema,
+  preparationItemRecordSchema,
+  preparationAuditEntrySchema,
+  envelopeRecordSchema,
+  type PreparationEnvelopeStatusInput,
+  type CreateEnvelopeRequestInput,
+  type EnvelopeRecordInput,
+  type PreparationItemRecordInput,
+  type PreparationAuditEntryInput,
+} from "./preparationSchema.js";
