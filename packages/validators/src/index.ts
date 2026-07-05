@@ -242,3 +242,17 @@ export {
   type GovernanceIntentRecordInput,
   type CreateGovernanceIntentRequestInput,
 } from "./governanceIntentSchema.js";
+export {
+  governanceReviewStatusSchema,
+  governanceReviewDecisionSchema,
+  governanceReviewRecordSchema,
+  submitReviewRequestSchema,
+  reviewDecisionRequestSchema,
+  governanceReviewResponseSchema,
+  governanceReviewListResponseSchema,
+  type GovernanceReviewStatusInput,
+  type GovernanceReviewDecisionInput,
+  type GovernanceReviewRecordInput,
+  type SubmitReviewRequestInput,
+  type ReviewDecisionRequestInput,
+} from "./governanceReviewSchema.js";

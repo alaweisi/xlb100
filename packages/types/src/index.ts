@@ -136,3 +136,12 @@ export type {
   GovernanceIntentListResponse,
   GovernanceIntentListQuery,
 } from "./governanceIntent.js";
+export type {
+  GovernanceReviewStatus,
+  GovernanceReviewDecision,
+  GovernanceReviewRecord,
+  SubmitReviewRequest,
+  ReviewDecisionRequest,
+  GovernanceReviewResponse,
+  GovernanceReviewListResponse,
+} from "./governanceReview.js";
