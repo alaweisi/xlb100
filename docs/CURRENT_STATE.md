@@ -1,72 +1,59 @@
-# XLB CURRENT STATE — Phase 10 LOCKED
+# XLB / 喜乐帮 — CURRENT STATE
 
-## Repository
-- E:\xlb100
-- Brand: 喜乐帮 / XLB
-- Package prefix: @xlb/*
+> **This is the single source of truth for Phase / tag / branch / lock state.**
+> 每次 Lock 后必须更新。Agent 进入项目第一件事实源。
 
-## Phase Status
+## Phase State
 
-| Phase | Status | Notes |
-|-------|--------|-------|
-| Phase 0–7 | EXITED | Foundation phases |
-| Phase 8 | EXITED | Settlement foundation |
-| Phase 9A | LOCKED | Admin Settlement Operations Console |
-| Phase 9B | LOCKED | Statement Detail Drilldown |
-| Phase 9C | LOCKED | Export Review Console |
-| Phase 9D | LOCKED | Cross-Link Navigation / URL context |
-| Phase 9E | LOCKED | Query / Filter / Pagination Hardening |
-| Phase 9F | NOT IMPLEMENTED | Skipped by governance decision |
-| Phase 10 | LOCKED | Settlement Action Governance |
-| Phase 11 | NOT STARTED | Requires separate readiness scan |
+| Phase | Status | Tag | Scope |
+|-------|--------|-----|-------|
+| Phase 0–7 | EXITED | — | Foundation / catalog / order / payment / dispatch / worker / compliance |
+| Phase 8 | EXITED | — | Settlement foundation / ledger accrual / worker receivable statement |
+| Phase 9A | LOCKED | xlb-phase9a-admin-settlement-operations-console | Admin-only settlement operations console |
+| Phase 9B | LOCKED | xlb-phase9b-admin-settlement-operations-drilldown | Statement detail drilldown |
+| Phase 9C | LOCKED | xlb-phase9c-admin-settlement-export-review-console | Export review console |
+| Phase 9D | LOCKED | xlb-phase9d-admin-settlement-cross-link-navigation | Cross-link navigation |
+| Phase 9E | LOCKED | xlb-phase9e-admin-settlement-query-pagination | Query / filter / pagination |
+| Phase 9F | NOT IMPLEMENTED | — | Skipped by governance decision |
+| Phase 10 | LOCKED | xlb-phase10-settlement-action-governance | Settlement action governance: intent / review / evidence / readiness |
+| Phase 11 | LOCKED | xlb-phase11-settlement-execution-dry-run-planner | Settlement execution dry-run planner |
+| Phase 12 | NOT STARTED | — | Requires separate readiness scan |
 
-## Phase 10 Summary
-- **Scope**: Governance / Approval / Audit / Readiness only
-- **Final branch**: phase10-settlement-action-governance-release-train
-- **Final inspected HEAD**: 9d5c5c084de3fb1892bef823f5bf425a027d81b2
-- **Phase 10 tag**: xlb-phase10-settlement-action-governance
-- **Forbidden Permanently**:
-  - No payout or provider withdrawal
-  - No payment execution or settlement result mutation
-  - No ledger result mutation
-  - No refund or reversal execution
-  - No export file generation or download
-  - No Phase 11 execution
+## Phase 10 — Settlement Action Governance (LOCKED)
 
-## Hard Boundaries (carried forward)
-- No payout or provider withdrawal.
-- No payment execution or settlement mutation.
-- No export-once, export file generation, or file download.
-- No refund or reversal execution.
-- No ledger result mutation.
-- No backend or database changes without explicit readiness approval.
-- No customer or worker changes without explicit readiness approval.
-- No broad gate exemption.
+- **Tag**: xlb-phase10-settlement-action-governance
+- **Tag target**: 0c89a196ea4534bccd8a29aa377961032576a552
+- **Scope**: governance shell, intent contract, persistence, review workflow, evidence bundle / audit trail, execution readiness packet, dry-run guard
+- **Boundary**: no payout, no provider withdrawal, no payment execution, no settlement/ledger/refund/reversal mutation, no export/download, no Phase 11 execution
 
-## Phase 10 Release Train
-| Phase | Commit | Description |
-|-------|--------|-------------|
-| 10A | 3fc2e6c | Governance Shell (admin UI) |
-| 10B | 0a61fbf | Intent Contract (types/validators) |
-| 10C | 0263cba | Governance Intent Persistence (DB + backend) |
-| 10D | 69007b1 | Review / Approval Governance Workflow |
-| 10E | b4916a6 | Evidence Bundle / Audit Trail |
-| 10F | 8da9432 | Execution Readiness Packet / Dry-run Guard |
-| 10G | f1210cf | Final Hardening / RC Pack |
-| R1 | 092ba82 | Auth + Scope repair |
-| R2 | b244e73 | Gate bypass removal |
-| R3 | cb0ae59 | UI content + gate scripts fix |
-| R4 | 9d5c5c0 | Docs-only report repair |
+## Phase 11 — Settlement Execution Dry-run Planner (LOCKED)
 
-## Final Gates (Phase 10 Lock)
-| Gate | Result |
-|------|--------|
-| pnpm typecheck | 14/14 PASS |
-| pnpm preflight | PASS, all phases |
-| Forbidden execution audit | PASS |
-| Forbidden scope audit | CLEAN |
+- **Tag**: xlb-phase11-settlement-execution-dry-run-planner
+- **Tag target (main merge commit)**: cc45a23970e6f0bf164f06b285d488b146e6f854
+- **Release branch inspected HEAD**: e94ca44f5aba388227fc40937117e96cf22a6b4a
+- **Previous main before Phase 11**: baa6d54fa01414fe4b46933f4219ef9e045a43c2
+- **Scope**: dry-run planner, readiness / simulation metadata, independent planner tables, `markReadyForFuturePhaseReview` with read-time DB approval gate
+- **Boundary**:
+  - dry-run planner only
+  - no payout
+  - no provider withdrawal
+  - no payment execution
+  - no settlement result mutation
+  - no ledger mutation
+  - no refund/reversal execution
+  - no export/download/generate
+  - no provider dispatch
+  - no Phase 12 execution
 
-## Read order for a new session
-1. This file (docs/CURRENT_STATE.md)
-2. docs/reports/PHASE10_FINAL_LOCK_REPORT.md
-3. Independently verify Git, tags, build, typecheck, tests, preflight, gates, scope, and security boundaries before opening Phase 11 readiness.
+## Phase 12 — Next Phase (NOT STARTED)
+
+- **May proceed only to**: Readiness Scan
+- **Requires**: separate readiness scan, branch, approval gate
+
+## Third-party Inspection
+
+| Phase | Inspector | Result |
+|-------|-----------|--------|
+| Phase 10 | Codex CLI / Claude Code | LOCKED |
+| Phase 11 | Claude Code | LOCKED |
+| Phase 11 post-lock | Claude Code | PASS (docs gap — corrected) |
