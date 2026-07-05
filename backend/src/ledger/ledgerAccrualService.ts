@@ -155,6 +155,63 @@ export class LedgerAccrualService {
       };
       await this.repository.insertAccrual(connection, accrual);
 
+      await recordLedgerAudit({
+        connection,
+        outbox: this.outboxRepository,
+        cityCode,
+        sourceType: "ledger.accrued",
+        items: [
+          {
+            orderId: snapshot.orderId,
+            feeType: "gross",
+            aggregateType: "ledger_accrual",
+            aggregateId: accrual.accrualId,
+            snapshot: {
+              city_code: cityCode,
+              order_id: snapshot.orderId,
+              fee_type: "gross",
+              source_type: "ledger.accrued",
+              accrual_id: accrual.accrualId,
+              fulfillment_id: snapshot.fulfillmentId,
+              amount: amounts.grossAmount,
+              currency: accrual.currency,
+            },
+          },
+          {
+            orderId: snapshot.orderId,
+            feeType: "platform_fee",
+            aggregateType: "ledger_accrual",
+            aggregateId: accrual.accrualId,
+            snapshot: {
+              city_code: cityCode,
+              order_id: snapshot.orderId,
+              fee_type: "platform_fee",
+              source_type: "ledger.accrued",
+              accrual_id: accrual.accrualId,
+              fulfillment_id: snapshot.fulfillmentId,
+              amount: amounts.platformFee,
+              currency: accrual.currency,
+            },
+          },
+          {
+            orderId: snapshot.orderId,
+            feeType: "worker_receivable",
+            aggregateType: "ledger_accrual",
+            aggregateId: accrual.accrualId,
+            snapshot: {
+              city_code: cityCode,
+              order_id: snapshot.orderId,
+              fee_type: "worker_receivable",
+              source_type: "ledger.accrued",
+              accrual_id: accrual.accrualId,
+              fulfillment_id: snapshot.fulfillmentId,
+              amount: amounts.workerReceivable,
+              currency: accrual.currency,
+            },
+          },
+        ],
+      });
+
       const entryBase = {
         cityCode,
         sourceType,

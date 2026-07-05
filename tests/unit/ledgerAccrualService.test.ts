@@ -29,6 +29,17 @@ describe("ledgerAccrualService", () => {
     expect(repo.insertEntry).toHaveBeenCalledTimes(3);
     expect(outbox.insertEvent).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
       eventType: "conflict_audit",
+      aggregateType: "ledger_accrual",
+      payload: expect.objectContaining({
+        order_id: "ord-1",
+        fee_type: "gross",
+        source_type: "ledger.accrued",
+        snapshot_hash: expect.stringMatching(/^[a-f0-9]{64}$/),
+      }),
+    }));
+    expect(outbox.insertEvent).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+      eventType: "conflict_audit",
+      aggregateType: "ledger_entry",
       payload: expect.objectContaining({
         order_id: "ord-1",
         fee_type: "gross",
@@ -36,7 +47,7 @@ describe("ledgerAccrualService", () => {
         snapshot_hash: expect.stringMatching(/^[a-f0-9]{64}$/),
       }),
     }));
-    expect(outbox.insertEvent).toHaveBeenCalledTimes(3);
+    expect(outbox.insertEvent).toHaveBeenCalledTimes(6);
     expect(outbox.markEventPublished).toHaveBeenCalledWith(expect.anything(), "evt-1", "hangzhou");
   });
 });
