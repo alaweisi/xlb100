@@ -119,11 +119,11 @@ export class PlannerPlanBuilder {
   /**
    * Verify linked governance review is approved.
    */
-  async verifyReviewApproved(reviewId: string): Promise<boolean> {
+  async verifyReviewApproved(reviewId: string, cityCode: string): Promise<boolean> {
     const [rows] = await this.pool.query<RowDataPacket[]>(
       `SELECT review_status FROM settlement_action_governance_reviews
-       WHERE id = ?`,
-      [reviewId],
+       WHERE id = ? AND city_code = ?`,
+      [reviewId, cityCode],
     );
     if (rows.length === 0) return false;
     return rows[0].review_status === "approved_for_governance";
@@ -331,7 +331,7 @@ export class PlannerPlanBuilder {
 
       // 3. Verify linked review approved (if present)
       if (packet.review_id) {
-        const approved = await this.verifyReviewApproved(packet.review_id);
+        const approved = await this.verifyReviewApproved(packet.review_id, cityCode);
         if (!approved) {
           throw new Error(
             `Governance review ${packet.review_id} is not in 'approved_for_governance' status`,
