@@ -14,6 +14,7 @@ export type OutboxEventType =
   | "settlement.confirmed"
   | "settlement.payable"
   | "settlement.payable.queued"
+  | "refund.approved"
   | "conflict_audit"
   | "worker.receivable.statement.created"
   | "worker.receivable.statement.reviewed"
@@ -56,4 +57,17 @@ export interface OrderCreatedEventPayload {
   skuId: string;
   totalAmount: number;
   createdAt: string;
+}
+
+export interface RefundApprovedEventPayload {
+  refundId: string;
+  orderId: string;
+  cityCode: CityCode;
+  customerId: string;
+  fulfillmentId: string;
+  paymentOrderId: string;
+  amount: number;
+  currency: "CNY";
+  approvedAt: string;
+  approvedByAdminId: string;
 }

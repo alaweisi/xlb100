@@ -5,6 +5,8 @@ import { ledgerRepository } from "./ledgerRepository.js";
 
 export const ledgerService = {
   runOnce: (context: RequestContext) => ledgerOutboxConsumer.runOnce(context),
+  runReversalsOnce: (context: RequestContext) =>
+    ledgerOutboxConsumer.runReversalsOnce(context),
   listAccruals: (context: RequestContext) =>
     ledgerRepository.listAccruals(
       context,

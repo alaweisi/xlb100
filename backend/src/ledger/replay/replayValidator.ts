@@ -312,6 +312,18 @@ function toLedgerAuditRecord(event: EventOutbox): LedgerAuditRecord | null {
 function resolveFeeType(
   row: LedgerEntryReplayRow,
 ): LedgerSingleWriteFeeType | null {
+  if (row.source_type === "refund.approved") {
+    if (row.account_type === "customer" && row.direction === "credit") {
+      return "gross";
+    }
+    if (row.account_type === "platform" && row.direction === "debit") {
+      return "platform_fee";
+    }
+    if (row.account_type === "worker" && row.direction === "debit") {
+      return "worker_receivable";
+    }
+    return null;
+  }
   if (row.account_type === "customer" && row.direction === "debit") {
     return "gross";
   }

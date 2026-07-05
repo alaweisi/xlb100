@@ -3,6 +3,7 @@ import { cityCodeSchema } from "./cityCodeSchema.js";
 
 export const ledgerAccountTypeSchema = z.enum(["platform", "worker", "customer"]);
 export const ledgerEntryDirectionSchema = z.enum(["debit", "credit"]);
+export const ledgerEntrySourceTypeSchema = z.enum(["fulfillment.completed", "refund.approved"]);
 export const ledgerAccrualStatusSchema = z.enum(["accrued", "voided"]);
 const currencySchema = z.literal("CNY");
 const amountSchema = z.number().min(0);
@@ -17,7 +18,7 @@ export const ledgerAccountSchema = z.object({
 export const ledgerEntrySchema = z.object({
   entryId: z.string().min(1).max(64), cityCode: cityCodeSchema,
   accountId: z.string().min(1).max(64), accountType: ledgerAccountTypeSchema,
-  ownerId: z.string().min(1).max(64), sourceType: z.literal("fulfillment.completed"),
+  ownerId: z.string().min(1).max(64), sourceType: ledgerEntrySourceTypeSchema,
   sourceId: z.string().min(1).max(64), direction: ledgerEntryDirectionSchema,
   amount: amountSchema, currency: currencySchema,
   description: z.string().max(255).nullable(), createdAt: z.string().min(1),

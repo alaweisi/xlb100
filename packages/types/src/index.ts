@@ -30,10 +30,12 @@ export type {
   OrderPaidEventPayload,
   PaymentPaidEventPayload,
   OrderCreatedEventPayload,
+  RefundApprovedEventPayload,
 } from "./eventOutbox.js";
 export type {
   LedgerAccountType,
   LedgerEntryDirection,
+  LedgerEntrySourceType,
   LedgerAccrualStatus,
   LedgerAccount,
   LedgerEntry,
@@ -120,7 +122,12 @@ export type {
   FulfillmentStartedEventPayload,
   FulfillmentCompletedEventPayload,
 } from "./fulfillment.js";
-export type { RefundPlaceholder } from "./refund.js";
+export type {
+  RefundRequestStatus,
+  RefundRequest,
+  CreateRefundRequest,
+  ApproveRefundRequest,
+} from "./refund.js";
 export type { ModulePlaceholder } from "./module.js";
 export type {
   GovernanceActionKind,

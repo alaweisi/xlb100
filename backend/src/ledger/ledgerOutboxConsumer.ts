@@ -1,4 +1,4 @@
-import type { LedgerAccrual, RequestContext } from "@xlb/types";
+import type { LedgerAccrual, LedgerEntry, RequestContext } from "@xlb/types";
 import { assertCityScopedContext } from "../dal/scopedExecutor.js";
 import {
   eventOutboxRepository,
@@ -8,11 +8,16 @@ import {
   ledgerAccrualService,
   LedgerAccrualService,
 } from "./ledgerAccrualService.js";
+import {
+  ledgerReversalService,
+  LedgerReversalService,
+} from "./ledgerReversalService.js";
 
 export class LedgerOutboxConsumer {
   constructor(
     private readonly outbox: EventOutboxRepository = eventOutboxRepository,
     private readonly accruals: LedgerAccrualService = ledgerAccrualService,
+    private readonly reversals: LedgerReversalService = ledgerReversalService,
   ) {}
 
   async runOnce(
@@ -29,6 +34,22 @@ export class LedgerOutboxConsumer {
       accruals.push((await this.accruals.accrue(context, event)).accrual);
     }
     return { processed: accruals.length, accruals };
+  }
+
+  async runReversalsOnce(
+    context: RequestContext,
+  ): Promise<{ processed: number; entries: LedgerEntry[] }> {
+    const cityCode = assertCityScopedContext(context);
+    const events = await this.outbox.findPendingEventsByType(
+      context,
+      cityCode,
+      "refund.approved",
+    );
+    const entries: LedgerEntry[] = [];
+    for (const event of events) {
+      entries.push(...(await this.reversals.reverse(context, event)).entries);
+    }
+    return { processed: events.length, entries };
   }
 }
 

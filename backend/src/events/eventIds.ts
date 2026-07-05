@@ -43,3 +43,7 @@ export function generateLedgerEntryId(): string {
 export function generateLedgerAccrualId(): string {
   return `lar_${Date.now().toString(36)}_${randomBytes(4).toString("hex")}`;
 }
+
+export function generateRefundId(): string {
+  return `rfd_${Date.now().toString(36)}_${randomBytes(4).toString("hex")}`;
+}

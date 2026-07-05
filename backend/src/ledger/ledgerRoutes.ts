@@ -33,6 +33,15 @@ export async function registerLedgerRoutes(app: FastifyInstance): Promise<void> 
     }),
   );
 
+  app.post(
+    "/api/internal/ledger/reverse",
+    { preHandler },
+    async (request) => ({
+      ok: true,
+      ...(await ledgerService.runReversalsOnce(getRequestContext(request))),
+    }),
+  );
+
   app.get(
     "/api/internal/ledger/accruals",
     { preHandler },

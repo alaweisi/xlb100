@@ -2,6 +2,7 @@ import type { CityCode } from "./city.js";
 
 export type LedgerAccountType = "platform" | "worker" | "customer";
 export type LedgerEntryDirection = "debit" | "credit";
+export type LedgerEntrySourceType = "fulfillment.completed" | "refund.approved";
 export type LedgerAccrualStatus = "accrued" | "voided";
 
 export interface LedgerAccount {
@@ -21,7 +22,7 @@ export interface LedgerEntry {
   accountId: string;
   accountType: LedgerAccountType;
   ownerId: string;
-  sourceType: "fulfillment.completed";
+  sourceType: LedgerEntrySourceType;
   sourceId: string;
   direction: LedgerEntryDirection;
   amount: number;
