@@ -21,6 +21,11 @@ vi.mock("@xlb/api-client", () => ({
         mockGet(`/api/internal/settlement/reconciliation-gap-scan?cityCode=${q.cityCode}`),
     }),
   },
+  governanceIntentApi: { create: () => ({ createDraft: () => Promise.resolve({ ok: true }), getIntent: () => Promise.resolve({ ok: true }), listIntents: () => Promise.resolve({ ok: true }), cancelIntent: () => Promise.resolve({ ok: true }), archiveIntent: () => Promise.resolve({ ok: true }) }) },
+  governanceReviewApi: { create: () => ({ submitReview: () => Promise.resolve({ ok: true }), getReview: () => Promise.resolve({ ok: true }), listReviews: () => Promise.resolve({ ok: true }), approveReview: () => Promise.resolve({ ok: true }), rejectReview: () => Promise.resolve({ ok: true }), requestChanges: () => Promise.resolve({ ok: true }) }) },
+  governanceEvidenceApi: { create: () => ({ createBundle: () => Promise.resolve({ ok: true }), getBundle: () => Promise.resolve({ ok: true }), listBundles: () => Promise.resolve({ ok: true }), attachRef: () => Promise.resolve({ ok: true }), removeRef: () => Promise.resolve({ ok: true }), archiveBundle: () => Promise.resolve({ ok: true }), getAuditTrail: () => Promise.resolve({ ok: true }) }) },
+  governanceReadinessApi: { create: () => ({ create: () => Promise.resolve({ ok: true }), get: () => Promise.resolve({ ok: true }), list: () => Promise.resolve({ ok: true }), recomputeChecks: () => Promise.resolve({ ok: true }), markBlocked: () => Promise.resolve({ ok: true }), archive: () => Promise.resolve({ ok: true }), markReadyForReview: () => Promise.resolve({ ok: true }) }) },
+  governancePlannerApi: { create: () => ({ listSettlementDryRunPlans: () => Promise.resolve({ ok: true, plans: [] }), getSettlementDryRunPlan: () => Promise.resolve({ ok: true }), createSettlementDryRunPlan: () => Promise.resolve({ ok: true }), getSettlementDryRunPlanItems: () => Promise.resolve({ ok: true }), getSettlementDryRunPlanAudit: () => Promise.resolve({ ok: true }), getReadinessPacketDryRunEligibility: () => Promise.resolve({ ok: true }) }) },
 }));
 
 const mockStatementDetail = {
