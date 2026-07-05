@@ -16,6 +16,7 @@ export default defineConfig({
       "@xlb/config": path.resolve(__dirname, "packages/config/src/index.ts"),
       "@xlb/api-client": path.resolve(__dirname, "packages/api-client/src/index.ts"),
       "@xlb/admin-pages": path.resolve(__dirname, "apps/admin/src/pages"),
+      "@shared": path.resolve(__dirname, "packages/shared"),
     },
   },
 });

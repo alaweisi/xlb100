@@ -1,8 +1,9 @@
-import { createHash, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import type { RowDataPacket, Pool, PoolConnection } from "mysql2/promise";
 import type { RequestContext } from "@xlb/types";
 import { assertCityScopedContext, buildCityScopedWhere } from "../dal/scopedExecutor.js";
 import { getMysqlPool } from "../dal/mysqlPool.js";
+import { stableHash } from "@shared/deterministic/stableHash.js";
 
 // ── HttpError — business errors with status codes ────────────────────────────────
 export class PreparationError extends Error {
@@ -19,20 +20,6 @@ export class PreparationError extends Error {
 const genId = (prefix: string): string =>
   `${prefix}_${Date.now().toString(36)}_${randomBytes(4).toString("hex")}`;
 
-function stableJson(value: unknown): string {
-  if (Array.isArray(value)) {
-    return `[${value.map((item) => stableJson(item)).join(",")}]`;
-  }
-  if (value && typeof value === "object") {
-    const record = value as Record<string, unknown>;
-    return `{${Object.keys(record)
-      .sort()
-      .map((key) => `${JSON.stringify(key)}:${stableJson(record[key])}`)
-      .join(",")}}`;
-  }
-  return JSON.stringify(value);
-}
-
 function sortedUnique(values: string[]): string[] {
   return [...new Set(values)].sort((a, b) => a.localeCompare(b));
 }
@@ -41,6 +28,9 @@ function missingIds(expected: string[], actual: string[]): string[] {
   const actualSet = new Set(actual);
   return sortedUnique(expected.filter((id) => !actualSet.has(id)));
 }
+
+const parseJson = <T>(value: string | T): T =>
+  typeof value === "string" ? (JSON.parse(value) as T) : value;
 
 // ── Row type helpers ───────────────────────────────────────────────────────────
 type EnvelopeRow = RowDataPacket & {
@@ -147,11 +137,11 @@ const mapEnvelope = (r: EnvelopeRow): PreparationEnvelope => ({
   itemHash: r.item_hash,
   sourcePacketHash: r.source_packet_hash,
   sourcePlanHash: r.source_plan_hash,
-  amountSnapshot: JSON.parse(r.amount_snapshot_json || "{}") as Record<string, unknown>,
+  amountSnapshot: r.amount_snapshot_json ? parseJson<Record<string, unknown>>(r.amount_snapshot_json) : {},
   cityConfigSnapshotHash: r.city_config_snapshot_hash,
   settlementCycleSnapshotHash: r.settlement_cycle_snapshot_hash,
   conflictCheckSnapshotHash: r.conflict_check_snapshot_hash,
-  conflictCheckSnapshot: JSON.parse(r.conflict_check_snapshot_json || "{}") as Record<string, unknown>,
+  conflictCheckSnapshot: r.conflict_check_snapshot_json ? parseJson<Record<string, unknown>>(r.conflict_check_snapshot_json) : {},
   frozenByAdminId: r.frozen_by_admin_id,
   approvedByAdminId: r.approved_by_admin_id,
   traceId: r.trace_id,
@@ -190,13 +180,17 @@ export function computePayloadHash(
   planHash: string | null,
   itemRefs: string[],
 ): string {
-  const payload = `${packetId}\n${cityCode}\n${planHash ?? ""}\n${[...itemRefs].sort().join("\n")}`;
-  return createHash("sha256").update(payload, "utf8").digest("hex");
+  return stableHash({
+    packet_id: packetId,
+    city_code: cityCode,
+    plan_hash: planHash ?? null,
+    item_refs: sortedUnique(itemRefs),
+  });
 }
 
 // ── Helper: compute hash of readiness packet data ──────────────────────────────
 function computeSourcePacketHash(packet: RowDataPacket): string {
-  const packetData = JSON.stringify({
+  return stableHash({
     id: packet.id,
     city_code: packet.city_code,
     intent_id: packet.intent_id,
@@ -204,17 +198,15 @@ function computeSourcePacketHash(packet: RowDataPacket): string {
     packet_status: packet.packet_status,
     source_refs_json: packet.source_refs_json,
   });
-  return createHash("sha256").update(packetData, "utf8").digest("hex");
 }
 
 // ── Helper: compute hash of dry-run plan data ──────────────────────────────────
 function computeSourcePlanHash(plan: RowDataPacket): string | null {
-  const planData = JSON.stringify({
+  return stableHash({
     id: plan.id,
     plan_hash: plan.plan_hash,
     plan_status: plan.plan_status,
   });
-  return createHash("sha256").update(planData, "utf8").digest("hex");
 }
 
 // ── Envelope service ───────────────────────────────────────────────────────────
@@ -861,9 +853,7 @@ export class EnvelopeService {
     };
 
     // ── Compute deterministic conflict_check_snapshot_hash ──
-    const conflictCheckSnapshotHash = createHash("sha256")
-      .update(stableJson(snapshot), "utf8")
-      .digest("hex");
+    const conflictCheckSnapshotHash = stableHash(snapshot);
 
     // F3: If any blocking conflicts exist, reject freeze
     if (
@@ -933,7 +923,7 @@ export class EnvelopeService {
       );
 
       // 5. Compute initial item hash from plan items
-      const itemData = JSON.stringify(
+      const itemHash = stableHash(
         planItems.map((pi) => ({
           item_type: pi.item_type as string,
           item_ref_id: pi.item_ref_id as string,
@@ -941,7 +931,6 @@ export class EnvelopeService {
           item_order: pi.item_order,
         })),
       );
-      const itemHash = createHash("sha256").update(itemData, "utf8").digest("hex");
 
       // 6. Insert envelope in draft status (F4: includes conflict_check_snapshot_hash)
       const envelopeId = genId("env");
@@ -1115,8 +1104,7 @@ export class EnvelopeService {
       try {
         const cityConfig = await this.getCityConfig(conn, cityCode);
         if (cityConfig) {
-          const configData = JSON.stringify(cityConfig);
-          cityConfigSnapshotHash = createHash("sha256").update(configData, "utf8").digest("hex");
+          cityConfigSnapshotHash = stableHash(cityConfig);
         }
       } catch {
         // city config snapshot optional
@@ -1151,7 +1139,7 @@ export class EnvelopeService {
             [...batchIds, cityCode],
           );
           // F3: Deterministic hash from batch statuses only (no envelope_id, no timestamp)
-          const cycleData = JSON.stringify(
+          settlementCycleSnapshotHash = stableHash(
             [...batchRows]
               .sort((a, b) => String(a.settlement_batch_id).localeCompare(String(b.settlement_batch_id)))
               .map((b) => ({
@@ -1159,9 +1147,6 @@ export class EnvelopeService {
                 status: b.status,
               })),
           );
-          settlementCycleSnapshotHash = createHash("sha256")
-            .update(cycleData, "utf8")
-            .digest("hex");
         } else {
           settlementCycleSnapshotHash =
             "0000000000000000000000000000000000000000000000000000000000000000";
@@ -1189,7 +1174,7 @@ export class EnvelopeService {
          WHERE envelope_id = ? AND city_code = ? ORDER BY item_order ASC`,
         [envelopeId, cityCode],
       );
-      const itemData = JSON.stringify(
+      const itemHash = stableHash(
         itemRows.map((i) => ({
           item_type: i.item_type,
           item_ref_id: i.item_ref_id,
@@ -1197,7 +1182,6 @@ export class EnvelopeService {
           item_order: i.item_order,
         })),
       );
-      const itemHash = createHash("sha256").update(itemData, "utf8").digest("hex");
 
       // 10. F4: Update envelope to frozen with WHERE status guard (immutability)
       const now = new Date();

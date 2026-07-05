@@ -10,6 +10,7 @@
   "references": [
     { "path": "../packages/types" },
     { "path": "../packages/config" },
-    { "path": "../packages/validators" }
+    { "path": "../packages/validators" },
+    { "path": "../packages/shared" }
   ]
 }

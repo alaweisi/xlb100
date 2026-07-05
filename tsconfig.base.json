@@ -22,7 +22,8 @@
       "@xlb/config": ["./packages/config/src/index.ts"],
       "@xlb/api-client": ["./packages/api-client/src/index.ts"],
       "@xlb/ui": ["./packages/ui/src/index.ts"],
-      "@xlb/module-loader": ["./packages/module-loader/src/index.ts"]
+      "@xlb/module-loader": ["./packages/module-loader/src/index.ts"],
+      "@shared/*": ["./packages/shared/*"]
     }
   }
 }

@@ -120,6 +120,9 @@ importers:
       '@xlb/config':
         specifier: workspace:*
         version: link:../packages/config
+      '@xlb/shared':
+        specifier: workspace:*
+        version: link:../packages/shared
       '@xlb/types':
         specifier: workspace:*
         version: link:../packages/types
@@ -164,6 +167,12 @@ importers:
       '@xlb/types':
         specifier: workspace:*
         version: link:../types
+    devDependencies:
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+
+  packages/shared:
     devDependencies:
       typescript:
         specifier: ^5.7.2

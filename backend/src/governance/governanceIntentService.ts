@@ -27,6 +27,8 @@ type IntentRow = RowDataPacket & {
 };
 
 function mapIntent(row: IntentRow): GovernanceIntentRecord {
+  const parseJson = <T>(value: string | T): T =>
+    typeof value === "string" ? (JSON.parse(value) as T) : value;
   return {
     id: row.id,
     cityCode: row.city_code,
@@ -37,9 +39,9 @@ function mapIntent(row: IntentRow): GovernanceIntentRecord {
     targetRef: row.target_ref,
     requestedByAdminId: row.requested_by_admin_id,
     requestedReason: row.requested_reason,
-    evidenceRefs: JSON.parse(row.evidence_refs_json),
-    riskFlags: JSON.parse(row.risk_flags_json),
-    phaseBoundary: JSON.parse(row.phase_boundary_json),
+    evidenceRefs: parseJson<string[]>(row.evidence_refs_json),
+    riskFlags: parseJson<string[]>(row.risk_flags_json),
+    phaseBoundary: parseJson<GovernanceIntentRecord["phaseBoundary"]>(row.phase_boundary_json),
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),
     cancelledAt: row.cancelled_at?.toISOString() ?? null,

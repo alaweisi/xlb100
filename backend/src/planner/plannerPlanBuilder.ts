@@ -1,9 +1,9 @@
-import { createHash } from "node:crypto";
 import type { RowDataPacket, Pool } from "mysql2/promise";
 import { randomBytes } from "node:crypto";
 import type { RequestContext } from "@xlb/types";
 import { assertCityScopedContext } from "../dal/scopedExecutor.js";
 import { getMysqlPool } from "../dal/mysqlPool.js";
+import { stableHash } from "@shared/deterministic/stableHash.js";
 
 // ── ID generation ────────────────────────────────────────────────────────────
 const genId = (prefix: string): string =>
@@ -24,6 +24,9 @@ type PlanItemRow = RowDataPacket & {
   planned_action: string | null; item_order: number | null;
   created_at: Date;
 };
+
+const parseJson = <T>(value: string | T): T =>
+  typeof value === "string" ? (JSON.parse(value) as T) : value;
 
 interface PlanItemInsert {
   id: string; city_code: string; plan_id: string;
@@ -64,7 +67,7 @@ const mapPlan = (r: PlanRow): DryRunPlan => ({
   id: r.id, cityCode: r.city_code, readinessPacketId: r.readiness_packet_id,
   governanceIntentId: r.governance_intent_id, governanceReviewId: r.governance_review_id,
   planStatus: r.plan_status, planHash: r.plan_hash,
-  sourceRefs: JSON.parse(r.source_refs_json) as string[],
+  sourceRefs: parseJson<string[]>(r.source_refs_json),
   createdByAdminId: r.created_by_admin_id, traceId: r.trace_id,
   createdAt: r.created_at.toISOString(), updatedAt: r.updated_at.toISOString(),
 });
@@ -88,8 +91,11 @@ export function computePlanHash(
   cityCode: string,
   itemRefs: string[],
 ): string {
-  const payload = `${packetId}\n${cityCode}\n${[...itemRefs].sort().join("\n")}`;
-  return createHash("sha256").update(payload, "utf8").digest("hex");
+  return stableHash({
+    packet_id: packetId,
+    city_code: cityCode,
+    item_refs: [...itemRefs].sort((a, b) => a.localeCompare(b)),
+  });
 }
 
 // ── Plan builder ─────────────────────────────────────────────────────────────
@@ -322,9 +328,9 @@ export class PlannerPlanBuilder {
       }
 
       // 2. Verify sourceRefs present
-      const sourceRefs: string[] = JSON.parse(
-        (packet.source_refs_json as string) || "[]",
-      );
+      const sourceRefs: string[] = packet.source_refs_json
+        ? parseJson<string[]>(packet.source_refs_json as string | string[])
+        : [];
       if (!sourceRefs || sourceRefs.length === 0) {
         throw new Error(`Readiness packet ${packetId} has no sourceRefs`);
       }

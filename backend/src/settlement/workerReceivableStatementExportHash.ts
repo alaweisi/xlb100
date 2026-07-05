@@ -1,8 +1,8 @@
-import { createHash } from "node:crypto";
 import type {
   WorkerReceivableStatementExportFormat,
   WorkerReceivableStatementExportPayloadVersion,
 } from "@xlb/types";
+import { stableHash } from "@shared/deterministic/stableHash.js";
 
 export function computeWorkerReceivableStatementExportContentHash(input: {
   statementId: string;
@@ -14,7 +14,7 @@ export function computeWorkerReceivableStatementExportContentHash(input: {
   workerReceivableAmount: number;
   itemCount: number;
 }): string {
-  const canonical = JSON.stringify({
+  return stableHash({
     statementId: input.statementId,
     reviewId: input.reviewId,
     exportFormat: input.exportFormat,
@@ -24,5 +24,4 @@ export function computeWorkerReceivableStatementExportContentHash(input: {
     workerReceivableAmount: input.workerReceivableAmount,
     itemCount: input.itemCount,
   });
-  return createHash("sha256").update(canonical).digest("hex");
 }

@@ -19,6 +19,7 @@ import { calculateLedgerAccrual } from "./ledgerCalculator.js";
 import {
   ledgerRepository,
   LedgerRepository,
+  type LedgerSingleWriteKey,
 } from "./ledgerRepository.js";
 
 export class LedgerAccrualError extends Error {}
@@ -88,6 +89,33 @@ export class LedgerAccrualService {
         throw new LedgerAccrualError("ledger currency must be CNY");
       }
 
+      const sourceType = "fulfillment.completed" as const;
+      const singleWriteKeys: LedgerSingleWriteKey[] = [
+        { orderId: snapshot.orderId, feeType: "gross", sourceType },
+        { orderId: snapshot.orderId, feeType: "platform_fee", sourceType },
+        { orderId: snapshot.orderId, feeType: "worker_receivable", sourceType },
+      ];
+      for (const key of singleWriteKeys) {
+        const existingForOrderFee =
+          await this.repository.findAccrualBySingleWriteKey(
+            connection,
+            cityCode,
+            key,
+          );
+        if (existingForOrderFee) {
+          await this.outboxRepository.markEventPublished(
+            connection,
+            event.eventId,
+            cityCode,
+          );
+          return {
+            accrual: existingForOrderFee,
+            entries: [],
+            idempotent: true,
+          };
+        }
+      }
+
       const amounts = calculateLedgerAccrual(snapshot.grossAmount);
       const createdAt = new Date().toISOString();
       const customerAccountId = await this.repository.ensureAccount(
@@ -127,7 +155,7 @@ export class LedgerAccrualService {
 
       const entryBase = {
         cityCode,
-        sourceType: "fulfillment.completed" as const,
+        sourceType,
         sourceId: snapshot.fulfillmentId,
         currency: "CNY" as const,
         createdAt,

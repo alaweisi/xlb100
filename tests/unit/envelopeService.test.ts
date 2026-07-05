@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { XLB_HEADERS } from "@xlb/types";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -6,6 +5,7 @@ import {
   PreparationError,
   envelopeService,
 } from "../../backend/src/preparation/envelopeService.js";
+import { stableHash } from "@shared/deterministic/stableHash.js";
 import { buildApp } from "../../backend/src/app.js";
 
 // ══════════════════════════════════════════════════════════════════
@@ -107,26 +107,22 @@ function setupNoExistingEnvelope(query: any, cityCode: string, packetId: string)
 }
 
 function sourcePacketHash(packet: Record<string, unknown>): string {
-  return createHash("sha256")
-    .update(JSON.stringify({
-      id: packet.id,
-      city_code: packet.city_code,
-      intent_id: packet.intent_id,
-      review_id: packet.review_id,
-      packet_status: packet.packet_status,
-      source_refs_json: packet.source_refs_json,
-    }), "utf8")
-    .digest("hex");
+  return stableHash({
+    id: packet.id,
+    city_code: packet.city_code,
+    intent_id: packet.intent_id,
+    review_id: packet.review_id,
+    packet_status: packet.packet_status,
+    source_refs_json: packet.source_refs_json,
+  });
 }
 
 function sourcePlanHash(plan: Record<string, unknown>): string {
-  return createHash("sha256")
-    .update(JSON.stringify({
-      id: plan.id,
-      plan_hash: plan.plan_hash,
-      plan_status: plan.plan_status,
-    }), "utf8")
-    .digest("hex");
+  return stableHash({
+    id: plan.id,
+    plan_hash: plan.plan_hash,
+    plan_status: plan.plan_status,
+  });
 }
 
 const basePacket = {
@@ -1143,16 +1139,5 @@ describe("EnvelopeService — internal helpers (F1-F4)", () => {
       ).rejects.toThrow(/no linked governance review/);
     });
 
-    it("freezeEnvelope and approveEnvelope are callable", () => {
-      expect(typeof service.freezeEnvelope).toBe("function");
-      expect(typeof service.approveEnvelope).toBe("function");
-    });
-
-    it("getEnvelope, listEnvelopes, getEnvelopeItems, getEnvelopeAudit are callable", () => {
-      expect(typeof service.getEnvelope).toBe("function");
-      expect(typeof service.listEnvelopes).toBe("function");
-      expect(typeof service.getEnvelopeItems).toBe("function");
-      expect(typeof service.getEnvelopeAudit).toBe("function");
-    });
   });
 });

@@ -42,6 +42,17 @@ type AccrualRow = RowDataPacket & {
   created_at: Date;
 };
 
+export type LedgerSingleWriteFeeType =
+  | "gross"
+  | "platform_fee"
+  | "worker_receivable";
+
+export type LedgerSingleWriteKey = {
+  orderId: string;
+  feeType: LedgerSingleWriteFeeType;
+  sourceType: "fulfillment.completed";
+};
+
 function mapAccrual(row: AccrualRow): LedgerAccrual {
   return {
     accrualId: row.accrual_id,
@@ -142,6 +153,28 @@ export class LedgerRepository extends RepositoryBase {
       `SELECT * FROM ledger_accruals
        WHERE city_code = ? AND source_event_id = ? LIMIT 1`,
       [cityCode, eventId],
+    );
+    return rows[0] ? mapAccrual(rows[0]) : null;
+  }
+
+  async findAccrualBySingleWriteKey(
+    connection: PoolConnection,
+    cityCode: CityCode,
+    key: LedgerSingleWriteKey,
+  ): Promise<LedgerAccrual | null> {
+    if (key.sourceType !== "fulfillment.completed") {
+      throw new Error(`unsupported ledger source_type: ${key.sourceType}`);
+    }
+    if (!["gross", "platform_fee", "worker_receivable"].includes(key.feeType)) {
+      throw new Error(`unsupported ledger fee_type: ${key.feeType}`);
+    }
+    const [rows] = await connection.query<AccrualRow[]>(
+      `SELECT *
+       FROM ledger_accruals
+       WHERE city_code = ?
+         AND order_id = ?
+       LIMIT 1 FOR UPDATE`,
+      [cityCode, key.orderId],
     );
     return rows[0] ? mapAccrual(rows[0]) : null;
   }

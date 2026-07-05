@@ -12,6 +12,7 @@ describe("ledgerAccrualService", () => {
   it("creates one accrual, three entries, and publishes the source event", async () => {
     const repo = {
       findAccrualByEvent: vi.fn().mockResolvedValue(null),
+      findAccrualBySingleWriteKey: vi.fn().mockResolvedValue(null),
       loadSnapshot: vi.fn().mockResolvedValue({ fulfillmentId: "ful-1", orderId: "ord-1", paymentOrderId: "pay-1", workerId: "worker-1", customerId: "customer-1", skuId: "sku-1", grossAmount: 89, currency: "CNY" }),
       ensureAccount: vi.fn().mockResolvedValueOnce("customer-account").mockResolvedValueOnce("platform-account").mockResolvedValueOnce("worker-account"),
       insertAccrual: vi.fn(), insertEntry: vi.fn(),

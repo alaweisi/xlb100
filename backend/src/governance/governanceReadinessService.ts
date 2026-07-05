@@ -4,7 +4,8 @@ import { getMysqlPool } from "../dal/mysqlPool.js"; import { assertCityScopedCon
 
 const genId = (): string => `rp_${Date.now().toString(36)}_${randomBytes(4).toString("hex")}`;
 type R = RowDataPacket & { id:string;city_code:string;intent_id:string;review_id:string|null;evidence_bundle_id:string|null;statement_id:string|null;packet_status:string;readiness_checks_json:string;blocker_flags_json:string;risk_flags_json:string;source_refs_json:string;dry_run_guard_json:string;execution_boundary_json:string;created_by_admin_id:string;created_at:Date;updated_at:Date;archived_at:Date|null };
-const map = (r:R): GovernanceReadinessPacketRecord => ({ id:r.id,cityCode:r.city_code,intentId:r.intent_id,reviewId:r.review_id,evidenceBundleId:r.evidence_bundle_id,statementId:r.statement_id,packetStatus:r.packet_status as GovernanceReadinessPacketRecord["packetStatus"],readinessChecks:JSON.parse(r.readiness_checks_json),blockerFlags:JSON.parse(r.blocker_flags_json),riskFlags:JSON.parse(r.risk_flags_json),sourceRefs:JSON.parse(r.source_refs_json),dryRunGuard:JSON.parse(r.dry_run_guard_json),executionBoundary:JSON.parse(r.execution_boundary_json),createdByAdminId:r.created_by_admin_id,createdAt:r.created_at.toISOString(),updatedAt:r.updated_at.toISOString(),archivedAt:r.archived_at?.toISOString()??null });
+const parseJson = <T>(value: string | T): T => typeof value === "string" ? JSON.parse(value) as T : value;
+const map = (r:R): GovernanceReadinessPacketRecord => ({ id:r.id,cityCode:r.city_code,intentId:r.intent_id,reviewId:r.review_id,evidenceBundleId:r.evidence_bundle_id,statementId:r.statement_id,packetStatus:r.packet_status as GovernanceReadinessPacketRecord["packetStatus"],readinessChecks:parseJson<Record<string, boolean>>(r.readiness_checks_json),blockerFlags:parseJson<string[]>(r.blocker_flags_json),riskFlags:parseJson<string[]>(r.risk_flags_json),sourceRefs:parseJson<string[]>(r.source_refs_json),dryRunGuard:parseJson<DryRunGuard>(r.dry_run_guard_json),executionBoundary:parseJson<ExecutionBoundary>(r.execution_boundary_json),createdByAdminId:r.created_by_admin_id,createdAt:r.created_at.toISOString(),updatedAt:r.updated_at.toISOString(),archivedAt:r.archived_at?.toISOString()??null });
 
 const defaultBoundary: ExecutionBoundary = { governanceOnly:true,executionEnabled:false,mutationEnabled:false,payoutEnabled:false,refundExecutionEnabled:false,ledgerMutationEnabled:false,settlementMutationEnabled:false,fileGenerationEnabled:false,downloadEnabled:false,providerDispatchEnabled:false };
 const defaultGuard: DryRunGuard = { dryRunMode:"governance_guard_only",executionSimulationEnabled:false,moneyMovementSimulationEnabled:false,providerSimulationEnabled:false,ledgerSimulationEnabled:false,refundSimulationEnabled:false,fileGenerationSimulationEnabled:false,guardReason:"Execution disabled — Phase 11 required",nextAllowedPhase:"Phase 11 readiness after Phase 10 lock" };
@@ -82,14 +83,14 @@ class GovernanceReadinessService { private pool=getMysqlPool();
     // collect from intent evidence_refs
     if(pkt.intentId){
       const [ir]=await this.pool.query<RowDataPacket[]>("SELECT evidence_refs_json FROM settlement_action_governance_intents WHERE id = ?",[pkt.intentId]);
-      if(ir.length>0&&ir[0].evidence_refs_json){ try{const parsed=JSON.parse(ir[0].evidence_refs_json);if(Array.isArray(parsed))sourceRefs.push(...parsed.filter((x:unknown):x is string=>typeof x==='string'));}catch{/* ignore parse failures */} }
+      if(ir.length>0&&ir[0].evidence_refs_json){ try{const parsed=parseJson<unknown[]>(ir[0].evidence_refs_json as string | unknown[]);if(Array.isArray(parsed))sourceRefs.push(...parsed.filter((x:unknown):x is string=>typeof x==='string'));}catch{/* ignore parse failures */} }
     }
     // collect from evidence bundle refs
     if(pkt.evidenceBundleId){
       const [eb]=await this.pool.query<RowDataPacket[]>("SELECT evidence_refs_json,review_history_refs_json,audit_trail_refs_json FROM settlement_action_governance_evidence_bundles WHERE id = ?",[pkt.evidenceBundleId]);
       if(eb.length>0){
         for(const col of['evidence_refs_json','review_history_refs_json','audit_trail_refs_json']){
-          if(eb[0][col]){ try{const parsed=JSON.parse(eb[0][col]);if(Array.isArray(parsed))sourceRefs.push(...parsed.filter((x:unknown):x is string=>typeof x==='string'));}catch{/* ignore */} }
+          if(eb[0][col]){ try{const parsed=parseJson<unknown[]>(eb[0][col] as string | unknown[]);if(Array.isArray(parsed))sourceRefs.push(...parsed.filter((x:unknown):x is string=>typeof x==='string'));}catch{/* ignore */} }
         }
       }
     }
