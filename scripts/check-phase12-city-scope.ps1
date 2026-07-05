@@ -4,10 +4,10 @@
 $ErrorActionPreference = "Stop"
 
 # ══════════════════════════════════════════════════════════════════
-# unsafe_fixtures — self-test: verify gate rejects SQL without city scope
+# unsafe_fixtures �?self-test: verify gate rejects SQL without city scope
 # ══════════════════════════════════════════════════════════════════
 $fixtureDir = Join-Path $env:TEMP "phase12-fixture-$([Guid]::NewGuid().ToString('N').Substring(0,8))"
-New-Item -ItemType Directory -Path $fixtureDir -Force | Out-Null
+New-Item -ItemType Directory -Path  -Force | Out-Null
 try {
   $fixtureFile = Join-Path $fixtureDir "no-city-scope.ts"
   "SELECT * FROM settlement_execution_preparation_envelopes WHERE id = 'env_1'" | Out-File -FilePath $fixtureFile -Encoding UTF8
@@ -31,7 +31,7 @@ try {
         $content -notmatch 'assertCityScopedContext' -and
         $content -notmatch 'buildCityScopedWhere' -and
         $content -notmatch 'getRequestContext') {
-      $fixtureViolations += "$fixtureFile: missing city scope"
+      $fixtureViolations += "$($fixtureFile): missing city scope"
     }
   }
 

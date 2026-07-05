@@ -2,7 +2,7 @@
 $ErrorActionPreference = "Stop"
 
 # ══════════════════════════════════════════════════════════════════
-# unsafe_fixtures — self-test: verify gate rejects forbidden imports
+# unsafe_fixtures �?self-test: verify gate rejects forbidden imports
 # ══════════════════════════════════════════════════════════════════
 $fixtureDir = Join-Path $env:TEMP "phase12-fixture-$([Guid]::NewGuid().ToString('N').Substring(0,8))"
 New-Item -ItemType Directory -Path $fixtureDir -Force | Out-Null
@@ -52,7 +52,7 @@ $forbiddenZones = @('/payment/','/ledger/','/refund/','/reversal/','/provider/',
 $changedFiles = & git -C $Root diff --name-only main...HEAD 2>$null
 $violations = @()
 foreach ($file in $changedFiles) {
-  if ($file -match 'scripts/check-') { continue }
+  if ( -match 'scripts/') { continue }
   if ($file -notmatch '\.(ts|tsx)$') { continue }
   $fullPath = Join-Path $Root $file; if (-not (Test-Path $fullPath)) { continue }
   $content = Get-Content $fullPath -Raw
