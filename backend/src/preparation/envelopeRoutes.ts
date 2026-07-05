@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { createRequestContextMiddleware, getRequestContext } from "../context/requestContextMiddleware.js";
 import { requireGovernanceAdmin } from "../governance/governanceGuard.js";
-import { envelopeService } from "./envelopeService.js";
+import { envelopeService, PreparationError } from "./envelopeService.js";
 
 const preHandler = [
   createRequestContextMiddleware({ requireCityCode: true }),
@@ -23,6 +23,9 @@ export async function registerPreparationRoutes(app: FastifyInstance): Promise<v
         const envelope = await envelopeService.createEnvelope(ctx, body.sourcePacketId);
         return { ok: true, envelope };
       } catch (e) {
+        if (e instanceof PreparationError) {
+          return reply.status(e.statusCode).send({ ok: false, error: e.message });
+        }
         return reply.status(500).send({ ok: false, error: String(e) });
       }
     },
@@ -38,6 +41,9 @@ export async function registerPreparationRoutes(app: FastifyInstance): Promise<v
         const envelope = await envelopeService.freezeEnvelope(ctx, request.params.envelopeId);
         return { ok: true, envelope };
       } catch (e) {
+        if (e instanceof PreparationError) {
+          return reply.status(e.statusCode).send({ ok: false, error: e.message });
+        }
         return reply.status(500).send({ ok: false, error: String(e) });
       }
     },
@@ -53,6 +59,9 @@ export async function registerPreparationRoutes(app: FastifyInstance): Promise<v
         const envelope = await envelopeService.approveEnvelope(ctx, request.params.envelopeId);
         return { ok: true, envelope };
       } catch (e) {
+        if (e instanceof PreparationError) {
+          return reply.status(e.statusCode).send({ ok: false, error: e.message });
+        }
         return reply.status(500).send({ ok: false, error: String(e) });
       }
     },
@@ -69,6 +78,9 @@ export async function registerPreparationRoutes(app: FastifyInstance): Promise<v
         const envelopes = await envelopeService.listEnvelopes(ctx, q.sourcePacketId);
         return { ok: true, envelopes };
       } catch (e) {
+        if (e instanceof PreparationError) {
+          return reply.status(e.statusCode).send({ ok: false, error: e.message });
+        }
         return reply.status(500).send({ ok: false, error: String(e) });
       }
     },
@@ -87,6 +99,9 @@ export async function registerPreparationRoutes(app: FastifyInstance): Promise<v
         }
         return { ok: true, envelope };
       } catch (e) {
+        if (e instanceof PreparationError) {
+          return reply.status(e.statusCode).send({ ok: false, error: e.message });
+        }
         return reply.status(500).send({ ok: false, error: String(e) });
       }
     },
@@ -102,6 +117,9 @@ export async function registerPreparationRoutes(app: FastifyInstance): Promise<v
         const items = await envelopeService.getEnvelopeItems(ctx, request.params.envelopeId);
         return { ok: true, items };
       } catch (e) {
+        if (e instanceof PreparationError) {
+          return reply.status(e.statusCode).send({ ok: false, error: e.message });
+        }
         return reply.status(500).send({ ok: false, error: String(e) });
       }
     },
@@ -117,6 +135,9 @@ export async function registerPreparationRoutes(app: FastifyInstance): Promise<v
         const entries = await envelopeService.getEnvelopeAudit(ctx, request.params.envelopeId);
         return { ok: true, entries };
       } catch (e) {
+        if (e instanceof PreparationError) {
+          return reply.status(e.statusCode).send({ ok: false, error: e.message });
+        }
         return reply.status(500).send({ ok: false, error: String(e) });
       }
     },

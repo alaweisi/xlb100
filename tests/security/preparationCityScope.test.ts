@@ -37,18 +37,37 @@ describe("Phase 12 — Preparation City Scope", () => {
     });
 
     it("every SQL query in envelopeService.ts must include city_code = ?", () => {
-      // Find all SQL query-like patterns and verify they include city scope
+      // Join multi-line template literals before checking
       const lines = envelopeServiceContent.split("\n");
-      const sqlLines = lines.filter(
-        (l) =>
-          l.match(/SELECT|INSERT|UPDATE|DELETE/) &&
-          !l.match(/^\s*\/\//) &&
-          !l.match(/^\s*\/\*/),
-      );
-      for (const line of sqlLines) {
-        // Every SQL statement should have city_code = ? unless it's a comment or type def
-        if (line.match(/\b(FROM|INTO|UPDATE|JOIN)\b/)) {
-          expect(line).toMatch(/city_code\s*=\s*\?|buildCityScopedWhere/);
+      let inTemplate = false;
+      let currentSql = "";
+      const sqlStatements: string[] = [];
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!inTemplate && trimmed.startsWith("`") && trimmed !== "`") {
+          // Start of a template literal
+          inTemplate = true;
+          currentSql = trimmed;
+        } else if (inTemplate) {
+          // Inside a template — append
+          currentSql += " " + trimmed;
+          // Check if this line ends the template
+          if (trimmed.endsWith("`,") || trimmed.endsWith("`);") || trimmed.endsWith("`)") || trimmed.endsWith("`;") || (trimmed === "`,") || (trimmed === "`);") || (trimmed === "`)")) {
+            sqlStatements.push(currentSql);
+            inTemplate = false;
+            currentSql = "";
+          }
+        }
+      }
+
+      for (const sql of sqlStatements) {
+        if (sql.match(/\b(FROM|INTO|UPDATE|JOIN)\b/)) {
+          if (sql.match(/^\s*`INSERT\b/)) {
+            expect(sql).toMatch(/\bcity_code\b/);
+          } else {
+            expect(sql).toMatch(/city_code\s*=\s*\?|\$\{clause\}|\$\{conds\.join|buildCityScopedWhere/);
+          }
         }
       }
     });

@@ -1,5 +1,12 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
-import { EnvelopeService } from "../../backend/src/preparation/envelopeService.js";
+import { createHash } from "node:crypto";
+import { XLB_HEADERS } from "@xlb/types";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  EnvelopeService,
+  PreparationError,
+  envelopeService,
+} from "../../backend/src/preparation/envelopeService.js";
+import { buildApp } from "../../backend/src/app.js";
 
 // ══════════════════════════════════════════════════════════════════
 // Phase 12 — Envelope Service Unit Tests (vitest)
@@ -12,13 +19,26 @@ import { EnvelopeService } from "../../backend/src/preparation/envelopeService.j
 // ── Test helpers ──────────────────────────────────────────────────
 
 function mockPool(): any {
-  const query = vi.fn();
-  const getConnection = vi.fn().mockResolvedValue({ query, release: vi.fn() });
+  const query = vi.fn().mockResolvedValue([[]]);
+  const getConnection = vi.fn().mockResolvedValue({
+    query,
+    release: vi.fn(),
+    beginTransaction: vi.fn().mockResolvedValue(undefined),
+    commit: vi.fn().mockResolvedValue(undefined),
+    rollback: vi.fn().mockResolvedValue(undefined),
+  });
   return { query, getConnection };
 }
 
-function ctx(cityCode = "hz", userId = "adm_1", traceId = "trc_1"): any {
-  return { cityCode, userId, traceId };
+function ctx(cityCode = "hangzhou", userId = "adm_1", traceId = "trc_1"): any {
+  return {
+    appType: "admin",
+    role: "operator",
+    cityCode,
+    userId,
+    traceId,
+    requestStartedAt: "2026-07-05T00:00:00.000Z",
+  };
 }
 
 /**
@@ -44,6 +64,14 @@ function setupReadinessPacket(query: any, cityCode: string, packetId: string) {
     return [[], []];
   });
 
+  // Mock: verifiedReviewApproved
+  query.mockImplementationOnce((sql: string, params: any[]) => {
+    if (sql.includes("settlement_action_governance_reviews")) {
+      return [[{ review_status: "approved_for_governance" }]];
+    }
+    return [[], []];
+  });
+
   // Mock: findLinkedPlan
   query.mockImplementationOnce((sql: string, params: any[]) => {
     if (sql.includes("settlement_execution_dry_run_plans")) {
@@ -55,26 +83,6 @@ function setupReadinessPacket(query: any, cityCode: string, packetId: string) {
             city_code: cityCode,
             plan_status: "generated",
             plan_hash: "sha256planhash",
-          },
-        ],
-      ];
-    }
-    return [[], []];
-  });
-
-  // Mock: getPlanItems (for createEnvelope)
-  query.mockImplementationOnce((sql: string, params: any[]) => {
-    if (sql.includes("settlement_execution_dry_run_plan_items")) {
-      return [
-        [
-          {
-            id: "drpi_1",
-            plan_id: "drp_1",
-            city_code: cityCode,
-            item_type: "settlement_batch",
-            item_ref_id: "stb_1",
-            planned_action: "freeze",
-            item_order: 0,
           },
         ],
       ];
@@ -98,6 +106,81 @@ function setupNoExistingEnvelope(query: any, cityCode: string, packetId: string)
   });
 }
 
+function sourcePacketHash(packet: Record<string, unknown>): string {
+  return createHash("sha256")
+    .update(JSON.stringify({
+      id: packet.id,
+      city_code: packet.city_code,
+      intent_id: packet.intent_id,
+      review_id: packet.review_id,
+      packet_status: packet.packet_status,
+      source_refs_json: packet.source_refs_json,
+    }), "utf8")
+    .digest("hex");
+}
+
+function sourcePlanHash(plan: Record<string, unknown>): string {
+  return createHash("sha256")
+    .update(JSON.stringify({
+      id: plan.id,
+      plan_hash: plan.plan_hash,
+      plan_status: plan.plan_status,
+    }), "utf8")
+    .digest("hex");
+}
+
+const basePacket = {
+  id: "rp_1",
+  city_code: "hangzhou",
+  intent_id: "gi_1",
+  review_id: "gr_1",
+  packet_status: "ready_for_future_phase_review",
+  source_refs_json: "{}",
+};
+
+const basePlan = {
+  id: "drp_1",
+  readiness_packet_id: "rp_1",
+  city_code: "hangzhou",
+  plan_status: "generated",
+  plan_hash: "sha256planhash",
+};
+
+const adminHeaders = {
+  [XLB_HEADERS.appType]: "admin",
+  [XLB_HEADERS.role]: "operator",
+  [XLB_HEADERS.cityCode]: "hangzhou",
+  [XLB_HEADERS.userId]: "adm_1",
+  [XLB_HEADERS.traceId]: "trc_1",
+};
+
+function envelopeRow(status: string, overrides: Record<string, unknown> = {}) {
+  return {
+    id: "env_1",
+    city_code: "hangzhou",
+    source_packet_id: "rp_1",
+    source_plan_id: "drp_1",
+    envelope_status: status,
+    payload_hash: "p".repeat(64),
+    item_hash: "i".repeat(64),
+    source_packet_hash: sourcePacketHash(basePacket),
+    source_plan_hash: sourcePlanHash(basePlan),
+    amount_snapshot_json: "{}",
+    city_config_snapshot_hash: null,
+    settlement_cycle_snapshot_hash: null,
+    conflict_check_snapshot_hash: null,
+    conflict_check_snapshot_json: "{}",
+    frozen_by_admin_id: status === "draft" ? null : "adm_1",
+    approved_by_admin_id: status === "approved_for_phase13_review" ? "adm_1" : null,
+    trace_id: "trc_1",
+    created_at: new Date("2026-07-05T00:00:00.000Z"),
+    updated_at: new Date("2026-07-05T00:00:00.000Z"),
+    frozen_at: status === "draft" ? null : new Date("2026-07-05T00:00:00.000Z"),
+    approved_at: status === "approved_for_phase13_review" ? new Date("2026-07-05T00:00:00.000Z") : null,
+    ...overrides,
+  };
+}
+
 // ── Tests ─────────────────────────────────────────────────────────
 
 describe("EnvelopeService (production-connected)", () => {
@@ -107,6 +190,10 @@ describe("EnvelopeService (production-connected)", () => {
   beforeEach(() => {
     pool = mockPool();
     service = new EnvelopeService(pool);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   // ════════════════════════════════════════════════════════════════
@@ -122,39 +209,50 @@ describe("EnvelopeService (production-connected)", () => {
 
       await expect(
         service.createEnvelope(ctx(), "rp_nonexistent"),
-      ).rejects.toThrow(/not found/);
+      ).rejects.toMatchObject({ name: "PreparationError", statusCode: 404 });
     });
 
     it("rejects when plan status is not 'generated' (non-generated plan)", async () => {
-      // Mock: getReadinessPacket returns packet with wrong status
+      // Mock: getReadinessPacket returns ready packet
       pool.query.mockImplementationOnce(() => [
         [
           {
             id: "rp_1",
-            city_code: "hz",
+            city_code: "hangzhou",
             intent_id: "gi_1",
             review_id: "gr_1",
-            packet_status: "draft", // NOT ready_for_future_phase_review
+            packet_status: "ready_for_future_phase_review",
             source_refs_json: "{}",
+          },
+        ],
+      ]);
+      // Mock: verifiedReviewApproved
+      pool.query.mockImplementationOnce(() => [[{ review_status: "approved_for_governance" }]]);
+      // Mock: findLinkedPlan returns non-generated plan
+      pool.query.mockImplementationOnce(() => [
+        [
+          {
+            id: "drp_1",
+            readiness_packet_id: "rp_1",
+            city_code: "hangzhou",
+            plan_status: "draft",
+            plan_hash: "sha256planhash",
           },
         ],
       ]);
 
       await expect(
         service.createEnvelope(ctx(), "rp_1"),
-      ).rejects.toThrow(/expected.*ready_for_future_phase_review/);
+      ).rejects.toMatchObject({ name: "PreparationError", statusCode: 422 });
     });
 
     it("rejects when review status is not verified (review-status revalidation)", async () => {
-      // validateSourceReadiness → verifiedReviewApproved calls conn.query
-      // for governance_reviews with review_status = 'approved'
-
       // Mock: getReadinessPacket
       pool.query.mockImplementationOnce(() => [
         [
           {
             id: "rp_1",
-            city_code: "hz",
+            city_code: "hangzhou",
             intent_id: "gi_1",
             review_id: "gr_1",
             packet_status: "ready_for_future_phase_review",
@@ -163,16 +261,16 @@ describe("EnvelopeService (production-connected)", () => {
         ],
       ]);
 
-      // Mock: findLinkedPlan - returns empty (no plan linked)
-      pool.query.mockImplementationOnce(() => [[]]);
+      // Mock: verifiedReviewApproved - non-approved review blocks before plan lookup
+      pool.query.mockImplementationOnce(() => [[{ review_status: "pending_review" }]]);
 
       await expect(
         service.createEnvelope(ctx(), "rp_1"),
-      ).rejects.toThrow();
+      ).rejects.toMatchObject({ name: "PreparationError", statusCode: 422 });
     });
 
     it("rejects on hash mismatch with existing envelope", async () => {
-      setupReadinessPacket(pool.query, "hz", "rp_1");
+      setupReadinessPacket(pool.query, "hangzhou", "rp_1");
 
       // Mock: checkExistingEnvelope returns existing with mismatched hash
       pool.query.mockImplementationOnce((sql: string, params: any[]) => {
@@ -184,7 +282,7 @@ describe("EnvelopeService (production-connected)", () => {
             [
               {
                 id: "env_existing",
-                city_code: "hz",
+                city_code: "hangzhou",
                 source_packet_id: "rp_1",
                 source_plan_id: "drp_1",
                 envelope_status: "draft",
@@ -212,12 +310,27 @@ describe("EnvelopeService (production-connected)", () => {
 
       await expect(
         service.createEnvelope(ctx(), "rp_1"),
-      ).rejects.toThrow(/hash.*mismatch|has changed/);
+      ).rejects.toMatchObject({ name: "PreparationError", statusCode: 409 });
     });
 
     it("successfully creates envelope with valid plan", async () => {
-      setupReadinessPacket(pool.query, "hz", "rp_1");
-      setupNoExistingEnvelope(pool.query, "hz", "rp_1");
+      setupReadinessPacket(pool.query, "hangzhou", "rp_1");
+      setupNoExistingEnvelope(pool.query, "hangzhou", "rp_1");
+
+      // Mock: getPlanItems (for createEnvelope)
+      pool.query.mockImplementationOnce(() => [
+        [
+          {
+            id: "drpi_1",
+            plan_id: "drp_1",
+            city_code: "hangzhou",
+            item_type: "settlement_batch",
+            item_ref_id: "stb_1",
+            planned_action: "freeze",
+            item_order: 0,
+          },
+        ],
+      ]);
 
       // Mock: INSERT (createEnvelope)
       pool.query.mockImplementationOnce(() => [{ affectedRows: 1 }]);
@@ -233,17 +346,18 @@ describe("EnvelopeService (production-connected)", () => {
         [
           {
             id: "env_new",
-            city_code: "hz",
+            city_code: "hangzhou",
             source_packet_id: "rp_1",
             source_plan_id: "drp_1",
             envelope_status: "draft",
-            payload_hash: /^[a-f0-9]+$/,
-            item_hash: /^[a-f0-9]+$/,
-            source_packet_hash: /^[a-f0-9]+$/,
-            source_plan_hash: /^[a-f0-9]+$/,
+            payload_hash: "a".repeat(64),
+            item_hash: "b".repeat(64),
+            source_packet_hash: "c".repeat(64),
+            source_plan_hash: "d".repeat(64),
             amount_snapshot_json: "{}",
             city_config_snapshot_hash: null,
             settlement_cycle_snapshot_hash: null,
+            conflict_check_snapshot_hash: null,
             conflict_check_snapshot_json: "{}",
             frozen_by_admin_id: null,
             approved_by_admin_id: null,
@@ -256,13 +370,11 @@ describe("EnvelopeService (production-connected)", () => {
         ],
       ]);
 
-      // Since createEnvelope uses withTransaction which tries to get a connection
-      // and BEGIN/COMMIT, the real transaction wrapper may fail. We verify the
-      // class constructs and the validateSourceReadiness chain works.
-      // For this test, we just verify the class is importable and constructable.
+      const envelope = await service.createEnvelope(ctx(), "rp_1");
 
-      expect(service).toBeDefined();
-      expect(service).toBeInstanceOf(EnvelopeService);
+      expect(envelope.id).toBe("env_new");
+      expect(envelope.envelopeStatus).toBe("draft");
+      expect(pool.getConnection).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -271,17 +383,106 @@ describe("EnvelopeService (production-connected)", () => {
   // ════════════════════════════════════════════════════════════════
 
   describe("freezeEnvelope", () => {
-    it("amount snapshot must fail-closed when no settlement items found", async () => {
-      // Verify the method exists
-      expect(typeof service.freezeEnvelope).toBe("function");
+    it("real freeze success path stores amount snapshot without double-counting", async () => {
+      const frozenRow = envelopeRow("frozen", {
+        amount_snapshot_json: JSON.stringify({
+          total_gross_amount: 500,
+          total_platform_fee: 50,
+          total_worker_receivable: 450,
+          total_item_count: 1,
+        }),
+        frozen_at: new Date("2026-07-05T01:00:00.000Z"),
+      });
+
+      pool.query
+        .mockImplementationOnce(() => [[envelopeRow("draft")]])
+        .mockImplementationOnce(() => [[basePacket]])
+        .mockImplementationOnce(() => [[{ review_status: "approved_for_governance" }]])
+        .mockImplementationOnce(() => [[basePlan]])
+        .mockImplementationOnce(() => [[
+          { item_type: "settlement_batch", item_ref_id: "sb_1", planned_action: "freeze", item_order: 0 },
+          { item_type: "ledger_accrual", item_ref_id: "la_1", planned_action: "freeze", item_order: 1 },
+        ]])
+        .mockImplementationOnce(() => [[{
+          settlement_batch_id: "sb_1",
+          total_gross_amount: 500,
+          total_platform_fee: 50,
+          total_worker_receivable: 450,
+          item_count: 1,
+          status: "prepared",
+        }]])
+        .mockImplementationOnce(() => [[{
+          settlement_item_id: "si_1",
+          accrual_id: "la_1",
+          gross_amount: 500,
+          platform_fee: 50,
+          worker_receivable: 450,
+          currency: "CNY",
+          status: "prepared",
+        }]])
+        .mockImplementationOnce(() => [[{
+          accrual_id: "la_1",
+          gross_amount: 500,
+          platform_fee: 50,
+          worker_receivable: 450,
+          currency: "CNY",
+          status: "accrued",
+        }]])
+        .mockImplementationOnce(() => [[]]) // city config optional
+        .mockImplementationOnce(() => [[{ settlement_batch_id: "sb_1", status: "prepared" }]])
+        .mockImplementationOnce(() => [[]]) // cancelled batches
+        .mockImplementationOnce(() => [[]]) // voided accruals
+        .mockImplementationOnce(() => [[]]) // duplicate envelopes
+        .mockImplementationOnce(() => [[{
+          item_type: "settlement_batch",
+          item_ref_id: "sb_1",
+          planned_action: "freeze",
+          item_order: 0,
+        }]])
+        .mockImplementationOnce(() => [{ affectedRows: 1 }])
+        .mockImplementationOnce(() => [{ affectedRows: 1 }])
+        .mockImplementationOnce(() => [[frozenRow]]);
+
+      const result = await service.freezeEnvelope(ctx(), "env_1");
+
+      expect(result.envelopeStatus).toBe("frozen");
+      expect(result.amountSnapshot.total_gross_amount).toBe(500);
+      expect(result.amountSnapshot.total_worker_receivable).toBe(450);
+      expect(result.amountSnapshot.total_item_count).toBe(1);
     });
 
-    it("rejects freeze when envelope not in draft status", async () => {
-      expect(typeof service.freezeEnvelope).toBe("function");
+    it("real freeze missing envelope returns PreparationError 404", async () => {
+      await expect(
+        service.freezeEnvelope(ctx(), "env_nonexistent_xyz"),
+      ).rejects.toMatchObject({ name: "PreparationError", statusCode: 404 });
     });
 
-    it("re-freezes same envelope idempotently when hashes match", async () => {
-      expect(typeof service.freezeEnvelope).toBe("function");
+    it("real freeze stale source hash conflict returns PreparationError 409", async () => {
+      pool.query.mockImplementationOnce(() => [[
+        envelopeRow("draft", { source_packet_hash: "stale_packet_hash" }),
+      ]]);
+      pool.query.mockImplementationOnce(() => [[basePacket]]);
+      pool.query.mockImplementationOnce(() => [[{ review_status: "approved_for_governance" }]]);
+      pool.query.mockImplementationOnce(() => [[basePlan]]);
+
+      await expect(
+        service.freezeEnvelope(ctx(), "env_1"),
+      ).rejects.toMatchObject({ name: "PreparationError", statusCode: 409 });
+    });
+
+    it("real freeze amount snapshot fail-closed returns PreparationError 422", async () => {
+      pool.query.mockImplementationOnce(() => [[envelopeRow("draft")]]);
+      pool.query.mockImplementationOnce(() => [[basePacket]]);
+      pool.query.mockImplementationOnce(() => [[{ review_status: "approved_for_governance" }]]);
+      pool.query.mockImplementationOnce(() => [[basePlan]]);
+      pool.query.mockImplementationOnce(() => [[
+        { item_type: "settlement_item", item_ref_id: "missing_si_1", planned_action: "freeze", item_order: 0 },
+      ]]);
+      pool.query.mockImplementationOnce(() => [[]]);
+
+      await expect(
+        service.freezeEnvelope(ctx(), "env_1"),
+      ).rejects.toMatchObject({ name: "PreparationError", statusCode: 422 });
     });
   });
 
@@ -290,22 +491,52 @@ describe("EnvelopeService (production-connected)", () => {
   // ════════════════════════════════════════════════════════════════
 
   describe("approveEnvelope", () => {
-    it("rejects cross-city access via city scope guard", async () => {
-      // Cross-city: ctx has "hz" but query should be scoped
-      const crossCtx = ctx("shanghai");
-      expect(crossCtx.cityCode).not.toBe("hz");
+    it("real approve success path transitions frozen to approved_for_phase13_review", async () => {
+      pool.query.mockImplementationOnce(() => [[envelopeRow("frozen")]]);
+      pool.query.mockImplementationOnce(() => [[basePacket]]);
+      pool.query.mockImplementationOnce(() => [[{ review_status: "approved_for_governance" }]]);
+      pool.query.mockImplementationOnce(() => [[basePlan]]);
+      pool.query.mockImplementationOnce(() => [{ affectedRows: 1 }]);
+      pool.query.mockImplementationOnce(() => [{ affectedRows: 1 }]);
+      pool.query.mockImplementationOnce(() => [[envelopeRow("approved_for_phase13_review")]]);
 
-      // The service should reject cross-city access because
-      // assertCityScopedContext validates cityCode
-      expect(typeof service.approveEnvelope).toBe("function");
+      const result = await service.approveEnvelope(ctx(), "env_1");
+
+      expect(result.envelopeStatus).toBe("approved_for_phase13_review");
+      expect(result.approvedByAdminId).toBe("adm_1");
+      expect(result.approvedAt).not.toBeNull();
     });
 
-    it("rejects approve when not in frozen status (approved cannot regress)", async () => {
-      expect(typeof service.approveEnvelope).toBe("function");
+    it("real approve missing envelope returns PreparationError 404", async () => {
+      await expect(
+        service.approveEnvelope(ctx(), "env_nonexistent_xyz"),
+      ).rejects.toMatchObject({ name: "PreparationError", statusCode: 404 });
     });
 
-    it("approved cannot regress — approve must transition from frozen only", async () => {
-      expect(typeof service.approveEnvelope).toBe("function");
+    it("approved envelope cannot regress to frozen through approve path", async () => {
+      pool.query.mockImplementationOnce(() => [[envelopeRow("approved_for_phase13_review")]]);
+
+      await expect(
+        service.approveEnvelope(ctx(), "env_1"),
+      ).rejects.toMatchObject({ name: "PreparationError", statusCode: 422 });
+    });
+
+    it("approveEnvelope gate: validateSourceReadiness computes deterministic hashes", async () => {
+      pool.query.mockImplementationOnce(() => [[{
+        id: "rp_1", city_code: "hangzhou", intent_id: "gi_1",
+        review_id: "gr_1", packet_status: "ready_for_future_phase_review",
+        source_refs_json: "{}",
+      }]]);
+      pool.query.mockImplementationOnce(() => [[{ review_status: "approved_for_governance" }]]);
+      pool.query.mockImplementationOnce(() => [[{
+        id: "drp_1", readiness_packet_id: "rp_1", city_code: "hangzhou",
+        plan_status: "generated", plan_hash: "abc123",
+      }]]);
+
+      const result = await (service as any).validateSourceReadiness(pool, "hangzhou", "rp_1");
+      expect(result).toHaveProperty("sourcePacketHash");
+      expect(result).toHaveProperty("sourcePlanHash");
+      expect(typeof result.sourcePacketHash).toBe("string");
     });
   });
 
@@ -356,12 +587,12 @@ describe("EnvelopeService (production-connected)", () => {
       const mod = await import(
         "../../backend/src/preparation/envelopeService.js"
       );
-      const hash1 = mod.computePayloadHash("rp_1", "hz", "planHash", [
+      const hash1 = mod.computePayloadHash("rp_1", "hangzhou", "planHash", [
         "a",
         "b",
         "c",
       ]);
-      const hash2 = mod.computePayloadHash("rp_1", "hz", "planHash", [
+      const hash2 = mod.computePayloadHash("rp_1", "hangzhou", "planHash", [
         "a",
         "b",
         "c",
@@ -374,11 +605,11 @@ describe("EnvelopeService (production-connected)", () => {
       const mod = await import(
         "../../backend/src/preparation/envelopeService.js"
       );
-      const hash1 = mod.computePayloadHash("rp_1", "hz", "planHash1", [
+      const hash1 = mod.computePayloadHash("rp_1", "hangzhou", "planHash1", [
         "a",
         "b",
       ]);
-      const hash2 = mod.computePayloadHash("rp_1", "hz", "planHash2", [
+      const hash2 = mod.computePayloadHash("rp_1", "hangzhou", "planHash2", [
         "a",
         "b",
       ]);
@@ -389,11 +620,11 @@ describe("EnvelopeService (production-connected)", () => {
       const mod = await import(
         "../../backend/src/preparation/envelopeService.js"
       );
-      const hash1 = mod.computePayloadHash("rp_1", "hz", "planHash", [
+      const hash1 = mod.computePayloadHash("rp_1", "hangzhou", "planHash", [
         "a",
         "b",
       ]);
-      const hash2 = mod.computePayloadHash("rp_1", "hz", "planHash", [
+      const hash2 = mod.computePayloadHash("rp_1", "hangzhou", "planHash", [
         "a",
         "c",
       ]);
@@ -403,6 +634,65 @@ describe("EnvelopeService (production-connected)", () => {
 });
 
 // ══════════════════════════════════════════════════════════════════
+describe("Preparation routes — PreparationError maps to 4xx", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("maps stale/hash conflict to HTTP 409 instead of 500", async () => {
+    vi.spyOn(envelopeService, "freezeEnvelope").mockRejectedValueOnce(
+      new PreparationError("Source packet hash mismatch", 409),
+    );
+    const app = await buildApp();
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/internal/settlement-action-governance/preparation-envelopes/env_1/freeze",
+      headers: adminHeaders,
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ ok: false });
+    await app.close();
+  });
+
+  it("maps missing readiness source/not found to HTTP 404 instead of 500", async () => {
+    vi.spyOn(envelopeService, "createEnvelope").mockRejectedValueOnce(
+      new PreparationError("Readiness packet missing_rp not found", 404),
+    );
+    const app = await buildApp();
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/internal/settlement-action-governance/preparation-envelopes",
+      headers: adminHeaders,
+      payload: { sourcePacketId: "missing_rp" },
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ ok: false });
+    await app.close();
+  });
+
+  it("maps non-generated plan or non-approved review to HTTP 422 instead of 500", async () => {
+    vi.spyOn(envelopeService, "createEnvelope").mockRejectedValueOnce(
+      new PreparationError("Plan drp_1 status is 'draft', expected 'generated'", 422),
+    );
+    const app = await buildApp();
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/internal/settlement-action-governance/preparation-envelopes",
+      headers: adminHeaders,
+      payload: { sourcePacketId: "rp_1" },
+    });
+
+    expect(response.statusCode).toBe(422);
+    expect(response.json()).toMatchObject({ ok: false });
+    await app.close();
+  });
+});
+
 // Internal method tests: direct unit tests for F1-F4 logic
 // These bypass the transaction wrapper and test helper methods directly.
 // ══════════════════════════════════════════════════════════════════
@@ -416,6 +706,10 @@ describe("EnvelopeService — internal helpers (F1-F4)", () => {
     service = new EnvelopeService(pool);
   });
 
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   describe("verifiedReviewApproved (F1)", () => {
     it("resolves when review_status is approved_for_governance", async () => {
       pool.query.mockImplementationOnce(() => [
@@ -426,7 +720,7 @@ describe("EnvelopeService — internal helpers (F1-F4)", () => {
         (service as any).verifiedReviewApproved(
           pool.query.bind(pool) ? { query: pool.query } : pool,
           "gr_1",
-          "hz",
+          "hangzhou",
         ),
       ).resolves.toBeUndefined();
     });
@@ -436,13 +730,16 @@ describe("EnvelopeService — internal helpers (F1-F4)", () => {
         [{ review_status: "rejected_for_governance" }],
       ]);
 
-      // We can't easily test with the real conn signature, but verify the pattern
-      expect(typeof (service as any).verifiedReviewApproved).toBe("function");
+      await expect(
+        (service as any).verifiedReviewApproved(pool, "gr_1", "hangzhou"),
+      ).rejects.toMatchObject({ name: "PreparationError", statusCode: 422 });
     });
 
     it("throws when review not found", async () => {
       pool.query.mockImplementationOnce(() => [[]]);
-      expect(typeof (service as any).verifiedReviewApproved).toBe("function");
+      await expect(
+        (service as any).verifiedReviewApproved(pool, "gr_1", "hangzhou"),
+      ).rejects.toMatchObject({ name: "PreparationError", statusCode: 404 });
     });
   });
 
@@ -451,7 +748,7 @@ describe("EnvelopeService — internal helpers (F1-F4)", () => {
       pool.query.mockImplementationOnce(() => [[]]);
 
       const result = await (service as any).checkExistingEnvelope(
-        pool, "hz", "rp_1", "hash1", "planhash1",
+        pool, "hangzhou", "rp_1", "hash1", "planhash1",
       );
       expect(result).toBeNull();
     });
@@ -461,7 +758,7 @@ describe("EnvelopeService — internal helpers (F1-F4)", () => {
         [
           {
             id: "env_1",
-            city_code: "hz",
+            city_code: "hangzhou",
             source_packet_id: "rp_1",
             source_plan_id: "drp_1",
             envelope_status: "draft",
@@ -487,7 +784,7 @@ describe("EnvelopeService — internal helpers (F1-F4)", () => {
 
       await expect(
         (service as any).checkExistingEnvelope(
-          pool, "hz", "rp_1", "fresh_hash", "fresh_plan_hash",
+          pool, "hangzhou", "rp_1", "fresh_hash", "fresh_plan_hash",
         ),
       ).rejects.toThrow(/source has changed/);
     });
@@ -496,7 +793,7 @@ describe("EnvelopeService — internal helpers (F1-F4)", () => {
   describe("buildAmountSnapshot (F2)", () => {
     it("throws when no relevant plan items", async () => {
       await expect(
-        (service as any).buildAmountSnapshot(pool, "hz", []),
+        (service as any).buildAmountSnapshot(pool, "hangzhou", []),
       ).rejects.toThrow(/no matching settlement items found/);
     });
 
@@ -507,7 +804,7 @@ describe("EnvelopeService — internal helpers (F1-F4)", () => {
       ];
 
       await expect(
-        (service as any).buildAmountSnapshot(pool, "hz", nonSettlementItems),
+        (service as any).buildAmountSnapshot(pool, "hangzhou", nonSettlementItems),
       ).rejects.toThrow(/no matching settlement items found/);
     });
 
@@ -534,6 +831,7 @@ describe("EnvelopeService — internal helpers (F1-F4)", () => {
         [
           {
             settlement_item_id: "si_1",
+            accrual_id: "la_1",
             gross_amount: 500,
             platform_fee: 50,
             worker_receivable: 450,
@@ -550,36 +848,207 @@ describe("EnvelopeService — internal helpers (F1-F4)", () => {
 
       const snapshot = await (service as any).buildAmountSnapshot(
         pool,
-        "hz",
+        "hangzhou",
         [payableItem],
       );
 
       expect(snapshot.total_gross_amount).toBeGreaterThan(0);
       expect(Array.isArray(snapshot.batch_amounts)).toBe(true);
     });
+
+    it("does not double-count ledger accruals already represented by settlement batch items", async () => {
+      pool.query.mockImplementationOnce(() => [[{
+        settlement_batch_id: "sb_1",
+        total_gross_amount: 500,
+        total_platform_fee: 50,
+        total_worker_receivable: 450,
+        item_count: 1,
+        status: "prepared",
+      }]]);
+      pool.query.mockImplementationOnce(() => [[{
+        settlement_item_id: "si_1",
+        accrual_id: "la_1",
+        gross_amount: 500,
+        platform_fee: 50,
+        worker_receivable: 450,
+        currency: "CNY",
+        status: "prepared",
+      }]]);
+      pool.query.mockImplementationOnce(() => [[{
+        accrual_id: "la_1",
+        gross_amount: 500,
+        platform_fee: 50,
+        worker_receivable: 450,
+        currency: "CNY",
+        status: "accrued",
+      }]]);
+
+      const snapshot = await (service as any).buildAmountSnapshot(pool, "hangzhou", [
+        { item_type: "settlement_batch", item_ref_id: "sb_1" },
+        { item_type: "ledger_accrual", item_ref_id: "la_1" },
+      ]);
+
+      expect(snapshot.total_gross_amount).toBe(500);
+      expect(snapshot.total_platform_fee).toBe(50);
+      expect(snapshot.total_worker_receivable).toBe(450);
+      expect(snapshot.total_item_count).toBe(1);
+      expect(snapshot.accrual_amounts[0].counted).toBe(false);
+    });
+
+    it("missing settlement_item reference blocks freeze amount snapshot", async () => {
+      pool.query.mockImplementationOnce(() => [[]]);
+
+      await expect(
+        (service as any).buildAmountSnapshot(pool, "hangzhou", [
+          { item_type: "settlement_item", item_ref_id: "missing_si" },
+        ]),
+      ).rejects.toMatchObject({ name: "PreparationError", statusCode: 422 });
+    });
+
+    it("missing ledger_accrual reference blocks freeze amount snapshot", async () => {
+      pool.query.mockImplementationOnce(() => [[]]);
+
+      await expect(
+        (service as any).buildAmountSnapshot(pool, "hangzhou", [
+          { item_type: "ledger_accrual", item_ref_id: "missing_la" },
+        ]),
+      ).rejects.toMatchObject({ name: "PreparationError", statusCode: 422 });
+    });
   });
 
   describe("buildConflictCheckSnapshot (F3)", () => {
-    it("returns deterministic hash for same inputs", async () => {
-      // For this test, we just verify the method exists and returns structured data
-      expect(typeof (service as any).buildConflictCheckSnapshot).toBe("function");
+    it("returns identical hash for same source state when DB rows arrive in different order", async () => {
+      const planItems = [
+        { item_type: "settlement_item", item_ref_id: "si_1" },
+        { item_type: "settlement_item", item_ref_id: "si_2" },
+      ];
+      const amountSnapshot = {
+        total_gross_amount: 300,
+        total_platform_fee: 30,
+        total_worker_receivable: 270,
+        total_item_count: 2,
+      };
+
+      pool.query
+        .mockImplementationOnce(() => [[
+          { settlement_item_id: "si_2", settlement_batch_id: "sb_2", accrual_id: "la_2" },
+          { settlement_item_id: "si_1", settlement_batch_id: "sb_1", accrual_id: "la_1" },
+        ]])
+        .mockImplementationOnce(() => [[]])
+        .mockImplementationOnce(() => [[]])
+        .mockImplementationOnce(() => [[]]);
+      const first = await (service as any).buildConflictCheckSnapshot(
+        pool,
+        "hangzhou",
+        "rp_1",
+        "env_a",
+        planItems,
+        amountSnapshot,
+        "city_hash",
+        "cycle_hash",
+      );
+
+      pool.query
+        .mockImplementationOnce(() => [[
+          { settlement_item_id: "si_1", settlement_batch_id: "sb_1", accrual_id: "la_1" },
+          { settlement_item_id: "si_2", settlement_batch_id: "sb_2", accrual_id: "la_2" },
+        ]])
+        .mockImplementationOnce(() => [[]])
+        .mockImplementationOnce(() => [[]])
+        .mockImplementationOnce(() => [[]]);
+      const second = await (service as any).buildConflictCheckSnapshot(
+        pool,
+        "hangzhou",
+        "rp_1",
+        "env_b",
+        planItems,
+        amountSnapshot,
+        "city_hash",
+        "cycle_hash",
+      );
+
+      expect(first.hash).toBe(second.hash);
+      expect(first.snapshot).not.toHaveProperty("conflict_check_at");
+      expect(JSON.stringify(first.snapshot)).not.toContain("env_a");
+      expect(JSON.stringify(second.snapshot)).not.toContain("env_b");
     });
 
     it("detects cancelled batches as blocking conflict", async () => {
-      // Verify the method signature
-      expect(typeof (service as any).buildConflictCheckSnapshot).toBe("function");
+      pool.query.mockImplementationOnce(() => [[{ settlement_batch_id: "sb_1", status: "cancelled" }]]);
+      pool.query.mockImplementationOnce(() => [[]]);
+      pool.query.mockImplementationOnce(() => [[]]);
+
+      await expect(
+        (service as any).buildConflictCheckSnapshot(
+          pool,
+          "hangzhou",
+          "rp_1",
+          "env_1",
+          [{ item_type: "settlement_batch", item_ref_id: "sb_1" }],
+          { total_gross_amount: 100, total_platform_fee: 10, total_worker_receivable: 90, total_item_count: 1 },
+          null,
+          null,
+        ),
+      ).rejects.toMatchObject({ name: "PreparationError", statusCode: 409 });
     });
 
     it("detects voided ledger accruals as blocking conflict", async () => {
-      expect(typeof (service as any).buildConflictCheckSnapshot).toBe("function");
+      pool.query.mockImplementationOnce(() => [[]]);
+      pool.query.mockImplementationOnce(() => [[{ accrual_id: "la_1", status: "voided" }]]);
+      pool.query.mockImplementationOnce(() => [[]]);
+
+      await expect(
+        (service as any).buildConflictCheckSnapshot(
+          pool,
+          "hangzhou",
+          "rp_1",
+          "env_1",
+          [{ item_type: "ledger_accrual", item_ref_id: "la_1" }],
+          { total_gross_amount: 100, total_platform_fee: 10, total_worker_receivable: 90, total_item_count: 1 },
+          null,
+          null,
+        ),
+      ).rejects.toMatchObject({ name: "PreparationError", statusCode: 409 });
     });
 
-    it("detects duplicate frozen/approved envelopes", async () => {
-      expect(typeof (service as any).buildConflictCheckSnapshot).toBe("function");
+    it("detects duplicate frozen/approved envelopes without hashing duplicate envelope IDs", async () => {
+      pool.query.mockImplementationOnce(() => [[]]);
+      pool.query.mockImplementationOnce(() => [[
+        { id: "env_other_2", envelope_status: "approved_for_phase13_review" },
+        { id: "env_other_1", envelope_status: "frozen" },
+      ]]);
+
+      await expect(
+        (service as any).buildConflictCheckSnapshot(
+          pool,
+          "hangzhou",
+          "rp_1",
+          "env_1",
+          [{ item_type: "settlement_batch", item_ref_id: "sb_1" }],
+          { total_gross_amount: 100, total_platform_fee: 10, total_worker_receivable: 90, total_item_count: 1 },
+          null,
+          null,
+        ),
+      ).rejects.toMatchObject({ name: "PreparationError", statusCode: 409 });
     });
 
-    it("marks refund/reversal as not_applicable when tables absent", async () => {
-      expect(typeof (service as any).buildConflictCheckSnapshot).toBe("function");
+    it("marks refund/reversal as not_applicable when tables are outside Phase 12", async () => {
+      pool.query.mockImplementationOnce(() => [[]]);
+      pool.query.mockImplementationOnce(() => [[]]);
+      pool.query.mockImplementationOnce(() => [[]]);
+
+      const result = await (service as any).buildConflictCheckSnapshot(
+        pool,
+        "hangzhou",
+        "rp_1",
+        "env_1",
+        [{ item_type: "ledger_accrual", item_ref_id: "la_1" }],
+        { total_gross_amount: 100, total_platform_fee: 10, total_worker_receivable: 90, total_item_count: 1 },
+        null,
+        null,
+      );
+
+      expect(result.snapshot.refund_reversal_check).toMatchObject({ status: "not_applicable" });
     });
   });
 
@@ -590,7 +1059,7 @@ describe("EnvelopeService — internal helpers (F1-F4)", () => {
         [
           {
             id: "rp_1",
-            city_code: "hz",
+            city_code: "hangzhou",
             intent_id: "gi_1",
             review_id: "gr_1",
             packet_status: "ready_for_future_phase_review",
@@ -608,7 +1077,7 @@ describe("EnvelopeService — internal helpers (F1-F4)", () => {
           {
             id: "drp_1",
             readiness_packet_id: "rp_1",
-            city_code: "hz",
+            city_code: "hangzhou",
             plan_status: "generated",
             plan_hash: "abc123",
           },
@@ -616,7 +1085,7 @@ describe("EnvelopeService — internal helpers (F1-F4)", () => {
       ]);
 
       const result1 = await (service as any).validateSourceReadiness(
-        pool, "hz", "rp_1",
+        pool, "hangzhou", "rp_1",
       );
 
       // Re-mock for second call
@@ -624,7 +1093,7 @@ describe("EnvelopeService — internal helpers (F1-F4)", () => {
         [
           {
             id: "rp_1",
-            city_code: "hz",
+            city_code: "hangzhou",
             intent_id: "gi_1",
             review_id: "gr_1",
             packet_status: "ready_for_future_phase_review",
@@ -640,7 +1109,7 @@ describe("EnvelopeService — internal helpers (F1-F4)", () => {
           {
             id: "drp_1",
             readiness_packet_id: "rp_1",
-            city_code: "hz",
+            city_code: "hangzhou",
             plan_status: "generated",
             plan_hash: "abc123",
           },
@@ -648,7 +1117,7 @@ describe("EnvelopeService — internal helpers (F1-F4)", () => {
       ]);
 
       const result2 = await (service as any).validateSourceReadiness(
-        pool, "hz", "rp_1",
+        pool, "hangzhou", "rp_1",
       );
 
       expect(result1.sourcePacketHash).toBe(result2.sourcePacketHash);
@@ -660,7 +1129,7 @@ describe("EnvelopeService — internal helpers (F1-F4)", () => {
         [
           {
             id: "rp_1",
-            city_code: "hz",
+            city_code: "hangzhou",
             intent_id: "gi_1",
             review_id: null, // missing
             packet_status: "ready_for_future_phase_review",
@@ -670,7 +1139,7 @@ describe("EnvelopeService — internal helpers (F1-F4)", () => {
       ]);
 
       await expect(
-        (service as any).validateSourceReadiness(pool, "hz", "rp_1"),
+        (service as any).validateSourceReadiness(pool, "hangzhou", "rp_1"),
       ).rejects.toThrow(/no linked governance review/);
     });
 

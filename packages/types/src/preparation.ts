@@ -3,6 +3,7 @@ import type { CityCode } from "./city.js";
 // ══════════════════════════════════════════════════════════════════
 // Phase 12 — Settlement Execution Preparation Control Envelope Types
 // Governance-only envelope. No execution fields anywhere.
+// Valid statuses ONLY: draft, frozen, approved_for_phase13_review
 // ══════════════════════════════════════════════════════════════════
 
 export type PreparationEnvelopeStatus =
@@ -14,44 +15,46 @@ export interface PreparationEnvelopeRecord {
   id: string;
   cityCode: CityCode;
   sourcePacketId: string;
-  intentId: string;
-  reviewId: string | null;
-  evidenceBundleId: string | null;
-  readinessPacketId: string | null;
+  sourcePlanId: string | null;
   envelopeStatus: PreparationEnvelopeStatus;
-  itemCount: number;
+  payloadHash: string;
+  itemHash: string | null;
+  sourcePacketHash: string | null;
+  sourcePlanHash: string | null;
+  amountSnapshot: Record<string, unknown>;
+  cityConfigSnapshotHash: string | null;
+  settlementCycleSnapshotHash: string | null;
   conflictCheckSnapshotHash: string | null;
-  frozenAt: string | null;
-  createdByAdminId: string;
+  conflictCheckSnapshot: Record<string, unknown>;
+  frozenByAdminId: string | null;
+  approvedByAdminId: string | null;
+  traceId: string | null;
   createdAt: string;
   updatedAt: string;
+  frozenAt: string | null;
+  approvedAt: string | null;
 }
 
 export interface PreparationItemRecord {
   id: string;
-  envelopeId: string;
   cityCode: CityCode;
-  settlementBatchId: string;
-  statementId: string | null;
-  workerId: string;
-  orderId: string;
-  amount: number;
-  currency: "CNY";
-  itemStatus: string;
+  envelopeId: string;
+  itemType: string;
+  itemRefId: string;
+  plannedAction: string | null;
+  itemOrder: number;
   createdAt: string;
 }
 
 export interface PreparationAuditEntry {
   id: string;
-  envelopeId: string;
   cityCode: CityCode;
+  envelopeId: string;
   eventType: string;
   eventTimestamp: string;
-  actorAdminId: string;
-  targetType: string;
-  targetId: string;
-  summary: string;
-  createdAt: string;
+  actorAdminId: string | null;
+  summary: string | null;
+  traceId: string | null;
 }
 
 export interface CreateEnvelopeRequest {
