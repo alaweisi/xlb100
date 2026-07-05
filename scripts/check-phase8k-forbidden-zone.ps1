@@ -1,7 +1,7 @@
 # Phase 8K gate: no forbidden terms in git diff
 $ErrorActionPreference = "Stop"; $Root = Split-Path -Parent $PSScriptRoot
 $forbiddenPatterns = @('\bpayout\b','\bpaid_settlement\b','\bwithdraw\b','\brefund\b','\baftersale\b','\bnotification\b','\bpayment_instruction\b')
-$allowedPathPattern = 'settlementActionIntent|governance|PHASE10|PHASE11|planner|025_settlement_execution_dry_run|governancePlanner|RC_INSPECTION|CONTRACT_SETTLEMENT'
+$allowedPathPattern = 'settlementActionIntent|governance|PHASE10|planner|025_settlement_execution_dry_run|governancePlanner|RC_INSPECTION|CONTRACT_SETTLEMENT'
 $diff = & git -C $Root diff main...HEAD -- backend/src/ packages/ 2>$null
 if ($LASTEXITCODE -ne 0) { Write-Host "FAILED - git diff"; exit 1 }
 $violations = @(); $lines = $diff -split "`n"; $currentFile = ""
