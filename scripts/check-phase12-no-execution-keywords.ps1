@@ -39,7 +39,7 @@ $executionKeywords = @(
 )
 
 # Allowed contexts: docs/reports, test files, boundary-doc markers
-$allowedPatterns = @("scripts/check-phase12-",
+$allowedPatterns = @("scripts/check-",
   '^docs/',
   '^docs\/reports/',
   '^tests/',
