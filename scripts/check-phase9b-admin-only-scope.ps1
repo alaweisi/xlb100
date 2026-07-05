@@ -1,18 +1,6 @@
-$ErrorActionPreference = "Stop"; $Root = Split-Path -Parent $PSScriptRoot
-$diff = & git -C $Root diff --name-only main...HEAD 2>$null
-# Phase 10 governance files are legitimate Phase 10 additions; Phase 9A/9B admin pages allowed
-$vs = $diff | Where-Object { 
-  $_ -notmatch 'backend/src/governance/|planner/' -and
-  $_ -notmatch 'packages/(types|validators|api-client)/' -and
-  $_ -notmatch 'docs/(contracts|reports)/' -and
-  $_ -notmatch 'db/migrations/02[0-3]_settlement_action_governance|025_settlement_execution_dry_run' -and
-  $_ -notmatch 'apps/admin/src/pages/Settlement' -and
-  $_ -ne 'apps/admin/src/app/App.tsx' -and $_ -ne 'apps/admin/src/hashParams.ts' -and $_ -ne 'apps/admin/vite.config.ts' -and
-  $_ -notmatch 'tests/unit/(governance|settlementAction|planner)' -and
-  $_ -notmatch 'tests/(security|contract|unit)/.*(phase10Governance|planner)' -and
-  $_ -ne 'tests/unit/settlementActionGovernancePage.test.tsx' -and
-  $_ -ne 'backend/src/app.ts' -and $_ -ne 'packages/api-client/src/index.ts' -and
-  $_ -notmatch '^scripts/'
-}
+$ErrorActionPreference = "Stop"; $Root = Split-Path -Parent $PSScriptRoot; $diff = & git -C $Root diff --name-only main...HEAD 2>$null
+# Phase 10+11 governance/planner scope allowed
+$pg = @('backend/src/governance/','backend/src/planner/','packages/(types|validators|api-client)/','db/migrations/02[0-5]_settlement','apps/admin/src/(pages/Settlement|app/|hashParams)','docs/(contracts|reports)/','tests/','scripts/')
+$vs = $diff | ForEach-Object { $m = $false; foreach($p in $pg) { if ($_ -match $p) { $m = $true; break } }; if (-not $m) { $_ } }
 if ($vs) { Write-Host "check-phase9b-admin-only-scope: FAILED"; $vs | ForEach-Object { Write-Host "  $_" }; exit 1 }
-Write-Host "check-phase9b-admin-only-scope: passed (Phase 10 governance scope â€?admin-only, governance-only)"
+Write-Host "check-phase9b-admin-only-scope: passed (Phase 10+11 governance/planner scope allowed)"
