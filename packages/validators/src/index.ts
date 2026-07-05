@@ -231,3 +231,14 @@ export {
   type PhaseBoundaryInput,
   type SettlementActionIntentInput,
 } from "./settlementActionIntentSchema.js";
+export {
+  governanceIntentPhaseBoundarySchema,
+  governanceIntentRecordSchema,
+  createGovernanceIntentRequestSchema,
+  governanceIntentResponseSchema,
+  governanceIntentListResponseSchema,
+  governanceIntentListQuerySchema,
+  type GovernanceIntentPhaseBoundaryInput,
+  type GovernanceIntentRecordInput,
+  type CreateGovernanceIntentRequestInput,
+} from "./governanceIntentSchema.js";

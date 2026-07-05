@@ -128,3 +128,11 @@ export type {
   PhaseBoundary,
   SettlementActionIntent,
 } from "./settlementActionIntent.js";
+export type {
+  GovernanceIntentPhaseBoundary,
+  GovernanceIntentRecord,
+  CreateGovernanceIntentRequest,
+  GovernanceIntentResponse,
+  GovernanceIntentListResponse,
+  GovernanceIntentListQuery,
+} from "./governanceIntent.js";
