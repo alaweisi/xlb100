@@ -2,14 +2,27 @@
 
 **Project**: E:\xlb100
 **Branch**: phase10-settlement-action-governance-release-train
-**Base**: main@3e90f2b1bbfb4c7d7a08371e902fe8b3f8cbaa86
-**Head**: 8da9432
+**Stable base**: main@3e90f2b1bbfb4c7d7a08371e902fe8b3f8cbaa86
+**Functional RC HEAD**: cb0ae5969f65e5ec9ab99dc5d6a7f63f469f2716
+**Docs-only repair HEAD**: bb633bc5dc7be6d0cff6be936a2bef51ac922dd4
 
-## Objective
-Verify Phase 10A-10F completed governance-only settlement action governance:
-- No payout / payment execution / settlement mutation
-- No ledger mutation / refund/reversal execution
-- No export generation/download / no Phase 11 execution
+## What changed after functional RC
+
+After functional RC HEAD cb0ae59, only `docs/reports/` files were modified:
+- PHASE10D_IMPLEMENTATION_REPORT.md â€?unstubbed
+- PHASE10E_IMPLEMENTATION_REPORT.md â€?unstubbed
+- PHASE10F_IMPLEMENTATION_REPORT.md â€?unstubbed
+- PHASE10G_FINAL_HARDENING_REPORT.md â€?updated with Claude 4th inspection results
+- PHASE10_RC_INSPECTION_PACK.md â€?this file
+- PHASE10_RC_REPAIR_R2_REPORT.md â€?created
+- PHASE10_RC_REPAIR_R3_REPORT.md â€?created
+- PHASE10_RC_REPAIR_R4_DOCS_ONLY_REPORT.md â€?created
+
+No functional code, scripts, tests, backend, db, packages, admin, customer, or worker files were touched.
+
+## Inspection Objective
+
+Verify Phase 10A-10F completed governance-only settlement action governance, with no payout, no payment execution, no settlement mutation, no ledger mutation, no refund/reversal execution, no export/download generation, no Phase 11 execution. And verify reports are no longer stubbed.
 
 ## Required Checks
 
@@ -22,41 +35,37 @@ git status --short
 # 2. No lock tag
 git tag --points-at HEAD
 
-# 3. Scope audit
-git diff --name-only 3e90f2b...HEAD -- apps/customer apps/worker package.json pnpm-lock.yaml pnpm-workspace.yaml
+# 3. Scope audit (must be empty)
+git diff --name-only 3e90f2b1bbfb4c7d7a08371e902fe8b3f8cbaa86...HEAD -- apps/customer apps/worker package.json pnpm-lock.yaml pnpm-workspace.yaml
 
-# 4. Full diff
-git diff --name-only 3e90f2b...HEAD
+# 4. Docs-only diff from functional RC (must be docs/reports only)
+git diff --name-only cb0ae59...HEAD
 
-# 5. Typecheck
-npx -y pnpm@9.15.0 typecheck
+# 5. Stale report check (must return 0 self-reference/stub matches)
+rg -n "See PHASE10D_IMPLEMENTATION_REPORT|See PHASE10E_IMPLEMENTATION_REPORT|See PHASE10F_IMPLEMENTATION_REPORT|self-reference|stub" docs/reports
 
-# 6. Phase 9 + Phase 10A-F tests
-npx -y pnpm@9.15.0 test -- tests/unit/settlementOpsPage.test.tsx tests/unit/settlementStatementDetailPage.test.tsx tests/unit/settlementExportReviewPage.test.tsx tests/unit/settlementCrossLinkNavigation.test.tsx tests/unit/settlementQueryFilterPagination.test.tsx tests/unit/settlementActionGovernancePage.test.tsx tests/unit/settlementActionIntentSchema.test.ts tests/unit/governanceIntentSchema.test.ts tests/unit/governanceReviewSchema.test.ts tests/unit/governanceEvidenceSchema.test.ts tests/unit/governanceReadinessSchema.test.ts
-
-# 7. Preflight
-npx -y pnpm@9.15.0 preflight
-
-# 8. Forbidden execution keywords audit
-rg -n "execute_payout|pay_now|provider_withdrawal|execute_refund|reverse_ledger|generate_export|download_url|payout_batch_id|ledger_mutation_id|refund_execution_id|paid_at|executed_at" backend/db/packages/apps/admin/tests/docs --include="*.ts" --include="*.tsx" --include="*.sql" --include="*.md"
-
-# 9. Governance routes audit
-rg "registerGovernance" backend/src/app.ts
-
-# 10. DB migrations audit
-ls db/migrations/020*.sql db/migrations/021*.sql db/migrations/022*.sql db/migrations/023*.sql
+# 6. Optional sanity gates
+pnpm typecheck
+pnpm preflight
 ```
 
-## Expected PASS Criteria
-- 236/236 tests (71 Phase 9 + 165 Phase 10)
-- Typecheck 14/14
-- Preflight ALL PHASES PASSED
-- Zero customer/worker/dependency changes
-- Zero execution endpoints
-- All governance-only routes
+## Gate Evidence (Claude 4th Inspection at cb0ae59)
+
+| Gate | Result |
+|------|--------|
+| pnpm typecheck | 14/14 PASS |
+| npx vitest run | 244/244 files, 847/848 tests, 1 todo, PASS |
+| pnpm preflight | PASS exit 0, all phases + individual gates |
+| Phase 8Câ€?H UI gate security tests | 37/37 PASS |
+| Forbidden execution audit | PASS |
+| customer/worker/dependency scope | CLEAN |
 
 ## Verdict Format
 - PASS / FAIL
 - blocking findings
 - non-blocking findings
 - Phase 10 Lock may proceed: Yes/No
+
+## Inspector Constraints
+- Inspector must NOT repair/commit/tag/LOCK
+- Lock only after final inspection PASS
