@@ -57,6 +57,7 @@ export const envelopeRecordSchema = z.object({
   amountSnapshot: z.record(z.unknown()),
   cityConfigSnapshotHash: z.string().max(128).nullable().default(null),
   settlementCycleSnapshotHash: z.string().max(128).nullable().default(null),
+  conflictCheckSnapshotHash: z.string().max(128).nullable().default(null),
   conflictCheckSnapshot: z.record(z.unknown()),
   frozenAt: z.string().min(1).nullable().default(null),
   approvedAt: z.string().min(1).nullable().default(null),

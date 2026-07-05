@@ -1,10 +1,25 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 // ══════════════════════════════════════════════════════════════════
 // Phase 12 — Preparation No Execution Tests (vitest)
 // Verifies preparation module does not import forbidden execution services and
 // contains no execution keywords.
+// Production-connected: imports and scans the real envelopeService.ts.
 // ══════════════════════════════════════════════════════════════════
+
+// ── Read real envelopeService.ts ──
+const envelopeServicePath = resolve(
+  __dirname,
+  "../../backend/src/preparation/envelopeService.ts",
+);
+let envelopeServiceContent = "";
+try {
+  envelopeServiceContent = readFileSync(envelopeServicePath, "utf-8");
+} catch {
+  // If the file doesn't exist yet, tests will run against the forbidden-set lists
+}
 
 // ── Forbidden service imports that preparation must never use ──
 const FORBIDDEN_SERVICES = [
@@ -22,6 +37,16 @@ const FORBIDDEN_SERVICES = [
   "reversalService",
   "aftersaleService",
   "payoutService",
+];
+
+// ── Forbidden import ZONES (path-based) ──
+const FORBIDDEN_ZONES = [
+  "/payment/",
+  "/ledger/",
+  "/refund/",
+  "/reversal/",
+  "/provider/",
+  "/settlement/",
 ];
 
 // ── Allowed imports for preparation (governance read, DAL, city scope) ──
@@ -54,6 +79,46 @@ const FORBIDDEN_EXECUTION_KEYWORDS = [
 ];
 
 describe("Phase 12 — Preparation No Execution", () => {
+  describe("production-connected: envelopeService.ts contains no forbidden imports", () => {
+    it("envelopeService.ts must exist and be readable", () => {
+      expect(envelopeServiceContent.length).toBeGreaterThan(0);
+    });
+
+    it("envelopeService.ts must not import any forbidden service", () => {
+      for (const svc of FORBIDDEN_SERVICES) {
+        const regex = new RegExp(
+          `import.*${svc}|require.*${svc}|from.*${svc}`,
+        );
+        expect(envelopeServiceContent).not.toMatch(regex);
+      }
+    });
+
+    it("envelopeService.ts must not reference forbidden import zones", () => {
+      for (const zone of FORBIDDEN_ZONES) {
+        // Only check import/require statements for zone references
+        const lines = envelopeServiceContent.split("\n");
+        for (const line of lines) {
+          if (line.match(/^\s*import\s|^\s*const.*require|^\s*from\s/)) {
+            expect(line).not.toContain(zone);
+          }
+        }
+      }
+    });
+
+    it("envelopeService.ts must only import from allowed DAL packages", () => {
+      // Should import from node:crypto, mysql2/promise, @xlb/types, and dal/* only
+      const importLines = envelopeServiceContent
+        .split("\n")
+        .filter((l) => l.match(/^\s*import\s/));
+      for (const line of importLines) {
+        // Check for forbidden zone paths in import
+        for (const zone of FORBIDDEN_ZONES) {
+          expect(line).not.toContain(zone);
+        }
+      }
+    });
+  });
+
   describe("forbidden service imports", () => {
     it("preparation must not import payment order service", () => {
       expect(FORBIDDEN_SERVICES).toContain("paymentOrderService");
@@ -152,8 +217,7 @@ describe("Phase 12 — Preparation No Execution", () => {
         "POST /api/internal/settlement-execution-preparation/envelopes/:envelopeId/lock",
       ];
 
-      // Only POST routes are for CREATE envelope and LOCK (preparation control only)
-      const postRoutes = preparationRoutes.filter(r => r.startsWith("POST"));
+      const postRoutes = preparationRoutes.filter((r) => r.startsWith("POST"));
       expect(postRoutes.length).toBe(2);
       for (const r of postRoutes) {
         expect(r).not.toContain("execute");

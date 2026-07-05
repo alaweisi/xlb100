@@ -2,6 +2,54 @@
 # in ANY admin UI file. Phase 12 is preparation-only; no UI controls
 # for execution actions.
 $ErrorActionPreference = "Stop"
+
+# ══════════════════════════════════════════════════════════════════
+# unsafe_fixtures — self-test: verify gate rejects enabled execute button
+# ══════════════════════════════════════════════════════════════════
+$fixtureDir = Join-Path $env:TEMP "phase12-fixture-$([Guid]::NewGuid().ToString('N').Substring(0,8))"
+New-Item -ItemType Directory -Path $fixtureDir -Force | Out-Null
+try {
+  $fixtureFile = Join-Path $fixtureDir "bad-button.tsx"
+  '<Button onClick={handleExecute}>Execute</Button>' | Out-File -FilePath $fixtureFile -Encoding UTF8
+
+  $forbiddenButtonPatterns = @(
+    '<[Bb]utton\b[^>]*(?!\bdisabled\b)[^>]*>\s*(Execute|Payout|Refund|Reverse|Commit|Download|Export|Withdraw|Pay|Approve)\s*</[Bb]utton>',
+    '<[Bb]utton\b[^>]*(?!\bdisabled\b)[^>]*title\s*=\s*["''"'"'](Execute|Payout|Refund|Reverse|Commit|Download|Export|Withdraw|Pay|Approve)',
+    'onClick\s*=\s*\{[^}]*\b(execute|payout|refund|reverse|commit|download|export|withdraw|payNow|pay_now|approveForExecution)\b',
+    '<Button\b[^>]*(?!\bdisabled\b)[^>]*\b(execute|payout|refund|reverse|download|commit)\b'
+  )
+
+  $fixtureViolations = @()
+  $content = Get-Content $fixtureFile -Raw
+  $lineNum = 0
+  $lines = $content -split "`n"
+  foreach ($line in $lines) {
+    $lineNum++
+    $trimmed = $line.Trim()
+    if ($trimmed -match '^\s*(//|/\*|\*|\s*\*|--)') { continue }
+    foreach ($pat in $forbiddenButtonPatterns) {
+      if ($trimmed -match $pat) {
+        $fixtureViolations += "$($fixtureFile):$lineNum`: $trimmed"
+        break
+      }
+    }
+    if (($trimmed -match '<[Bb]utton\b' -or $trimmed -match '<Button\b') -and
+        $trimmed -notmatch '\bdisabled\b' -and
+        $trimmed -match '\b(execute|payout|refund|reverse|commit|download|export|approve|pay)\b') {
+      $fixtureViolations += "$($fixtureFile):$lineNum`: $trimmed"
+    }
+  }
+
+  if ($fixtureViolations.Count -eq 0) {
+    Write-Host "check-phase12-no-ui-execution-controls: SELF-TEST FAILED - fixture should have triggered violation"
+    exit 1
+  }
+  Write-Host "check-phase12-no-ui-execution-controls: self-test passed (fixture correctly rejected)"
+} finally {
+  Remove-Item -Recurse -Force $fixtureDir -ErrorAction SilentlyContinue
+}
+
+# ── Normal gate logic ─────────────────────────────────────────────
 $Root = Split-Path -Parent $PSScriptRoot
 
 $adminDir = Join-Path $Root "apps\admin"
@@ -11,7 +59,6 @@ if (-not (Test-Path $adminDir)) {
   exit 0
 }
 
-# Scan all admin UI source files (not hardcoded to one file)
 $uiFiles = Get-ChildItem -Path $adminDir -Include "*.tsx","*.ts","*.jsx","*.js" -Recurse -ErrorAction SilentlyContinue
 
 if (-not $uiFiles -or $uiFiles.Count -eq 0) {
@@ -19,15 +66,10 @@ if (-not $uiFiles -or $uiFiles.Count -eq 0) {
   exit 0
 }
 
-# Button patterns for execution actions (non-disabled)
 $forbiddenButtonPatterns = @(
-  # <button>Execute</button> or <Button>Execute</Button> without disabled
   '<[Bb]utton\b[^>]*(?!\bdisabled\b)[^>]*>\s*(Execute|Payout|Refund|Reverse|Commit|Download|Export|Withdraw|Pay|Approve)\s*</[Bb]utton>',
-  # Self-closing or fragment variants
-  '<[Bb]utton\b[^>]*(?!\bdisabled\b)[^>]*title\s*=\s*["''](Execute|Payout|Refund|Reverse|Commit|Download|Export|Withdraw|Pay|Approve)',
-  # onClick handlers with execution verbs
+  '<[Bb]utton\b[^>]*(?!\bdisabled\b)[^>]*title\s*=\s*["''"'"'](Execute|Payout|Refund|Reverse|Commit|Download|Export|Withdraw|Pay|Approve)',
   'onClick\s*=\s*\{[^}]*\b(execute|payout|refund|reverse|commit|download|export|withdraw|payNow|pay_now|approveForExecution)\b',
-  # Ant Design Button with danger/success + execution
   '<Button\b[^>]*(?!\bdisabled\b)[^>]*\b(execute|payout|refund|reverse|download|commit)\b'
 )
 
@@ -54,7 +96,6 @@ foreach ($file in $uiFiles) {
   }
 }
 
-# Also check changed admin files specifically for execution-related text content
 $changedFiles = & git -C $Root diff --name-only main...HEAD 2>$null
 if ($LASTEXITCODE -eq 0) {
   foreach ($file in $changedFiles) {
@@ -65,7 +106,6 @@ if ($LASTEXITCODE -eq 0) {
     $content = Get-Content -Path $fullPath -Raw -ErrorAction SilentlyContinue
     if (-not $content) { continue }
 
-    # Check for action buttons with execution-related labels that aren't disabled
     $lineNum = 0
     $lines = $content -split "`n"
     foreach ($line in $lines) {
@@ -73,7 +113,6 @@ if ($LASTEXITCODE -eq 0) {
       $trimmed = $line.Trim()
       if ($trimmed -match '^\s*(//|/\*|\*|\s*\*|--)') { continue }
 
-      # Catch buttons with execution-related text
       if (($trimmed -match '<[Bb]utton\b' -or $trimmed -match '<Button\b') -and
           $trimmed -notmatch '\bdisabled\b' -and
           $trimmed -match '\b(execute|payout|refund|reverse|commit|download|export|approve|pay)\b') {

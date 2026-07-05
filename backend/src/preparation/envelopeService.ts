@@ -23,6 +23,7 @@ type EnvelopeRow = RowDataPacket & {
   amount_snapshot_json: string;
   city_config_snapshot_hash: string | null;
   settlement_cycle_snapshot_hash: string | null;
+  conflict_check_snapshot_hash: string | null;
   conflict_check_snapshot_json: string;
   frozen_by_admin_id: string | null;
   approved_by_admin_id: string | null;
@@ -69,6 +70,7 @@ export interface PreparationEnvelope {
   amountSnapshot: Record<string, unknown>;
   cityConfigSnapshotHash: string | null;
   settlementCycleSnapshotHash: string | null;
+  conflictCheckSnapshotHash: string | null;
   conflictCheckSnapshot: Record<string, unknown>;
   frozenByAdminId: string | null;
   approvedByAdminId: string | null;
@@ -115,6 +117,7 @@ const mapEnvelope = (r: EnvelopeRow): PreparationEnvelope => ({
   amountSnapshot: JSON.parse(r.amount_snapshot_json || "{}") as Record<string, unknown>,
   cityConfigSnapshotHash: r.city_config_snapshot_hash,
   settlementCycleSnapshotHash: r.settlement_cycle_snapshot_hash,
+  conflictCheckSnapshotHash: r.conflict_check_snapshot_hash,
   conflictCheckSnapshot: JSON.parse(r.conflict_check_snapshot_json || "{}") as Record<string, unknown>,
   frozenByAdminId: r.frozen_by_admin_id,
   approvedByAdminId: r.approved_by_admin_id,
@@ -182,7 +185,7 @@ function computeSourcePlanHash(plan: RowDataPacket): string | null {
 }
 
 // ── Envelope service ───────────────────────────────────────────────────────────
-class EnvelopeService {
+export class EnvelopeService {
   private pool: Pool;
 
   constructor(pool?: Pool) {
@@ -205,6 +208,32 @@ class EnvelopeService {
       [packetId, cityCode],
     );
     return rows.length === 0 ? null : rows[0];
+  }
+
+  /**
+   * F1: Verify that the linked governance review has review_status='approved_for_governance'.
+   * Read-time DB query — never cached.
+   */
+  private async verifiedReviewApproved(
+    conn: PoolConnection | Pool,
+    reviewId: string,
+    cityCode: string,
+  ): Promise<void> {
+    const [rows] = await conn.query<RowDataPacket[]>(
+      `SELECT review_status FROM settlement_action_governance_reviews
+       WHERE id = ? AND city_code = ?`,
+      [reviewId, cityCode],
+    );
+    if (rows.length === 0) {
+      throw new Error(
+        `Governance review ${reviewId} not found in city ${cityCode} — packet cannot be used for Phase 12 envelope`,
+      );
+    }
+    if (rows[0].review_status !== "approved_for_governance") {
+      throw new Error(
+        `Governance review ${reviewId} has status '${rows[0].review_status}', expected 'approved_for_governance'`,
+      );
+    }
   }
 
   /**
@@ -255,26 +284,20 @@ class EnvelopeService {
     return rows.length === 0 ? null : rows[0];
   }
 
-  /**
-   * Collect statement IDs from envelope items.
-   */
-  private async getStatementIdsFromItems(
-    conn: PoolConnection | Pool,
-    envelopeId: string,
-    cityCode: string,
-  ): Promise<string[]> {
-    const [rows] = await conn.query<RowDataPacket[]>(
-      `SELECT item_ref_id FROM settlement_execution_preparation_items
-       WHERE envelope_id = ? AND city_code = ? AND item_type = 'statement'`,
-      [envelopeId, cityCode],
-    );
-    return rows.map((r) => r.item_ref_id as string);
-  }
-
   // ── Source readiness validation (F1) ─────────────────────────────────────────
 
   /**
-   * Validate source readiness: load packet, find linked plan, verify status.
+   * F1: Validate source readiness.
+   *
+   * Checks:
+   *  1. Packet exists in city scope
+   *  2. Packet has review_id (governance review linked)
+   *  3. Read-time check: review_status = 'approved_for_governance'
+   *  4. Packet status = 'ready_for_future_phase_review'
+   *  5. Linked Phase 11 dry-run plan exists
+   *  6. Plan status = 'generated'
+   *  7. Compute deterministic hashes
+   *
    * Returns { plan, sourcePacketHash, sourcePlanHash } or throws.
    */
   private async validateSourceReadiness(
@@ -291,24 +314,38 @@ class EnvelopeService {
     if (!packet) {
       throw new Error(`Readiness packet ${sourcePacketId} not found in city ${cityCode}`);
     }
+
+    // 2. Verify packet has a review_id
+    if (!packet.review_id) {
+      throw new Error(
+        `Readiness packet ${sourcePacketId} has no linked governance review`,
+      );
+    }
+
+    // 3. Read-time verify review_status = 'approved_for_governance' (F1)
+    await this.verifiedReviewApproved(conn, packet.review_id as string, cityCode);
+
+    // 4. Check packet status
     if (packet.packet_status !== "ready_for_future_phase_review") {
       throw new Error(
         `Readiness packet ${sourcePacketId} status is '${packet.packet_status}', expected 'ready_for_future_phase_review'`,
       );
     }
 
-    // 2. Find linked Phase 11 dry-run plan
+    // 5. Find linked Phase 11 dry-run plan
     const plan = await this.findLinkedPlan(conn, cityCode, sourcePacketId);
     if (!plan) {
-      throw new Error(`no approved Phase 11 dry-run plan exists for this packet`);
+      throw new Error(`No approved Phase 11 dry-run plan exists for packet ${sourcePacketId}`);
     }
 
-    // 3. Verify plan_status='generated'
+    // 6. Verify plan_status = 'generated'
     if (plan.plan_status !== "generated") {
-      throw new Error(`plan is not in generated status`);
+      throw new Error(
+        `Plan ${plan.id} status is '${plan.plan_status}', expected 'generated'`,
+      );
     }
 
-    // 4. Compute hashes
+    // 7. Compute deterministic hashes
     const sourcePacketHash = computeSourcePacketHash(packet);
     const sourcePlanHash = computeSourcePlanHash(plan);
 
@@ -316,7 +353,11 @@ class EnvelopeService {
   }
 
   /**
-   * Check for existing envelope. If one exists and hashes mismatch → return stale.
+   * F1: Check for existing envelope for the same source_packet_id.
+   *
+   * If one exists and hashes match → return envelope (caller decides reuse).
+   * If one exists and hashes mismatch → REJECT with error (do NOT return stale_or_conflict).
+   * Never use stale_or_conflict as an envelope_status.
    */
   private async checkExistingEnvelope(
     conn: PoolConnection | Pool,
@@ -342,21 +383,447 @@ class EnvelopeService {
       envelope.sourcePacketHash !== sourcePacketHash ||
       envelope.sourcePlanHash !== sourcePlanHash
     ) {
-      // Hash mismatch: source changed → stale_or_conflict
-      return {
-        ...envelope,
-        envelopeStatus: "stale_or_conflict",
-      };
+      // F1: Hash mismatch → REJECT, do NOT return stale_or_conflict
+      throw new Error(
+        `Envelope ${envelope.id} already exists for source packet ${sourcePacketId} but source has changed — ` +
+        `packet hash current=${sourcePacketHash} stored=${envelope.sourcePacketHash}, ` +
+        `plan hash current=${sourcePlanHash} stored=${envelope.sourcePlanHash}. ` +
+        `Re-create the envelope to capture current source state.`,
+      );
     }
 
     return envelope;
   }
 
+  // ── F2: Amount snapshot helpers ───────────────────────────────────────────────
+
+  /**
+   * F2: Build amount snapshot from plan items.
+   *
+   * Phase 11 plan items use item_type: settlement_batch, settlement_payable,
+   * settlement_item, ledger_accrual (NOT "statement").
+   *
+   * Resolution:
+   *  - settlement_batch: query settlement_batches + settlement_items for amounts
+   *  - settlement_payable: join settlement_payables → settlement_items for amounts
+   *  - settlement_item: query settlement_items directly
+   *  - ledger_accrual: query ledger_accruals directly
+   *
+   * If no matching settlement items found → fail closed.
+   * Snapshot query errors must NOT be swallowed.
+   * Empty amount snapshots are NOT accepted.
+   */
+  private async buildAmountSnapshot(
+    conn: PoolConnection | Pool,
+    cityCode: string,
+    planItems: RowDataPacket[],
+  ): Promise<Record<string, unknown>> {
+    const queriedAt = new Date().toISOString();
+    const relevantTypes = new Set(["settlement_batch", "settlement_payable", "settlement_item", "ledger_accrual"]);
+    const relevantItems = planItems.filter((pi) => relevantTypes.has(pi.item_type as string));
+
+    if (relevantItems.length === 0) {
+      throw new Error(
+        "amount snapshot unavailable — no matching settlement items found: plan has no settlement_batch, settlement_payable, settlement_item, or ledger_accrual items",
+      );
+    }
+
+    const batchIds = new Set<string>();
+    const payableIds: string[] = [];
+    const itemIds: string[] = [];
+    const accrualIds: string[] = [];
+
+    for (const pi of relevantItems) {
+      const refId = pi.item_ref_id as string;
+      switch (pi.item_type) {
+        case "settlement_batch":
+          batchIds.add(refId);
+          break;
+        case "settlement_payable":
+          payableIds.push(refId);
+          break;
+        case "settlement_item":
+          itemIds.push(refId);
+          break;
+        case "ledger_accrual":
+          accrualIds.push(refId);
+          break;
+      }
+    }
+
+    // Resolve settlement_payable items: join to settlement_payables → get batch_id → collect batch
+    for (const pid of payableIds) {
+      const [pRows] = await conn.query<RowDataPacket[]>(
+        `SELECT settlement_batch_id FROM settlement_payables
+         WHERE settlement_payable_id = ? AND city_code = ?`,
+        [pid, cityCode],
+      );
+      if (pRows.length > 0 && pRows[0].settlement_batch_id) {
+        batchIds.add(pRows[0].settlement_batch_id as string);
+      }
+    }
+
+    // Collect amounts from settlement_items linked to resolved batches
+    const batchAmounts: Record<string, unknown>[] = [];
+    for (const bid of batchIds) {
+      const [bRows] = await conn.query<RowDataPacket[]>(
+        `SELECT settlement_batch_id, total_gross_amount, total_platform_fee,
+                total_worker_receivable, item_count, status
+         FROM settlement_batches
+         WHERE settlement_batch_id = ? AND city_code = ?`,
+        [bid, cityCode],
+      );
+      if (bRows.length === 0) continue;
+
+      const [sRows] = await conn.query<RowDataPacket[]>(
+        `SELECT settlement_item_id, gross_amount, platform_fee, worker_receivable,
+                currency, status
+         FROM settlement_items
+         WHERE settlement_batch_id = ? AND city_code = ?`,
+        [bid, cityCode],
+      );
+      batchAmounts.push({
+        batch_id: bid,
+        batch_summary: {
+          total_gross_amount: Number(bRows[0].total_gross_amount),
+          total_platform_fee: Number(bRows[0].total_platform_fee),
+          total_worker_receivable: Number(bRows[0].total_worker_receivable),
+          item_count: bRows[0].item_count,
+          status: bRows[0].status,
+        },
+        items: sRows.map((s) => ({
+          settlement_item_id: s.settlement_item_id,
+          gross_amount: Number(s.gross_amount),
+          platform_fee: Number(s.platform_fee),
+          worker_receivable: Number(s.worker_receivable),
+          currency: s.currency,
+          status: s.status,
+        })),
+      });
+    }
+
+    // Collect amounts from direct settlement_item references
+    if (itemIds.length > 0) {
+      const placeholders = itemIds.map(() => "?").join(", ");
+      const [siRows] = await conn.query<RowDataPacket[]>(
+        `SELECT settlement_item_id, gross_amount, platform_fee, worker_receivable,
+                currency, status, settlement_batch_id
+         FROM settlement_items
+         WHERE settlement_item_id IN (${placeholders}) AND city_code = ?`,
+        [...itemIds, cityCode],
+      );
+      if (siRows.length > 0) {
+        batchAmounts.push({
+          source: "direct_settlement_items",
+          items: siRows.map((s) => ({
+            settlement_item_id: s.settlement_item_id,
+            settlement_batch_id: s.settlement_batch_id,
+            gross_amount: Number(s.gross_amount),
+            platform_fee: Number(s.platform_fee),
+            worker_receivable: Number(s.worker_receivable),
+            currency: s.currency,
+            status: s.status,
+          })),
+        });
+      }
+    }
+
+    // Collect amounts from ledger_accrual references
+    const accrualAmounts: Record<string, unknown>[] = [];
+    if (accrualIds.length > 0) {
+      const placeholders = accrualIds.map(() => "?").join(", ");
+      const [laRows] = await conn.query<RowDataPacket[]>(
+        `SELECT accrual_id, gross_amount, platform_fee, worker_receivable,
+                currency, status
+         FROM ledger_accruals
+         WHERE accrual_id IN (${placeholders}) AND city_code = ?`,
+        [...accrualIds, cityCode],
+      );
+      for (const la of laRows) {
+        accrualAmounts.push({
+          accrual_id: la.accrual_id,
+          gross_amount: Number(la.gross_amount),
+          platform_fee: Number(la.platform_fee),
+          worker_receivable: Number(la.worker_receivable),
+          currency: la.currency,
+          status: la.status,
+        });
+      }
+    }
+
+    // F2: Fail closed if no settlement items were found
+    if (batchAmounts.length === 0 && itemIds.length === 0 && accrualAmounts.length === 0) {
+      throw new Error(
+        "amount snapshot unavailable — no matching settlement items found",
+      );
+    }
+
+    // Compute aggregate totals
+    let totalGrossAmount = 0;
+    let totalPlatformFee = 0;
+    let totalWorkerReceivable = 0;
+    let totalItemCount = 0;
+
+    for (const ba of batchAmounts) {
+      if (ba.batch_summary) {
+        const bs = ba.batch_summary as Record<string, unknown>;
+        totalGrossAmount += bs.total_gross_amount as number;
+        totalPlatformFee += bs.total_platform_fee as number;
+        totalWorkerReceivable += bs.total_worker_receivable as number;
+        totalItemCount += (bs.item_count as number) || 0;
+      }
+      if (Array.isArray(ba.items) && !ba.batch_summary) {
+        // Direct settlement_item refs — count items individually
+        totalItemCount += (ba.items as unknown[]).length;
+      }
+    }
+    for (const la of accrualAmounts) {
+      totalGrossAmount += la.gross_amount as number;
+      totalPlatformFee += la.platform_fee as number;
+      totalWorkerReceivable += la.worker_receivable as number;
+      totalItemCount += 1;
+    }
+
+    return {
+      total_gross_amount: totalGrossAmount,
+      total_platform_fee: totalPlatformFee,
+      total_worker_receivable: totalWorkerReceivable,
+      total_item_count: totalItemCount,
+      batch_amounts: batchAmounts,
+      accrual_amounts: accrualAmounts,
+      queried_at: queriedAt,
+    };
+  }
+
+  // ── F3: Conflict check helpers ────────────────────────────────────────────────
+
+  /**
+   * F3: Build source-scoped conflict check snapshot.
+   *
+   * All conflict checks are scoped to the envelope's linked source packet/plan
+   * items (by item_ref_id and city_code), NOT city-wide.
+   *
+   * Returns { conflictCheckSnapshot, conflictCheckSnapshotHash } or throws on blocking conflicts.
+   */
+  private async buildConflictCheckSnapshot(
+    conn: PoolConnection | Pool,
+    cityCode: string,
+    sourcePacketId: string,
+    envelopeId: string,
+    planItems: RowDataPacket[],
+    amountSnapshot: Record<string, unknown>,
+    cityConfigSnapshotHash: string | null,
+    settlementCycleSnapshotHash: string | null,
+  ): Promise<{ snapshot: Record<string, unknown>; hash: string }> {
+    const conflictCheckAt = new Date().toISOString();
+    const snapshot: Record<string, unknown> = {
+      conflict_check_at: conflictCheckAt,
+    };
+
+    // Collect batch IDs and accrual IDs from plan items
+    const batchIds: string[] = [];
+    const accrualIds: string[] = [];
+    const payableIds: string[] = [];
+
+    for (const pi of planItems) {
+      switch (pi.item_type) {
+        case "settlement_batch":
+          batchIds.push(pi.item_ref_id as string);
+          break;
+        case "ledger_accrual":
+          accrualIds.push(pi.item_ref_id as string);
+          break;
+        case "settlement_payable":
+          payableIds.push(pi.item_ref_id as string);
+          break;
+      }
+    }
+
+    // Resolve payable → batch
+    for (const pid of payableIds) {
+      const [pRows] = await conn.query<RowDataPacket[]>(
+        `SELECT settlement_batch_id FROM settlement_payables
+         WHERE settlement_payable_id = ? AND city_code = ?`,
+        [pid, cityCode],
+      );
+      if (pRows.length > 0 && pRows[0].settlement_batch_id) {
+        const bid = pRows[0].settlement_batch_id as string;
+        if (!batchIds.includes(bid)) {
+          batchIds.push(bid);
+        }
+      }
+    }
+
+    // ── 3a. Check for cancelled batches (source-scoped) ──
+    const cancelledBatchIds: string[] = [];
+    if (batchIds.length > 0) {
+      const placeholders = batchIds.map(() => "?").join(", ");
+      const [cancelledRows] = await conn.query<RowDataPacket[]>(
+        `SELECT settlement_batch_id, status FROM settlement_batches
+         WHERE settlement_batch_id IN (${placeholders}) AND city_code = ?
+           AND status = 'cancelled'`,
+        [...batchIds, cityCode],
+      );
+      for (const cr of cancelledRows) {
+        cancelledBatchIds.push(cr.settlement_batch_id as string);
+      }
+    }
+
+    snapshot.batch_cancelled_check = {
+      cancelled_batch_ids: cancelledBatchIds,
+      has_cancelled: cancelledBatchIds.length > 0,
+    };
+
+    if (cancelledBatchIds.length > 0) {
+      // F3: Record as blocking conflict
+      snapshot._blocking_conflicts = snapshot._blocking_conflicts || [];
+      (snapshot._blocking_conflicts as string[]).push(
+        `cancelled batches: ${cancelledBatchIds.join(", ")}`,
+      );
+    }
+
+    // ── 3b. Check for voided ledger accruals (source-scoped) ──
+    const voidedAccrualIds: string[] = [];
+    if (accrualIds.length > 0) {
+      const placeholders = accrualIds.map(() => "?").join(", ");
+      const [voidedRows] = await conn.query<RowDataPacket[]>(
+        `SELECT accrual_id, status FROM ledger_accruals
+         WHERE accrual_id IN (${placeholders}) AND city_code = ?
+           AND status = 'voided'`,
+        [...accrualIds, cityCode],
+      );
+      for (const vr of voidedRows) {
+        voidedAccrualIds.push(vr.accrual_id as string);
+      }
+    }
+
+    snapshot.ledger_voided_check = {
+      voided_accrual_ids: voidedAccrualIds,
+      has_voided: voidedAccrualIds.length > 0,
+    };
+
+    if (voidedAccrualIds.length > 0) {
+      snapshot._blocking_conflicts = snapshot._blocking_conflicts || [];
+      (snapshot._blocking_conflicts as string[]).push(
+        `voided ledger accruals: ${voidedAccrualIds.join(", ")}`,
+      );
+    }
+
+    // ── 3c. Duplicate envelope check ──
+    const { clause, params } = buildCityScopedWhere(cityCode, "city_code");
+    const [dupes] = await conn.query<RowDataPacket[]>(
+      `SELECT id, envelope_status FROM settlement_execution_preparation_envelopes
+       WHERE source_packet_id = ? AND ${clause} AND id <> ?
+         AND envelope_status IN ('frozen', 'approved_for_phase13_review')`,
+      [sourcePacketId, ...params, envelopeId],
+    );
+
+    snapshot.duplicate_check = {
+      duplicate_count: dupes.length,
+      duplicate_ids: dupes.map((d) => d.id),
+    };
+
+    if (dupes.length > 0) {
+      snapshot._blocking_conflicts = snapshot._blocking_conflicts || [];
+      (snapshot._blocking_conflicts as string[]).push(
+        `duplicate frozen/approved envelope for same source packet: ${dupes.map((d) => d.id).join(", ")}`,
+      );
+    }
+
+    // ── 3d. Amount drift check ──
+    try {
+      const [prevEnvs] = await conn.query<EnvelopeRow[]>(
+        `SELECT amount_snapshot_json FROM settlement_execution_preparation_envelopes
+         WHERE source_packet_id = ? AND ${clause} AND id <> ?
+         ORDER BY created_at DESC LIMIT 1`,
+        [sourcePacketId, ...params, envelopeId],
+      );
+      if (prevEnvs.length > 0) {
+        const prevSnapshot = JSON.parse(prevEnvs[0].amount_snapshot_json || "{}");
+        snapshot.amount_drift = {
+          previous_total_gross: prevSnapshot.total_gross_amount ?? null,
+          previous_total_worker_receivable: prevSnapshot.total_worker_receivable ?? null,
+          current_total_gross: amountSnapshot.total_gross_amount ?? null,
+          current_total_worker_receivable: amountSnapshot.total_worker_receivable ?? null,
+        };
+      } else {
+        snapshot.amount_drift = { note: "no previous envelope for comparison" };
+      }
+    } catch {
+      snapshot.amount_drift = { error: "drift_check_failed" };
+    }
+
+    // ── 3e. City config hash check ──
+    snapshot.city_config_check = {
+      current_hash: cityConfigSnapshotHash,
+      previous_hash: null as string | null,
+    };
+    try {
+      const [prevConfig] = await conn.query<EnvelopeRow[]>(
+        `SELECT city_config_snapshot_hash FROM settlement_execution_preparation_envelopes
+         WHERE source_packet_id = ? AND ${clause} AND id <> ? AND city_config_snapshot_hash IS NOT NULL
+         ORDER BY created_at DESC LIMIT 1`,
+        [sourcePacketId, ...params, envelopeId],
+      );
+      if (prevConfig.length > 0) {
+        (snapshot.city_config_check as Record<string, unknown>).previous_hash =
+          prevConfig[0].city_config_snapshot_hash;
+      }
+    } catch {
+      snapshot.city_config_check = { error: "config_check_failed" };
+    }
+
+    // ── 3f. Settlement cycle snapshot (already computed) ──
+    snapshot.settlement_cycle_check = {
+      snapshot_hash: settlementCycleSnapshotHash,
+    };
+
+    // ── 3g. Refund/reversal check ──
+    try {
+      await conn.query(`SELECT 1 FROM refund_requests LIMIT 0`);
+      // Tables exist — inspect pending/approved state scoped to source
+      const refSourceRefs: string[] = [...batchIds, ...accrualIds];
+      snapshot.refund_reversal_check = {
+        status: "available",
+        note: "refund/reversal tables present; source-scoped inspection not yet implemented in Phase 12",
+        scoped_source_count: refSourceRefs.length,
+      };
+    } catch {
+      snapshot.refund_reversal_check = {
+        status: "not_applicable",
+        reason: "refund/reversal schema not yet created in Phase 12",
+      };
+    }
+
+    // ── Compute deterministic conflict_check_snapshot_hash ──
+    const conflictCheckSnapshotHash = createHash("sha256")
+      .update(JSON.stringify(snapshot), "utf8")
+      .digest("hex");
+
+    // F3: If any blocking conflicts exist, reject freeze
+    if (
+      Array.isArray(snapshot._blocking_conflicts) &&
+      (snapshot._blocking_conflicts as string[]).length > 0
+    ) {
+      throw new Error(
+        `Freeze blocked by source-scoped conflicts: ${(snapshot._blocking_conflicts as string[]).join("; ")}`,
+      );
+    }
+
+    return { snapshot, hash: conflictCheckSnapshotHash };
+  }
+
   // ── Public methods ──────────────────────────────────────────────────────────
 
   /**
-   * Create an envelope from a readiness packet (F1, F4).
-   * Wrapped in a transaction: INSERT envelope → INSERT items → INSERT audit → commit.
+   * F1 + F4: Create an envelope from a readiness packet.
+   *
+   * - Calls verifiedReviewApproved() at read time (not cached)
+   * - Validates source readiness with all F1 checks
+   * - Existing envelope reuse: if hashes mismatch → REJECT
+   * - Stores conflict_check_snapshot_hash
+   * - Post-create readback includes city_code = ?
+   * - Wrapped in a transaction
    */
   async createEnvelope(
     ctx: RequestContext,
@@ -367,11 +834,11 @@ class EnvelopeService {
     const adminId = ctx.userId ?? null;
 
     return withTransaction(async (conn) => {
-      // 1. Validate source readiness
+      // 1. Validate source readiness (F1: includes verifiedReviewApproved call)
       const { plan, sourcePacketHash, sourcePlanHash } =
         await this.validateSourceReadiness(conn, cityCode, sourcePacketId);
 
-      // 2. Check for existing envelope; if hash mismatch → return stale
+      // 2. Check for existing envelope; if hash mismatch → REJECT (F1)
       const existing = await this.checkExistingEnvelope(
         conn,
         cityCode,
@@ -380,10 +847,7 @@ class EnvelopeService {
         sourcePlanHash,
       );
       if (existing) {
-        // If hash mismatch → stale; otherwise just return existing
-        if (existing.envelopeStatus === "stale_or_conflict") {
-          return existing;
-        }
+        // Hashes match → return existing envelope (idempotent)
         return existing;
       }
 
@@ -402,7 +866,18 @@ class EnvelopeService {
         itemRefs,
       );
 
-      // 5. Insert envelope in draft status
+      // 5. Compute initial item hash from plan items
+      const itemData = JSON.stringify(
+        planItems.map((pi) => ({
+          item_type: pi.item_type as string,
+          item_ref_id: pi.item_ref_id as string,
+          planned_action: pi.planned_action,
+          item_order: pi.item_order,
+        })),
+      );
+      const itemHash = createHash("sha256").update(itemData, "utf8").digest("hex");
+
+      // 6. Insert envelope in draft status (F4: includes conflict_check_snapshot_hash)
       const envelopeId = genId("env");
       const now = new Date();
       const sourcePlanId: string = plan.id as string;
@@ -410,18 +885,20 @@ class EnvelopeService {
       await conn.query(
         `INSERT INTO settlement_execution_preparation_envelopes
          (id, city_code, source_packet_id, source_plan_id, envelope_status,
-          payload_hash, source_packet_hash, source_plan_hash,
+          payload_hash, item_hash, source_packet_hash, source_plan_hash,
           amount_snapshot_json, city_config_snapshot_hash,
-          settlement_cycle_snapshot_hash, conflict_check_snapshot_json,
+          settlement_cycle_snapshot_hash, conflict_check_snapshot_hash,
+          conflict_check_snapshot_json,
           frozen_by_admin_id, approved_by_admin_id, trace_id,
           created_at, updated_at)
-         VALUES (?, ?, ?, ?, 'draft', ?, ?, ?, '{}', NULL, NULL, '{}', NULL, NULL, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, 'draft', ?, ?, ?, ?, '{}', NULL, NULL, NULL, '{}', NULL, NULL, ?, ?, ?)`,
         [
           envelopeId,
           cityCode,
           sourcePacketId,
           sourcePlanId,
           payloadHash,
+          itemHash,
           sourcePacketHash,
           sourcePlanHash,
           traceId,
@@ -430,7 +907,7 @@ class EnvelopeService {
         ],
       );
 
-      // 6. Populate items from plan items
+      // 7. Populate items from plan items
       for (const pi of planItems) {
         const itemId = genId("epi");
         await conn.query(
@@ -451,7 +928,7 @@ class EnvelopeService {
         );
       }
 
-      // 7. Write audit event (includes trace_id)
+      // 8. Write audit event
       const auditId = genId("epa");
       await conn.query(
         `INSERT INTO settlement_execution_preparation_audit
@@ -469,19 +946,30 @@ class EnvelopeService {
         ],
       );
 
-      // 8. Read back and return created envelope
+      // 9. F4: Read back with city_code = ?
+      const { clause, params } = buildCityScopedWhere(cityCode, "city_code");
       const [rows] = await conn.query<EnvelopeRow[]>(
-        `SELECT * FROM settlement_execution_preparation_envelopes WHERE id = ?`,
-        [envelopeId],
+        `SELECT * FROM settlement_execution_preparation_envelopes
+         WHERE id = ? AND ${clause}`,
+        [envelopeId, ...params],
       );
+      if (rows.length === 0) {
+        throw new Error(`Envelope ${envelopeId} readback failed in city ${cityCode}`);
+      }
       return mapEnvelope(rows[0]);
     });
   }
 
   /**
-   * Freeze an envelope (F1, F2, F3, F4).
-   * Wrapped in a transaction: SELECT envelope (verify draft) → UPDATE with WHERE status guard →
-   * INSERT audit → commit.
+   * F1-F4: Freeze an envelope.
+   *
+   * - F1: Revalidates review_status at read time
+   * - F1: Revalidates source immutability (no changes to plan since createEnvelope)
+   * - F2: Builds amount snapshot from settlement data (NOT statements)
+   * - F3: Source-scoped conflict checks with deterministic hash
+   * - F4: Stores conflict_check_snapshot_hash, records frozenByAdminId
+   * - F4: WHERE envelope_status='draft' guard
+   * - F4: Post-freeze readback includes city_code = ?
    */
   async freezeEnvelope(
     ctx: RequestContext,
@@ -494,7 +982,7 @@ class EnvelopeService {
     return withTransaction(async (conn) => {
       const { clause, params } = buildCityScopedWhere(cityCode, "city_code");
 
-      // 1. Load envelope
+      // 1. Load envelope with city scope
       const [rows] = await conn.query<EnvelopeRow[]>(
         `SELECT * FROM settlement_execution_preparation_envelopes
          WHERE id = ? AND ${clause}`,
@@ -512,61 +1000,46 @@ class EnvelopeService {
         );
       }
 
-      // 3. Revalidate source readiness (F1.6)
-      await this.validateSourceReadiness(
-        conn,
-        cityCode,
-        envelope.source_packet_id,
-      );
+      // 3. F1 + F4: Revalidate source readiness (read-time review_status check)
+      const { plan, sourcePacketHash, sourcePlanHash } =
+        await this.validateSourceReadiness(conn, cityCode, envelope.source_packet_id);
 
-      // Compare current packet hash with stored
-      const packet = await this.getReadinessPacket(conn, cityCode, envelope.source_packet_id);
-      if (packet) {
-        const currentPacketHash = computeSourcePacketHash(packet);
-        if (currentPacketHash !== envelope.source_packet_hash) {
-          throw new Error(
-            `Source packet hash mismatch: current ${currentPacketHash} vs stored ${envelope.source_packet_hash}`,
-          );
-        }
+      // 4. F4: Revalidate source immutability — compare current hashes with stored
+      if (sourcePacketHash !== envelope.source_packet_hash) {
+        throw new Error(
+          `Source packet hash mismatch: current ${sourcePacketHash} vs stored ${envelope.source_packet_hash} — source changed since createEnvelope`,
+        );
+      }
+      if (sourcePlanHash !== envelope.source_plan_hash) {
+        throw new Error(
+          `Source plan hash mismatch: current ${sourcePlanHash} vs stored ${envelope.source_plan_hash} — plan changed since createEnvelope`,
+        );
       }
 
-      // 4. Amount snapshot (F2): query worker_receivable_statements
-      const statementIds = await this.getStatementIdsFromItems(conn, envelopeId, cityCode);
+      // 5. F2: Build amount snapshot from settlement data
+      const planItems = await this.getPlanItems(conn, plan.id as string, cityCode);
       let amountSnapshot: Record<string, unknown>;
-      const queriedAt = new Date().toISOString();
-
-      if (statementIds.length === 0) {
-        amountSnapshot = {
-          totalWorkerReceivable: 0,
-          statementCount: 0,
-          statementIds: [],
-          queriedAt,
-        };
-      } else {
-        try {
-          const placeholders = statementIds.map(() => "?").join(", ");
-          const [amountRows] = await conn.query<RowDataPacket[]>(
-            `SELECT SUM(worker_receivable_amount) AS total
-             FROM worker_receivable_statements
-             WHERE statement_id IN (${placeholders}) AND city_code = ?`,
-            [...statementIds, cityCode],
-          );
-          const total = amountRows[0]?.total;
-          if (total === null || total === undefined) {
-            throw new Error("amount snapshot unavailable");
-          }
-          amountSnapshot = {
-            totalWorkerReceivable: Number(total),
-            statementCount: statementIds.length,
-            statementIds,
-            queriedAt,
-          };
-        } catch (err) {
-          throw new Error("amount snapshot unavailable");
-        }
+      try {
+        amountSnapshot = await this.buildAmountSnapshot(conn, cityCode, planItems);
+      } catch (err) {
+        // F2: Do NOT swallow snapshot query errors — fail closed
+        throw new Error(
+          `Amount snapshot failed: ${err instanceof Error ? err.message : String(err)}`,
+        );
       }
 
-      // 5. City config snapshot
+      // F2: Do NOT accept empty amount snapshots
+      if (
+        !amountSnapshot ||
+        Object.keys(amountSnapshot).length === 0 ||
+        (amountSnapshot.total_item_count as number) === 0
+      ) {
+        throw new Error(
+          "amount snapshot unavailable — no matching settlement items found",
+        );
+      }
+
+      // 6. F3: City config snapshot — compute SHA256 from actual row values
       let cityConfigSnapshotHash: string | null = null;
       try {
         const cityConfig = await this.getCityConfig(conn, cityCode);
@@ -578,130 +1051,66 @@ class EnvelopeService {
         // city config snapshot optional
       }
 
-      // 6. Settlement cycle snapshot
+      // 7. F3: Settlement cycle snapshot — deterministic from batch statuses
       let settlementCycleSnapshotHash: string | null = null;
       try {
-        const [batchRows] = await conn.query<RowDataPacket[]>(
-          `SELECT settlement_batch_id, status, total_gross_amount, total_worker_receivable, item_count
-           FROM settlement_batches WHERE city_code = ?`,
-          [cityCode],
-        );
-        const cycleData = JSON.stringify({
-          city_code: cityCode,
-          snapshot_at: queriedAt,
-          envelope_id: envelopeId,
-          batches: batchRows.map((b) => ({
-            batch_id: b.settlement_batch_id,
-            status: b.status,
-            total_gross_amount: Number(b.total_gross_amount),
-            total_worker_receivable: Number(b.total_worker_receivable),
-            item_count: b.item_count,
-          })),
-        });
-        settlementCycleSnapshotHash = createHash("sha256").update(cycleData, "utf8").digest("hex");
+        // Collect linked batch IDs from plan items (same as amount snapshot resolution)
+        const batchIdSet = new Set<string>();
+        for (const pi of planItems) {
+          if (pi.item_type === "settlement_batch") {
+            batchIdSet.add(pi.item_ref_id as string);
+          } else if (pi.item_type === "settlement_payable") {
+            const [pRows] = await conn.query<RowDataPacket[]>(
+              `SELECT settlement_batch_id FROM settlement_payables
+               WHERE settlement_payable_id = ? AND city_code = ?`,
+              [pi.item_ref_id as string, cityCode],
+            );
+            if (pRows.length > 0 && pRows[0].settlement_batch_id) {
+              batchIdSet.add(pRows[0].settlement_batch_id as string);
+            }
+          }
+        }
+
+        const batchIds = [...batchIdSet];
+        if (batchIds.length > 0) {
+          const placeholders = batchIds.map(() => "?").join(", ");
+          const [batchRows] = await conn.query<RowDataPacket[]>(
+            `SELECT settlement_batch_id, status FROM settlement_batches
+             WHERE settlement_batch_id IN (${placeholders}) AND city_code = ?`,
+            [...batchIds, cityCode],
+          );
+          // F3: Deterministic hash from batch statuses only (no envelope_id, no timestamp)
+          const cycleData = JSON.stringify(
+            batchRows.map((b) => ({
+              batch_id: b.settlement_batch_id,
+              status: b.status,
+            })),
+          );
+          settlementCycleSnapshotHash = createHash("sha256")
+            .update(cycleData, "utf8")
+            .digest("hex");
+        } else {
+          settlementCycleSnapshotHash =
+            "0000000000000000000000000000000000000000000000000000000000000000";
+        }
       } catch {
         // settlement cycle snapshot optional
       }
 
-      // 7. Conflict check snapshot (F3)
-      const conflictCheckSnapshot: Record<string, unknown> = {
-        conflict_check_at: queriedAt,
-      };
-
-      // 7a. Amount drift check: compare current snapshot vs previous envelope snapshot
-      try {
-        const [prevEnvs] = await conn.query<EnvelopeRow[]>(
-          `SELECT amount_snapshot_json FROM settlement_execution_preparation_envelopes
-           WHERE source_packet_id = ? AND city_code = ? AND id <> ?
-           ORDER BY created_at DESC LIMIT 1`,
-          [envelope.source_packet_id, cityCode, envelopeId],
+      // 8. F3: Build source-scoped conflict check snapshot (throws on blocking conflicts)
+      const { snapshot: conflictCheckSnapshot, hash: conflictCheckSnapshotHash } =
+        await this.buildConflictCheckSnapshot(
+          conn,
+          cityCode,
+          envelope.source_packet_id,
+          envelopeId,
+          planItems,
+          amountSnapshot,
+          cityConfigSnapshotHash,
+          settlementCycleSnapshotHash,
         );
-        if (prevEnvs.length > 0) {
-          const prevSnapshot = JSON.parse(prevEnvs[0].amount_snapshot_json || "{}");
-          conflictCheckSnapshot.amount_drift = {
-            previous_total: prevSnapshot.totalWorkerReceivable ?? null,
-            current_total: amountSnapshot.totalWorkerReceivable,
-          };
-        } else {
-          conflictCheckSnapshot.amount_drift = { note: "no previous envelope for comparison" };
-        }
-      } catch {
-        conflictCheckSnapshot.amount_drift = { error: "drift_check_failed" };
-      }
 
-      // 7b. City config hash check
-      try {
-        const [prevConfig] = await conn.query<EnvelopeRow[]>(
-          `SELECT city_config_snapshot_hash FROM settlement_execution_preparation_envelopes
-           WHERE source_packet_id = ? AND city_code = ? AND id <> ? AND city_config_snapshot_hash IS NOT NULL
-           ORDER BY created_at DESC LIMIT 1`,
-          [envelope.source_packet_id, cityCode, envelopeId],
-        );
-        conflictCheckSnapshot.city_config_check = {
-          current_hash: cityConfigSnapshotHash,
-          previous_hash: prevConfig.length > 0 ? prevConfig[0].city_config_snapshot_hash : null,
-        };
-      } catch {
-        conflictCheckSnapshot.city_config_check = { error: "config_check_failed" };
-      }
-
-      // 7c. Settlement cycle: check for cancelled batches
-      try {
-        const [cancelledBatches] = await conn.query<RowDataPacket[]>(
-          `SELECT settlement_batch_id, status FROM settlement_batches
-           WHERE city_code = ? AND status = 'cancelled'`,
-          [cityCode],
-        );
-        conflictCheckSnapshot.settlement_cycle_check = {
-          cancelled_batches: cancelledBatches.map((b) => b.settlement_batch_id),
-          has_cancelled: cancelledBatches.length > 0,
-        };
-      } catch {
-        conflictCheckSnapshot.settlement_cycle_check = { error: "cycle_check_failed" };
-      }
-
-      // 7d. Ledger voided: check ledger_accruals for voided status
-      try {
-        const [voidedRows] = await conn.query<RowDataPacket[]>(
-          `SELECT COUNT(*) AS cnt FROM ledger_accruals
-           WHERE city_code = ? AND status = 'voided'`,
-          [cityCode],
-        );
-        conflictCheckSnapshot.ledger_voided_check = {
-          voided_count: voidedRows[0]?.cnt ?? 0,
-        };
-      } catch {
-        conflictCheckSnapshot.ledger_voided_check = { error: "ledger_check_failed" };
-      }
-
-      // 7e. Refund/reversal check — tables not yet created in Phase 12
-      try {
-        await conn.query(`SELECT 1 FROM refund_requests LIMIT 0`);
-        conflictCheckSnapshot.refund_reversal_check = { note: "refund schema present" };
-      } catch {
-        conflictCheckSnapshot.refund_reversal_check = {
-          status: "not_applicable",
-          reason: "refund/reversal schema not yet created in Phase 12",
-        };
-      }
-
-      // 7f. Duplicate envelope check
-      try {
-        const [dupes] = await conn.query<RowDataPacket[]>(
-          `SELECT id, envelope_status FROM settlement_execution_preparation_envelopes
-           WHERE source_packet_id = ? AND city_code = ? AND id <> ?
-             AND envelope_status IN ('frozen', 'approved_for_phase13_review')`,
-          [envelope.source_packet_id, cityCode, envelopeId],
-        );
-        conflictCheckSnapshot.duplicate_check = {
-          duplicate_count: dupes.length,
-          duplicate_ids: dupes.map((d) => d.id),
-        };
-      } catch {
-        conflictCheckSnapshot.duplicate_check = { error: "duplicate_check_failed" };
-      }
-
-      // 8. Compute item_hash from envelope items
+      // 9. Recompute item_hash from envelope items
       const [itemRows] = await conn.query<ItemRow[]>(
         `SELECT * FROM settlement_execution_preparation_items
          WHERE envelope_id = ? AND city_code = ? ORDER BY item_order ASC`,
@@ -717,7 +1126,7 @@ class EnvelopeService {
       );
       const itemHash = createHash("sha256").update(itemData, "utf8").digest("hex");
 
-      // 9. Update envelope to frozen with WHERE status guard (immutability)
+      // 10. F4: Update envelope to frozen with WHERE status guard (immutability)
       const now = new Date();
       const [updateResult] = await conn.query(
         `UPDATE settlement_execution_preparation_envelopes
@@ -726,6 +1135,7 @@ class EnvelopeService {
              amount_snapshot_json = ?,
              city_config_snapshot_hash = ?,
              settlement_cycle_snapshot_hash = ?,
+             conflict_check_snapshot_hash = ?,
              conflict_check_snapshot_json = ?,
              frozen_by_admin_id = ?,
              frozen_at = ?,
@@ -736,6 +1146,7 @@ class EnvelopeService {
           JSON.stringify(amountSnapshot),
           cityConfigSnapshotHash,
           settlementCycleSnapshotHash,
+          conflictCheckSnapshotHash,
           JSON.stringify(conflictCheckSnapshot),
           adminId,
           now,
@@ -749,7 +1160,7 @@ class EnvelopeService {
         throw new Error("envelope not in draft status or concurrently modified");
       }
 
-      // 10. Write audit event
+      // 11. Write audit event
       const auditId = genId("epa");
       await conn.query(
         `INSERT INTO settlement_execution_preparation_audit
@@ -762,24 +1173,32 @@ class EnvelopeService {
           envelopeId,
           now,
           adminId,
-          `Envelope frozen with item_hash=${itemHash}, payload_hash=${envelope.payload_hash}`,
+          `Envelope frozen with item_hash=${itemHash}, conflict_check_hash=${conflictCheckSnapshotHash}`,
           traceId,
         ],
       );
 
-      // 11. Return updated envelope
+      // 12. F4: Read back with city_code = ?
       const [updatedRows] = await conn.query<EnvelopeRow[]>(
-        `SELECT * FROM settlement_execution_preparation_envelopes WHERE id = ?`,
-        [envelopeId],
+        `SELECT * FROM settlement_execution_preparation_envelopes
+         WHERE id = ? AND ${clause}`,
+        [envelopeId, ...params],
       );
+      if (updatedRows.length === 0) {
+        throw new Error(`Envelope ${envelopeId} readback failed in city ${cityCode}`);
+      }
       return mapEnvelope(updatedRows[0]);
     });
   }
 
   /**
-   * Approve an envelope for Phase 13 review (F1, F4).
-   * Wrapped in a transaction: SELECT envelope (verify frozen) → UPDATE with WHERE status guard →
-   * INSERT audit → commit.
+   * F1 + F4: Approve an envelope for Phase 13 review.
+   *
+   * - F1: Revalidates review_status at read time
+   * - F4: Revalidates source immutability (no changes since freeze)
+   * - F4: Records approvedByAdminId
+   * - F4: WHERE envelope_status='frozen' guard
+   * - F4: Post-approve readback includes city_code = ?
    */
   async approveEnvelope(
     ctx: RequestContext,
@@ -792,7 +1211,7 @@ class EnvelopeService {
     return withTransaction(async (conn) => {
       const { clause, params } = buildCityScopedWhere(cityCode, "city_code");
 
-      // 1. Load envelope
+      // 1. Load envelope with city scope
       const [rows] = await conn.query<EnvelopeRow[]>(
         `SELECT * FROM settlement_execution_preparation_envelopes
          WHERE id = ? AND ${clause}`,
@@ -810,25 +1229,24 @@ class EnvelopeService {
         );
       }
 
-      // 3. Revalidate source readiness (F1.7)
-      await this.validateSourceReadiness(
-        conn,
-        cityCode,
-        envelope.source_packet_id,
-      );
+      // 3. F1: Revalidate source readiness (read-time review_status check)
+      const { sourcePacketHash, sourcePlanHash } =
+        await this.validateSourceReadiness(conn, cityCode, envelope.source_packet_id);
 
-      // Compare current packet hash with stored
-      const packet = await this.getReadinessPacket(conn, cityCode, envelope.source_packet_id);
-      if (packet) {
-        const currentPacketHash = computeSourcePacketHash(packet);
-        if (currentPacketHash !== envelope.source_packet_hash) {
-          throw new Error(
-            `Source packet hash mismatch: current ${currentPacketHash} vs stored ${envelope.source_packet_hash}`,
-          );
-        }
+      // 4. F4: Revalidate source immutability (no changes since freeze)
+      if (sourcePacketHash !== envelope.source_packet_hash) {
+        throw new Error(
+          `Source packet hash mismatch: current ${sourcePacketHash} vs stored ${envelope.source_packet_hash} — source changed since freeze`,
+        );
+      }
+      if (sourcePlanHash !== envelope.source_plan_hash) {
+        throw new Error(
+          `Source plan hash mismatch: current ${sourcePlanHash} vs stored ${envelope.source_plan_hash} — plan changed since freeze`,
+        );
       }
 
-      // 4. Update to approved_for_phase13_review with WHERE status guard
+      // 5. F4: Update to approved_for_phase13_review with WHERE status guard
+      //     approved envelope cannot regress to frozen
       const now = new Date();
       const [updateResult] = await conn.query(
         `UPDATE settlement_execution_preparation_envelopes
@@ -845,7 +1263,7 @@ class EnvelopeService {
         throw new Error("envelope not in frozen status or concurrently modified");
       }
 
-      // 5. Write audit event
+      // 6. Write audit event
       const auditId = genId("epa");
       await conn.query(
         `INSERT INTO settlement_execution_preparation_audit
@@ -863,11 +1281,15 @@ class EnvelopeService {
         ],
       );
 
-      // 6. Return updated envelope
+      // 7. F4: Read back with city_code = ?
       const [updatedRows] = await conn.query<EnvelopeRow[]>(
-        `SELECT * FROM settlement_execution_preparation_envelopes WHERE id = ?`,
-        [envelopeId],
+        `SELECT * FROM settlement_execution_preparation_envelopes
+         WHERE id = ? AND ${clause}`,
+        [envelopeId, ...params],
       );
+      if (updatedRows.length === 0) {
+        throw new Error(`Envelope ${envelopeId} readback failed in city ${cityCode}`);
+      }
       return mapEnvelope(updatedRows[0]);
     });
   }

@@ -4,7 +4,7 @@ CREATE TABLE settlement_execution_preparation_envelopes (
   id VARCHAR(64) NOT NULL PRIMARY KEY,
   city_code VARCHAR(64) NOT NULL,
   source_packet_id VARCHAR(64) NOT NULL,
-  source_plan_id VARCHAR(64) NULL,
+  source_plan_id VARCHAR(64) NOT NULL,
   envelope_status VARCHAR(32) NOT NULL DEFAULT 'draft',
   payload_hash VARCHAR(128) NOT NULL,
   item_hash VARCHAR(128) NULL,
@@ -13,6 +13,7 @@ CREATE TABLE settlement_execution_preparation_envelopes (
   amount_snapshot_json JSON NOT NULL DEFAULT ('{}'),
   city_config_snapshot_hash VARCHAR(128) NULL,
   settlement_cycle_snapshot_hash VARCHAR(128) NULL,
+  conflict_check_snapshot_hash VARCHAR(128) NULL,
   conflict_check_snapshot_json JSON NOT NULL DEFAULT ('{}'),
   frozen_by_admin_id VARCHAR(64) NULL,
   approved_by_admin_id VARCHAR(64) NULL,
@@ -34,6 +35,9 @@ CREATE TABLE settlement_execution_preparation_envelopes (
 
 ALTER TABLE settlement_execution_preparation_envelopes
   ADD UNIQUE KEY uk_prep_envelope_city (id, city_code);
+
+ALTER TABLE settlement_execution_preparation_envelopes
+  ADD UNIQUE KEY uk_prep_envelope_city_packet (city_code, source_packet_id);
 
 CREATE TABLE settlement_execution_preparation_items (
   id VARCHAR(64) NOT NULL PRIMARY KEY,

@@ -20,6 +20,7 @@ export interface PreparationEnvelopeRecord {
   readinessPacketId: string | null;
   envelopeStatus: PreparationEnvelopeStatus;
   itemCount: number;
+  conflictCheckSnapshotHash: string | null;
   frozenAt: string | null;
   createdByAdminId: string;
   createdAt: string;
