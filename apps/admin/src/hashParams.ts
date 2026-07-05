@@ -21,10 +21,11 @@ export function buildHash(path: string, params?: Record<string, string>): string
   return qs ? `#${path}?${qs}` : `#${path}`;
 }
 
-export function parseView(): { page: "dashboard" } | { page: "detail"; statementId: string } | { page: "exports" } | { page: "governance" } {
+export function parseView(): { page: "dashboard" } | { page: "detail"; statementId: string } | { page: "exports" } | { page: "governance"; subView?: string } {
   const h = hashPath();
+  const params = parseHashParams();
   if (h === "/settlement-ops/exports") return { page: "exports" };
-  if (h === "/settlement-ops/governance") return { page: "governance" };
+  if (h === "/settlement-ops/governance") return { page: "governance", subView: params.get("sub") || undefined };
   const m = h.match(/^\/settlement-ops\/statements\/(.+)$/);
   if (m) return { page: "detail", statementId: decodeURIComponent(m[1]) };
   return { page: "dashboard" };

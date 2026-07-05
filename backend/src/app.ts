@@ -22,6 +22,7 @@ import { registerGovernanceIntentRoutes } from "./governance/governanceIntentRou
 import { registerGovernanceReviewRoutes } from "./governance/governanceReviewRoutes.js";
 import { registerGovernanceEvidenceRoutes } from "./governance/governanceEvidenceRoutes.js";
 import { registerGovernanceReadinessRoutes } from "./governance/governanceReadinessRoutes.js";
+import { registerPlannerRoutes } from "./planner/plannerRoutes.js";
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({ logger: true });
@@ -102,6 +103,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await registerGovernanceReviewRoutes(app);
   await registerGovernanceEvidenceRoutes(app);
   await registerGovernanceReadinessRoutes(app);
+  await registerPlannerRoutes(app);
 
   return app;
 }

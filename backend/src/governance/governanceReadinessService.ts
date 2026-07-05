@@ -61,5 +61,47 @@ class GovernanceReadinessService { private pool=getMysqlPool();
   async archive(ctx:RequestContext,packetId:string):Promise<GovernanceReadinessPacketRecord|null>{ const c=assertCityScopedContext(ctx); const {clause,params}=buildCityScopedWhere(c,"city_code"); const n=new Date();
     const [r]=await this.pool.query(`UPDATE settlement_action_governance_readiness_packets SET packet_status='archived',archived_at=?,updated_at=? WHERE id=? AND ${clause}`,[n,n,packetId,...params]);
     if((r as {affectedRows:number}).affectedRows===0)return null; return this.get(ctx,packetId); }
+  async markReadyForFuturePhaseReview(ctx:RequestContext,packetId:string):Promise<GovernanceReadinessPacketRecord|null>{ const c=assertCityScopedContext(ctx); const {clause,params}=buildCityScopedWhere(c,"city_code");
+    // load packet through city isolation
+    const [rows]=await this.pool.query<R[]>(`SELECT * FROM settlement_action_governance_readiness_packets WHERE id=? AND ${clause}`,[packetId,...params]);
+    if(rows.length===0)return null;
+    const pkt=map(rows[0]);
+    // verify linked governance review exists
+    if(!pkt.reviewId)throw new Error("readiness packet has no linked governance review — approval missing");
+    const [rr]=await this.pool.query<RowDataPacket[]>("SELECT * FROM settlement_action_governance_reviews WHERE id = ?",[pkt.reviewId]);
+    if(rr.length===0)throw new Error(`governance review ${pkt.reviewId} not found`);
+    const review=rr[0];
+    // cross-city guard
+    if(review.city_code!==c)throw new Error(`governance review ${pkt.reviewId} belongs to city ${review.city_code}, not ${c}`);
+    // verify review_status = 'approved_for_governance'
+    if(review.review_status!=='approved_for_governance')throw new Error(`governance review ${pkt.reviewId} status is '${review.review_status}', not 'approved_for_governance'`);
+    // stale guard: reviewed_at must be present
+    if(!review.reviewed_at)throw new Error(`governance review ${pkt.reviewId} is stale — missing reviewed_at timestamp`);
+    // Step 3: populate sourceRefs from intent/review/evidence/audit references
+    const sourceRefs:string[]=[];
+    // collect from intent evidence_refs
+    if(pkt.intentId){
+      const [ir]=await this.pool.query<RowDataPacket[]>("SELECT evidence_refs_json FROM settlement_action_governance_intents WHERE id = ?",[pkt.intentId]);
+      if(ir.length>0&&ir[0].evidence_refs_json){ try{const parsed=JSON.parse(ir[0].evidence_refs_json);if(Array.isArray(parsed))sourceRefs.push(...parsed.filter((x:unknown):x is string=>typeof x==='string'));}catch{/* ignore parse failures */} }
+    }
+    // collect from evidence bundle refs
+    if(pkt.evidenceBundleId){
+      const [eb]=await this.pool.query<RowDataPacket[]>("SELECT evidence_refs_json,review_history_refs_json,audit_trail_refs_json FROM settlement_action_governance_evidence_bundles WHERE id = ?",[pkt.evidenceBundleId]);
+      if(eb.length>0){
+        for(const col of['evidence_refs_json','review_history_refs_json','audit_trail_refs_json']){
+          if(eb[0][col]){ try{const parsed=JSON.parse(eb[0][col]);if(Array.isArray(parsed))sourceRefs.push(...parsed.filter((x:unknown):x is string=>typeof x==='string'));}catch{/* ignore */} }
+        }
+      }
+    }
+    // add review id as audit ref
+    sourceRefs.push(`review:${pkt.reviewId}`);
+    // if sourceRefs cannot be populated, reject
+    if(sourceRefs.length===0)throw new Error("READINESS_PACKET_SOURCE_REFS_REQUIRED");
+    // deduplicate
+    const deduped=[...new Set(sourceRefs)];
+    // transition packet status
+    const n=new Date();
+    await this.pool.query(`UPDATE settlement_action_governance_readiness_packets SET packet_status='ready_for_future_phase_review',source_refs_json=?,updated_at=? WHERE id=? AND ${clause}`,[JSON.stringify(deduped),n,packetId,...params]);
+    return this.get(ctx,packetId); }
 }
 export const governanceReadinessService = new GovernanceReadinessService();
