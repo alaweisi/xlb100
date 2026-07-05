@@ -1,8 +1,9 @@
 import { createHash, randomBytes } from "node:crypto";
-import type { RowDataPacket, Pool } from "mysql2/promise";
+import type { RowDataPacket, Pool, PoolConnection } from "mysql2/promise";
 import type { RequestContext } from "@xlb/types";
 import { assertCityScopedContext, buildCityScopedWhere } from "../dal/scopedExecutor.js";
 import { getMysqlPool } from "../dal/mysqlPool.js";
+import { withTransaction } from "../dal/transaction.js";
 
 // ── ID generation ──────────────────────────────────────────────────────────────
 const genId = (prefix: string): string =>
@@ -146,15 +147,38 @@ const mapAudit = (r: AuditRow): PreparationEnvelopeAudit => ({
   traceId: r.trace_id,
 });
 
-// ── Deterministic payload hash (same pattern as plannerPlanBuilder computePlanHash) ─
+// ── Deterministic payload hash ─────────────────────────────────────────────────
 export function computePayloadHash(
   packetId: string,
   cityCode: string,
-  planId: string | null,
+  planHash: string | null,
   itemRefs: string[],
 ): string {
-  const payload = `${packetId}\n${cityCode}\n${planId ?? ""}\n${[...itemRefs].sort().join("\n")}`;
+  const payload = `${packetId}\n${cityCode}\n${planHash ?? ""}\n${[...itemRefs].sort().join("\n")}`;
   return createHash("sha256").update(payload, "utf8").digest("hex");
+}
+
+// ── Helper: compute hash of readiness packet data ──────────────────────────────
+function computeSourcePacketHash(packet: RowDataPacket): string {
+  const packetData = JSON.stringify({
+    id: packet.id,
+    city_code: packet.city_code,
+    intent_id: packet.intent_id,
+    review_id: packet.review_id,
+    packet_status: packet.packet_status,
+    source_refs_json: packet.source_refs_json,
+  });
+  return createHash("sha256").update(packetData, "utf8").digest("hex");
+}
+
+// ── Helper: compute hash of dry-run plan data ──────────────────────────────────
+function computeSourcePlanHash(plan: RowDataPacket): string | null {
+  const planData = JSON.stringify({
+    id: plan.id,
+    plan_hash: plan.plan_hash,
+    plan_status: plan.plan_status,
+  });
+  return createHash("sha256").update(planData, "utf8").digest("hex");
 }
 
 // ── Envelope service ───────────────────────────────────────────────────────────
@@ -165,14 +189,17 @@ class EnvelopeService {
     this.pool = pool ?? getMysqlPool();
   }
 
+  // ── Private read helpers ─────────────────────────────────────────────────────
+
   /**
    * Read a readiness packet with city scope verification.
    */
   private async getReadinessPacket(
+    conn: PoolConnection | Pool,
     cityCode: string,
     packetId: string,
   ): Promise<RowDataPacket | null> {
-    const [rows] = await this.pool.query<RowDataPacket[]>(
+    const [rows] = await conn.query<RowDataPacket[]>(
       `SELECT * FROM settlement_action_governance_readiness_packets
        WHERE id = ? AND city_code = ?`,
       [packetId, cityCode],
@@ -181,26 +208,14 @@ class EnvelopeService {
   }
 
   /**
-   * Verify a governance review is in approved_for_governance status.
-   */
-  private async verifyReviewApproved(reviewId: string, cityCode: string): Promise<boolean> {
-    const [rows] = await this.pool.query<RowDataPacket[]>(
-      `SELECT review_status FROM settlement_action_governance_reviews
-       WHERE id = ? AND city_code = ?`,
-      [reviewId, cityCode],
-    );
-    if (rows.length === 0) return false;
-    return rows[0].review_status === "approved_for_governance";
-  }
-
-  /**
    * Find a linked dry-run plan for a packet via city-scoped lookup.
    */
   private async findLinkedPlan(
+    conn: PoolConnection | Pool,
     cityCode: string,
     packetId: string,
   ): Promise<RowDataPacket | null> {
-    const [rows] = await this.pool.query<RowDataPacket[]>(
+    const [rows] = await conn.query<RowDataPacket[]>(
       `SELECT * FROM settlement_execution_dry_run_plans
        WHERE readiness_packet_id = ? AND city_code = ?
        ORDER BY created_at DESC LIMIT 1`,
@@ -213,10 +228,11 @@ class EnvelopeService {
    * Read plan items for a given plan ID.
    */
   private async getPlanItems(
+    conn: PoolConnection | Pool,
     planId: string,
     cityCode: string,
   ): Promise<RowDataPacket[]> {
-    const [rows] = await this.pool.query<RowDataPacket[]>(
+    const [rows] = await conn.query<RowDataPacket[]>(
       `SELECT * FROM settlement_execution_dry_run_plan_items
        WHERE plan_id = ? AND city_code = ?
        ORDER BY item_order ASC`,
@@ -228,30 +244,50 @@ class EnvelopeService {
   /**
    * Read city config for a city.
    */
-  private async getCityConfig(cityCode: string): Promise<RowDataPacket | null> {
-    const [rows] = await this.pool.query<RowDataPacket[]>(
+  private async getCityConfig(
+    conn: PoolConnection | Pool,
+    cityCode: string,
+  ): Promise<RowDataPacket | null> {
+    const [rows] = await conn.query<RowDataPacket[]>(
       `SELECT * FROM city_configs WHERE city_code = ?`,
       [cityCode],
     );
     return rows.length === 0 ? null : rows[0];
   }
 
-  // ── Public methods ──────────────────────────────────────────────────────────
+  /**
+   * Collect statement IDs from envelope items.
+   */
+  private async getStatementIdsFromItems(
+    conn: PoolConnection | Pool,
+    envelopeId: string,
+    cityCode: string,
+  ): Promise<string[]> {
+    const [rows] = await conn.query<RowDataPacket[]>(
+      `SELECT item_ref_id FROM settlement_execution_preparation_items
+       WHERE envelope_id = ? AND city_code = ? AND item_type = 'statement'`,
+      [envelopeId, cityCode],
+    );
+    return rows.map((r) => r.item_ref_id as string);
+  }
+
+  // ── Source readiness validation (F1) ─────────────────────────────────────────
 
   /**
-   * Create an envelope from a readiness packet.
-   * Loads packet, verifies city-scoped, verifies review approved,
-   * computes deterministic payload hash from packet+plan data,
-   * inserts envelope in 'draft' status.
+   * Validate source readiness: load packet, find linked plan, verify status.
+   * Returns { plan, sourcePacketHash, sourcePlanHash } or throws.
    */
-  async createEnvelope(
-    ctx: RequestContext,
+  private async validateSourceReadiness(
+    conn: PoolConnection | Pool,
+    cityCode: string,
     sourcePacketId: string,
-  ): Promise<PreparationEnvelope> {
-    const cityCode = assertCityScopedContext(ctx);
-
-    // 1. Load and verify readiness packet
-    const packet = await this.getReadinessPacket(cityCode, sourcePacketId);
+  ): Promise<{
+    plan: RowDataPacket;
+    sourcePacketHash: string;
+    sourcePlanHash: string | null;
+  }> {
+    // 1. Load readiness packet
+    const packet = await this.getReadinessPacket(conn, cityCode, sourcePacketId);
     if (!packet) {
       throw new Error(`Readiness packet ${sourcePacketId} not found in city ${cityCode}`);
     }
@@ -261,103 +297,143 @@ class EnvelopeService {
       );
     }
 
-    // 2. Verify linked governance review is approved
-    if (!packet.review_id) {
-      throw new Error("Readiness packet has no linked governance review");
-    }
-    const reviewApproved = await this.verifyReviewApproved(packet.review_id, cityCode);
-    if (!reviewApproved) {
-      throw new Error(
-        `Governance review ${packet.review_id} is not in 'approved_for_governance' status`,
-      );
+    // 2. Find linked Phase 11 dry-run plan
+    const plan = await this.findLinkedPlan(conn, cityCode, sourcePacketId);
+    if (!plan) {
+      throw new Error(`no approved Phase 11 dry-run plan exists for this packet`);
     }
 
-    // 3. Find linked dry-run plan
-    const plan = await this.findLinkedPlan(cityCode, sourcePacketId);
-    const sourcePlanId: string | null = plan ? (plan.id as string) : null;
-
-    // 4. Collect item refs for payload hash
-    const itemRefs: string[] = [];
-    if (plan) {
-      const planItems = await this.getPlanItems(plan.id as string, cityCode);
-      for (const pi of planItems) {
-        itemRefs.push(`${pi.item_type}:${pi.item_ref_id}`);
-      }
+    // 3. Verify plan_status='generated'
+    if (plan.plan_status !== "generated") {
+      throw new Error(`plan is not in generated status`);
     }
 
-    // 5. Compute deterministic payload hash
-    const payloadHash = computePayloadHash(sourcePacketId, cityCode, sourcePlanId, itemRefs);
+    // 4. Compute hashes
+    const sourcePacketHash = computeSourcePacketHash(packet);
+    const sourcePlanHash = computeSourcePlanHash(plan);
 
-    // 6. Compute source_packet_hash (hash of source packet data)
-    const packetData = JSON.stringify({
-      id: packet.id,
-      city_code: packet.city_code,
-      intent_id: packet.intent_id,
-      review_id: packet.review_id,
-      packet_status: packet.packet_status,
-      source_refs_json: packet.source_refs_json,
-    });
-    const sourcePacketHash = createHash("sha256").update(packetData, "utf8").digest("hex");
+    return { plan, sourcePacketHash, sourcePlanHash };
+  }
 
-    // 7. Compute source_plan_hash (if plan exists)
-    let sourcePlanHash: string | null = null;
-    if (plan) {
-      const planData = JSON.stringify({
-        id: plan.id,
-        plan_hash: plan.plan_hash,
-        plan_status: plan.plan_status,
-      });
-      sourcePlanHash = createHash("sha256").update(planData, "utf8").digest("hex");
-    }
-
-    // 8. Idempotency check: existing envelope for same packet in draft/frozen/approved state?
+  /**
+   * Check for existing envelope. If one exists and hashes mismatch → return stale.
+   */
+  private async checkExistingEnvelope(
+    conn: PoolConnection | Pool,
+    cityCode: string,
+    sourcePacketId: string,
+    sourcePacketHash: string,
+    sourcePlanHash: string | null,
+  ): Promise<PreparationEnvelope | null> {
     const { clause, params: whereParams } = buildCityScopedWhere(cityCode, "city_code");
-    const [existing] = await this.pool.query<EnvelopeRow[]>(
+    const [existing] = await conn.query<EnvelopeRow[]>(
       `SELECT * FROM settlement_execution_preparation_envelopes
        WHERE source_packet_id = ? AND ${clause}
          AND envelope_status IN ('draft', 'frozen', 'approved_for_phase13_review')
        LIMIT 1`,
       [sourcePacketId, ...whereParams],
     );
-    if (existing.length > 0) {
-      return mapEnvelope(existing[0]);
+    if (existing.length === 0) return null;
+
+    const envelope = mapEnvelope(existing[0]);
+
+    // Compare current hashes with stored hashes
+    if (
+      envelope.sourcePacketHash !== sourcePacketHash ||
+      envelope.sourcePlanHash !== sourcePlanHash
+    ) {
+      // Hash mismatch: source changed → stale_or_conflict
+      return {
+        ...envelope,
+        envelopeStatus: "stale_or_conflict",
+      };
     }
 
-    // 9. Insert envelope in draft status
-    const envelopeId = genId("env");
-    const now = new Date();
+    return envelope;
+  }
+
+  // ── Public methods ──────────────────────────────────────────────────────────
+
+  /**
+   * Create an envelope from a readiness packet (F1, F4).
+   * Wrapped in a transaction: INSERT envelope → INSERT items → INSERT audit → commit.
+   */
+  async createEnvelope(
+    ctx: RequestContext,
+    sourcePacketId: string,
+  ): Promise<PreparationEnvelope> {
+    const cityCode = assertCityScopedContext(ctx);
     const traceId = ctx.traceId ?? null;
     const adminId = ctx.userId ?? null;
 
-    await this.pool.query(
-      `INSERT INTO settlement_execution_preparation_envelopes
-       (id, city_code, source_packet_id, source_plan_id, envelope_status,
-        payload_hash, source_packet_hash, source_plan_hash,
-        amount_snapshot_json, city_config_snapshot_hash,
-        settlement_cycle_snapshot_hash, conflict_check_snapshot_json,
-        frozen_by_admin_id, approved_by_admin_id, trace_id,
-        created_at, updated_at)
-       VALUES (?, ?, ?, ?, 'draft', ?, ?, ?, '{}', NULL, NULL, '{}', NULL, NULL, ?, ?, ?)`,
-      [
-        envelopeId,
+    return withTransaction(async (conn) => {
+      // 1. Validate source readiness
+      const { plan, sourcePacketHash, sourcePlanHash } =
+        await this.validateSourceReadiness(conn, cityCode, sourcePacketId);
+
+      // 2. Check for existing envelope; if hash mismatch → return stale
+      const existing = await this.checkExistingEnvelope(
+        conn,
         cityCode,
         sourcePacketId,
-        sourcePlanId,
-        payloadHash,
         sourcePacketHash,
         sourcePlanHash,
-        traceId,
-        now,
-        now,
-      ],
-    );
+      );
+      if (existing) {
+        // If hash mismatch → stale; otherwise just return existing
+        if (existing.envelopeStatus === "stale_or_conflict") {
+          return existing;
+        }
+        return existing;
+      }
 
-    // 10. Populate items from plan items
-    if (plan) {
-      const planItemRows = await this.getPlanItems(plan.id as string, cityCode);
-      for (const pi of planItemRows) {
+      // 3. Collect item refs for payload hash
+      const planItems = await this.getPlanItems(conn, plan.id as string, cityCode);
+      const itemRefs: string[] = [];
+      for (const pi of planItems) {
+        itemRefs.push(`${pi.item_type}:${pi.item_ref_id}`);
+      }
+
+      // 4. Compute deterministic payload hash using planHash
+      const payloadHash = computePayloadHash(
+        sourcePacketId,
+        cityCode,
+        plan.plan_hash as string,
+        itemRefs,
+      );
+
+      // 5. Insert envelope in draft status
+      const envelopeId = genId("env");
+      const now = new Date();
+      const sourcePlanId: string = plan.id as string;
+
+      await conn.query(
+        `INSERT INTO settlement_execution_preparation_envelopes
+         (id, city_code, source_packet_id, source_plan_id, envelope_status,
+          payload_hash, source_packet_hash, source_plan_hash,
+          amount_snapshot_json, city_config_snapshot_hash,
+          settlement_cycle_snapshot_hash, conflict_check_snapshot_json,
+          frozen_by_admin_id, approved_by_admin_id, trace_id,
+          created_at, updated_at)
+         VALUES (?, ?, ?, ?, 'draft', ?, ?, ?, '{}', NULL, NULL, '{}', NULL, NULL, ?, ?, ?)`,
+        [
+          envelopeId,
+          cityCode,
+          sourcePacketId,
+          sourcePlanId,
+          payloadHash,
+          sourcePacketHash,
+          sourcePlanHash,
+          traceId,
+          now,
+          now,
+        ],
+      );
+
+      // 6. Populate items from plan items
+      for (const pi of planItems) {
         const itemId = genId("epi");
-        await this.pool.query(
+        await conn.query(
           `INSERT INTO settlement_execution_preparation_items
            (id, city_code, envelope_id, item_type, item_ref_id,
             planned_action, item_order, created_at)
@@ -374,299 +450,426 @@ class EnvelopeService {
           ],
         );
       }
-    }
 
-    // 11. Write audit event
-    const auditId = genId("epa");
-    await this.pool.query(
-      `INSERT INTO settlement_execution_preparation_audit
-       (id, city_code, envelope_id, event_type, event_timestamp,
-        actor_admin_id, summary, trace_id)
-       VALUES (?, ?, ?, 'envelope_created', ?, ?, ?, ?)`,
-      [
-        auditId,
-        cityCode,
-        envelopeId,
-        now,
-        adminId,
-        `Envelope created from readiness packet ${sourcePacketId} with payload hash ${payloadHash}`,
-        traceId,
-      ],
-    );
+      // 7. Write audit event (includes trace_id)
+      const auditId = genId("epa");
+      await conn.query(
+        `INSERT INTO settlement_execution_preparation_audit
+         (id, city_code, envelope_id, event_type, event_timestamp,
+          actor_admin_id, summary, trace_id)
+         VALUES (?, ?, ?, 'envelope_created', ?, ?, ?, ?)`,
+        [
+          auditId,
+          cityCode,
+          envelopeId,
+          now,
+          adminId,
+          `Envelope created from readiness packet ${sourcePacketId} with payload hash ${payloadHash}`,
+          traceId,
+        ],
+      );
 
-    // 12. Return created envelope
-    return (await this.getEnvelope(ctx, envelopeId))!;
+      // 8. Read back and return created envelope
+      const [rows] = await conn.query<EnvelopeRow[]>(
+        `SELECT * FROM settlement_execution_preparation_envelopes WHERE id = ?`,
+        [envelopeId],
+      );
+      return mapEnvelope(rows[0]);
+    });
   }
 
   /**
-   * Freeze an envelope.
-   * Loads envelope, verifies city-scoped + draft status,
-   * snapshots amounts/city_config/settlement_cycle/conflict_data,
-   * computes item_hash, sets envelope_status='frozen', writes audit event.
-   * Immutable after freeze: cannot re-freeze.
+   * Freeze an envelope (F1, F2, F3, F4).
+   * Wrapped in a transaction: SELECT envelope (verify draft) → UPDATE with WHERE status guard →
+   * INSERT audit → commit.
    */
   async freezeEnvelope(
     ctx: RequestContext,
     envelopeId: string,
   ): Promise<PreparationEnvelope> {
     const cityCode = assertCityScopedContext(ctx);
-    const { clause, params } = buildCityScopedWhere(cityCode, "city_code");
+    const traceId = ctx.traceId ?? null;
+    const adminId = ctx.userId ?? null;
 
-    // 1. Load envelope
-    const [rows] = await this.pool.query<EnvelopeRow[]>(
-      `SELECT * FROM settlement_execution_preparation_envelopes
-       WHERE id = ? AND ${clause}`,
-      [envelopeId, ...params],
-    );
-    if (rows.length === 0) {
-      throw new Error(`Envelope ${envelopeId} not found in city ${cityCode}`);
-    }
-    const envelope = rows[0];
+    return withTransaction(async (conn) => {
+      const { clause, params } = buildCityScopedWhere(cityCode, "city_code");
 
-    // 2. Verify draft status
-    if (envelope.envelope_status !== "draft") {
-      throw new Error(
-        `Envelope ${envelopeId} status is '${envelope.envelope_status}', expected 'draft' for freeze`,
+      // 1. Load envelope
+      const [rows] = await conn.query<EnvelopeRow[]>(
+        `SELECT * FROM settlement_execution_preparation_envelopes
+         WHERE id = ? AND ${clause}`,
+        [envelopeId, ...params],
       );
-    }
+      if (rows.length === 0) {
+        throw new Error(`Envelope ${envelopeId} not found in city ${cityCode}`);
+      }
+      const envelope = rows[0];
 
-    // 3. Snapshot amounts from linked plan items / settlement data
-    const amountSnapshot: Record<string, unknown> = {};
-    try {
-      // Aggregate amounts from settlement_batches linked to source packet
-      const sourceRefsJson = (() => {
-        // Read source_refs_json from the readiness packet
-        return this.pool.query<RowDataPacket[]>(
-          `SELECT source_refs_json FROM settlement_action_governance_readiness_packets
-           WHERE id = ? AND city_code = ?`,
-          [envelope.source_packet_id, cityCode],
-        ).then(([refRows]) => {
-          if (refRows.length === 0) return "[]";
-          return refRows[0].source_refs_json as string;
-        });
-      })();
-      const sourceRefs: string[] = JSON.parse(await sourceRefsJson || "[]");
-
-      let totalAmount = 0;
-      let currency = "CNY";
-      for (const ref of sourceRefs) {
-        // Try to find settlement payables by batch ID
-        const [payables] = await this.pool.query<RowDataPacket[]>(
-          `SELECT payable_amount, currency FROM settlement_payables
-           WHERE settlement_batch_id = ? AND city_code = ?`,
-          [ref, cityCode],
+      // 2. Verify draft status
+      if (envelope.envelope_status !== "draft") {
+        throw new Error(
+          `Envelope ${envelopeId} status is '${envelope.envelope_status}', expected 'draft' for freeze`,
         );
-        for (const p of payables) {
-          totalAmount += Number(p.payable_amount) || 0;
-          currency = (p.currency as string) || currency;
+      }
+
+      // 3. Revalidate source readiness (F1.6)
+      await this.validateSourceReadiness(
+        conn,
+        cityCode,
+        envelope.source_packet_id,
+      );
+
+      // Compare current packet hash with stored
+      const packet = await this.getReadinessPacket(conn, cityCode, envelope.source_packet_id);
+      if (packet) {
+        const currentPacketHash = computeSourcePacketHash(packet);
+        if (currentPacketHash !== envelope.source_packet_hash) {
+          throw new Error(
+            `Source packet hash mismatch: current ${currentPacketHash} vs stored ${envelope.source_packet_hash}`,
+          );
         }
       }
-      amountSnapshot.total_payable_amount = totalAmount;
-      amountSnapshot.currency = currency;
-      amountSnapshot.snapshot_at = new Date().toISOString();
-    } catch {
-      // If amount snapshot fails, record empty snapshot (governance-only)
-      amountSnapshot.error = "amount_snapshot_partial";
-    }
 
-    // 4. Snapshot city config
-    let cityConfigSnapshotHash: string | null = null;
-    try {
-      const cityConfig = await this.getCityConfig(cityCode);
-      if (cityConfig) {
-        const configData = JSON.stringify(cityConfig);
-        cityConfigSnapshotHash = createHash("sha256").update(configData, "utf8").digest("hex");
+      // 4. Amount snapshot (F2): query worker_receivable_statements
+      const statementIds = await this.getStatementIdsFromItems(conn, envelopeId, cityCode);
+      let amountSnapshot: Record<string, unknown>;
+      const queriedAt = new Date().toISOString();
+
+      if (statementIds.length === 0) {
+        amountSnapshot = {
+          totalWorkerReceivable: 0,
+          statementCount: 0,
+          statementIds: [],
+          queriedAt,
+        };
+      } else {
+        try {
+          const placeholders = statementIds.map(() => "?").join(", ");
+          const [amountRows] = await conn.query<RowDataPacket[]>(
+            `SELECT SUM(worker_receivable_amount) AS total
+             FROM worker_receivable_statements
+             WHERE statement_id IN (${placeholders}) AND city_code = ?`,
+            [...statementIds, cityCode],
+          );
+          const total = amountRows[0]?.total;
+          if (total === null || total === undefined) {
+            throw new Error("amount snapshot unavailable");
+          }
+          amountSnapshot = {
+            totalWorkerReceivable: Number(total),
+            statementCount: statementIds.length,
+            statementIds,
+            queriedAt,
+          };
+        } catch (err) {
+          throw new Error("amount snapshot unavailable");
+        }
       }
-    } catch {
-      // city config snapshot optional — governance-only
-    }
 
-    // 5. Snapshot settlement cycle
-    let settlementCycleSnapshotHash: string | null = null;
-    try {
-      const cycleData = JSON.stringify({
-        city_code: cityCode,
-        snapshot_at: new Date().toISOString(),
-        envelope_id: envelopeId,
-      });
-      settlementCycleSnapshotHash = createHash("sha256").update(cycleData, "utf8").digest("hex");
-    } catch {
-      // settlement cycle snapshot optional
-    }
+      // 5. City config snapshot
+      let cityConfigSnapshotHash: string | null = null;
+      try {
+        const cityConfig = await this.getCityConfig(conn, cityCode);
+        if (cityConfig) {
+          const configData = JSON.stringify(cityConfig);
+          cityConfigSnapshotHash = createHash("sha256").update(configData, "utf8").digest("hex");
+        }
+      } catch {
+        // city config snapshot optional
+      }
 
-    // 6. Snapshot conflict check data
-    let conflictCheckSnapshot: Record<string, unknown> = {};
-    try {
-      // Check for duplicate envelopes for the same packet
-      const [dupes] = await this.pool.query<RowDataPacket[]>(
-        `SELECT id FROM settlement_execution_preparation_envelopes
-         WHERE source_packet_id = ? AND city_code = ? AND id <> ?`,
-        [envelope.source_packet_id, cityCode, envelopeId],
-      );
-      conflictCheckSnapshot = {
-        conflict_check_at: new Date().toISOString(),
-        duplicate_envelopes: dupes.length,
-        duplicate_envelope_ids: dupes.map((d) => d.id),
+      // 6. Settlement cycle snapshot
+      let settlementCycleSnapshotHash: string | null = null;
+      try {
+        const [batchRows] = await conn.query<RowDataPacket[]>(
+          `SELECT settlement_batch_id, status, total_gross_amount, total_worker_receivable, item_count
+           FROM settlement_batches WHERE city_code = ?`,
+          [cityCode],
+        );
+        const cycleData = JSON.stringify({
+          city_code: cityCode,
+          snapshot_at: queriedAt,
+          envelope_id: envelopeId,
+          batches: batchRows.map((b) => ({
+            batch_id: b.settlement_batch_id,
+            status: b.status,
+            total_gross_amount: Number(b.total_gross_amount),
+            total_worker_receivable: Number(b.total_worker_receivable),
+            item_count: b.item_count,
+          })),
+        });
+        settlementCycleSnapshotHash = createHash("sha256").update(cycleData, "utf8").digest("hex");
+      } catch {
+        // settlement cycle snapshot optional
+      }
+
+      // 7. Conflict check snapshot (F3)
+      const conflictCheckSnapshot: Record<string, unknown> = {
+        conflict_check_at: queriedAt,
       };
-    } catch {
-      conflictCheckSnapshot = { error: "conflict_check_partial" };
-    }
 
-    // 7. Compute item_hash from envelope items
-    const [itemRows] = await this.pool.query<ItemRow[]>(
-      `SELECT * FROM settlement_execution_preparation_items
-       WHERE envelope_id = ? AND city_code = ? ORDER BY item_order ASC`,
-      [envelopeId, cityCode],
-    );
-    const itemData = JSON.stringify(
-      itemRows.map((i) => ({
-        item_type: i.item_type,
-        item_ref_id: i.item_ref_id,
-        planned_action: i.planned_action,
-        item_order: i.item_order,
-      })),
-    );
-    const itemHash = createHash("sha256").update(itemData, "utf8").digest("hex");
+      // 7a. Amount drift check: compare current snapshot vs previous envelope snapshot
+      try {
+        const [prevEnvs] = await conn.query<EnvelopeRow[]>(
+          `SELECT amount_snapshot_json FROM settlement_execution_preparation_envelopes
+           WHERE source_packet_id = ? AND city_code = ? AND id <> ?
+           ORDER BY created_at DESC LIMIT 1`,
+          [envelope.source_packet_id, cityCode, envelopeId],
+        );
+        if (prevEnvs.length > 0) {
+          const prevSnapshot = JSON.parse(prevEnvs[0].amount_snapshot_json || "{}");
+          conflictCheckSnapshot.amount_drift = {
+            previous_total: prevSnapshot.totalWorkerReceivable ?? null,
+            current_total: amountSnapshot.totalWorkerReceivable,
+          };
+        } else {
+          conflictCheckSnapshot.amount_drift = { note: "no previous envelope for comparison" };
+        }
+      } catch {
+        conflictCheckSnapshot.amount_drift = { error: "drift_check_failed" };
+      }
 
-    // 8. Update envelope to frozen — ALL immutable fields set here
-    const now = new Date();
-    const adminId = ctx.userId ?? null;
-    const traceId = ctx.traceId ?? null;
+      // 7b. City config hash check
+      try {
+        const [prevConfig] = await conn.query<EnvelopeRow[]>(
+          `SELECT city_config_snapshot_hash FROM settlement_execution_preparation_envelopes
+           WHERE source_packet_id = ? AND city_code = ? AND id <> ? AND city_config_snapshot_hash IS NOT NULL
+           ORDER BY created_at DESC LIMIT 1`,
+          [envelope.source_packet_id, cityCode, envelopeId],
+        );
+        conflictCheckSnapshot.city_config_check = {
+          current_hash: cityConfigSnapshotHash,
+          previous_hash: prevConfig.length > 0 ? prevConfig[0].city_config_snapshot_hash : null,
+        };
+      } catch {
+        conflictCheckSnapshot.city_config_check = { error: "config_check_failed" };
+      }
 
-    await this.pool.query(
-      `UPDATE settlement_execution_preparation_envelopes
-       SET envelope_status = 'frozen',
-           item_hash = ?,
-           amount_snapshot_json = ?,
-           city_config_snapshot_hash = ?,
-           settlement_cycle_snapshot_hash = ?,
-           conflict_check_snapshot_json = ?,
-           frozen_by_admin_id = ?,
-           frozen_at = ?,
-           updated_at = ?
-       WHERE id = ? AND ${clause}`,
-      [
-        itemHash,
-        JSON.stringify(amountSnapshot),
-        cityConfigSnapshotHash,
-        settlementCycleSnapshotHash,
-        JSON.stringify(conflictCheckSnapshot),
-        adminId,
-        now,
-        now,
-        envelopeId,
-        ...params,
-      ],
-    );
+      // 7c. Settlement cycle: check for cancelled batches
+      try {
+        const [cancelledBatches] = await conn.query<RowDataPacket[]>(
+          `SELECT settlement_batch_id, status FROM settlement_batches
+           WHERE city_code = ? AND status = 'cancelled'`,
+          [cityCode],
+        );
+        conflictCheckSnapshot.settlement_cycle_check = {
+          cancelled_batches: cancelledBatches.map((b) => b.settlement_batch_id),
+          has_cancelled: cancelledBatches.length > 0,
+        };
+      } catch {
+        conflictCheckSnapshot.settlement_cycle_check = { error: "cycle_check_failed" };
+      }
 
-    // 9. Write audit event
-    const auditId = genId("epa");
-    await this.pool.query(
-      `INSERT INTO settlement_execution_preparation_audit
-       (id, city_code, envelope_id, event_type, event_timestamp,
-        actor_admin_id, summary, trace_id)
-       VALUES (?, ?, ?, 'envelope_frozen', ?, ?, ?, ?)`,
-      [
-        auditId,
-        cityCode,
-        envelopeId,
-        now,
-        adminId,
-        `Envelope frozen with item_hash=${itemHash}, payload_hash=${envelope.payload_hash}`,
-        traceId,
-      ],
-    );
+      // 7d. Ledger voided: check ledger_accruals for voided status
+      try {
+        const [voidedRows] = await conn.query<RowDataPacket[]>(
+          `SELECT COUNT(*) AS cnt FROM ledger_accruals
+           WHERE city_code = ? AND status = 'voided'`,
+          [cityCode],
+        );
+        conflictCheckSnapshot.ledger_voided_check = {
+          voided_count: voidedRows[0]?.cnt ?? 0,
+        };
+      } catch {
+        conflictCheckSnapshot.ledger_voided_check = { error: "ledger_check_failed" };
+      }
 
-    return (await this.getEnvelope(ctx, envelopeId))!;
+      // 7e. Refund/reversal check — tables not yet created in Phase 12
+      try {
+        await conn.query(`SELECT 1 FROM refund_requests LIMIT 0`);
+        conflictCheckSnapshot.refund_reversal_check = { note: "refund schema present" };
+      } catch {
+        conflictCheckSnapshot.refund_reversal_check = {
+          status: "not_applicable",
+          reason: "refund/reversal schema not yet created in Phase 12",
+        };
+      }
+
+      // 7f. Duplicate envelope check
+      try {
+        const [dupes] = await conn.query<RowDataPacket[]>(
+          `SELECT id, envelope_status FROM settlement_execution_preparation_envelopes
+           WHERE source_packet_id = ? AND city_code = ? AND id <> ?
+             AND envelope_status IN ('frozen', 'approved_for_phase13_review')`,
+          [envelope.source_packet_id, cityCode, envelopeId],
+        );
+        conflictCheckSnapshot.duplicate_check = {
+          duplicate_count: dupes.length,
+          duplicate_ids: dupes.map((d) => d.id),
+        };
+      } catch {
+        conflictCheckSnapshot.duplicate_check = { error: "duplicate_check_failed" };
+      }
+
+      // 8. Compute item_hash from envelope items
+      const [itemRows] = await conn.query<ItemRow[]>(
+        `SELECT * FROM settlement_execution_preparation_items
+         WHERE envelope_id = ? AND city_code = ? ORDER BY item_order ASC`,
+        [envelopeId, cityCode],
+      );
+      const itemData = JSON.stringify(
+        itemRows.map((i) => ({
+          item_type: i.item_type,
+          item_ref_id: i.item_ref_id,
+          planned_action: i.planned_action,
+          item_order: i.item_order,
+        })),
+      );
+      const itemHash = createHash("sha256").update(itemData, "utf8").digest("hex");
+
+      // 9. Update envelope to frozen with WHERE status guard (immutability)
+      const now = new Date();
+      const [updateResult] = await conn.query(
+        `UPDATE settlement_execution_preparation_envelopes
+         SET envelope_status = 'frozen',
+             item_hash = ?,
+             amount_snapshot_json = ?,
+             city_config_snapshot_hash = ?,
+             settlement_cycle_snapshot_hash = ?,
+             conflict_check_snapshot_json = ?,
+             frozen_by_admin_id = ?,
+             frozen_at = ?,
+             updated_at = ?
+         WHERE id = ? AND ${clause} AND envelope_status = 'draft'`,
+        [
+          itemHash,
+          JSON.stringify(amountSnapshot),
+          cityConfigSnapshotHash,
+          settlementCycleSnapshotHash,
+          JSON.stringify(conflictCheckSnapshot),
+          adminId,
+          now,
+          now,
+          envelopeId,
+          ...params,
+        ],
+      );
+
+      if ((updateResult as { affectedRows: number }).affectedRows !== 1) {
+        throw new Error("envelope not in draft status or concurrently modified");
+      }
+
+      // 10. Write audit event
+      const auditId = genId("epa");
+      await conn.query(
+        `INSERT INTO settlement_execution_preparation_audit
+         (id, city_code, envelope_id, event_type, event_timestamp,
+          actor_admin_id, summary, trace_id)
+         VALUES (?, ?, ?, 'envelope_frozen', ?, ?, ?, ?)`,
+        [
+          auditId,
+          cityCode,
+          envelopeId,
+          now,
+          adminId,
+          `Envelope frozen with item_hash=${itemHash}, payload_hash=${envelope.payload_hash}`,
+          traceId,
+        ],
+      );
+
+      // 11. Return updated envelope
+      const [updatedRows] = await conn.query<EnvelopeRow[]>(
+        `SELECT * FROM settlement_execution_preparation_envelopes WHERE id = ?`,
+        [envelopeId],
+      );
+      return mapEnvelope(updatedRows[0]);
+    });
   }
 
   /**
-   * Approve an envelope for Phase 13 review.
-   * Loads envelope, verifies city-scoped + frozen status,
-   * verifies linked review is still approved_for_governance,
-   * sets envelope_status='approved_for_phase13_review', writes audit event.
+   * Approve an envelope for Phase 13 review (F1, F4).
+   * Wrapped in a transaction: SELECT envelope (verify frozen) → UPDATE with WHERE status guard →
+   * INSERT audit → commit.
    */
   async approveEnvelope(
     ctx: RequestContext,
     envelopeId: string,
   ): Promise<PreparationEnvelope> {
     const cityCode = assertCityScopedContext(ctx);
-    const { clause, params } = buildCityScopedWhere(cityCode, "city_code");
-
-    // 1. Load envelope
-    const [rows] = await this.pool.query<EnvelopeRow[]>(
-      `SELECT * FROM settlement_execution_preparation_envelopes
-       WHERE id = ? AND ${clause}`,
-      [envelopeId, ...params],
-    );
-    if (rows.length === 0) {
-      throw new Error(`Envelope ${envelopeId} not found in city ${cityCode}`);
-    }
-    const envelope = rows[0];
-
-    // 2. Verify frozen status
-    if (envelope.envelope_status !== "frozen") {
-      throw new Error(
-        `Envelope ${envelopeId} status is '${envelope.envelope_status}', expected 'frozen' for approval`,
-      );
-    }
-
-    // 3. Verify linked review is still approved_for_governance
-    // Load the readiness packet to get the review_id
-    const [pktRows] = await this.pool.query<RowDataPacket[]>(
-      `SELECT review_id FROM settlement_action_governance_readiness_packets
-       WHERE id = ? AND city_code = ?`,
-      [envelope.source_packet_id, cityCode],
-    );
-    if (pktRows.length === 0) {
-      throw new Error(`Readiness packet ${envelope.source_packet_id} not found`);
-    }
-    const reviewId = pktRows[0].review_id as string | null;
-    if (!reviewId) {
-      throw new Error("Readiness packet has no linked governance review");
-    }
-    const reviewApproved = await this.verifyReviewApproved(reviewId, cityCode);
-    if (!reviewApproved) {
-      throw new Error(
-        `Governance review ${reviewId} is not in 'approved_for_governance' status`,
-      );
-    }
-
-    // 4. Update to approved_for_phase13_review
-    const now = new Date();
-    const adminId = ctx.userId ?? null;
     const traceId = ctx.traceId ?? null;
+    const adminId = ctx.userId ?? null;
 
-    await this.pool.query(
-      `UPDATE settlement_execution_preparation_envelopes
-       SET envelope_status = 'approved_for_phase13_review',
-           approved_by_admin_id = ?,
-           approved_at = ?,
-           trace_id = COALESCE(trace_id, ?),
-           updated_at = ?
-       WHERE id = ? AND ${clause}`,
-      [adminId, now, traceId, now, envelopeId, ...params],
-    );
+    return withTransaction(async (conn) => {
+      const { clause, params } = buildCityScopedWhere(cityCode, "city_code");
 
-    // 5. Write audit event
-    const auditId = genId("epa");
-    await this.pool.query(
-      `INSERT INTO settlement_execution_preparation_audit
-       (id, city_code, envelope_id, event_type, event_timestamp,
-        actor_admin_id, summary, trace_id)
-       VALUES (?, ?, ?, 'envelope_approved_for_phase13_review', ?, ?, ?, ?)`,
-      [
-        auditId,
+      // 1. Load envelope
+      const [rows] = await conn.query<EnvelopeRow[]>(
+        `SELECT * FROM settlement_execution_preparation_envelopes
+         WHERE id = ? AND ${clause}`,
+        [envelopeId, ...params],
+      );
+      if (rows.length === 0) {
+        throw new Error(`Envelope ${envelopeId} not found in city ${cityCode}`);
+      }
+      const envelope = rows[0];
+
+      // 2. Verify frozen status
+      if (envelope.envelope_status !== "frozen") {
+        throw new Error(
+          `Envelope ${envelopeId} status is '${envelope.envelope_status}', expected 'frozen' for approval`,
+        );
+      }
+
+      // 3. Revalidate source readiness (F1.7)
+      await this.validateSourceReadiness(
+        conn,
         cityCode,
-        envelopeId,
-        now,
-        adminId,
-        `Envelope approved for Phase 13 review; linked review ${reviewId} verified approved_for_governance`,
-        traceId,
-      ],
-    );
+        envelope.source_packet_id,
+      );
 
-    return (await this.getEnvelope(ctx, envelopeId))!;
+      // Compare current packet hash with stored
+      const packet = await this.getReadinessPacket(conn, cityCode, envelope.source_packet_id);
+      if (packet) {
+        const currentPacketHash = computeSourcePacketHash(packet);
+        if (currentPacketHash !== envelope.source_packet_hash) {
+          throw new Error(
+            `Source packet hash mismatch: current ${currentPacketHash} vs stored ${envelope.source_packet_hash}`,
+          );
+        }
+      }
+
+      // 4. Update to approved_for_phase13_review with WHERE status guard
+      const now = new Date();
+      const [updateResult] = await conn.query(
+        `UPDATE settlement_execution_preparation_envelopes
+         SET envelope_status = 'approved_for_phase13_review',
+             approved_by_admin_id = ?,
+             approved_at = ?,
+             trace_id = COALESCE(trace_id, ?),
+             updated_at = ?
+         WHERE id = ? AND ${clause} AND envelope_status = 'frozen'`,
+        [adminId, now, traceId, now, envelopeId, ...params],
+      );
+
+      if ((updateResult as { affectedRows: number }).affectedRows !== 1) {
+        throw new Error("envelope not in frozen status or concurrently modified");
+      }
+
+      // 5. Write audit event
+      const auditId = genId("epa");
+      await conn.query(
+        `INSERT INTO settlement_execution_preparation_audit
+         (id, city_code, envelope_id, event_type, event_timestamp,
+          actor_admin_id, summary, trace_id)
+         VALUES (?, ?, ?, 'envelope_approved_for_phase13_review', ?, ?, ?, ?)`,
+        [
+          auditId,
+          cityCode,
+          envelopeId,
+          now,
+          adminId,
+          `Envelope approved for Phase 13 review`,
+          traceId,
+        ],
+      );
+
+      // 6. Return updated envelope
+      const [updatedRows] = await conn.query<EnvelopeRow[]>(
+        `SELECT * FROM settlement_execution_preparation_envelopes WHERE id = ?`,
+        [envelopeId],
+      );
+      return mapEnvelope(updatedRows[0]);
+    });
   }
 
   /**

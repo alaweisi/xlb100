@@ -114,8 +114,8 @@ export async function registerPreparationRoutes(app: FastifyInstance): Promise<v
     async (request, reply) => {
       const ctx = getRequestContext(request);
       try {
-        const audit = await envelopeService.getEnvelopeAudit(ctx, request.params.envelopeId);
-        return { ok: true, audit };
+        const entries = await envelopeService.getEnvelopeAudit(ctx, request.params.envelopeId);
+        return { ok: true, entries };
       } catch (e) {
         return reply.status(500).send({ ok: false, error: String(e) });
       }

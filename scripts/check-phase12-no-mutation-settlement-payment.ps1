@@ -1,23 +1,116 @@
-# Phase 12 gate: no INSERT/UPDATE/DELETE on settlement/payment/ledger tables in preparation/
-$ErrorActionPreference = "Stop"; $Root = Split-Path -Parent $PSScriptRoot
-$preparationDir = Join-Path $Root "backend\src\preparation"
-$forbiddenWriteTargets = @('\bsettlement_batches\b','\bsettlement_items\b','\bsettlement_payables\b','\bsettlement_payable_queue\b','\bpayment_orders\b','\bpayment_transactions\b','\bwallet_transactions\b','\bwallet_balances\b','\bledger_entries\b','\bledger_accounts\b','\bledger_accruals\b','\bprovider_dispatches\b','\bprovider_payouts\b','\brefund_orders\b','\breversal_entries\b')
+# Phase 12 gate: no INSERT/UPDATE/DELETE on settlement/payment/ledger/refund/reversal/export
+# tables in ALL changed backend files. Catches multiline SQL.
+# Phase 12 is preparation-only — no money-movement table mutations.
+$ErrorActionPreference = "Stop"
+$Root = Split-Path -Parent $PSScriptRoot
+
+$forbiddenWriteTargets = @(
+  '\bsettlement_batches\b',
+  '\bsettlement_items\b',
+  '\bsettlement_payables\b',
+  '\bsettlement_payable_queue\b',
+  '\bpayment_orders\b',
+  '\bpayment_transactions\b',
+  '\bwallet_transactions\b',
+  '\bwallet_balances\b',
+  '\bledger_entries\b',
+  '\bledger_accounts\b',
+  '\bledger_accruals\b',
+  '\bprovider_dispatches\b',
+  '\bprovider_payouts\b',
+  '\brefund_orders\b',
+  '\breversal_entries\b',
+  '\bworker_receivable_statements\b',
+  '\bworker_receivable_statement_lines\b',
+  '\bworker_receivable_statement_reviews\b',
+  '\bworker_receivable_statement_exports\b',
+  '\bsettlement_action_governance_intents\b',
+  '\bsettlement_action_governance_reviews\b',
+  '\bsettlement_action_governance_evidence_bundles\b',
+  '\bsettlement_action_governance_readiness_packets\b',
+  '\bsettlement_execution_dry_run_plan\b',
+  '\bsettlement_execution_dry_run_plan_item\b',
+  '\bsettlement_execution_dry_run_audit\b',
+  '\bsettlement_audit_summary\b',
+  '\breconciliation_gap_scans\b'
+)
+
 $allowedTablePattern = 'settlement_execution_preparation_'
-$violations = @()
-if (-not (Test-Path $preparationDir)) {
-  Write-Host "check-phase12-no-mutation-settlement-payment: passed (preparation directory not yet created)"
-  exit 0
+
+$changedFiles = & git -C $Root diff --name-only main...HEAD 2>$null
+if ($LASTEXITCODE -ne 0) {
+  Write-Host "check-phase12-no-mutation-settlement-payment: FAILED - git diff failed"
+  exit 1
 }
-$tsFiles = Get-ChildItem -Path $preparationDir -Filter "*.ts" -File -Recurse -ErrorAction SilentlyContinue
-foreach ($file in $tsFiles) {
-  $lines = Get-Content -Path $file.FullName; $lineNum = 0
-  foreach ($line in $lines) { $lineNum++; $trimmed = $line.Trim(); if ($trimmed -match '^\s*(//|#|/\*|\*| \*|--)') { continue }
-    if ($trimmed -match '\b(INSERT\s+INTO|UPDATE\s+\w|DELETE\s+FROM)\b' -and $trimmed -notmatch $allowedTablePattern) {
-      foreach ($fp in $forbiddenWriteTargets) {
-        if ($trimmed -match $fp) { $violations += "$($file.Name):$lineNum`: $trimmed"; break }
+
+$violations = @()
+
+foreach ($file in $changedFiles) {
+  # Only scan backend source files
+  if ($file -notmatch '^backend/.*\.(ts|tsx|sql)$') { continue }
+
+  $fullPath = Join-Path $Root $file
+  if (-not (Test-Path $fullPath)) { continue }
+
+  $content = Get-Content -Path $fullPath -Raw -ErrorAction SilentlyContinue
+  if (-not $content) { continue }
+
+  # Strip comments
+  $stripped = $content -replace '\/\/.*$', '' -replace '\/\*[\s\S]*?\*\/', ''
+  $collapsed = $stripped -replace '\s+', ' '
+
+  # First pass: per-line check
+  $lineNum = 0
+  $lines = $content -split "`n"
+  foreach ($line in $lines) {
+    $lineNum++
+    $trimmed = $line.Trim()
+    if ($trimmed -match '^\s*(//|#|/\*|\*|\s*\*|--)') { continue }
+
+    if ($trimmed -match '\b(INSERT\s+INTO|UPDATE\s+\w|DELETE\s+FROM)\b') {
+      # If it only targets preparation table, skip
+      if ($trimmed -notmatch $allowedTablePattern) {
+        foreach ($fp in $forbiddenWriteTargets) {
+          if ($trimmed -match $fp) {
+            $violations += "$($file):$lineNum`: $trimmed"
+            break
+          }
+        }
+      }
+    }
+  }
+
+  # Multiline detection pass (5-line sliding windows)
+  for ($i = 0; $i -lt $lines.Count; $i++) {
+    $trimmed = $lines[$i].Trim()
+    if ($trimmed -match '^\s*(//|#|/\*|\*|\s*\*|--)') { continue }
+
+    if ($trimmed -match '\b(INSERT\s+INTO|UPDATE\s+\w|DELETE\s+FROM)\b') {
+      $window = ''
+      for ($j = $i; $j -lt [Math]::Min($i + 5, $lines.Count); $j++) {
+        $wl = $lines[$j] -replace '\/\/.*$', '' -replace '\/\*[\s\S]*?\*\/', ''
+        $window += $wl + ' '
+      }
+      $windowCollapsed = $window -replace '\s+', ' '
+
+      if ($windowCollapsed -notmatch $allowedTablePattern) {
+        foreach ($fp in $forbiddenWriteTargets) {
+          if ($windowCollapsed -match $fp) {
+            $violations += "$($file):$($i+1)`: multiline SQL mutation: $trimmed"
+            break
+          }
+        }
       }
     }
   }
 }
-if ($violations.Count -gt 0) { Write-Host "check-phase12-no-mutation-settlement-payment: FAILED - forbidden table mutation detected"; $violations | ForEach-Object { Write-Host "  $_" }; exit 1 }
+
+$violations = $violations | Select-Object -Unique
+
+if ($violations.Count -gt 0) {
+  Write-Host "check-phase12-no-mutation-settlement-payment: FAILED - forbidden table mutation detected"
+  $violations | ForEach-Object { Write-Host "  $_" }
+  exit 1
+}
+
 Write-Host "check-phase12-no-mutation-settlement-payment: passed"

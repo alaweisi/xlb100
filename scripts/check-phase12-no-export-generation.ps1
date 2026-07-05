@@ -1,18 +1,88 @@
-# Phase 12 gate: no export/download/generate file code in preparation/
-$ErrorActionPreference = "Stop"; $Root = Split-Path -Parent $PSScriptRoot
-$preparationDir = Join-Path $Root "backend\src\preparation"
-$forbiddenPatterns = @('\bexport\b.*\bfile\b','\bdownload\b','\bgenerate\b.*\bfile\b','\bwriteFile\b','\bcreateWriteStream\b','\bgenerateExport\b','\bgenerate_export\b','\bFileStream\b','\bFileWriter\b','\bBlob\b','\bcreateReadStream\b','\bopenSync\b','\bwriteFileSync\b','\bappendFile\b','\boutputFile\b')
-$violations = @()
-if (-not (Test-Path $preparationDir)) {
-  Write-Host "check-phase12-no-export-generation: passed (preparation directory not yet created)"
-  exit 0
+# Phase 12 gate: no export/download/generate file patterns in ANY changed
+# backend/frontend files. Phase 12 is preparation-only; file generation
+# is execution, not governance.
+$ErrorActionPreference = "Stop"
+$Root = Split-Path -Parent $PSScriptRoot
+
+$forbiddenPatterns = @(
+  '\bexport\b.*\bfile\b',
+  '\bdownload\b',
+  '\bgenerate\b.*\bfile\b',
+  '\bgenerateExport\b',
+  '\bgenerate_export\b',
+  '\bwriteFile\b',
+  '\bwriteFileSync\b',
+  '\bcreateWriteStream\b',
+  '\bcreateReadStream\b',
+  '\bFileStream\b',
+  '\bFileWriter\b',
+  '\bBlob\b',
+  '\bopenSync\b',
+  '\bappendFile\b',
+  '\boutputFile\b',
+  '\bsaveAs\b',
+  '\bdownloadFile\b',
+  '\bexportFile\b',
+  '\bexportToFile\b',
+  '\bexportData\b',
+  '\bstreamToFile\b'
+)
+
+# Allowed file patterns (docs/reports, tests, gate scripts themselves)
+$allowedPatterns = @(
+  '^docs/',
+  '^docs\/reports/',
+  '^tests/',
+  '\.test\.ts$',
+  '\.test\.tsx$',
+  '\.spec\.ts$',
+  '^scripts/'
+)
+
+$changedFiles = & git -C $Root diff --name-only main...HEAD 2>$null
+if ($LASTEXITCODE -ne 0) {
+  Write-Host "check-phase12-no-export-generation: FAILED - git diff failed"
+  exit 1
 }
-$tsFiles = Get-ChildItem -Path $preparationDir -Filter "*.ts" -File -Recurse -ErrorAction SilentlyContinue
-foreach ($file in $tsFiles) {
-  $lines = Get-Content -Path $file.FullName; $lineNum = 0
-  foreach ($line in $lines) { $lineNum++; $trimmed = $line.Trim(); if ($trimmed -match '^\s*(//|#|/\*|\*| \*|--)') { continue }
-    foreach ($pat in $forbiddenPatterns) { if ($trimmed -match $pat) { $violations += "$($file.Name):$lineNum`: $trimmed"; break } }
+
+$violations = @()
+
+foreach ($file in $changedFiles) {
+  # Only scan source files
+  if ($file -notmatch '\.(ts|tsx|sql|js|jsx)$') { continue }
+
+  # Skip allowed patterns
+  $isAllowed = $false
+  foreach ($ap in $allowedPatterns) {
+    if ($file -match $ap) { $isAllowed = $true; break }
+  }
+  if ($isAllowed) { continue }
+
+  $fullPath = Join-Path $Root $file
+  if (-not (Test-Path $fullPath)) { continue }
+
+  $lines = Get-Content -Path $fullPath -ErrorAction SilentlyContinue
+  if (-not $lines) { continue }
+
+  $lineNum = 0
+  foreach ($line in $lines) {
+    $lineNum++
+    $trimmed = $line.Trim()
+    # Skip comment lines
+    if ($trimmed -match '^\s*(//|#|/\*|\*|\s*\*|--)') { continue }
+    foreach ($pat in $forbiddenPatterns) {
+      if ($trimmed -match $pat) {
+        $violations += "$($file):$lineNum`: $trimmed"
+        break
+      }
+    }
   }
 }
-if ($violations.Count -gt 0) { Write-Host "check-phase12-no-export-generation: FAILED - export/download/generate file code found"; $violations | ForEach-Object { Write-Host "  $_" }; exit 1 }
+
+if ($violations.Count -gt 0) {
+  Write-Host "check-phase12-no-export-generation: FAILED - export/download/generate file patterns found"
+  $violations | ForEach-Object { Write-Host "  $_" }
+  exit 1
+}
+
 Write-Host "check-phase12-no-export-generation: passed"

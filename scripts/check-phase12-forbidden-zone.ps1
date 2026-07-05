@@ -22,12 +22,15 @@ if ($LASTEXITCODE -ne 0) {
 $violations = @()
 foreach ($file in $changedFiles) {
   foreach ($fd in $forbiddenDirs) {
-    if ($file.StartsWith($fd)) {
+    # Normalize path separators for consistent matching
+    $normalized = $file -replace '\\', '/'
+    if ($normalized.StartsWith($fd)) {
       $violations += $file
     }
   }
   foreach ($ff in $forbiddenFiles) {
-    if ($file -eq $ff) {
+    $normalized = $file -replace '\\', '/'
+    if ($normalized -eq $ff) {
       $violations += $file
     }
   }

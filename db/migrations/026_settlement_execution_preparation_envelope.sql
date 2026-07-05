@@ -32,6 +32,9 @@ CREATE TABLE settlement_execution_preparation_envelopes (
   INDEX idx_prep_payload_hash (payload_hash)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+ALTER TABLE settlement_execution_preparation_envelopes
+  ADD UNIQUE KEY uk_prep_envelope_city (id, city_code);
+
 CREATE TABLE settlement_execution_preparation_items (
   id VARCHAR(64) NOT NULL PRIMARY KEY,
   city_code VARCHAR(64) NOT NULL,
@@ -43,10 +46,12 @@ CREATE TABLE settlement_execution_preparation_items (
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_prep_item_city FOREIGN KEY (city_code) REFERENCES cities(city_code),
   CONSTRAINT chk_prep_item_city CHECK (city_code <> '__global__'),
-  CONSTRAINT fk_prep_item_envelope FOREIGN KEY (envelope_id) REFERENCES settlement_execution_preparation_envelopes(id),
   INDEX idx_prepitem_city (city_code),
   INDEX idx_prepitem_envelope (envelope_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+ALTER TABLE settlement_execution_preparation_items
+  ADD CONSTRAINT fk_prep_item_envelope_city FOREIGN KEY (envelope_id, city_code) REFERENCES settlement_execution_preparation_envelopes(id, city_code);
 
 CREATE TABLE settlement_execution_preparation_audit (
   id VARCHAR(64) NOT NULL PRIMARY KEY,
@@ -59,9 +64,11 @@ CREATE TABLE settlement_execution_preparation_audit (
   trace_id VARCHAR(64) NULL,
   CONSTRAINT fk_prep_audit_city FOREIGN KEY (city_code) REFERENCES cities(city_code),
   CONSTRAINT chk_prep_audit_city CHECK (city_code <> '__global__'),
-  CONSTRAINT fk_prep_audit_envelope FOREIGN KEY (envelope_id) REFERENCES settlement_execution_preparation_envelopes(id),
   INDEX idx_prepaudit_city (city_code),
   INDEX idx_prepaudit_envelope (envelope_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+ALTER TABLE settlement_execution_preparation_audit
+  ADD CONSTRAINT fk_prep_audit_envelope_city FOREIGN KEY (envelope_id, city_code) REFERENCES settlement_execution_preparation_envelopes(id, city_code);
 
 INSERT INTO schema_migrations(version) VALUES ('026_settlement_execution_preparation_envelope') ON DUPLICATE KEY UPDATE version=version;
