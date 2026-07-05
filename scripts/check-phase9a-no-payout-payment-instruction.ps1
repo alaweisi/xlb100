@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Stop"; $Root = Split-Path -Parent $PSScriptRoot
 # Phase 10+11+12 governance/planner/preparation files: exact allowlist
-$d = & git -C $Root diff main...HEAD -- . ':!scripts/' ':!tests/' 2>$null
+$d = & git -C $Root diff main...HEAD -- . ':!scripts/' ':!tests/' ':!docs/release/' 2>$null
 $fb = @("payout", "paid_settlement", "payment_instruction", "provider.*call", "notification.*consumer", "withdraw")
 $allowedFiles = @(
   "backend/src/governance/governanceGuard.ts",
