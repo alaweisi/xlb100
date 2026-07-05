@@ -61,13 +61,23 @@ These commands are validation evidence for the repository state only. They do no
 
 ## Remaining Blockers
 
-Production remains blocked by every item in the evidence checklist until each status is updated to PASS by the named owner. The most release-critical blockers are:
+Production remains blocked by every item in the evidence checklist until each status is updated to PASS by the named owner:
 
+- `PROD-OPS-001` production secrets management.
+- `PROD-OPS-002` production domain/TLS/ingress.
+- `PROD-OPS-003` production DB provisioning.
+- `PROD-OPS-004` backup/restore readiness.
 - `PROD-OPS-005` migration 027 rollback plan.
 - `PROD-OPS-006` code/data rollback procedure.
 - `PROD-OPS-007` monitoring and alerting.
+- `PROD-OPS-008` payment/refund/reversal duplicate monitoring.
+- `PROD-OPS-009` event handler lag monitoring.
 - `PROD-OPS-010` replay/immutability release gate timing.
+- `PROD-OPS-011` CI gate script change audit.
+- `PROD-OPS-012` operator/app onboarding signoff.
 - `PROD-OPS-013` release owner approval.
+
+The highest release-risk blockers remain `PROD-OPS-005`, `PROD-OPS-006`, `PROD-OPS-007`, `PROD-OPS-010`, and `PROD-OPS-013`, but the other `PROD-OPS-*` rows are still production blockers until closed.
 
 ## Closure Rule
 
