@@ -1,23 +1,33 @@
-﻿# Phase 14 RC2 Internal Beta Day 1 Monitoring Report
+﻿# Phase 14 RC2 Internal Beta Day 2 Monitoring Report
 
 ## Baseline
 
 - RC2 tag: `phase14-staging-rc2`
-- Current commit: `acfb6a2 docs(release): start phase 14 rc2 internal beta`
+- Current commit: `347551f docs(release): add phase 14 internal beta day 1 report`
 - Branch: `phase14r-refund-reversal`
 - Evidence date: 2026-07-05
 - Production release status: BLOCKED
 
 ## Git confirmation
 
-- Working tree before Day 1 evidence: clean
+- Working tree before Day 2 evidence: clean
 - Latest commits confirmed:
+  - `347551f docs(release): add phase 14 internal beta day 1 report`
   - `acfb6a2 docs(release): start phase 14 rc2 internal beta`
   - `77c8c62 docs(release): add phase 14 rc2 internal beta handoff`
   - `ae4f5d1 docs(release): add phase 14 rc2 uat evidence`
   - `60ba210 chore(ci): allow phase 14r refund reversal gates`
-  - `0f0f26d fix(ledger): implement refund reversal mvp`
-- `git tag --points-at HEAD`: no tag points at the Day 1 monitoring commit baseline. RC2 tag remains `phase14-staging-rc2`.
+- `git tag --points-at HEAD`: no tag points at the Day 2 monitoring baseline. RC2 tag remains `phase14-staging-rc2`.
+
+## Day 1 P3 carryover summary
+
+Day 1 P3 items remain tracked and non-blocking. The Day 1 report now explicitly includes issue id, affected flow, evidence, owner, decision, and disposition.
+
+| Issue ID | Severity | Affected flow | Evidence | Owner | Day 2 status | Disposition |
+| --- | --- | --- | --- | --- | --- | --- |
+| BETA-D1-001 | P3 | Customer/worker/admin static app serving | Frontend update-check warnings; apps continue returning HTTP 200 | Release engineering | Carryover, unchanged | Deferred cleanup; not needed for beta continuation |
+| BETA-D1-002 | P3 | Local staging MySQL bootstrap | MySQL timezone/insecure local bootstrap warnings; MySQL container healthy | Release engineering | Carryover, unchanged | Deferred cleanup; production hardening/compose hygiene |
+| BETA-D1-003 | P3 | Admin city-scope guard negative checks | HTTP 403/404 from intentional wrong-city / missing-scope UAT checks | Backend owner | Carryover, unchanged | No fix required; keep as guard evidence |
 
 ## Staging status
 
@@ -72,15 +82,15 @@ Summary:
 - No backend HTTP 5xx response observed in inspected logs.
 - Backend health and DB health checks returned HTTP 200.
 - Customer, worker, and admin static app requests returned HTTP 200.
-- RC2 UAT flow logs show HTTP 200 for order, payment, dispatch, worker accept/fulfill, refund request, refund approval, ledger reversal, and audit trail paths.
-- Expected negative authorization/city-scope checks returned HTTP 403/404 during UAT history; these are treated as guard evidence, not runtime blockers.
-- Frontend update-check warnings and MySQL local bootstrap warnings remain non-blocking for staging beta.
+- Order, payment, dispatch, worker fulfillment, refund request, refund approval, ledger reversal, and audit trail paths remain represented by HTTP 200 entries in the inspected logs and RC2 UAT history.
+- Expected negative authorization/city-scope checks returned HTTP 403/404 during UAT history; these remain P3 guard evidence, not runtime blockers.
+- Frontend update-check warnings and MySQL local bootstrap warnings remain P3/non-blocking.
 
-## Beta issues table
+## Day 2 issue table by severity
 
 | Issue ID | Severity | Affected flow | Evidence | Owner | Decision | Disposition |
 | --- | --- | --- | --- | --- | --- | --- |
-| BETA-D1-001 | P3 | Customer/worker/admin static app serving | `WARN Checking for updates failed`; apps continue returning HTTP 200 | Release engineering | Monitor only; no blocker | Deferred cleanup; not needed for beta continuation |
+| BETA-D1-001 | P3 | Customer/worker/admin static app serving | Frontend update-check warnings; apps continue returning HTTP 200 | Release engineering | Monitor only; no blocker | Deferred cleanup; not needed for beta continuation |
 | BETA-D1-002 | P3 | Local staging MySQL bootstrap | MySQL timezone/insecure local bootstrap warnings; MySQL container healthy | Release engineering | Monitor only; staging-only warning | Deferred cleanup; production hardening/compose hygiene |
 | BETA-D1-003 | P3 | Admin city-scope guard negative checks | HTTP 403/404 from intentional wrong-city / missing-scope UAT checks | Backend owner | Expected guard behavior; no action | No fix required; keep as guard evidence |
 
@@ -93,13 +103,13 @@ Issue count by severity:
 | P2 | 0 |
 | P3 | 3 |
 
-## Required watch items
+## Watch items
 
-| Watch item | Day 1 status | Evidence / note |
+| Watch item | Day 2 status | Evidence / note |
 | --- | --- | --- |
-| Customer order | PASS observed | UAT/history logs include `POST /api/orders` HTTP 200 |
-| Worker accept/fulfill | PASS observed | UAT/history logs include worker accept/start/complete HTTP 200 |
-| Admin review | PASS observed | Governance review approval path returned HTTP 200 after expected wrong-city negative check |
+| Customer order | PASS observed | Logs/UAT history include `POST /api/orders` HTTP 200 |
+| Worker accept/fulfill | PASS observed | Logs/UAT history include worker accept/start/complete HTTP 200 |
+| Admin review | PASS observed | Governance review approval path returned HTTP 200 after expected negative guard check |
 | Refund approval | PASS observed | `POST /api/internal/aftersale/refunds/.../approve` returned HTTP 200 |
 | `refund.approved` event_outbox | WATCH | Covered by RC2 UAT evidence; continue SQL monitoring during beta |
 | Ledger reversal | PASS observed | `POST /api/internal/ledger/reverse` returned HTTP 200 |
@@ -107,7 +117,7 @@ Issue count by severity:
 | Audit trace | PASS observed | Audit trail endpoint returned HTTP 200; continue conflict_audit monitoring |
 | Replay gate | PASS pending validation | Must remain PASS in post-doc validation |
 
-## Day 1 beta decision
+## Day 2 beta decision
 
 Decision: CONTINUE Phase 14 RC2 staging internal beta.
 
@@ -116,7 +126,7 @@ Rationale:
 - Staging containers remain running.
 - Smoke remains PASS.
 - Runtime log inspection found no P0/P1/P2 blocker.
-- Observed P3 items are non-blocking and require monitoring only.
+- Day 1 P3 issues are explicitly tracked and remain non-blocking.
 - Production release remains BLOCKED pending beta observation, rollback readiness, and release-owner approval.
 
 ## Escalation rule
