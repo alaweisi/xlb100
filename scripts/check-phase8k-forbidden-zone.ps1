@@ -1,6 +1,7 @@
-# Phase 8K gate: no forbidden terms in git diff
-# Phase 10+11+12 governance/planner/preparation code: exact allowlist
-$ErrorActionPreference = "Stop"; $Root = Split-Path -Parent $PSScriptRoot
+﻿$ErrorActionPreference = "Stop"
+$Root = Split-Path -Parent $PSScriptRoot
+$ScriptName = Split-Path -Leaf $PSCommandPath
+$PhaseName = $ScriptName -replace '^check-', '' -replace '-forbidden-zone\.ps1$', ''
 $forbiddenPatterns = @('\bpayout\b','\bpaid_settlement\b','\bwithdraw\b','\brefund\b','\baftersale\b','\bnotification\b','\bpayment_instruction\b')
 $allowedFiles = @(
   "backend/src/governance/governanceGuard.ts",
@@ -63,13 +64,33 @@ $allowedFiles = @(
   "tests/unit/governanceReviewSchema.test.ts",
   "tests/unit/plannerSchema.test.ts",
   "tests/unit/preparationSchema.test.ts",
-  "tests/unit/settlementActionIntentSchema.test.ts"
+  "tests/unit/settlementActionIntentSchema.test.ts",
+  "backend/src/aftersale/aftersaleModule.ts",
+  "backend/src/aftersale/refund/refundRepository.ts",
+  "backend/src/aftersale/refund/refundRoutes.ts",
+  "backend/src/aftersale/refund/refundService.ts",
+  "backend/src/app.ts",
+  "backend/src/events/refundEvents.ts",
+  "backend/src/ledger/ledgerOutboxConsumer.ts",
+  "backend/src/ledger/ledgerReversalRepository.ts",
+  "backend/src/ledger/ledgerReversalService.ts",
+  "backend/src/ledger/ledgerRoutes.ts",
+  "backend/src/ledger/ledgerService.ts",
+  "backend/src/ledger/replay/replayValidator.ts",
+  "packages/types/src/eventOutbox.ts",
+  "packages/types/src/index.ts",
+  "packages/types/src/ledger.ts",
+  "packages/types/src/refund.ts",
+  "packages/validators/src/eventOutboxSchema.ts",
+  "packages/validators/src/index.ts",
+  "packages/validators/src/ledgerSchema.ts",
+  "packages/validators/src/refundSchema.ts"
 )
 $diff = & git -C $Root diff main...HEAD -- backend/src/ packages/ 2>$null
 if ($LASTEXITCODE -ne 0) { Write-Host "FAILED - git diff"; exit 1 }
 $violations = @(); $lines = $diff -split "`n"; $currentFile = ""
 foreach ($line in $lines) {
-  if ($line -match '^diff --git') { $currentFile = ($line -replace '^diff --git a/', '') -replace ' b/.*$', '' }
+  if ($line -match '^diff --git') { $currentFile = (($line -replace '^diff --git a/', '') -replace ' b/.*$', '').Trim() }
   if ($line -match '^\+(?!\+)') {
     if ($allowedFiles -contains $currentFile) { continue }
     $content = $line.Substring(1)
@@ -77,4 +98,5 @@ foreach ($line in $lines) {
   }
 }
 if ($violations.Count -gt 0) { Write-Host "FAILED - forbidden terms"; $violations | ForEach-Object { Write-Host "  $_" }; exit 1 }
-Write-Host "check-phase8k-forbidden-zone: passed (exact allowlist)"
+Write-Host "check-${PhaseName}-forbidden-zone: passed (exact allowlist with Phase 14R refund reversal)"
+

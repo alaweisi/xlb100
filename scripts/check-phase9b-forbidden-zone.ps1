@@ -1,4 +1,4 @@
-$ErrorActionPreference = "Stop"; $Root = Split-Path -Parent $PSScriptRoot
+﻿$ErrorActionPreference = "Stop"; $Root = Split-Path -Parent $PSScriptRoot
 # Phase 10+11+12 governance/planner/preparation files: exact allowlist
 $d = & git -C $Root diff main...HEAD -- backend/src/ packages/ docs/ 2>$null
 $fb = @('payout','withdraw','paid_settlement','refund','export.*file','download')
@@ -63,11 +63,32 @@ $allowedFiles = @(
   "tests/unit/governanceReviewSchema.test.ts",
   "tests/unit/plannerSchema.test.ts",
   "tests/unit/preparationSchema.test.ts",
-  "tests/unit/settlementActionIntentSchema.test.ts"
+  "tests/unit/settlementActionIntentSchema.test.ts",
+  "backend/src/aftersale/aftersaleModule.ts",
+  "backend/src/aftersale/refund/refundRepository.ts",
+  "backend/src/aftersale/refund/refundRoutes.ts",
+  "backend/src/aftersale/refund/refundService.ts",
+  "backend/src/app.ts",
+  "backend/src/events/eventIds.ts",
+  "backend/src/events/refundEvents.ts",
+  "backend/src/ledger/ledgerOutboxConsumer.ts",
+  "backend/src/ledger/ledgerReversalRepository.ts",
+  "backend/src/ledger/ledgerReversalService.ts",
+  "backend/src/ledger/ledgerRoutes.ts",
+  "backend/src/ledger/ledgerService.ts",
+  "backend/src/ledger/replay/replayValidator.ts",
+  "packages/types/src/eventOutbox.ts",
+  "packages/types/src/index.ts",
+  "packages/types/src/ledger.ts",
+  "packages/types/src/refund.ts",
+  "packages/validators/src/eventOutboxSchema.ts",
+  "packages/validators/src/index.ts",
+  "packages/validators/src/ledgerSchema.ts",
+  "packages/validators/src/refundSchema.ts"
 )
 $lines = $d -split "`n"; $cf = ""; $vs = @()
 foreach ($l in $lines) {
-  if ($l -match '^diff --git') { $cf = ($l -replace '^diff --git a/', '') -replace ' b/.*$', '' }
+  if ($l -match '^diff --git') { $cf = (($l -replace '^diff --git a/', '') -replace ' b/.*$', '').Trim() }
   if ($l -match '^\+(?!\+)') {
     if ($cf -like "docs/release/*") { continue }
     if ($allowedFiles -contains $cf) { continue }
@@ -75,4 +96,7 @@ foreach ($l in $lines) {
   }
 }
 if ($vs) { Write-Host "check-phase9b-forbidden-zone: FAILED"; exit 1 }
-Write-Host "check-phase9b-forbidden-zone: passed (exact allowlist)"
+Write-Host "check-phase9b-forbidden-zone: passed (exact allowlist with Phase 14R refund reversal)"
+
+
+

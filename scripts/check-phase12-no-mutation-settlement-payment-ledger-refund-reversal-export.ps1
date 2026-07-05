@@ -93,6 +93,7 @@ $allowedPerModule = @{
   'backend/src/governance' = 'settlement_action_governance_'
   'backend/src/ledger' = 'ledger_(accounts|accruals|entries)'
   'backend/src/planner' = 'settlement_execution_dry_run_'
+  'backend/src/aftersale' = 'aftersale_refund_requests'
 }
 
 function Get-AllowedTablePattern([string]$FilePath) {
