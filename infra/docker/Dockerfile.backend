@@ -23,7 +23,7 @@ RUN pnpm install --frozen-lockfile --filter @xlb/backend...
 
 COPY . .
 
-RUN pnpm --filter @xlb/backend build
+RUN pnpm --filter @xlb/backend... build
 
 FROM node:20-alpine AS runtime
 WORKDIR /app
@@ -31,6 +31,10 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 COPY --from=builder /app /app
+
+RUN mkdir -p node_modules/@shared/deterministic \
+  && cp -R packages/shared/dist/deterministic/. node_modules/@shared/deterministic/ \
+  && printf '{"type":"module","main":"./index.js","exports":{".":"./index.js","./*":"./*"}}\n' > node_modules/@shared/deterministic/package.json
 
 EXPOSE 3000
 

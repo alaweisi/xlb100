@@ -1,18 +1,21 @@
 ﻿# Staging seed helper for Dockerized MySQL
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
+$ComposeFile = Join-Path $Root "deploy\compose\docker-compose.staging.yml"
+$EnvFile = Join-Path $Root ".env.staging.example"
 
-$mysqlHost = $env:MYSQL_HOST
 $mysqlDatabase = $env:MYSQL_DATABASE
 $mysqlUser = $env:MYSQL_USER
 $mysqlPassword = $env:MYSQL_PASSWORD
 
-if (-not $mysqlHost) { throw "MYSQL_HOST is required (for staging container name, e.g. mysql)" }
 if (-not $mysqlDatabase) { $mysqlDatabase = "xlb_staging" }
 if (-not $mysqlUser) { $mysqlUser = "xlb" }
-if (-not $mysqlPassword) { throw "MYSQL_PASSWORD is required" }
+if (-not $mysqlPassword) { $mysqlPassword = "change-me" }
 
-Write-Host "Running staging seeds via docker exec on '$mysqlHost'..."
+Write-Host "Running staging seeds via docker compose mysql service..."
+
+$mysqlContainer = (docker compose --env-file $EnvFile -f $ComposeFile ps -q mysql | Out-String).Trim()
+if (-not $mysqlContainer) { throw "staging mysql container is not running" }
 
 $seedDir = Join-Path $Root "db\seed"
 $files = Get-ChildItem -Path $seedDir -Filter "*.sql" | Sort-Object Name
@@ -20,11 +23,11 @@ $files = Get-ChildItem -Path $seedDir -Filter "*.sql" | Sort-Object Name
 foreach ($file in $files) {
   Write-Host "SEED $($file.Name)"
   $containerPath = "/tmp/xlb_seed_$($file.Name)"
-  docker cp $file.FullName "$mysqlHost:${containerPath}" | Out-Null
+  docker cp $file.FullName "${mysqlContainer}:${containerPath}" | Out-Null
   if ($LASTEXITCODE -ne 0) { exit 1 }
-  cmd /c "docker exec $mysqlHost mysql -u$mysqlUser -p$mysqlPassword --default-character-set=utf8mb4 $mysqlDatabase -e \"source ${containerPath}\" 2>nul"
+  docker compose --env-file $EnvFile -f $ComposeFile exec -e "MYSQL_PWD=$mysqlPassword" -T mysql mysql "-u$mysqlUser" --default-character-set=utf8mb4 $mysqlDatabase -e "source ${containerPath}" 2>$null
   if ($LASTEXITCODE -ne 0) { exit 1 }
-  cmd /c "docker exec $mysqlHost rm -f ${containerPath} 2>nul" | Out-Null
+  docker compose --env-file $EnvFile -f $ComposeFile exec -T mysql rm -f ${containerPath} 2>$null | Out-Null
 }
 
 Write-Host "seed-staging: passed"

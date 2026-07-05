@@ -4,4 +4,6 @@ node_modules
 **/.turbo
 dist
 **/dist
+*.tsbuildinfo
+**/*.tsbuildinfo
 .git
