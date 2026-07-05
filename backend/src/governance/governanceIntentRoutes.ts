@@ -9,7 +9,12 @@ const preHandler = [createRequestContextMiddleware({ requireCityCode: true }), r
 export async function registerGovernanceIntentRoutes(app: FastifyInstance): Promise<void> {
   app.post("/api/internal/settlement-action-governance/intents", { preHandler }, async (request: FastifyRequest, reply) => {
     const ctx = getRequestContext(request);
-    const body = { ...(request.body as Record<string, unknown> ?? {}), cityCode: ctx.cityCode };
+    const rawBody = (request.body as Record<string, unknown> ?? {});
+    // B2 FIX: reject body cityCode mismatch instead of silently overriding
+    if (rawBody.cityCode && rawBody.cityCode !== ctx.cityCode) {
+      return reply.status(400).send({ ok: false, error: "cityCode mismatch with request context" });
+    }
+    const body = { ...rawBody, cityCode: ctx.cityCode };
     const p = createGovernanceIntentRequestSchema.safeParse(body);
     if (!p.success) return reply.status(400).send({ ok: false, error: "invalid governance intent request" });
     try { const intent = await governanceIntentService.createDraft(ctx, p.data); return { ok: true, intent }; }
@@ -17,6 +22,11 @@ export async function registerGovernanceIntentRoutes(app: FastifyInstance): Prom
   });
   app.get("/api/internal/settlement-action-governance/intents", { preHandler }, async (request: FastifyRequest, reply) => {
     const ctx = getRequestContext(request);
+    const rawQuery = (request.query ?? {}) as Record<string, unknown>;
+    // B1 FIX: reject list query cityCode mismatch
+    if (rawQuery.cityCode && rawQuery.cityCode !== ctx.cityCode) {
+      return reply.status(400).send({ ok: false, error: "query cityCode cannot override request context city" });
+    }
     const pq = governanceIntentListQuerySchema.safeParse(request.query ?? {});
     if (!pq.success) return reply.status(400).send({ ok: false, error: "invalid list query" });
     try { const intents = await governanceIntentService.listIntents(ctx, pq.data); return { ok: true, intents }; }

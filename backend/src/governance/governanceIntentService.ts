@@ -47,6 +47,19 @@ function mapIntent(row: IntentRow): GovernanceIntentRecord {
   };
 }
 
+// ── Helpers ──
+
+async function getIntentRaw(pool: ReturnType<typeof getMysqlPool>, intentId: string): Promise<IntentRow | null> {
+  const [rows] = await pool.query<IntentRow[]>("SELECT * FROM settlement_action_governance_intents WHERE id = ?", [intentId]);
+  return rows.length > 0 ? rows[0] : null;
+}
+
+export async function assertGovernanceIntentInCity(pool: ReturnType<typeof getMysqlPool>, intentId: string, cityCode: string): Promise<void> {
+  const row = await getIntentRaw(pool, intentId);
+  if (!row) throw new Error(`governance intent ${intentId} not found`);
+  if (row.city_code !== cityCode) throw new Error(`governance intent ${intentId} belongs to city ${row.city_code}, not ${cityCode}`);
+}
+
 // ── Service ──
 class GovernanceIntentService {
   private pool = getMysqlPool();
@@ -111,14 +124,10 @@ class GovernanceIntentService {
     const conditions: string[] = [];
     const params: unknown[] = [];
 
-    if (query.cityCode) {
-      conditions.push("city_code = ?");
-      params.push(query.cityCode);
-    } else {
-      const { clause, params: cp } = buildCityScopedWhere(cityCode, "city_code");
-      conditions.push(clause);
-      params.push(...cp);
-    }
+    // B1 FIX: Always enforce context cityCode, never override from query
+    const { clause, params: cp } = buildCityScopedWhere(cityCode, "city_code");
+    conditions.push(clause);
+    params.push(...cp);
 
     if (query.statementId) {
       conditions.push("statement_id = ?");

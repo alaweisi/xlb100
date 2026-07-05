@@ -9,7 +9,17 @@ const preHandler = [createRequestContextMiddleware({ requireCityCode: true }), r
 export async function registerGovernanceReviewRoutes(app: FastifyInstance): Promise<void> {
   app.post<{ Params: { intentId: string } }>("/api/internal/settlement-action-governance/intents/:intentId/reviews", { preHandler }, async (request, reply) => {
     const ctx = getRequestContext(request);
-    const body = { ...(request.body as Record<string, unknown> ?? {}), intentId: request.params.intentId, cityCode: ctx.cityCode };
+    const rawBody = (request.body as Record<string, unknown> ?? {});
+    const pathIntentId = request.params.intentId;
+    // B3 FIX: reject body intentId mismatch with path
+    if (rawBody.intentId && rawBody.intentId !== pathIntentId) {
+      return reply.status(400).send({ ok: false, error: "intentId mismatch: path and body must agree" });
+    }
+    // B2: reject body cityCode mismatch
+    if (rawBody.cityCode && rawBody.cityCode !== ctx.cityCode) {
+      return reply.status(400).send({ ok: false, error: "cityCode mismatch with request context" });
+    }
+    const body = { ...rawBody, intentId: pathIntentId, cityCode: ctx.cityCode };
     const p = submitReviewRequestSchema.safeParse(body);
     if (!p.success) return reply.status(400).send({ ok: false, error: "invalid submit review request" });
     try { const r = await governanceReviewService.submitReview(ctx, p.data); return { ok: true, review: r }; }

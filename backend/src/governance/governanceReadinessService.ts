@@ -10,7 +10,22 @@ const defaultBoundary: ExecutionBoundary = { governanceOnly:true,executionEnable
 const defaultGuard: DryRunGuard = { dryRunMode:"governance_guard_only",executionSimulationEnabled:false,moneyMovementSimulationEnabled:false,providerSimulationEnabled:false,ledgerSimulationEnabled:false,refundSimulationEnabled:false,fileGenerationSimulationEnabled:false,guardReason:"Execution disabled — Phase 11 required",nextAllowedPhase:"Phase 11 readiness after Phase 10 lock" };
 
 class GovernanceReadinessService { private pool=getMysqlPool();
-  async create(ctx:RequestContext,req:CreateReadinessPacketRequest):Promise<GovernanceReadinessPacketRecord>{ const c=assertCityScopedContext(ctx); const id=genId(); const n=new Date();
+  async create(ctx:RequestContext,req:CreateReadinessPacketRequest):Promise<GovernanceReadinessPacketRecord>{ const c=assertCityScopedContext(ctx);
+    // B4 FIX: verify intent belongs to current city
+    const [ir] = await this.pool.query<RowDataPacket[]>("SELECT city_code FROM settlement_action_governance_intents WHERE id = ?", [req.intentId]);
+    if (ir.length === 0) throw new Error(`governance intent ${req.intentId} not found`);
+    if (ir[0].city_code !== c) throw new Error(`governance intent ${req.intentId} belongs to city ${ir[0].city_code}, not ${c}`);
+    if (req.reviewId) {
+      const [rr] = await this.pool.query<RowDataPacket[]>("SELECT city_code FROM settlement_action_governance_reviews WHERE id = ?", [req.reviewId]);
+      if (rr.length === 0) throw new Error(`governance review ${req.reviewId} not found`);
+      if (rr[0].city_code !== c) throw new Error(`governance review ${req.reviewId} cross-city rejected`);
+    }
+    if (req.evidenceBundleId) {
+      const [eb] = await this.pool.query<RowDataPacket[]>("SELECT city_code FROM settlement_action_governance_evidence_bundles WHERE id = ?", [req.evidenceBundleId]);
+      if (eb.length === 0) throw new Error(`evidence bundle ${req.evidenceBundleId} not found`);
+      if (eb[0].city_code !== c) throw new Error(`evidence bundle ${req.evidenceBundleId} cross-city rejected`);
+    }
+    const id=genId(); const n=new Date();
     await this.pool.query(`INSERT INTO settlement_action_governance_readiness_packets(id,city_code,intent_id,review_id,evidence_bundle_id,statement_id,packet_status,readiness_checks_json,blocker_flags_json,risk_flags_json,source_refs_json,dry_run_guard_json,execution_boundary_json,created_by_admin_id,created_at,updated_at) VALUES (?,?,?,?,?,?,'draft','{}','[]','[]','[]',?,?,?,?,?)`,
       [id,c,req.intentId,req.reviewId??null,req.evidenceBundleId??null,req.statementId??null,JSON.stringify(defaultGuard),JSON.stringify(defaultBoundary),req.createdByAdminId,n,n]);
     return (await this.get(ctx,id))!; }
@@ -20,8 +35,24 @@ class GovernanceReadinessService { private pool=getMysqlPool();
     const [rows]=await this.pool.query<R[]>(`SELECT * FROM settlement_action_governance_readiness_packets WHERE ${conds.join(" AND ")} ORDER BY created_at DESC LIMIT 50`,qp); return rows.map(map); }
   async recomputeChecks(ctx:RequestContext,packetId:string):Promise<GovernanceReadinessPacketRecord|null>{ const c=assertCityScopedContext(ctx); const {clause,params}=buildCityScopedWhere(c,"city_code");
     const pkt=await this.get(ctx,packetId); if(!pkt)return null;
+    // B5 FIX: actually verify cross-city relation integrity before setting city_scope_confirmed
+    let cityScopeConfirmed = true;
+    try {
+      if (pkt.intentId) {
+        const [ir] = await this.pool.query<RowDataPacket[]>("SELECT city_code FROM settlement_action_governance_intents WHERE id = ?", [pkt.intentId]);
+        if (ir.length === 0 || ir[0].city_code !== c) cityScopeConfirmed = false;
+      }
+      if (cityScopeConfirmed && pkt.reviewId) {
+        const [rr] = await this.pool.query<RowDataPacket[]>("SELECT city_code FROM settlement_action_governance_reviews WHERE id = ?", [pkt.reviewId]);
+        if (rr.length === 0 || rr[0].city_code !== c) cityScopeConfirmed = false;
+      }
+      if (cityScopeConfirmed && pkt.evidenceBundleId) {
+        const [eb] = await this.pool.query<RowDataPacket[]>("SELECT city_code FROM settlement_action_governance_evidence_bundles WHERE id = ?", [pkt.evidenceBundleId]);
+        if (eb.length === 0 || eb[0].city_code !== c) cityScopeConfirmed = false;
+      }
+    } catch { cityScopeConfirmed = false; }
     const checks:Record<string,boolean>={ has_governance_intent:!!pkt.intentId, has_governance_review:!!pkt.reviewId, has_evidence_bundle:!!pkt.evidenceBundleId,
-      city_scope_confirmed:true, execution_disabled_confirmed:true, no_money_movement_confirmed:true, no_file_generation_confirmed:true };
+      city_scope_confirmed:cityScopeConfirmed, execution_disabled_confirmed:true, no_money_movement_confirmed:true, no_file_generation_confirmed:true };
     await this.pool.query(`UPDATE settlement_action_governance_readiness_packets SET readiness_checks_json=?,packet_status='checks_pending',updated_at=? WHERE id=? AND ${clause}`,[JSON.stringify(checks),new Date(),packetId,...params]);
     return this.get(ctx,packetId); }
   async markBlocked(ctx:RequestContext,packetId:string):Promise<GovernanceReadinessPacketRecord|null>{ const c=assertCityScopedContext(ctx); const {clause,params}=buildCityScopedWhere(c,"city_code");

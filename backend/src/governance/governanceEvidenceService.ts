@@ -9,6 +9,7 @@ import type {
 } from "@xlb/types";
 import { getMysqlPool } from "../dal/mysqlPool.js";
 import { assertCityScopedContext, buildCityScopedWhere } from "../dal/scopedExecutor.js";
+import { assertGovernanceIntentInCity } from "./governanceIntentService.js";
 
 const generateBundleId = (): string => `eb_${Date.now().toString(36)}_${randomBytes(4).toString("hex")}`;
 
@@ -42,6 +43,14 @@ class GovernanceEvidenceService {
 
   async createBundle(ctx: RequestContext, req: CreateEvidenceBundleRequest): Promise<GovernanceEvidenceBundleRecord> {
     const cityCode = assertCityScopedContext(ctx);
+    // B4 FIX: verify intent belongs to current city
+    await assertGovernanceIntentInCity(this.pool, req.intentId, cityCode);
+    // Verify review belongs to current city if provided
+    if (req.reviewId) {
+      const [rr] = await this.pool.query<RowDataPacket[]>("SELECT city_code FROM settlement_action_governance_reviews WHERE id = ?", [req.reviewId]);
+      if (rr.length === 0) throw new Error(`governance review ${req.reviewId} not found`);
+      if (rr[0].city_code !== cityCode) throw new Error(`governance review ${req.reviewId} belongs to city ${rr[0].city_code}, not ${cityCode}`);
+    }
     const id = generateBundleId(); const now = new Date();
     await this.pool.query(
       `INSERT INTO settlement_action_governance_evidence_bundles
@@ -73,7 +82,11 @@ class GovernanceEvidenceService {
     const { clause, params } = buildCityScopedWhere(cityCode, "city_code");
     const bundle = await this.getBundle(ctx, bundleId);
     if (!bundle || bundle.bundleStatus !== "draft") return null;
-    const refs = [...bundle.evidenceRefs, { ...ref, createdAt: new Date().toISOString() }];
+    // B4 FIX: reject cross-city refs
+    if (ref.cityCode && ref.cityCode !== cityCode) {
+      throw new Error("evidence ref cityCode mismatch with request context");
+    }
+    const refs = [...bundle.evidenceRefs, { ...ref, cityCode, createdAt: new Date().toISOString() }];
     await this.pool.query(`UPDATE settlement_action_governance_evidence_bundles SET evidence_refs_json = ?, updated_at = ? WHERE id = ? AND ${clause} AND bundle_status = 'draft'`,
       [JSON.stringify(refs), new Date(), bundleId, ...params]);
     return this.getBundle(ctx, bundleId);
@@ -104,12 +117,10 @@ class GovernanceEvidenceService {
     const cityCode = assertCityScopedContext(ctx);
     const { clause, params } = buildCityScopedWhere(cityCode, "city_code");
     const entries: GovernanceAuditTrailEntry[] = [];
-    // Aggregate from intents
     const [intents] = await this.pool.query<RowDataPacket[]>(`SELECT * FROM settlement_action_governance_intents WHERE id = ? AND ${clause}`, [intentId, ...params]);
     for (const i of intents) {
       entries.push({ eventType: "governance_intent_created", eventTimestamp: i.created_at instanceof Date ? i.created_at.toISOString() : String(i.created_at), actorAdminId: i.requested_by_admin_id, targetType: "governance_intent", targetId: i.id, cityCode, summary: `Intent created: ${i.action_kind}` });
     }
-    // Aggregate from reviews
     const [reviews] = await this.pool.query<RowDataPacket[]>(`SELECT * FROM settlement_action_governance_reviews WHERE intent_id = ? AND ${clause}`, [intentId, ...params]);
     for (const rv of reviews) {
       entries.push({ eventType: `governance_review_${rv.review_status}`, eventTimestamp: rv.submitted_at instanceof Date ? rv.submitted_at.toISOString() : String(rv.submitted_at), actorAdminId: rv.submitted_by_admin_id, targetType: "governance_review", targetId: rv.id, cityCode, summary: `Review ${rv.review_status}` + (rv.review_note ? `: ${rv.review_note}` : "") });

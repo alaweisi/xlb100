@@ -5,3 +5,6 @@ export { adminApi } from "./admin.js";
 export { ledgerApi } from "./ledger.js";
 export { settlementApi, createSettlementApi } from "./settlement.js";
 export { governanceIntentApi, createGovernanceIntentApi } from "./governanceIntent.js";
+export { governanceReviewApi } from "./governanceReview.js";
+export { governanceEvidenceApi } from "./governanceEvidence.js";
+export { governanceReadinessApi } from "./governanceReadiness.js";

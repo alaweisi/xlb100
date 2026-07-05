@@ -11,6 +11,7 @@ import {
   assertCityScopedContext,
   buildCityScopedWhere,
 } from "../dal/scopedExecutor.js";
+import { assertGovernanceIntentInCity } from "./governanceIntentService.js";
 
 const generateReviewId = (): string => `gr_${Date.now().toString(36)}_${randomBytes(4).toString("hex")}`;
 
@@ -51,6 +52,8 @@ class GovernanceReviewService {
     req: SubmitReviewRequest,
   ): Promise<GovernanceReviewRecord> {
     const cityCode = assertCityScopedContext(context);
+    // B4 FIX: verify intent belongs to current city before creating review
+    await assertGovernanceIntentInCity(this.pool, req.intentId, cityCode);
     const id = generateReviewId();
     const now = new Date();
     await this.pool.query(
