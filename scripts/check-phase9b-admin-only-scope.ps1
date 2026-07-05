@@ -8,8 +8,8 @@ $vs = $diff | Where-Object {
   $_ -notmatch 'db/migrations/02[0-3]_settlement_action_governance|025_settlement_execution_dry_run' -and
   $_ -notmatch 'apps/admin/src/pages/Settlement' -and
   $_ -ne 'apps/admin/src/app/App.tsx' -and $_ -ne 'apps/admin/src/hashParams.ts' -and $_ -ne 'apps/admin/vite.config.ts' -and
-  $_ -notmatch 'tests/unit/(governance|settlementAction)' -and
-  $_ -notmatch 'tests/security/phase10Governance' -and
+  $_ -notmatch 'tests/unit/(governance|settlementAction|planner)' -and
+  $_ -notmatch 'tests/(security|contract|unit)/.*(phase10Governance|planner)' -and
   $_ -ne 'tests/unit/settlementActionGovernancePage.test.tsx' -and
   $_ -ne 'backend/src/app.ts' -and $_ -ne 'packages/api-client/src/index.ts' -and
   $_ -notmatch '^scripts/'
