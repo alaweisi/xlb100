@@ -1,0 +1,388 @@
+
+#run
+{
+    "backend":  "http://localhost:3000",
+    "timestamp":  "2026-07-05T15:25:08.0460293Z",
+    "runId":  "uat-1783265108038"
+}
+
+#customer-create-order
+{
+    "status":  "PASS",
+    "command":  "POST /api/orders",
+    "order":  {
+                  "orderId":  "ord_mr7y03y8_191fa3fa",
+                  "cityCode":  "hangzhou",
+                  "customerId":  "customer-rc2-uat-1783265108038",
+                  "skuId":  "sku_home_daily_2h",
+                  "skuName":  "2小时日常保洁",
+                  "quantity":  1,
+                  "unit":  "次",
+                  "priceRuleId":  "price_hangzhou_sku_home_daily_2h",
+                  "priceText":  "￥89/2小时",
+                  "priceType":  "fixed",
+                  "basePrice":  89,
+                  "currency":  "CNY",
+                  "totalAmount":  89,
+                  "status":  "pending_payment",
+                  "createdAt":  "2026-07-05T15:25:08.000Z",
+                  "updatedAt":  "2026-07-05T15:25:08.000Z"
+              }
+}
+
+#payment-metadata-snapshot
+{
+    "webhook":  {
+                    "ok":  true,
+                    "paymentOrder":  {
+                                         "paymentOrderId":  "pay_mr7y048g_d7a1908a",
+                                         "orderId":  "ord_mr7y03y8_191fa3fa",
+                                         "cityCode":  "hangzhou",
+                                         "amount":  89,
+                                         "currency":  "CNY",
+                                         "status":  "paid",
+                                         "provider":  "mock",
+                                         "providerTradeNo":  "mock-trade-rc2-uat-1783265108038",
+                                         "metadata":  {
+                                                          "skuId":  "sku_home_daily_2h",
+                                                          "orderId":  "ord_mr7y03y8_191fa3fa",
+                                                          "cityCode":  "hangzhou",
+                                                          "customerId":  "customer-rc2-uat-1783265108038",
+                                                          "priceRuleId":  "price_hangzhou_sku_home_daily_2h"
+                                                      },
+                                         "createdAt":  "2026-07-05T15:25:08.000Z",
+                                         "updatedAt":  "2026-07-05T15:25:08.000Z"
+                                     },
+                    "orderId":  "ord_mr7y03y8_191fa3fa",
+                    "idempotent":  false
+                },
+    "status":  "PASS",
+    "command":  "POST /api/payments/orders; POST /api/payments/mock-webhook; SELECT event_outbox",
+    "sql":  [
+                "event_type\taggregate_id\tstatus\tpayload_order_id",
+                "order.created\tord_mr7y03y8_191fa3fa\tpending\tord_mr7y03y8_191fa3fa",
+                "order.paid\tord_mr7y03y8_191fa3fa\tpending\tord_mr7y03y8_191fa3fa",
+                "payment.paid\tpay_mr7y048g_d7a1908a\tpending\tord_mr7y03y8_191fa3fa"
+            ],
+    "paymentOrder":  {
+                         "paymentOrderId":  "pay_mr7y048g_d7a1908a",
+                         "orderId":  "ord_mr7y03y8_191fa3fa",
+                         "cityCode":  "hangzhou",
+                         "amount":  89,
+                         "currency":  "CNY",
+                         "status":  "pending",
+                         "provider":  "mock",
+                         "providerTradeNo":  null,
+                         "metadata":  {
+                                          "skuId":  "sku_home_daily_2h",
+                                          "orderId":  "ord_mr7y03y8_191fa3fa",
+                                          "cityCode":  "hangzhou",
+                                          "customerId":  "customer-rc2-uat-1783265108038",
+                                          "priceRuleId":  "price_hangzhou_sku_home_daily_2h"
+                                      },
+                         "createdAt":  "2026-07-05T15:25:08.000Z",
+                         "updatedAt":  "2026-07-05T15:25:08.000Z"
+                     }
+}
+
+#dispatch-city-stream
+{
+    "status":  "PASS",
+    "command":  "POST /api/internal/dispatch/run-once; SELECT dispatch_tasks",
+    "dispatchTaskId":  "dpt_mr7y04cd_e0080c6a",
+    "sql":  [
+                "dispatch_task_id\torder_id\tcity_code\tstatus",
+                "dpt_mr7y04cd_e0080c6a\tord_mr7y03y8_191fa3fa\thangzhou\tqueued"
+            ],
+    "response":  {
+                     "ok":  true,
+                     "processed":  1,
+                     "tasks":  [
+                                   {
+                                       "dispatchTaskId":  "dpt_mr7y04cd_e0080c6a",
+                                       "cityCode":  "hangzhou",
+                                       "orderId":  "ord_mr7y03y8_191fa3fa",
+                                       "customerId":  "customer-rc2-uat-1783265108038",
+                                       "skuId":  "sku_home_daily_2h",
+                                       "amount":  89,
+                                       "sourceEventId":  "evt_mr7y048q_12a79cd7",
+                                       "streamName":  "xlb:dispatch:hangzhou:orders",
+                                       "streamEntryId":  "1783265108994-0",
+                                       "status":  "queued",
+                                       "createdAt":  "2026-07-05T15:25:08.000Z",
+                                       "updatedAt":  "2026-07-05T15:25:08.000Z"
+                                   }
+                               ]
+                 }
+}
+
+#worker-accept-order
+{
+    "fulfillment":  {
+                        "fulfillmentId":  "ful_mr7y04fa_a82df407",
+                        "acceptanceId":  "acc_mr7y04fa_49f92571",
+                        "dispatchTaskId":  "dpt_mr7y04cd_e0080c6a",
+                        "orderId":  "ord_mr7y03y8_191fa3fa",
+                        "cityCode":  "hangzhou",
+                        "workerId":  "worker-demo-hangzhou",
+                        "skuId":  "sku_home_daily_2h",
+                        "status":  "accepted",
+                        "startedAt":  null,
+                        "completedAt":  null,
+                        "completionNote":  null,
+                        "createdAt":  "2026-07-05T15:25:09.000Z",
+                        "updatedAt":  "2026-07-05T15:25:09.000Z"
+                    },
+    "status":  "PASS",
+    "command":  "POST /api/worker/tasks/dpt_mr7y04cd_e0080c6a/accept"
+}
+
+#worker-fulfill-order
+{
+    "complete":  {
+                     "fulfillmentId":  "ful_mr7y04fa_a82df407",
+                     "acceptanceId":  "acc_mr7y04fa_49f92571",
+                     "dispatchTaskId":  "dpt_mr7y04cd_e0080c6a",
+                     "orderId":  "ord_mr7y03y8_191fa3fa",
+                     "cityCode":  "hangzhou",
+                     "workerId":  "worker-demo-hangzhou",
+                     "skuId":  "sku_home_daily_2h",
+                     "status":  "completed",
+                     "startedAt":  "2026-07-05T15:25:09.000Z",
+                     "completedAt":  "2026-07-05T15:25:09.121Z",
+                     "completionNote":  "Phase 14R RC2 UAT complete",
+                     "createdAt":  "2026-07-05T15:25:09.000Z",
+                     "updatedAt":  "2026-07-05T15:25:09.121Z"
+                 },
+    "status":  "PASS",
+    "command":  "POST /api/worker/fulfillments/ful_mr7y04fa_a82df407/start; POST /api/worker/fulfillments/ful_mr7y04fa_a82df407/complete",
+    "start":  {
+                  "fulfillmentId":  "ful_mr7y04fa_a82df407",
+                  "acceptanceId":  "acc_mr7y04fa_49f92571",
+                  "dispatchTaskId":  "dpt_mr7y04cd_e0080c6a",
+                  "orderId":  "ord_mr7y03y8_191fa3fa",
+                  "cityCode":  "hangzhou",
+                  "workerId":  "worker-demo-hangzhou",
+                  "skuId":  "sku_home_daily_2h",
+                  "status":  "in_progress",
+                  "startedAt":  "2026-07-05T15:25:09.111Z",
+                  "completedAt":  null,
+                  "completionNote":  null,
+                  "createdAt":  "2026-07-05T15:25:09.000Z",
+                  "updatedAt":  "2026-07-05T15:25:09.111Z"
+              }
+}
+
+#admin-city-scope-review
+{
+    "wrongCityStatus":  404,
+    "intentId":  "gi_mr7y04jr_f6849900",
+    "batchId":  "stb_mr7y04jh_999ead09",
+    "reviewId":  "gr_mr7y04k0_c4ac885d",
+    "command":  "POST governance intent/review/approve-governance with wrong-city rejection and right-city approval",
+    "status":  "PASS",
+    "review":  {
+                   "id":  "gr_mr7y04k0_c4ac885d",
+                   "cityCode":  "hangzhou",
+                   "intentId":  "gi_mr7y04jr_f6849900",
+                   "reviewStatus":  "approved_for_governance",
+                   "reviewDecision":  "approve_governance",
+                   "submittedByAdminId":  "admin-hangzhou",
+                   "reviewedByAdminId":  "admin-hangzhou",
+                   "reviewNote":  "approved for governance",
+                   "rejectionReason":  null,
+                   "changesRequestedNote":  null,
+                   "submittedAt":  "2026-07-05T15:25:09.000Z",
+                   "reviewedAt":  "2026-07-05T15:25:09.000Z",
+                   "createdAt":  "2026-07-05T15:25:09.000Z",
+                   "updatedAt":  "2026-07-05T15:25:09.000Z"
+               }
+}
+
+#certification-ownership-check
+{
+    "wrongCityStatus":  403,
+    "eligibility":  {
+                        "workerId":  "worker-demo-hangzhou",
+                        "cityCode":  "hangzhou",
+                        "skuId":  "sku_home_daily_2h",
+                        "isEligible":  true,
+                        "reasons":  [
+
+                                    ]
+                    },
+    "approved":  {
+                     "certificationId":  "cert_mr7y04kq_55c72ec4",
+                     "workerId":  "worker-demo-hangzhou",
+                     "cityCode":  "hangzhou",
+                     "certType":  "home_service_basic",
+                     "certName":  "Phase 14R RC2 UAT cert uat-1783265108038",
+                     "status":  "approved",
+                     "submittedAt":  "2026-07-05T15:25:09.000Z",
+                     "reviewedAt":  "2026-07-05T15:25:09.000Z",
+                     "reviewerId":  "admin-hangzhou",
+                     "rejectReason":  null,
+                     "createdAt":  "2026-07-05T15:25:09.000Z",
+                     "updatedAt":  "2026-07-05T15:25:09.000Z"
+                 },
+    "command":  "POST /api/worker/certifications; wrong-city approve rejection; right-city approve; GET /api/worker/eligibility",
+    "certificationId":  "cert_mr7y04kq_55c72ec4",
+    "status":  "PASS"
+}
+
+#aftersale-refund-request
+{
+    "status":  "PASS",
+    "command":  "POST /api/aftersale/refunds",
+    "refund":  {
+                   "refundId":  "rfd_mr7y04lk_c3b4b04d",
+                   "cityCode":  "hangzhou",
+                   "orderId":  "ord_mr7y03y8_191fa3fa",
+                   "customerId":  "customer-rc2-uat-1783265108038",
+                   "fulfillmentId":  "ful_mr7y04fa_a82df407",
+                   "paymentOrderId":  "pay_mr7y048g_d7a1908a",
+                   "amount":  89,
+                   "currency":  "CNY",
+                   "reason":  "Phase 14R RC2 UAT refund",
+                   "status":  "requested",
+                   "requestedAt":  "2026-07-05T15:25:09.000Z",
+                   "approvedAt":  null,
+                   "approvedByAdminId":  null
+               }
+}
+
+#refundapproved-event
+{
+    "status":  "PASS",
+    "command":  "POST /api/internal/aftersale/refunds/rfd_mr7y04lk_c3b4b04d/approve; SELECT event_outbox WHERE event_type=\u0027refund.approved\u0027",
+    "sql":  [
+                "event_id\taggregate_id\taggregate_type\tevent_type\tstatus\tfulfillment_id",
+                "evt_mr7y04lv_8d6d1a4d\trfd_mr7y04lk_c3b4b04d\trefund\trefund.approved\tpending\tful_mr7y04fa_a82df407"
+            ],
+    "refund":  {
+                   "refundId":  "rfd_mr7y04lk_c3b4b04d",
+                   "cityCode":  "hangzhou",
+                   "orderId":  "ord_mr7y03y8_191fa3fa",
+                   "customerId":  "customer-rc2-uat-1783265108038",
+                   "fulfillmentId":  "ful_mr7y04fa_a82df407",
+                   "paymentOrderId":  "pay_mr7y048g_d7a1908a",
+                   "amount":  89,
+                   "currency":  "CNY",
+                   "reason":  "Phase 14R RC2 UAT refund",
+                   "status":  "approved",
+                   "requestedAt":  "2026-07-05T15:25:09.000Z",
+                   "approvedAt":  "2026-07-05T15:25:09.000Z",
+                   "approvedByAdminId":  "admin-phase14r-rc2"
+               }
+}
+
+#ledger-reversal
+{
+    "status":  "PASS",
+    "command":  "POST /api/internal/ledger/reverse; SELECT ledger_entries WHERE source_type=\u0027refund.approved\u0027 AND source_id=\u0027ful_mr7y04fa_a82df407\u0027",
+    "sql":  [
+                "entry_id\taccount_type\tdirection\tamount\tsource_type\tsource_id",
+                "len_mr7y04py_3f8e4fc9\tcustomer\tcredit\t89.00\trefund.approved\tful_mr7y04fa_a82df407",
+                "len_mr7y04py_597ba67f\tplatform\tdebit\t8.90\trefund.approved\tful_mr7y04fa_a82df407",
+                "len_mr7y04py_c55fd179\tworker\tdebit\t80.10\trefund.approved\tful_mr7y04fa_a82df407"
+            ],
+    "response":  {
+                     "ok":  true,
+                     "processed":  1,
+                     "entries":  [
+                                     {
+                                         "entryId":  "len_mr7y04py_3f8e4fc9",
+                                         "cityCode":  "hangzhou",
+                                         "accountId":  "lac_mr7y04gd_3fc4257a",
+                                         "accountType":  "customer",
+                                         "ownerId":  "customer-rc2-uat-1783265108038",
+                                         "sourceType":  "refund.approved",
+                                         "sourceId":  "ful_mr7y04fa_a82df407",
+                                         "direction":  "credit",
+                                         "amount":  89,
+                                         "currency":  "CNY",
+                                         "description":  "Refund reversal for rfd_mr7y04lk_c3b4b04d",
+                                         "createdAt":  "2026-07-05T15:25:09.478Z"
+                                     },
+                                     {
+                                         "entryId":  "len_mr7y04py_597ba67f",
+                                         "cityCode":  "hangzhou",
+                                         "accountId":  "lac_mr7wb59b_be9ee7de",
+                                         "accountType":  "platform",
+                                         "ownerId":  "platform",
+                                         "sourceType":  "refund.approved",
+                                         "sourceId":  "ful_mr7y04fa_a82df407",
+                                         "direction":  "debit",
+                                         "amount":  8.9,
+                                         "currency":  "CNY",
+                                         "description":  "Refund reversal for rfd_mr7y04lk_c3b4b04d",
+                                         "createdAt":  "2026-07-05T15:25:09.478Z"
+                                     },
+                                     {
+                                         "entryId":  "len_mr7y04py_c55fd179",
+                                         "cityCode":  "hangzhou",
+                                         "accountId":  "lac_mr7wb59c_d7e96337",
+                                         "accountType":  "worker",
+                                         "ownerId":  "worker-demo-hangzhou",
+                                         "sourceType":  "refund.approved",
+                                         "sourceId":  "ful_mr7y04fa_a82df407",
+                                         "direction":  "debit",
+                                         "amount":  80.1,
+                                         "currency":  "CNY",
+                                         "description":  "Refund reversal for rfd_mr7y04lk_c3b4b04d",
+                                         "createdAt":  "2026-07-05T15:25:09.478Z"
+                                     }
+                                 ]
+                 }
+}
+
+#audit-log-trace-check
+{
+    "status":  "PASS",
+    "command":  "GET /api/internal/settlement-action-governance/audit-trail/gi_mr7y04jr_f6849900; SELECT conflict_audit for reversal ledger_entries",
+    "auditTrail":  {
+                       "ok":  true,
+                       "entries":  [
+                                       {
+                                           "eventType":  "governance_intent_created",
+                                           "eventTimestamp":  "2026-07-05T15:25:09.000Z",
+                                           "actorAdminId":  "admin-hangzhou",
+                                           "targetType":  "governance_intent",
+                                           "targetId":  "gi_mr7y04jr_f6849900",
+                                           "cityCode":  "hangzhou",
+                                           "summary":  "Intent created: prepare_payout_review"
+                                       },
+                                       {
+                                           "eventType":  "governance_review_approved_for_governance",
+                                           "eventTimestamp":  "2026-07-05T15:25:09.000Z",
+                                           "actorAdminId":  "admin-hangzhou",
+                                           "targetType":  "governance_review",
+                                           "targetId":  "gr_mr7y04k0_c4ac885d",
+                                           "cityCode":  "hangzhou",
+                                           "summary":  "Review approved_for_governance: approved for governance"
+                                       }
+                                   ]
+                   },
+    "sql":  [
+                "event_id\taggregate_type\taggregate_id\tevent_type\tsource_id",
+                "evt_mr7y04pz_0450c561\tledger_entry\tlen_mr7y04py_3f8e4fc9\tconflict_audit\tful_mr7y04fa_a82df407",
+                "evt_mr7y04q0_b4700169\tledger_entry\tlen_mr7y04py_597ba67f\tconflict_audit\tful_mr7y04fa_a82df407",
+                "evt_mr7y04q1_4f0dac9c\tledger_entry\tlen_mr7y04py_c55fd179\tconflict_audit\tful_mr7y04fa_a82df407"
+            ]
+}
+
+#summary
+{
+    "runId":  "uat-1783265108038",
+    "logPath":  "docs/release/evidence/PHASE14_RC2_UAT_20260705T152508Z.log",
+    "fulfillmentId":  "ful_mr7y04fa_a82df407",
+    "paymentOrderId":  "pay_mr7y048g_d7a1908a",
+    "certificationId":  "cert_mr7y04kq_55c72ec4",
+    "batchId":  "stb_mr7y04jh_999ead09",
+    "dispatchTaskId":  "dpt_mr7y04cd_e0080c6a",
+    "refundId":  "rfd_mr7y04lk_c3b4b04d",
+    "intentId":  "gi_mr7y04jr_f6849900",
+    "status":  "PASS",
+    "reviewId":  "gr_mr7y04k0_c4ac885d",
+    "orderId":  "ord_mr7y03y8_191fa3fa"
+}
