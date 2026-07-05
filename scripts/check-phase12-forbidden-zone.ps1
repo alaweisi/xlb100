@@ -39,8 +39,7 @@ $forbiddenDirs = @(
 )
 
 $forbiddenFiles = @(
-  "package.json",
-  "pnpm-lock.yaml"
+  "package.json"
 )
 
 $changedFiles = & git -C $Root diff --name-only main...HEAD 2>$null

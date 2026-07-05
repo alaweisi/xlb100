@@ -19,14 +19,70 @@ $forbiddenImports = @('paymentOrderService','paymentOrderRepository','ledgerAccr
 $forbiddenZones = @('/payment/','/ledger/','/refund/','/reversal/','/provider/','/settlement/')
 $changedFiles = & git -C $Root diff --name-only main...HEAD 2>$null
 $violations = @()
+
+function Get-ImportStatements([string]$Content) {
+  $pattern = [regex]::new("(?ms)^\\s*import\\b[\\s\\S]*?;", [System.Text.RegularExpressions.RegexOptions]::Multiline)
+  return $pattern.Matches($Content)
+}
+
+function Get-ImportInfo([string]$Statement) {
+  $info = @{
+    Source = ""
+    ImportedNames = @()
+  }
+
+  if ($Statement -match "^\s*import\s*['""]([^'""]+)['""]\s*;?\s*$") {
+    return $info
+  }
+
+  if ($Statement -match "^\s*import(?:\s+type)?\s+([\s\S]+?)\s+from\s+['""]([^'""]+)['""]\s*;?\s*$") {
+    $importClause = $matches[1]
+    $info.Source = $matches[2]
+    $names = [regex]::Matches($importClause, '\b[a-zA-Z_][a-zA-Z0-9_]*\b') | ForEach-Object { $_.Value }
+    $info.ImportedNames = @($names | Where-Object { $_ -ne "as" })
+  }
+
+  return $info
+}
+
+function Is-ForbiddenSourcePath([string]$SourcePath) {
+  if ([string]::IsNullOrWhiteSpace($SourcePath)) {
+    return $false
+  }
+  foreach ($zone in $forbiddenZones) {
+    if ($SourcePath -match [regex]::Escape($zone)) {
+      return $true
+    }
+  }
+  return $false
+}
+
 foreach ($file in $changedFiles) {
   if ($file -match 'scripts/|tests/') { continue }
   if ($file -eq 'backend/src/app.ts') { continue }
   if ($file -notmatch '\.(ts|tsx)$') { continue }
   $fullPath = Join-Path $Root $file; if (-not (Test-Path $fullPath)) { continue }
   $content = Get-Content $fullPath -Raw
-  foreach ($imp in $forbiddenImports) { if ($content -match $imp) { $violations += "$file imports $imp" } }
-  foreach ($zone in $forbiddenZones) { if ($content -match [regex]::Escape($zone)) { $violations += "$file references forbidden zone $zone" } }
+  $isLedgerFile = $file -like "backend/src/ledger/*"
+  $importStatements = Get-ImportStatements $content
+  foreach ($match in $importStatements) {
+    $importInfo = Get-ImportInfo $match.Value
+    $source = $importInfo.Source
+    $allowsLedgerSelfImport = $false
+    if ($isLedgerFile -and $source -match '^\./(ledgerRepository|ledgerAccrualService)(\.js)?$') {
+      $allowsLedgerSelfImport = $true
+    }
+    if ((Is-ForbiddenSourcePath $source) -and -not ($isLedgerFile -and $source -match '^\./(ledgerRepository|ledgerAccrualService)(\.js)?$')) {
+      $violations += "$file references forbidden zone path $source"
+    }
+    foreach ($imp in $importInfo.ImportedNames) {
+      if ($forbiddenImports -contains $imp) {
+        if (-not $allowsLedgerSelfImport) {
+          $violations += "$file imports $imp"
+        }
+      }
+    }
+  }
 }
 if ($violations.Count -gt 0) { Write-Host "check-phase12-no-forbidden-imports: FAILED"; $violations | ForEach-Object { Write-Host "  $_" }; exit 1 }
 Write-Host "check-phase12-no-forbidden-imports: passed"

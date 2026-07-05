@@ -4,7 +4,6 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { SettlementOpsPage } from "@xlb/admin-pages/SettlementOpsPage";
 
-// ── Mock @xlb/api-client to prevent real HTTP calls ──
 const { mockGet } = vi.hoisted(() => ({ mockGet: vi.fn() }));
 vi.mock("@xlb/api-client", () => ({
   createApiClient: () => ({ get: mockGet }),
@@ -23,23 +22,28 @@ vi.mock("@xlb/api-client", () => ({
 }));
 
 describe("Phase 9A Settlement Ops Console", () => {
+  const renderAndAwaitApi = async () => {
+    render(<SettlementOpsPage />);
+    await waitFor(() => {
+      expect(mockGet).toHaveBeenCalled();
+    });
+  };
+
   beforeEach(() => {
     mockGet.mockReset();
-    // Default: all APIs return empty ok responses
     mockGet.mockResolvedValue({ ok: true, items: [] });
   });
 
-  // ── Unit: Rendering ──
-  describe("unit — rendering", () => {
+  describe("unit rendering", () => {
     it("renders console title", async () => {
-      render(<SettlementOpsPage />);
+      await renderAndAwaitApi();
       await waitFor(() => {
         expect(screen.getByText("Settlement Operations Console")).toBeTruthy();
       });
     });
 
     it("renders 4 read-only sections", async () => {
-      render(<SettlementOpsPage />);
+      await renderAndAwaitApi();
       await waitFor(() => {
         expect(screen.getByText("Statement Audit")).toBeTruthy();
         expect(screen.getByText("Review Summary")).toBeTruthy();
@@ -48,47 +52,44 @@ describe("Phase 9A Settlement Ops Console", () => {
       });
     });
 
-    it("renders city filter input", () => {
-      render(<SettlementOpsPage />);
+    it("renders city filter input", async () => {
+      await renderAndAwaitApi();
       const input = screen.getByRole("textbox");
       expect(input).toBeTruthy();
       expect((input as HTMLInputElement).value).toBe("hangzhou");
     });
 
-    it("renders refresh button", () => {
-      render(<SettlementOpsPage />);
+    it("renders refresh button", async () => {
+      await renderAndAwaitApi();
       expect(screen.getByText("Refresh")).toBeTruthy();
     });
   });
 
-  // ── Unit: Empty state ──
-  describe("unit — empty state", () => {
+  describe("unit empty state", () => {
     it("shows 'No statements' when statement list is empty", async () => {
-      render(<SettlementOpsPage />);
+      await renderAndAwaitApi();
       await waitFor(() => {
         expect(screen.getByText("No statements")).toBeTruthy();
       });
     });
   });
 
-  // ── Integration: Loading state ──
-  describe("integration — loading state", () => {
+  describe("integration loading state", () => {
     it("shows loading state while fetching", async () => {
-      // Delay resolution to observe initial render
       mockGet.mockImplementation(
         () => new Promise((resolve) => setTimeout(() => resolve({ ok: true, items: [] }), 100)),
       );
       render(<SettlementOpsPage />);
-      // Before resolution, "No statements" should not yet appear (still loading)
-      // After resolution, it should appear
+      await waitFor(() => {
+        expect(screen.getByText("Loading...")).toBeTruthy();
+      });
       await waitFor(() => {
         expect(screen.getByText("No statements")).toBeTruthy();
       });
     });
   });
 
-  // ── Integration: Error state ──
-  describe("integration — error state", () => {
+  describe("integration error state", () => {
     it("shows error message when API fails", async () => {
       mockGet.mockRejectedValue(new Error("Network Error"));
       render(<SettlementOpsPage />);
@@ -98,10 +99,9 @@ describe("Phase 9A Settlement Ops Console", () => {
     });
   });
 
-  // ── Contract: Filter params ──
-  describe("contract — filter params", () => {
+  describe("contract filter params", () => {
     it("passes cityCode in all API calls", async () => {
-      render(<SettlementOpsPage />);
+      await renderAndAwaitApi();
       await waitFor(() => {
         expect(mockGet).toHaveBeenCalledWith(
           expect.stringContaining("cityCode=hangzhou"),
@@ -110,8 +110,7 @@ describe("Phase 9A Settlement Ops Console", () => {
     });
 
     it("updates cityCode on input change and refetches", async () => {
-      render(<SettlementOpsPage />);
-      // Wait for initial fetch
+      await renderAndAwaitApi();
       await waitFor(() => {
         expect(mockGet).toHaveBeenCalled();
       });
@@ -120,8 +119,6 @@ describe("Phase 9A Settlement Ops Console", () => {
       const input = screen.getByRole("textbox");
       fireEvent.change(input, { target: { value: "shanghai" } });
 
-      // Trigger refresh manually (cityCode change alone doesn't refetch — need Refresh click)
-      // The component refetches via useEffect on cityCode change
       await waitFor(() => {
         const calls = mockGet.mock.calls.flat();
         const hasShanghai = calls.some(
@@ -132,10 +129,9 @@ describe("Phase 9A Settlement Ops Console", () => {
     });
   });
 
-  // ── Security: No mutation controls ──
-  describe("security — no mutation controls", () => {
+  describe("security no mutation controls", () => {
     it("has no approve/export/payout/paid/retry/fix buttons", async () => {
-      render(<SettlementOpsPage />);
+      await renderAndAwaitApi();
       await waitFor(() => {
         expect(screen.queryByText(/approve/i)).toBeNull();
         expect(screen.queryByText(/export/i)).toBeNull();
@@ -147,7 +143,7 @@ describe("Phase 9A Settlement Ops Console", () => {
     });
 
     it("has no repair/backfill/generate controls", async () => {
-      render(<SettlementOpsPage />);
+      await renderAndAwaitApi();
       await waitFor(() => {
         expect(screen.queryByText(/repair/i)).toBeNull();
         expect(screen.queryByText(/backfill/i)).toBeNull();
@@ -156,9 +152,8 @@ describe("Phase 9A Settlement Ops Console", () => {
     });
 
     it("has no POST/PUT/PATCH/DELETE mutation indicators", async () => {
-      render(<SettlementOpsPage />);
+      await renderAndAwaitApi();
       await waitFor(() => {
-        // No "Submit", "Save", "Create", "Update", "Delete" action buttons
         expect(screen.queryByText(/submit/i)).toBeNull();
         expect(screen.queryByText(/save/i)).toBeNull();
         expect(screen.queryByText(/create/i)).toBeNull();
@@ -168,13 +163,11 @@ describe("Phase 9A Settlement Ops Console", () => {
     });
   });
 
-  // ── Security: Read-only API client ──
-  describe("security — read-only API client", () => {
+  describe("security read-only API client", () => {
     it("only calls GET endpoints (no POST/PUT/PATCH/DELETE)", async () => {
-      render(<SettlementOpsPage />);
+      await renderAndAwaitApi();
       await waitFor(() => {
         const calls = mockGet.mock.calls.flat();
-        // All calls should be GET-compatible URL strings (no POST/PUT/PATCH/DELETE)
         const mutationCalls = calls.filter(
           (c: unknown) =>
             typeof c === "string" &&
@@ -185,7 +178,7 @@ describe("Phase 9A Settlement Ops Console", () => {
     });
 
     it("does not call generate/once mutation endpoints", async () => {
-      render(<SettlementOpsPage />);
+      await renderAndAwaitApi();
       await waitFor(() => {
         const calls = mockGet.mock.calls.flat();
         const forbiddenEndpoints = calls.filter(
@@ -200,10 +193,9 @@ describe("Phase 9A Settlement Ops Console", () => {
     });
   });
 
-  // ── Contract: API boundary ──
-  describe("contract — API boundary", () => {
+  describe("contract API boundary", () => {
     it("only calls the 6 allowed read-only settlement APIs", async () => {
-      render(<SettlementOpsPage />);
+      await renderAndAwaitApi();
       await waitFor(() => {
         const calls = mockGet.mock.calls.flat();
         const allowedPrefixes = [
@@ -223,13 +215,10 @@ describe("Phase 9A Settlement Ops Console", () => {
     });
   });
 
-  // ── Scope: Customer/Worker apps unchanged ──
-  describe("scope — no cross-app leakage", () => {
+  describe("scope no cross-app leakage", () => {
     it("does not reference customer or worker app paths", async () => {
-      render(<SettlementOpsPage />);
-      // The page should not navigate to or import from customer/worker apps
-      // This is verified by the file scope (Agent H) and the fact the component only imports @xlb/api-client
-      expect(true).toBe(true); // structural check — reinforced by Agent H gate
+      await renderAndAwaitApi();
+      expect(true).toBe(true);
     });
   });
 });

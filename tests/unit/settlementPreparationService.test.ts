@@ -18,6 +18,15 @@ describe("settlementPreparationService", () => {
     expect(result).toMatchObject({ processed: 1, batch: { cityCode: "hangzhou", itemCount: 1, totalGrossAmount: 89, totalPlatformFee: 8.9, totalWorkerReceivable: 80.1, status: "prepared" } });
     expect(repository.insertItem).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ accrualId: "lar-1", status: "prepared" }));
     expect(outbox.insertEvent).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ eventType: "settlement.prepared", cityCode: "hangzhou" }));
+    expect(outbox.insertEvent).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+      eventType: "conflict_audit",
+      payload: expect.objectContaining({
+        order_id: "ord-1",
+        fee_type: "gross",
+        source_type: "settlement.prepared",
+        snapshot_hash: expect.stringMatching(/^[a-f0-9]{64}$/),
+      }),
+    }));
   });
 
   it("returns processed zero without creating an empty batch", async () => {

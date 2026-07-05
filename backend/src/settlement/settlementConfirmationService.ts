@@ -17,6 +17,8 @@ import {
   SettlementRepository,
 } from "./settlementRepository.js";
 import { assertSettlementConfirmable } from "./settlementStateMachine.js";
+import { recordLedgerAudit } from "../ledger/auditGate.js";
+import type { LedgerSingleWriteFeeType } from "../ledger/ledgerRepository.js";
 
 type TransactionRunner = <T>(callback: (connection: PoolConnection) => Promise<T>) => Promise<T>;
 
@@ -86,6 +88,34 @@ export class SettlementConfirmationService {
         confirmedBy,
         updatedAt: confirmedAt,
       };
+      for (const item of items) {
+        const auditAmounts: [LedgerSingleWriteFeeType, number][] = [
+          ["gross", item.grossAmount],
+          ["platform_fee", item.platformFee],
+          ["worker_receivable", item.workerReceivable],
+        ];
+        await recordLedgerAudit({
+          connection,
+          outbox: this.outbox,
+          cityCode,
+          sourceType: "settlement.confirmed",
+          items: auditAmounts.map(([feeType, amount]) => ({
+            orderId: item.orderId,
+            feeType,
+            aggregateType: "settlement_batch",
+            aggregateId: batchId,
+            snapshot: {
+              city_code: cityCode,
+              order_id: item.orderId,
+              fee_type: feeType,
+              source_type: "settlement.confirmed",
+              accrual_id: item.accrualId,
+              amount,
+              currency: item.currency,
+            },
+          })),
+        });
+      }
       const payload: SettlementConfirmedEventPayload = {
         settlementBatchId: batchId,
         cityCode,

@@ -20,6 +20,8 @@ import {
 } from "./settlementRepository.js";
 import { assertSettlementPayableReady } from "./settlementStateMachine.js";
 import { SettlementBatchNotFoundError } from "./settlementConfirmationService.js";
+import { recordLedgerAudit } from "../ledger/auditGate.js";
+import type { LedgerSingleWriteFeeType } from "../ledger/ledgerRepository.js";
 
 type TransactionRunner = <T>(callback: (connection: PoolConnection) => Promise<T>) => Promise<T>;
 
@@ -111,6 +113,34 @@ export class SettlementPayableService {
       };
 
       await this.repository.insertPayable(connection, payable);
+      for (const item of items) {
+        const auditAmounts: [LedgerSingleWriteFeeType, number][] = [
+          ["gross", item.grossAmount],
+          ["platform_fee", item.platformFee],
+          ["worker_receivable", item.workerReceivable],
+        ];
+        await recordLedgerAudit({
+          connection,
+          outbox: this.outbox,
+          cityCode,
+          sourceType: "settlement.payable",
+          items: auditAmounts.map(([feeType, amount]) => ({
+            orderId: item.orderId,
+            feeType,
+            aggregateType: "settlement_payable",
+            aggregateId: payable.settlementPayableId,
+            snapshot: {
+              city_code: cityCode,
+              order_id: item.orderId,
+              fee_type: feeType,
+              source_type: "settlement.payable",
+              accrual_id: item.accrualId,
+              amount,
+              currency: item.currency,
+            },
+          })),
+        });
+      }
 
       const payload: SettlementPayableEventPayload = {
         payableId: payable.settlementPayableId,

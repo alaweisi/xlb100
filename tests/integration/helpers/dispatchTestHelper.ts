@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { XLB_HEADERS } from "@xlb/types";
+import { assertResponseJson } from "./httpResponseTestHelper";
 
 export const customerHeaders = {
   [XLB_HEADERS.appType]: "customer",
@@ -24,7 +25,10 @@ export async function createPaidOrderForDispatch(app: FastifyInstance): Promise<
       quantity: 1,
     },
   });
-  const order = orderRes.json().order as { orderId: string };
+  const order = assertResponseJson<{ order: { orderId: string } }>(orderRes, "POST /api/orders", [200]).order;
+  if (!order.orderId) {
+    throw new Error("createPaidOrderForDispatch: orderId missing from /api/orders response");
+  }
 
   const payRes = await app.inject({
     method: "POST",
@@ -32,9 +36,16 @@ export async function createPaidOrderForDispatch(app: FastifyInstance): Promise<
     headers: customerHeaders,
     payload: { orderId: order.orderId },
   });
-  const paymentOrderId = payRes.json().paymentOrder.paymentOrderId as string;
+  const paymentOrderId = assertResponseJson<{ paymentOrder: { paymentOrderId: string } }>(
+    payRes,
+    "POST /api/payments/orders",
+    [200],
+  ).paymentOrder.paymentOrderId;
+  if (!paymentOrderId) {
+    throw new Error("createPaidOrderForDispatch: paymentOrderId missing from /api/payments/orders response");
+  }
 
-  await app.inject({
+  const webhookRes = await app.inject({
     method: "POST",
     url: "/api/payments/mock-webhook",
     headers: customerHeaders,
@@ -44,6 +55,9 @@ export async function createPaidOrderForDispatch(app: FastifyInstance): Promise<
       status: "paid",
     },
   });
+  if (webhookRes.statusCode !== 200) {
+    throw new Error(`createPaidOrderForDispatch: POST /api/payments/mock-webhook returned status ${webhookRes.statusCode}`);
+  }
 
   return order.orderId;
 }

@@ -9,7 +9,7 @@ describe("eventOutbox contract", () => {
   });
 
   it("supports settlement preparation and confirmation audit events", () => {
-    for (const eventType of ["settlement.prepared", "settlement.confirmed"]) {
+    for (const eventType of ["settlement.prepared", "settlement.confirmed", "conflict_audit"]) {
       expect(outboxEventTypeSchema.safeParse(eventType).success).toBe(true);
     }
   });

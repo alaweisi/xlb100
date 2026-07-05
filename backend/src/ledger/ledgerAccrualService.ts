@@ -20,7 +20,9 @@ import {
   ledgerRepository,
   LedgerRepository,
   type LedgerSingleWriteKey,
+  type LedgerSingleWriteFeeType,
 } from "./ledgerRepository.js";
+import { recordLedgerAudit } from "./auditGate.js";
 
 export class LedgerAccrualError extends Error {}
 
@@ -192,8 +194,35 @@ export class LedgerAccrualService {
           description: "Worker receivable accrued",
         },
       ];
-      for (const entry of entries) {
+      const feeTypes: LedgerSingleWriteFeeType[] = [
+        "gross",
+        "platform_fee",
+        "worker_receivable",
+      ];
+      for (const [index, entry] of entries.entries()) {
         await this.repository.insertEntry(connection, entry);
+        const feeType = feeTypes[index]!;
+        await recordLedgerAudit({
+          connection,
+          outbox: this.outboxRepository,
+          cityCode,
+          sourceType,
+          items: [{
+            orderId: snapshot.orderId,
+            feeType,
+            aggregateType: "ledger_entry",
+            aggregateId: entry.entryId,
+            snapshot: {
+              city_code: cityCode,
+              order_id: snapshot.orderId,
+              fee_type: feeType,
+              source_type: sourceType,
+              source_id: snapshot.fulfillmentId,
+              amount: entry.amount,
+              currency: entry.currency,
+            },
+          }],
+        });
       }
       await this.outboxRepository.markEventPublished(
         connection,

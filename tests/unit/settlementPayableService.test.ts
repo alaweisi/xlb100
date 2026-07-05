@@ -40,6 +40,15 @@ describe("settlementPayableService", () => {
     expect(result).toMatchObject({ idempotent: false, payable: { status: "payable", markedBy: "operator-1", grossAmount: 89 } });
     expect(repository.insertPayable).toHaveBeenCalledOnce();
     expect(outbox.insertEvent).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ eventType: "settlement.payable" }));
+    expect(outbox.insertEvent).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+      eventType: "conflict_audit",
+      payload: expect.objectContaining({
+        order_id: "ord-1",
+        fee_type: "gross",
+        source_type: "settlement.payable",
+        snapshot_hash: expect.stringMatching(/^[a-f0-9]{64}$/),
+      }),
+    }));
   });
 
   it("returns an existing payable without another outbox event", async () => {

@@ -17,7 +17,7 @@ describe("ledgerAccrualService", () => {
       ensureAccount: vi.fn().mockResolvedValueOnce("customer-account").mockResolvedValueOnce("platform-account").mockResolvedValueOnce("worker-account"),
       insertAccrual: vi.fn(), insertEntry: vi.fn(),
     };
-    const outbox = { markEventPublished: vi.fn() };
+    const outbox = { insertEvent: vi.fn(), markEventPublished: vi.fn() };
     const transaction = async <T>(callback: (connection: PoolConnection) => Promise<T>) => callback({} as PoolConnection);
     const service = new LedgerAccrualService(repo as unknown as LedgerRepository, outbox as unknown as EventOutboxRepository, transaction);
 
@@ -27,6 +27,16 @@ describe("ledgerAccrualService", () => {
       ["customer", "debit", 89], ["platform", "credit", 8.9], ["worker", "credit", 80.1],
     ]);
     expect(repo.insertEntry).toHaveBeenCalledTimes(3);
+    expect(outbox.insertEvent).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+      eventType: "conflict_audit",
+      payload: expect.objectContaining({
+        order_id: "ord-1",
+        fee_type: "gross",
+        source_type: "fulfillment.completed",
+        snapshot_hash: expect.stringMatching(/^[a-f0-9]{64}$/),
+      }),
+    }));
+    expect(outbox.insertEvent).toHaveBeenCalledTimes(3);
     expect(outbox.markEventPublished).toHaveBeenCalledWith(expect.anything(), "evt-1", "hangzhou");
   });
 });

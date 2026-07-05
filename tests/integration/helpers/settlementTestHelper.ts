@@ -3,6 +3,7 @@ import type { RowDataPacket } from "mysql2/promise";
 import { getMysqlPool } from "../../../backend/src/dal/mysqlPool.js";
 import { ensureHangzhouWorkerEligible } from "./acceptTestHelper.js";
 import { createCompletedFulfillment, runLedgerOnce, withLedgerTestLock } from "./ledgerTestHelper.js";
+import { assertResponseJson } from "./httpResponseTestHelper";
 
 export const settlementHeaders = (cityCode = "hangzhou") => ({
   "x-xlb-app-type": "admin",
@@ -40,15 +41,21 @@ export const getSettlementPayable = (app: FastifyInstance, batchId: string, city
 export async function createConfirmedSettlement(app: FastifyInstance) {
   const prepared = await createPreparedSettlement(app);
   const confirm = await confirmSettlementBatch(app, prepared.batch.settlementBatchId);
-  if (confirm.statusCode !== 200) throw new Error(`Failed to confirm settlement: ${confirm.body}`);
-  return { ...prepared, batch: confirm.json().batch };
+  const body = assertResponseJson<{ batch: { settlementBatchId: string; totalGrossAmount: number; totalPlatformFee: number; totalWorkerReceivable: number; itemCount: number } }>(
+    confirm,
+    `POST /api/internal/settlement/batches/${prepared.batch.settlementBatchId}/confirm`,
+    [200],
+  );
+  return { ...prepared, batch: body.batch };
 }
 
 export async function createPayableSettlement(app: FastifyInstance) {
   const confirmed = await createConfirmedSettlement(app);
   const mark = await markSettlementPayable(app, confirmed.batch.settlementBatchId);
-  if (mark.statusCode !== 200) throw new Error(`Failed to mark payable: ${mark.body}`);
-  return { ...confirmed, payable: mark.json().payable as { settlementPayableId: string; grossAmount: number; platformFeeAmount: number; workerReceivableAmount: number; itemCount: number } };
+  const body = assertResponseJson<{
+    payable: { settlementPayableId: string; grossAmount: number; platformFeeAmount: number; workerReceivableAmount: number; itemCount: number };
+  }>(mark, `POST /api/internal/settlement/batches/${confirmed.batch.settlementBatchId}/mark-payable`, [200]);
+  return { ...confirmed, payable: body.payable };
 }
 
 export const enqueueSettlementPayable = (app: FastifyInstance, payableId: string, cityCode = "hangzhou") =>
@@ -96,30 +103,45 @@ export const getWorkerReceivableStatementExport = (app: FastifyInstance, stateme
 export async function createApprovedStatementSettlement(app: FastifyInstance) {
   const ready = await createStatementReadySettlement(app);
   const review = await reviewWorkerReceivableStatementOnce(app, ready.statementId, { decision: "approved" });
-  if (review.statusCode !== 200) throw new Error(`Failed to review statement: ${review.body}`);
-  return { ...ready, review: review.json().review };
+  const body = assertResponseJson<{ review: { reviewId: string; status: string } }>(
+    review,
+    `POST /api/internal/settlement/worker-statements/${ready.statementId}/review`,
+    [200],
+  );
+  return { ...ready, review: body.review };
 }
 
 export async function createStatementReadySettlement(app: FastifyInstance) {
   const queued = await createQueuedSettlement(app);
   const generated = await generateWorkerReceivableStatements(app, queued.payable.settlementPayableId);
-  if (generated.statusCode !== 200) throw new Error(`Failed to generate statements: ${generated.body}`);
-  const statementId = generated.json().statements[0].statementId as string;
-  return { ...queued, statementId, statements: generated.json().statements };
+  const generatedBody = assertResponseJson<
+    { statements: Array<{ statementId: string }> }
+  >(generated, `POST /api/internal/settlement/payables/${queued.payable.settlementPayableId}/generate-worker-statements-once`, [200]);
+  if (generatedBody.statements.length === 0) {
+    throw new Error(`Failed to generate statements: ${generated.body}`);
+  }
+  return { ...queued, statementId: generatedBody.statements[0].statementId, statements: generatedBody.statements };
 }
 
 export async function createQueuedSettlement(app: FastifyInstance) {
   const payableSettlement = await createPayableSettlement(app);
   const enqueue = await enqueueSettlementPayable(app, payableSettlement.payable.settlementPayableId);
-  if (enqueue.statusCode !== 200) throw new Error(`Failed to enqueue payable: ${enqueue.body}`);
-  return { ...payableSettlement, queue: enqueue.json().queue as { queueId: string; status: string } };
+  const body = assertResponseJson<{ queue: { queueId: string; status: string } }>(
+    enqueue,
+    `POST /api/internal/settlement/payables/${payableSettlement.payable.settlementPayableId}/enqueue-once`,
+    [200],
+  );
+  return { ...payableSettlement, queue: body.queue };
 }
 
 export async function createPreparedSettlement(app: FastifyInstance) {
   const source = await createLedgerAccrual(app);
   const response = await prepareSettlementOnce(app);
-  if (response.statusCode !== 200 || !response.json().batch) throw new Error(`Failed to prepare settlement: ${response.body}`);
-  return { source, batch: response.json().batch as { settlementBatchId: string; totalGrossAmount: number; totalPlatformFee: number; totalWorkerReceivable: number; itemCount: number } };
+  const body = assertResponseJson<{
+    batch: { settlementBatchId: string; totalGrossAmount: number; totalPlatformFee: number; totalWorkerReceivable: number; itemCount: number };
+  }>(response, "POST /api/internal/settlement/prepare-once", [200]);
+  if (!body.batch) throw new Error(`Failed to prepare settlement: ${response.body}`);
+  return { source, batch: body.batch };
 }
 
 export async function withSettlementTestLock<T>(callback: () => Promise<T>): Promise<T> {

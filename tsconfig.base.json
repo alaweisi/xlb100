@@ -17,6 +17,7 @@
     "noFallthroughCasesInSwitch": true,
     "forceConsistentCasingInFileNames": true,
     "paths": {
+      "@shared": ["./packages/shared"],
       "@xlb/types": ["./packages/types/src/index.ts"],
       "@xlb/validators": ["./packages/validators/src/index.ts"],
       "@xlb/config": ["./packages/config/src/index.ts"],

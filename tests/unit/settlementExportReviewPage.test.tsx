@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { App } from "../../apps/admin/src/app/App";
 
 const { mockGet } = vi.hoisted(() => ({ mockGet: vi.fn() }));
@@ -23,65 +23,148 @@ vi.mock("@xlb/api-client", () => ({
         mockGet(`/api/internal/settlement/worker-statement-audit/${statementId}`),
     }),
   },
-  governanceIntentApi: { create: () => ({ createDraft: () => Promise.resolve({ ok: true }), getIntent: () => Promise.resolve({ ok: true }), listIntents: () => Promise.resolve({ ok: true }), cancelIntent: () => Promise.resolve({ ok: true }), archiveIntent: () => Promise.resolve({ ok: true }) }) },
-  governanceReviewApi: { create: () => ({ submitReview: () => Promise.resolve({ ok: true }), getReview: () => Promise.resolve({ ok: true }), listReviews: () => Promise.resolve({ ok: true }), approveReview: () => Promise.resolve({ ok: true }), rejectReview: () => Promise.resolve({ ok: true }), requestChanges: () => Promise.resolve({ ok: true }) }) },
-  governanceEvidenceApi: { create: () => ({ createBundle: () => Promise.resolve({ ok: true }), getBundle: () => Promise.resolve({ ok: true }), listBundles: () => Promise.resolve({ ok: true }), attachRef: () => Promise.resolve({ ok: true }), removeRef: () => Promise.resolve({ ok: true }), archiveBundle: () => Promise.resolve({ ok: true }), getAuditTrail: () => Promise.resolve({ ok: true }) }) },
-  governanceReadinessApi: { create: () => ({ create: () => Promise.resolve({ ok: true }), get: () => Promise.resolve({ ok: true }), list: () => Promise.resolve({ ok: true }), recomputeChecks: () => Promise.resolve({ ok: true }), markBlocked: () => Promise.resolve({ ok: true }), archive: () => Promise.resolve({ ok: true }), markReadyForReview: () => Promise.resolve({ ok: true }) }) },
-  governancePlannerApi: { create: () => ({ listSettlementDryRunPlans: () => Promise.resolve({ ok: true, plans: [] }), getSettlementDryRunPlan: () => Promise.resolve({ ok: true }), createSettlementDryRunPlan: () => Promise.resolve({ ok: true }), getSettlementDryRunPlanItems: () => Promise.resolve({ ok: true }), getSettlementDryRunPlanAudit: () => Promise.resolve({ ok: true }), getReadinessPacketDryRunEligibility: () => Promise.resolve({ ok: true }) }) },
+  governanceIntentApi: {
+    create: () => ({
+      createDraft: () => Promise.resolve({ ok: true }),
+      getIntent: () => Promise.resolve({ ok: true }),
+      listIntents: () => Promise.resolve({ ok: true }),
+      cancelIntent: () => Promise.resolve({ ok: true }),
+      archiveIntent: () => Promise.resolve({ ok: true }),
+    }),
+  },
+  governanceReviewApi: {
+    create: () => ({
+      submitReview: () => Promise.resolve({ ok: true }),
+      getReview: () => Promise.resolve({ ok: true }),
+      listReviews: () => Promise.resolve({ ok: true }),
+      approveReview: () => Promise.resolve({ ok: true }),
+      rejectReview: () => Promise.resolve({ ok: true }),
+      requestChanges: () => Promise.resolve({ ok: true }),
+    }),
+  },
+  governanceEvidenceApi: {
+    create: () => ({
+      createBundle: () => Promise.resolve({ ok: true }),
+      getBundle: () => Promise.resolve({ ok: true }),
+      listBundles: () => Promise.resolve({ ok: true }),
+      attachRef: () => Promise.resolve({ ok: true }),
+      removeRef: () => Promise.resolve({ ok: true }),
+      archiveBundle: () => Promise.resolve({ ok: true }),
+      getAuditTrail: () => Promise.resolve({ ok: true }),
+    }),
+  },
+  governanceReadinessApi: {
+    create: () => ({
+      create: () => Promise.resolve({ ok: true }),
+      get: () => Promise.resolve({ ok: true }),
+      list: () => Promise.resolve({ ok: true }),
+      recomputeChecks: () => Promise.resolve({ ok: true }),
+      markBlocked: () => Promise.resolve({ ok: true }),
+      archive: () => Promise.resolve({ ok: true }),
+      markReadyForReview: () => Promise.resolve({ ok: true }),
+    }),
+  },
+  governancePlannerApi: {
+    create: () => ({
+      listSettlementDryRunPlans: () => Promise.resolve({ ok: true, plans: [] }),
+      getSettlementDryRunPlan: () => Promise.resolve({ ok: true }),
+      createSettlementDryRunPlan: () => Promise.resolve({ ok: true }),
+      getSettlementDryRunPlanItems: () => Promise.resolve({ ok: true }),
+      getSettlementDryRunPlanAudit: () => Promise.resolve({ ok: true }),
+      getReadinessPacketDryRunEligibility: () => Promise.resolve({ ok: true }),
+    }),
+  },
 }));
 
 const mockExports = {
   ok: true,
   items: [
-    { exportId: "exp-1", statementId: "stmt-001", workerId: "worker-1", exportFormat: "csv", contentHash: "abc123def456789", exportedAt: "2026-07-01T00:00:00Z", exportedBy: "operator-1", cityCode: "hangzhou", reviewId: "review-1", payloadVersion: "1", outboxEventId: "evt-1" },
-    { exportId: "exp-2", statementId: "stmt-002", workerId: "worker-2", exportFormat: "json", contentHash: "def456abc123789", exportedAt: "2026-07-02T00:00:00Z", exportedBy: "operator-2", cityCode: "hangzhou", reviewId: null, payloadVersion: "1", outboxEventId: null },
+    {
+      exportId: "exp-1",
+      statementId: "stmt-001",
+      workerId: "worker-1",
+      exportFormat: "csv",
+      contentHash: "abc123def456789",
+      exportedAt: "2026-07-01T00:00:00Z",
+      exportedBy: "operator-1",
+      cityCode: "hangzhou",
+      reviewId: "review-1",
+      payloadVersion: "1",
+      outboxEventId: "evt-1",
+    },
+    {
+      exportId: "exp-2",
+      statementId: "stmt-002",
+      workerId: "worker-2",
+      exportFormat: "json",
+      contentHash: "def456abc123789",
+      exportedAt: "2026-07-02T00:00:00Z",
+      exportedBy: "operator-2",
+      cityCode: "hangzhou",
+      reviewId: null,
+      payloadVersion: "1",
+      outboxEventId: null,
+    },
   ],
   nextCursor: null,
 };
 
-describe("Phase 9C — Export Review Console", () => {
+const renderExportReview = async (hash: string) => {
+  window.location.hash = hash;
+  render(<App />);
+  await waitFor(() => {
+    expect(mockGet).toHaveBeenCalled();
+  });
+};
+
+describe("Phase 9C Export Review Console", () => {
   beforeEach(() => {
     mockGet.mockReset();
     mockGet.mockResolvedValue({ ok: true, items: [] });
     window.location.hash = "";
   });
-  afterEach(() => { window.location.hash = ""; });
 
-  // Unit: Route
-  describe("unit — route", () => {
-    it("renders export review page at #/settlement-ops/exports", async () => {
-      mockGet.mockResolvedValue(mockExports);
-      window.location.hash = "#/settlement-ops/exports";
-      render(<App />);
-      await waitFor(() => { expect(screen.getByText("Settlement Export Review")).toBeTruthy(); });
-    });
-
-    it("dashboard has export review navigation button", () => {
-      render(<App />);
-      expect(screen.getByText("Settlement Exports")).toBeTruthy();
-    });
+  afterEach(() => {
+    window.location.hash = "";
   });
 
-  // Unit: API
-  describe("unit — API calls", () => {
-    it("calls listExportAudit on mount", async () => {
+  describe("unit route", () => {
+    it("renders export review page at #/settlement-ops/exports", async () => {
       mockGet.mockResolvedValue(mockExports);
-      window.location.hash = "#/settlement-ops/exports";
-      render(<App />);
+      await renderExportReview("#/settlement-ops/exports");
       await waitFor(() => {
-        const calls = mockGet.mock.calls.flat();
-        expect(calls.some((c: unknown) => typeof c === "string" && (c as string).includes("export-audit"))).toBe(true);
+        expect(screen.getByText("Settlement Export Review")).toBeTruthy();
+      });
+    });
+
+    it("dashboard has export review navigation button", async () => {
+      await renderExportReview("");
+      await waitFor(() => {
+        expect(screen.getByText("Settlement Exports")).toBeTruthy();
       });
     });
   });
 
-  // Unit: Rendering
-  describe("unit — rendering", () => {
+  describe("unit API calls", () => {
+    it("calls listExportAudit on mount", async () => {
+      mockGet.mockResolvedValue(mockExports);
+      await renderExportReview("#/settlement-ops/exports");
+      await waitFor(() => {
+        const calls = mockGet.mock.calls.flat();
+        expect(
+          calls.some((c: unknown) => typeof c === "string" && (c as string).includes("export-audit")),
+        ).toBe(true);
+      });
+    });
+  });
+
+  describe("unit rendering", () => {
     it("renders export records in table", async () => {
       mockGet.mockResolvedValue(mockExports);
-      window.location.hash = "#/settlement-ops/exports";
-      render(<App />);
-      await waitFor(() => { expect(screen.getByText("exp-1")).toBeTruthy(); });
+      await renderExportReview("#/settlement-ops/exports");
+      await waitFor(() => {
+        expect(screen.getByText("exp-1")).toBeTruthy();
+      });
       expect(screen.getByText("exp-2")).toBeTruthy();
       expect(screen.getByText("csv")).toBeTruthy();
       expect(screen.getByText("json")).toBeTruthy();
@@ -89,42 +172,45 @@ describe("Phase 9C — Export Review Console", () => {
 
     it("renders content hash truncated", async () => {
       mockGet.mockResolvedValue(mockExports);
-      window.location.hash = "#/settlement-ops/exports";
-      render(<App />);
-      await waitFor(() => { expect(screen.getByText("abc123def456...")).toBeTruthy(); });
+      await renderExportReview("#/settlement-ops/exports");
+      await waitFor(() => {
+        expect(screen.getByText("abc123def456...")).toBeTruthy();
+      });
     });
   });
 
-  // Integration: States
-  describe("integration — states", () => {
-    it("shows loading state", () => {
+  describe("integration states", () => {
+    it("shows loading state", async () => {
       mockGet.mockImplementation(() => new Promise(() => {}));
-      window.location.hash = "#/settlement-ops/exports";
-      render(<App />);
-      expect(screen.getByText(/Loading exports/)).toBeTruthy();
+      await renderExportReview("#/settlement-ops/exports");
+      await waitFor(() => {
+        expect(screen.getByText(/Loading exports/)).toBeTruthy();
+      });
     });
 
     it("shows error state", async () => {
       mockGet.mockRejectedValue(new Error("Network Error"));
-      window.location.hash = "#/settlement-ops/exports";
-      render(<App />);
-      await waitFor(() => { expect(screen.getByText(/Error:/)).toBeTruthy(); });
+      await renderExportReview("#/settlement-ops/exports");
+      await waitFor(() => {
+        expect(screen.getByText(/Error:/)).toBeTruthy();
+      });
     });
 
     it("shows empty state", async () => {
-      window.location.hash = "#/settlement-ops/exports";
-      render(<App />);
-      await waitFor(() => { expect(screen.getByText(/No export records/)).toBeTruthy(); });
+      await renderExportReview("#/settlement-ops/exports");
+      await waitFor(() => {
+        expect(screen.getByText(/No export records/)).toBeTruthy();
+      });
     });
   });
 
-  // Security: No mutation
-  describe("security — no mutation", () => {
+  describe("security no mutation", () => {
     it("has no approve/payout/fix/retry/repair/backfill buttons", async () => {
       mockGet.mockResolvedValue(mockExports);
-      window.location.hash = "#/settlement-ops/exports";
-      render(<App />);
-      await waitFor(() => { expect(screen.getByText("Settlement Export Review")).toBeTruthy(); });
+      await renderExportReview("#/settlement-ops/exports");
+      await waitFor(() => {
+        expect(screen.getByText("Settlement Export Review")).toBeTruthy();
+      });
       expect(screen.queryByText(/^approve$/i)).toBeNull();
       expect(screen.queryByText(/^payout$/i)).toBeNull();
       expect(screen.queryByText(/^fix$/i)).toBeNull();
@@ -133,27 +219,29 @@ describe("Phase 9C — Export Review Console", () => {
 
     it("only GET endpoints called", async () => {
       mockGet.mockResolvedValue(mockExports);
-      window.location.hash = "#/settlement-ops/exports";
-      render(<App />);
-      await waitFor(() => { expect(screen.getByText("Settlement Export Review")).toBeTruthy(); });
+      await renderExportReview("#/settlement-ops/exports");
+      await waitFor(() => {
+        expect(screen.getByText("Settlement Export Review")).toBeTruthy();
+      });
       const calls = mockGet.mock.calls.flat();
-      const mutations = calls.filter((c: unknown) =>
-        typeof c === "string" && /\b(POST|PUT|PATCH|DELETE)\b/.test(c as string));
+      const mutations = calls.filter(
+        (c: unknown) => typeof c === "string" && /\b(POST|PUT|PATCH|DELETE)\b/.test(c as string),
+      );
       expect(mutations).toHaveLength(0);
     });
   });
 
-  // Security: Forbidden terms
-  describe("security — forbidden terms", () => {
+  describe("security forbidden terms", () => {
     it("page has no forbidden text", async () => {
       mockGet.mockResolvedValue(mockExports);
-      window.location.hash = "#/settlement-ops/exports";
-      render(<App />);
-      await waitFor(() => { expect(screen.getByText("Settlement Export Review")).toBeTruthy(); });
-      const t = document.body.textContent?.toLowerCase() || "";
-      expect(t).not.toContain("payout");
-      expect(t).not.toContain("payment instruction");
-      expect(t).not.toContain("export-once");
+      await renderExportReview("#/settlement-ops/exports");
+      await waitFor(() => {
+        expect(screen.getByText("Settlement Export Review")).toBeTruthy();
+      });
+      const pageText = (document.body.textContent || "").toLowerCase();
+      expect(pageText).not.toContain("payout");
+      expect(pageText).not.toContain("payment instruction");
+      expect(pageText).not.toContain("export-once");
     });
   });
 });

@@ -20,6 +20,15 @@ describe("settlementConfirmationService", () => {
     expect(result).toMatchObject({ idempotent: false, batch: { status: "confirmed", confirmedBy: "operator-1", totalGrossAmount: 89 } });
     expect(repository.markBatchConfirmed).toHaveBeenCalledOnce();
     expect(outbox.insertEvent).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ eventType: "settlement.confirmed", aggregateId: "stb-1" }));
+    expect(outbox.insertEvent).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+      eventType: "conflict_audit",
+      payload: expect.objectContaining({
+        order_id: "ord-1",
+        fee_type: "gross",
+        source_type: "settlement.confirmed",
+        snapshot_hash: expect.stringMatching(/^[a-f0-9]{64}$/),
+      }),
+    }));
   });
 
   it("returns an already confirmed batch without another outbox event", async () => {

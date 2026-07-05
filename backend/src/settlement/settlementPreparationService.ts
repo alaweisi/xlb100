@@ -21,6 +21,8 @@ import {
   settlementRepository,
   SettlementRepository,
 } from "./settlementRepository.js";
+import { recordLedgerAudit } from "../ledger/auditGate.js";
+import type { LedgerSingleWriteFeeType } from "../ledger/ledgerRepository.js";
 
 type TransactionRunner = <T>(callback: (connection: PoolConnection) => Promise<T>) => Promise<T>;
 
@@ -81,7 +83,35 @@ export class SettlementPreparationService {
       }));
 
       await this.repository.insertBatch(connection, batch);
-      for (const item of items) await this.repository.insertItem(connection, item);
+      for (const item of items) {
+        await this.repository.insertItem(connection, item);
+        const auditAmounts: [LedgerSingleWriteFeeType, number][] = [
+          ["gross", item.grossAmount],
+          ["platform_fee", item.platformFee],
+          ["worker_receivable", item.workerReceivable],
+        ];
+        await recordLedgerAudit({
+          connection,
+          outbox: this.outbox,
+          cityCode,
+          sourceType: "settlement.prepared",
+          items: auditAmounts.map(([feeType, amount]) => ({
+            orderId: item.orderId,
+            feeType,
+            aggregateType: "settlement_item",
+            aggregateId: item.settlementItemId,
+            snapshot: {
+              city_code: cityCode,
+              order_id: item.orderId,
+              fee_type: feeType,
+              source_type: "settlement.prepared",
+              accrual_id: item.accrualId,
+              amount,
+              currency: item.currency,
+            },
+          })),
+        });
+      }
       const payload: SettlementPreparedEventPayload = {
         settlementBatchId: batch.settlementBatchId,
         cityCode,

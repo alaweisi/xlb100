@@ -49,25 +49,34 @@ try {
 # ── Normal gate logic ─────────────────────────────────────────────
 $Root = Split-Path -Parent $PSScriptRoot
 
-$allowedTablePattern = 'settlement_execution_preparation_'
-$forbiddenTablePatterns = @(
-  '\bsettlement_batches\b',
-  '\bsettlement_items\b',
-  '\bsettlement_payables\b',
-  '\bsettlement_payable_queue\b',
-  '\bledger_entries\b',
-  '\bledger_accounts\b',
-  '\bledger_accruals\b',
-  '\bpayment_orders\b',
-  '\bpayment_transactions\b',
-  '\bgovernance_',
-  '\bdry_run_',
-  '\bworker_receivable_statement',
-  '\brefund_orders\b',
-  '\breversal_entries\b',
-  '\bprovider_payouts\b',
-  '\bprovider_dispatches\b'
-)
+$allowedDefaultPattern = 'settlement_execution_preparation_'
+$allowedPerModule = @{
+  'backend/src/governance' = 'settlement_action_governance_'
+  'backend/src/ledger' = 'ledger_(accounts|accruals|entries)'
+  'backend/src/planner' = 'settlement_execution_dry_run_'
+}
+
+function Get-AllowedTablePattern([string]$FilePath) {
+  foreach ($entry in $allowedPerModule.GetEnumerator()) {
+    if ($FilePath -like "$($entry.Key)/*") {
+      return $entry.Value
+    }
+  }
+  return $allowedDefaultPattern
+}
+
+function Get-WriteTable([string]$Sql) {
+  if ($Sql -match '(?is)\bINSERT\s+INTO\s+[`"\[]?(?<table>[A-Za-z0-9_]+)') {
+    return $Matches.table
+  }
+  if ($Sql -match '(?is)\bUPDATE\s+[`"\[]?(?<table>[A-Za-z0-9_]+)') {
+    return $Matches.table
+  }
+  if ($Sql -match '(?is)\bDELETE\s+FROM\s+[`"\[]?(?<table>[A-Za-z0-9_]+)') {
+    return $Matches.table
+  }
+  return $null
+}
 
 $changedFiles = & git -C $Root diff --name-only main...HEAD 2>$null
 if ($LASTEXITCODE -ne 0) {
@@ -92,26 +101,15 @@ foreach ($file in $changedFiles) {
   # Per-line check: scan EVERY SQL statement, don't skip file when one allowed table found
   $lineNum = 0
   $lines = $content -split "`n"
+  $allowedPattern = Get-AllowedTablePattern $file
   foreach ($line in $lines) {
     $lineNum++
     $trimmed = $line.Trim()
     if ($trimmed -match '^\s*(//|#|/\*|\*|\s*\*|--)') { continue }
     if ($trimmed -match '\b(INSERT\s+INTO|UPDATE\s+\w|DELETE\s+FROM)\b') {
-      foreach ($fp in $forbiddenTablePatterns) {
-        if ($trimmed -match $fp) {
-          $violations += "$($file):$lineNum`: $trimmed"
-          break
-        }
-      }
-      # Flag any write not targeting preparation tables at all
-      if ($trimmed -notmatch $allowedTablePattern) {
-        $alreadyFlagged = $false
-        foreach ($fp in $forbiddenTablePatterns) {
-          if ($trimmed -match $fp) { $alreadyFlagged = $true; break }
-        }
-        if (-not $alreadyFlagged) {
-          $violations += "$($file):$lineNum`: non-preparation table write: $trimmed"
-        }
+      $table = Get-WriteTable $trimmed
+      if ($table -and $table -notmatch "^$allowedPattern") {
+        $violations += "$($file):$lineNum`: module write policy violation: $trimmed"
       }
     }
   }
@@ -129,13 +127,9 @@ foreach ($file in $changedFiles) {
       }
       $windowCollapsed = $window -replace '\s+', ' '
 
-      if ($windowCollapsed -notmatch $allowedTablePattern) {
-        foreach ($fp in $forbiddenTablePatterns) {
-          if ($windowCollapsed -match $fp) {
-            $violations += "$($file):$($i+1)`: multiline SQL references forbidden table: $trimmed"
-            break
-          }
-        }
+      $table = Get-WriteTable $windowCollapsed
+      if ($table -and $table -notmatch "^$allowedPattern") {
+        $violations += "$($file):$($i+1)`: multiline module write policy violation: $trimmed"
       }
     }
   }

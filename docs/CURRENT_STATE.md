@@ -17,7 +17,9 @@
 | Phase 9F | NOT IMPLEMENTED | — | Skipped by governance decision |
 | Phase 10 | LOCKED | xlb-phase10-settlement-action-governance | Settlement action governance: intent / review / evidence / readiness |
 | Phase 11 | LOCKED | xlb-phase11-settlement-execution-dry-run-planner | Settlement execution dry-run planner |
-| Phase 12 | NOT STARTED | — | Requires separate readiness scan |
+| Phase 12 | COMPLETE | - | Settlement execution preparation control envelope |
+| Phase 13 | COMPLETE | - | Final ledger replay / immutability proof CI gates |
+| Phase 14 | IN PROGRESS | - | Readiness diagnostics (64/100) |
 
 ## Phase 10 — Settlement Action Governance (LOCKED)
 
@@ -45,10 +47,18 @@
   - no provider dispatch
   - no Phase 12 execution
 
-## Phase 12 — Next Phase (NOT STARTED)
+## Phase 13 - Ledger Immutability Proof (COMPLETE)
 
-- **May proceed only to**: Readiness Scan
-- **Requires**: separate readiness scan, branch, approval gate
+- **Scope**: replay verification gate, immutability proof gate, audit completeness checks
+- **Status**: COMPLETE
+- **Boundary**: CI/scripts validation only; no schema changes, no runtime business logic changes
+
+## Phase 14 - Readiness Diagnostics (IN PROGRESS)
+
+- **Readiness score**: 64/100
+- **Status**: IN PROGRESS
+- **Current recommendation**: NOT READY for staging
+- **Reference report**: `docs/release/PHASE14_READINESS_REPORT.md`
 
 ## Third-party Inspection
 

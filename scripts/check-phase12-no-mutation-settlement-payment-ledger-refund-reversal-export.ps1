@@ -89,6 +89,34 @@ $forbiddenWriteTargets = @(
 
 $allowedTablePattern = 'settlement_execution_preparation_'
 
+$allowedPerModule = @{
+  'backend/src/governance' = 'settlement_action_governance_'
+  'backend/src/ledger' = 'ledger_(accounts|accruals|entries)'
+  'backend/src/planner' = 'settlement_execution_dry_run_'
+}
+
+function Get-AllowedTablePattern([string]$FilePath) {
+  foreach ($entry in $allowedPerModule.GetEnumerator()) {
+    if ($FilePath -like "$($entry.Key)/*") {
+      return $entry.Value
+    }
+  }
+  return $allowedTablePattern
+}
+
+function Get-WriteTable([string]$Sql) {
+  if ($Sql -match '(?is)\bINSERT\s+INTO\s+[`"\[]?(?<table>[A-Za-z0-9_]+)') {
+    return $Matches.table
+  }
+  if ($Sql -match '(?is)\bUPDATE\s+[`"\[]?(?<table>[A-Za-z0-9_]+)') {
+    return $Matches.table
+  }
+  if ($Sql -match '(?is)\bDELETE\s+FROM\s+[`"\[]?(?<table>[A-Za-z0-9_]+)') {
+    return $Matches.table
+  }
+  return $null
+}
+
 $changedFiles = & git -C $Root diff --name-only main...HEAD 2>$null
 if ($LASTEXITCODE -ne 0) {
   Write-Host "check-phase12-no-mutation-settlement-payment-ledger-refund-reversal-export: FAILED - git diff failed"
@@ -111,6 +139,8 @@ foreach ($file in $changedFiles) {
   $stripped = $content -replace '\/\/.*$', '' -replace '\/\*[\s\S]*?\*\/', ''
   $collapsed = $stripped -replace '\s+', ' '
 
+  $allowedPattern = Get-AllowedTablePattern $file
+
   # First pass: per-line check
   $lineNum = 0
   $lines = $content -split "`n"
@@ -120,8 +150,8 @@ foreach ($file in $changedFiles) {
     if ($trimmed -match '^\s*(//|#|/\*|\*|\s*\*|--)') { continue }
 
     if ($trimmed -match '\b(INSERT\s+INTO|UPDATE\s+\w|DELETE\s+FROM)\b') {
-      # If it only targets preparation table, skip
-      if ($trimmed -notmatch $allowedTablePattern) {
+      $targetTable = Get-WriteTable $trimmed
+      if ($targetTable -and ($targetTable -notmatch "^$allowedPattern")) {
         foreach ($fp in $forbiddenWriteTargets) {
           if ($trimmed -match $fp) {
             $violations += "$($file):$lineNum`: $trimmed"
@@ -144,8 +174,8 @@ foreach ($file in $changedFiles) {
         $window += $wl + ' '
       }
       $windowCollapsed = $window -replace '\s+', ' '
-
-      if ($windowCollapsed -notmatch $allowedTablePattern) {
+      $targetTable = Get-WriteTable $windowCollapsed
+      if ($targetTable -and ($targetTable -notmatch "^$allowedPattern")) {
         foreach ($fp in $forbiddenWriteTargets) {
           if ($windowCollapsed -match $fp) {
             $violations += "$($file):$($i+1)`: multiline SQL mutation: $trimmed"

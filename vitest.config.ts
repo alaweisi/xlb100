@@ -8,15 +8,22 @@ export default defineConfig({
     include: ["tests/**/*.test.ts", "tests/**/*.test.tsx"],
   },
   resolve: {
-    alias: {
-      "react": path.resolve(__dirname, "node_modules/.pnpm/react@18.3.1/node_modules/react"),
-      "react-dom": path.resolve(__dirname, "node_modules/.pnpm/react-dom@18.3.1/node_modules/react-dom"),
-      "@xlb/types": path.resolve(__dirname, "packages/types/src/index.ts"),
-      "@xlb/validators": path.resolve(__dirname, "packages/validators/src/index.ts"),
-      "@xlb/config": path.resolve(__dirname, "packages/config/src/index.ts"),
-      "@xlb/api-client": path.resolve(__dirname, "packages/api-client/src/index.ts"),
-      "@xlb/admin-pages": path.resolve(__dirname, "apps/admin/src/pages"),
-      "@shared": path.resolve(__dirname, "packages/shared"),
-    },
+    alias: [
+      {
+        find: "react",
+        replacement: path.resolve(__dirname, "node_modules/.pnpm/react@18.3.1/node_modules/react"),
+      },
+      {
+        find: "react-dom",
+        replacement: path.resolve(__dirname, "node_modules/.pnpm/react-dom@18.3.1/node_modules/react-dom"),
+      },
+      { find: "@xlb/types", replacement: path.resolve(__dirname, "packages/types/src/index.ts") },
+      { find: "@xlb/validators", replacement: path.resolve(__dirname, "packages/validators/src/index.ts") },
+      { find: "@xlb/config", replacement: path.resolve(__dirname, "packages/config/src/index.ts") },
+      { find: "@xlb/api-client", replacement: path.resolve(__dirname, "packages/api-client/src/index.ts") },
+      { find: "@xlb/admin-pages", replacement: path.resolve(__dirname, "apps/admin/src/pages") },
+      { find: /^@shared\/(.*)$/, replacement: path.resolve(__dirname, "packages/shared/$1") },
+      { find: "@shared", replacement: path.resolve(__dirname, "packages/shared") },
+    ],
   },
 });

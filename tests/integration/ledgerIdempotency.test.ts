@@ -14,6 +14,26 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")("ledger idempotency", { t
       const [accruals] = await getMysqlPool().query<(RowDataPacket & { count: number })[]>("SELECT COUNT(*) AS count FROM ledger_accruals WHERE fulfillment_id=?", [fulfillmentId]);
       const [entries] = await getMysqlPool().query<(RowDataPacket & { count: number })[]>("SELECT COUNT(*) AS count FROM ledger_entries WHERE source_id=?", [fulfillmentId]);
       expect(Number(accruals[0]!.count)).toBe(1); expect(Number(entries[0]!.count)).toBe(3);
+      const [auditRows] = await getMysqlPool().query<(RowDataPacket & { payload_json: string | Record<string, unknown> })[]>(
+        `SELECT eo.payload_json
+         FROM event_outbox eo
+         JOIN ledger_entries le ON le.entry_id = eo.aggregate_id AND le.city_code = eo.city_code
+         WHERE eo.event_type = 'conflict_audit'
+           AND eo.aggregate_type = 'ledger_entry'
+           AND le.source_type = 'fulfillment.completed'
+           AND le.source_id = ?
+         ORDER BY JSON_UNQUOTE(JSON_EXTRACT(eo.payload_json, '$.fee_type'))`,
+        [fulfillmentId],
+      );
+      expect(auditRows).toHaveLength(3);
+      const auditPayloads = auditRows.map((row) =>
+        typeof row.payload_json === "string" ? JSON.parse(row.payload_json) as Record<string, unknown> : row.payload_json,
+      );
+      expect(auditPayloads.map((payload) => payload.fee_type)).toEqual(["gross", "platform_fee", "worker_receivable"]);
+      for (const payload of auditPayloads) {
+        expect(payload).toMatchObject({ order_id: expect.any(String), source_type: "fulfillment.completed" });
+        expect(payload.snapshot_hash).toMatch(/^[a-f0-9]{64}$/);
+      }
     } finally { await app.close(); }
   }));
 
