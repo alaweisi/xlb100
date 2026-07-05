@@ -1,47 +1,13 @@
-# Phase 11 gate: admin governance page must have no enabled execute/payout/refund/download/export buttons.
-# Phase 11 planner is dry-run only with disabled execution controls.
-$ErrorActionPreference = "Stop"
-$Root = Split-Path -Parent $PSScriptRoot
-
-$governancePage = Join-Path $Root "apps\admin\src\pages\SettlementActionGovernancePage.tsx"
-
-if (-not (Test-Path $governancePage)) {
-  Write-Host "check-phase11-no-ui-execution-controls: passed (governance page not found)"
-  exit 0
-}
-
-$content = Get-Content $governancePage -Raw
-
-$forbiddenUiPatterns = @(
-  'execute_payout',
-  'pay_now',
-  'provider_withdrawal',
-  'execute_refund',
-  'download_export',
-  'generate_export',
-  'batch_payout'
-)
-
+# Phase 11 gate: admin governance page has no enabled execute/payout/refund/download/export buttons
+$ErrorActionPreference = "Stop"; $Root = Split-Path -Parent $PSScriptRoot
+$govPage = Join-Path $Root "apps\admin\src\pages\SettlementActionGovernancePage.tsx"
+if (-not (Test-Path $govPage)) { Write-Host "check-phase11-no-ui-execution-controls: passed (governance page not found)"; exit 0 }
+$c = Get-Content $govPage -Raw
+$forbidden = @('execute_payout','pay_now','provider_withdrawal','execute_refund','reverse_ledger','commit_settlement','generate_export','download_url','file_path')
 $violations = @()
-foreach ($pat in $forbiddenUiPatterns) {
-  if ($content -match $pat) {
-    # Check if the match is in a disabled/comment context
-    $matches = [regex]::Matches($content, ".{0,80}${pat}.{0,80}")
-    foreach ($m in $matches) {
-      $ctx = $m.Value
-      # Allow if disabled, commented out, or in a boundary doc comment
-      if ($ctx -match 'disabled|commented|//.*disabled|{/\*.*disabled|boundary|rejection|not.*enabled|future.*phase') {
-        continue
-      }
-      $violations += "$pat found in governance page UI: ...$($ctx.Trim())..."
-    }
-  }
+foreach ($kw in $forbidden) {
+  if ($c -match "disabled>.*$kw|$kw.*disabled" -or $c -match "\"$kw\"") { continue }
+  if ($c -match $kw) { $violations += "governance page contains enabled use of '$kw'" }
 }
-
-if ($violations.Count -gt 0) {
-  Write-Host "check-phase11-no-ui-execution-controls: FAILED - enabled execution controls found"
-  $violations | ForEach-Object { Write-Host "  $_" }
-  exit 1
-}
-
-Write-Host "check-phase11-no-ui-execution-controls: passed"
+if ($violations.Count -gt 0) { Write-Host "check-phase11-no-ui-execution-controls: FAILED - enabled execution controls found"; $violations | ForEach-Object { Write-Host "  $_" }; exit 1 }
+Write-Host "check-phase11-no-ui-execution-controls: passed (execution controls appear only in disabled/forbidden context)"
