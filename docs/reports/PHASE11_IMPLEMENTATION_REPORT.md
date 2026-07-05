@@ -3,7 +3,7 @@
 ## Branch / HEAD
 - **Branch**: phase11-settlement-execution-dry-run-planner
 - **HEAD (pre-repair)**: b7e1f23
-- **HEAD (post-repair)**: <TO_BE_FILLED_AFTER_COMMIT>
+- **HEAD (post-repair)**: 8f85602d222415ffb98b540ef7698fe73f29d89f
 - **Stable base**: main@baa6d54fa01414fe4b46933f4219ef9e045a43c2
 
 ## Changed Files Summary
