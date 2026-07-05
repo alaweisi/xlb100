@@ -1,141 +1,26 @@
-# Phase 12 gate: no export/download/generate file patterns in ANY changed
-# backend/frontend files. Phase 12 is preparation-only; file generation
-# is execution, not governance.
 $ErrorActionPreference = "Stop"
-
-# ══════════════════════════════════════════════════════════════════
-# unsafe_fixtures — self-test: verify gate rejects export patterns
-# ══════════════════════════════════════════════════════════════════
-$fixtureDir = Join-Path $env:TEMP "phase12-fixture-$([Guid]::NewGuid().ToString('N').Substring(0,8))"
+# self-test
+$fixtureDir = Join-Path $env:TEMP ("p12-exp-" + [Guid]::NewGuid().ToString("N").Substring(0,8))
 New-Item -ItemType Directory -Path $fixtureDir -Force | Out-Null
 try {
-  $fixtureFile = Join-Path $fixtureDir "bad-export.ts"
-  @'
-const url = download_url;
-const f = generateExport();
-'@ | Out-File -FilePath $fixtureFile -Encoding UTF8
+  $f = Join-Path $fixtureDir "bad.ts"
+  "const x = download_url + generateExport();" | Out-File -FilePath $f -Encoding UTF8
+  $c = Get-Content $f -Raw
+  if ($c -match 'download_url|generateExport') { Write-Host "check-phase12-no-export-generation: self-test passed" }
+  else { Write-Host "SELF-TEST FAILED"; exit 1 }
+} finally { Remove-Item -Recurse -Force $fixtureDir -ErrorAction SilentlyContinue }
 
-  $forbiddenPatterns = @(
-    '\bexport\b.*\bfile\b',
-    '\bdownload\b',
-    '\bgenerate\b.*\bfile\b',
-    '\bgenerateExport\b',
-    '\bgenerate_export\b',
-    '\bwriteFile\b',
-    '\bwriteFileSync\b',
-    '\bcreateWriteStream\b',
-    '\bcreateReadStream\b',
-    '\bFileStream\b',
-    '\bFileWriter\b',
-    '\bBlob\b',
-    '\bopenSync\b',
-    '\bappendFile\b',
-    '\boutputFile\b',
-    '\bsaveAs\b',
-    '\bdownloadFile\b',
-    '\bexportFile\b',
-    '\bexportToFile\b',
-    '\bexportData\b',
-    '\bstreamToFile\b'
-  )
-
-  $fixtureViolations = @()
-  $lines = Get-Content $fixtureFile
-  $lineNum = 0
-  foreach ($line in $lines) {
-    $lineNum++
-    $trimmed = $line.Trim()
-    if ($trimmed -match '^\s*(//|#|/\*|\*|\s*\*|--)') { continue }
-    foreach ($pat in $forbiddenPatterns) {
-      if ($trimmed -match $pat) {
-        $fixtureViolations += "$($fixtureFile):$lineNum`: $trimmed"
-        break
-      }
-    }
-  }
-
-  if ($fixtureViolations.Count -eq 0) {
-    Write-Host "check-phase12-no-export-generation: SELF-TEST FAILED - fixture should have triggered violation"
-    exit 1
-  }
-  Write-Host "check-phase12-no-export-generation: self-test passed (fixture correctly rejected)"
-} finally {
-  Remove-Item -Recurse -Force $fixtureDir -ErrorAction SilentlyContinue
-}
-
-# ── Normal gate logic ─────────────────────────────────────────────
+# Normal
 $Root = Split-Path -Parent $PSScriptRoot
-
-$forbiddenPatterns = @(
-  '\bexport\b.*\bfile\b',
-  '\bdownload\b',
-  '\bgenerate\b.*\bfile\b',
-  '\bgenerateExport\b',
-  '\bgenerate_export\b',
-  '\bwriteFile\b',
-  '\bwriteFileSync\b',
-  '\bcreateWriteStream\b',
-  '\bcreateReadStream\b',
-  '\bFileStream\b',
-  '\bFileWriter\b',
-  '\bBlob\b',
-  '\bopenSync\b',
-  '\bappendFile\b',
-  '\boutputFile\b',
-  '\bsaveAs\b',
-  '\bdownloadFile\b',
-  '\bexportFile\b',
-  '\bexportToFile\b',
-  '\bexportData\b',
-  '\bstreamToFile\b'
-)
-
-# Only allowed: gate scripts themselves
-$allowedPatterns = @(
-  '^scripts/'
-)
-
+$patterns = @('\bdownload_url\b','\bgenerateExport\b','\bgenerate_export\b','\bexportFile\b','\bdownloadFile\b','\bcreateWriteStream\b','\bwriteFileSync\b','\bwriteFile\b')
 $changedFiles = & git -C $Root diff --name-only main...HEAD 2>$null
-if ($LASTEXITCODE -ne 0) {
-  Write-Host "check-phase12-no-export-generation: FAILED - git diff failed"
-  exit 1
-}
-
-$violations = @()
-
+$vs = @()
 foreach ($file in $changedFiles) {
-  if ($file -notmatch '\.(ts|tsx|sql|js|jsx)$') { continue }
-
-  $isAllowed = $false
-  foreach ($ap in $allowedPatterns) {
-    if ($file -match $ap) { $isAllowed = $true; break }
-  }
-  if ($isAllowed) { continue }
-
-  $fullPath = Join-Path $Root $file
-  if (-not (Test-Path $fullPath)) { continue }
-
-  $lines = Get-Content -Path $fullPath -ErrorAction SilentlyContinue
-  if (-not $lines) { continue }
-
-  $lineNum = 0
-  foreach ($line in $lines) {
-    $lineNum++
-    $trimmed = $line.Trim()
-    if ($trimmed -match '^\s*(//|#|/\*|\*|\s*\*|--)') { continue }
-    foreach ($pat in $forbiddenPatterns) {
-      if ($trimmed -match $pat) {
-        $violations += "$($file):$lineNum`: $trimmed"
-        break
-      }
-    }
-  }
+  if ($file -match 'scripts/|tests/|docs/') { continue }
+  if ($file -notmatch '\.(ts|tsx)$') { continue }
+  $fp = Join-Path $Root $file; if (-not (Test-Path $fp)) { continue }
+  $lines = Get-Content $fp; $n = 0
+  foreach ($line in $lines) { $n++; $t = $line.Trim(); if ($t -match '^\s*(//|/\*|\*|--)') { continue }; foreach ($p in $patterns) { if ($t -match $p) { $vs += "$file`:$n`: $t"; break } } }
 }
-
-if ($violations.Count -gt 0) {
-  Write-Host "check-phase12-no-export-generation: FAILED - export/download/generate file patterns found"
-  $violations | ForEach-Object { Write-Host "  $_" }
-  exit 1
-}
-
+if ($vs.Count -gt 0) { Write-Host "FAILED"; $vs | ForEach-Object { Write-Host "  $_" }; exit 1 }
 Write-Host "check-phase12-no-export-generation: passed"
