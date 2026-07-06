@@ -24,6 +24,7 @@ This package closes the current production readiness triage as an operational ev
 | Migration 027 rollback plan | `docs/release/PHASE14_MIGRATION_027_ROLLBACK_PLAN.md` |
 | Code/data rollback runbook | `docs/release/PHASE14_CODE_DATA_ROLLBACK_RUNBOOK.md` |
 | Backup/restore staging drill | `docs/release/PHASE14_BACKUP_RESTORE_STAGING_DRILL.md` |
+| CI gate change audit | `docs/release/PHASE14_CI_GATE_CHANGE_AUDIT.md` |
 
 ## Status Semantics
 
@@ -47,7 +48,7 @@ This package closes the current production readiness triage as an operational ev
 | PROD-OPS-008 | Payment/refund/reversal duplicate monitoring | NOT RUN | SRE / Finance ops owner | SQL/dashboard checks for duplicate `refund.approved` events and duplicate reversal ledger entries. | Duplicate prevention passed UAT, but production duplicate monitoring is not proven. | Blocks production financial operations visibility. |
 | PROD-OPS-009 | Event handler lag monitoring | NOT RUN | SRE / Backend owner | Pending event age query/alert for `event_outbox` rows where `event_type = 'refund.approved'`. | No production threshold, alert route, or escalation owner is recorded. | Blocks production because refund approval events could stall without detection. |
 | PROD-OPS-010 | Replay/immutability release gate timing | NOT RUN | Release owner / Ledger owner | `npx pnpm preflight` immediately before production cut and immediately after cut, with replay and immutability PASS evidence attached. | Validation has passed previously, but required pre-cut and post-cut release-window proof has not been run. | Blocks production because ledger replay and immutability must be proven at release time. |
-| PROD-OPS-011 | CI gate script change audit | NOT RUN | Reviewer / Release owner | Reviewer signoff for `60ba210 chore(ci): allow phase 14r refund reversal gates`; suggested command: `git show --stat 60ba210`. | Production reviewer audit is not recorded. | Blocks production approval because CI allowance changes need explicit production review. |
+| PROD-OPS-011 | CI gate script change audit | PASS | Reviewer / Release owner | `docs/release/PHASE14_CI_GATE_CHANGE_AUDIT.md` audits `60ba210 chore(ci): allow phase 14r refund reversal gates`, verifies the exceptions are exact Phase 14R file/table/migration allowlists, and confirms replay, immutability, stableHash, single-write, and runtime validation remain active. | Closed for repo audit evidence; release-window replay/immutability timing remains tracked by `PROD-OPS-010`, and release owner approval remains tracked by `PROD-OPS-013`. | Does not block production by itself after this audit closure. |
 | PROD-OPS-012 | Operator/app onboarding signoff | NOT RUN | Product / Support / Compliance owners | Customer, worker, admin, support, refund dispute, privacy, terms, and compliance signoff record. | No final operator, app onboarding, support, or compliance approval evidence is recorded. | Blocks production because end-user and operator readiness is unapproved. |
 | PROD-OPS-013 | Release owner approval | FAIL | Release owner | Approval record after all PROD-OPS items pass; current evidence: `docs/release/PHASE14_PRODUCTION_READINESS_TRIAGE.md`. | Production release is explicitly NO-GO / BLOCKED. | Blocks production release and production tag creation. |
 
@@ -73,7 +74,6 @@ Production remains blocked by every remaining non-PASS item in the evidence chec
 - `PROD-OPS-008` payment/refund/reversal duplicate monitoring.
 - `PROD-OPS-009` event handler lag monitoring.
 - `PROD-OPS-010` replay/immutability release gate timing.
-- `PROD-OPS-011` CI gate script change audit.
 - `PROD-OPS-012` operator/app onboarding signoff.
 - `PROD-OPS-013` release owner approval.
 

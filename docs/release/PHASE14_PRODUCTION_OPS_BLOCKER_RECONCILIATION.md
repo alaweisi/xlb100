@@ -19,6 +19,7 @@
 | Migration 027 rollback plan | `docs/release/PHASE14_MIGRATION_027_ROLLBACK_PLAN.md` |
 | Code/data rollback runbook | `docs/release/PHASE14_CODE_DATA_ROLLBACK_RUNBOOK.md` |
 | Backup/restore staging drill | `docs/release/PHASE14_BACKUP_RESTORE_STAGING_DRILL.md` |
+| CI gate change audit | `docs/release/PHASE14_CI_GATE_CHANGE_AUDIT.md` |
 
 ## Classification Semantics
 
@@ -45,7 +46,7 @@ The classification is the primary closure path for the current blocker. Owner ap
 | PROD-OPS-008 | Payment/refund/reversal duplicate monitoring | NOT RUN | SRE / Finance ops owner | SQL/dashboard checks for duplicate `refund.approved` events and duplicate reversal ledger entries. | Blocks production financial operations visibility. | D |
 | PROD-OPS-009 | Event handler lag monitoring | NOT RUN | SRE / Backend owner | Pending event age query/alert for `event_outbox` rows where `event_type = 'refund.approved'`. | Blocks production because refund approval events could stall without detection. | D |
 | PROD-OPS-010 | Replay/immutability release gate timing | NOT RUN | Release owner / Ledger owner | `npx pnpm preflight` immediately before production cut and immediately after cut, with replay and immutability PASS evidence attached. | Blocks production because ledger replay and immutability must be proven at release time. | D |
-| PROD-OPS-011 | CI gate script change audit | NOT RUN | Reviewer / Release owner | Reviewer signoff for `60ba210 chore(ci): allow phase 14r refund reversal gates`; suggested command: `git show --stat 60ba210`. | Blocks production approval because CI allowance changes need explicit production review. | A |
+| PROD-OPS-011 | CI gate script change audit | PASS | Reviewer / Release owner | `docs/release/PHASE14_CI_GATE_CHANGE_AUDIT.md` audits `60ba210 chore(ci): allow phase 14r refund reversal gates`, verifies the exceptions are exact Phase 14R file/table/migration allowlists, and confirms replay, immutability, stableHash, single-write, and runtime validation remain active. | Repo audit blocker closed; release-window replay/immutability timing and release owner approval remain separate blockers. | A |
 | PROD-OPS-012 | Operator/app onboarding signoff | NOT RUN | Product / Support / Compliance owners | Customer, worker, admin, support, refund dispute, privacy, terms, and compliance signoff record. | Blocks production because end-user and operator readiness is unapproved. | A |
 | PROD-OPS-013 | Release owner approval | FAIL | Release owner | Approval record after all `PROD-OPS-*` items pass; current evidence is `docs/release/PHASE14_PRODUCTION_READINESS_TRIAGE.md`. | Blocks production release and production tag creation. | A |
 
@@ -53,17 +54,18 @@ The classification is the primary closure path for the current blocker. Owner ap
 
 | Category | Count | Items |
 | --- | ---: | --- |
-| A - External/manual approval | 3 | `PROD-OPS-011`, `PROD-OPS-012`, `PROD-OPS-013` |
+| A - External/manual approval | 2 | `PROD-OPS-012`, `PROD-OPS-013` |
 | B - Repo-documentable | 0 | Closed: `PROD-OPS-005`, `PROD-OPS-006` |
 | C - Staging drill required | 0 | Closed: `PROD-OPS-004` |
 | D - Production-environment required | 7 | `PROD-OPS-001`, `PROD-OPS-002`, `PROD-OPS-003`, `PROD-OPS-007`, `PROD-OPS-008`, `PROD-OPS-009`, `PROD-OPS-010` |
-| Total non-PASS | 10 | `PROD-OPS-001` through `PROD-OPS-003`, `PROD-OPS-007` through `PROD-OPS-013` |
+| Total non-PASS | 9 | `PROD-OPS-001` through `PROD-OPS-003`, `PROD-OPS-007` through `PROD-OPS-010`, `PROD-OPS-012`, `PROD-OPS-013` |
 
 ## Reconciliation Notes
 
 - `PROD-OPS-005` and `PROD-OPS-006` are PASS for repo-documentable rollback readiness because concrete rollback plan/runbook evidence now exists.
 - `PROD-OPS-004` is PASS for staging backup/restore drill evidence because a non-empty staging backup was restored into an isolated temporary database and verified without overwriting active staging.
-- The other 10 `PROD-OPS-*` items remain production blockers.
+- `PROD-OPS-011` is PASS for CI gate change audit evidence because `60ba210` was reviewed as a narrow Phase 14R structural allowlist change and validation confirms replay/immutability gates still run.
+- The other 9 `PROD-OPS-*` items remain production blockers.
 - The production ops readiness checklist already contained all 13 rows in its evidence table, but its remaining-blocker summary called out only the highest release-risk subset. That summary has been corrected to list every blocker.
 - No blocker is downgraded or removed by this reconciliation.
 - `PROD-OPS-005` and `PROD-OPS-006` were repo-documentable because the closure artifact was a production rollback plan/runbook. Executing those procedures may later require a staging drill or production release-window validation.
