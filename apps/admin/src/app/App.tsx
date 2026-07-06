@@ -4,6 +4,7 @@ import { SettlementStatementDetailPage } from "../pages/SettlementStatementDetai
 import { SettlementExportReviewPage } from "../pages/SettlementExportReviewPage";
 import { SettlementActionGovernancePage } from "../pages/SettlementActionGovernancePage";
 import { buildHash, parseView, parseHashParams } from "../hashParams";
+import { AdminShell, Badge, SideNav, TopBar } from "@xlb/ui";
 
 export function App() {
   const [view, setView] = useState(parseView);
@@ -36,17 +37,37 @@ export function App() {
     window.location.hash = "";
   }, []);
 
-  if (view.page === "governance") {
-    return <SettlementActionGovernancePage onBack={navigateToDashboard} subView={view.subView} />;
-  }
+  const viewTitle = view.page === "governance"
+    ? "Settlement Governance"
+    : view.page === "exports"
+      ? "Export Review"
+      : view.page === "detail"
+        ? "Statement Detail"
+        : "Settlement Operations";
 
-  if (view.page === "exports") {
-    return <SettlementExportReviewPage onBack={navigateToDashboard} onNavigateToDetail={navigateToDetail} filterStatementId={params.get("statementId") || undefined} filterCityCode={cityCode} />;
-  }
+  const content = view.page === "governance"
+    ? <SettlementActionGovernancePage onBack={navigateToDashboard} subView={view.subView} />
+    : view.page === "exports"
+      ? <SettlementExportReviewPage onBack={navigateToDashboard} onNavigateToDetail={navigateToDetail} filterStatementId={params.get("statementId") || undefined} filterCityCode={cityCode} />
+      : view.page === "detail"
+        ? <SettlementStatementDetailPage statementId={view.statementId} onBack={navigateToDashboard} cityCode={cityCode} onNavigateToExports={navigateToExports} />
+        : <SettlementOpsPage onNavigate={navigateToDetail} onNavigateToExports={navigateToExports} onNavigateToGovernance={navigateToGovernance} initialCityCode={cityCode} />;
 
-  if (view.page === "detail") {
-    return <SettlementStatementDetailPage statementId={view.statementId} onBack={navigateToDashboard} cityCode={cityCode} onNavigateToExports={navigateToExports} />;
-  }
-
-  return <SettlementOpsPage onNavigate={navigateToDetail} onNavigateToExports={navigateToExports} onNavigateToGovernance={navigateToGovernance} initialCityCode={cityCode} />;
+  return (
+    <AdminShell
+      sideNav={
+        <SideNav
+          title="XLB Admin"
+          items={[
+            { key: "settlement", label: "结算", active: view.page === "dashboard" || view.page === "detail", href: "#", onClick: navigateToDashboard },
+            { key: "exports", label: "导出复核", active: view.page === "exports", href: "#/settlement-ops/exports", onClick: () => navigateToExports() },
+            { key: "governance", label: "治理", active: view.page === "governance", href: "#/settlement-ops/governance", onClick: navigateToGovernance },
+          ]}
+        />
+      }
+      topBar={<TopBar title={viewTitle} actions={<Badge tone="success">same-origin API</Badge>} />}
+    >
+      {content}
+    </AdminShell>
+  );
 }

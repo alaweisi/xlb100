@@ -117,3 +117,64 @@ Manual confirmation points:
   - `pnpm --filter @xlb/ui typecheck`: PASS.
   - `pnpm test -- --bail=1`: PASS. 255 test files passed, 1048 tests passed, 1 todo.
 - Phase 15.2 entry: allowed after commit, with production still NO-GO and dashboard/OA still deferred.
+
+## Phase 15.2-GATEFIX / TESTENV
+
+- Status: completed locally.
+- Commit: `6f5ea27a57c153ae408480c391f5060f8d33ca29` (`test(security): allow phase15 route shell app entries`).
+- Scope: provider-withdraw security gate scripts only.
+- Gate policy: preserved provider-withdraw / settlement UI protection and added only Phase 15.2 AppShell entry files to the allowlist:
+  - `apps/customer/src/app/App.tsx`
+  - `apps/worker/src/app/App.tsx`
+- Local DB/Docker: started existing local compose stack with `deploy/compose/docker-compose.local.yml`.
+- Migration/seed:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/migrate-local.ps1`: PASS.
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/seed-local.ps1`: PASS.
+- Verification:
+  - `pnpm test -- --bail=1`: PASS. 255 test files passed, 1048 tests passed, 1 todo.
+- Production: NO-GO.
+- Cloud-staging deploy: not performed.
+- Tags: not created.
+
+## Phase 15.2 Route Shells
+
+- Status: completed locally, pending this commit.
+- Commit: this commit (`feat(frontend): add figma-based route shells for core apps`).
+- Scope:
+  - `apps/customer/src/app/App.tsx`
+  - `apps/worker/src/app/App.tsx`
+  - `apps/admin/src/app/App.tsx`
+  - `docs/reports/PHASE15_2_ROUTE_SHELL_REPORT.md`
+  - `docs/execution/PHASE15_PROGRESS.md`
+- Customer routes:
+  - `/customer/`
+  - `/customer/services`
+  - `/customer/order/create`
+  - `/customer/orders`
+  - `/customer/profile`
+- Worker routes:
+  - `/worker/`
+  - `/worker/tasks`
+  - `/worker/wallet`
+  - `/worker/profile`
+  - `/worker/certification` mapped to the profile/certification shell state.
+- Admin shell:
+  - Existing Settlement / Export Review / Statement Detail / Governance routes are preserved and wrapped with `AdminShell`, `SideNav`, and `TopBar`.
+- Business API connected: no.
+- Fake business data: no.
+- Phase 0 Ready: removed from customer/worker/admin app source.
+- Dashboard/OA: deferred because no standalone Figma product frames exist.
+- Verification:
+  - `pnpm --filter @xlb/customer typecheck`: PASS.
+  - `pnpm --filter @xlb/worker typecheck`: PASS.
+  - `pnpm --filter @xlb/admin typecheck`: PASS.
+  - `pnpm --filter @xlb/customer build`: PASS.
+  - `pnpm --filter @xlb/worker build`: PASS.
+  - `pnpm --filter @xlb/admin build`: PASS.
+  - `pnpm test -- --bail=1`: PASS. 255 test files passed, 1048 tests passed, 1 todo.
+  - `rg -n "Phase 0 Ready" apps/customer apps/worker apps/admin`: PASS, no matches.
+  - `rg -n "http://localhost:3000|127\\.0\\.0\\.1|/api/api" apps/customer apps/worker apps/admin packages/api-client`: PASS, no matches.
+- Production: NO-GO.
+- Cloud-staging deploy: not performed.
+- Tags: not created.
+- Phase 15.3 entry: recommended only after human confirmation; continue to follow the Figma snapshot and avoid dashboard/OA fake MVPs.
