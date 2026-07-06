@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { settlementApi, createApiClient } from "@xlb/api-client";
+import { API_BASE } from "../apiBase";
 import { buildHash, parseHashParams } from "../hashParams";
 
-const client = createApiClient({ baseUrl: "http://localhost:3000", headers: { "x-xlb-app-type": "admin", "x-xlb-role": "operator" } });
+const client = createApiClient({ baseUrl: API_BASE, headers: { "x-xlb-app-type": "admin", "x-xlb-role": "operator" } });
 const api = settlementApi.create(client);
 
 interface AuditItem {

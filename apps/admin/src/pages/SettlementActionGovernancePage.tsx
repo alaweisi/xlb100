@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { parseHashParams, buildHash } from "../hashParams";
 import { governancePlannerApi, createApiClient } from "@xlb/api-client";
+import { API_BASE } from "../apiBase";
 
-const client = createApiClient({ baseUrl: "http://localhost:3000", headers: { "x-xlb-app-type": "admin", "x-xlb-role": "operator" } });
+const client = createApiClient({ baseUrl: API_BASE, headers: { "x-xlb-app-type": "admin", "x-xlb-role": "operator" } });
 const plannerApi = governancePlannerApi.create(client);
 
 interface DryRunPlan {
