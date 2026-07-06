@@ -178,3 +178,46 @@ Manual confirmation points:
 - Cloud-staging deploy: not performed.
 - Tags: not created.
 - Phase 15.3 entry: recommended only after human confirmation; continue to follow the Figma snapshot and avoid dashboard/OA fake MVPs.
+
+## Phase 15.3 Customer Minimal Real Business Loop
+
+- Status: completed locally, pending this commit.
+- Commit: this commit (`feat(customer): wire minimal real business loop`).
+- Scope:
+  - `apps/customer/src/app/App.tsx`
+  - `packages/api-client/src/customer.ts`
+  - `docs/reports/PHASE15_3_CUSTOMER_LOOP_REPORT.md`
+  - `docs/execution/PHASE15_PROGRESS.md`
+- Real APIs wired:
+  - `GET /api/catalog`
+  - `GET /api/pricing/quote?skuId=...`
+  - `POST /api/orders`
+  - `GET /api/orders/:orderId`
+  - `POST /api/payments/orders`
+- Not-wired by design:
+  - Customer order list API.
+  - Customer profile/account API.
+  - Customer address book API.
+  - Real customer payment provider checkout/callback flow.
+- Customer pages:
+  - `/customer/`: real catalog-backed home/search entry.
+  - `/customer/services`: real catalog category/search shell.
+  - `/customer/order/create`: real catalog + quote + order create + payment order create + order detail verification.
+  - `/customer/orders`: explicit not-wired list API state plus real detail re-read for locally created order IDs.
+  - `/customer/profile`: explicit not-wired customer profile/account state.
+- Backend code modified: no.
+- `packages/types` modified: no.
+- Business fake data introduced: no.
+- Production: NO-GO.
+- Cloud-staging deploy: not performed.
+- Tags: not created.
+- Verification:
+  - `pnpm --filter @xlb/customer typecheck`: PASS.
+  - `pnpm --filter @xlb/customer build`: PASS.
+  - `pnpm --filter @xlb/api-client typecheck`: PASS.
+  - `pnpm --filter @xlb/types typecheck`: PASS.
+  - `pnpm test -- --bail=1`: PASS. 255 test files passed, 1048 tests passed, 1 todo.
+  - `rg -n "Phase 0 Ready" apps/customer`: PASS, no matches.
+  - `rg -n "http://localhost:3000|127\\.0\\.0\\.1|/api/api" apps/customer packages/api-client`: PASS, no matches.
+  - `rg -n "mock|fake|dummy" apps/customer packages/api-client`: reviewed. Matches are limited to the existing api-client local payment webhook helper and are not used by the customer page.
+- Phase 15.4 entry: recommended only after full verification and commit; continue local-first, production NO-GO.

@@ -1,5 +1,53 @@
 import type { ApiClient } from "./createApiClient.js";
 
+type CityCode = string;
+type PriceType = "fixed" | "range" | "from" | "estimate_from" | "onsite_quote";
+type OrderStatus = "draft" | "pending_payment" | "paid" | "cancelled";
+type PaymentStatus = "pending" | "paid" | "failed" | "closed";
+type PaymentProvider = "mock";
+
+export interface CatalogSnapshotResponse {
+  cityCode: CityCode;
+  categories: Array<{
+    categoryId: string;
+    cityCode: CityCode;
+    name: string;
+    sortOrder: number;
+    isEnabled: boolean;
+    items: Array<{
+      itemId: string;
+      categoryId: string;
+      cityCode: CityCode;
+      name: string;
+      sortOrder: number;
+      isEnabled: boolean;
+      skus: Array<{
+        skuId: string;
+        itemId: string;
+        cityCode: CityCode;
+        name: string;
+        unit: string;
+        sortOrder: number;
+        isEnabled: boolean;
+      }>;
+    }>;
+  }>;
+}
+
+export interface PriceQuoteResponse {
+  cityCode: CityCode;
+  skuId: string;
+  basePrice: number;
+  currency: string;
+  priceText: string;
+  priceType: PriceType;
+  minPrice: number | null;
+  maxPrice: number | null;
+  pricingNote: string | null;
+  priceRuleId: string;
+  version: number;
+}
+
 export interface CreateOrderBody {
   customerId: string;
   skuId: string;
@@ -18,7 +66,7 @@ export interface MockPaySuccessBody {
 
 export interface OrderResponse {
   orderId: string;
-  cityCode: string;
+  cityCode: CityCode;
   customerId: string;
   skuId: string;
   skuName: string;
@@ -26,11 +74,11 @@ export interface OrderResponse {
   unit: string;
   priceRuleId: string;
   priceText: string;
-  priceType: string;
+  priceType: PriceType;
   basePrice: number;
   currency: string;
   totalAmount: number;
-  status: string;
+  status: OrderStatus;
   createdAt: string;
   updatedAt: string;
 }
@@ -38,15 +86,15 @@ export interface OrderResponse {
 export interface PaymentOrderResponse {
   paymentOrderId: string;
   orderId: string;
-  cityCode: string;
+  cityCode: CityCode;
   amount: number;
   currency: string;
-  status: string;
-  provider: string;
+  status: PaymentStatus;
+  provider: PaymentProvider;
   providerTradeNo: string | null;
   metadata: {
     orderId: string;
-    cityCode: string;
+    cityCode: CityCode;
     skuId: string;
     priceRuleId: string;
     customerId?: string;
@@ -57,6 +105,13 @@ export interface PaymentOrderResponse {
 
 export function createCustomerOrderApi(client: ApiClient) {
   return {
+    getCatalog() {
+      return client.get<{ ok: true; catalog: CatalogSnapshotResponse }>("/api/catalog");
+    },
+    getPriceQuote(skuId: string) {
+      const query = new URLSearchParams({ skuId }).toString();
+      return client.get<{ ok: true; quote: PriceQuoteResponse }>(`/api/pricing/quote?${query}`);
+    },
     createOrder(body: CreateOrderBody) {
       return client.post<{ ok: true; order: OrderResponse }>("/api/orders", body);
     },
