@@ -25,6 +25,7 @@
 | Production deployment scaffold | `docs/release/PHASE14_PRODUCTION_DEPLOYMENT_SCAFFOLD.md` |
 | Production monitoring evidence scaffold | `docs/release/PHASE14_PRODUCTION_MONITORING_EVIDENCE.md`; helper `deploy/production/check-prod-monitoring.ps1` |
 | Release-window replay/immutability timing | `docs/release/PHASE14_RELEASE_WINDOW_GATE_TIMING.md` |
+| Production operator request sheet | `docs/release/PHASE14_PRODUCTION_OPERATOR_REQUEST_SHEET.md` |
 
 ## Classification Semantics
 
