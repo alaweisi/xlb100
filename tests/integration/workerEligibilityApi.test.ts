@@ -3,6 +3,7 @@ import { buildApp } from "../../backend/src/app.js";
 import { getMysqlPool } from "../../backend/src/dal/mysqlPool.js";
 import type { RowDataPacket } from "mysql2/promise";
 import { XLB_HEADERS } from "@xlb/types";
+import { createQueuedDispatchTask } from "./helpers/acceptTestHelper.js";
 
 const runDb = process.env.XLB_SKIP_DB_TESTS !== "1";
 
@@ -63,16 +64,7 @@ describe.skipIf(!runDb)("workerEligibilityApi integration", { timeout: 20000 }, 
   it("does not modify dispatch_tasks status", async () => {
     const app = await buildApp();
     const pool = getMysqlPool();
-    const [before] = await pool.query<
-      (RowDataPacket & { dispatch_task_id: string; status: string })[]
-    >(
-      `SELECT dispatch_task_id, status FROM dispatch_tasks ORDER BY created_at DESC LIMIT 1`,
-    );
-    const trackedTask = before[0];
-    if (!trackedTask?.dispatch_task_id) {
-      await app.close();
-      return;
-    }
+    const dispatchTaskId = await createQueuedDispatchTask(app);
 
     await app.inject({
       method: "GET",
@@ -82,9 +74,9 @@ describe.skipIf(!runDb)("workerEligibilityApi integration", { timeout: 20000 }, 
 
     const [after] = await pool.query<(RowDataPacket & { status: string })[]>(
       `SELECT status FROM dispatch_tasks WHERE dispatch_task_id = ?`,
-      [trackedTask.dispatch_task_id],
+      [dispatchTaskId],
     );
-    expect(after[0]?.status).toBe(trackedTask.status);
+    expect(after[0]?.status).toBe("queued");
 
     await app.close();
   });
