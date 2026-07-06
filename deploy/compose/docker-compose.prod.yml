@@ -1,3 +1,90 @@
-# Production compose — Phase 8+
+name: xlb-production
 
-services: {}
+# Phase 14 production scaffold.
+# This file defines app services only and expects external production MySQL,
+# Redis, ingress, TLS, secrets, monitoring, and backups.
+# It is not production approval evidence by itself.
+
+services:
+  backend:
+    image: ${PROD_BACKEND_IMAGE:-xlb/backend:phase14-placeholder}
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      BACKEND_PORT: ${BACKEND_PORT:?BACKEND_PORT is required}
+      MYSQL_HOST: ${MYSQL_HOST:?MYSQL_HOST is required}
+      MYSQL_PORT: ${MYSQL_PORT:?MYSQL_PORT is required}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:?MYSQL_DATABASE is required}
+      MYSQL_USER: ${MYSQL_USER:?MYSQL_USER is required}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD is required}
+      REDIS_HOST: ${REDIS_HOST:?REDIS_HOST is required}
+      REDIS_PORT: ${REDIS_PORT:?REDIS_PORT is required}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+    expose:
+      - "${BACKEND_PORT:-3000}"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:${BACKEND_PORT:-3000}/health >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - xlb-production
+
+  customer:
+    image: ${PROD_CUSTOMER_IMAGE:-xlb/customer:phase14-placeholder}
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.frontend
+      args:
+        APP_NAME: customer
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      NODE_ENV: production
+    expose:
+      - "4173"
+    networks:
+      - xlb-production
+
+  worker:
+    image: ${PROD_WORKER_IMAGE:-xlb/worker:phase14-placeholder}
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.frontend
+      args:
+        APP_NAME: worker
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      NODE_ENV: production
+    expose:
+      - "4173"
+    networks:
+      - xlb-production
+
+  admin:
+    image: ${PROD_ADMIN_IMAGE:-xlb/admin:phase14-placeholder}
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.frontend
+      args:
+        APP_NAME: admin
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      NODE_ENV: production
+    expose:
+      - "4173"
+    networks:
+      - xlb-production
+
+networks:
+  xlb-production:
+    driver: bridge

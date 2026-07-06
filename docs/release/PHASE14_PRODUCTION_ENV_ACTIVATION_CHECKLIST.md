@@ -14,11 +14,11 @@ This checklist converts the remaining `PROD-OPS-*` blockers into production acti
 
 | Item | Inspection result | Production impact |
 | --- | --- | --- |
-| `deploy/compose/docker-compose.prod.yml` | Exists but contains `services: {}` only. | Production runtime composition is not defined in repo. |
-| `deploy/production/deploy-prod.ps1` | Missing. | Production deployment command evidence cannot be produced from this repo yet. |
-| `deploy/production/smoke-prod.ps1` | Missing. | Production smoke command evidence must come from an operator-provided script or external runbook. |
-| `deploy/production/rollback-prod.ps1` | Missing. | Production rollback execution command evidence must come from an operator-provided script or external runbook. |
-| `.env.production.example` | Missing. | Production env inventory must be supplied by Security/Ops evidence, not inferred from repo defaults. |
+| `deploy/compose/docker-compose.prod.yml` | Minimal app-service scaffold exists. | Production runtime composition is repo-ready for later verification, but real production DB/Redis/ingress/secrets evidence remains required. |
+| `deploy/production/deploy-prod.ps1` | Guarded deploy scaffold exists and defaults to dry run unless `-Apply` is provided. | Does not approve production deployment; release-owner approval remains required. |
+| `deploy/production/smoke-prod.ps1` | Production smoke scaffold exists and reads HTTPS URLs from env/config. | Real production URLs and operator-run smoke evidence remain required. |
+| `deploy/production/rollback-prod.ps1` | Guarded rollback scaffold exists and references the rollback runbook. | Does not prove rollback execution; release-window rollback evidence remains operator-owned. |
+| `.env.production.example` | Placeholder-only example exists. | Must not be used as production secret evidence or production runtime env. |
 | `.env.staging.example` | Exists and contains staging/example values such as `MYSQL_DATABASE=xlb_staging`, `MYSQL_PASSWORD=change-me`, and `JWT_SECRET=change-me-in-production`. | Must not be used as production evidence or production secrets. |
 
 ## Production Owner Matrix
@@ -166,5 +166,5 @@ Codex can verify local repository status, docs, typecheck, tests, preflight, and
 | --- | --- |
 | Any remaining `PROD-OPS-*` item is `FAIL` or `NOT RUN` | NO-GO |
 | RC2 staging PASS but production environment evidence is missing | NO-GO |
-| Production compose/scripts/env remain absent or placeholder without approved external operator runbook | NO-GO |
+| Production compose/scripts/env scaffold exists but real production evidence is missing | NO-GO |
 | All `PROD-OPS-001` through `PROD-OPS-013` are PASS with evidence and release owner approval | GO |
