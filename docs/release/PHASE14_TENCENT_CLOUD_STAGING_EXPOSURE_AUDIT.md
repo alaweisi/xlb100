@@ -15,13 +15,14 @@ This audit records the network exposure and host tuning state for the Tencent Cl
 | Field | Value |
 | --- | --- |
 | Cloud host | `123.207.198.136` |
-| Running release | `012db9c` |
-| Running release path | `/opt/xlb100/releases/012db9c` |
-| Current symlink | `/opt/xlb100/current -> /opt/xlb100/releases/012db9c` |
-| GitHub `main` at hardening deploy | `012db9c` |
-| Difference from prior running release | `012db9c` binds backend, customer, worker, and admin staging host ports to localhost. |
+| Running release | `3f650ae` |
+| Running release path | `/opt/xlb100/releases/3f650ae` |
+| Current symlink | `/opt/xlb100/current -> /opt/xlb100/releases/3f650ae` |
+| GitHub `main` at reverse-proxy deploy | `3f650ae` |
+| Difference from prior running release | `3f650ae` adds the cloud-staging Nginx reverse proxy on public HTTP port `80`; raw app/data ports remain localhost-only. |
 | Compose file | `deploy/compose/docker-compose.staging.yml` |
 | Env file | `.env.staging.example` |
+| Reverse proxy config | `infra/nginx/cloud-staging.conf` |
 
 ## Commands Run
 
@@ -60,10 +61,27 @@ sudo ss -tulpn
 sudo docker ps --format "table {{.Names}}\t{{.Ports}}"
 ```
 
+Reverse-proxy verification:
+
+```bash
+cd /opt/xlb100/current
+sudo docker compose --env-file .env.staging.example -f deploy/compose/docker-compose.staging.yml config
+sudo docker compose --env-file .env.staging.example -f deploy/compose/docker-compose.staging.yml up -d --build
+sudo docker compose --env-file .env.staging.example -f deploy/compose/docker-compose.staging.yml ps
+curl -fsS http://localhost/health
+curl -fsS http://localhost/api/system/db-health
+curl -fsS http://localhost/customer/
+curl -fsS http://localhost/worker/
+curl -fsS http://localhost/admin/
+sudo ss -tulpn
+sudo docker ps --format "table {{.Names}}\t{{.Ports}}"
+```
+
 ## Container Port Exposure
 
 | Container | Published ports | Exposure result |
 | --- | --- | --- |
+| `xlb-staging-proxy` | `0.0.0.0:80->80/tcp`, `:::80->80/tcp` | Public cloud-staging HTTP entry. Routes only through Nginx to backend and frontend containers on the Docker network. |
 | `xlb-backend-staging` | `127.0.0.1:3000->3000/tcp` | Backend raw port is host-bound to localhost only; not publicly exposed by Docker publish. |
 | `xlb-customer-staging` | `127.0.0.1:4173->4173/tcp` | Customer raw frontend port is host-bound to localhost only; not publicly exposed by Docker publish. |
 | `xlb-worker-staging` | `127.0.0.1:4174->4173/tcp` | Worker raw frontend host port is localhost-only; container serves internally on `4173`. |
@@ -76,6 +94,7 @@ Host socket audit confirmed the same bindings:
 | Port | Listener | Risk |
 | --- | --- | --- |
 | `22` | `0.0.0.0`, `::` | SSH is public if Tencent security group permits; expected management exposure. |
+| `80` | `0.0.0.0`, `::` | Nginx cloud-staging HTTP entry; acceptable only for controlled external staging testing. |
 | `3000` | `127.0.0.1` | Backend staging API is localhost-only at the VM listener layer. |
 | `4173` | `127.0.0.1` | Customer staging frontend is localhost-only at the VM listener layer. |
 | `4174` | `127.0.0.1` | Worker staging frontend is localhost-only at the VM listener layer. |
@@ -101,7 +120,20 @@ Host socket audit confirmed the same bindings:
   - Worker frontend: `4174`
   - Admin frontend: `4175`
 - These ports are no longer publicly reachable through Docker host publishing.
-- External browser/API access now requires a future approved ingress layer such as Nginx or Caddy on `80/443`.
+- External browser/API access is available only through the cloud-staging Nginx reverse proxy on HTTP port `80`.
+
+### Cloud-Staging Reverse Proxy
+
+- Reverse proxy status: PASS for cloud-staging external HTTP entry.
+- Public entry: `http://123.207.198.136/` on port `80`, subject to Tencent Cloud security group policy.
+- Route map:
+  - `/health` -> `backend:3000/health`
+  - `/api/` -> `backend:3000/api/`
+  - `/customer/` -> `customer:4173/`
+  - `/worker/` -> `worker:4173/`
+  - `/admin/` -> `admin:4173/`
+- TLS/domain status: FUTURE WORK. No domain or TLS certificate is configured for this cloud-staging predeploy.
+- Production relevance: validates an ingress shape for future production readiness, but does not approve production release.
 
 ### Tencent Cloud Security Group Hardening
 
@@ -113,7 +145,7 @@ Host socket audit confirmed the same bindings:
   - Do not publicly allow MySQL `3307` or Redis `6380`.
 - VM-level verification cannot directly inspect Tencent Cloud security group policy; this audit records the required operator-managed state and verifies that internal localhost smoke still passes after the reported security group update.
 - Raw app host ports no longer listen on `0.0.0.0`/`::`; Docker publishes backend, customer, worker, and admin host ports on `127.0.0.1` only.
-- External staging access now requires a future approved Nginx/Caddy ingress on `80/443` or an operator-controlled SSH tunnel.
+- External staging access now goes through the approved cloud-staging Nginx HTTP entry on port `80`. Raw app/data ports remain non-public.
 
 Post-hardening internal smoke result: PASS.
 
@@ -125,6 +157,16 @@ Post-hardening internal smoke result: PASS.
 | `http://localhost:4174/` | PASS |
 | `http://localhost:4175/` | PASS |
 
+Reverse-proxy smoke result: PASS.
+
+| Endpoint | Result |
+| --- | --- |
+| `http://localhost/health` | PASS |
+| `http://localhost/api/system/db-health` | PASS |
+| `http://localhost/customer/` | PASS |
+| `http://localhost/worker/` | PASS |
+| `http://localhost/admin/` | PASS |
+
 Backend internal smoke output:
 
 ```json
@@ -135,6 +177,7 @@ Backend internal smoke output:
 Localhost-only port binding result:
 
 ```text
+xlb-staging-proxy      0.0.0.0:80->80/tcp, :::80->80/tcp
 xlb-backend-staging    127.0.0.1:3000->3000/tcp
 xlb-customer-staging   127.0.0.1:4173->4173/tcp
 xlb-worker-staging     127.0.0.1:4174->4173/tcp
@@ -203,8 +246,8 @@ Resource result:
 - Keep production status NO-GO / BLOCKED.
 - Keep MySQL, Redis, backend, customer, worker, and admin raw staging ports localhost-bound for all staging and production-like predeploy runs.
 - Keep Tencent Cloud security group closed for raw app ports `3000`, `4173`, `4174`, and `4175`; they are now localhost-only and should stay non-public.
-- Tencent Cloud security group should allow only `22`, `80`, and `443` as approved for the current operating mode; `80/443` should remain closed unless an approved reverse proxy/TLS ingress is active.
-- Before production readiness, front app containers with Nginx/Caddy on `80/443` with TLS rather than exposing raw app ports.
+- Tencent Cloud security group may allow `80` for this cloud-staging HTTP reverse proxy and `22` for approved operator SSH access. Keep `443` closed until TLS is configured.
+- Before production readiness, replace the HTTP-only staging entry with domain-backed TLS on `443` through Nginx/Caddy or an approved managed ingress.
 - Treat Redis `vm.overcommit_memory=0` and the `sudo docker` requirement as P3 infra tuning items, not blockers for the current cloud-staging smoke PASS.
 
 ## Production Boundary
