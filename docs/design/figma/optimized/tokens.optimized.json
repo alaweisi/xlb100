@@ -1,0 +1,122 @@
+{
+  "phase": "15.0D",
+  "status": "optimization_guidance",
+  "source": {
+    "figmaSnapshot": "docs/design/figma/",
+    "figmaFacts": [
+      "customerOrange #B85F2A",
+      "inkGreen #173F35",
+      "workerBlue #08172B",
+      "adminPurple #191225",
+      "cream #FFFAF0",
+      "coffee #2B2118",
+      "typography families: Noto Serif SC / Noto Sans SC / JetBrain",
+      "radius: 16 / 24 / 28",
+      "8pt spacing",
+      "fixed bottom safe",
+      "390x844 content canvas inside 390x872 phone frames"
+    ],
+    "formalFigmaVariables": "none_detected"
+  },
+  "colors": {
+    "semantic": {
+      "textPrimary": { "value": "#2B2118", "origin": "figma", "evidence": "Coffee #2B2118" },
+      "textInverse": { "value": "#FFFAF0", "origin": "figma", "evidence": "Cream #FFFAF0" },
+      "surfaceBase": { "value": "#FFFAF0", "origin": "figma", "evidence": "Cream #FFFAF0" },
+      "surfaceRaised": { "value": "#FFFFFF", "origin": "codex_design_suggestion", "evidence": "White cards visible in exported snapshots; not formalized in Figma tokens." },
+      "borderSubtle": { "value": "unknown", "origin": "unknown", "evidence": "No formal border token detected." },
+      "danger": { "value": "unknown", "origin": "unknown", "evidence": "Error states detected, but no formal danger color token detected." },
+      "success": { "value": "unknown", "origin": "unknown", "evidence": "Success states detected, but no formal success color token detected." },
+      "warning": { "value": "unknown", "origin": "unknown", "evidence": "Urgent order states detected, but no formal warning color token detected." }
+    },
+    "roles": {
+      "customer": {
+        "accent": { "value": "#B85F2A", "origin": "figma", "evidence": "Customer Orange #B85F2A" },
+        "surfaceTint": { "value": "unknown", "origin": "unknown", "evidence": "No formal customer tint token detected." }
+      },
+      "worker": {
+        "accent": { "value": "#08172B", "origin": "figma", "evidence": "Worker Blue #08172B" },
+        "surfaceTint": { "value": "unknown", "origin": "unknown", "evidence": "No formal worker tint token detected." }
+      },
+      "admin": {
+        "accent": { "value": "#191225", "origin": "figma", "evidence": "Admin Purple #191225" },
+        "surfaceTint": { "value": "unknown", "origin": "unknown", "evidence": "No formal admin tint token detected." }
+      },
+      "shared": {
+        "ink": { "value": "#173F35", "origin": "figma", "evidence": "Ink Green #173F35" },
+        "coffee": { "value": "#2B2118", "origin": "figma", "evidence": "Coffee #2B2118" },
+        "cream": { "value": "#FFFAF0", "origin": "figma", "evidence": "Cream #FFFAF0" }
+      }
+    },
+    "background": {
+      "app": { "value": "#FFFAF0", "origin": "figma" },
+      "phoneCanvas": { "value": "unknown", "origin": "unknown" },
+      "adminDesktop": { "value": "unknown", "origin": "unknown" }
+    },
+    "card": {
+      "surface": { "value": "#FFFFFF", "origin": "codex_design_suggestion" },
+      "border": { "value": "unknown", "origin": "unknown" },
+      "shadow": { "value": "var(--xlb-shadow-card)", "origin": "codex_design_suggestion" }
+    }
+  },
+  "radius": {
+    "sm": { "value": 8, "unit": "px", "origin": "codex_design_suggestion", "evidence": "Needed for compact controls; Figma only states 16/24/28." },
+    "md": { "value": 16, "unit": "px", "origin": "figma" },
+    "lg": { "value": 24, "unit": "px", "origin": "figma" },
+    "xl": { "value": 28, "unit": "px", "origin": "figma" },
+    "pill": { "value": 999, "unit": "px", "origin": "codex_design_suggestion", "evidence": "Needed for badges and segmented controls; not formalized in Figma." }
+  },
+  "shadow": {
+    "card": { "value": "0 6px 18px rgba(43, 33, 24, 0.08)", "origin": "codex_design_suggestion", "risk": "Verify against Figma visual and reduce if dense admin pages look heavy." },
+    "floating": { "value": "0 14px 36px rgba(43, 33, 24, 0.14)", "origin": "codex_design_suggestion", "risk": "Use only for modal/drawer/bottom-sheet." },
+    "none": { "value": "none", "origin": "codex_design_suggestion" }
+  },
+  "elevation": {
+    "base": { "shadow": "none", "zIndex": 0, "origin": "codex_design_suggestion" },
+    "card": { "shadow": "card", "zIndex": 1, "origin": "codex_design_suggestion" },
+    "overlay": { "shadow": "floating", "zIndex": 40, "origin": "codex_design_suggestion" },
+    "toast": { "shadow": "floating", "zIndex": 60, "origin": "codex_design_suggestion" }
+  },
+  "typography": {
+    "families": {
+      "display": { "value": "Noto Serif SC", "origin": "figma" },
+      "body": { "value": "Noto Sans SC", "origin": "figma" },
+      "mono": { "value": "JetBrain", "origin": "figma" }
+    },
+    "scale": {
+      "hero": { "value": "unknown", "origin": "unknown" },
+      "pageTitle": { "value": "unknown", "origin": "unknown" },
+      "sectionTitle": { "value": "unknown", "origin": "unknown" },
+      "body": { "value": "unknown", "origin": "unknown" },
+      "caption": { "value": "unknown", "origin": "unknown" }
+    },
+    "implementationNote": "Do not hardcode viewport-scaled font sizes. Use stable text levels derived during Phase 15.2 visual implementation."
+  },
+  "spacing": {
+    "base": { "value": 8, "unit": "pt", "origin": "figma" },
+    "scale": {
+      "xs": { "value": 4, "unit": "px", "origin": "codex_design_suggestion" },
+      "sm": { "value": 8, "unit": "px", "origin": "figma_derived" },
+      "md": { "value": 16, "unit": "px", "origin": "figma_derived" },
+      "lg": { "value": 24, "unit": "px", "origin": "figma_derived" },
+      "xl": { "value": 32, "unit": "px", "origin": "figma_derived" }
+    }
+  },
+  "safeArea": {
+    "bottomFixed": { "value": true, "origin": "figma", "evidence": "fixed bottom safe" },
+    "bottomPadding": { "value": "env(safe-area-inset-bottom)", "origin": "codex_design_suggestion" },
+    "topPadding": { "value": "env(safe-area-inset-top)", "origin": "codex_design_suggestion" }
+  },
+  "motion": {
+    "durationFast": { "value": "120ms", "origin": "codex_design_suggestion" },
+    "durationBase": { "value": "180ms", "origin": "codex_design_suggestion" },
+    "easingStandard": { "value": "cubic-bezier(0.2, 0, 0, 1)", "origin": "codex_design_suggestion" },
+    "figmaMotionTokens": { "value": "unknown", "origin": "unknown" }
+  },
+  "density": {
+    "mobileCanvas": { "value": "390x844", "origin": "figma" },
+    "mobileFrame": { "value": "390x872", "origin": "figma" },
+    "mobileContentPadding": { "value": "unknown", "origin": "unknown" },
+    "adminDesktopDensity": { "value": "compact_operational", "origin": "codex_design_suggestion", "evidence": "Admin web needs denser operational layout than mobile snapshots; must preserve Figma hierarchy." }
+  }
+}

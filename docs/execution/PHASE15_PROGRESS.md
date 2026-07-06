@@ -70,3 +70,33 @@ Phase 15.2 must wait for user-provided Figma MCP access/design context. The user
 ## Phase 15.2 Gate
 
 Phase 15.2 may proceed only after human confirmation that implementation should follow this Figma snapshot. Customer, worker, and admin pages must use `docs/design/figma/` and Figma MCP as source of truth. Dashboard and OA remain blocked from fake MVP because the Figma snapshot did not include standalone dashboard/OA product frames.
+
+## Phase 15.0D Codex Design Render Optimization
+
+- Status: completed locally.
+- Source basis: Figma snapshot `docs/design/figma/`, Phase 15.0C reports, and current `@xlb/ui` MVP.
+- Output directory: `docs/design/figma/optimized/`.
+- Generated files:
+  - `docs/design/figma/optimized/README.md`
+  - `docs/design/figma/optimized/tokens.optimized.json`
+  - `docs/design/figma/optimized/component-render-rules.md`
+  - `docs/design/figma/optimized/page-render-strategy.md`
+  - `docs/design/figma/optimized/render-performance-guidelines.md`
+  - `docs/design/figma/reports/PHASE15_0D_CODEX_DESIGN_OPTIMIZATION_REPORT.md`
+- Scope: documentation/design optimization only.
+- App code modified: no.
+- `packages/ui` code modified: no.
+- Production: NO-GO.
+- Cloud-staging deploy: not performed.
+- Tags: not created.
+
+## Phase 15.2 Recommendation After 15.0D
+
+Phase 15.2 is recommended only after human confirmation of responsive strategy. Recommended entry scope is customer/worker route shells based on the Figma snapshot, with real loading/empty/error/retry states and no fake business success. Dashboard and OA remain blocked from fake MVP.
+
+Manual confirmation points:
+
+- Whether Phase 15.2 should exactly reproduce the 390px mobile frames inside centered web containers or adapt more broadly for desktop.
+- Whether customer/worker desktop views should stay mobile-width during the first implementation pass.
+- Whether to prioritize customer home/services before worker grab hall, or build both shells in one controlled phase.
+- Whether admin desktop harmonization waits until after customer/worker route shell replacement.
