@@ -20,7 +20,7 @@ This evidence pack defines the exact closure evidence required for the remaining
 | PROD-OPS-007 | Monitoring and alerting | NOT RUN | SRE / Ops owner | No | Production dashboard and alert routing evidence |
 | PROD-OPS-008 | Payment/refund/reversal duplicate monitoring | NOT RUN | SRE / Finance ops owner | No | Production duplicate detection queries, dashboard, alerts |
 | PROD-OPS-009 | Event handler lag monitoring | NOT RUN | SRE / Backend owner | No | Production pending-event age query and alert evidence |
-| PROD-OPS-010 | Replay/immutability release gate timing | NOT RUN | Release owner / Ledger owner | Partially | Release-window pre-cut and post-cut command logs |
+| PROD-OPS-010 | Replay/immutability release gate timing | NOT RUN | Release owner / Ledger owner | Partially | Quiet release-window pre-cut and post-cut command logs; procedure `docs/release/PHASE14_RELEASE_WINDOW_GATE_TIMING.md` |
 | PROD-OPS-012 | Operator/app onboarding signoff | NOT RUN | Product / Support / Compliance owners | No | Human signoff record |
 | PROD-OPS-013 | Release owner approval | FAIL | Release owner | No | Final release approval after all PROD-OPS rows are PASS |
 
@@ -108,12 +108,12 @@ This evidence pack defines the exact closure evidence required for the remaining
 | --- | --- |
 | Current status | NOT RUN |
 | Owner | Release owner / Ledger owner |
-| Exact evidence required | `npx pnpm preflight` run immediately before the production cut and immediately after the production cut, with logs proving `check-ledger-replay.ps1` and `check-ledger-immutability.ps1` both passed at release time. |
-| Command or artifact expected | Pre-cut command log and post-cut command log, both from the intended release candidate and release window. Required command: `npx pnpm preflight`. Optional supporting command: `scripts\smoke-staging.ps1` or production smoke equivalent if production ingress is available. Example artifact path: `docs/release/evidence/PHASE14_PROD_RELEASE_GATE_<timestamp>.md`. |
-| Pass criteria | Both pre-cut and post-cut preflight runs pass, logs include ledger replay PASS and ledger immutability proof PASS, and the release owner ties both logs to the exact production release candidate. |
-| Fail criteria | Either run is missing, not release-window timed, fails, omits replay/immutability output, or is run against the wrong commit/environment. |
+| Exact evidence required | `npx pnpm preflight` run immediately before the production cut and immediately after the production cut in a quiet release window, with logs proving `check-ledger-replay.ps1` and `check-ledger-immutability.ps1` both passed at release time. |
+| Command or artifact expected | Procedure: `docs/release/PHASE14_RELEASE_WINDOW_GATE_TIMING.md`. Pre-cut command log and post-cut command log, both from the intended release candidate and isolated release window. Required command: `npx pnpm preflight`. Optional supporting command: production smoke equivalent after the post-cut gate if production ingress is available. Example artifact path: `docs/release/evidence/PHASE14_PROD_RELEASE_GATE_<timestamp>.md`. |
+| Pass criteria | Both pre-cut and post-cut preflight runs pass in an isolated quiet window, logs include ledger replay PASS and ledger immutability proof PASS, no tests/smoke/manual UAT or other DB writes ran concurrently with the gate, and the release owner ties both logs to the exact production release candidate. |
+| Fail criteria | Either run is missing, not release-window timed, fails, omits replay/immutability output, runs concurrently with tests/smoke/manual UAT or other DB writes, or is run against the wrong commit/environment. |
 | Production impact | Blocks production because ledger replay and immutability must be proven at the actual production release boundary. |
-| Verification responsibility | Partially Codex-verifiable after logs exist. Codex can run local/staging validation, but production closure requires release-window evidence and owner attachment. |
+| Verification responsibility | Partially Codex-verifiable after logs exist. Codex can run local/staging validation, but production closure requires isolated release-window evidence and owner attachment. A standalone PASS after a concurrent failure is acceptable only when the concurrent failure is documented and the release-window run is isolated. |
 
 ## PROD-OPS-012 Operator/App Onboarding Signoff
 

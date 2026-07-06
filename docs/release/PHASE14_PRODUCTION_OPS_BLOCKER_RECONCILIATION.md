@@ -24,6 +24,7 @@
 | Production environment activation checklist | `docs/release/PHASE14_PRODUCTION_ENV_ACTIVATION_CHECKLIST.md` |
 | Production deployment scaffold | `docs/release/PHASE14_PRODUCTION_DEPLOYMENT_SCAFFOLD.md` |
 | Production monitoring evidence scaffold | `docs/release/PHASE14_PRODUCTION_MONITORING_EVIDENCE.md`; helper `deploy/production/check-prod-monitoring.ps1` |
+| Release-window replay/immutability timing | `docs/release/PHASE14_RELEASE_WINDOW_GATE_TIMING.md` |
 
 ## Classification Semantics
 
@@ -49,7 +50,7 @@ The classification is the primary closure path for the current blocker. Owner ap
 | PROD-OPS-007 | Monitoring and alerting | NOT RUN | SRE / Ops owner | Scaffold exists at `docs/release/PHASE14_PRODUCTION_MONITORING_EVIDENCE.md` with helper `deploy/production/check-prod-monitoring.ps1`; PASS still requires real production dashboard, alert, and notification evidence. | Blocks production because incidents would rely on manual log inspection. | D |
 | PROD-OPS-008 | Payment/refund/reversal duplicate monitoring | NOT RUN | SRE / Finance ops owner | Scaffold exists at `docs/release/PHASE14_PRODUCTION_MONITORING_EVIDENCE.md`; PASS still requires production/read-replica SQL output and duplicate alert evidence for `refund.approved` events and reversal ledger entries. | Blocks production financial operations visibility. | D |
 | PROD-OPS-009 | Event handler lag monitoring | NOT RUN | SRE / Backend owner | Scaffold exists at `docs/release/PHASE14_PRODUCTION_MONITORING_EVIDENCE.md`; PASS still requires production pending-age query output, threshold, alert route, and escalation owner. | Blocks production because refund approval events could stall without detection. | D |
-| PROD-OPS-010 | Replay/immutability release gate timing | NOT RUN | Release owner / Ledger owner | `npx pnpm preflight` immediately before production cut and immediately after cut, with replay and immutability PASS evidence attached. | Blocks production because ledger replay and immutability must be proven at release time. | D |
+| PROD-OPS-010 | Replay/immutability release gate timing | NOT RUN | Release owner / Ledger owner | Procedure ready at `docs/release/PHASE14_RELEASE_WINDOW_GATE_TIMING.md`; final PASS requires isolated pre-cut and post-cut `npx pnpm preflight` logs with replay and immutability PASS evidence attached. | Blocks production because ledger replay and immutability must be proven at release time without concurrent DB writes. | D |
 | PROD-OPS-011 | CI gate script change audit | PASS | Reviewer / Release owner | `docs/release/PHASE14_CI_GATE_CHANGE_AUDIT.md` audits `60ba210 chore(ci): allow phase 14r refund reversal gates`, verifies the exceptions are exact Phase 14R file/table/migration allowlists, and confirms replay, immutability, stableHash, single-write, and runtime validation remain active. | Repo audit blocker closed; release-window replay/immutability timing and release owner approval remain separate blockers. | A |
 | PROD-OPS-012 | Operator/app onboarding signoff | NOT RUN | Product / Support / Compliance owners | Customer, worker, admin, support, refund dispute, privacy, terms, and compliance signoff record. | Blocks production because end-user and operator readiness is unapproved. | A |
 | PROD-OPS-013 | Release owner approval | FAIL | Release owner | Approval record after all `PROD-OPS-*` items pass; current evidence is `docs/release/PHASE14_PRODUCTION_READINESS_TRIAGE.md`. | Blocks production release and production tag creation. | A |
@@ -74,7 +75,8 @@ The classification is the primary closure path for the current blocker. Owner ap
 - The production ops readiness checklist already contained all 13 rows in its evidence table, but its remaining-blocker summary called out only the highest release-risk subset. That summary has been corrected to list every blocker.
 - No blocker is downgraded or removed by this reconciliation.
 - `PROD-OPS-005` and `PROD-OPS-006` were repo-documentable because the closure artifact was a production rollback plan/runbook. Executing those procedures may later require a staging drill or production release-window validation.
-- `PROD-OPS-010` remains production-environment required because it must pass immediately before and after the actual production cut, even though local and staging validations currently pass.
+- `PROD-OPS-010` remains production-environment required because it must pass immediately before and after the actual production cut in a quiet release window, even though local and staging validations currently pass.
+- The transient replay mismatch observed during a concurrent validation run is documented in `docs/release/PHASE14_RELEASE_WINDOW_GATE_TIMING.md`; an isolated rerun passed, but that does not close `PROD-OPS-010`.
 
 ## Closure Rule
 
