@@ -18,8 +18,8 @@ This audit records the network exposure and host tuning state for the Tencent Cl
 | Running release | `ec5aef1` |
 | Running release path | `/opt/xlb100/releases/ec5aef1` |
 | Current symlink | `/opt/xlb100/current -> /opt/xlb100/releases/ec5aef1` |
-| GitHub `main` | `d591a82` |
-| Difference from running release | `d591a82` is docs-only evidence added after the running `ec5aef1` deploy. |
+| GitHub `main` | `c423d39` |
+| Difference from running release | `c423d39` is docs/test evidence added after the running `ec5aef1` deploy. |
 | Compose file | `deploy/compose/docker-compose.staging.yml` |
 | Env file | `.env.staging.example` |
 
@@ -34,6 +34,19 @@ sysctl vm.overcommit_memory
 free -h
 df -h
 sudo docker system df
+```
+
+Post-security-group internal smoke verification:
+
+```bash
+cd /opt/xlb100/current
+curl -fsS http://localhost:3000/health
+curl -fsS http://localhost:3000/api/system/db-health
+curl -fsS http://localhost:4173/
+curl -fsS http://localhost:4174/
+curl -fsS http://localhost:4175/
+sudo ss -tulpn
+sudo docker ps --format "table {{.Names}}\t{{.Ports}}"
 ```
 
 ## Container Port Exposure
@@ -78,6 +91,34 @@ Host socket audit confirmed the same bindings:
   - Admin frontend: `4175`
 - These ports are publicly reachable from the internet if the Tencent Cloud security group allows inbound traffic to them.
 - This is acceptable only for controlled cloud-staging use with a restrictive security group. It is not a production ingress design.
+
+### Tencent Cloud Security Group Hardening
+
+- Security group hardening status: OPERATOR-UPDATED / INTERNALLY VERIFIED.
+- Required Tencent Cloud inbound allowlist for this cloud-staging host:
+  - Allow `22` for SSH administration from approved operator sources.
+  - Allow `80` and `443` only when an approved HTTP/TLS ingress is configured.
+  - Do not publicly allow raw app ports `3000`, `4173`, `4174`, or `4175`.
+  - Do not publicly allow MySQL `3307` or Redis `6380`.
+- VM-level verification cannot directly inspect Tencent Cloud security group policy; this audit records the required operator-managed state and verifies that internal localhost smoke still passes after the reported security group update.
+- Raw app processes still listen on `0.0.0.0`/`::` inside the VM, so external exposure remains controlled by Tencent Cloud security group policy until a reverse proxy binds the public surface.
+
+Post-hardening internal smoke result: PASS.
+
+| Endpoint | Result |
+| --- | --- |
+| `http://localhost:3000/health` | PASS |
+| `http://localhost:3000/api/system/db-health` | PASS |
+| `http://localhost:4173/` | PASS |
+| `http://localhost:4174/` | PASS |
+| `http://localhost:4175/` | PASS |
+
+Backend internal smoke output:
+
+```json
+{"status":"ok","service":"xlb-backend","phase":"8C","brand":"喜乐帮 / XLB"}
+{"ok":true,"mysql":"ok","redis":"ok","database":"xlb_staging","phase":"8C"}
+```
 
 ## Infra Tuning
 
@@ -138,7 +179,8 @@ Resource result:
 
 - Keep production status NO-GO / BLOCKED.
 - Keep MySQL and Redis localhost-bound for all staging and production-like predeploy runs.
-- Before wider staging access, explicitly decide whether app ports `3000`, `4173`, `4174`, and `4175` should remain public through Tencent security groups.
+- Keep Tencent Cloud security group closed for raw app ports `3000`, `4173`, `4174`, and `4175`; use only approved operator access or future ingress.
+- Tencent Cloud security group should allow only `22`, `80`, and `443` as approved for the current operating mode; `80/443` should remain closed unless an approved reverse proxy/TLS ingress is active.
 - Before production readiness, decide whether to bind app containers to localhost and front them with Nginx/Caddy on `80/443` with TLS, rather than exposing raw app ports.
 - Treat Redis `vm.overcommit_memory=0` and the `sudo docker` requirement as P3 infra tuning items, not blockers for the current cloud-staging smoke PASS.
 
