@@ -1,6 +1,7 @@
 import type {
   ButtonHTMLAttributes,
   CSSProperties,
+  FormEvent,
   HTMLAttributes,
   InputHTMLAttributes,
   ReactNode,
@@ -147,6 +148,84 @@ export function FormField({ label, children, description, error }: FormFieldProp
   );
 }
 
+export interface SearchBarProps extends Omit<HTMLAttributes<HTMLFormElement>, "onChange" | "onSubmit"> {
+  value: string;
+  placeholder?: string;
+  onChange: (value: string) => void;
+  onSubmit?: (value: string) => void;
+  disabled?: boolean;
+  leadingIcon?: ReactNode;
+  inputStyle?: CSSProperties;
+}
+
+export function SearchBar({
+  value,
+  placeholder,
+  onChange,
+  onSubmit,
+  disabled,
+  leadingIcon,
+  inputStyle,
+  style,
+  children,
+  ...props
+}: SearchBarProps) {
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!disabled) onSubmit?.(value);
+  }
+
+  return (
+    <form
+      {...props}
+      onSubmit={handleSubmit}
+      style={mergeStyle(
+        {
+          alignItems: "center",
+          background: "#ffffff",
+          border: "1px solid #e5e7eb",
+          borderRadius: 16,
+          boxSizing: "border-box",
+          display: "flex",
+          fontFamily,
+          gap: 8,
+          minHeight: 44,
+          opacity: disabled ? 0.62 : 1,
+          padding: "0 12px",
+          width: "100%",
+        },
+        style,
+      )}
+    >
+      <span aria-hidden="true" style={{ color: "#6b7280", flex: "0 0 auto", fontSize: 14, lineHeight: 1 }}>
+        {leadingIcon ?? "⌕"}
+      </span>
+      <input
+        disabled={disabled}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        type="search"
+        value={value}
+        style={mergeStyle(
+          {
+            background: "transparent",
+            border: 0,
+            color: tokens.colors.text,
+            flex: "1 1 auto",
+            fontFamily,
+            fontSize: 14,
+            minHeight: 40,
+            minWidth: 0,
+            outline: "none",
+          },
+          inputStyle,
+        )}
+      />
+      {children}
+    </form>
+  );
+}
+
 export interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
   tone?: Tone;
 }
@@ -179,6 +258,78 @@ export function Badge({ tone = "default", style, children, ...props }: BadgeProp
 }
 
 export const StatusTag = Badge;
+
+export interface TabItem {
+  key: string;
+  label: ReactNode;
+  disabled?: boolean;
+}
+
+export interface TabsProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChange"> {
+  items: TabItem[];
+  activeKey: string;
+  onChange: (key: string) => void;
+  density?: "default" | "compact";
+}
+
+export function Tabs({ items, activeKey, onChange, density = "default", style, ...props }: TabsProps) {
+  const compact = density === "compact";
+  return (
+    <div
+      {...props}
+      role="tablist"
+      style={mergeStyle(
+        {
+          background: "#f3f4f6",
+          border: "1px solid #e5e7eb",
+          borderRadius: 999,
+          boxSizing: "border-box",
+          display: "inline-flex",
+          fontFamily,
+          gap: 4,
+          maxWidth: "100%",
+          overflowX: "auto",
+          padding: 4,
+        },
+        style,
+      )}
+    >
+      {items.map((item) => {
+        const active = item.key === activeKey;
+        return (
+          <button
+            aria-selected={active}
+            disabled={item.disabled}
+            key={item.key}
+            onClick={() => onChange(item.key)}
+            role="tab"
+            type="button"
+            style={{
+              background: active ? "#ffffff" : "transparent",
+              border: 0,
+              borderRadius: 999,
+              boxShadow: active ? shadow : "none",
+              color: active ? tokens.colors.text : "#6b7280",
+              cursor: item.disabled ? "not-allowed" : "pointer",
+              flex: "0 0 auto",
+              fontFamily,
+              fontSize: compact ? 12 : 14,
+              fontWeight: active ? 700 : 600,
+              minHeight: compact ? 28 : 34,
+              opacity: item.disabled ? 0.5 : 1,
+              padding: compact ? "0 10px" : "0 14px",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {item.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+export const SegmentedControl = Tabs;
 
 export interface TableColumn<Row> {
   key: string;
@@ -285,6 +436,86 @@ export function Drawer({ open, title, children }: DrawerProps) {
       {title && <h2 style={{ fontSize: 18, margin: "0 0 16px" }}>{title}</h2>}
       {children}
     </aside>
+  );
+}
+
+export interface BottomSheetProps {
+  open: boolean;
+  onClose?: () => void;
+  title?: ReactNode;
+  children: ReactNode;
+  footer?: ReactNode;
+  style?: CSSProperties;
+}
+
+export function BottomSheet({ open, onClose, title, children, footer, style }: BottomSheetProps) {
+  if (!open) return null;
+  return (
+    <div
+      aria-modal="true"
+      role="dialog"
+      style={{
+        alignItems: "end",
+        background: "rgba(15, 23, 42, 0.36)",
+        display: "grid",
+        inset: 0,
+        padding: "16px 12px 0",
+        position: "fixed",
+        zIndex: 50,
+      }}
+    >
+      <section
+        style={mergeStyle(
+          {
+            background: "#ffffff",
+            border: "1px solid #e5e7eb",
+            borderBottom: 0,
+            borderRadius: "24px 24px 0 0",
+            boxShadow: "0 -12px 32px rgba(15, 23, 42, 0.16)",
+            boxSizing: "border-box",
+            fontFamily,
+            margin: "0 auto",
+            maxHeight: "86vh",
+            maxWidth: 520,
+            overflow: "auto",
+            padding: `${tokens.spacing.lg} ${tokens.spacing.lg} calc(${tokens.spacing.lg} + env(safe-area-inset-bottom))`,
+            width: "100%",
+          },
+          style,
+        )}
+      >
+        {(title || onClose) && (
+          <header style={{ alignItems: "center", display: "flex", gap: 12, justifyContent: "space-between", marginBottom: 16 }}>
+            {title && <h2 style={{ fontSize: 18, lineHeight: "24px", margin: 0 }}>{title}</h2>}
+            {onClose && (
+              <button
+                aria-label="Close"
+                onClick={onClose}
+                type="button"
+                style={{
+                  background: "#f3f4f6",
+                  border: "1px solid #e5e7eb",
+                  borderRadius: 999,
+                  color: tokens.colors.text,
+                  cursor: "pointer",
+                  flex: "0 0 auto",
+                  fontSize: 16,
+                  height: 32,
+                  lineHeight: "30px",
+                  padding: 0,
+                  textAlign: "center",
+                  width: 32,
+                }}
+              >
+                ×
+              </button>
+            )}
+          </header>
+        )}
+        <div>{children}</div>
+        {footer && <footer style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 18 }}>{footer}</footer>}
+      </section>
+    </div>
   );
 }
 
@@ -395,6 +626,189 @@ export function Timeline({ items }: { items: TimelineItem[] }) {
     </ol>
   );
 }
+
+export interface StatCardProps extends Omit<HTMLAttributes<HTMLElement>, "title"> {
+  label: ReactNode;
+  value: ReactNode;
+  hint?: ReactNode;
+  trend?: ReactNode;
+  tone?: Tone;
+}
+
+export function StatCard({ label, value, hint, trend, tone = "default", style, ...props }: StatCardProps) {
+  const color = toneColors[tone];
+  return (
+    <section
+      {...props}
+      style={mergeStyle(
+        {
+          background: "#ffffff",
+          border: `1px solid ${color.border}`,
+          borderRadius: radius,
+          boxShadow: shadow,
+          boxSizing: "border-box",
+          display: "grid",
+          fontFamily,
+          gap: 8,
+          minHeight: 108,
+          padding: tokens.spacing.md,
+        },
+        style,
+      )}
+    >
+      <div style={{ alignItems: "center", color: "#6b7280", display: "flex", fontSize: 13, fontWeight: 600, gap: 8, justifyContent: "space-between" }}>
+        <span>{label}</span>
+        {trend && <span style={{ color: color.text, fontSize: 12 }}>{trend}</span>}
+      </div>
+      <strong style={{ color: tokens.colors.text, fontSize: 24, fontVariantNumeric: "tabular-nums", lineHeight: "30px" }}>{value}</strong>
+      {hint && <span style={{ color: "#6b7280", fontSize: 12 }}>{hint}</span>}
+    </section>
+  );
+}
+
+export interface ServiceCardProps extends Omit<HTMLAttributes<HTMLElement>, "title" | "onClick"> {
+  title: ReactNode;
+  subtitle?: ReactNode;
+  icon?: ReactNode;
+  priceText?: ReactNode;
+  actionLabel?: ReactNode;
+  onClick?: () => void;
+  status?: ReactNode;
+}
+
+export function ServiceCard({ title, subtitle, icon, priceText, actionLabel, onClick, status, style, ...props }: ServiceCardProps) {
+  const interactive = Boolean(onClick);
+  return (
+    <section
+      {...props}
+      onClick={onClick}
+      onKeyDown={(event) => {
+        if (!onClick) return;
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onClick();
+        }
+      }}
+      role={interactive ? "button" : props.role}
+      tabIndex={interactive ? 0 : props.tabIndex}
+      style={mergeStyle(
+        {
+          background: "#ffffff",
+          border: "1px solid #e5e7eb",
+          borderRadius: radius,
+          boxShadow: shadow,
+          boxSizing: "border-box",
+          cursor: interactive ? "pointer" : "default",
+          display: "grid",
+          fontFamily,
+          gap: 10,
+          minHeight: 118,
+          padding: tokens.spacing.md,
+        },
+        style,
+      )}
+    >
+      <div style={{ alignItems: "flex-start", display: "flex", gap: 12 }}>
+        {icon && <div style={{ flex: "0 0 auto" }}>{icon}</div>}
+        <div style={{ display: "grid", flex: "1 1 auto", gap: 4, minWidth: 0 }}>
+          <strong style={{ color: tokens.colors.text, fontSize: 15, lineHeight: "20px" }}>{title}</strong>
+          {subtitle && <span style={{ color: "#6b7280", fontSize: 13, lineHeight: "18px" }}>{subtitle}</span>}
+        </div>
+        {status && <div style={{ flex: "0 0 auto" }}>{status}</div>}
+      </div>
+      {(priceText || actionLabel) && (
+        <div style={{ alignItems: "center", display: "flex", gap: 10, justifyContent: "space-between" }}>
+          {priceText && <span style={{ color: tokens.colors.text, fontSize: 13, fontWeight: 700 }}>{priceText}</span>}
+          {actionLabel && <span style={{ color: tokens.colors.primary, fontSize: 13, fontWeight: 700 }}>{actionLabel}</span>}
+        </div>
+      )}
+    </section>
+  );
+}
+
+export interface OrderCardProps extends Omit<HTMLAttributes<HTMLElement>, "title"> {
+  title: ReactNode;
+  status?: ReactNode;
+  description?: ReactNode;
+  meta?: ReactNode;
+  priceText?: ReactNode;
+  actions?: ReactNode;
+}
+
+export function OrderCard({ title, status, description, meta, priceText, actions, style, children, ...props }: OrderCardProps) {
+  return (
+    <Card
+      {...props}
+      style={mergeStyle(
+        {
+          display: "grid",
+          gap: 12,
+        },
+        style,
+      )}
+    >
+      <div style={{ alignItems: "flex-start", display: "flex", gap: 12, justifyContent: "space-between" }}>
+        <div style={{ display: "grid", gap: 4, minWidth: 0 }}>
+          <strong style={{ color: tokens.colors.text, fontSize: 15, lineHeight: "20px" }}>{title}</strong>
+          {description && <span style={{ color: "#4b5563", fontSize: 13, lineHeight: "18px" }}>{description}</span>}
+        </div>
+        {status && <div style={{ flex: "0 0 auto" }}>{status}</div>}
+      </div>
+      {(meta || priceText) && (
+        <div style={{ alignItems: "center", color: "#6b7280", display: "flex", fontSize: 13, gap: 12, justifyContent: "space-between" }}>
+          {meta && <span>{meta}</span>}
+          {priceText && <strong style={{ color: tokens.colors.text, fontVariantNumeric: "tabular-nums" }}>{priceText}</strong>}
+        </div>
+      )}
+      {children}
+      {actions && <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "flex-end" }}>{actions}</div>}
+    </Card>
+  );
+}
+
+export interface WorkOrderCardProps extends Omit<HTMLAttributes<HTMLElement>, "title"> {
+  title: ReactNode;
+  status?: ReactNode;
+  location?: ReactNode;
+  timeWindow?: ReactNode;
+  priceText?: ReactNode;
+  meta?: ReactNode;
+  actions?: ReactNode;
+}
+
+export function WorkOrderCard({ title, status, location, timeWindow, priceText, meta, actions, style, children, ...props }: WorkOrderCardProps) {
+  return (
+    <Card
+      {...props}
+      style={mergeStyle(
+        {
+          display: "grid",
+          gap: 12,
+        },
+        style,
+      )}
+    >
+      <div style={{ alignItems: "flex-start", display: "flex", gap: 12, justifyContent: "space-between" }}>
+        <strong style={{ color: tokens.colors.text, fontSize: 15, lineHeight: "20px", minWidth: 0 }}>{title}</strong>
+        {status && <div style={{ flex: "0 0 auto" }}>{status}</div>}
+      </div>
+      <div style={{ color: "#4b5563", display: "grid", fontSize: 13, gap: 6 }}>
+        {location && <span>{location}</span>}
+        {timeWindow && <span>{timeWindow}</span>}
+        {meta && <span>{meta}</span>}
+      </div>
+      {children}
+      {(priceText || actions) && (
+        <div style={{ alignItems: "center", display: "flex", flexWrap: "wrap", gap: 10, justifyContent: "space-between" }}>
+          {priceText && <strong style={{ color: tokens.colors.text, fontVariantNumeric: "tabular-nums" }}>{priceText}</strong>}
+          {actions && <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>{actions}</div>}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+export const WorkerTaskCard = WorkOrderCard;
 
 export function PriceText({ amount, currency = "CNY" }: { amount: number; currency?: string }) {
   return (

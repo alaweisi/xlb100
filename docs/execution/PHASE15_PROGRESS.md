@@ -100,3 +100,20 @@ Manual confirmation points:
 - Whether customer/worker desktop views should stay mobile-width during the first implementation pass.
 - Whether to prioritize customer home/services before worker grab hall, or build both shells in one controlled phase.
 - Whether admin desktop harmonization waits until after customer/worker route shell replacement.
+
+## Phase 15.1B UI Gap Fill
+
+- Status: completed locally, pending commit.
+- Scope: `packages/ui/**`, `docs/execution/PHASE15_PROGRESS.md`, `docs/reports/PHASE15_1B_UI_GAP_FILL_REPORT.md`.
+- Added exports: `SearchBar`, `Tabs`, `SegmentedControl`, `BottomSheet`, `StatCard`, `ServiceCard`, `OrderCard`, `WorkOrderCard`, `WorkerTaskCard`.
+- Deferred: `SettlementCard` remains Phase 15.5 because it must align with existing admin Settlement pages and governance constraints.
+- App code modified: no.
+- Business API connected: no.
+- Production: NO-GO.
+- Cloud-staging deploy: not performed.
+- Tags: not created.
+- Verification:
+  - `pnpm --filter @xlb/ui build`: PASS.
+  - `pnpm --filter @xlb/ui typecheck`: PASS.
+  - `pnpm test -- --bail=1`: PASS. 255 test files passed, 1048 tests passed, 1 todo.
+- Phase 15.2 entry: allowed after commit, with production still NO-GO and dashboard/OA still deferred.
