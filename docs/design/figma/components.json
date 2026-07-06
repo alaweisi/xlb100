@@ -1,0 +1,56 @@
+{
+  "source": "Figma MCP metadata, Components frame, States/Variants frame, and packages/ui Phase 15.1 exports",
+  "formalFigmaComponents": [],
+  "detectedDesignComponentInventory": [
+    { "name": "BottomNavigation", "category": "navigation", "figmaStatus": "detected", "xlbUi": "BottomNav" },
+    { "name": "TopBar", "category": "navigation", "figmaStatus": "detected", "xlbUi": "TopBar" },
+    { "name": "SearchBar", "category": "form", "figmaStatus": "detected", "xlbUi": "missing" },
+    { "name": "Button", "category": "primitive", "figmaStatus": "detected_with_states", "xlbUi": "Button" },
+    { "name": "OrderCard", "category": "business-card", "figmaStatus": "detected", "xlbUi": "missing" },
+    { "name": "WorkOrderCard", "category": "business-card", "figmaStatus": "detected", "xlbUi": "missing" },
+    { "name": "StatusTag", "category": "status", "figmaStatus": "detected", "xlbUi": "StatusTag" },
+    { "name": "Dialog", "category": "overlay", "figmaStatus": "detected", "xlbUi": "Modal" },
+    { "name": "BottomSheet", "category": "overlay", "figmaStatus": "detected", "xlbUi": "Drawer_or_missing_mobile_sheet" },
+    { "name": "Toast", "category": "feedback", "figmaStatus": "detected", "xlbUi": "Toast" },
+    { "name": "Empty/Error/Loading", "category": "feedback", "figmaStatus": "detected", "xlbUi": "EmptyState/ErrorState/LoadingState" }
+  ],
+  "requestedChecklist": [
+    { "name": "Button", "status": "covered_by_packages_ui" },
+    { "name": "Card", "status": "covered_by_packages_ui" },
+    { "name": "Input", "status": "covered_by_packages_ui_not_explicit_in_figma_inventory" },
+    { "name": "Select", "status": "covered_by_packages_ui_not_explicit_in_figma_inventory" },
+    { "name": "Textarea", "status": "covered_by_packages_ui_not_explicit_in_figma_inventory" },
+    { "name": "FormField", "status": "covered_by_packages_ui_not_explicit_in_figma_inventory" },
+    { "name": "Badge", "status": "covered_by_packages_ui_not_explicit_in_figma_inventory" },
+    { "name": "StatusTag", "status": "covered_by_packages_ui_and_figma" },
+    { "name": "Tabs", "status": "missing_in_packages_ui_and_not_explicit_in_figma_inventory" },
+    { "name": "Modal", "status": "covered_by_packages_ui_as_dialog_mapping" },
+    { "name": "Drawer", "status": "covered_by_packages_ui_but_mobile_bottomsheet_gap_remains" },
+    { "name": "Toast", "status": "covered_by_packages_ui_and_figma" },
+    { "name": "EmptyState", "status": "covered_by_packages_ui_and_figma" },
+    { "name": "LoadingState", "status": "covered_by_packages_ui_and_figma" },
+    { "name": "ErrorState", "status": "covered_by_packages_ui_and_figma" },
+    { "name": "Skeleton", "status": "covered_by_packages_ui_not_explicit_in_figma_inventory" },
+    { "name": "PageShell", "status": "covered_by_packages_ui_not_explicit_in_mobile_figma_inventory" },
+    { "name": "MobileShell", "status": "covered_by_packages_ui_needed_for_all_390x844_frames" },
+    { "name": "AdminShell", "status": "covered_by_packages_ui_but_figma_admin_frames_are_mobile_style" },
+    { "name": "BottomNav", "status": "covered_by_packages_ui_and_figma" },
+    { "name": "TopBar", "status": "covered_by_packages_ui_and_figma" },
+    { "name": "SideNav", "status": "covered_by_packages_ui_not_explicit_in_mobile_figma_inventory" },
+    { "name": "StatCard", "status": "missing_in_packages_ui_detected_as_dashboard_metric_cards" },
+    { "name": "OrderCard", "status": "missing_in_packages_ui_and_figma" },
+    { "name": "ServiceCard", "status": "missing_in_packages_ui_detected_in_customer_services" },
+    { "name": "WorkerTaskCard", "status": "missing_in_packages_ui_related_to_WorkOrderCard" },
+    { "name": "SettlementCard", "status": "missing_in_packages_ui_not_detected_in_current_figma_snapshot" }
+  ],
+  "stateVariants": ["Default", "Pressed", "Loading", "Disabled", "Success", "Error", "Empty"],
+  "assetInventory": {
+    "icons": "inline icon nodes detected; no reusable SVG files exported in Phase 15.0C",
+    "illustrations": "none exported",
+    "images": [
+      "assets/images/foundations_1-23.png",
+      "assets/images/components_inventory_1-61.png",
+      "assets/images/states_variants_1-104.png"
+    ]
+  }
+}

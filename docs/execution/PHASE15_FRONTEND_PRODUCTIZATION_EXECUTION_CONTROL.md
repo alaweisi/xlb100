@@ -483,3 +483,19 @@ oa MVP 可包含：
 - 缺 no-localhost / no-Phase0 / no-api-api gate。
 
 在 Phase 15.8 完成 staging 浏览器 UAT 且上述 gate 均通过前，不得发布 production，不得创建 production env，不得打 production tag。
+
+## 11. Figma Design Source
+
+Phase 15.0C 已将用户提供的 Figma 设计源作为 Phase 15.2 前置关卡本地化归档。
+
+- Figma URL: `https://www.figma.com/design/WrIq7mTPz9zB5EJkftS3sY/Untitled?node-id=1-2&t=qQ8sSMGYxKB5zpJn-0`
+- Figma fileKey: `WrIq7mTPz9zB5EJkftS3sY`
+- Root node: `1:2`
+- Local design snapshot directory: `docs/design/figma/`
+- Intake report: `docs/design/figma/reports/FIGMA_DESIGN_INTAKE.md`
+- Component map: `docs/design/figma/reports/FIGMA_COMPONENT_MAP.md`
+- Render optimization plan: `docs/design/figma/reports/FIGMA_RENDER_OPTIMIZATION_PLAN.md`
+
+Phase 15.2 起页面施工必须以本地设计快照和 Figma MCP 读取结果为准。Codex 不得自由重设计 customer / worker / admin 页面，不得把 Phase 0 Ready 换成另一个假页面，不得用假业务数据冒充真实闭环。
+
+渲染优化必须先落到 `FIGMA_RENDER_OPTIMIZATION_PLAN.md`，再进入页面施工。若 Figma MCP、本地快照、执行总控文件或实际代码之间出现冲突，必须停止并汇报。

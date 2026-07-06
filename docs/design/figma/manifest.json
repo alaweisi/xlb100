@@ -1,0 +1,69 @@
+{
+  "phase": "15.0C",
+  "source": {
+    "url": "https://www.figma.com/design/WrIq7mTPz9zB5EJkftS3sY/Untitled?node-id=1-2&t=qQ8sSMGYxKB5zpJn-0",
+    "fileKey": "WrIq7mTPz9zB5EJkftS3sY",
+    "fileName": "Untitled",
+    "rootNode": {
+      "id": "1:2",
+      "name": "三端家居维修 App UI",
+      "type": "FRAME",
+      "width": 3048,
+      "height": 7334
+    },
+    "readMethod": "Figma MCP",
+    "readStatus": "success",
+    "readAt": "2026-07-06T21:13:46.9608543+08:00"
+  },
+  "inventory": {
+    "totalStructuredNodes": 2208,
+    "candidateFrameCount": 55,
+    "productFrameCount": 50,
+    "supportFrameCount": 5,
+    "formalLocalComponentCount": 0,
+    "localPaintStyleCount": 0,
+    "localTextStyleCount": 0,
+    "localEffectStyleCount": 0,
+    "localVariableCollectionCount": 0
+  },
+  "frameBreakdown": {
+    "customer": 14,
+    "worker": 20,
+    "admin": 16,
+    "dashboard": 0,
+    "oa": 0,
+    "support": 5
+  },
+  "exportedPngs": [
+    "docs/design/figma/frames/customer/customer_home_default_1-228.png",
+    "docs/design/figma/frames/worker/worker_grabhall_online_1-1515.png",
+    "docs/design/figma/frames/admin/admin_dashboard_default_1-2875.png",
+    "docs/design/figma/frames/admin/admin_complaint_default_1-3649.png",
+    "docs/design/figma/frames/admin/admin_aftersale_processing_1-3711.png",
+    "docs/design/figma/frames/admin/admin_aftersale_completed_1-3736.png",
+    "docs/design/figma/frames/admin/admin_settings_default_1-3762.png",
+    "docs/design/figma/frames/dashboard/root_all-boards_1-2.png",
+    "docs/design/figma/frames/dashboard/flowmap_1-161.png",
+    "docs/design/figma/assets/images/foundations_1-23.png",
+    "docs/design/figma/assets/images/components_inventory_1-61.png",
+    "docs/design/figma/assets/images/states_variants_1-104.png"
+  ],
+  "exportUnavailable": [
+    {
+      "scope": "all individual product frames",
+      "reason": "Phase 15.0C exported representative/key snapshots and complete JSON inventory. Exporting every individual PNG was not required for this local intake checkpoint and would increase repository weight."
+    },
+    {
+      "scope": "dashboard app frames",
+      "reason": "No standalone dashboard product frame was detected in the Figma file; the `dashboard` directory only stores root/flow overview snapshots."
+    },
+    {
+      "scope": "oa app frames",
+      "reason": "No OA product frame was detected in the Figma file."
+    },
+    {
+      "scope": "formal Figma styles/components/variables",
+      "reason": "Read-only scan returned zero local components, styles, and variable collections; component and token records are derived from visible Figma frame content."
+    }
+  ]
+}
