@@ -25,6 +25,7 @@ This package closes the current production readiness triage as an operational ev
 | Code/data rollback runbook | `docs/release/PHASE14_CODE_DATA_ROLLBACK_RUNBOOK.md` |
 | Backup/restore staging drill | `docs/release/PHASE14_BACKUP_RESTORE_STAGING_DRILL.md` |
 | CI gate change audit | `docs/release/PHASE14_CI_GATE_CHANGE_AUDIT.md` |
+| Production evidence pack | `docs/release/PHASE14_PRODUCTION_EVIDENCE_PACK.md` |
 
 ## Status Semantics
 
