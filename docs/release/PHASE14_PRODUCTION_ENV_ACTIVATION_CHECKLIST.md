@@ -18,6 +18,7 @@ This checklist converts the remaining `PROD-OPS-*` blockers into production acti
 | `deploy/production/deploy-prod.ps1` | Guarded deploy scaffold exists and defaults to dry run unless `-Apply` is provided. | Does not approve production deployment; release-owner approval remains required. |
 | `deploy/production/smoke-prod.ps1` | Production smoke scaffold exists and reads HTTPS URLs from env/config. | Real production URLs and operator-run smoke evidence remain required. |
 | `deploy/production/rollback-prod.ps1` | Guarded rollback scaffold exists and references the rollback runbook. | Does not prove rollback execution; release-window rollback evidence remains operator-owned. |
+| `deploy/production/check-prod-monitoring.ps1` | Read-only production monitoring helper scaffold exists and refuses `.env.production.example`. | Does not prove production monitoring; real production dashboards, alerts, SQL output, and owner approval remain required. |
 | `.env.production.example` | Placeholder-only example exists. | Must not be used as production secret evidence or production runtime env. |
 | `.env.staging.example` | Exists and contains staging/example values such as `MYSQL_DATABASE=xlb_staging`, `MYSQL_PASSWORD=change-me`, and `JWT_SECRET=change-me-in-production`. | Must not be used as production evidence or production secrets. |
 
@@ -88,6 +89,9 @@ Production evidence must include dashboards and alert rules for:
 - Replay and immutability gate results.
 - Missing `conflict_audit` traces.
 
+Scaffold reference: `docs/release/PHASE14_PRODUCTION_MONITORING_EVIDENCE.md`.
+Optional operator helper: `deploy/production/check-prod-monitoring.ps1 -EnvFile .env.production -DryRun`.
+
 ### Refund/Reversal Monitoring Prerequisite
 
 Production evidence must include duplicate and amount-direction monitoring for:
@@ -96,6 +100,8 @@ Production evidence must include duplicate and amount-direction monitoring for:
 - Duplicate reversal ledger rows grouped by `city_code`, `source_type`, `source_id`, `account_type`, and `direction`.
 - Reversal directions: customer `credit`, platform `debit`, worker `debit`.
 - Missing conflict audit rows for reversal ledger entries.
+
+The scaffold query set is in `docs/release/PHASE14_PRODUCTION_MONITORING_EVIDENCE.md`. Real production/read-replica output and alert evidence remain required before PASS.
 
 ### Event Handler Lag Monitoring Prerequisite
 
@@ -111,6 +117,12 @@ SELECT city_code, COUNT(*) AS pending_count, MIN(created_at) AS oldest_created_a
 
 The alert must define age threshold, count threshold, owner, notification route, and remediation runbook.
 
+The production helper can print the exact query set with:
+
+```powershell
+deploy\production\check-prod-monitoring.ps1 -EnvFile .env.production -DryRun
+```
+
 ### Release-Window Replay/Immutability Commands
 
 Required immediately before production cut:
@@ -125,7 +137,7 @@ Required immediately after production cut:
 npx pnpm preflight
 ```
 
-PASS evidence must show both `check-ledger-replay: passed` and `check-ledger-immutability: passed` in both logs. If an operator provides a production smoke command, attach that output as supporting evidence; `deploy/production/smoke-prod.ps1` is currently missing from this repo.
+PASS evidence must show both `check-ledger-replay: passed` and `check-ledger-immutability: passed` in both logs. If an operator provides a production smoke command, attach that output as supporting evidence; the repository production smoke scaffold is `deploy/production/smoke-prod.ps1`.
 
 ### Onboarding Signoff Requirement
 
@@ -149,9 +161,9 @@ The release owner may approve production only after every `PROD-OPS-001` through
 | PROD-OPS-001 | NOT RUN | Security / Ops owner | `docs/release/evidence/PHASE14_PROD_SECRETS_INVENTORY_<timestamp>.md` with redacted secret manager/deployment inventory. | All production variables are present, non-empty, non-example, scoped to production, redacted in repo evidence, and have owner/rotation path. | Missing variable, staging/example/default value, plaintext secret committed, no owner, or no rotation path. | Operator-only; Codex can review redacted evidence after it exists. |
 | PROD-OPS-002 | NOT RUN | Infra / Ops owner | `docs/release/evidence/PHASE14_PROD_DOMAIN_TLS_INGRESS_<timestamp>.md` plus HTTPS smoke logs. | Approved hostnames, valid TLS, correct ingress routes, CORS/API bases verified, and production ingress smoke passes. | Missing hostname, invalid TLS, HTTP-only route, wrong target, CORS/header failure, or smoke failure. | Operator-only; Codex must not deploy or mutate ingress. |
 | PROD-OPS-003 | NOT RUN | DBA / Ops owner | `docs/release/evidence/PHASE14_PROD_DB_PROVISIONING_<timestamp>.md` with redacted DB inventory and SQL outputs. | Isolated production DB exists, secrets are production-only, grants are least-privilege, backup/restore strategy approved, migration target ready. | DB not provisioned, staging reused, backup missing, over-privileged user, unknown timezone/charset, or migration target missing. | Operator-only; Codex can review redacted artifacts. |
-| PROD-OPS-007 | NOT RUN | SRE / Ops owner | `docs/release/evidence/PHASE14_PROD_MONITORING_ALERTING_<timestamp>.md` with dashboard/alert exports and notification test. | Dashboards and alerts cover availability, 5xx, outbox, refund, reversal, replay, immutability, and audit gaps; notification route tested. | Manual logs only, missing owner, missing financial/audit signal, untested notification, or staging-only dashboard. | Operator-only; Codex can inspect exported configs. |
-| PROD-OPS-008 | NOT RUN | SRE / Finance ops owner | `docs/release/evidence/PHASE14_PROD_DUPLICATE_MONITORING_<timestamp>.md` with SQL/dashboard/alert evidence. | Duplicate refund and reversal queries run against production/read replica, baseline recorded, alerts configured, Finance/SRE approve escalation. | No duplicate query, UAT-only check, no alert, no owner, or duplicates found without accepted remediation. | Operator-only for production data; Codex can review query text and redacted outputs. |
-| PROD-OPS-009 | NOT RUN | SRE / Backend owner | `docs/release/evidence/PHASE14_PROD_EVENT_LAG_MONITORING_<timestamp>.md` with pending-age query, alert, notification test, and runbook. | Pending `refund.approved` age is observable, alert threshold approved, owner and remediation path recorded. | No pending-age query, no alert, generic-only outbox alert, missing owner, or untested channel. | Operator-only for live alerting; Codex can review artifacts. |
+| PROD-OPS-007 | NOT RUN | SRE / Ops owner | `docs/release/evidence/PHASE14_PROD_MONITORING_ALERTING_<timestamp>.md` with dashboard/alert exports and notification test; scaffold: `docs/release/PHASE14_PRODUCTION_MONITORING_EVIDENCE.md`. | Dashboards and alerts cover availability, 5xx, outbox, refund, reversal, replay, immutability, and audit gaps; notification route tested. | Manual logs only, missing owner, missing financial/audit signal, untested notification, or staging-only dashboard. | Operator-only; Codex can inspect exported configs. |
+| PROD-OPS-008 | NOT RUN | SRE / Finance ops owner | `docs/release/evidence/PHASE14_PROD_DUPLICATE_MONITORING_<timestamp>.md` with SQL/dashboard/alert evidence; optional helper: `deploy/production/check-prod-monitoring.ps1`. | Duplicate refund and reversal queries run against production/read replica, baseline recorded, alerts configured, Finance/SRE approve escalation. | No duplicate query, UAT-only check, no alert, no owner, or duplicates found without accepted remediation. | Operator-only for production data; Codex can review query text and redacted outputs. |
+| PROD-OPS-009 | NOT RUN | SRE / Backend owner | `docs/release/evidence/PHASE14_PROD_EVENT_LAG_MONITORING_<timestamp>.md` with pending-age query, alert, notification test, and runbook; optional helper: `deploy/production/check-prod-monitoring.ps1`. | Pending `refund.approved` age is observable, alert threshold approved, owner and remediation path recorded. | No pending-age query, no alert, generic-only outbox alert, missing owner, or untested channel. | Operator-only for live alerting; Codex can review artifacts. |
 | PROD-OPS-010 | NOT RUN | Release owner / Ledger owner | `npx pnpm preflight` logs immediately before and after production cut, attached at `docs/release/evidence/PHASE14_PROD_RELEASE_GATE_<timestamp>.md`. | Both release-window preflight runs pass on the intended production release candidate and include replay and immutability PASS output. | Missing run, wrong timing, wrong commit/environment, failed run, or missing replay/immutability output. | Partially local; final PASS requires release-window operator evidence. |
 | PROD-OPS-012 | NOT RUN | Product / Support / Compliance owners | `docs/release/evidence/PHASE14_PROD_OPERATOR_ONBOARDING_SIGNOFF_<timestamp>.md`. | All named owners approve onboarding, support, dispute, privacy, terms, and compliance readiness, or release owner explicitly accepts documented residual gaps. | Missing owner approval, missing support escalation, unresolved compliance/privacy blocker, or onboarding not reviewed. | Human approval only. |
 | PROD-OPS-013 | FAIL | Release owner | `docs/release/evidence/PHASE14_PROD_RELEASE_APPROVAL_<timestamp>.md`. | Every `PROD-OPS-*` row is PASS, final validation is green, deployment/rollback plan is approved, and release owner explicitly authorizes production deploy/tag. | Any `PROD-OPS-*` row remains FAIL/NOT RUN, validation fails, deploy/rollback plan missing, or release owner declines/defers. | Human release-owner approval only. |
