@@ -8,7 +8,7 @@
 - Production deploy approved: No
 - Production tag approved: No
 - Checklist date: 2026-07-06
-- Baseline commit: `23218f7 docs(release): triage phase 14 production readiness gaps`
+- Baseline commit: `b3f4c3b docs(release): reconcile phase 14 production ops blockers`
 - Branch: `phase14r-refund-reversal`
 
 This package closes the current production readiness triage as an operational evidence checklist only. It does not approve production deployment, create a production tag, change CI gates, change schema, or alter ledger/replay/audit behavior.
@@ -21,6 +21,8 @@ This package closes the current production readiness triage as an operational ev
 | Production readiness gap | `docs/release/PHASE14_PRODUCTION_READINESS_GAP.md` |
 | Internal beta runbook | `docs/release/PHASE14_INTERNAL_BETA_RUNBOOK.md` |
 | RC2 go/no-go | `docs/release/PHASE14_RC2_GO_NO_GO.md` |
+| Migration 027 rollback plan | `docs/release/PHASE14_MIGRATION_027_ROLLBACK_PLAN.md` |
+| Code/data rollback runbook | `docs/release/PHASE14_CODE_DATA_ROLLBACK_RUNBOOK.md` |
 
 ## Status Semantics
 
@@ -38,8 +40,8 @@ This package closes the current production readiness triage as an operational ev
 | PROD-OPS-002 | Production domain/TLS/ingress | NOT RUN | Infra / Ops owner | Approved DNS/TLS/ingress checklist plus smoke against production-like hostnames. | No production hostname, HTTPS, reverse proxy, CORS, or forwarded-header evidence is recorded. | Blocks production cutover and customer/worker/admin access. |
 | PROD-OPS-003 | Production DB provisioning | NOT RUN | DBA / Ops owner | Production DB provisioning plan covering topology, users, timezone, connection limits, migration target, and non-empty secrets. | Production MySQL topology and least-privilege access are not verified. | Blocks production migration and runtime data storage. |
 | PROD-OPS-004 | Backup/restore readiness | NOT RUN | DBA / SRE owner | Restore drill log, backup schedule, RPO/RTO target, and owner signoff. | No restore test evidence is recorded. | Blocks production because rollback and incident recovery are unproven. |
-| PROD-OPS-005 | Migration 027 rollback plan | FAIL | DBA / Release owner | Production-safe rollback or forward-fix plan for `aftersale_refund_requests`; source context: `docs/release/PHASE14_INTERNAL_BETA_RUNBOOK.md`. | Current rollback guidance is staging-only/manual and does not define production data preservation rules. | Blocks production because migration 027 cannot be safely reversed or forward-fixed in a release incident. |
-| PROD-OPS-006 | Code/data rollback procedure | FAIL | Release owner / Ops owner | Approved production rollback runbook with previous production image/commit, smoke commands, data handling, `event_outbox` handling, ledger handling, and approval path. | Existing rollback procedure is staging-oriented and RC1 is known bad for refund reversal. | Blocks production because a release rollback could reintroduce refund/reversal defects or mishandle data. |
+| PROD-OPS-005 | Migration 027 rollback plan | PASS | DBA / Release owner | `docs/release/PHASE14_MIGRATION_027_ROLLBACK_PLAN.md` documents migration purpose, affected table/columns/indexes, destructive rollback policy, restore-vs-forward-fix strategy, pre-cut backup requirement, post-cut verification commands, decision tree, roles, and PASS evidence. | Closed for repo-documentable rollback-plan evidence. Production backup/restore execution evidence remains tracked by `PROD-OPS-004`; production release-window proof remains tracked by `PROD-OPS-010` and `PROD-OPS-013`. | Does not block production by itself after this documentation closure. |
+| PROD-OPS-006 | Code/data rollback procedure | PASS | Release owner / Ops owner | `docs/release/PHASE14_CODE_DATA_ROLLBACK_RUNBOOK.md` documents rollback triggers, app image/git tag rollback procedure, DB backup/restore procedure, `event_outbox`/ledger/refund checks, post-rollback smoke commands, replay/immutability timing, communication/approval steps, abort conditions, and PASS evidence. | Closed for repo-documentable rollback-runbook evidence. Production execution tooling and restore drill evidence remain tracked by `PROD-OPS-004`; production release approval remains tracked by `PROD-OPS-013`. | Does not block production by itself after this documentation closure. |
 | PROD-OPS-007 | Monitoring and alerting | NOT RUN | SRE / Ops owner | Dashboard and alert evidence for health, 5xx, `event_outbox`, refund approval, ledger reversal, duplicate reversal, replay, immutability, and audit gaps. | No production dashboard or alert evidence is recorded. | Blocks production because incidents would rely on manual log inspection. |
 | PROD-OPS-008 | Payment/refund/reversal duplicate monitoring | NOT RUN | SRE / Finance ops owner | SQL/dashboard checks for duplicate `refund.approved` events and duplicate reversal ledger entries. | Duplicate prevention passed UAT, but production duplicate monitoring is not proven. | Blocks production financial operations visibility. |
 | PROD-OPS-009 | Event handler lag monitoring | NOT RUN | SRE / Backend owner | Pending event age query/alert for `event_outbox` rows where `event_type = 'refund.approved'`. | No production threshold, alert route, or escalation owner is recorded. | Blocks production because refund approval events could stall without detection. |
@@ -61,14 +63,12 @@ These commands are validation evidence for the repository state only. They do no
 
 ## Remaining Blockers
 
-Production remains blocked by every item in the evidence checklist until each status is updated to PASS by the named owner:
+Production remains blocked by every remaining non-PASS item in the evidence checklist until each status is updated to PASS by the named owner:
 
 - `PROD-OPS-001` production secrets management.
 - `PROD-OPS-002` production domain/TLS/ingress.
 - `PROD-OPS-003` production DB provisioning.
 - `PROD-OPS-004` backup/restore readiness.
-- `PROD-OPS-005` migration 027 rollback plan.
-- `PROD-OPS-006` code/data rollback procedure.
 - `PROD-OPS-007` monitoring and alerting.
 - `PROD-OPS-008` payment/refund/reversal duplicate monitoring.
 - `PROD-OPS-009` event handler lag monitoring.
@@ -77,7 +77,7 @@ Production remains blocked by every item in the evidence checklist until each st
 - `PROD-OPS-012` operator/app onboarding signoff.
 - `PROD-OPS-013` release owner approval.
 
-The highest release-risk blockers remain `PROD-OPS-005`, `PROD-OPS-006`, `PROD-OPS-007`, `PROD-OPS-010`, and `PROD-OPS-013`, but the other `PROD-OPS-*` rows are still production blockers until closed.
+The highest release-risk blockers remain `PROD-OPS-004`, `PROD-OPS-007`, `PROD-OPS-010`, and `PROD-OPS-013`, but the other non-PASS `PROD-OPS-*` rows are still production blockers until closed.
 
 ## Closure Rule
 
