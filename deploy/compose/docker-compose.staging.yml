@@ -105,6 +105,20 @@ services:
     ports:
       - "127.0.0.1:4175:4173"
 
+  reverse-proxy:
+    image: nginx:1.27-alpine
+    container_name: xlb-staging-proxy
+    restart: unless-stopped
+    depends_on:
+      - backend
+      - customer
+      - worker
+      - admin
+    ports:
+      - "${STAGING_HTTP_PORT:-80}:80"
+    volumes:
+      - ../../infra/nginx/cloud-staging.conf:/etc/nginx/conf.d/default.conf:ro
+
 volumes:
   xlb-staging-mysql-data:
   xlb-staging-redis-data:
