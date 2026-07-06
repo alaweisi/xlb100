@@ -58,7 +58,7 @@ services:
       REDIS_PORT: ${REDIS_PORT:-6379}
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
     ports:
-      - "${BACKEND_PORT:-3000}:${BACKEND_PORT:-3000}"
+      - "127.0.0.1:${BACKEND_PORT:-3000}:${BACKEND_PORT:-3000}"
 
   customer:
     build:
@@ -73,7 +73,7 @@ services:
     environment:
       NODE_ENV: ${NODE_ENV:-production}
     ports:
-      - "4173:4173"
+      - "127.0.0.1:4173:4173"
 
   worker:
     build:
@@ -88,7 +88,7 @@ services:
     environment:
       NODE_ENV: ${NODE_ENV:-production}
     ports:
-      - "4174:4173"
+      - "127.0.0.1:4174:4173"
 
   admin:
     build:
@@ -103,7 +103,7 @@ services:
     environment:
       NODE_ENV: ${NODE_ENV:-production}
     ports:
-      - "4175:4173"
+      - "127.0.0.1:4175:4173"
 
 volumes:
   xlb-staging-mysql-data:
