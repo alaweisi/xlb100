@@ -77,6 +77,16 @@ sudo ss -tulpn
 sudo docker ps --format "table {{.Names}}\t{{.Ports}}"
 ```
 
+External public smoke verification (Tencent IP):
+
+```bash
+curl -fsS http://123.207.198.136/health
+curl -fsS http://123.207.198.136/api/system/db-health
+curl -fsS http://123.207.198.136/customer/
+curl -fsS http://123.207.198.136/worker/
+curl -fsS http://123.207.198.136/admin/
+```
+
 ## Container Port Exposure
 
 | Container | Published ports | Exposure result |
@@ -166,6 +176,16 @@ Reverse-proxy smoke result: PASS.
 | `http://localhost/customer/` | PASS |
 | `http://localhost/worker/` | PASS |
 | `http://localhost/admin/` | PASS |
+
+External public smoke result (via `123.207.198.136`): PASS.
+
+| Endpoint | Result |
+| --- | --- |
+| `http://123.207.198.136/health` | PASS |
+| `http://123.207.198.136/api/system/db-health` | PASS |
+| `http://123.207.198.136/customer/` | PASS |
+| `http://123.207.198.136/worker/` | PASS |
+| `http://123.207.198.136/admin/` | PASS |
 
 Backend internal smoke output:
 
