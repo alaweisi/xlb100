@@ -21,6 +21,7 @@
 | Backup/restore staging drill | `docs/release/PHASE14_BACKUP_RESTORE_STAGING_DRILL.md` |
 | CI gate change audit | `docs/release/PHASE14_CI_GATE_CHANGE_AUDIT.md` |
 | Production evidence pack | `docs/release/PHASE14_PRODUCTION_EVIDENCE_PACK.md` |
+| Production environment activation checklist | `docs/release/PHASE14_PRODUCTION_ENV_ACTIVATION_CHECKLIST.md` |
 
 ## Classification Semantics
 
