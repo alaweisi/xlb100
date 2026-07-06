@@ -47,15 +47,17 @@ The requested repo scripts `deploy/backup/backup-db.ps1` and `deploy/backup/rest
 
 | Field | Value |
 | --- | --- |
-| Backup artifact | `docs/release/evidence/PHASE14_STAGING_DB_BACKUP_20260706T021309Z.sql` |
+| Backup artifact manifest | `docs/release/evidence/PHASE14_STAGING_DB_BACKUP_20260706T021309Z.MANIFEST.md` |
+| Raw backup artifact | `docs/release/evidence/PHASE14_STAGING_DB_BACKUP_20260706T021309Z.sql` generated during drill, then removed from git after evidence hygiene audit |
 | Backup size | `840622` bytes |
+| Backup SHA-256 | `73AC8FB9CC6CFD945FC957111DD7059D856904D1261C6D2928CE7AFDF777AF59` |
 | Backup last write UTC | `2026-07-06T02:13:10Z` |
 | Evidence log | `docs/release/evidence/PHASE14_BACKUP_RESTORE_STAGING_DRILL_20260706T021309Z.log` |
 
 Backup command:
 
 ```powershell
-docker compose --env-file .env.staging.example -f deploy/compose/docker-compose.staging.yml exec -T mysql sh -c "MYSQL_PWD=change-me mysqldump -uxlb --single-transaction --set-gtid-purged=OFF --no-tablespaces --routines --triggers --events xlb_staging > /tmp/PHASE14_STAGING_DB_BACKUP_20260706T021309Z.sql"
+docker compose --env-file .env.staging.example -f deploy/compose/docker-compose.staging.yml exec -T mysql sh -c "MYSQL_PWD=*** mysqldump -uxlb --single-transaction --set-gtid-purged=OFF --no-tablespaces --routines --triggers --events xlb_staging > /tmp/PHASE14_STAGING_DB_BACKUP_20260706T021309Z.sql"
 docker cp <mysql-container-id>:/tmp/PHASE14_STAGING_DB_BACKUP_20260706T021309Z.sql docs/release/evidence/PHASE14_STAGING_DB_BACKUP_20260706T021309Z.sql
 docker compose --env-file .env.staging.example -f deploy/compose/docker-compose.staging.yml exec -T mysql rm -f /tmp/PHASE14_STAGING_DB_BACKUP_20260706T021309Z.sql
 ```
@@ -64,6 +66,7 @@ Backup artifact verification:
 
 ```powershell
 Get-Item docs/release/evidence/PHASE14_STAGING_DB_BACKUP_20260706T021309Z.sql
+Get-FileHash -Algorithm SHA256 docs/release/evidence/PHASE14_STAGING_DB_BACKUP_20260706T021309Z.sql
 ```
 
 Observed result:
@@ -71,28 +74,30 @@ Observed result:
 - File exists: yes.
 - File is non-empty: yes.
 - Size: `840622` bytes.
+- SHA-256: `73AC8FB9CC6CFD945FC957111DD7059D856904D1261C6D2928CE7AFDF777AF59`.
+- Raw SQL repository retention after hygiene audit: removed; manifest retained.
 
 ## Restore Evidence
 
 Restore command:
 
 ```powershell
-docker compose --env-file .env.staging.example -f deploy/compose/docker-compose.staging.yml exec -e MYSQL_PWD=change-me -T mysql mysql -uroot -e "DROP DATABASE IF EXISTS xlb_staging_restore_drill_20260706T021309Z; CREATE DATABASE xlb_staging_restore_drill_20260706T021309Z CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+docker compose --env-file .env.staging.example -f deploy/compose/docker-compose.staging.yml exec -e MYSQL_PWD=*** -T mysql mysql -uroot -e "DROP DATABASE IF EXISTS xlb_staging_restore_drill_20260706T021309Z; CREATE DATABASE xlb_staging_restore_drill_20260706T021309Z CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 docker cp docs/release/evidence/PHASE14_STAGING_DB_BACKUP_20260706T021309Z.sql <mysql-container-id>:/tmp/PHASE14_STAGING_DB_BACKUP_20260706T021309Z.sql
-docker compose --env-file .env.staging.example -f deploy/compose/docker-compose.staging.yml exec -T mysql sh -c "MYSQL_PWD=change-me mysql -uroot --default-character-set=utf8mb4 xlb_staging_restore_drill_20260706T021309Z < /tmp/PHASE14_STAGING_DB_BACKUP_20260706T021309Z.sql"
+docker compose --env-file .env.staging.example -f deploy/compose/docker-compose.staging.yml exec -T mysql sh -c "MYSQL_PWD=*** mysql -uroot --default-character-set=utf8mb4 xlb_staging_restore_drill_20260706T021309Z < /tmp/PHASE14_STAGING_DB_BACKUP_20260706T021309Z.sql"
 docker compose --env-file .env.staging.example -f deploy/compose/docker-compose.staging.yml exec -T mysql rm -f /tmp/PHASE14_STAGING_DB_BACKUP_20260706T021309Z.sql
 ```
 
 Restore target cleanup:
 
 ```powershell
-docker compose --env-file .env.staging.example -f deploy/compose/docker-compose.staging.yml exec -e MYSQL_PWD=change-me -T mysql mysql -uroot -e "DROP DATABASE xlb_staging_restore_drill_20260706T021309Z;"
+docker compose --env-file .env.staging.example -f deploy/compose/docker-compose.staging.yml exec -e MYSQL_PWD=*** -T mysql mysql -uroot -e "DROP DATABASE xlb_staging_restore_drill_20260706T021309Z;"
 ```
 
 Post-cleanup verification:
 
 ```powershell
-docker compose --env-file .env.staging.example -f deploy/compose/docker-compose.staging.yml exec -e MYSQL_PWD=change-me -T mysql mysql -uroot --batch --raw -N -e "SELECT SCHEMA_NAME FROM information_schema.schemata WHERE SCHEMA_NAME IN ('xlb_staging','xlb_staging_restore_drill_20260706T021309Z') ORDER BY SCHEMA_NAME;"
+docker compose --env-file .env.staging.example -f deploy/compose/docker-compose.staging.yml exec -e MYSQL_PWD=*** -T mysql mysql -uroot --batch --raw -N -e "SELECT SCHEMA_NAME FROM information_schema.schemata WHERE SCHEMA_NAME IN ('xlb_staging','xlb_staging_restore_drill_20260706T021309Z') ORDER BY SCHEMA_NAME;"
 ```
 
 Observed result:
@@ -225,6 +230,19 @@ Observed result:
 - Worker app: PASS.
 - Admin app: PASS.
 - Script result: `smoke-staging: passed`.
+
+## Evidence Hygiene
+
+Follow-up audit result: the raw SQL artifact is not retained in git. It contained staging-only data, but it was still a full database dump with synthetic customer identifiers, worker identifiers, mock provider trade numbers, ledger/refund rows, and masked worker phone values. The repository now retains only a manifest, checksum, size, command shape, row-count verification, and the safe drill log.
+
+Sensitive scan summary:
+
+- Private keys: none found.
+- Real email addresses: none found.
+- Real phone numbers: none found; only masked demo worker phone values were present.
+- Live payment credentials: none found; mock provider trade numbers were present.
+- Production-looking hostnames or production DB data: none found.
+- Decision: raw SQL dump removed from current repo; future `docs/release/evidence/*.sql` artifacts are ignored.
 
 ## Rollback Relevance
 
