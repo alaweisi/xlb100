@@ -1,56 +1,67 @@
-# @xlb/ui Component Manifest (Phase 15)
+# @xlb/ui Component Manifest (Phase 15.3V - Structure Landing)
 
-## Purpose
+## Scope and Principle
 
-This manifest records UI components that must remain presentation-layer only and not encode business rules.
+This manifest records the package-level presentation surface after five-layer structure landing.
 
-## Layered responsibility
+- `packages/ui` hosts **tokens**, **primitives**, **patterns**, and **templates**.
+- App behavior, route orchestration, api-client calls and adapters stay outside components.
+- No UI package component may call backend APIs or embed backend-driven decisions.
+- `WorkflowUiBinding` is a view model contract: components render from it, not compute it.
 
-- Presentational components: render workflow/strategy state, action slots, and themed surfaces.
-- Business translation: `WorkflowUiBinding` adapters (in apps).
-- No component in `packages/ui` may:
-  - invent executable actions,
-  - compute permissions/audit/idempotency,
-  - call backend APIs directly,
-  - branch on workflow semantics beyond display state.
+## Layer Contract
 
-## Registered Components
+### Tokens
+- `packages/ui/src/tokens/`
+- Base token values, theme overrides, `ThemeProvider`, `themeRegistry`, and token types.
 
-### Layout / Surface
-- `RuntimeThemeSurface`
-- `BottomNav`, `ActionDock`
-- `SectionHeader`, `Card`, `WorkflowStatePanel`
+### Primitives
+- `packages/ui/src/components/primitives/`
+- Rendering atoms and generic controls (`Button`, `Card`, `Badge`, `Input`, `Select`, `Textarea`, ...).
+- No business imports. No API imports.
 
-### Workflow Expression
-- `WorkflowTimeline`
-- `WorkflowStatePanel`
-- `DisabledReasonText`
-- `CustomerAnswerCard`
-- `WorkerAnswerCard`
-- `NotWiredState`
+### Patterns
+- `packages/ui/src/components/patterns/`
+- Business-facing display widgets built from props:
+  - `PromoBanner`
+  - `OrderStatusBadge`
+  - `ServiceDiscoveryCard`
+  - `CustomerQuoteCard`
+  - `WorkerKpiCard`
+  - `NotWiredState`
+  - `ApiErrorPanel`
+  - `CustomerAnswerCard`
+  - `WorkerAnswerCard`
+  - `RuntimeThemeSurface`
+  - `WorkflowTimeline`
+  - `WorkflowStatePanel`
+- No network calls.
 
-### Data Widgets
-- `ServiceCard`
-- `CustomerQuoteCard`
-- `WorkerStatusCard`
-- `WorkerTaskCard`
-- `OrderCard`
-- `StatCard`
-- `AdminToolbar`
-- `ScopeBadge`
-- `StateBadge`
-- `Table`
+### Templates
+- `packages/ui/src/templates/`
+- Structural page shells that compose primitives/patterns:
+  - `CustomerHomeTemplate`
+  - `CustomerServicesTemplate`
+  - `CustomerOrderCreateTemplate`
+  - `CustomerOrdersTemplate`
+  - `CustomerProfileTemplate`
+  - `WorkerGrabHallTemplate`
 
-### Utilities
-- `ApiErrorPanel`
+### Page Routes
+- Routing and stateful orchestration remain in `apps/customer/src/pages/` and `apps/customer/src/app/App.tsx`.
 
-## Versioned Boundary
+## API and Workflow Rule
 
-- Business route behavior is owned by app adapters and app pages.
-- Theme tokens are owned by token runtime in `packages/ui/tokens` and injected via `ThemeProvider`.
-- Any request that extends component behavior to business decisions must be routed through app-layer adapter redesign, not component changes.
+- `packages/ui` may consume:
+  - `WorkflowUiBinding`
+  - View model props from adapters
+  - Runtime theme bindings
+- `packages/ui` must not:
+  - create business actions
+  - decide audit/permissions/idempotency/dispatch/policy state
+  - request backend data
 
-## Verification
+## Registry Alignment
 
-- `packages/ui` components are allowed to consume `WorkflowUiBinding` fields as display input, but must not mutate or override business meaning.
-- All "real device shell", mobile mode behavior, and route orchestration logic belongs outside component internals unless purely layout-only.
+- Registered components in this phase are aligned with exports in `packages/ui/src/index.ts` and layer directories.
+- Storybook is not wired yet; manifest defines the contract for future Storybook/contract-mock coverage.
