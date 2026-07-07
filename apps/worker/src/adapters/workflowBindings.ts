@@ -50,15 +50,15 @@ function action(
 
 export const workerWorkflowActions = {
   waitForTaskPool: () =>
-    action("worker.taskPool.waitForBackend", "Wait for real task-pool API", "not-wired", "API_NOT_AVAILABLE", "/api/worker/task-pool", "GET"),
+    action("worker.taskPool.waitForBackend", "等待真实任务池", "not-wired", "API_NOT_AVAILABLE", "/api/worker/task-pool", "GET"),
   waitForAccept: () =>
-    action("worker.accept.disabled", "Accept not enabled", "not-wired", "WORKFLOW_NOT_IMPLEMENTED", "/api/worker/tasks/:dispatchTaskId/accept", "POST"),
+    action("worker.accept.disabled", "接单未开放", "not-wired", "WORKFLOW_NOT_IMPLEMENTED", "/api/worker/tasks/:dispatchTaskId/accept", "POST"),
   waitForFulfillment: () =>
-    action("worker.fulfillment.disabled", "Fulfillment not wired", "not-wired", "WORKFLOW_NOT_IMPLEMENTED", "/api/worker/fulfillments/:id/start", "POST"),
-  waitForWallet: () => action("worker.wallet.disabled", "Wallet not wired", "not-wired", "API_NOT_AVAILABLE"),
-  waitForProfile: () => action("worker.profile.disabled", "Profile not wired", "not-wired", "API_NOT_AVAILABLE"),
+    action("worker.fulfillment.disabled", "履约未接线", "not-wired", "WORKFLOW_NOT_IMPLEMENTED", "/api/worker/fulfillments/:id/start", "POST"),
+  waitForWallet: () => action("worker.wallet.disabled", "收益未接线", "not-wired", "API_NOT_AVAILABLE"),
+  waitForProfile: () => action("worker.profile.disabled", "资料未接线", "not-wired", "API_NOT_AVAILABLE"),
   waitForCertification: () =>
-    action("worker.certification.disabled", "Certification not wired", "not-wired", "API_NOT_AVAILABLE", "/api/worker/certifications", "POST"),
+    action("worker.certification.disabled", "认证未接线", "not-wired", "API_NOT_AVAILABLE", "/api/worker/certifications", "POST"),
 };
 
 function baseBinding(route: WorkerWorkflowRoute): Pick<WorkflowUiBinding, "actor" | "route" | "runtimeThemeTokens"> {
@@ -83,10 +83,10 @@ function notWiredPolicy(reasonCode: WorkflowDisabledReason, userCopy: string, ac
     userCopy,
     allowedUi: "guardrail",
     forbiddenClaims: [
-      "No fabricated tasks",
-      "No fabricated accept eligibility",
-      "No fabricated income",
-      "No frontend-created accept success",
+      "不得编造任务",
+      "不得编造接单资格",
+      "不得编造收入",
+      "不得前端自造接单成功",
     ],
     allowedActions: actions,
   };
@@ -107,20 +107,20 @@ export function createWorkerWorkflowBinding(input: CreateWorkerBindingInput): Wo
       },
       state: {
         stateId: "task-pool.not-wired",
-        label: "Task pool is not wired",
+        label: "任务池未接线",
         source: "not-wired-policy",
         workerAnswer: {
           canAcceptOrder: false,
           blockedReason: "API_NOT_AVAILABLE",
-          nextStep: "Wait for real task pool, city binding, and eligibility results",
+          nextStep: "等待真实任务池、城市绑定和资格结果",
           walletWired: false,
         },
       },
       availableActions: actions,
       disabledReasons: ["API_NOT_AVAILABLE", "WORKFLOW_NOT_IMPLEMENTED"],
       workerFacingCopy: {
-        title: "Worker hall",
-        body: "Tasks, eligibility, and accept actions must come from backend workflow.",
+        title: "师傅接单大厅",
+        body: "任务、资格和接单动作必须来自后端 workflow。",
       },
       uiSlots: ["pageHero", "summaryCard", "stateBadge", "guardrail", "notWired", "emptyState", "bottomNav", "themeSurface"],
       figmaBinding: {
@@ -130,7 +130,7 @@ export function createWorkerWorkflowBinding(input: CreateWorkerBindingInput): Wo
         localPng: "docs/design/figma/frames/worker/worker_grabhall_online_1-1515.png",
       },
       packagesUiComponents: ["WorkerStatusCard", "ActionDock", "WorkerAnswerCard", "WorkflowTimeline", "NotWiredState"],
-      notWiredPolicy: notWiredPolicy("API_NOT_AVAILABLE", "Real task pool and accept eligibility are not wired yet.", actions),
+      notWiredPolicy: notWiredPolicy("API_NOT_AVAILABLE", "真实任务池和接单资格尚未接线。", actions),
     };
   }
 
@@ -146,20 +146,20 @@ export function createWorkerWorkflowBinding(input: CreateWorkerBindingInput): Wo
       },
       state: {
         stateId: "fulfillment.not-wired",
-        label: "Fulfillment tasks are not wired",
+        label: "履约任务未接线",
         source: "not-wired-policy",
         workerAnswer: {
           canAcceptOrder: false,
           blockedReason: "WORKFLOW_NOT_IMPLEMENTED",
-          nextStep: "Wait for real fulfillment list and state machine",
+          nextStep: "等待真实履约列表和状态机",
           walletWired: false,
         },
       },
       availableActions: actions,
       disabledReasons: ["WORKFLOW_NOT_IMPLEMENTED"],
       workerFacingCopy: {
-        title: "Worker tasks",
-        body: "Fulfillment state and actions must come from backend workflow.",
+        title: "师傅任务",
+        body: "履约状态和动作必须来自后端 workflow。",
       },
       uiSlots: ["workflowTimeline", "stateBadge", "guardrail", "notWired", "emptyState", "apiError", "bottomNav", "themeSurface"],
       figmaBinding: {
@@ -168,7 +168,7 @@ export function createWorkerWorkflowBinding(input: CreateWorkerBindingInput): Wo
         nodeId: "1:2452 / 1:2543",
       },
       packagesUiComponents: ["WorkerTaskCard", "ActionDock", "WorkerAnswerCard", "WorkflowTimeline", "NotWiredState"],
-      notWiredPolicy: notWiredPolicy("WORKFLOW_NOT_IMPLEMENTED", "Fulfillment list and actions are not wired yet.", actions),
+      notWiredPolicy: notWiredPolicy("WORKFLOW_NOT_IMPLEMENTED", "履约列表和动作尚未接线。", actions),
     };
   }
 
@@ -184,20 +184,20 @@ export function createWorkerWorkflowBinding(input: CreateWorkerBindingInput): Wo
       },
       state: {
         stateId: "wallet.not-wired",
-        label: "Wallet API is not wired",
+        label: "收益 API 未接线",
         source: "not-wired-policy",
         workerAnswer: {
           canAcceptOrder: false,
           blockedReason: "API_NOT_AVAILABLE",
-          nextStep: "Wait for worker income/wallet API",
+          nextStep: "等待师傅收入/钱包 API",
           walletWired: false,
         },
       },
       availableActions: actions,
       disabledReasons: ["API_NOT_AVAILABLE", "PHASE_BOUNDARY"],
       workerFacingCopy: {
-        title: "Worker wallet",
-        body: "Income, withdrawal, and settlement records must not be fabricated by frontend.",
+        title: "师傅收益",
+        body: "收入、提现和结算记录不得由前端编造。",
       },
       uiSlots: ["summaryCard", "notWired", "guardrail", "bottomNav", "themeSurface"],
       figmaBinding: {
@@ -206,7 +206,7 @@ export function createWorkerWorkflowBinding(input: CreateWorkerBindingInput): Wo
         nodeId: "1:2742",
       },
       packagesUiComponents: ["MetricCard", "ActionDock", "WorkerAnswerCard", "NotWiredState"],
-      notWiredPolicy: notWiredPolicy("API_NOT_AVAILABLE", "Income, wallet, and withdrawal capabilities are not wired to real APIs.", actions),
+      notWiredPolicy: notWiredPolicy("API_NOT_AVAILABLE", "收入、钱包和提现能力尚未接入真实 API。", actions),
     };
   }
 
@@ -222,21 +222,21 @@ export function createWorkerWorkflowBinding(input: CreateWorkerBindingInput): Wo
       },
       state: {
         stateId: "certification.not-wired",
-        label: "Certification status is not wired",
+        label: "认证状态未接线",
         source: "not-wired-policy",
         workerAnswer: {
           canAcceptOrder: false,
           certificationPassed: undefined,
           blockedReason: "API_NOT_AVAILABLE",
-          nextStep: "Wait for certification status and eligibility API",
+          nextStep: "等待认证状态和资格 API",
           walletWired: false,
         },
       },
       availableActions: actions,
       disabledReasons: ["API_NOT_AVAILABLE", "IDENTITY_REQUIRED"],
       workerFacingCopy: {
-        title: "Worker certification",
-        body: "Certification state must not be decided locally by the page.",
+        title: "师傅认证",
+        body: "认证状态不得由页面本地判断。",
       },
       uiSlots: ["stateBadge", "guardrail", "notWired", "bottomNav", "themeSurface"],
       figmaBinding: {
@@ -246,7 +246,7 @@ export function createWorkerWorkflowBinding(input: CreateWorkerBindingInput): Wo
         notes: "No standalone certification frame; bound to Worker Mine surface.",
       },
       packagesUiComponents: ["Card", "ActionDock", "WorkerAnswerCard", "NotWiredState"],
-      notWiredPolicy: notWiredPolicy("API_NOT_AVAILABLE", "Certification status and service city are not wired yet.", actions),
+      notWiredPolicy: notWiredPolicy("API_NOT_AVAILABLE", "认证状态和服务城市尚未接线。", actions),
     };
   }
 
@@ -261,20 +261,20 @@ export function createWorkerWorkflowBinding(input: CreateWorkerBindingInput): Wo
     },
     state: {
       stateId: "profile.not-wired",
-      label: "Worker profile is not wired",
+      label: "师傅资料未接线",
       source: "not-wired-policy",
       workerAnswer: {
         canAcceptOrder: false,
         blockedReason: "API_NOT_AVAILABLE",
-        nextStep: "Wait for profile/certification API",
+        nextStep: "等待资料/认证 API",
         walletWired: false,
       },
     },
     availableActions: actions,
     disabledReasons: ["API_NOT_AVAILABLE", "IDENTITY_REQUIRED"],
     workerFacingCopy: {
-      title: "Worker profile",
-      body: "Profile, service city, and certification state must come from backend.",
+      title: "师傅资料",
+      body: "资料、服务城市和认证状态必须来自后端。",
     },
     uiSlots: ["summaryCard", "stateBadge", "guardrail", "notWired", "bottomNav", "themeSurface"],
     figmaBinding: {
@@ -283,6 +283,6 @@ export function createWorkerWorkflowBinding(input: CreateWorkerBindingInput): Wo
       nodeId: "1:2811",
     },
     packagesUiComponents: ["Card", "ActionDock", "WorkerAnswerCard", "NotWiredState"],
-    notWiredPolicy: notWiredPolicy("API_NOT_AVAILABLE", "Worker profile, certification status, and service city are not wired yet.", actions),
+    notWiredPolicy: notWiredPolicy("API_NOT_AVAILABLE", "师傅资料、认证状态和服务城市尚未接线。", actions),
   };
 }

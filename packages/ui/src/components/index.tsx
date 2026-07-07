@@ -813,7 +813,7 @@ export function ActionDock({
             onClick={() => {
               if (action.enabled) onAction?.(action);
             }}
-            style={{ minHeight: compact ? 34 : 40 }}
+            style={{ flex: compact ? "0 0 auto" : "1 1 160px", minHeight: compact ? 34 : 44 }}
             title={action.disabledReasonCode ? disabledReasonCopy[action.disabledReasonCode] : action.actionId}
             variant={action.danger ? "danger" : action.enabled ? "primary" : "secondary"}
           >

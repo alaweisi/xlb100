@@ -66,41 +66,41 @@ function notWiredAction(actionId: string, label: string, reasonCode: WorkflowDis
 
 export const customerWorkflowActions = {
   retryCatalog: () =>
-    action("customer.catalog.retry", "Retry catalog", "api-derived", {
+    action("customer.catalog.retry", "重试目录", "api-derived", {
       endpoint: "/api/catalog",
       method: "GET",
     }),
-  openServices: () => action("customer.services.open", "All services", "api-derived"),
+  openServices: () => action("customer.services.open", "全部服务", "api-derived"),
   selectService: (skuId: string) =>
-    action("customer.catalog.selectSku", "Select", "api-derived", {
+    action("customer.catalog.selectSku", "选择", "api-derived", {
       enabled: Boolean(skuId),
       disabledReasonCode: "STATE_NOT_ACTIONABLE",
     }),
   retryQuote: (skuId?: string) =>
-    action("customer.pricing.retryQuote", "Retry quote", "api-derived", {
+    action("customer.pricing.retryQuote", "重试报价", "api-derived", {
       enabled: Boolean(skuId),
       disabledReasonCode: "STATE_NOT_ACTIONABLE",
       endpoint: "/api/pricing/quote?skuId=:skuId",
       method: "GET",
     }),
   submitOrder: (quoteReady: boolean, selectedSkuId: boolean, submitting: boolean) =>
-    action("customer.order.submit", submitting ? "Submitting" : "Submit real order", "backend", {
+    action("customer.order.submit", submitting ? "提交中" : "提交订单", "backend", {
       enabled: quoteReady && selectedSkuId && !submitting,
       disabledReasonCode: quoteReady ? "STATE_NOT_ACTIONABLE" : "API_NOT_AVAILABLE",
       endpoint: "/api/orders",
       method: "POST",
     }),
-  viewOrders: () => action("customer.orders.open", "View orders", "api-derived"),
+  viewOrders: () => action("customer.orders.open", "查看订单", "api-derived"),
   retryOrderDetails: (hasOrderIds: boolean) =>
-    action("customer.orders.retryDetails", "Retry order details", "api-derived", {
+    action("customer.orders.retryDetails", "重试订单详情", "api-derived", {
       enabled: hasOrderIds,
       disabledReasonCode: "WORKFLOW_NOT_IMPLEMENTED",
       endpoint: "/api/orders/:orderId",
       method: "GET",
     }),
-  profileUnavailable: () => notWiredAction("customer.profile.unavailable", "Profile not wired", "API_NOT_AVAILABLE"),
-  addressUnavailable: () => notWiredAction("customer.address.unavailable", "Address not wired", "API_NOT_AVAILABLE"),
-  authUnavailable: () => notWiredAction("customer.auth.unavailable", "Account settings not wired", "API_NOT_AVAILABLE"),
+  profileUnavailable: () => notWiredAction("customer.profile.unavailable", "资料未接线", "API_NOT_AVAILABLE"),
+  addressUnavailable: () => notWiredAction("customer.address.unavailable", "地址未接线", "API_NOT_AVAILABLE"),
+  authUnavailable: () => notWiredAction("customer.auth.unavailable", "账号设置未接线", "API_NOT_AVAILABLE"),
 };
 
 export function runWorkflowAction(actionContract: WorkflowActionContract, handler: () => void) {
@@ -137,20 +137,20 @@ export function createCustomerWorkflowBinding(input: CreateCustomerBindingInput)
       },
       state: {
         stateId: "catalog.ready-or-loading",
-        label: "Catalog is backend sourced",
+        label: "目录来自后端",
         source: "api-contract",
         customerAnswer: {
-          currentStep: `Browse ${input.cityCode} service catalog`,
-          nextAvailableStep: "Select a real SKU before order creation",
-          recoveryPath: "Retry GET /api/catalog when catalog loading fails",
+          currentStep: `浏览 ${input.cityCode} 服务目录`,
+          nextAvailableStep: "选择真实 SKU 后进入下单",
+          recoveryPath: "目录失败时重试 GET /api/catalog",
         },
       },
       availableActions: [customerWorkflowActions.openServices(), customerWorkflowActions.retryCatalog()],
       disabledReasons: [],
       customerFacingCopy: {
-        title: "Customer catalog",
-        body: "Catalog, quote, and order creation are backed by existing APIs.",
-        primaryCta: "All services",
+        title: "用户服务目录",
+        body: "目录、报价和下单均由现有 API 支撑。",
+        primaryCta: "全部服务",
       },
       uiSlots: ["pageHero", "summaryCard", "emptyState", "apiError", "bottomNav", "themeSurface"],
       figmaBinding: {
@@ -174,19 +174,19 @@ export function createCustomerWorkflowBinding(input: CreateCustomerBindingInput)
       },
       state: {
         stateId: "catalog.filtering",
-        label: "Filtering backend catalog",
+        label: "筛选后端目录",
         source: "frontend-derived-from-api",
         customerAnswer: {
-          currentStep: "Filter service SKUs returned by backend catalog",
-          nextAvailableStep: "Select a SKU and read pricing quote",
-          recoveryPath: "Retry GET /api/catalog when catalog loading fails",
+          currentStep: "筛选后端 catalog 返回的服务 SKU",
+          nextAvailableStep: "选择 SKU 并读取报价",
+          recoveryPath: "目录失败时重试 GET /api/catalog",
         },
       },
       availableActions: [customerWorkflowActions.retryCatalog()],
       disabledReasons: [],
       customerFacingCopy: {
-        title: "Service selection",
-        body: "Filtering and selection are limited to backend catalog SKUs.",
+        title: "服务选择",
+        body: "筛选和选择只基于后端 catalog SKU。",
       },
       uiSlots: ["summaryCard", "emptyState", "apiError", "bottomNav", "themeSurface"],
       figmaBinding: {
@@ -219,13 +219,13 @@ export function createCustomerWorkflowBinding(input: CreateCustomerBindingInput)
       },
       state: {
         stateId: input.quoteReady ? "quote.ready" : "quote.required",
-        label: input.quoteReady ? "Quote ready for order creation" : "Waiting for real quote",
+        label: input.quoteReady ? "报价已就绪" : "等待真实报价",
         source: "frontend-derived-from-api",
         customerAnswer: {
-          currentStep: input.quoteReady ? "Real quote received" : "Read a real quote first",
-          nextAvailableStep: submitAction.enabled ? "Submit a real order and create payment order" : "Wait for actionable API state",
+          currentStep: input.quoteReady ? "已收到真实报价" : "先读取真实报价",
+          nextAvailableStep: submitAction.enabled ? "提交真实订单并创建支付单" : "等待可执行 API 状态",
           blockedReason: submitAction.disabledReasonCode ?? undefined,
-          recoveryPath: "Retry GET /api/pricing/quote when quote loading fails",
+          recoveryPath: "报价失败时重试 GET /api/pricing/quote",
         },
       },
       availableActions: [
@@ -235,8 +235,8 @@ export function createCustomerWorkflowBinding(input: CreateCustomerBindingInput)
       ],
       disabledReasons,
       customerFacingCopy: {
-        title: "Order confirmation",
-        body: "Order and payment order are displayed only after real API success.",
+        title: "订单确认",
+        body: "订单和支付单只在真实 API 成功后展示。",
         primaryCta: submitAction.label,
       },
       uiSlots: ["summaryCard", "primaryActionDock", "workflowTimeline", "stateBadge", "apiError", "guardrail", "themeSurface"],
@@ -262,20 +262,20 @@ export function createCustomerWorkflowBinding(input: CreateCustomerBindingInput)
       },
       state: {
         stateId: "order.list.not-wired",
-        label: "Order list API is not wired",
+        label: "订单列表 API 未接线",
         source: "not-wired-policy",
         customerAnswer: {
-          currentStep: "Only re-read real order details created in this browser session",
-          nextAvailableStep: input.hasOrderIds ? "Read order details" : "Create a real order first",
+          currentStep: "只复查本浏览器真实创建过的订单详情",
+          nextAvailableStep: input.hasOrderIds ? "读取订单详情" : "先创建真实订单",
           blockedReason: "WORKFLOW_NOT_IMPLEMENTED",
-          recoveryPath: "Use order detail API after a real order is created",
+          recoveryPath: "真实订单创建后使用订单详情 API",
         },
       },
       availableActions: [readAction],
       disabledReasons: ["WORKFLOW_NOT_IMPLEMENTED"],
       customerFacingCopy: {
-        title: "Order progress",
-        body: "Order list API is not wired, so the page must not show fabricated orders.",
+        title: "订单进度",
+        body: "订单列表 API 未接线，页面不得展示本地编造订单。",
       },
       uiSlots: ["workflowTimeline", "stateBadge", "notWired", "emptyState", "apiError", "bottomNav", "themeSurface"],
       figmaBinding: {
@@ -287,7 +287,7 @@ export function createCustomerWorkflowBinding(input: CreateCustomerBindingInput)
       packagesUiComponents: ["OrderCard", "WorkflowTimeline", "NotWiredState", "ActionDock", "CustomerAnswerCard"],
       notWiredPolicy: {
         reasonCode: "WORKFLOW_NOT_IMPLEMENTED",
-        userCopy: "Backend does not yet provide a customer order-list API.",
+        userCopy: "后端尚未提供 C 端订单列表 API。",
         allowedUi: "read-only-shell",
         forbiddenClaims: ["No fabricated order list", "No fabricated cancel success", "No fabricated dispatch state"],
         allowedActions: [readAction],
@@ -305,13 +305,13 @@ export function createCustomerWorkflowBinding(input: CreateCustomerBindingInput)
     },
     state: {
       stateId: "profile.not-wired",
-      label: "Profile API is not wired",
+      label: "资料 API 未接线",
       source: "not-wired-policy",
       customerAnswer: {
-        currentStep: "Show account capability boundary only",
-        nextAvailableStep: "Wait for profile/address/auth APIs",
+        currentStep: "仅展示账户能力边界",
+        nextAvailableStep: "等待资料、地址、登录态 API",
         blockedReason: "API_NOT_AVAILABLE",
-        recoveryPath: "Continue using wired catalog, quote, and order capabilities",
+        recoveryPath: "继续使用已接线的目录、报价和下单能力",
       },
     },
     availableActions: [
@@ -321,8 +321,8 @@ export function createCustomerWorkflowBinding(input: CreateCustomerBindingInput)
     ],
     disabledReasons: ["API_NOT_AVAILABLE", "IDENTITY_REQUIRED"],
     customerFacingCopy: {
-      title: "Customer profile",
-      body: "Profile, address book, and account settings are not wired to real APIs.",
+      title: "用户资料",
+      body: "资料、地址簿和账号设置尚未接入真实 API。",
     },
     uiSlots: ["notWired", "summaryCard", "bottomNav", "themeSurface"],
     figmaBinding: {
@@ -333,7 +333,7 @@ export function createCustomerWorkflowBinding(input: CreateCustomerBindingInput)
     packagesUiComponents: ["Card", "NotWiredState", "ActionDock", "CustomerAnswerCard"],
     notWiredPolicy: {
       reasonCode: "API_NOT_AVAILABLE",
-      userCopy: "Backend does not yet provide C-side profile, address, or account settings APIs.",
+      userCopy: "后端尚未提供 C 端资料、地址或账号设置 API。",
       allowedUi: "guardrail",
       forbiddenClaims: ["No fabricated customer profile", "No fabricated address", "No fabricated login state"],
       allowedActions: [],

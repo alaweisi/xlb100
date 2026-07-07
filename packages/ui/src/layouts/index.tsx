@@ -112,6 +112,8 @@ export interface NavItem {
   active?: boolean;
   href?: string;
   onClick?: () => void;
+  icon?: ReactNode;
+  prominent?: boolean;
 }
 
 export function BottomNav({ items, style }: { items: NavItem[]; style?: CSSProperties }) {
@@ -139,15 +141,41 @@ export function BottomNav({ items, style }: { items: NavItem[]; style?: CSSPrope
             }
           }}
           style={{
-            color: item.active ? tokens.colors.primary : "#4b5563",
-            fontSize: 12,
+            alignItems: "center",
+            color: item.prominent ? "var(--xlb-role-accent, #B85F2A)" : item.active ? "var(--xlb-role-accent, #B85F2A)" : "#4b5563",
+            display: "grid",
+            fontSize: 11,
             fontWeight: item.active ? 700 : 500,
-            padding: "10px 6px",
+            gap: 3,
+            justifyItems: "center",
+            minHeight: 54,
+            padding: item.prominent ? "0 6px 8px" : "8px 6px 9px",
             textAlign: "center",
             textDecoration: "none",
           }}
         >
-          {item.label}
+          {item.icon && (
+            <span
+              aria-hidden="true"
+              style={{
+                alignItems: "center",
+                background: item.prominent ? "var(--xlb-role-accent, #B85F2A)" : "transparent",
+                borderRadius: 999,
+                boxShadow: item.prominent ? "0 10px 22px rgba(184, 95, 42, 0.28)" : "none",
+                color: item.prominent ? "#ffffff" : "currentColor",
+                display: "inline-flex",
+                fontSize: item.prominent ? 26 : 21,
+                height: item.prominent ? 58 : 24,
+                justifyContent: "center",
+                lineHeight: 1,
+                marginTop: item.prominent ? -30 : 0,
+                width: item.prominent ? 58 : 24,
+              }}
+            >
+              {item.icon}
+            </span>
+          )}
+          <span style={{ lineHeight: "14px", whiteSpace: "nowrap" }}>{item.label}</span>
         </a>
       ))}
     </nav>
