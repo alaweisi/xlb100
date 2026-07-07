@@ -823,6 +823,35 @@ Manual confirmation points:
   - Production deployment: no.
   - tag: not created.
 
+## Phase 15.3M-GATEFIX Customer Capacitor Asset Security Gatefix
+
+- Status: completed locally, pending commit.
+- Scope:
+  - `scripts/check-settlement-confirm-no-provider-withdraw-ui.ps1`
+  - `scripts/check-settlement-payable-no-provider-withdraw-ui.ps1`
+  - `scripts/check-settlement-payable-queue-no-provider-withdraw-ui.ps1`
+  - `scripts/check-worker-receivable-statement-export-no-provider-withdraw-ui.ps1`
+  - `scripts/check-worker-receivable-statement-no-provider-withdraw-ui.ps1`
+  - `scripts/check-worker-receivable-statement-review-no-provider-withdraw-ui.ps1`
+  - `docs/reports/PHASE15_3M_CUSTOMER_CAPACITOR_SECURITY_GATEFIX_REPORT.md`
+  - `docs/execution/PHASE15_PROGRESS.md`
+- Root test symptom:
+  - `pnpm test -- --bail=1` failed at Phase 8x gates (8C/8D/8E/8F/8G/8H) due to false-positive security gate filtering.
+  - New readiness artifacts in `apps/customer/capacitor.config.ts`, `apps/customer/public/manifest.webmanifest`, and `apps/customer/public/icons/*` were not in legacy allowlist.
+- Fix applied:
+  - Minimal precision allowlist added only for the above readiness files.
+  - `apps/customer/public/icons/*` allowed for icon directory.
+  - File suffix filter extended to include `tsx?`, `jsx?`, `ts`, `json`, `svg` so non-code assets in legacy scanning paths no longer cause unrelated misses.
+- Verification:
+  - `pnpm --filter @xlb/customer typecheck`: PASS
+  - `pnpm --filter @xlb/customer build`: PASS
+  - `pnpm test -- --bail=1`: PASS (255 test files, 1048 tests)
+  - `git diff --check`: PASS
+- Safety checks:
+  - No production/db/deploy/infra code touched.
+  - No `server.url` / localhost staging hardcode / credential fields found in readiness artifacts.
+  - Security gate script checks remain in place with narrower, targeted allowlist.
+
 ## Phase 15.3U Frontend UI System Layers
 
 - Status: completed locally, pending commit.
