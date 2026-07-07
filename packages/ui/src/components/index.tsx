@@ -810,10 +810,33 @@ export function WorkOrderCard({ title, status, location, timeWindow, priceText, 
 
 export const WorkerTaskCard = WorkOrderCard;
 
-export function PriceText({ amount, currency = "CNY" }: { amount: number; currency?: string }) {
+export function PriceText({
+  amount,
+  currency = "CNY",
+  unit = "major",
+  style,
+}: {
+  amount: number;
+  currency?: string;
+  unit?: "major" | "minor";
+  style?: CSSProperties;
+}) {
+  const value = unit === "minor" ? amount / 100 : amount;
+  const prefix = currency === "CNY" ? "¥" : `${currency} `;
   return (
-    <span style={{ color: tokens.colors.text, fontFamily, fontVariantNumeric: "tabular-nums", fontWeight: 700 }}>
-      {currency} {(amount / 100).toFixed(2)}
+    <span
+      style={mergeStyle(
+        {
+          color: tokens.colors.text,
+          fontFamily,
+          fontVariantNumeric: "tabular-nums",
+          fontWeight: 700,
+        },
+        style,
+      )}
+    >
+      {prefix}
+      {value.toFixed(2)}
     </span>
   );
 }

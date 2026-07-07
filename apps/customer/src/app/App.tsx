@@ -3,7 +3,6 @@ import type { CSSProperties, ReactNode } from "react";
 import type { CatalogSnapshot, CityCode, Order, PaymentOrder, PriceQuote, ServiceSku } from "@xlb/types";
 import { XLB_HEADERS } from "@xlb/types";
 import {
-  Badge,
   BottomNav,
   Button,
   Card,
@@ -14,11 +13,14 @@ import {
   LoadingState,
   MobileShell,
   OrderCard,
+  PriceText,
   SearchBar,
   Select,
   ServiceCard,
   Skeleton,
+  StatusTag,
   Tabs,
+  Timeline,
   TopBar,
 } from "@xlb/ui";
 import { createApiClient, customerApi } from "../../../../packages/api-client/src/index";
@@ -29,6 +31,12 @@ type Loadable<T> =
   | { status: "success"; data: T; error?: undefined }
   | { status: "error"; data?: T; error: string };
 
+type CatalogSku = ServiceSku & {
+  categoryId: string;
+  categoryName: string;
+  itemName: string;
+};
+
 const DEFAULT_CITY: CityCode = "hangzhou";
 const CUSTOMER_ID = "customer-demo-001";
 const CITY_STORAGE_KEY = "xlb.customer.cityCode";
@@ -36,18 +44,30 @@ const ORDER_HISTORY_KEY = "xlb.customer.orderIds";
 const cityOptions: CityCode[] = ["hangzhou", "shanghai", "beijing"];
 
 const routeConfig: Record<CustomerRoute, { label: string; href: string; title: string }> = {
-  home: { label: "首页", href: "/customer/", title: "安心到家维修" },
-  services: { label: "服务", href: "/customer/services", title: "选择服务项目" },
-  createOrder: { label: "下单", href: "/customer/order/create", title: "填写上门信息" },
-  orders: { label: "订单", href: "/customer/orders", title: "服务进度" },
-  profile: { label: "我的", href: "/customer/profile", title: "账户入口" },
+  home: { label: "首页", href: "/customer/", title: "喜乐帮到家" },
+  services: { label: "服务", href: "/customer/services", title: "选择服务" },
+  createOrder: { label: "下单", href: "/customer/order/create", title: "确认下单" },
+  orders: { label: "订单", href: "/customer/orders", title: "订单进度" },
+  profile: { label: "我的", href: "/customer/profile", title: "我的" },
 };
 
 const shellStyle = {
   "--xlb-role-accent": "#B85F2A",
-  background: "#FFFAF0",
+  background: "linear-gradient(180deg, #fff7ed 0%, #f8fafc 42%, #f9fafb 100%)",
   minHeight: "100vh",
 } as CSSProperties;
+
+const sectionGrid: CSSProperties = {
+  display: "grid",
+  gap: 14,
+};
+
+const quietText: CSSProperties = {
+  color: "#64748b",
+  fontSize: 13,
+  lineHeight: "20px",
+  margin: 0,
+};
 
 function currentRoute(): CustomerRoute {
   const path = window.location.pathname.replace(/\/+$/, "") || "/";
@@ -94,9 +114,7 @@ function createCustomerApi(cityCode: CityCode) {
   );
 }
 
-function flattenSkus(
-  catalog?: CatalogSnapshot,
-): Array<ServiceSku & { categoryId: string; categoryName: string; itemName: string }> {
+function flattenSkus(catalog?: CatalogSnapshot): CatalogSku[] {
   if (!catalog) return [];
   return catalog.categories.flatMap((category) =>
     category.items.flatMap((item) =>
@@ -110,8 +128,19 @@ function flattenSkus(
   );
 }
 
-function formatMoney(amount: number, currency = "CNY") {
-  return `${currency} ${amount.toFixed(2)}`;
+function statusTone(status: string): "success" | "warning" | "danger" | "muted" {
+  if (status === "paid") return "success";
+  if (status === "cancelled" || status === "failed" || status === "closed") return "danger";
+  if (status === "pending" || status === "pending_payment" || status === "draft") return "warning";
+  return "muted";
+}
+
+function HelperText({ children }: { children: ReactNode }) {
+  return <p style={quietText}>{children}</p>;
+}
+
+function Eyebrow({ children }: { children: ReactNode }) {
+  return <p style={{ color: "#B85F2A", fontSize: 12, fontWeight: 800, letterSpacing: 0, margin: 0 }}>{children}</p>;
 }
 
 function AppFrame({
@@ -127,7 +156,16 @@ function AppFrame({
     <div data-role="customer" style={shellStyle}>
       <div style={{ margin: "0 auto", maxWidth: 430, minHeight: "100vh" }}>
         <MobileShell
-          topBar={<TopBar title={routeConfig[route].title} actions={<Badge tone="success">{cityCode}</Badge>} />}
+          topBar={
+            <TopBar
+              title={routeConfig[route].title}
+              actions={
+                <StatusTag tone="success" title="city scope">
+                  {cityCode}
+                </StatusTag>
+              }
+            />
+          }
           bottomNav={
             <BottomNav
               items={(Object.keys(routeConfig) as CustomerRoute[]).map((key) => ({
@@ -139,15 +177,11 @@ function AppFrame({
             />
           }
         >
-          <div style={{ display: "grid", gap: 16 }}>{children}</div>
+          <div style={{ display: "grid", gap: 14 }}>{children}</div>
         </MobileShell>
       </div>
     </div>
   );
-}
-
-function HelperText({ children }: { children: ReactNode }) {
-  return <p style={{ color: "#4b5563", fontSize: 13, lineHeight: "20px", margin: 0 }}>{children}</p>;
 }
 
 function CitySelector({
@@ -158,8 +192,12 @@ function CitySelector({
   onCityChange: (cityCode: CityCode) => void;
 }) {
   return (
-    <Card title="服务城市">
-      <FormField label="当前城市" description="所有目录、报价、订单都会带 x-xlb-city-code 请求头。">
+    <Card
+      title="服务城市"
+      actions={<StatusTag tone="primary">同源 API</StatusTag>}
+      style={{ borderColor: "#fed7aa", boxShadow: "0 10px 28px rgba(184, 95, 42, 0.08)" }}
+    >
+      <FormField label="当前城市" description="目录、报价、下单都会携带 x-xlb-city-code。">
         <Select value={cityCode} onChange={(event) => onCityChange(event.target.value as CityCode)}>
           {cityOptions.map((city) => (
             <option key={city} value={city}>
@@ -183,11 +221,11 @@ function CatalogState({
 }) {
   if (catalogState.status === "loading") {
     return (
-      <Card title="服务目录加载中">
+      <Card title="服务目录加载中" actions={<StatusTag tone="primary">loading</StatusTag>}>
         <div style={{ display: "grid", gap: 10 }}>
           <Skeleton style={{ height: 18, width: "70%" }} />
           <Skeleton style={{ height: 18, width: "86%" }} />
-          <Skeleton style={{ height: 88 }} />
+          <Skeleton style={{ height: 96 }} />
         </div>
       </Card>
     );
@@ -229,13 +267,22 @@ function HomePage({
 
   return (
     <>
-      <Card>
-        <p style={{ color: "#B85F2A", fontSize: 13, fontWeight: 700, margin: 0 }}>{cityCode} · 同源 API</p>
-        <h1 style={{ color: "#2B2118", fontSize: 28, lineHeight: "36px", margin: "8px 0" }}>安心到家维修</h1>
-        <HelperText>服务目录、报价与下单都读取当前后端；未开放的账户资料和全量订单列表会明确标记为 not-wired。</HelperText>
+      <Card style={{ background: "#fff7ed", borderColor: "#fed7aa", boxShadow: "0 16px 38px rgba(184, 95, 42, 0.12)" }}>
+        <div style={{ display: "grid", gap: 10 }}>
+          <Eyebrow>{cityCode} · 到家服务</Eyebrow>
+          <h1 style={{ color: "#2B2118", fontSize: 28, lineHeight: "36px", margin: 0 }}>安心到家维修</h1>
+          <HelperText>服务目录、报价与下单均来自当前后端；未开放能力继续以 not-wired 展示。</HelperText>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            <StatusTag tone="success">catalog wired</StatusTag>
+            <StatusTag tone="success">pricing wired</StatusTag>
+            <StatusTag tone="warning">profile not-wired</StatusTag>
+          </div>
+        </div>
       </Card>
+
       <CitySelector cityCode={cityCode} onCityChange={onCityChange} />
-      <SearchBar value={query} onChange={setQuery} placeholder="搜索真实服务目录" />
+      <SearchBar value={query} onChange={setQuery} placeholder="搜索真实服务目录" leadingIcon="⌕" />
+
       <CatalogState catalogState={catalogState} onRetry={onRetryCatalog}>
         {(catalog) => {
           const services = flattenSkus(catalog)
@@ -250,19 +297,28 @@ function HomePage({
           }
 
           return (
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              {services.map((sku) => (
-                <ServiceCard
-                  key={sku.skuId}
-                  title={sku.name}
-                  subtitle={`${sku.categoryName} · ${sku.itemName}`}
-                  status={<Badge tone="success">真实目录</Badge>}
-                  actionLabel="去下单"
-                  onClick={() => {
-                    window.location.href = `/customer/order/create?skuId=${encodeURIComponent(sku.skuId)}`;
-                  }}
-                />
-              ))}
+            <div style={sectionGrid}>
+              <div style={{ alignItems: "center", display: "flex", justifyContent: "space-between" }}>
+                <h2 style={{ fontSize: 16, lineHeight: "22px", margin: 0 }}>推荐服务</h2>
+                <Button onClick={() => { window.location.href = "/customer/services"; }} variant="ghost">
+                  全部
+                </Button>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                {services.map((sku) => (
+                  <ServiceCard
+                    key={sku.skuId}
+                    title={sku.name}
+                    subtitle={`${sku.categoryName} · ${sku.itemName}`}
+                    status={<StatusTag tone="success">真实目录</StatusTag>}
+                    actionLabel="去下单"
+                    onClick={() => {
+                      window.location.href = `/customer/order/create?skuId=${encodeURIComponent(sku.skuId)}`;
+                    }}
+                    style={{ minHeight: 132 }}
+                  />
+                ))}
+              </div>
             </div>
           );
         }}
@@ -283,7 +339,7 @@ function ServicesPage({
 
   return (
     <>
-      <SearchBar value={query} onChange={setQuery} placeholder="搜索服务、类目或 SKU" />
+      <SearchBar value={query} onChange={setQuery} placeholder="搜索服务、类目或 SKU" leadingIcon="⌕" />
       <CatalogState catalogState={catalogState} onRetry={onRetryCatalog}>
         {(catalog) => {
           const tabs = [
@@ -302,6 +358,9 @@ function ServicesPage({
           return (
             <>
               <Tabs activeKey={activeCategory} onChange={setActiveCategory} items={tabs} density="compact" />
+              <Card title="服务目录" actions={<StatusTag tone="success">{services.length} 项</StatusTag>}>
+                <HelperText>当前结果来自真实 catalog API。价格会在下单页读取真实报价。</HelperText>
+              </Card>
               {services.length === 0 ? (
                 <EmptyState title="没有匹配服务" description="当前结果来自真实目录 API，可以调整分类或搜索词。" />
               ) : (
@@ -311,11 +370,13 @@ function ServicesPage({
                       key={sku.skuId}
                       title={sku.name}
                       subtitle={`${sku.categoryName} · ${sku.itemName} · ${sku.unit}`}
-                      status={<Badge tone="success">可下单</Badge>}
+                      status={<StatusTag tone="success">可下单</StatusTag>}
+                      priceText="报价下单页读取"
                       actionLabel="选择"
                       onClick={() => {
                         window.location.href = `/customer/order/create?skuId=${encodeURIComponent(sku.skuId)}`;
                       }}
+                      style={{ minHeight: 104 }}
                     />
                   ))}
                 </div>
@@ -351,7 +412,7 @@ function CreateOrderPage({
     | { status: "error"; error: string }
   >({ status: "idle" });
 
-  const skus = flattenSkus(catalogState.data);
+  const skus = useMemo(() => flattenSkus(catalogState.data), [catalogState.data]);
   const selectedSku = skus.find((sku) => sku.skuId === selectedSkuId);
 
   function loadQuote(skuId: string) {
@@ -410,7 +471,7 @@ function CreateOrderPage({
     <>
       <CatalogState catalogState={catalogState} onRetry={onRetryCatalog}>
         {() => (
-          <Card title="真实下单">
+          <Card title="服务确认" actions={<StatusTag tone="primary">{cityCode}</StatusTag>}>
             <div style={{ display: "grid", gap: 12 }}>
               <FormField label="服务项目" description="选项来自真实 catalog API。">
                 <Select value={selectedSkuId} onChange={(event) => setSelectedSkuId(event.target.value)}>
@@ -433,9 +494,12 @@ function CreateOrderPage({
                 />
               </FormField>
               {selectedSku && (
-                <HelperText>
-                  已选：{selectedSku.name} · {selectedSku.unit} · {selectedSku.skuId}
-                </HelperText>
+                <ServiceCard
+                  title={selectedSku.name}
+                  subtitle={`${selectedSku.categoryName} · ${selectedSku.itemName} · ${selectedSku.unit}`}
+                  status={<StatusTag tone="success">已选择</StatusTag>}
+                  style={{ minHeight: 96 }}
+                />
               )}
             </div>
           </Card>
@@ -449,18 +513,31 @@ function CreateOrderPage({
       {quoteState.status === "success" && (
         <Card
           title="后端报价"
-          actions={<Badge tone="success">{quoteState.data.priceType}</Badge>}
+          actions={<StatusTag tone="success">{quoteState.data.priceType}</StatusTag>}
+          style={{ borderColor: "#bbf7d0" }}
         >
-          <HelperText>
-            {quoteState.data.priceText} · 单价 {formatMoney(quoteState.data.basePrice, quoteState.data.currency)} · 规则 {quoteState.data.priceRuleId}
-          </HelperText>
+          <div style={{ display: "grid", gap: 8 }}>
+            <PriceText amount={quoteState.data.basePrice} currency={quoteState.data.currency} style={{ fontSize: 24, lineHeight: "30px" }} />
+            <HelperText>{quoteState.data.priceText} · 规则 {quoteState.data.priceRuleId}</HelperText>
+          </div>
         </Card>
       )}
+
+      <Card title="下单进度" actions={<StatusTag tone={submitState.status === "success" ? "success" : "warning"}>{submitState.status}</StatusTag>}>
+        <Timeline
+          items={[
+            { key: "catalog", title: "服务目录", description: "从真实 catalog API 读取" },
+            { key: "quote", title: "报价", description: quoteState.status === "success" ? "已读取真实报价" : "等待报价 API 返回" },
+            { key: "order", title: "订单", description: submitState.status === "success" ? "后端已创建订单" : "提交后创建真实订单" },
+            { key: "payment", title: "支付单", description: submitState.status === "success" ? "后端已创建支付单，支付回调未在本页触发" : "订单创建后生成" },
+          ]}
+        />
+      </Card>
 
       <Button
         disabled={submitState.status === "submitting" || !selectedSkuId || quoteState.status !== "success"}
         onClick={submitOrder}
-        style={{ minHeight: 44, width: "100%" }}
+        style={{ minHeight: 46, width: "100%" }}
         variant="primary"
       >
         {submitState.status === "submitting" ? "提交中" : "提交真实订单"}
@@ -470,10 +547,10 @@ function CreateOrderPage({
       {submitState.status === "success" && (
         <OrderCard
           title={`订单 ${submitState.order.orderId}`}
-          status={<Badge tone={submitState.verifiedOrder.status === "paid" ? "success" : "warning"}>{submitState.verifiedOrder.status}</Badge>}
+          status={<StatusTag tone={statusTone(submitState.verifiedOrder.status)}>{submitState.verifiedOrder.status}</StatusTag>}
           description={`${submitState.order.skuName} · ${submitState.order.quantity}${submitState.order.unit} · ${cityCode}`}
           meta={`支付单 ${submitState.paymentOrder.paymentOrderId} · ${submitState.paymentOrder.status}`}
-          priceText={formatMoney(submitState.order.totalAmount, submitState.order.currency)}
+          priceText={<PriceText amount={submitState.order.totalAmount} currency={submitState.order.currency} />}
           actions={<Button onClick={() => { window.location.href = "/customer/orders"; }}>查看订单</Button>}
         >
           <HelperText>订单、支付单和复查状态均来自后端 API。支付完成回调本阶段不在 C 端页面触发。</HelperText>
@@ -508,7 +585,7 @@ function OrdersPage({
 
   return (
     <>
-      <Card title="订单列表 API 状态">
+      <Card title="订单列表 API 状态" actions={<StatusTag tone="warning">not-wired</StatusTag>}>
         <HelperText>后端当前提供订单创建与详情查询，尚未提供按用户查询订单列表。本页只复查本浏览器中真实创建过的订单 ID。</HelperText>
       </Card>
       {ordersState.status === "loading" && <LoadingState title="正在读取订单" description="逐个调用 /api/orders/:orderId。" />}
@@ -524,11 +601,18 @@ function OrdersPage({
             <OrderCard
               key={order.orderId}
               title={order.skuName}
-              status={<Badge tone={order.status === "paid" ? "success" : "warning"}>{order.status}</Badge>}
+              status={<StatusTag tone={statusTone(order.status)}>{order.status}</StatusTag>}
               description={`订单 ${order.orderId} · ${order.cityCode}`}
               meta={`${order.quantity}${order.unit} · ${order.createdAt}`}
-              priceText={formatMoney(order.totalAmount, order.currency)}
-            />
+              priceText={<PriceText amount={order.totalAmount} currency={order.currency} />}
+            >
+              <Timeline
+                items={[
+                  { key: "created", title: "订单已创建", meta: order.createdAt },
+                  { key: "payment", title: "支付状态", description: order.status },
+                ]}
+              />
+            </OrderCard>
           ))}
         </div>
       )}
@@ -539,11 +623,17 @@ function OrdersPage({
 function ProfilePage({ cityCode }: { cityCode: CityCode }) {
   return (
     <>
-      <Card title="我的">
+      <Card title="我的账户" actions={<StatusTag tone="warning">not-wired</StatusTag>}>
         <HelperText>当前本地测试身份：{CUSTOMER_ID}。该身份用于真实下单请求体和请求头，但后端尚未提供 C 端资料 API。</HelperText>
       </Card>
-      <Card title="账户资料">
-        <HelperText>头像、昵称、手机号、地址簿和安全设置 API 尚未开放，本页保持 not-wired，不展示本地样例资料。</HelperText>
+      <Card title="账户资料" actions={<StatusTag tone="muted">unavailable</StatusTag>}>
+        <Timeline
+          items={[
+            { key: "profile", title: "资料 API", description: "头像、昵称、手机号尚未开放" },
+            { key: "address", title: "地址簿 API", description: "地址新增、编辑、选择尚未开放" },
+            { key: "security", title: "安全设置 API", description: "登录态与账号设置尚未开放" },
+          ]}
+        />
       </Card>
       <Card title="请求上下文">
         <HelperText>appType=customer · role=customer · cityCode={cityCode} · userId={CUSTOMER_ID}</HelperText>
@@ -592,5 +682,9 @@ export function App() {
     profile: <ProfilePage cityCode={cityCode} />,
   };
 
-  return <AppFrame route={route} cityCode={cityCode}>{content[route]}</AppFrame>;
+  return (
+    <AppFrame route={route} cityCode={cityCode}>
+      {content[route]}
+    </AppFrame>
+  );
 }
