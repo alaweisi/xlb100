@@ -267,3 +267,18 @@ Manual confirmation points:
   - `rg -n "Phase 0 Ready" apps/customer apps/worker apps/admin`: PASS, no matches.
   - `rg -n "http://localhost:3000|127\\.0\\.0\\.1|/api/api" apps/customer apps/worker apps/admin packages/api-client`: PASS, no matches.
   - `rg -n "mock|fake|dummy" apps/customer apps/worker apps/admin packages/api-client`: reviewed. Matches are limited to the existing api-client local payment webhook helper and are not used by customer/worker/admin pages to fabricate business records.
+
+## Phase 15 UI Visual Refinement Skill
+
+- Status: completed locally, pending this commit.
+- Commit: this commit (`docs(phase15): add ui visual refinement skill`).
+- Scope:
+  - `docs/prompts/CODEX_PHASE15_UI_VISUAL_REFINEMENT_SKILL.md`
+  - `.cursor/rules/phase15-ui-visual-system.mdc`
+  - `docs/execution/PHASE15_PROGRESS.md`
+- Purpose: codify Figma + Codex Design + `packages/ui` UI construction rules for customer, worker, and admin Phase 15 visual refinement.
+- App code modified: no.
+- `packages/ui` code modified: no.
+- Backend/db/deploy/infra modified: no.
+- Production: NO-GO.
+- Tags: not created.

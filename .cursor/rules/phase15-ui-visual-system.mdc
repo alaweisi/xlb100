@@ -1,0 +1,25 @@
+---
+description: Phase 15 UI visual refinement rules for Figma-based customer, worker, and admin productization
+globs:
+  - "apps/customer/**"
+  - "apps/worker/**"
+  - "apps/admin/**"
+  - "packages/ui/**"
+  - "docs/prompts/CODEX_PHASE15_UI_VISUAL_REFINEMENT_SKILL.md"
+alwaysApply: false
+---
+
+# Phase 15 UI Visual System
+
+Before Phase 15 UI visual work, read `docs/prompts/CODEX_PHASE15_UI_VISUAL_REFINEMENT_SKILL.md`.
+
+Core rules:
+
+- Follow `docs/design/figma/**` and `docs/design/figma/optimized/**`.
+- Do not freely redesign pages or use Figma PNGs as backgrounds.
+- Do not create fake customer orders, fake worker tasks, fake income, fake qualifications, fake payments, fake admin metrics, or fake settlement outcomes.
+- Keep all API calls same-origin; no `http://localhost:3000`, no `127.0.0.1`, no `/api/api`.
+- Customer pages must preserve real catalog/pricing/order/payment-order wiring.
+- Worker pages must stay honest about not-wired APIs until real worker APIs are connected.
+- Admin Settlement/Governance visual work must not rewrite existing business logic or hide backend errors.
+- Production remains `NO-GO` unless a separate human release instruction says otherwise.
