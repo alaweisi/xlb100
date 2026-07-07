@@ -439,3 +439,38 @@ Manual confirmation points:
 - Production: NO-GO.
 - Cloud-staging deploy: not performed.
 - Tags: not created.
+
+## Phase 15.3E-ARCH Workflow UI Binding Contract
+
+- Status: completed locally, pending commit.
+- Commit: this commit (`docs(phase15): add workflow ui binding contract`).
+- Scope:
+  - `docs/contracts/CONTRACT_WORKFLOW_UI_BINDING.md`
+  - `docs/reports/PHASE15_3E_WORKFLOW_UI_BINDING_REPORT.md`
+  - `docs/execution/PHASE15_PROGRESS.md`
+- Architecture conclusion:
+  - Backend workflow drives behavior.
+  - Figma drives visual expression.
+  - `packages/ui` provides reusable presentation components only.
+  - Frontend route code binds backend workflow/action state into UI slots.
+- Contract coverage:
+  - `WorkflowUiBinding`.
+  - `ActionContract`.
+  - `CustomerAnswerModel`.
+  - `FigmaBinding`.
+  - `NotWiredPolicy`.
+  - Customer/worker/admin workflow mapping.
+  - Phase 15.3F pixel repair entry conditions.
+- Hard rule:
+  - No executable button may come from Figma alone.
+  - Every executable or disabled action must come from backend workflow/API contract and include enabled state plus disabled reason policy.
+- Figma binding rule:
+  - Every route must be marked `exact frame`, `partial frame`, `derived design`, or `DESIGN_SOURCE_MISSING`.
+  - Admin Settlement/Governance remain `DESIGN_SOURCE_MISSING` until matching Figma frames exist.
+- Repository impact:
+  - App code modified: no.
+  - `packages/**` modified: no.
+  - Backend/db/deploy/infra modified: no.
+- Production: NO-GO.
+- Cloud-staging deploy: not performed.
+- Tags: not created.
