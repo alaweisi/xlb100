@@ -338,3 +338,37 @@ Manual confirmation points:
   - `rg -n "http://localhost:3000|127\\.0\\.0\\.1|/api/api" apps/customer apps/worker apps/admin packages/api-client`: PASS, no matches.
   - `rg -n "Settlement Operations|Operations Guardrail|Review Summary|Reconciliation Gap Scan|task pool not-wired|eligibility not-wired|no local sample orders|range|idle|ready" apps/customer apps/worker apps/admin packages/ui`: PASS, no matches.
   - `rg -n "mock|fake|dummy" apps/customer apps/worker apps/admin packages/api-client`: reviewed. Matches are limited to the existing api-client local payment webhook helper and are not used by customer/worker/admin pages to fabricate business records.
+
+## Phase 15.3D Figma Pixel Alignment Repair Pass
+
+- Status: completed locally, pending commit.
+- Commit: this commit (`docs(phase15): audit figma pixel alignment gaps`).
+- Scope:
+  - `docs/reports/PHASE15_3D_FIGMA_PIXEL_ALIGNMENT_REPORT.md`
+  - `docs/design/figma/reports/PHASE15_3D_FRAME_EXPORT_INDEX.md`
+  - `docs/design/figma/frames/customer/*.png`
+  - `docs/design/figma/frames/worker/*.png`
+  - `docs/design/figma/frames/admin/*.png`
+  - `docs/execution/PHASE15_PROGRESS.md`
+- Figma MCP re-read:
+  - URL: `https://www.figma.com/design/WrIq7mTPz9zB5EJkftS3sY/Untitled?node-id=0-1&p=f&t=f3lEqJhifRddTPgx-0`
+  - Page node: `0:1`
+  - Design root: `1:2` / `三端家居维修 App UI`
+  - Tools: `get_metadata`, `get_screenshot`
+- Newly exported/refreshed route-critical PNGs:
+  - Customer CreateOrder / Orders / OrderDetail.
+  - Worker GrabHall Online / Paused.
+  - Admin Dashboard / WorkOrderPool / Dispatch / MasterAudit / Complaint / AfterSale.
+- Audit conclusion:
+  - `08e8355` is Figma-inspired rough polish only, not high-fidelity complete.
+  - Admin Settlement/Governance routes are `DESIGN_SOURCE_MISSING` in the current Figma file.
+  - Customer and worker pages require a follow-up pixel repair code phase before another high-fidelity claim.
+- App code modified: no.
+- `packages/**` modified: no.
+- Backend/db/deploy/infra modified: no.
+- Cloud-staging deploy: not performed.
+- Production: NO-GO.
+- Tags: not created.
+- Verification:
+  - `git diff --check`: PASS.
+  - `git status --short`: scoped to allowed docs/design/report files before commit.
