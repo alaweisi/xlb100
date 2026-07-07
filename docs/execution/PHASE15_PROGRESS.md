@@ -912,3 +912,40 @@ Manual confirmation points:
   - `rg "http://localhost:3000|127\\.0\\.0\\.1|/api/api" apps/customer packages/ui packages/api-client`: PASS
   - `git diff --check`: PASS
 
+
+## Phase 15.3V Customer Unified Location Search Bar
+
+- Status: completed locally, pending commit.
+- Scope:
+  - `packages/ui/src/components/index.tsx`
+  - `apps/customer/src/app/App.tsx`
+  - `docs/reports/PHASE15_3V_CUSTOMER_SERVICE_DISCOVERY_UI_SLICE_REPORT.md`
+  - `docs/execution/PHASE15_PROGRESS.md`
+- Goal:
+  - Unify customer home header into a single location-search pill (city + search in one row).
+  - Remove duplicated city card in the home main flow.
+  - Keep `/customer/` data flow on real catalog search/filter and existing city selection state.
+- Changes:
+  - Refactored `LocationSearchBar` to a one-row, pill-style component with:
+    - left city slot + dropdown chevron,
+    - divider,
+    - right search input + rightmost icon,
+    - default height around `52px`,
+    - city section width cap at `35%`.
+  - Updated `/customer/` header usage:
+    - `cityLabel` now uses selected city code (`hangzhou` / `shanghai` / `beijing`),
+    - `areaLabel` uses `cityAreaByCode[cityCode]` (e.g., `静安区`), avoiding fake location-accuracy claims.
+  - Removed explicit “服务城市” card from home primary cards.
+  - Kept city switching via existing `selectedCityCode` path with a compact in-place selector when expanded.
+- Verification:
+  - `pnpm --filter @xlb/ui typecheck`: PASS
+  - `pnpm --filter @xlb/ui build`: PASS
+  - `pnpm --filter @xlb/customer typecheck`: PASS
+  - `pnpm --filter @xlb/customer build`: PASS
+  - `pnpm test -- --bail=1`: PASS (`255` test files, `1048` tests, `1` todo)
+  - `git diff --check`: PASS
+  - `git status --short`: shows only scope files for this phase
+- Safety:
+  - No worker/admin/backend/db/deploy/infra changes.
+  - No production deployment.
+  - No new dependencies.

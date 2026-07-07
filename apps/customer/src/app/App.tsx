@@ -600,31 +600,30 @@ function HomePage({
   return (
     <RuntimeThemeSurface binding={binding}>
       <LocationSearchBar
-        cityLabel={cityDisplayLabel(cityCode)}
-        areaLabel="切换城市"
+        cityLabel={cityCode}
+        areaLabel={cityAreaByCode[cityCode] ?? "静安区"}
         placeholder="搜保洁、维修、搬家、月嫂"
         value={query}
         onSearchChange={setQuery}
         onCityClick={() => setShowCityPicker((previous) => !previous)}
       />
       {showCityPicker && (
-        <Card style={{ ...customerFlatCardStyle, borderColor: "#ead8bd" }}>
-          <FormField label="服务城市">
-            <Select
-              value={cityCode}
-              onChange={(event) => {
-                onCityChange(event.target.value as CityCode);
-                setShowCityPicker(false);
-              }}
-            >
-              {cityOptions.map((city) => (
-                <option key={city} value={city}>
-                  {cityDisplayLabel(city)}
-                </option>
-              ))}
-            </Select>
-          </FormField>
-        </Card>
+        <div style={{ marginTop: 8, width: "100%" }}>
+          <Select
+            value={cityCode}
+            onChange={(event) => {
+              onCityChange(event.target.value as CityCode);
+              setShowCityPicker(false);
+            }}
+            style={{ width: "100%", borderColor: "#ead8bd" }}
+          >
+            {cityOptions.map((city) => (
+              <option key={city} value={city}>
+                {cityDisplayLabel(city)}
+              </option>
+            ))}
+          </Select>
+        </div>
       )}
       <TrustPillRow />
 

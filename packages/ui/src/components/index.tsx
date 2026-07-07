@@ -328,44 +328,89 @@ export function LocationSearchBar({
   style,
   ...props
 }: LocationSearchBarProps) {
+  const safeAreaLabel = areaLabel ?? "";
+
   return (
-    <div {...props} style={mergeStyle({ display: "grid", gap: 10, width: "100%" }, style)}>
+    <div
+      {...props}
+      style={mergeStyle(
+        {
+          border: "1px solid #ead8bd",
+          borderRadius: 999,
+          display: "flex",
+          fontFamily,
+          minHeight: 52,
+          padding: "0 10px",
+          width: "100%",
+        },
+        style,
+      )}
+    >
       <button
         onClick={onCityClick}
         type="button"
+        disabled={!onCityClick}
         style={{
           alignItems: "center",
-          background: "rgba(255, 255, 255, 0.96)",
-          border: "1px solid #ead8bd",
-          borderRadius: 16,
+          background: "transparent",
+          border: 0,
           color: tokens.colors.text,
           cursor: onCityClick ? "pointer" : "default",
           display: "flex",
+          flex: "0 1 35%",
           fontFamily,
-          fontSize: 14,
           gap: 8,
           justifyContent: "space-between",
-          letterSpacing: 0,
-          minHeight: 42,
-          padding: "0 12px",
+          maxWidth: "35%",
+          minWidth: 0,
+          padding: "0 8px 0 0",
           textAlign: "left",
-          width: "100%",
         }}
       >
-        <span aria-hidden="true" style={{ color: "#6b7280", fontSize: 14, fontWeight: 700 }}>
-          {`📍 ${cityLabel}`}
+        <span style={{ display: "grid", gap: 2, minWidth: 0 }}>
+          <span aria-hidden="true" style={{ color: "#6b7280", fontSize: 14, fontWeight: 700, letterSpacing: 0, whiteSpace: "nowrap" }}>
+            {`📍 ${cityLabel}`}
+          </span>
+          {safeAreaLabel ? (
+            <span style={{ color: "#8a735b", fontSize: 12, whiteSpace: "nowrap" }}>{safeAreaLabel}</span>
+          ) : null}
         </span>
-        <span style={{ color: "#6b7280", fontSize: 13, fontWeight: 500, opacity: onCityClick ? 1 : 0.8 }}>
-          {areaLabel ?? "切换服务城市"}
+        <span aria-hidden="true" style={{ color: "#6b7280", fontSize: 15, marginLeft: 4 }}>
+          ▾
         </span>
       </button>
-      <SearchBar
-        value={value}
-        onChange={onSearchChange}
-        placeholder={placeholder}
-        leadingIcon="🔍"
-        style={{ borderColor: "#ead8bd", borderRadius: 16, minHeight: 44 }}
-      />
+      <div aria-hidden="true" style={{ alignSelf: "center", background: "#ead8bd", height: 24, width: 1 }} />
+      <div
+        style={{
+          alignItems: "center",
+          display: "flex",
+          flex: 1,
+          gap: 8,
+          minWidth: 0,
+          padding: "0 8px 0 12px",
+        }}
+      >
+        <input
+          onChange={(event) => onSearchChange(event.target.value)}
+          placeholder={placeholder}
+          type="search"
+          value={value}
+          style={{
+            appearance: "none",
+            background: "transparent",
+            border: 0,
+            color: tokens.colors.text,
+            fontFamily,
+            fontSize: 14,
+            minHeight: 52,
+            minWidth: 0,
+            outline: "none",
+          }}
+        />
+        <span aria-hidden="true" style={{ color: "#94a3b8", fontSize: 17, flex: "0 0 auto" }}>
+          🔍
+        </span>
+      </div>
     </div>
   );
 }
