@@ -11,6 +11,12 @@ Every production-facing page is assembled from four inputs:
 | Runtime Theme Tokens | visual skin through CSS variables |
 | `packages/ui` components | reusable rendering primitives and workflow expression components |
 
+## Hard Data-to-UI Layer Rule
+
+- `apps/*` 的 adapter 是唯一业务翻译层。
+- adapter 负责把后端 workflow / contract 信息映射为页面可消费的 `WorkflowUiBinding`。
+- 页面与组件不得直接发明按钮/禁用原因/权限分支，也不得把 not-wired 状态作为可执行动作。
+
 ## Source Of Truth Rules
 
 - Business actions come from workflow binding and backend API facts.
@@ -18,6 +24,13 @@ Every production-facing page is assembled from four inputs:
 - Campaign decides the active visual theme. It does not alter workflow state or business process.
 - `packages/ui` renders components, tokens, and CSS variables only.
 - App route code adapts backend/API facts into workflow view models and passes visual tokens into the UI layer.
+
+## ThemeProvider Rule
+
+- `ThemeProvider` must not request backend data.
+- `ThemeProvider` must not read `city_code` or parse dates.
+- `ThemeProvider` must only merge `default + active override` into CSS variables and keep runtime safe fallback.
+- `ThemeProvider` must not introduce business logic.
 
 ## Customer-Facing Language
 

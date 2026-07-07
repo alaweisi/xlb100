@@ -2,64 +2,59 @@
 
 ## Purpose
 
-Campaign is the only data source for activity and festival theme activation in XLB100.
-Frontend code must not infer Spring Festival, Double 11, National Day, Mid-Autumn Festival, or any activity window by local date, route, city, or user behavior.
+Campaign 是活动/节日视觉的唯一来源；前端不得靠本地时间、路由、用户行为、或城市规则推断活动状态。
 
-This contract defines the boundary between backend Campaign decisions and frontend runtime theme rendering.
+本合同定义 `Campaign` 与前端运行时主题之间的边界：
+- 后端负责活动窗口、状态、city/app 适配和主题决议；
+- 前端只消费 resolved campaign 的视觉结果；
+- `campaign` 不参与业务流程决策。
 
-## Campaign Record
+## Campaign 字段
 
-Required fields:
-
-| field | type | rule |
+| field | type | 规则 |
 | --- | --- | --- |
-| `id` | string | Backend-owned campaign id. |
-| `name` | string | Operational name. Not a frontend business rule. |
-| `themeId` | string | Token package id consumed by the frontend theme bridge. |
-| `cityScope` | `all` or city list | Reuses the XLB `city_code` scope model. |
-| `appScope` | app list | `customer`, `worker`, `admin`, or `all`. |
-| `startAt` | ISO datetime | Backend scheduling input only. |
-| `endAt` | ISO datetime | Backend scheduling input only. |
-| `discountRuleId` | string or null | Reference to backend pricing/payment rules only. |
-| `bannerContent` | object or null | Backend-provided banner content. |
-| `status` | enum | `draft`, `scheduled`, `active`, `ended`, `revoked`. |
+| `id` | string | 后端活动主键 |
+| `name` | string | 运营展示名，不做业务判断 |
+| `themeId` | `CampaignThemeId` | 仅作视觉主题引用 |
+| `cityScope` | `CampaignCityScope` | 复用 city_scope 模型 |
+| `appScope` | `CampaignAppScope` | `customer/worker/admin/all` |
+| `startAt` | datetime | 后端时间窗口输入 |
+| `endAt` | datetime | 后端时间窗口输入 |
+| `discountRuleId` | string? | 仅引用后端定价/支付规则，前端不得计算 |
+| `bannerContent` | object? | 活动横幅内容（可选） |
+| `status` | enum | `draft/scheduled/active/ended/revoked` |
 
-`status` values:
+## Hard Boundary
 
-- `draft`: editable operational record, not active.
-- `scheduled`: approved for a future backend window.
-- `active`: backend-selected active campaign result.
-- `ended`: finished and no longer active.
-- `revoked`: manually withdrawn and no longer active.
+1. Campaign 只允许控制：
+   - `themeId`
+   - `bannerContent`
+   - 可见的活动视觉呈现
+2. Campaign 不得控制：
+   - 订单创建、支付、派单、结算、退款
+   - 权限、审计、幂等、验签、业务状态流转
+3. `discountRuleId` 只允许传递；前端不得解析金额、不得本地计算折扣。
+4. `packages/ui` 不发起 campaign API。
+5. `ThemeProvider` 只做 token 注入和 fallback，不能读取 city/time/date 进行活动判断。
 
-## Hard Boundaries
+## Consumption contract
 
-- Campaign may decide `themeId`, `bannerContent`, and activity visual presence.
-- Campaign must not decide order creation rules, payment state, dispatch eligibility, settlement, refund, permissions, audit, or idempotency.
-- `discountRuleId` may only reference backend pricing/payment rules. Frontend code must not calculate campaign discounts, parse discount numbers, or compare activity windows.
-- Frontend pages may only consume an active campaign result returned by backend or an injected app-level bridge.
-- `packages/ui` may only render tokens and CSS variables. It must not request Campaign data, read `city_code`, inspect date/time, or choose an active campaign.
+允许前端消费流程：
 
-## Runtime Consumption
+1. 后端返回 active campaign（含 status / cityScope / appScope / 时间窗口 / themeId）。
+2. App-level 桥接层将已决议结果转为 themeId。
+3. `ThemeProvider` 合并 `default + theme override` 并注入 CSS tokens。
+4. 页面 UI 仅消费 token 与 `WorkflowUiBinding`，不再执行业务判定。
 
-The allowed frontend flow is:
+默认主题始终是 safe fallback。
 
-1. Backend Campaign service resolves active campaign from status, time window, `city_code`, and `app_scope`.
-2. App-level theme bridge receives `ActiveCampaignResponse`.
-3. The bridge passes `themeId` or resolved visual tokens into `ThemeProvider`.
-4. `ThemeProvider` applies CSS variables.
-5. Workflow and business actions remain controlled by `WorkflowUiBinding` and backend API facts.
+## Forbidden frontend behavior
 
-Default theme is the mandatory safe fallback when no active campaign exists or an unknown `themeId` is returned.
+- 禁止前端硬编码 `春节`、`双11`、`国庆`、`中秋` 或具体活动窗口判断。
+- 禁止前端通过 `new Date()` 决定活动是否激活。
+- 禁止前端在 packages/ui 中承载 campaign 业务规则。
 
-## Forbidden Frontend Behavior
+## 管理约束
 
-- No `new Date()` campaign activation checks in frontend pages.
-- No hardcoded festival/activity colors in pages.
-- No hardcoded promotion copy, discount numbers, or activity time windows in pages.
-- No theme-driven order, payment, dispatch, settlement, refund, permission, audit, or idempotency branch.
-- No Campaign API calls from `packages/ui`.
-
-## Admin Scope
-
-Future Admin Campaign management must be governed by the existing `city_scope` model. Admin users may only create, review, activate, revoke, or inspect Campaign records within their authorized city scope.
+Admin 的后续 campaign 操作必须遵守 city_scope 与现有权限边界。
+本阶段不实现 campaign 后端能力，仅补齐契约与可消费约束。

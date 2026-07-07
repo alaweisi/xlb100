@@ -822,3 +822,29 @@ Manual confirmation points:
   - `backend/**`, `db/**`, `deploy/**`, `infra/**`: no changes.
   - Production deployment: no.
   - tag: not created.
+
+## Phase 15.3U Frontend UI System Layers
+
+- Status: completed locally, pending commit.
+- Scope:
+  - docs/contracts/CONTRACT_FRONTEND_UI_SYSTEM_LAYERS.md
+  - docs/contracts/CONTRACT_CAMPAIGN_THEME.md
+  - docs/design/ui/XLB100_FRONTEND_UI_IMPLEMENTATION_PLAYBOOK.md
+  - docs/frontend/FRONTEND_WORKFLOW_THEME_ROUTE_MATRIX.md
+  - packages/ui/COMPONENT_MANIFEST.md
+  - docs/reports/PHASE15_3U_FRONTEND_UI_SYSTEM_LAYERS_REPORT.md
+  - docs/execution/PHASE15_PROGRESS.md
+- Goal:
+  - Define contracted UI system layers (backend facts -> workflow binding -> campaign/theme -> packages/ui -> app route pages).
+- Key decisions:
+  - Adapter is the unique business translation layer.
+  - ThemeProvider is visual-only, no backend requests.
+  - Campaign controls ctiveTheme/banner only.
+  - packages/ui remains presentation components + token runtime, not business modules.
+- Forbidden actions:
+  - No UI code implementation.
+  - No backend campaign/API implementation.
+  - No deployment, no tags.
+- Current status:
+  - docs-only completion in progress.
+
