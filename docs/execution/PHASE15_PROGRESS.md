@@ -606,3 +606,48 @@ Manual confirmation points:
   - `rg "availableActions|WorkflowUiBinding|ActionContract|not-wired" apps/customer apps/worker packages/types packages/ui`: PASS.
   - `git diff --check`: PASS.
   - changed path scope: PASS; `apps/admin/**`, backend, db, deploy, infra, dashboard, and oa were not modified.
+
+## Phase 15.3F-SKILL-SPIKE Impeccable Evaluation
+
+- Status: completed locally, pending commit.
+- Commit: this commit (`docs(phase15): evaluate impeccable design skill`).
+- Scope:
+  - `docs/reports/PHASE15_3F_IMPECCABLE_EVALUATION_REPORT.md`
+  - `docs/execution/PHASE15_PROGRESS.md`
+- Tool evaluated: `pbakaus/impeccable`.
+- Installation:
+  - `npx impeccable --help` downloaded the CLI to npm cache only.
+  - `npx impeccable install --help` unexpectedly wrote project-local `.cursor` / `.github` Impeccable files; those generated files were immediately removed.
+  - Isolated install was performed at `C:\Users\kong\.codex\impeccable-eval\xlb100-spike` with `npx impeccable install --providers=codex --scope=project`.
+  - Isolated install wrote `.agents/skills/impeccable/**` and `.codex/hooks.json` under the isolated directory only.
+  - `npx impeccable check` in the isolated directory reported installed skill version `3.9.1` up to date.
+- XLB100 repository impact:
+  - `.codex/hooks.json`: not installed.
+  - `.agents/skills/impeccable`: not installed.
+  - `.impeccable`: not created.
+  - `.cursor/hooks.json`: not retained.
+  - `.github/hooks` / `.github/skills`: not retained.
+  - `.gitignore`: not modified because no project `.impeccable` output was retained.
+- Trial:
+  - `npx impeccable detect --json apps/customer/src/app/App.tsx apps/worker/src/app/App.tsx packages/ui/src/components/index.tsx`: returned `[]`.
+  - `npx impeccable detect --json apps/customer/dist/index.html apps/worker/dist/index.html`: returned `[]`.
+  - URL detector was blocked because Impeccable requires `puppeteer` for URL scanning; no project dependency was added.
+  - Isolated context script against `apps/customer/src/app/App.tsx` returned `NO_PRODUCT_MD`, confirming that Impeccable's default init flow would try to create separate design context.
+- Evaluation conclusion: `Adopt with constraints`.
+- Allowed use:
+  - Figma Pixel Repair reviewer after Figma MCP/local frame comparison.
+  - Anti-slop checklist for nested cards, generic AI templates, typography hierarchy, responsive touch targets, bottom-nav/safe-area review, and UX copy polish.
+  - Optional deterministic detector through `npx impeccable detect` when it does not add project dependencies.
+- Forbidden use:
+  - Replacing Figma MCP or `docs/design/figma/**`.
+  - Free redesign or new design-system invention.
+  - Treating `PRODUCT.md` / `DESIGN.md` as higher authority than Phase 15 contracts and Figma artifacts.
+  - Directly editing `apps/**` or `packages/**` through Impeccable in this spike.
+  - Installing project `.codex` hooks or `.agents` skills without a separate approval step.
+  - Adding `puppeteer` or other project runtime/dev dependencies for this tool.
+- Admin:
+  - Settlement / Governance remain `DESIGN_SOURCE_MISSING`.
+  - Impeccable cannot unblock Admin Figma source gaps.
+- Production: NO-GO.
+- Cloud-staging deploy: not performed.
+- Tags: not created.
