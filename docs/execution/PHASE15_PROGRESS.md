@@ -474,3 +474,37 @@ Manual confirmation points:
 - Production: NO-GO.
 - Cloud-staging deploy: not performed.
 - Tags: not created.
+
+## Phase 15.3E-ARCH Workflow-driven Figma UI Design Architecture
+
+- Status: completed locally, pending commit.
+- Commit: this commit (`docs(phase15): define workflow driven figma ui architecture`).
+- Scope:
+  - `docs/contracts/CONTRACT_WORKFLOW_UI_BINDING.md`
+  - `docs/contracts/CONTRACT_RUNTIME_THEMING_TOKENS.md`
+  - `docs/design/ui/PHASE15_WORKFLOW_DRIVEN_UI_DESIGN_MASTER_PLAN.md`
+  - `docs/reports/PHASE15_3E_WORKFLOW_FIGMA_THEMING_ARCH_REPORT.md`
+  - `docs/execution/PHASE15_PROGRESS.md`
+- Architecture:
+  - Backend workflow decides state, permissions, available actions, disabled reasons, audit, idempotency, and city scope.
+  - Figma decides visual structure, layout, style, density, and interaction expression.
+  - `packages/ui` carries components, tokens, themes, state components, and action components.
+  - `apps/customer`, `apps/worker`, and `apps/admin` assemble pages, wire APIs, and adapt workflow view models.
+- Runtime theming:
+  - Added design-token-driven runtime theming contract.
+  - Default theme is mandatory safe fallback.
+  - City/campaign/festival overrides are visual-only.
+  - Themes must not affect order, payment, dispatch, settlement, refund, permissions, city scope, audit, or idempotency.
+- Route coverage:
+  - Customer: `/customer/`, `/customer/services`, `/customer/order/create`, `/customer/orders`, `/customer/profile`.
+  - Worker: `/worker/`, `/worker/tasks`, `/worker/wallet`, `/worker/profile`, `/worker/certification`.
+  - Admin: `/admin/`, Settlement/Governance/Export Review/Statement Detail/Governance hash/error/city_scope/audit surfaces.
+- Phase 15.3F gate:
+  - No Pixel Repair Implementation until workflow -> figma -> uiSlots -> packages/ui -> runtime theme mapping is complete per route.
+- Repository impact:
+  - App code modified: no.
+  - `packages/**` modified: no.
+  - Backend/db/deploy/infra modified: no.
+- Production: NO-GO.
+- Cloud-staging deploy: not performed.
+- Tags: not created.
