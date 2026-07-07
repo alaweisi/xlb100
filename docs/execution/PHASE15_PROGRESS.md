@@ -757,3 +757,68 @@ Manual confirmation points:
   - `rg "new Date\\(|春节|双11|国庆|中秋|festival|holiday|campaign" apps/customer apps/worker apps/admin packages/ui`: PASS. Matches are limited to required `spring-festival` token id registration in `packages/ui`; no app page date or festival decision logic was found.
   - `rg "discount|折扣" apps/customer apps/worker apps/admin packages/ui`: PASS, no matches.
   - `rg "http://localhost:3000|127\\.0\\.0\\.1|/api/api" packages/ui packages/types packages/validators`: PASS, no matches.
+
+## Phase 15.3F-2-MOBILE-SHELL-GATEFIX Customer Real Mobile Shell
+
+- Status: completed locally, pending verification and commit.
+- Commit: this commit (`fix(customer): use real mobile app shell on phones`).
+- Scope:
+  - `apps/customer/**`
+  - `packages/ui/**`
+  - `docs/reports/PHASE15_3F2_CUSTOMER_UAT_REPORT.md`
+  - `docs/execution/PHASE15_PROGRESS.md`
+- Problem:
+  - Cloud-staging showed the Figma phone device preview inside real mobile browsers.
+  - Real phones saw a fake phone frame, fake status bar, gold border, and preview margins.
+- Fix:
+  - Added `MobileShell` modes: `desktop` / `preview` and `mobile` / `app`.
+  - Added `BottomNav` fixed placement support for app mode.
+  - Customer now detects mobile/touch viewport and switches to real app shell.
+  - Mobile/touch shell removes the gold device frame, fake status bar, preview margins, rounded frame, and shadow.
+  - Mobile/touch shell uses `100vw`, `100dvh`, and fixed bottom nav with safe-area padding.
+- Customer business flow:
+  - catalog unchanged.
+  - pricing unchanged.
+  - order create unchanged.
+  - payment order create unchanged.
+  - order detail re-read unchanged.
+  - UAT folded panel retained.
+- Forbidden areas:
+  - `apps/worker/**`: not modified.
+  - `apps/admin/**`: not modified.
+  - backend/db/deploy/infra: not modified.
+  - production: not deployed.
+  - tag: not created.
+
+## Phase 15.3M Customer Mobile App Shell Readiness
+
+- Status: completed locally, pending commit.
+- Scope:
+  - `apps/customer/capacitor.config.ts`
+  - `apps/customer/public/manifest.webmanifest`
+  - `apps/customer/public/icons/customer-icon-192.svg`
+  - `apps/customer/public/icons/customer-icon-512.svg`
+  - `docs/mobile/CUSTOMER_CAPACITOR_READINESS.md`
+  - `docs/mobile/APP_SHELL_DECISION.md`
+  - `docs/execution/PHASE15_PROGRESS.md`
+- Goal:
+  - Establish app-shell readiness artifacts for future Capacitor packaging without changing runtime business logic.
+- Notes:
+  - Capacitor config uses `appId: com.xlb100.customer`, `appName: 喜乐帮到家`, `webDir: dist`.
+  - No hard-coded staging server URL is written.
+  - Documentation clarifies that Capacitor is a WebView shell and does not solve UI design or acceptance quality by itself.
+  - Desktop Figma preview mode and real mobile app mode are explicitly separated in documentation.
+- Preconditions listed for future `npx cap add ios/android`:
+  - Customer main flow UAT passes on staging.
+  - Mobile shell no longer renders fake phone frame.
+  - HTTPS domain prepared.
+  - Icons/splash prepared.
+  - Privacy policy prepared.
+  - Android Studio env prepared.
+  - iOS requires macOS/Xcode or cloud build flow.
+- Forbidden areas:
+  - `apps/worker/**`: no changes.
+  - `apps/admin/**`: no changes.
+  - `backend/**`, `db/**`, `deploy/**`, `infra/**`: no changes.
+  - Production deployment: no.
+  - tag: not created.
