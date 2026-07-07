@@ -13,6 +13,81 @@ import { tokens } from "../tokens/index.js";
 
 export type Tone = "default" | "primary" | "success" | "warning" | "danger" | "muted";
 export type RoleTone = "customer" | "worker" | "admin" | "neutral";
+export type UiWorkflowActor = "customer" | "worker" | "admin";
+export type UiWorkflowDisabledReason =
+  | "API_NOT_AVAILABLE"
+  | "WORKFLOW_NOT_IMPLEMENTED"
+  | "DESIGN_SOURCE_MISSING"
+  | "PHASE_BOUNDARY"
+  | "CITY_SCOPE_REQUIRED"
+  | "IDENTITY_REQUIRED"
+  | "AUDIT_REQUIRED"
+  | "EXECUTION_DISABLED"
+  | "PERMISSION_DENIED"
+  | "STATE_NOT_ACTIONABLE"
+  | "IDEMPOTENCY_REQUIRED"
+  | "CONFIRMATION_REQUIRED"
+  | "BACKEND_ERROR";
+
+export interface UiWorkflowActionContract {
+  actionId: string;
+  label: string;
+  enabled: boolean;
+  disabledReasonCode: UiWorkflowDisabledReason | null;
+  source: "backend" | "api-derived" | "not-wired";
+  danger: boolean;
+  confirmRequired: boolean;
+  idempotencyRequired: boolean;
+  auditRequired: boolean;
+  cityScopeRequired: boolean;
+  endpoint?: string;
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+}
+
+export interface UiWorkflowCustomerAnswer {
+  currentStep: string;
+  nextAvailableStep: string;
+  blockedReason?: string;
+  estimatedTime?: string;
+  recoveryPath?: string;
+}
+
+export interface UiWorkflowWorkerAnswer {
+  canAcceptOrder: boolean;
+  serviceCity?: string;
+  certificationPassed?: boolean;
+  blockedReason?: string;
+  nextStep: string;
+  walletWired: boolean;
+}
+
+export interface UiWorkflowState {
+  stateId: string;
+  label: string;
+  source: string;
+  terminal?: boolean;
+  customerAnswer?: UiWorkflowCustomerAnswer;
+  workerAnswer?: UiWorkflowWorkerAnswer;
+}
+
+export interface UiWorkflowBindingSummary {
+  workflowName: string;
+  actor: UiWorkflowActor;
+  backendSource: {
+    endpoints: string[];
+    status: string;
+  };
+  state: UiWorkflowState;
+  disabledReasons: UiWorkflowDisabledReason[];
+  figmaBinding: {
+    kind: string;
+    frameName?: string;
+  };
+  runtimeThemeTokens: {
+    activeThemeId: string;
+    affects: "visual-only";
+  };
+}
 
 const toneColors: Record<Tone, { background: string; border: string; text: string }> = {
   default: { background: "#ffffff", border: "#d1d5db", text: tokens.colors.text },
@@ -656,6 +731,248 @@ export function Timeline({ items }: { items: TimelineItem[] }) {
         </li>
       ))}
     </ol>
+  );
+}
+
+const disabledReasonCopy: Record<UiWorkflowDisabledReason, string> = {
+  API_NOT_AVAILABLE: "真实 API 暂未接入",
+  WORKFLOW_NOT_IMPLEMENTED: "工作流暂未实现",
+  DESIGN_SOURCE_MISSING: "缺少对应 Figma 设计源",
+  PHASE_BOUNDARY: "当前阶段不允许执行",
+  CITY_SCOPE_REQUIRED: "需要后端城市作用域",
+  IDENTITY_REQUIRED: "需要真实身份上下文",
+  AUDIT_REQUIRED: "需要审计链路",
+  EXECUTION_DISABLED: "执行动作已禁用",
+  PERMISSION_DENIED: "后端权限不允许",
+  STATE_NOT_ACTIONABLE: "当前状态不可操作",
+  IDEMPOTENCY_REQUIRED: "需要幂等保护",
+  CONFIRMATION_REQUIRED: "需要二次确认",
+  BACKEND_ERROR: "后端返回错误",
+};
+
+export interface DisabledReasonTextProps extends Omit<HTMLAttributes<HTMLParagraphElement>, "prefix"> {
+  reason: UiWorkflowDisabledReason | null;
+  prefix?: ReactNode;
+}
+
+export function DisabledReasonText({ reason, prefix = "不可用原因", style, ...props }: DisabledReasonTextProps) {
+  if (!reason) return null;
+  return (
+    <p
+      {...props}
+      style={mergeStyle(
+        {
+          color: toneColors.warning.text,
+          fontFamily,
+          fontSize: 12,
+          lineHeight: "18px",
+          margin: "6px 0 0",
+        },
+        style,
+      )}
+    >
+      {prefix}: {disabledReasonCopy[reason]}
+    </p>
+  );
+}
+
+export interface ActionDockProps extends Omit<HTMLAttributes<HTMLDivElement>, "onAction"> {
+  actions: UiWorkflowActionContract[];
+  onAction?: (action: UiWorkflowActionContract) => void;
+  density?: "default" | "compact";
+  showDisabledReason?: boolean;
+}
+
+export function ActionDock({
+  actions,
+  onAction,
+  density = "default",
+  showDisabledReason = true,
+  style,
+  ...props
+}: ActionDockProps) {
+  if (actions.length === 0) return null;
+  const compact = density === "compact";
+  return (
+    <div
+      {...props}
+      style={mergeStyle(
+        {
+          display: "grid",
+          fontFamily,
+          gap: compact ? 6 : 8,
+        },
+        style,
+      )}
+    >
+      <div style={{ display: "flex", flexWrap: "wrap", gap: compact ? 6 : 8 }}>
+        {actions.map((action) => (
+          <Button
+            disabled={!action.enabled}
+            key={action.actionId}
+            onClick={() => {
+              if (action.enabled) onAction?.(action);
+            }}
+            style={{ minHeight: compact ? 34 : 40 }}
+            title={action.disabledReasonCode ? disabledReasonCopy[action.disabledReasonCode] : action.actionId}
+            variant={action.danger ? "danger" : action.enabled ? "primary" : "secondary"}
+          >
+            {action.label}
+          </Button>
+        ))}
+      </div>
+      {showDisabledReason &&
+        actions
+          .filter((action) => !action.enabled && action.disabledReasonCode)
+          .map((action) => (
+            <DisabledReasonText
+              key={`${action.actionId}-reason`}
+              prefix={action.label}
+              reason={action.disabledReasonCode}
+            />
+          ))}
+    </div>
+  );
+}
+
+export interface WorkflowTimelineItem {
+  key: string;
+  title: ReactNode;
+  description?: ReactNode;
+  meta?: ReactNode;
+  state?: "complete" | "current" | "blocked" | "pending";
+}
+
+export function WorkflowTimeline({ items }: { items: WorkflowTimelineItem[] }) {
+  const toneByState: Record<NonNullable<WorkflowTimelineItem["state"]>, string> = {
+    complete: "#10b981",
+    current: tokens.colors.primary,
+    blocked: "#f59e0b",
+    pending: "#d1d5db",
+  };
+
+  return (
+    <ol style={{ display: "grid", fontFamily, gap: 12, listStyle: "none", margin: 0, padding: 0 }}>
+      {items.map((item) => (
+        <li
+          key={item.key}
+          style={{
+            borderLeft: `2px solid ${toneByState[item.state ?? "pending"]}`,
+            paddingLeft: 12,
+          }}
+        >
+          <div style={{ alignItems: "baseline", display: "flex", gap: 8, justifyContent: "space-between" }}>
+            <strong style={{ fontSize: 14 }}>{item.title}</strong>
+            {item.meta && <span style={{ color: "#6b7280", fontSize: 12 }}>{item.meta}</span>}
+          </div>
+          {item.description && <div style={{ color: "#4b5563", fontSize: 13, marginTop: 2 }}>{item.description}</div>}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+export interface WorkflowStatePanelProps extends Omit<HTMLAttributes<HTMLElement>, "title"> {
+  binding: Pick<
+    UiWorkflowBindingSummary,
+    "workflowName" | "backendSource" | "state" | "disabledReasons" | "figmaBinding"
+  >;
+  title?: ReactNode;
+}
+
+export function WorkflowStatePanel({ binding, title = "工作流绑定", style, ...props }: WorkflowStatePanelProps) {
+  const blockedReason = binding.disabledReasons[0] ?? null;
+  const sourceText = binding.backendSource.endpoints.length > 0
+    ? binding.backendSource.endpoints.join(" / ")
+    : binding.backendSource.status;
+
+  return (
+    <GuardrailCard
+      {...props}
+      title={title}
+      actions={<StatusTag tone={blockedReason ? "warning" : "success"}>{binding.state.label}</StatusTag>}
+      style={mergeStyle({ boxShadow: "none" }, style)}
+      tone={blockedReason ? "warning" : "success"}
+    >
+      <div style={{ display: "grid", gap: 6 }}>
+        <span style={{ fontSize: 13, fontWeight: 700 }}>{binding.workflowName}</span>
+        <span style={{ color: "#4b5563", fontSize: 12, lineHeight: "18px" }}>
+          来源: {sourceText}
+        </span>
+        <span style={{ color: "#4b5563", fontSize: 12, lineHeight: "18px" }}>
+          Figma: {binding.figmaBinding.kind}{binding.figmaBinding.frameName ? ` / ${binding.figmaBinding.frameName}` : ""}
+        </span>
+        <DisabledReasonText reason={blockedReason} />
+      </div>
+    </GuardrailCard>
+  );
+}
+
+function answerText(answer: UiWorkflowCustomerAnswer | UiWorkflowWorkerAnswer): Array<[string, ReactNode]> {
+  if ("currentStep" in answer) {
+    return [
+      ["当前步骤", answer.currentStep],
+      ["下一步", answer.nextAvailableStep],
+      ["阻塞原因", answer.blockedReason ?? "无"],
+      ["恢复路径", answer.recoveryPath ?? "按真实 API 状态继续"],
+    ];
+  }
+
+  return [
+    ["可接单", answer.canAcceptOrder ? "后端允许" : "后端未允许"],
+    ["服务城市", answer.serviceCity ?? "等待后端返回"],
+    ["资质状态", answer.certificationPassed === undefined ? "等待后端返回" : answer.certificationPassed ? "已通过" : "未通过"],
+    ["下一步", answer.nextStep],
+    ["钱包接线", answer.walletWired ? "已接线" : "未接线"],
+  ];
+}
+
+function AnswerCard({
+  title,
+  answer,
+}: {
+  title: ReactNode;
+  answer: UiWorkflowCustomerAnswer | UiWorkflowWorkerAnswer;
+}) {
+  return (
+    <Card title={title}>
+      <dl style={{ display: "grid", gap: 8, margin: 0 }}>
+        {answerText(answer).map(([label, value]) => (
+          <div key={label} style={{ display: "grid", gap: 2 }}>
+            <dt style={{ color: "#64748b", fontSize: 12, fontWeight: 700 }}>{label}</dt>
+            <dd style={{ color: tokens.colors.text, fontSize: 13, lineHeight: "20px", margin: 0 }}>{value}</dd>
+          </div>
+        ))}
+      </dl>
+    </Card>
+  );
+}
+
+export function CustomerAnswerCard({ state }: { state: UiWorkflowState }) {
+  if (!state.customerAnswer) return null;
+  return <AnswerCard title="用户当前能做什么" answer={state.customerAnswer} />;
+}
+
+export function WorkerAnswerCard({ state }: { state: UiWorkflowState }) {
+  if (!state.workerAnswer) return null;
+  return <AnswerCard title="师傅当前能做什么" answer={state.workerAnswer} />;
+}
+
+export interface RuntimeThemeSurfaceProps extends HTMLAttributes<HTMLDivElement> {
+  binding: Pick<UiWorkflowBindingSummary, "actor" | "runtimeThemeTokens">;
+}
+
+export function RuntimeThemeSurface({ binding, style, children, ...props }: RuntimeThemeSurfaceProps) {
+  return (
+    <div
+      {...props}
+      data-runtime-theme={binding.runtimeThemeTokens.activeThemeId}
+      data-runtime-theme-affects={binding.runtimeThemeTokens.affects}
+      data-workflow-actor={binding.actor}
+      style={mergeStyle({ display: "grid", gap: 14 }, style)}
+    >
+      {children}
+    </div>
   );
 }
 

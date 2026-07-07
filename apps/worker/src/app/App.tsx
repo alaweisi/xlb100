@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import {
+  ActionDock,
   BottomNav,
-  Button,
   Card,
   HeroCard,
   MetricCard,
@@ -13,16 +13,24 @@ import {
   Tabs,
   Timeline,
   TopBar,
+  RuntimeThemeSurface,
+  WorkerAnswerCard,
   WorkerStatusCard,
+  WorkflowStatePanel,
 } from "@xlb/ui";
+import {
+  createWorkerWorkflowBinding,
+  workerWorkflowActions,
+} from "../adapters/workflowBindings";
 
-type WorkerRoute = "hall" | "tasks" | "wallet" | "profile";
+type WorkerRoute = "hall" | "tasks" | "wallet" | "profile" | "certification";
 
 const routeConfig: Record<WorkerRoute, { label: string; href: string; title: string; subtitle: string }> = {
   hall: { label: "接单", href: "/worker/", title: "接单大厅", subtitle: "师傅端 / 接单大厅 / 待接线" },
   tasks: { label: "任务", href: "/worker/tasks", title: "我的任务", subtitle: "师傅端 / 任务 / 待接线" },
   wallet: { label: "收入", href: "/worker/wallet", title: "收入", subtitle: "师傅端 / 收入 / 待接线" },
   profile: { label: "我的", href: "/worker/profile", title: "我的", subtitle: "师傅端 / 我的 / 待接线" },
+  certification: { label: "认证", href: "/worker/certification", title: "认证", subtitle: "师傅端 / 认证 / 待接线" },
 };
 
 const shellStyle = {
@@ -38,7 +46,8 @@ function currentRoute(): WorkerRoute {
   const path = window.location.pathname.replace(/\/+$/, "") || "/";
   if (path.endsWith("/worker/tasks")) return "tasks";
   if (path.endsWith("/worker/wallet")) return "wallet";
-  if (path.endsWith("/worker/profile") || path.endsWith("/worker/certification")) return "profile";
+  if (path.endsWith("/worker/certification")) return "certification";
+  if (path.endsWith("/worker/profile")) return "profile";
   return "hall";
 }
 
@@ -80,9 +89,13 @@ function AppFrame({ route, children }: { route: WorkerRoute; children: ReactNode
 function HallPage() {
   const [query, setQuery] = useState("");
   const [active, setActive] = useState("nearby");
+  const binding = createWorkerWorkflowBinding({ route: "hall" });
+  const taskPoolAction = workerWorkflowActions.waitForTaskPool();
 
   return (
-    <>
+    <RuntimeThemeSurface binding={binding}>
+      <WorkflowStatePanel binding={binding} />
+      <WorkerAnswerCard state={binding.state} />
       <HeroCard
         productRole="worker"
         eyebrow="服务城市 / 资质 / 在线状态"
@@ -104,9 +117,9 @@ function HallPage() {
         onChange={setActive}
         density="compact"
         items={[
-          { key: "nearby", label: "附近" },
-          { key: "urgent", label: "急单" },
-          { key: "watched", label: "关注" },
+          { key: "nearby", label: "附近", disabled: true },
+          { key: "urgent", label: "急单", disabled: true },
+          { key: "watched", label: "关注", disabled: true },
         ]}
       />
 
@@ -122,7 +135,7 @@ function HallPage() {
         timeWindow="不会展示本地样例工单"
         meta="Phase 15.4 需接入真实 worker API"
         boundary="当前卡片只表达未接线边界，不创建本地任务。"
-        actions={<Button disabled>等待真实 API</Button>}
+        actions={<ActionDock actions={[taskPoolAction]} density="compact" />}
       >
         <Timeline
           items={[
@@ -133,14 +146,22 @@ function HallPage() {
         />
       </WorkerStatusCard>
 
-      <NotWiredState title="暂无真实任务" description="接入任务池 API 前，这里保持空状态与未接线提示。" />
-    </>
+      <NotWiredState
+        title="暂无真实任务"
+        description={binding.notWiredPolicy?.userCopy}
+        action={<ActionDock actions={binding.availableActions} density="compact" />}
+      />
+    </RuntimeThemeSurface>
   );
 }
 
 function TasksPage() {
+  const binding = createWorkerWorkflowBinding({ route: "tasks" });
+
   return (
-    <>
+    <RuntimeThemeSurface binding={binding}>
+      <WorkflowStatePanel binding={binding} />
+      <WorkerAnswerCard state={binding.state} />
       <Card title="任务状态" actions={<StatusTag tone="warning">未接线</StatusTag>}>
         <HelperText>已接任务、履约中、待完工等状态必须来自真实任务详情与履约 API，本阶段不生成本地状态。</HelperText>
       </Card>
@@ -150,15 +171,24 @@ function TasksPage() {
         location="任务详情 API 未接入"
         timeWindow="出发、到达、服务、完工动作不可用"
         meta="不会伪造已接单任务"
+        actions={<ActionDock actions={binding.availableActions} density="compact" />}
       />
-      <NotWiredState title="任务详情未接线" description="履约动作必须等待真实 API；当前只保留页面壳和可读状态。" />
-    </>
+      <NotWiredState
+        title="任务详情未接线"
+        description={binding.notWiredPolicy?.userCopy}
+        action={<ActionDock actions={binding.availableActions} density="compact" />}
+      />
+    </RuntimeThemeSurface>
   );
 }
 
 function WalletPage() {
+  const binding = createWorkerWorkflowBinding({ route: "wallet" });
+
   return (
-    <>
+    <RuntimeThemeSurface binding={binding}>
+      <WorkflowStatePanel binding={binding} />
+      <WorkerAnswerCard state={binding.state} />
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <MetricCard productRole="worker" label="本周收益" value="--" hint="等待真实收入 API" tone="muted" />
         <MetricCard productRole="worker" label="完成任务" value="--" hint="等待履约数据" tone="muted" />
@@ -172,14 +202,22 @@ function WalletPage() {
           ]}
         />
       </Card>
-      <NotWiredState title="收益未接入" description="不展示本地示例收入、提现或结算状态。" />
-    </>
+      <NotWiredState
+        title="收益未接入"
+        description={binding.notWiredPolicy?.userCopy}
+        action={<ActionDock actions={binding.availableActions} density="compact" />}
+      />
+    </RuntimeThemeSurface>
   );
 }
 
 function ProfilePage() {
+  const binding = createWorkerWorkflowBinding({ route: "profile" });
+
   return (
-    <>
+    <RuntimeThemeSurface binding={binding}>
+      <WorkflowStatePanel binding={binding} />
+      <WorkerAnswerCard state={binding.state} />
       <Card title="师傅资料" actions={<StatusTag tone="warning">未接线</StatusTag>}>
         <HelperText>资料、认证材料、服务城市入口已按 Figma 信息架构占位，但状态必须等待真实 W 端 API。</HelperText>
       </Card>
@@ -192,8 +230,37 @@ function ProfilePage() {
           ]}
         />
       </Card>
-      <NotWiredState title="认证资料未接入" description="不展示本地样例身份、资质状态或服务城市。" />
-    </>
+      <NotWiredState
+        title="认证资料未接入"
+        description={binding.notWiredPolicy?.userCopy}
+        action={<ActionDock actions={binding.availableActions} density="compact" />}
+      />
+    </RuntimeThemeSurface>
+  );
+}
+
+function CertificationPage() {
+  const binding = createWorkerWorkflowBinding({ route: "certification" });
+
+  return (
+    <RuntimeThemeSurface binding={binding}>
+      <WorkflowStatePanel binding={binding} />
+      <WorkerAnswerCard state={binding.state} />
+      <Card title="认证状态" actions={<StatusTag tone="warning">未接线</StatusTag>}>
+        <Timeline
+          items={[
+            { key: "certification", title: "认证状态", description: "必须来自 worker certification API" },
+            { key: "eligibility", title: "接单资格", description: "必须来自 eligibility / qualification workflow" },
+            { key: "city", title: "服务城市", description: "必须来自 worker city binding 或请求上下文" },
+          ]}
+        />
+      </Card>
+      <NotWiredState
+        title="认证 workflow 未接入"
+        description={binding.notWiredPolicy?.userCopy}
+        action={<ActionDock actions={binding.availableActions} density="compact" />}
+      />
+    </RuntimeThemeSurface>
   );
 }
 
@@ -204,6 +271,7 @@ export function App() {
     tasks: <TasksPage />,
     wallet: <WalletPage />,
     profile: <ProfilePage />,
+    certification: <CertificationPage />,
   };
 
   return <AppFrame route={route}>{content[route]}</AppFrame>;

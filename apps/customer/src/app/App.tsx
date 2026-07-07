@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
-import type { CatalogSnapshot, CityCode, Order, PaymentOrder, PriceQuote, ServiceSku } from "@xlb/types";
+import type { CatalogSnapshot, CityCode, Order, PaymentOrder, PriceQuote, ServiceSku, WorkflowActionContract } from "@xlb/types";
 import { XLB_HEADERS } from "@xlb/types";
 import {
+  ActionDock,
   BottomNav,
   Button,
   Card,
+  CustomerAnswerCard,
   CustomerQuoteCard,
   EmptyState,
   ErrorState,
@@ -17,6 +19,7 @@ import {
   NotWiredState,
   OrderCard,
   PriceText,
+  RuntimeThemeSurface,
   SearchBar,
   Select,
   ServiceCard,
@@ -25,8 +28,14 @@ import {
   Tabs,
   Timeline,
   TopBar,
+  WorkflowStatePanel,
 } from "@xlb/ui";
 import { createApiClient, customerApi } from "../../../../packages/api-client/src/index";
+import {
+  createCustomerWorkflowBinding,
+  customerWorkflowActions,
+  runWorkflowAction,
+} from "../adapters/workflowBindings";
 
 type CustomerRoute = "home" | "services" | "createOrder" | "orders" | "profile";
 type Loadable<T> =
@@ -212,10 +221,12 @@ function CitySelector({
 function CatalogState({
   catalogState,
   onRetry,
+  retryAction,
   children,
 }: {
   catalogState: Loadable<CatalogSnapshot>;
   onRetry: () => void;
+  retryAction: WorkflowActionContract;
   children: (catalog: CatalogSnapshot) => ReactNode;
 }) {
   if (catalogState.status === "loading") {
@@ -235,7 +246,7 @@ function CatalogState({
       <ErrorState
         title="服务目录暂时不可用"
         description={catalogState.error}
-        action={<Button onClick={onRetry}>重试</Button>}
+        action={<ActionDock actions={[retryAction]} density="compact" onAction={() => onRetry()} />}
       />
     );
   }
@@ -263,9 +274,14 @@ function HomePage({
   onCityChange: (cityCode: CityCode) => void;
 }) {
   const [query, setQuery] = useState("");
+  const binding = createCustomerWorkflowBinding({ route: "home", cityCode });
+  const openServicesAction = customerWorkflowActions.openServices();
+  const retryCatalogAction = customerWorkflowActions.retryCatalog();
 
   return (
-    <>
+    <RuntimeThemeSurface binding={binding}>
+      <WorkflowStatePanel binding={binding} />
+      <CustomerAnswerCard state={binding.state} />
       <HeroCard
         productRole="customer"
         eyebrow={`${cityCode} · 到家服务`}
@@ -283,7 +299,7 @@ function HomePage({
       <CitySelector cityCode={cityCode} onCityChange={onCityChange} />
       <SearchBar value={query} onChange={setQuery} placeholder="搜索真实服务目录" leadingIcon="⌕" />
 
-      <CatalogState catalogState={catalogState} onRetry={onRetryCatalog}>
+      <CatalogState catalogState={catalogState} onRetry={onRetryCatalog} retryAction={retryCatalogAction}>
         {(catalog) => {
           const services = flattenSkus(catalog)
             .filter((sku) => {
@@ -300,47 +316,63 @@ function HomePage({
             <div style={sectionGrid}>
               <div style={{ alignItems: "center", display: "flex", justifyContent: "space-between" }}>
                 <h2 style={{ fontSize: 16, lineHeight: "22px", margin: 0 }}>推荐服务</h2>
-                <Button onClick={() => { window.location.href = "/customer/services"; }} variant="ghost">
-                  全部
+                <Button
+                  disabled={!openServicesAction.enabled}
+                  onClick={() => runWorkflowAction(openServicesAction, () => { window.location.href = "/customer/services"; })}
+                  title={openServicesAction.disabledReasonCode ?? openServicesAction.actionId}
+                  variant="ghost"
+                >
+                  {openServicesAction.label}
                 </Button>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 {services.map((sku) => (
-                  <ServiceCard
-                    key={sku.skuId}
-                    title={sku.name}
-                    subtitle={`${sku.categoryName} · ${sku.itemName}`}
-                    status={<StatusTag tone="success">真实目录</StatusTag>}
-                    actionLabel="去下单"
-                    onClick={() => {
-                      window.location.href = `/customer/order/create?skuId=${encodeURIComponent(sku.skuId)}`;
-                    }}
-                    style={{ minHeight: 132 }}
-                  />
+                  (() => {
+                    const selectAction = customerWorkflowActions.selectService(sku.skuId);
+                    return (
+                      <ServiceCard
+                        key={sku.skuId}
+                        title={sku.name}
+                        subtitle={`${sku.categoryName} · ${sku.itemName}`}
+                        status={<StatusTag tone="success">真实目录</StatusTag>}
+                        actionLabel={selectAction.label}
+                        onClick={() => runWorkflowAction(selectAction, () => {
+                          window.location.href = `/customer/order/create?skuId=${encodeURIComponent(sku.skuId)}`;
+                        })}
+                        style={{ minHeight: 132 }}
+                      />
+                    );
+                  })()
                 ))}
               </div>
             </div>
           );
         }}
       </CatalogState>
-    </>
+    </RuntimeThemeSurface>
   );
 }
 
 function ServicesPage({
+  cityCode,
   catalogState,
   onRetryCatalog,
 }: {
+  cityCode: CityCode;
   catalogState: Loadable<CatalogSnapshot>;
   onRetryCatalog: () => void;
 }) {
   const [query, setQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("all");
+  const binding = createCustomerWorkflowBinding({ route: "services", cityCode });
+  const retryCatalogAction = customerWorkflowActions.retryCatalog();
 
   return (
-    <>
+    <RuntimeThemeSurface binding={binding}>
+      <WorkflowStatePanel binding={binding} />
+      <CustomerAnswerCard state={binding.state} />
       <SearchBar value={query} onChange={setQuery} placeholder="搜索服务、类目或 SKU" leadingIcon="⌕" />
-      <CatalogState catalogState={catalogState} onRetry={onRetryCatalog}>
+      <CatalogState catalogState={catalogState} onRetry={onRetryCatalog} retryAction={retryCatalogAction}>
         {(catalog) => {
           const tabs = [
             { key: "all", label: "全部" },
@@ -366,18 +398,23 @@ function ServicesPage({
               ) : (
                 <div style={{ display: "grid", gap: 12 }}>
                   {services.slice(0, 24).map((sku) => (
-                    <ServiceCard
-                      key={sku.skuId}
-                      title={sku.name}
-                      subtitle={`${sku.categoryName} · ${sku.itemName} · ${sku.unit}`}
-                      status={<StatusTag tone="success">可下单</StatusTag>}
-                      priceText="报价下单页读取"
-                      actionLabel="选择"
-                      onClick={() => {
-                        window.location.href = `/customer/order/create?skuId=${encodeURIComponent(sku.skuId)}`;
-                      }}
-                      style={{ minHeight: 104 }}
-                    />
+                    (() => {
+                      const selectAction = customerWorkflowActions.selectService(sku.skuId);
+                      return (
+                        <ServiceCard
+                          key={sku.skuId}
+                          title={sku.name}
+                          subtitle={`${sku.categoryName} · ${sku.itemName} · ${sku.unit}`}
+                          status={<StatusTag tone="success">可下单</StatusTag>}
+                          priceText="报价下单页读取"
+                          actionLabel={selectAction.label}
+                          onClick={() => runWorkflowAction(selectAction, () => {
+                            window.location.href = `/customer/order/create?skuId=${encodeURIComponent(sku.skuId)}`;
+                          })}
+                          style={{ minHeight: 104 }}
+                        />
+                      );
+                    })()
                   ))}
                 </div>
               )}
@@ -385,7 +422,7 @@ function ServicesPage({
           );
         }}
       </CatalogState>
-    </>
+    </RuntimeThemeSurface>
   );
 }
 
@@ -414,6 +451,21 @@ function CreateOrderPage({
 
   const skus = useMemo(() => flattenSkus(catalogState.data), [catalogState.data]);
   const selectedSku = skus.find((sku) => sku.skuId === selectedSkuId);
+  const binding = createCustomerWorkflowBinding({
+    route: "createOrder",
+    cityCode,
+    selectedSkuId,
+    quoteReady: quoteState.status === "success",
+    submitting: submitState.status === "submitting",
+  });
+  const retryCatalogAction = customerWorkflowActions.retryCatalog();
+  const retryQuoteAction = customerWorkflowActions.retryQuote(selectedSkuId);
+  const submitOrderAction = customerWorkflowActions.submitOrder(
+    quoteState.status === "success",
+    Boolean(selectedSkuId),
+    submitState.status === "submitting",
+  );
+  const viewOrdersAction = customerWorkflowActions.viewOrders();
 
   function loadQuote(skuId: string) {
     setQuoteState({ status: "loading" });
@@ -468,8 +520,10 @@ function CreateOrderPage({
   }
 
   return (
-    <>
-      <CatalogState catalogState={catalogState} onRetry={onRetryCatalog}>
+    <RuntimeThemeSurface binding={binding}>
+      <WorkflowStatePanel binding={binding} />
+      <CustomerAnswerCard state={binding.state} />
+      <CatalogState catalogState={catalogState} onRetry={onRetryCatalog} retryAction={retryCatalogAction}>
         {() => (
           <Card title="服务确认" actions={<StatusTag tone="primary">{cityCode}</StatusTag>}>
             <div style={{ display: "grid", gap: 12 }}>
@@ -508,7 +562,11 @@ function CreateOrderPage({
 
       {quoteState.status === "loading" && <LoadingState title="正在读取报价" description="价格来自 /api/pricing/quote。" />}
       {quoteState.status === "error" && (
-        <ErrorState title="报价不可用" description={quoteState.error} action={<Button onClick={() => selectedSkuId && loadQuote(selectedSkuId)}>重试</Button>} />
+        <ErrorState
+          title="报价不可用"
+          description={quoteState.error}
+          action={<ActionDock actions={[retryQuoteAction]} density="compact" onAction={() => selectedSkuId && loadQuote(selectedSkuId)} />}
+        />
       )}
       {quoteState.status === "success" && (
         <CustomerQuoteCard
@@ -532,14 +590,7 @@ function CreateOrderPage({
         />
       </Card>
 
-      <Button
-        disabled={submitState.status === "submitting" || !selectedSkuId || quoteState.status !== "success"}
-        onClick={submitOrder}
-        style={{ minHeight: 46, width: "100%" }}
-        variant="primary"
-      >
-        {submitState.status === "submitting" ? "提交中" : "提交真实订单"}
-      </Button>
+      <ActionDock actions={[submitOrderAction]} onAction={() => submitOrder()} style={{ width: "100%" }} />
 
       {submitState.status === "error" && <ErrorState title="下单失败" description={submitState.error} />}
       {submitState.status === "success" && (
@@ -549,23 +600,38 @@ function CreateOrderPage({
           description={`${submitState.order.skuName} · ${submitState.order.quantity}${submitState.order.unit} · ${cityCode}`}
           meta={`支付单 ${submitState.paymentOrder.paymentOrderId} · ${submitState.paymentOrder.status}`}
           priceText={<PriceText amount={submitState.order.totalAmount} currency={submitState.order.currency} />}
-          actions={<Button onClick={() => { window.location.href = "/customer/orders"; }}>查看订单</Button>}
+          actions={
+            <ActionDock
+              actions={[viewOrdersAction]}
+              density="compact"
+              onAction={() => { window.location.href = "/customer/orders"; }}
+              showDisabledReason={false}
+            />
+          }
         >
           <HelperText>订单、支付单和复查状态均来自后端 API。支付完成回调本阶段不在 C 端页面触发。</HelperText>
         </OrderCard>
       )}
-    </>
+    </RuntimeThemeSurface>
   );
 }
 
 function OrdersPage({
+  cityCode,
   api,
   orderIds,
 }: {
+  cityCode: CityCode;
   api: ReturnType<typeof createCustomerApi>;
   orderIds: string[];
 }) {
   const [ordersState, setOrdersState] = useState<Loadable<Order[]>>({ status: "pending" });
+  const binding = createCustomerWorkflowBinding({
+    route: "orders",
+    cityCode,
+    hasOrderIds: orderIds.length > 0,
+  });
+  const retryOrderDetailsAction = customerWorkflowActions.retryOrderDetails(orderIds.length > 0);
 
   function loadOrders() {
     if (orderIds.length === 0) {
@@ -582,13 +648,19 @@ function OrdersPage({
   useEffect(loadOrders, [api, orderIds]);
 
   return (
-    <>
+    <RuntimeThemeSurface binding={binding}>
+      <WorkflowStatePanel binding={binding} />
+      <CustomerAnswerCard state={binding.state} />
       <Card title="订单列表 API 状态" actions={<StatusTag tone="warning">未接线</StatusTag>}>
         <HelperText>后端当前提供订单创建与详情查询，尚未提供按用户查询订单列表。本页只复查本浏览器中真实创建过的订单 ID。</HelperText>
       </Card>
       {ordersState.status === "loading" && <LoadingState title="正在读取订单" description="逐个调用 /api/orders/:orderId。" />}
       {ordersState.status === "error" && (
-        <ErrorState title="订单读取失败" description={ordersState.error} action={<Button onClick={loadOrders}>重试</Button>} />
+        <ErrorState
+          title="订单读取失败"
+          description={ordersState.error}
+          action={<ActionDock actions={[retryOrderDetailsAction]} density="compact" onAction={() => loadOrders()} />}
+        />
       )}
       {ordersState.status === "success" && ordersState.data.length === 0 && (
         <EmptyState title="暂无本地订单记录" description="完成一次真实下单后，这里会用订单详情 API 复查展示。" />
@@ -614,13 +686,17 @@ function OrdersPage({
           ))}
         </div>
       )}
-    </>
+    </RuntimeThemeSurface>
   );
 }
 
 function ProfilePage({ cityCode }: { cityCode: CityCode }) {
+  const binding = createCustomerWorkflowBinding({ route: "profile", cityCode });
+
   return (
-    <>
+    <RuntimeThemeSurface binding={binding}>
+      <WorkflowStatePanel binding={binding} />
+      <CustomerAnswerCard state={binding.state} />
       <Card title="我的账户" actions={<StatusTag tone="warning">未接线</StatusTag>}>
         <HelperText>当前本地测试身份：{CUSTOMER_ID}。该身份用于真实下单请求体和请求头，但后端尚未提供 C 端资料 API。</HelperText>
       </Card>
@@ -636,8 +712,9 @@ function ProfilePage({ cityCode }: { cityCode: CityCode }) {
       <NotWiredState
         capability="账户资料与地址簿"
         description={`当前请求上下文：appType=customer · role=customer · cityCode=${cityCode} · userId=${CUSTOMER_ID}`}
+        action={<ActionDock actions={binding.availableActions} density="compact" />}
       />
-    </>
+    </RuntimeThemeSurface>
   );
 }
 
@@ -667,7 +744,7 @@ export function App() {
 
   const content: Record<CustomerRoute, ReactNode> = {
     home: <HomePage cityCode={cityCode} catalogState={catalogState} onCityChange={updateCity} onRetryCatalog={loadCatalog} />,
-    services: <ServicesPage catalogState={catalogState} onRetryCatalog={loadCatalog} />,
+    services: <ServicesPage cityCode={cityCode} catalogState={catalogState} onRetryCatalog={loadCatalog} />,
     createOrder: (
       <CreateOrderPage
         api={api}
@@ -677,7 +754,7 @@ export function App() {
         onRetryCatalog={loadCatalog}
       />
     ),
-    orders: <OrdersPage api={api} orderIds={orderIds} />,
+    orders: <OrdersPage api={api} cityCode={cityCode} orderIds={orderIds} />,
     profile: <ProfilePage cityCode={cityCode} />,
   };
 

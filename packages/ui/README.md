@@ -10,6 +10,7 @@ Shared Phase 15.1 UI primitives and shells for XLB frontends.
 - Status/display: `Badge`, `StatusTag`, `StateBadge`, `ScopeBadge`, `Table`, `Timeline`, `PriceText`, `StatCard`, `MetricCard`
 - Product cards: `ServiceCard`, `OrderCard`, `WorkOrderCard`, `WorkerTaskCard`
 - Product variants: `HeroCard`, `GuardrailCard`, `CustomerQuoteCard`, `WorkerStatusCard`, `AdminToolbar`
+- Workflow expression: `ActionDock`, `WorkflowTimeline`, `WorkflowStatePanel`, `DisabledReasonText`, `CustomerAnswerCard`, `WorkerAnswerCard`, `RuntimeThemeSurface`
 - Feedback: `Modal`, `Drawer`, `BottomSheet`, `Toast`, `EmptyState`, `ErrorState`, `ApiErrorPanel`, `NotWiredState`, `LoadingState`, `Skeleton`
 - Shells/navigation: `PageShell`, `MobileShell`, `AdminShell`, `BottomNav`, `TopBar`, `SideNav`
 
@@ -45,3 +46,12 @@ Phase 15.3C adds zh-CN visual refinement components for the three-app Figma pass
 - `ApiErrorPanel` keeps API error detail visible without swallowing backend errors.
 - `CustomerQuoteCard` presents a real quote payload supplied by the app; it does not calculate prices.
 - `WorkerStatusCard` presents worker-side empty/not-wired boundaries; it must not create sample tasks, earnings, credentials, or online state.
+
+Phase 15.3F-0 adds workflow expression components:
+
+- `ActionDock` renders `WorkflowActionContract` actions supplied by app adapters. It does not decide whether an action is enabled.
+- `WorkflowStatePanel` summarizes route workflow source, state, disabled reason, and Figma binding.
+- `WorkflowTimeline` renders typed workflow timeline items without owning business transitions.
+- `DisabledReasonText` translates disabled reason codes for visible UI explanation.
+- `CustomerAnswerCard` and `WorkerAnswerCard` render answer models produced by app workflow adapters.
+- `RuntimeThemeSurface` marks visual-only theme scope and never changes workflow behavior.

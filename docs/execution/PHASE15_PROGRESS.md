@@ -537,3 +537,72 @@ Manual confirmation points:
 - Production: NO-GO.
 - Cloud-staging deploy: not performed.
 - Tags: not created.
+
+## Phase 15.3F-0 Customer Worker Workflow UI Binding Adapters
+
+- Status: completed locally, pending commit.
+- Commit: this commit (`feat(frontend): add customer worker workflow ui bindings`).
+- Scope:
+  - `packages/types/**`
+  - `packages/ui/**`
+  - `apps/customer/**`
+  - `apps/worker/**`
+  - `docs/reports/PHASE15_3F0_WORKFLOW_UI_BINDING_ADAPTERS_REPORT.md`
+  - `docs/execution/PHASE15_PROGRESS.md`
+- Added shared workflow UI binding types:
+  - `WorkflowUiBinding`
+  - `WorkflowActionContract`
+  - `WorkflowDisabledReason`
+  - `WorkflowUiSlot`
+  - `WorkflowActor`
+  - `WorkflowFigmaBindingKind`
+  - `WorkflowNotWiredPolicy`
+- Added `@xlb/ui` workflow expression components:
+  - `ActionDock`
+  - `WorkflowTimeline`
+  - `WorkflowStatePanel`
+  - `DisabledReasonText`
+  - `CustomerAnswerCard`
+  - `WorkerAnswerCard`
+  - `RuntimeThemeSurface`
+- Customer route adapters:
+  - `/customer/`
+  - `/customer/services`
+  - `/customer/order/create`
+  - `/customer/orders`
+  - `/customer/profile`
+- Worker route adapters:
+  - `/worker/`
+  - `/worker/tasks`
+  - `/worker/wallet`
+  - `/worker/profile`
+  - `/worker/certification`
+- Action source gate:
+  - Customer catalog, quote, order create, payment order, and order detail actions are backend/API-derived from existing APIs.
+  - Customer order list/profile/address/auth missing APIs remain explicit `not-wired`.
+  - Worker task pool, accept, fulfillment, wallet, profile, and certification remain disabled `not-wired`.
+  - No frontend-created business action was introduced for Customer / Worker.
+- Runtime theming:
+  - Theme tokens remain visual-only.
+  - Themes do not affect order, payment, dispatch, settlement, refund, permissions, city scope, audit, or idempotency.
+- Admin:
+  - `apps/admin/**` not modified.
+  - Settlement / Governance remain `DESIGN_SOURCE_MISSING` and blocked from Pixel Repair.
+- Production: NO-GO.
+- Cloud-staging deploy: not performed.
+- Tags: not created.
+- Verification:
+  - `pnpm --filter @xlb/types typecheck`: PASS.
+  - `pnpm --filter @xlb/ui typecheck`: PASS.
+  - `pnpm --filter @xlb/ui build`: PASS.
+  - `pnpm --filter @xlb/customer typecheck`: PASS.
+  - `pnpm --filter @xlb/customer build`: PASS.
+  - `pnpm --filter @xlb/worker typecheck`: PASS.
+  - `pnpm --filter @xlb/worker build`: PASS.
+  - `pnpm test -- --bail=1`: BLOCKED by local DB availability. Rerun failed on DB-backed tests with `connect ECONNREFUSED 127.0.0.1:3306`; Docker daemon was unavailable, so local MySQL/Redis could not be started.
+  - `rg "Phase 0 Ready" apps/customer apps/worker`: PASS, no matches.
+  - `rg "http://localhost:3000|127\\.0\\.0\\.1|/api/api" apps/customer apps/worker packages/api-client`: PASS, no matches.
+  - `rg "mock|fake|dummy" apps/customer apps/worker packages/api-client`: reviewed. Matches are limited to the existing api-client local payment mock-webhook helper and are not used by the Customer / Worker UI bindings.
+  - `rg "availableActions|WorkflowUiBinding|ActionContract|not-wired" apps/customer apps/worker packages/types packages/ui`: PASS.
+  - `git diff --check`: PASS.
+  - changed path scope: PASS; `apps/admin/**`, backend, db, deploy, infra, dashboard, and oa were not modified.

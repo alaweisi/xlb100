@@ -172,3 +172,23 @@ export type {
   PreparationAuditEntry,
   CreateEnvelopeRequest,
 } from "./preparation.js";
+export type {
+  WorkflowActor,
+  WorkflowActionContract,
+  WorkflowActionSource,
+  WorkflowBackendSource,
+  WorkflowBackendSourceStatus,
+  WorkflowCustomerAnswer,
+  WorkflowDisabledReason,
+  WorkflowFacingCopy,
+  WorkflowFigmaBinding,
+  WorkflowFigmaBindingKind,
+  WorkflowHttpMethod,
+  WorkflowNotWiredPolicy,
+  WorkflowRuntimeThemeTokens,
+  WorkflowState,
+  WorkflowStateSource,
+  WorkflowUiBinding,
+  WorkflowUiSlot,
+  WorkflowWorkerAnswer,
+} from "./workflowUiBinding.js";
