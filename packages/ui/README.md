@@ -25,3 +25,12 @@ Phase 15.1B added route-shell gap components required by the Figma/Codex Design 
 - `ServiceCard`, `OrderCard`, and `WorkOrderCard` provide generic card shells for app pages. They do not include service catalogs, order state machines, task APIs, settlement logic, or mock data.
 
 `SettlementCard` is intentionally deferred to Phase 15.5 so it can be shaped against existing admin Settlement pages and governance constraints.
+
+Phase 15.3B adds visual-only shell extension points for Figma productization:
+
+- `MobileShell` supports `style` and `contentStyle` for role-specific mobile containers.
+- `AdminShell` supports `style` and `contentStyle` for desktop operational density.
+- `TopBar` supports `subtitle` and `style`.
+- `BottomNav` and `SideNav` support `style`.
+
+These props do not change data ownership. App pages still own API state, routes, and not-wired messaging.

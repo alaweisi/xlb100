@@ -4,7 +4,7 @@ import { SettlementStatementDetailPage } from "../pages/SettlementStatementDetai
 import { SettlementExportReviewPage } from "../pages/SettlementExportReviewPage";
 import { SettlementActionGovernancePage } from "../pages/SettlementActionGovernancePage";
 import { buildHash, parseView, parseHashParams } from "../hashParams";
-import { AdminShell, Badge, SideNav, TopBar } from "@xlb/ui";
+import { AdminShell, Card, SideNav, StatusTag, TopBar } from "@xlb/ui";
 
 export function App() {
   const [view, setView] = useState(parseView);
@@ -58,6 +58,7 @@ export function App() {
       sideNav={
         <SideNav
           title="XLB Admin"
+          style={{ background: "#191225" }}
           items={[
             { key: "settlement", label: "结算", active: view.page === "dashboard" || view.page === "detail", href: "#", onClick: navigateToDashboard },
             { key: "exports", label: "导出复核", active: view.page === "exports", href: "#/settlement-ops/exports", onClick: () => navigateToExports() },
@@ -65,8 +66,30 @@ export function App() {
           ]}
         />
       }
-      topBar={<TopBar title={viewTitle} actions={<Badge tone="success">same-origin API</Badge>} />}
+      topBar={
+        <TopBar
+          title={viewTitle}
+          subtitle="Admin / Settlement / Governance"
+          actions={
+            <>
+              {cityCode && <StatusTag tone="primary">city_scope: {cityCode}</StatusTag>}
+              <StatusTag tone="success">same-origin API</StatusTag>
+            </>
+          }
+        />
+      }
+      style={{ background: "#f6f3fb" }}
+      contentStyle={{ display: "grid", gap: 16 }}
     >
+      <Card
+        title="Operations Guardrail"
+        actions={<StatusTag tone="warning">production NO-GO</StatusTag>}
+        style={{ borderColor: "#ddd6fe", boxShadow: "0 12px 28px rgba(25, 18, 37, 0.08)" }}
+      >
+        <p style={{ color: "#4b5563", fontSize: 13, lineHeight: "20px", margin: 0 }}>
+          Existing Settlement and Governance logic is preserved. This pass only aligns shell, status, table, empty and error rendering with the Figma admin system.
+        </p>
+      </Card>
       {content}
     </AdminShell>
   );

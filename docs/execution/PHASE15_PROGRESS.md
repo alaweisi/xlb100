@@ -221,3 +221,49 @@ Manual confirmation points:
   - `rg -n "http://localhost:3000|127\\.0\\.0\\.1|/api/api" apps/customer packages/api-client`: PASS, no matches.
   - `rg -n "mock|fake|dummy" apps/customer packages/api-client`: reviewed. Matches are limited to the existing api-client local payment webhook helper and are not used by the customer page.
 - Phase 15.4 entry: recommended only after full verification and commit; continue local-first, production NO-GO.
+
+## Phase 15.3B Three-App Figma Visual Productization Pass
+
+- Status: completed locally, pending this commit and cloud-staging UAT upload.
+- Commit: this commit (`feat(frontend): align three apps with figma visual system`).
+- Scope:
+  - `packages/ui/**`
+  - `apps/customer/**`
+  - `apps/worker/**`
+  - `apps/admin/**`
+  - `docs/reports/PHASE15_3B_THREE_APP_VISUAL_PRODUCTIZATION_REPORT.md`
+  - `docs/execution/PHASE15_PROGRESS.md`
+- Figma sources:
+  - `docs/design/figma/pages.json`
+  - `docs/design/figma/optimized/component-render-rules.md`
+  - `docs/design/figma/optimized/page-render-strategy.md`
+  - `docs/design/figma/optimized/tokens.optimized.json`
+- Customer:
+  - Preserve Phase 15.3 real API loop.
+  - No fake orders, users, addresses, or payments.
+  - Existing not-wired profile/order-list states remain explicit.
+- Worker:
+  - Productized GrabHall, Tasks, Income, and Mine shells.
+  - Task pool, qualification, wallet/income, and fulfillment remain not-wired.
+  - No fake tasks, earnings, qualification, or online status.
+- Admin:
+  - Preserve Settlement/Governance logic and same-origin API behavior.
+  - Productize AdminShell, cards, tables, loading/empty/error states, city_scope status, and governance boundary panels.
+  - Do not rewrite settlement or governance workflows.
+- Dashboard/OA: still deferred.
+- Production: NO-GO.
+- Cloud-staging: requested after commit for UAT only.
+- Tags: not created.
+- Verification:
+  - `pnpm --filter @xlb/ui typecheck`: PASS.
+  - `pnpm --filter @xlb/ui build`: PASS.
+  - `pnpm --filter @xlb/customer typecheck`: PASS.
+  - `pnpm --filter @xlb/customer build`: PASS.
+  - `pnpm --filter @xlb/worker typecheck`: PASS.
+  - `pnpm --filter @xlb/worker build`: PASS.
+  - `pnpm --filter @xlb/admin typecheck`: PASS.
+  - `pnpm --filter @xlb/admin build`: PASS.
+  - `pnpm test -- --bail=1`: PASS. 255 test files passed, 1048 tests passed, 1 todo.
+  - `rg -n "Phase 0 Ready" apps/customer apps/worker apps/admin`: PASS, no matches.
+  - `rg -n "http://localhost:3000|127\\.0\\.0\\.1|/api/api" apps/customer apps/worker apps/admin packages/api-client`: PASS, no matches.
+  - `rg -n "mock|fake|dummy" apps/customer apps/worker apps/admin packages/api-client`: reviewed. Matches are limited to the existing api-client local payment webhook helper and are not used by customer/worker/admin pages to fabricate business records.

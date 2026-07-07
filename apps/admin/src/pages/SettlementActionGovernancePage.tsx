@@ -2,9 +2,12 @@ import { useState, useEffect, useCallback } from "react";
 import { parseHashParams, buildHash } from "../hashParams";
 import { governancePlannerApi, createApiClient } from "@xlb/api-client";
 import { API_BASE } from "../apiBase";
+import { Button, StatusTag } from "@xlb/ui";
 
 const client = createApiClient({ baseUrl: API_BASE, headers: { "x-xlb-app-type": "admin", "x-xlb-role": "operator" } });
 const plannerApi = governancePlannerApi.create(client);
+const pageStyle = { display: "grid", gap: 16, maxWidth: 1040 };
+const panelStyle = { background: "#ffffff", boxShadow: "0 10px 28px rgba(25, 18, 37, 0.08)" };
 
 interface DryRunPlan {
   planId: string;
@@ -97,7 +100,7 @@ export function SettlementActionGovernancePage({ onBack, subView }: Props) {
   // ── If subView is "plans", render the dry-run plans list ──
   if (subView === "plans") {
     return (
-      <div style={{ padding: 24, maxWidth: 900 }}>
+      <div style={pageStyle}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
           <div>
             <h1 style={{ margin: 0 }}>Dry-run Plans</h1>
@@ -105,12 +108,12 @@ export function SettlementActionGovernancePage({ onBack, subView }: Props) {
               Phase 11 · <strong>Governance Only</strong> · <strong>Execution Disabled</strong>
             </p>
           </div>
-          <button onClick={onBack}>← Back to Console</button>
+          <Button onClick={onBack}>← Back to Console</Button>
         </div>
 
         {/* Governance boundary banner */}
-        <section style={{ border: "1px solid #faad14", backgroundColor: "#fffbe6", padding: 16, borderRadius: 6, marginBottom: 16 }}>
-          <h2>Governance Boundary</h2>
+        <section style={{ ...panelStyle, border: "1px solid #faad14", backgroundColor: "#fffbe6", padding: 16, borderRadius: 8 }}>
+          <h2>Governance Boundary <StatusTag tone="warning">read-only</StatusTag></h2>
           <ul>
             <li>This page does not execute payouts.</li>
             <li>This page does not execute refunds.</li>
@@ -120,8 +123,8 @@ export function SettlementActionGovernancePage({ onBack, subView }: Props) {
         </section>
 
         {/* Plans list */}
-        <section style={{ border: "1px solid #d9d9d9", padding: 16, borderRadius: 6, marginBottom: 16 }}>
-          <h2>Dry-run Plans</h2>
+        <section style={{ ...panelStyle, border: "1px solid #d9d9d9", padding: 16, borderRadius: 8 }}>
+          <h2>Dry-run Plans <StatusTag tone="muted">{plans.length} rows</StatusTag></h2>
           {plansLoading && <p>Loading...</p>}
           {plansError && <p style={{ color: "red" }}>Error: {plansError}</p>}
           {!plansLoading && !plansError && plans.length === 0 && (
@@ -154,8 +157,8 @@ export function SettlementActionGovernancePage({ onBack, subView }: Props) {
         </section>
 
         {/* Execution Boundary */}
-        <section style={{ border: "1px solid #ff4d4f", padding: 16, borderRadius: 6, marginBottom: 16, backgroundColor: "#fff1f0" }}>
-          <h2>Execution Boundary — All Disabled</h2>
+        <section style={{ ...panelStyle, border: "1px solid #ff4d4f", padding: 16, borderRadius: 8, backgroundColor: "#fff1f0" }}>
+          <h2>Execution Boundary — All Disabled <StatusTag tone="danger">all disabled</StatusTag></h2>
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <tbody>
               {Object.entries(executionBoundary).map(([k, v]) => (
@@ -170,14 +173,14 @@ export function SettlementActionGovernancePage({ onBack, subView }: Props) {
           </table>
         </section>
 
-        <button onClick={onBack}>← Back to Console</button>
+        <Button onClick={onBack}>← Back to Console</Button>
       </div>
     );
   }
 
   // ── Main governance view ──
   return (
-    <div style={{ padding: 24, maxWidth: 900 }}>
+    <div style={pageStyle}>
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
         <div>
@@ -186,12 +189,12 @@ export function SettlementActionGovernancePage({ onBack, subView }: Props) {
             Phase 10 Foundation · <strong>Governance Only</strong> · <strong>Execution Disabled</strong>
           </p>
         </div>
-        <button onClick={onBack}>← Back to Console</button>
+        <Button onClick={onBack}>← Back to Console</Button>
       </div>
 
       {/* 1. Governance Boundary Banner */}
-      <section style={{ border: "1px solid #faad14", backgroundColor: "#fffbe6", padding: 16, borderRadius: 6, marginBottom: 16 }}>
-        <h2>Governance Boundary</h2>
+      <section style={{ ...panelStyle, border: "1px solid #faad14", backgroundColor: "#fffbe6", padding: 16, borderRadius: 8 }}>
+        <h2>Governance Boundary <StatusTag tone="warning">execution disabled</StatusTag></h2>
         <ul>
           <li>This page does not execute payouts.</li>
           <li>This page does not execute refunds.</li>
@@ -201,7 +204,7 @@ export function SettlementActionGovernancePage({ onBack, subView }: Props) {
       </section>
 
       {/* 2. Linked Phase 9 Context (Read-Only References) */}
-      <section style={{ border: "1px solid #d9d9d9", padding: 16, borderRadius: 6, marginBottom: 16 }}>
+      <section style={{ ...panelStyle, border: "1px solid #d9d9d9", padding: 16, borderRadius: 8 }}>
         <h2>Linked Phase 9 Context <span style={{ fontSize: 12, color: "#888" }}>(Read-Only References)</span></h2>
         <p>These are read-only operational views from Phase 9:</p>
         <ul>
@@ -213,7 +216,7 @@ export function SettlementActionGovernancePage({ onBack, subView }: Props) {
       </section>
 
       {/* 3. Intent Contract Summary (Phase 10B) */}
-      <section style={{ border: "1px solid #52c41a", padding: 16, borderRadius: 6, marginBottom: 16 }}>
+      <section style={{ ...panelStyle, border: "1px solid #52c41a", padding: 16, borderRadius: 8 }}>
         <h2>Intent Contract — Phase 10B <span style={{ fontSize: 14, color: "#52c41a" }}>Completed</span></h2>
         <p>The <code>SettlementActionIntent</code> type defines governance intents only. It explicitly rejects execution commands:</p>
         <ul style={{ color: "#cf1322" }}>
@@ -226,7 +229,7 @@ export function SettlementActionGovernancePage({ onBack, subView }: Props) {
       </section>
 
       {/* 4. Governance Persistence Summary (Phase 10C) */}
-      <section style={{ border: "1px solid #52c41a", padding: 16, borderRadius: 6, marginBottom: 16 }}>
+      <section style={{ ...panelStyle, border: "1px solid #52c41a", padding: 16, borderRadius: 8 }}>
         <h2>Governance Persistence — Phase 10C <span style={{ fontSize: 14, color: "#52c41a" }}>Completed</span></h2>
         <p>Governance intents are persisted in the <code>settlement_action_governance_intents</code> table. No settlement/payment/ledger/refund result tables are mutated.</p>
         <ul>
@@ -237,7 +240,7 @@ export function SettlementActionGovernancePage({ onBack, subView }: Props) {
       </section>
 
       {/* 5. Review Workflow Summary (Phase 10D) */}
-      <section style={{ border: "1px solid #52c41a", padding: 16, borderRadius: 6, marginBottom: 16 }}>
+      <section style={{ ...panelStyle, border: "1px solid #52c41a", padding: 16, borderRadius: 8 }}>
         <h2>Review Workflow — Phase 10D <span style={{ fontSize: 14, color: "#52c41a" }}>Completed</span></h2>
         <p>Governance review workflow with approve-governance only. No payout/refund/ledger reversal approval.</p>
         <ul>
@@ -248,7 +251,7 @@ export function SettlementActionGovernancePage({ onBack, subView }: Props) {
       </section>
 
       {/* 6. Evidence Bundle / Audit Trail Summary (Phase 10E) */}
-      <section style={{ border: "1px solid #52c41a", padding: 16, borderRadius: 6, marginBottom: 16 }}>
+      <section style={{ ...panelStyle, border: "1px solid #52c41a", padding: 16, borderRadius: 8 }}>
         <h2>Evidence Bundle / Audit Trail — Phase 10E <span style={{ fontSize: 14, color: "#52c41a" }}>Completed</span></h2>
         <p>Evidence bundles store reference IDs only. No file generation, no download URLs.</p>
         <ul>
@@ -259,7 +262,7 @@ export function SettlementActionGovernancePage({ onBack, subView }: Props) {
       </section>
 
       {/* 7. Readiness Packet / Dry-run Guard Summary (Phase 10F) */}
-      <section style={{ border: "1px solid #52c41a", padding: 16, borderRadius: 6, marginBottom: 16 }}>
+      <section style={{ ...panelStyle, border: "1px solid #52c41a", padding: 16, borderRadius: 8 }}>
         <h2>Readiness Packet / Dry-run Guard — Phase 10F <span style={{ fontSize: 14, color: "#52c41a" }}>Completed</span></h2>
         <p>Dry-run guard is metadata-only. No money simulation, no provider dispatch, no file generation.</p>
         <ul>
@@ -274,7 +277,7 @@ export function SettlementActionGovernancePage({ onBack, subView }: Props) {
       </section>
 
       {/* 8. Phase 11 — Dry-run Planner */}
-      <section style={{ border: "1px solid #1890ff", padding: 16, borderRadius: 6, marginBottom: 16, backgroundColor: "#e6f7ff" }}>
+      <section style={{ ...panelStyle, border: "1px solid #1890ff", padding: 16, borderRadius: 8, backgroundColor: "#e6f7ff" }}>
         <h2>Phase 11 — Dry-run Planner <span style={{ fontSize: 14, color: "#1890ff" }}>In Progress</span></h2>
         <p>Governance-only dry-run planning. Plans are read-only artifacts — no money movement, no execution.</p>
         <ul>
@@ -284,19 +287,19 @@ export function SettlementActionGovernancePage({ onBack, subView }: Props) {
           <li>🔒 No download or export of plan data</li>
         </ul>
         <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-          <button onClick={handleViewPlans}>View Dry-run Plans</button>
-          <button
+          <Button onClick={handleViewPlans}>View Dry-run Plans</Button>
+          <Button
             onClick={() => handleGeneratePlan("packet-placeholder")}
             disabled={generatingPlan}
           >
             {generatingPlan ? "Generating..." : "Generate Dry-run Plan"}
-          </button>
+          </Button>
         </div>
         {plansError && <p style={{ color: "red", marginTop: 8 }}>Error: {plansError}</p>}
       </section>
 
       {/* 9. Execution Boundary Summary */}
-      <section style={{ border: "1px solid #ff4d4f", padding: 16, borderRadius: 6, marginBottom: 16, backgroundColor: "#fff1f0" }}>
+      <section style={{ ...panelStyle, border: "1px solid #ff4d4f", padding: 16, borderRadius: 8, backgroundColor: "#fff1f0" }}>
         <h2>Execution Boundary — All Disabled</h2>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <tbody>
@@ -313,7 +316,7 @@ export function SettlementActionGovernancePage({ onBack, subView }: Props) {
       </section>
 
       {/* 10. Action Intent Draft (Governance Shell Only) */}
-      <section style={{ border: "1px solid #d9d9d9", padding: 16, borderRadius: 6, marginBottom: 16 }}>
+      <section style={{ ...panelStyle, border: "1px solid #d9d9d9", padding: 16, borderRadius: 8 }}>
         <h2>Action Intent Draft (Governance Shell)</h2>
         <p style={{ color: "#888", fontSize: 12 }}>All fields below are disabled and local-only. No data is sent to the server. No persistence occurs from this page.</p>
         <label>Action Type (placeholder)<br /><input value={actionKind} disabled readOnly style={{ width: "100%", opacity: 0.5 }} placeholder="e.g., review, approve, flag — not executable" /></label><br /><br />
@@ -324,15 +327,15 @@ export function SettlementActionGovernancePage({ onBack, subView }: Props) {
       </section>
 
       {/* 11. Forbidden Actions (Execution Disabled) */}
-      <section style={{ border: "1px solid #ff4d4f", padding: 16, borderRadius: 6, marginBottom: 16 }}>
+      <section style={{ ...panelStyle, border: "1px solid #ff4d4f", padding: 16, borderRadius: 8 }}>
         <h2>Forbidden Actions (Execution Disabled Until Future Phase)</h2>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-          <button disabled>Execution disabled — Payout</button>
-          <button disabled>Execution disabled — Refund</button>
-          <button disabled>Execution disabled — Reverse Ledger</button>
-          <button disabled>Execution disabled — Commit Settlement</button>
-          <button disabled>Execution disabled — Generate Export File</button>
-          <button disabled>Execution disabled — Approve and Execute</button>
+          <Button disabled>Execution disabled — Payout</Button>
+          <Button disabled>Execution disabled — Refund</Button>
+          <Button disabled>Execution disabled — Reverse Ledger</Button>
+          <Button disabled>Execution disabled — Commit Settlement</Button>
+          <Button disabled>Execution disabled — Generate Export File</Button>
+          <Button disabled>Execution disabled — Approve and Execute</Button>
         </div>
         <p style={{ fontSize: 12, color: "#888", marginTop: 8 }}>
           All execution buttons above are disabled and no-op. No API calls are made. No mutation handlers are bound. No download/export generation is triggered. No backend interaction occurs.
@@ -340,7 +343,7 @@ export function SettlementActionGovernancePage({ onBack, subView }: Props) {
       </section>
 
       {/* 12. Phase Boundary */}
-      <section style={{ border: "1px solid #d9d9d9", padding: 16, borderRadius: 6, marginBottom: 16 }}>
+      <section style={{ ...panelStyle, border: "1px solid #d9d9d9", padding: 16, borderRadius: 8 }}>
         <h2>Phase Boundary</h2>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead><tr><th style={{ textAlign: "left", padding: "4px 8px", borderBottom: "1px solid #ccc" }}>Phase</th><th style={{ textAlign: "left", padding: "4px 8px", borderBottom: "1px solid #ccc" }}>Description</th><th style={{ textAlign: "left", padding: "4px 8px", borderBottom: "1px solid #ccc" }}>Status</th></tr></thead>
@@ -356,7 +359,7 @@ export function SettlementActionGovernancePage({ onBack, subView }: Props) {
         </table>
       </section>
 
-      <button onClick={onBack}>← Back to Console</button>
+      <Button onClick={onBack}>← Back to Console</Button>
     </div>
   );
 }
