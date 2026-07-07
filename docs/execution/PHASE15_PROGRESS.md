@@ -508,3 +508,32 @@ Manual confirmation points:
 - Production: NO-GO.
 - Cloud-staging deploy: not performed.
 - Tags: not created.
+
+## Phase 15.3E-VERIFY Workflow Figma UI Architecture Gate
+
+- Status: completed locally, pending commit.
+- Commit: this commit (`docs(phase15): verify workflow figma ui architecture gate`).
+- Scope:
+  - `docs/reports/PHASE15_3E_WORKFLOW_FIGMA_UI_ARCH_GATE_REPORT.md`
+  - `docs/execution/PHASE15_PROGRESS.md`
+- Gate result: `PARTIAL GO`.
+- Customer routes:
+  - `/customer/`, `/customer/services`, `/customer/order/create`, `/customer/orders`, `/customer/profile` may enter constrained Phase 15.3F Pixel Repair after explicit route `WorkflowUiBinding` / `ActionContract` adapters are used.
+- Worker routes:
+  - `/worker/`, `/worker/tasks`, `/worker/wallet`, `/worker/profile`, `/worker/certification` may enter constrained Phase 15.3F Pixel Repair as not-wired/read-only workflow shells unless real backend action availability is wired.
+- Admin routes:
+  - `/admin/`, Settlement Ops, Governance, Export Review, Statement Detail, and Governance hash pages remain blocked for high-fidelity Pixel Repair because Settlement/Governance-specific Figma frames are `DESIGN_SOURCE_MISSING`.
+  - Existing admin Figma frames may only inform derived shell/table/status styling and must not be promoted to exact settlement/governance frames.
+- Action Source Gate:
+  - Backend workflow/API contracts remain the required source for executable actions, disabled reasons, city scope, audit, and idempotency.
+  - `FRONTEND_ACTION_LEAK` recorded for the current Governance dry-run plan action that uses `packet-placeholder`; Admin pixel repair must not bless or restyle it as an approved workflow action.
+- Runtime theming:
+  - PASS as architecture. `activeTheme` is visual-only and must not affect order, payment, dispatch, settlement, refund, permissions, city scope, audit, or idempotency.
+- Repository impact:
+  - App code modified: no.
+  - `packages/**` modified: no.
+  - Backend/db/deploy/infra modified: no.
+  - Production env modified: no.
+- Production: NO-GO.
+- Cloud-staging deploy: not performed.
+- Tags: not created.
