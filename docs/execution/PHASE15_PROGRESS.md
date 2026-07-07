@@ -403,3 +403,39 @@ Manual confirmation points:
 - Production: NO-GO.
 - Cloud-staging deploy: not performed.
 - Tags: not created.
+
+## Phase 15.3D-SKILL-SPIKE-2 HyperFrames Evaluation
+
+- Status: completed locally, pending commit.
+- Commit: this commit (`docs(phase15): evaluate hyperframes skill`).
+- Scope:
+  - `docs/reports/PHASE15_3D_HYPERFRAMES_SKILL_EVALUATION_REPORT.md`
+  - `docs/execution/PHASE15_PROGRESS.md`
+- Skill installation:
+  - Source: `heygen-com/hyperframes`, path `skills/hyperframes`.
+  - Installed to `C:\Users\kong\.codex\skills\hyperframes`.
+  - Install command: `python C:\Users\kong\.codex\skills\.system\skill-installer\scripts\install-skill-from-github.py --repo heygen-com/hyperframes --path skills/hyperframes`.
+- Runtime readiness:
+  - Node: `v24.14.0`.
+  - npm: `11.9.0`.
+  - FFmpeg: `8.1.1`.
+- Repository impact:
+  - Third-party skill files were installed outside the repo.
+  - No `.gitignore` change required.
+  - App code modified: no.
+  - `packages/**` modified: no.
+  - Backend/db/deploy/infra modified: no.
+  - Runtime dependencies modified: no.
+- Evaluation conclusion:
+  - Reject as a Phase 15.3D pixel repair tool.
+  - Keep installed only for possible future video/demo/media experiments.
+- Reason:
+  - HyperFrames is primarily an HTML-to-video / animation workflow router.
+  - The installed entry skill does not provide route-to-Figma screenshot pixel comparison.
+  - It must not replace Figma MCP, local Figma frame PNGs, browser screenshots, or targeted UI repair.
+- Phase 15.3E recommendation:
+  - Proceed with Figma frame to browser screenshot pixel repair.
+  - Do not use HyperFrames in the UI implementation path.
+- Production: NO-GO.
+- Cloud-staging deploy: not performed.
+- Tags: not created.
