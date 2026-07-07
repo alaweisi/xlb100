@@ -52,12 +52,50 @@ const ORDER_HISTORY_KEY = "xlb.customer.orderIds";
 const cityOptions: CityCode[] = ["hangzhou", "shanghai", "beijing"];
 
 const routeConfig: Record<CustomerRoute, { label: string; href: string; title: string; eyebrow: string; icon: string; prominent?: boolean }> = {
-  home: { label: "首页", href: "/customer/", title: "安心到家维修", eyebrow: "上海 · 静安区", icon: "⌂" },
+  home: { label: "首页", href: "/customer/", title: "喜乐帮到家", eyebrow: "上海 · 静安区", icon: "⌂" },
   services: { label: "服务", href: "/customer/services", title: "选择服务", eyebrow: "可预约服务", icon: "⌕" },
   createOrder: { label: "新报修", href: "/customer/order/create", title: "确认服务并下单", eyebrow: "新报修", icon: "+", prominent: true },
   orders: { label: "订单", href: "/customer/orders", title: "订单进度", eyebrow: "已创建订单", icon: "▦" },
   profile: { label: "我的", href: "/customer/profile", title: "我的", eyebrow: "账户资料", icon: "♙" },
 };
+
+const categoryDisplay: Record<string, { label: string; icon: string; tone: string }> = {
+  家庭保洁: { label: "保洁", icon: "洁", tone: "#B85F2A" },
+  家电清洗: { label: "清洗", icon: "净", tone: "#0F766E" },
+  家电维修: { label: "维修", icon: "修", tone: "#2563EB" },
+  上门安装: { label: "安装", icon: "装", tone: "#7C3AED" },
+  管道疏通: { label: "疏通", icon: "通", tone: "#B45309" },
+  开锁换锁: { label: "开锁", icon: "锁", tone: "#334155" },
+  水电维修: { label: "水电", icon: "电", tone: "#0284C7" },
+  "防水补漏/精准测漏": { label: "防水", icon: "漏", tone: "#0891B2" },
+  家具家居维修保养: { label: "家具", icon: "家", tone: "#854D0E" },
+  "房屋修缮/局部改造": { label: "修缮", icon: "房", tone: "#9A3412" },
+  "搬家搬运/拆旧清运": { label: "搬家", icon: "搬", tone: "#15803D" },
+  甲醛检测治理: { label: "除醛", icon: "醛", tone: "#16A34A" },
+  数码办公维修: { label: "数码", icon: "数", tone: "#4338CA" },
+  洗衣洗鞋: { label: "洗护", icon: "洗", tone: "#0369A1" },
+  "保姆月嫂/照护": { label: "照护", icon: "护", tone: "#BE185D" },
+  四害消杀: { label: "消杀", icon: "杀", tone: "#4D7C0F" },
+};
+
+const homeCategoryOrder = [
+  "家庭保洁",
+  "家电清洗",
+  "家电维修",
+  "上门安装",
+  "管道疏通",
+  "开锁换锁",
+  "水电维修",
+  "搬家搬运/拆旧清运",
+  "洗衣洗鞋",
+  "保姆月嫂/照护",
+  "甲醛检测治理",
+  "四害消杀",
+  "防水补漏/精准测漏",
+  "家具家居维修保养",
+  "房屋修缮/局部改造",
+  "数码办公维修",
+];
 
 const shellStyle = {
   "--xlb-role-accent": "#B85F2A",
@@ -152,10 +190,6 @@ function flattenSkus(catalog?: CatalogSnapshot): CatalogSku[] {
   );
 }
 
-function categorySkuCount(category: CatalogCategory): number {
-  return category.items.reduce((total, item) => total + item.skus.length, 0);
-}
-
 function representativeSku(category: CatalogCategory): CatalogSku | undefined {
   const item = category.items.find((catalogItem) => catalogItem.skus.length > 0);
   const sku = item?.skus[0];
@@ -173,6 +207,31 @@ function representativeSkus(catalog: CatalogSnapshot): CatalogSku[] {
     const sku = representativeSku(category);
     return sku ? [sku] : [];
   });
+}
+
+function orderedHomeCategories(catalog: CatalogSnapshot): CatalogCategory[] {
+  const byName = new Map(catalog.categories.map((category) => [category.name, category]));
+  const ordered = homeCategoryOrder.flatMap((categoryName) => {
+    const category = byName.get(categoryName);
+    return category ? [category] : [];
+  });
+  const remaining = catalog.categories.filter((category) => !homeCategoryOrder.includes(category.name));
+  return [...ordered, ...remaining];
+}
+
+function categoryMeta(category: CatalogCategory) {
+  return categoryDisplay[category.name] ?? {
+    label: category.name.length > 4 ? category.name.slice(0, 4) : category.name,
+    icon: category.name.slice(0, 1),
+    tone: "#B85F2A",
+  };
+}
+
+function categoryExamples(category: CatalogCategory): string {
+  return category.items
+    .slice(0, 3)
+    .map((item) => item.name)
+    .join("、");
 }
 
 function statusTone(status: string): "success" | "warning" | "danger" | "muted" {
@@ -367,58 +426,84 @@ function CitySelector({
   );
 }
 
+function TrustPillRow() {
+  const items = ["价格透明", "在线预约", "售后保障"];
+  return (
+    <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
+      {items.map((item) => (
+        <span
+          key={item}
+          style={{
+            background: "rgba(255, 255, 255, 0.74)",
+            border: "1px solid rgba(234, 216, 189, 0.82)",
+            borderRadius: 999,
+            color: "#5f5143",
+            fontSize: 12,
+            fontWeight: 800,
+            lineHeight: "18px",
+            padding: "7px 8px",
+            textAlign: "center",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {item}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function CategoryShortcutGrid({ categories }: { categories: CatalogCategory[] }) {
   return (
-    <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+    <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(4, minmax(0, 1fr))" }}>
       {categories.map((category) => {
-        const skuCount = categorySkuCount(category);
+        const meta = categoryMeta(category);
+        const examples = categoryExamples(category);
         return (
           <button
             key={category.categoryId}
             onClick={() => {
               window.location.href = `/customer/services?category=${encodeURIComponent(category.categoryId)}`;
             }}
-            title={`${category.name}，${skuCount} 项可预约服务`}
+            title={`${category.name}${examples ? `：${examples}` : ""}`}
             type="button"
             style={{
               alignItems: "center",
-              background: "rgba(255, 255, 255, 0.88)",
-              border: "1px solid #ead8bd",
-              borderRadius: 16,
-              boxShadow: "0 6px 14px rgba(43, 33, 24, 0.08)",
+              background: "rgba(255, 255, 255, 0.8)",
+              border: "1px solid rgba(234, 216, 189, 0.78)",
+              borderRadius: 18,
+              boxShadow: "0 6px 16px rgba(43, 33, 24, 0.06)",
               color: "#2B2118",
               cursor: "pointer",
-              display: "flex",
+              display: "grid",
               fontFamily: "inherit",
-              gap: 10,
-              minHeight: 66,
-              padding: "10px",
-              textAlign: "left",
+              gap: 7,
+              justifyItems: "center",
+              minHeight: 82,
+              padding: "10px 4px",
+              textAlign: "center",
+              touchAction: "manipulation",
             }}
           >
             <span
               aria-hidden="true"
               style={{
                 alignItems: "center",
-                background: "rgba(184, 95, 42, 0.1)",
-                borderRadius: 12,
-                color: "#B85F2A",
+                background: `${meta.tone}17`,
+                borderRadius: 16,
+                color: meta.tone,
                 display: "inline-flex",
-                flex: "0 0 auto",
-                fontSize: 12,
+                fontSize: 16,
                 fontWeight: 900,
-                height: 34,
+                height: 42,
                 justifyContent: "center",
-                lineHeight: "16px",
-                width: 34,
+                lineHeight: "20px",
+                width: 42,
               }}
             >
-              {category.categoryId.replace("cat_", "")}
+              {meta.icon}
             </span>
-            <span style={{ display: "grid", gap: 2, minWidth: 0 }}>
-              <span style={{ fontSize: 13, fontWeight: 800, lineHeight: "18px" }}>{category.name}</span>
-              <span style={{ color: "#8a735b", fontSize: 11, fontWeight: 700, lineHeight: "15px" }}>{skuCount} 项服务</span>
-            </span>
+            <span style={{ fontSize: 12, fontWeight: 800, lineHeight: "16px", minHeight: 32 }}>{meta.label}</span>
           </button>
         );
       })}
@@ -493,14 +578,16 @@ function HomePage({
       <SearchBar
         value={query}
         onChange={setQuery}
-        placeholder="水槽漏水、空调清洗、门锁维修"
+        placeholder="搜保洁、维修、搬家、月嫂"
         leadingIcon="⌕"
         style={{ borderColor: "#ead8bd", borderRadius: 16, boxShadow: "0 6px 16px rgba(43, 33, 24, 0.08)", minHeight: 46 }}
       />
+      <TrustPillRow />
 
       <CatalogState catalogState={catalogState} onRetry={onRetryCatalog} retryAction={retryCatalogAction}>
         {(catalog) => {
           const allServices = flattenSkus(catalog);
+          const homeCategories = orderedHomeCategories(catalog);
           const normalizedQuery = query.trim().toLowerCase();
           const services = normalizedQuery
             ? allServices
@@ -509,8 +596,7 @@ function HomePage({
                   return text.includes(normalizedQuery);
                 })
                 .slice(0, 16)
-            : representativeSkus(catalog);
-          const totalSkuCount = allServices.length;
+            : representativeSkus({ ...catalog, categories: homeCategories }).slice(0, 8);
 
           if (services.length === 0) {
             return <EmptyState title="没有匹配服务" description="请更换关键词或切换城市后重试。" />;
@@ -518,10 +604,9 @@ function HomePage({
 
           return (
             <div style={sectionGrid}>
-              <Card title="全部服务大类" actions={<StatusTag tone="success">{catalog.categories.length} 类</StatusTag>} style={customerFlatCardStyle}>
+              <Card title="常用服务" actions={<StatusTag tone="success">可预约</StatusTag>} style={customerFlatCardStyle}>
                 <div style={{ display: "grid", gap: 12 }}>
-                  <HelperText>当前城市共 {catalog.categories.length} 个大类、{totalSkuCount} 项可预约服务。</HelperText>
-                  <CategoryShortcutGrid categories={catalog.categories} />
+                  <CategoryShortcutGrid categories={homeCategories} />
                 </div>
               </Card>
               <Card
@@ -532,15 +617,15 @@ function HomePage({
                 }}
               >
                 <div style={{ display: "grid", gap: 6 }}>
-                  <StatusTag tone="warning" style={{ justifySelf: "start" }}>实时报价</StatusTag>
-                  <strong style={{ color: "#2B2118", fontSize: 17, lineHeight: "24px" }}>选好服务后再确认价格</strong>
+                  <StatusTag tone="warning" style={{ justifySelf: "start" }}>安心下单</StatusTag>
+                  <strong style={{ color: "#2B2118", fontSize: 17, lineHeight: "24px" }}>先选服务，再确认报价</strong>
                   <span style={{ color: "#9a8266", fontSize: 12, lineHeight: "18px" }}>
-                    下单页会读取当前服务的报价，价格未返回前不会提交订单。
+                    报价确认前不会提交订单。支付单生成后仍保持待支付状态，不会替你完成支付。
                   </span>
                 </div>
               </Card>
               <div style={{ alignItems: "center", display: "flex", justifyContent: "space-between" }}>
-                <h2 style={{ color: "#2B2118", fontSize: 18, lineHeight: "24px", margin: 0 }}>{normalizedQuery ? "搜索结果" : "按类推荐"}</h2>
+                <h2 style={{ color: "#2B2118", fontSize: 18, lineHeight: "24px", margin: 0 }}>{normalizedQuery ? "搜索结果" : "热门服务"}</h2>
                 <Button
                   disabled={!openServicesAction.enabled}
                   onClick={() => runWorkflowAction(openServicesAction, () => { window.location.href = "/customer/services"; })}
