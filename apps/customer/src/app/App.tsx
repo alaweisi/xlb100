@@ -31,8 +31,10 @@ import {
   customerWorkflowActions,
   runWorkflowAction,
 } from "../adapters/workflowBindings";
+import "./mobile-shell.css";
 
 type CustomerRoute = "home" | "services" | "createOrder" | "orders" | "profile";
+type CustomerShellMode = "preview" | "app";
 type Loadable<T> =
   | { status: "pending" | "loading"; data?: T; error?: undefined }
   | { status: "success"; data: T; error?: undefined }
@@ -49,6 +51,7 @@ const DEFAULT_CITY: CityCode = "hangzhou";
 const CUSTOMER_ID = "customer-demo-001";
 const CITY_STORAGE_KEY = "xlb.customer.cityCode";
 const ORDER_HISTORY_KEY = "xlb.customer.orderIds";
+const MOBILE_APP_SHELL_QUERY = "(max-width: 640px), (pointer: coarse)";
 const cityOptions: CityCode[] = ["hangzhou", "shanghai", "beijing"];
 
 const routeConfig: Record<CustomerRoute, { label: string; href: string; title: string; eyebrow: string; icon: string; prominent?: boolean }> = {
@@ -160,6 +163,32 @@ function rememberOrder(orderId: string): string[] {
   const next = [orderId, ...readOrderIds().filter((id) => id !== orderId)].slice(0, 8);
   window.localStorage.setItem(ORDER_HISTORY_KEY, JSON.stringify(next));
   return next;
+}
+
+function detectCustomerShellMode(): CustomerShellMode {
+  if (typeof window === "undefined") return "preview";
+  const mediaMatch = window.matchMedia(MOBILE_APP_SHELL_QUERY).matches;
+  const touchViewport = window.navigator.maxTouchPoints > 0 && window.innerWidth <= 900;
+  return mediaMatch || touchViewport ? "app" : "preview";
+}
+
+function useCustomerShellMode(): CustomerShellMode {
+  const [shellMode, setShellMode] = useState<CustomerShellMode>(detectCustomerShellMode);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia(MOBILE_APP_SHELL_QUERY);
+    const syncShellMode = () => setShellMode(detectCustomerShellMode());
+
+    syncShellMode();
+    mediaQuery.addEventListener("change", syncShellMode);
+    window.addEventListener("resize", syncShellMode);
+    return () => {
+      mediaQuery.removeEventListener("change", syncShellMode);
+      window.removeEventListener("resize", syncShellMode);
+    };
+  }, []);
+
+  return shellMode;
 }
 
 function createCustomerApi(cityCode: CityCode) {
@@ -302,18 +331,18 @@ function UatDebugPanel({ facts, title = "UAT 调试信息" }: { facts: UatFact[]
 
 function PhoneStatusBar() {
   return (
-    <div style={{ alignItems: "center", color: "#2B2118", display: "flex", fontSize: 12, fontWeight: 800, justifyContent: "space-between", lineHeight: "16px" }}>
+    <div className="customer-fake-status-bar" style={{ alignItems: "center", color: "#2B2118", display: "flex", fontSize: 12, fontWeight: 800, justifyContent: "space-between", lineHeight: "16px" }}>
       <span>9:41</span>
       <span>5G ▰</span>
     </div>
   );
 }
 
-function CustomerPageHeader({ route, cityCode }: { route: CustomerRoute; cityCode: CityCode }) {
+function CustomerPageHeader({ route, cityCode, showStatusBar }: { route: CustomerRoute; cityCode: CityCode; showStatusBar: boolean }) {
   const config = routeConfig[route];
   return (
     <header style={{ display: "grid", gap: 10, padding: "20px 20px 8px" }}>
-      <PhoneStatusBar />
+      {showStatusBar && <PhoneStatusBar />}
       <div style={{ alignItems: "center", display: "flex", gap: 16, justifyContent: "space-between" }}>
         <div style={{ display: "grid", gap: 4 }}>
           <span style={{ color: "#8a735b", fontSize: 13, fontWeight: 700, lineHeight: "18px" }}>
@@ -353,22 +382,16 @@ function AppFrame({
   cityCode: CityCode;
   children: ReactNode;
 }) {
+  const shellMode = useCustomerShellMode();
+  const appMode = shellMode === "app";
+
   return (
-    <div data-role="customer" style={shellStyle}>
-      <div style={{ margin: "0 auto", maxWidth: 430, minHeight: "100vh", padding: "28px 18px" }}>
-        <div
-          style={{
-            background: "#FFFAF0",
-            border: "10px solid #dec49e",
-            borderRadius: 44,
-            boxShadow: "0 24px 54px rgba(43, 33, 24, 0.22)",
-            boxSizing: "border-box",
-            minHeight: 844,
-            overflow: "hidden",
-          }}
-        >
+    <div className="customer-app-root" data-role="customer" data-shell-mode={shellMode} style={shellStyle}>
+      <div className="customer-device-preview">
+        <div className="customer-device-frame">
         <MobileShell
-          topBar={<CustomerPageHeader cityCode={cityCode} route={route} />}
+          mode={shellMode}
+          topBar={<CustomerPageHeader cityCode={cityCode} route={route} showStatusBar={!appMode} />}
           bottomNav={
             <BottomNav
               items={(Object.keys(routeConfig) as CustomerRoute[]).map((key) => ({
@@ -379,20 +402,18 @@ function AppFrame({
                 icon: routeConfig[key].icon,
                 prominent: routeConfig[key].prominent,
               }))}
+              placement={appMode ? "fixed" : "static"}
               style={{
                 background: "rgba(255, 250, 240, 0.96)",
                 borderTop: "1px solid rgba(222, 196, 158, 0.58)",
                 boxShadow: "0 -10px 26px rgba(43, 33, 24, 0.07)",
-                position: "sticky",
-                bottom: 0,
-                zIndex: 3,
               }}
             />
           }
           contentStyle={{ padding: "8px 20px 0" }}
-          style={{ background: "#FFFAF0", minHeight: 824 }}
+          style={{ background: "#FFFAF0", minHeight: appMode ? "100dvh" : 824 }}
         >
-          <div style={{ display: "grid", gap: 16, paddingBottom: 18 }}>{children}</div>
+          <div className="customer-content-stack">{children}</div>
         </MobileShell>
         </div>
       </div>

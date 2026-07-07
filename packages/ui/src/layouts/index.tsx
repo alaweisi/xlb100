@@ -48,13 +48,23 @@ export interface MobileShellProps {
   topBar?: ReactNode;
   bottomNav?: ReactNode;
   children: ReactNode;
+  mode?: MobileShellMode;
   style?: CSSProperties;
   contentStyle?: CSSProperties;
 }
 
-export function MobileShell({ topBar, bottomNav, children, style, contentStyle }: MobileShellProps) {
+export type MobileShellMode = "desktop" | "preview" | "mobile" | "app";
+
+function normalizeMobileShellMode(mode: MobileShellMode): "preview" | "app" {
+  if (mode === "desktop" || mode === "preview") return "preview";
+  return "app";
+}
+
+export function MobileShell({ topBar, bottomNav, children, mode = "app", style, contentStyle }: MobileShellProps) {
+  const normalizedMode = normalizeMobileShellMode(mode);
   return (
     <div
+      data-mobile-shell-mode={normalizedMode}
       style={mergeStyle(
         {
           background: "#f9fafb",
@@ -62,7 +72,8 @@ export function MobileShell({ topBar, bottomNav, children, style, contentStyle }
           display: "grid",
           fontFamily,
           gridTemplateRows: `${topBar ? "auto " : ""}1fr${bottomNav ? " auto" : ""}`,
-          minHeight: "100vh",
+          minHeight: normalizedMode === "app" ? "100dvh" : "100vh",
+          width: "100%",
         },
         style,
       )}
@@ -116,16 +127,28 @@ export interface NavItem {
   prominent?: boolean;
 }
 
-export function BottomNav({ items, style }: { items: NavItem[]; style?: CSSProperties }) {
+export interface BottomNavProps {
+  items: NavItem[];
+  placement?: "static" | "fixed";
+  style?: CSSProperties;
+}
+
+export function BottomNav({ items, placement = "static", style }: BottomNavProps) {
+  const fixed = placement === "fixed";
   return (
     <nav
       style={mergeStyle(
         {
           background: "#ffffff",
           borderTop: "1px solid #e5e7eb",
+          bottom: fixed ? 0 : undefined,
           display: "grid",
           gridTemplateColumns: `repeat(${Math.max(items.length, 1)}, minmax(0, 1fr))`,
-          paddingBottom: "env(safe-area-inset-bottom)",
+          left: fixed ? 0 : undefined,
+          paddingBottom: fixed ? "calc(6px + env(safe-area-inset-bottom))" : "env(safe-area-inset-bottom)",
+          position: fixed ? "fixed" : "static",
+          right: fixed ? 0 : undefined,
+          zIndex: fixed ? 40 : undefined,
         },
         style,
       )}
