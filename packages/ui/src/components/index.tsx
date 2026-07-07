@@ -281,7 +281,7 @@ export function SearchBar({
       )}
     >
       <span aria-hidden="true" style={{ color: "#6b7280", flex: "0 0 auto", fontSize: 14, lineHeight: 1 }}>
-        {leadingIcon ?? "⌕"}
+         {leadingIcon ?? "🔍"}
       </span>
       <input
         disabled={disabled}
@@ -306,6 +306,134 @@ export function SearchBar({
       />
       {children}
     </form>
+  );
+}
+
+export interface LocationSearchBarProps extends Omit<HTMLAttributes<HTMLDivElement>, "onSubmit"> {
+  cityLabel: string;
+  areaLabel?: string;
+  placeholder?: string;
+  value: string;
+  onSearchChange: (value: string) => void;
+  onCityClick?: () => void;
+}
+
+export function LocationSearchBar({
+  cityLabel,
+  areaLabel,
+  placeholder,
+  value,
+  onSearchChange,
+  onCityClick,
+  style,
+  ...props
+}: LocationSearchBarProps) {
+  return (
+    <div {...props} style={mergeStyle({ display: "grid", gap: 10, width: "100%" }, style)}>
+      <button
+        onClick={onCityClick}
+        type="button"
+        style={{
+          alignItems: "center",
+          background: "rgba(255, 255, 255, 0.96)",
+          border: "1px solid #ead8bd",
+          borderRadius: 16,
+          color: tokens.colors.text,
+          cursor: onCityClick ? "pointer" : "default",
+          display: "flex",
+          fontFamily,
+          fontSize: 14,
+          gap: 8,
+          justifyContent: "space-between",
+          letterSpacing: 0,
+          minHeight: 42,
+          padding: "0 12px",
+          textAlign: "left",
+          width: "100%",
+        }}
+      >
+        <span aria-hidden="true" style={{ color: "#6b7280", fontSize: 14, fontWeight: 700 }}>
+          {`📍 ${cityLabel}`}
+        </span>
+        <span style={{ color: "#6b7280", fontSize: 13, fontWeight: 500, opacity: onCityClick ? 1 : 0.8 }}>
+          {areaLabel ?? "切换服务城市"}
+        </span>
+      </button>
+      <SearchBar
+        value={value}
+        onChange={onSearchChange}
+        placeholder={placeholder}
+        leadingIcon="🔍"
+        style={{ borderColor: "#ead8bd", borderRadius: 16, minHeight: 44 }}
+      />
+    </div>
+  );
+}
+
+export interface QuantityStepperProps {
+  value: number;
+  min?: number;
+  max?: number;
+  onChange: (value: number) => void;
+  disabled?: boolean;
+}
+
+export function QuantityStepper({ value, min = 1, max, onChange, disabled }: QuantityStepperProps) {
+  const safeValue = Number.isFinite(value) ? Math.max(min, value) : min;
+  const clampedValue = max === undefined ? safeValue : Math.min(max, safeValue);
+  const canDecrease = clampedValue > min;
+  const canIncrease = max === undefined || clampedValue < max;
+
+  function decrement() {
+    if (!disabled && canDecrease) {
+      onChange(clampedValue - 1);
+    }
+  }
+
+  function increment() {
+    if (!disabled && canIncrease) {
+      onChange(clampedValue + 1);
+    }
+  }
+
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "42px 1fr 42px", gap: 8, width: "100%" }}>
+      <Button
+        disabled={disabled || !canDecrease}
+        onClick={decrement}
+        style={{ borderRadius: 10, minHeight: 36, padding: 0 }}
+        type="button"
+        variant="secondary"
+      >
+        -
+      </Button>
+      <div
+        style={{
+          alignItems: "center",
+          background: "#ffffff",
+          border: "1px solid #d1d5db",
+          borderRadius: 10,
+          color: tokens.colors.text,
+          display: "flex",
+          fontFamily,
+          fontSize: 14,
+          fontWeight: 700,
+          justifyContent: "center",
+          minHeight: 36,
+        }}
+      >
+        {clampedValue}
+      </div>
+      <Button
+        disabled={disabled || !canIncrease}
+        onClick={increment}
+        style={{ borderRadius: 10, minHeight: 36, padding: 0 }}
+        type="button"
+        variant="secondary"
+      >
+        +
+      </Button>
+    </div>
   );
 }
 

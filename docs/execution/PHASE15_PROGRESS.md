@@ -877,3 +877,38 @@ Manual confirmation points:
 - Current status:
   - docs-only completion in progress.
 
+## Phase 15.3F-3 Customer Header Search and Quantity UX Fix
+
+- Status: completed locally, committed (`fix(customer): improve location search and quantity ux`).
+- Scope:
+  - `packages/ui/src/components/index.tsx`
+  - `apps/customer/src/app/App.tsx`
+  - `docs/reports/PHASE15_3F3_CUSTOMER_HEADER_QUANTITY_UX_REPORT.md`
+  - `docs/execution/PHASE15_PROGRESS.md`
+- Goal:
+  - Fix C 端首页城市/搜索入口体验与下单页数量与服务路径表达。
+- Changes:
+  - Added UI components `LocationSearchBar` and `QuantityStepper` to `@xlb/ui`.
+  - `/customer/`:
+    - Replaced bottom duplicate 城市卡片 with integrated city + search entry.
+    - Header now renders city chip + search in one entry point; supports city switching via existing `selectedCityCode` path.
+    - Search placeholder updated to `搜保洁、维修、搬家、月嫂`.
+  - `/customer/order/create`:
+    - Replaced number input with `QuantityStepper` (min-lock at 1, no empty state).
+    - Added “更换服务” quick return action.
+    - Service option/subtitle labels now de-duplicate repeated hierarchical path text.
+  - `/customer/services`:
+    - Service card subtitles aligned to deduplicated category+sub-category structure.
+- Business constraints:
+  - Real chain kept: catalog → pricing → order → payment order → order detail.
+  - No fake orders/user/payment/dispatch introduced.
+  - No changes in `apps/worker/**`, `apps/admin/**`, backend/db/deploy/infra.
+- Verification:
+  - `pnpm --filter @xlb/ui typecheck`: PASS
+  - `pnpm --filter @xlb/ui build`: PASS
+  - `pnpm --filter @xlb/customer typecheck`: PASS
+  - `pnpm --filter @xlb/customer build`: PASS
+  - `pnpm test -- --bail=1`: PASS (`255` test files, `1048` tests, `1` todo)
+  - `rg "http://localhost:3000|127\\.0\\.0\\.1|/api/api" apps/customer packages/ui packages/api-client`: PASS
+  - `git diff --check`: PASS
+

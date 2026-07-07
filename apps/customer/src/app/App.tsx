@@ -11,14 +11,15 @@ import {
   EmptyState,
   ErrorState,
   FormField,
-  Input,
   LoadingState,
   MobileShell,
   OrderCard,
+  LocationSearchBar,
   PriceText,
   RuntimeThemeSurface,
   SearchBar,
   Select,
+  QuantityStepper,
   ServiceCard,
   Skeleton,
   StatusTag,
@@ -53,6 +54,11 @@ const CITY_STORAGE_KEY = "xlb.customer.cityCode";
 const ORDER_HISTORY_KEY = "xlb.customer.orderIds";
 const MOBILE_APP_SHELL_QUERY = "(max-width: 640px), (pointer: coarse)";
 const cityOptions: CityCode[] = ["hangzhou", "shanghai", "beijing"];
+const cityAreaByCode: Record<CityCode, string> = {
+  hangzhou: "静安区",
+  shanghai: "黄埔区",
+  beijing: "朝阳区",
+};
 
 const routeConfig: Record<CustomerRoute, { label: string; href: string; title: string; eyebrow: string; icon: string; prominent?: boolean }> = {
   home: { label: "首页", href: "/customer/", title: "喜乐帮到家", eyebrow: "上海 · 静安区", icon: "⌂" },
@@ -133,6 +139,28 @@ const customerFlatCardStyle: CSSProperties = {
   boxShadow: "none",
   padding: 18,
 };
+
+function cityDisplayLabel(cityCode: CityCode): string {
+  return `${cityCode} · ${cityAreaByCode[cityCode] ?? "市中心"}`;
+}
+
+function dedupePathParts(parts: Array<string | undefined>): string[] {
+  const list = parts.filter(Boolean).map((item) => item!.trim());
+  const deduped: string[] = [];
+  for (const item of list) {
+    if (!deduped.includes(item)) deduped.push(item);
+  }
+  return deduped;
+}
+
+function getSkuPathLabel(sku: CatalogSku): string {
+  return dedupePathParts([sku.categoryName, sku.itemName, sku.name]).join(" · ");
+}
+
+function getSkuSubtitle(sku: CatalogSku): string {
+  const path = dedupePathParts([sku.categoryName, sku.itemName]).join(" · ");
+  return path ? `${path} · ${sku.unit}` : sku.unit;
+}
 
 function currentRoute(): CustomerRoute {
   const path = window.location.pathname.replace(/\/+$/, "") || "/";
@@ -421,32 +449,6 @@ function AppFrame({
   );
 }
 
-function CitySelector({
-  cityCode,
-  onCityChange,
-}: {
-  cityCode: CityCode;
-  onCityChange: (cityCode: CityCode) => void;
-}) {
-  return (
-    <Card
-      title="服务城市"
-      actions={<StatusTag tone="primary">当前城市</StatusTag>}
-      style={customerFlatCardStyle}
-    >
-      <FormField label="当前城市" description="城市会影响可选服务和最终报价">
-        <Select value={cityCode} onChange={(event) => onCityChange(event.target.value as CityCode)}>
-          {cityOptions.map((city) => (
-            <option key={city} value={city}>
-              {city}
-            </option>
-          ))}
-        </Select>
-      </FormField>
-    </Card>
-  );
-}
-
 function TrustPillRow() {
   const items = ["价格透明", "在线预约", "售后保障"];
   return (
@@ -590,19 +592,40 @@ function HomePage({
   onCityChange: (cityCode: CityCode) => void;
 }) {
   const [query, setQuery] = useState("");
+  const [showCityPicker, setShowCityPicker] = useState(false);
   const binding = createCustomerWorkflowBinding({ route: "home", cityCode });
   const openServicesAction = customerWorkflowActions.openServices();
   const retryCatalogAction = customerWorkflowActions.retryCatalog();
 
   return (
     <RuntimeThemeSurface binding={binding}>
-      <SearchBar
-        value={query}
-        onChange={setQuery}
+      <LocationSearchBar
+        cityLabel={cityDisplayLabel(cityCode)}
+        areaLabel="切换城市"
         placeholder="搜保洁、维修、搬家、月嫂"
-        leadingIcon="⌕"
-        style={{ borderColor: "#ead8bd", borderRadius: 16, boxShadow: "0 6px 16px rgba(43, 33, 24, 0.08)", minHeight: 46 }}
+        value={query}
+        onSearchChange={setQuery}
+        onCityClick={() => setShowCityPicker((previous) => !previous)}
       />
+      {showCityPicker && (
+        <Card style={{ ...customerFlatCardStyle, borderColor: "#ead8bd" }}>
+          <FormField label="服务城市">
+            <Select
+              value={cityCode}
+              onChange={(event) => {
+                onCityChange(event.target.value as CityCode);
+                setShowCityPicker(false);
+              }}
+            >
+              {cityOptions.map((city) => (
+                <option key={city} value={city}>
+                  {cityDisplayLabel(city)}
+                </option>
+              ))}
+            </Select>
+          </FormField>
+        </Card>
+      )}
       <TrustPillRow />
 
       <CatalogState catalogState={catalogState} onRetry={onRetryCatalog} retryAction={retryCatalogAction}>
@@ -661,13 +684,13 @@ function HomePage({
                   (() => {
                     const selectAction = customerWorkflowActions.selectService(sku.skuId);
                     return (
-                      <ServiceCard
-                        key={sku.skuId}
-                        title={sku.name}
-                        subtitle={`${sku.categoryName} · ${sku.itemName}`}
-                        status={<StatusTag tone="success">可预约</StatusTag>}
-                        actionLabel={selectAction.label}
-                        onClick={() => runWorkflowAction(selectAction, () => {
+                  <ServiceCard
+                    key={sku.skuId}
+                    title={sku.name}
+                    subtitle={getSkuSubtitle(sku)}
+                    status={<StatusTag tone="success">可预约</StatusTag>}
+                    actionLabel={selectAction.label}
+                    onClick={() => runWorkflowAction(selectAction, () => {
                           window.location.href = `/customer/order/create?skuId=${encodeURIComponent(sku.skuId)}`;
                         })}
                         style={customerCardStyle}
@@ -680,7 +703,6 @@ function HomePage({
           );
         }}
       </CatalogState>
-      <CitySelector cityCode={cityCode} onCityChange={onCityChange} />
     </RuntimeThemeSurface>
   );
 }
@@ -755,11 +777,11 @@ function ServicesPage({
                     (() => {
                       const selectAction = customerWorkflowActions.selectService(sku.skuId);
                       return (
-                        <ServiceCard
-                          key={sku.skuId}
-                          title={sku.name}
-                          subtitle={`${sku.categoryName} · ${sku.itemName} · ${sku.unit}`}
-                          status={<StatusTag tone="success">可下单</StatusTag>}
+                    <ServiceCard
+                      key={sku.skuId}
+                      title={sku.name}
+                      subtitle={getSkuSubtitle(sku)}
+                      status={<StatusTag tone="success">可下单</StatusTag>}
                           priceText="下单页确认价格"
                           actionLabel={selectAction.label}
                           onClick={() => runWorkflowAction(selectAction, () => {
@@ -891,28 +913,37 @@ function CreateOrderPage({
                   <option value="" disabled>
                     请选择服务
                   </option>
-                  {skus.map((sku) => (
-                    <option key={sku.skuId} value={sku.skuId}>
-                      {sku.categoryName} / {sku.itemName} / {sku.name}
-                    </option>
-                  ))}
+              {skus.map((sku) => (
+                <option key={sku.skuId} value={sku.skuId}>
+                  {getSkuPathLabel(sku)}
+                </option>
+              ))}
                 </Select>
               </FormField>
               <FormField label="数量" description="按服务计价单位提交">
-                <Input
-                  min={1}
-                  onChange={(event) => setQuantity(Math.max(1, Number(event.target.value) || 1))}
-                  type="number"
+                <QuantityStepper
+                  max={100}
                   value={quantity}
+                  onChange={setQuantity}
                 />
               </FormField>
               {selectedSku && (
                 <ServiceCard
                   title={selectedSku.name}
-                  subtitle={`${selectedSku.categoryName} · ${selectedSku.itemName} · ${selectedSku.unit}`}
+                  subtitle={getSkuSubtitle(selectedSku)}
                   status={<StatusTag tone="success">已选择</StatusTag>}
                   style={{ ...customerFlatCardStyle, minHeight: 96 }}
-                />
+                >
+                  <Button
+                    onClick={() => {
+                      window.location.href = "/customer/services";
+                    }}
+                    variant="ghost"
+                    type="button"
+                  >
+                    更换服务
+                  </Button>
+                </ServiceCard>
               )}
             </div>
           </Card>
