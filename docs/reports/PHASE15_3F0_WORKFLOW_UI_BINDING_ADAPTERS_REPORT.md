@@ -89,10 +89,22 @@ Result: `PARTIAL GO`.
 - `pnpm --filter @xlb/customer build`: PASS.
 - `pnpm --filter @xlb/worker typecheck`: PASS.
 - `pnpm --filter @xlb/worker build`: PASS.
-- `pnpm test -- --bail=1`: BLOCKED by local DB availability. The rerun failed on DB-backed tests with `connect ECONNREFUSED 127.0.0.1:3306`; `docker ps` also failed because the Docker daemon was not available at `npipe:////./pipe/dockerDesktopLinuxEngine`.
+- Phase 15.3F-0-GATE Docker recovery: PASS. Docker Desktop daemon was restored and local compose was started with `docker compose -f deploy\compose\docker-compose.local.yml up -d`.
+- Local MySQL/Redis health: PASS. `xlb-mysql-local` on `3306` and `xlb-redis-local` on `6379` reported `healthy`.
+- Legacy provider-withdraw UI gate allowlist: PASS after adding only the Phase 15.3F-0 adapter files to the six existing UI gate allowlists:
+  - `apps/customer/src/adapters/workflowBindings.ts`
+  - `apps/worker/src/adapters/workflowBindings.ts`
+- Single gate scripts:
+  - `scripts/check-settlement-confirm-no-provider-withdraw-ui.ps1`: PASS.
+  - `scripts/check-settlement-payable-no-provider-withdraw-ui.ps1`: PASS.
+  - `scripts/check-settlement-payable-queue-no-provider-withdraw-ui.ps1`: PASS.
+  - `scripts/check-worker-receivable-statement-no-provider-withdraw-ui.ps1`: PASS.
+  - `scripts/check-worker-receivable-statement-review-no-provider-withdraw-ui.ps1`: PASS.
+  - `scripts/check-worker-receivable-statement-export-no-provider-withdraw-ui.ps1`: PASS.
+- `pnpm test -- --bail=1`: PASS. 255 test files passed, 1048 tests passed, 1 todo.
 - `rg "Phase 0 Ready" apps/customer apps/worker`: PASS, no matches.
 - `rg "http://localhost:3000|127\\.0\\.0\\.1|/api/api" apps/customer apps/worker packages/api-client`: PASS, no matches.
 - `rg "mock|fake|dummy" apps/customer apps/worker packages/api-client`: REVIEWED. Matches are limited to existing `packages/api-client/src/customer.ts` local payment mock-webhook helper; this phase did not modify it or use it from Customer / Worker UI.
 - `rg "availableActions|WorkflowUiBinding|ActionContract|not-wired" apps/customer apps/worker packages/types packages/ui`: PASS, bindings and not-wired policies are present.
 - `git diff --check`: PASS.
-- Changed path scope: PASS, only allowed Customer / Worker / packages/types / packages/ui / docs report-progress paths changed.
+- Changed path scope: PASS for gate completion. No apps/packages/backend/db/deploy/infra files were changed during Phase 15.3F-0-GATE. Only docs and the six provider-withdraw security gate allowlist scripts were updated.

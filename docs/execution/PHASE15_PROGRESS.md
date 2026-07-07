@@ -599,13 +599,56 @@ Manual confirmation points:
   - `pnpm --filter @xlb/customer build`: PASS.
   - `pnpm --filter @xlb/worker typecheck`: PASS.
   - `pnpm --filter @xlb/worker build`: PASS.
-  - `pnpm test -- --bail=1`: BLOCKED by local DB availability. Rerun failed on DB-backed tests with `connect ECONNREFUSED 127.0.0.1:3306`; Docker daemon was unavailable, so local MySQL/Redis could not be started.
+  - Initial `pnpm test -- --bail=1`: BLOCKED by local DB availability. Rerun failed on DB-backed tests with `connect ECONNREFUSED 127.0.0.1:3306`; Docker daemon was unavailable, so local MySQL/Redis could not be started.
   - `rg "Phase 0 Ready" apps/customer apps/worker`: PASS, no matches.
   - `rg "http://localhost:3000|127\\.0\\.0\\.1|/api/api" apps/customer apps/worker packages/api-client`: PASS, no matches.
   - `rg "mock|fake|dummy" apps/customer apps/worker packages/api-client`: reviewed. Matches are limited to the existing api-client local payment mock-webhook helper and are not used by the Customer / Worker UI bindings.
   - `rg "availableActions|WorkflowUiBinding|ActionContract|not-wired" apps/customer apps/worker packages/types packages/ui`: PASS.
   - `git diff --check`: PASS.
   - changed path scope: PASS; `apps/admin/**`, backend, db, deploy, infra, dashboard, and oa were not modified.
+
+## Phase 15.3F-0-GATE Workflow Binding Root Test Gate
+
+- Status: completed locally, pending commit.
+- Commit: this commit (`docs(phase15): record workflow binding root test gate`).
+- Goal:
+  - Restore Docker daemon.
+  - Confirm local MySQL/Redis health.
+  - Rerun root test for Phase 15.3F-0 after the previous Docker-blocked run.
+- Docker:
+  - Docker Desktop daemon restored.
+  - `docker compose -f deploy\compose\docker-compose.local.yml up -d`: PASS.
+  - No `down -v` was run.
+  - No volume was deleted.
+- Local services:
+  - `xlb-mysql-local`: healthy on `3306`.
+  - `xlb-redis-local`: healthy on `6379`.
+- Gate repair:
+  - Root test initially progressed past DB-backed tests but failed six legacy provider-withdraw UI gate scripts because Phase 15.3F-0 added adapter files under `apps/customer/src/adapters` and `apps/worker/src/adapters`.
+  - Updated only the six provider-withdraw security gate scripts to allow the two explicit workflow binding adapter files:
+    - `apps/customer/src/adapters/workflowBindings.ts`
+    - `apps/worker/src/adapters/workflowBindings.ts`
+  - These adapters are workflow/action contract bindings and do not implement settlement/provider-withdraw UI.
+- Single gate verification:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check-settlement-confirm-no-provider-withdraw-ui.ps1`: PASS.
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check-settlement-payable-no-provider-withdraw-ui.ps1`: PASS.
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check-settlement-payable-queue-no-provider-withdraw-ui.ps1`: PASS.
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check-worker-receivable-statement-no-provider-withdraw-ui.ps1`: PASS.
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check-worker-receivable-statement-review-no-provider-withdraw-ui.ps1`: PASS.
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check-worker-receivable-statement-export-no-provider-withdraw-ui.ps1`: PASS.
+- Root verification:
+  - `pnpm test -- --bail=1`: PASS. 255 test files passed, 1048 tests passed, 1 todo.
+- Scope:
+  - `apps/**`: not modified in this gate.
+  - `packages/**`: not modified in this gate.
+  - `backend/**`: not modified.
+  - `db/**`: not modified.
+  - `deploy/**`: not modified.
+  - `infra/**`: not modified.
+  - Provider-withdraw/security gate scripts updated only to recognize Phase 15.3F-0 adapter files.
+- Production: NO-GO.
+- Cloud-staging deploy: not performed.
+- Tags: not created.
 
 ## Phase 15.3F-SKILL-SPIKE Impeccable Evaluation
 
