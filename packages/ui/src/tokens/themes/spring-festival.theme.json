@@ -1,0 +1,21 @@
+{
+  "surface": {
+    "page": "#fff7ed",
+    "panel": "#ffffff",
+    "muted": "#ffedd5",
+    "elevated": "#fffaf4"
+  },
+  "color": {
+    "brand": "#b91c1c",
+    "brandContrast": "#ffffff",
+    "accent": "#c2410c"
+  },
+  "border": {
+    "subtle": "#fed7aa",
+    "strong": "#fdba74",
+    "focus": "#b91c1c"
+  },
+  "shadow": {
+    "md": "0 12px 28px rgba(185, 28, 28, 0.10)"
+  }
+}

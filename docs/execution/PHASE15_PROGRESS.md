@@ -694,3 +694,66 @@ Manual confirmation points:
 - Production: NO-GO.
 - Cloud-staging deploy: not performed.
 - Tags: not created.
+
+## Phase 15.3T-ARCH Campaign Theme Directory & Runtime Token Architecture
+
+- Status: completed locally, pending commit.
+- Commit: this commit (`feat(ui): add campaign theme token architecture`).
+- Scope:
+  - `docs/contracts/CONTRACT_CAMPAIGN_THEME.md`
+  - `docs/design/ui/XLB100_FRONTEND_UI_IMPLEMENTATION_PLAYBOOK.md`
+  - `docs/frontend/FRONTEND_WORKFLOW_THEME_ROUTE_MATRIX.md`
+  - `docs/reports/PHASE15_3T_CAMPAIGN_THEME_ARCH_REPORT.md`
+  - `docs/execution/PHASE15_PROGRESS.md`
+  - `packages/types/src/campaign.ts`
+  - `packages/types/src/index.ts`
+  - `packages/validators/src/campaignSchema.ts`
+  - `packages/validators/src/index.ts`
+  - `packages/ui/src/tokens/**`
+  - `packages/ui/src/index.ts`
+- Architecture:
+  - Campaign is the only backend source for activity/festival theme activation.
+  - Frontend pages must not infer festival/activity dates, hardcode promotion windows, or calculate discounts.
+  - `packages/ui` owns only base tokens, theme token registry, CSS variable injection, and safe fallback behavior.
+  - `useActiveCampaignTheme` remains outside `packages/ui`; future app-level bridges or `@xlb/api-client` injection must provide active campaign results.
+  - Theme switching remains visual-only and must not affect order, payment, dispatch, settlement, refund, permissions, audit, city scope, or idempotency.
+- Added shared campaign types:
+  - `Campaign`
+  - `CampaignStatus`
+  - `CampaignAppScope`
+  - `CampaignCityScope`
+  - `ActiveCampaignRequest`
+  - `ActiveCampaignResponse`
+  - `CampaignThemeId`
+- Added validators:
+  - `campaignSchema`
+  - `campaignStatusSchema`
+  - `campaignThemeIdSchema`
+  - `campaignCityScopeSchema`
+  - `campaignAppScopeSchema`
+  - `activeCampaignRequestSchema`
+  - `activeCampaignResponseSchema`
+- Added `@xlb/ui` token skeleton:
+  - `base/defaultTokens.ts`
+  - `themes/default.theme.json`
+  - `themes/spring-festival.theme.json`
+  - `themes/double11.theme.json`
+  - `themes/themeDefinitions.ts`
+  - `themeRegistry.ts`
+  - `tokenTypes.ts`
+  - `ThemeProvider.tsx`
+- Backend/db/deploy/infra modified: no.
+- App route business flows modified: no.
+- Production: NO-GO.
+- Cloud-staging deploy: not performed.
+- Tags: not created.
+- Verification:
+  - `pnpm --filter @xlb/types typecheck`: PASS.
+  - `pnpm --filter @xlb/validators typecheck`: PASS.
+  - `pnpm --filter @xlb/ui typecheck`: PASS.
+  - `pnpm --filter @xlb/ui build`: PASS.
+  - `pnpm test -- --bail=1`: PASS. 255 test files passed, 1048 tests passed, 1 todo.
+- Safety checks:
+  - `rg "new Date\\(|春节|双11|国庆|中秋|festival|holiday|campaign" apps/customer apps/worker apps/admin packages/ui`: PASS. Matches are limited to required `spring-festival` token id registration in `packages/ui`; no app page date or festival decision logic was found.
+  - `rg "discount|折扣" apps/customer apps/worker apps/admin packages/ui`: PASS, no matches.
+  - `rg "http://localhost:3000|127\\.0\\.0\\.1|/api/api" packages/ui packages/types packages/validators`: PASS, no matches.

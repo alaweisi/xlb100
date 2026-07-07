@@ -192,3 +192,13 @@ export type {
   WorkflowUiSlot,
   WorkflowWorkerAnswer,
 } from "./workflowUiBinding.js";
+export type {
+  ActiveCampaignRequest,
+  ActiveCampaignResponse,
+  Campaign,
+  CampaignAppScope,
+  CampaignBannerContent,
+  CampaignCityScope,
+  CampaignStatus,
+  CampaignThemeId,
+} from "./campaign.js";

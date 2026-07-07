@@ -294,3 +294,16 @@ export {
   type PreparationItemRecordInput,
   type PreparationAuditEntryInput,
 } from "./preparationSchema.js";
+export {
+  activeCampaignRequestSchema,
+  activeCampaignResponseSchema,
+  campaignAppScopeSchema,
+  campaignBannerContentSchema,
+  campaignCityScopeSchema,
+  campaignSchema,
+  campaignStatusSchema,
+  campaignThemeIdSchema,
+  type ActiveCampaignRequestInput,
+  type ActiveCampaignResponseInput,
+  type CampaignInput,
+} from "./campaignSchema.js";
