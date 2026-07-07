@@ -372,3 +372,34 @@ Manual confirmation points:
 - Verification:
   - `git diff --check`: PASS.
   - `git status --short`: scoped to allowed docs/design/report files before commit.
+
+## Phase 15.3D-SKILL-SPIKE UI UX Pro Max Evaluation
+
+- Status: completed locally, pending commit.
+- Commit: this commit (`docs(phase15): evaluate ui ux pro max skill`).
+- Scope:
+  - `docs/reports/PHASE15_3D_UIUXPROMAX_SKILL_EVALUATION_REPORT.md`
+  - `docs/execution/PHASE15_PROGRESS.md`
+- Skill installation:
+  - Source: `nextlevelbuilder/ui-ux-pro-max-skill`, path `.claude/skills/ui-ux-pro-max`.
+  - Installed to `C:\Users\kong\.codex\skills\ui-ux-pro-max`.
+  - Install command: `python C:\Users\kong\.codex\skills\.system\skill-installer\scripts\install-skill-from-github.py --repo nextlevelbuilder/ui-ux-pro-max-skill --path .claude/skills/ui-ux-pro-max`.
+- Repository impact:
+  - Third-party skill files were installed outside the repo.
+  - No `.gitignore` change required.
+  - App code modified: no.
+  - `packages/**` modified: no.
+  - Backend/db/deploy/infra modified: no.
+  - Runtime dependencies modified: no.
+- Evaluation conclusion: Adopt with constraints.
+- Allowed use:
+  - Anti-slop checklist for safe area, fixed bottom navigation, touch targets, semantic HTML, loading/empty/error states, and layout stability.
+  - Supplemental review after Figma MCP frame export, route mapping, and browser screenshot comparison.
+- Forbidden use:
+  - Replacing Figma MCP or local Figma frame PNGs.
+  - Generating a new freeform XLB100 design system.
+  - Running project-local `--persist` output.
+  - Directly editing app pages or `packages/ui`.
+- Production: NO-GO.
+- Cloud-staging deploy: not performed.
+- Tags: not created.
