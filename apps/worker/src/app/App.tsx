@@ -4,25 +4,25 @@ import {
   BottomNav,
   Button,
   Card,
-  EmptyState,
-  ErrorState,
+  HeroCard,
+  MetricCard,
   MobileShell,
+  NotWiredState,
   SearchBar,
-  StatCard,
   StatusTag,
   Tabs,
   Timeline,
   TopBar,
-  WorkerTaskCard,
+  WorkerStatusCard,
 } from "@xlb/ui";
 
 type WorkerRoute = "hall" | "tasks" | "wallet" | "profile";
 
 const routeConfig: Record<WorkerRoute, { label: string; href: string; title: string; subtitle: string }> = {
-  hall: { label: "接单", href: "/worker/", title: "接单大厅", subtitle: "Worker / GrabHall / Online" },
-  tasks: { label: "任务", href: "/worker/tasks", title: "我的任务", subtitle: "Worker / Tasks / Accepted" },
-  wallet: { label: "收入", href: "/worker/wallet", title: "收入", subtitle: "Worker / Income / Default" },
-  profile: { label: "我的", href: "/worker/profile", title: "我的", subtitle: "Worker / Mine / Default" },
+  hall: { label: "接单", href: "/worker/", title: "接单大厅", subtitle: "师傅端 / 接单大厅 / 待接线" },
+  tasks: { label: "任务", href: "/worker/tasks", title: "我的任务", subtitle: "师傅端 / 任务 / 待接线" },
+  wallet: { label: "收入", href: "/worker/wallet", title: "收入", subtitle: "师傅端 / 收入 / 待接线" },
+  profile: { label: "我的", href: "/worker/profile", title: "我的", subtitle: "师傅端 / 我的 / 待接线" },
 };
 
 const shellStyle = {
@@ -33,7 +33,6 @@ const shellStyle = {
 
 const grid = { display: "grid", gap: 14 } as CSSProperties;
 const helperText = { color: "#64748b", fontSize: 13, lineHeight: "20px", margin: 0 } as CSSProperties;
-const workerAccent = "#08172B";
 
 function currentRoute(): WorkerRoute {
   const path = window.location.pathname.replace(/\/+$/, "") || "/";
@@ -47,10 +46,6 @@ function HelperText({ children }: { children: ReactNode }) {
   return <p style={helperText}>{children}</p>;
 }
 
-function Eyebrow({ children }: { children: ReactNode }) {
-  return <p style={{ color: workerAccent, fontSize: 12, fontWeight: 800, letterSpacing: 0, margin: 0 }}>{children}</p>;
-}
-
 function AppFrame({ route, children }: { route: WorkerRoute; children: ReactNode }) {
   return (
     <div data-role="worker" style={shellStyle}>
@@ -60,7 +55,7 @@ function AppFrame({ route, children }: { route: WorkerRoute; children: ReactNode
             <TopBar
               title={routeConfig[route].title}
               subtitle={routeConfig[route].subtitle}
-              actions={<StatusTag tone="warning">not-wired</StatusTag>}
+              actions={<StatusTag tone="warning">能力未接线</StatusTag>}
             />
           }
           bottomNav={
@@ -88,18 +83,19 @@ function HallPage() {
 
   return (
     <>
-      <Card style={{ background: "#eef6ff", borderColor: "#bfdbfe", boxShadow: "0 16px 38px rgba(8, 23, 43, 0.12)" }}>
-        <div style={{ display: "grid", gap: 10 }}>
-          <Eyebrow>服务城市 / 资质 / 在线状态</Eyebrow>
-          <h1 style={{ color: "#0f172a", fontSize: 28, lineHeight: "36px", margin: 0 }}>接单工作台</h1>
-          <HelperText>本阶段只做 Figma 初装修。任务池、在线资格、抢单动作尚未接真实 W 端 API，因此保持 not-wired。</HelperText>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-            <StatusTag tone="warning">task pool not-wired</StatusTag>
-            <StatusTag tone="warning">eligibility not-wired</StatusTag>
-            <StatusTag tone="muted">no local sample orders</StatusTag>
-          </div>
-        </div>
-      </Card>
+      <HeroCard
+        productRole="worker"
+        eyebrow="服务城市 / 资质 / 在线状态"
+        title="接单工作台"
+        description="本阶段只做 Figma 视觉精修。任务池、在线资格、抢单动作尚未接真实 W 端 API，因此保持未接线。"
+        footer={
+          <>
+            <StatusTag tone="warning">任务池未接线</StatusTag>
+            <StatusTag tone="warning">资格未接线</StatusTag>
+            <StatusTag tone="muted">无本地样例工单</StatusTag>
+          </>
+        }
+      />
 
       <SearchBar value={query} onChange={setQuery} placeholder="搜索工单号、地址或服务" disabled leadingIcon="⌕" />
 
@@ -115,16 +111,17 @@ function HallPage() {
       />
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-        <StatCard label="今日可抢" value="--" hint="等待任务池 API" tone="muted" />
-        <StatCard label="在线资格" value="--" hint="等待资质 API" tone="muted" />
+        <MetricCard productRole="worker" label="今日可抢" value="--" hint="等待任务池 API" tone="muted" />
+        <MetricCard productRole="worker" label="在线资格" value="--" hint="等待资质 API" tone="muted" />
       </div>
 
-      <WorkerTaskCard
+      <WorkerStatusCard
         title="任务池未接入"
-        status={<StatusTag tone="muted">empty</StatusTag>}
+        status={<StatusTag tone="muted">空状态</StatusTag>}
         location="真实任务将受服务城市、资质、距离约束"
         timeWindow="不会展示本地样例工单"
         meta="Phase 15.4 需接入真实 worker API"
+        boundary="当前卡片只表达未接线边界，不创建本地任务。"
         actions={<Button disabled>等待真实 API</Button>}
       >
         <Timeline
@@ -134,9 +131,9 @@ function HallPage() {
             { key: "pool", title: "任务池", description: "真实任务池 API 未接入前保持空态" },
           ]}
         />
-      </WorkerTaskCard>
+      </WorkerStatusCard>
 
-      <EmptyState title="暂无真实任务" description="接入任务池 API 前，这里保持 empty / not-wired 状态。" />
+      <NotWiredState title="暂无真实任务" description="接入任务池 API 前，这里保持空状态与未接线提示。" />
     </>
   );
 }
@@ -144,17 +141,17 @@ function HallPage() {
 function TasksPage() {
   return (
     <>
-      <Card title="任务状态" actions={<StatusTag tone="warning">not-wired</StatusTag>}>
+      <Card title="任务状态" actions={<StatusTag tone="warning">未接线</StatusTag>}>
         <HelperText>已接任务、履约中、待完工等状态必须来自真实任务详情与履约 API，本阶段不生成本地状态。</HelperText>
       </Card>
-      <WorkerTaskCard
+      <WorkerStatusCard
         title="我的任务"
-        status={<StatusTag tone="muted">empty</StatusTag>}
+        status={<StatusTag tone="muted">空状态</StatusTag>}
         location="任务详情 API 未接入"
         timeWindow="出发、到达、服务、完工动作不可用"
         meta="不会伪造已接单任务"
       />
-      <ErrorState title="任务详情未接线" description="履约动作必须等待真实 API；当前只保留页面壳和可读状态。" />
+      <NotWiredState title="任务详情未接线" description="履约动作必须等待真实 API；当前只保留页面壳和可读状态。" />
     </>
   );
 }
@@ -163,10 +160,10 @@ function WalletPage() {
   return (
     <>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-        <StatCard label="本周收益" value="--" hint="等待真实收入 API" tone="muted" />
-        <StatCard label="完成任务" value="--" hint="等待履约数据" tone="muted" />
+        <MetricCard productRole="worker" label="本周收益" value="--" hint="等待真实收入 API" tone="muted" />
+        <MetricCard productRole="worker" label="完成任务" value="--" hint="等待履约数据" tone="muted" />
       </div>
-      <Card title="收入明细" actions={<StatusTag tone="warning">not-wired</StatusTag>}>
+      <Card title="收入明细" actions={<StatusTag tone="warning">未接线</StatusTag>}>
         <Timeline
           items={[
             { key: "summary", title: "收益概览", description: "等待 worker income API" },
@@ -175,7 +172,7 @@ function WalletPage() {
           ]}
         />
       </Card>
-      <EmptyState title="收益未接入" description="不展示本地示例收入、提现或结算状态。" />
+      <NotWiredState title="收益未接入" description="不展示本地示例收入、提现或结算状态。" />
     </>
   );
 }
@@ -183,7 +180,7 @@ function WalletPage() {
 function ProfilePage() {
   return (
     <>
-      <Card title="师傅资料" actions={<StatusTag tone="warning">not-wired</StatusTag>}>
+      <Card title="师傅资料" actions={<StatusTag tone="warning">未接线</StatusTag>}>
         <HelperText>资料、认证材料、服务城市入口已按 Figma 信息架构占位，但状态必须等待真实 W 端 API。</HelperText>
       </Card>
       <Card title="认证与服务能力">
@@ -195,7 +192,7 @@ function ProfilePage() {
           ]}
         />
       </Card>
-      <EmptyState title="认证资料未接入" description="不展示本地样例身份、资质状态或服务城市。" />
+      <NotWiredState title="认证资料未接入" description="不展示本地样例身份、资质状态或服务城市。" />
     </>
   );
 }

@@ -6,12 +6,15 @@ import {
   BottomNav,
   Button,
   Card,
+  CustomerQuoteCard,
   EmptyState,
   ErrorState,
   FormField,
+  HeroCard,
   Input,
   LoadingState,
   MobileShell,
+  NotWiredState,
   OrderCard,
   PriceText,
   SearchBar,
@@ -27,7 +30,7 @@ import { createApiClient, customerApi } from "../../../../packages/api-client/sr
 
 type CustomerRoute = "home" | "services" | "createOrder" | "orders" | "profile";
 type Loadable<T> =
-  | { status: "idle" | "loading"; data?: T; error?: undefined }
+  | { status: "pending" | "loading"; data?: T; error?: undefined }
   | { status: "success"; data: T; error?: undefined }
   | { status: "error"; data?: T; error: string };
 
@@ -137,10 +140,6 @@ function statusTone(status: string): "success" | "warning" | "danger" | "muted" 
 
 function HelperText({ children }: { children: ReactNode }) {
   return <p style={quietText}>{children}</p>;
-}
-
-function Eyebrow({ children }: { children: ReactNode }) {
-  return <p style={{ color: "#B85F2A", fontSize: 12, fontWeight: 800, letterSpacing: 0, margin: 0 }}>{children}</p>;
 }
 
 function AppFrame({
@@ -267,18 +266,19 @@ function HomePage({
 
   return (
     <>
-      <Card style={{ background: "#fff7ed", borderColor: "#fed7aa", boxShadow: "0 16px 38px rgba(184, 95, 42, 0.12)" }}>
-        <div style={{ display: "grid", gap: 10 }}>
-          <Eyebrow>{cityCode} · 到家服务</Eyebrow>
-          <h1 style={{ color: "#2B2118", fontSize: 28, lineHeight: "36px", margin: 0 }}>安心到家维修</h1>
-          <HelperText>服务目录、报价与下单均来自当前后端；未开放能力继续以 not-wired 展示。</HelperText>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-            <StatusTag tone="success">catalog wired</StatusTag>
-            <StatusTag tone="success">pricing wired</StatusTag>
-            <StatusTag tone="warning">profile not-wired</StatusTag>
-          </div>
-        </div>
-      </Card>
+      <HeroCard
+        productRole="customer"
+        eyebrow={`${cityCode} · 到家服务`}
+        title="安心到家维修"
+        description="服务目录、报价与下单均来自当前后端；未开放能力继续明确显示为未接线。"
+        footer={
+          <>
+            <StatusTag tone="success">目录已接入</StatusTag>
+            <StatusTag tone="success">报价已接入</StatusTag>
+            <StatusTag tone="warning">资料未接线</StatusTag>
+          </>
+        }
+      />
 
       <CitySelector cityCode={cityCode} onCityChange={onCityChange} />
       <SearchBar value={query} onChange={setQuery} placeholder="搜索真实服务目录" leadingIcon="⌕" />
@@ -405,12 +405,12 @@ function CreateOrderPage({
   const initialSkuId = useMemo(() => new URLSearchParams(window.location.search).get("skuId") ?? "", []);
   const [selectedSkuId, setSelectedSkuId] = useState(initialSkuId);
   const [quantity, setQuantity] = useState(1);
-  const [quoteState, setQuoteState] = useState<Loadable<PriceQuote>>({ status: "idle" });
+  const [quoteState, setQuoteState] = useState<Loadable<PriceQuote>>({ status: "pending" });
   const [submitState, setSubmitState] = useState<
-    | { status: "idle" | "submitting" }
+    | { status: "pending" | "submitting" }
     | { status: "success"; order: Order; paymentOrder: PaymentOrder; verifiedOrder: Order }
     | { status: "error"; error: string }
-  >({ status: "idle" });
+  >({ status: "pending" });
 
   const skus = useMemo(() => flattenSkus(catalogState.data), [catalogState.data]);
   const selectedSku = skus.find((sku) => sku.skuId === selectedSkuId);
@@ -433,7 +433,7 @@ function CreateOrderPage({
 
   useEffect(() => {
     if (!selectedSkuId) {
-      setQuoteState({ status: "idle" });
+      setQuoteState({ status: "pending" });
       return;
     }
 
@@ -511,19 +511,17 @@ function CreateOrderPage({
         <ErrorState title="报价不可用" description={quoteState.error} action={<Button onClick={() => selectedSkuId && loadQuote(selectedSkuId)}>重试</Button>} />
       )}
       {quoteState.status === "success" && (
-        <Card
-          title="后端报价"
-          actions={<StatusTag tone="success">{quoteState.data.priceType}</StatusTag>}
-          style={{ borderColor: "#bbf7d0" }}
-        >
-          <div style={{ display: "grid", gap: 8 }}>
-            <PriceText amount={quoteState.data.basePrice} currency={quoteState.data.currency} style={{ fontSize: 24, lineHeight: "30px" }} />
-            <HelperText>{quoteState.data.priceText} · 规则 {quoteState.data.priceRuleId}</HelperText>
-          </div>
-        </Card>
+        <CustomerQuoteCard
+          price={<PriceText amount={quoteState.data.basePrice} currency={quoteState.data.currency} style={{ fontSize: 24, lineHeight: "30px" }} />}
+          status={<StatusTag tone="success">{quoteState.data.priceType}</StatusTag>}
+          meta={`${quoteState.data.priceText} · 规则 ${quoteState.data.priceRuleId}`}
+        />
       )}
 
-      <Card title="下单进度" actions={<StatusTag tone={submitState.status === "success" ? "success" : "warning"}>{submitState.status}</StatusTag>}>
+      <Card
+        title="下单进度"
+        actions={<StatusTag tone={submitState.status === "success" ? "success" : "warning"}>{submitState.status === "success" ? "已创建" : submitState.status === "submitting" ? "提交中" : "待提交"}</StatusTag>}
+      >
         <Timeline
           items={[
             { key: "catalog", title: "服务目录", description: "从真实 catalog API 读取" },
@@ -567,7 +565,7 @@ function OrdersPage({
   api: ReturnType<typeof createCustomerApi>;
   orderIds: string[];
 }) {
-  const [ordersState, setOrdersState] = useState<Loadable<Order[]>>({ status: "idle" });
+  const [ordersState, setOrdersState] = useState<Loadable<Order[]>>({ status: "pending" });
 
   function loadOrders() {
     if (orderIds.length === 0) {
@@ -585,7 +583,7 @@ function OrdersPage({
 
   return (
     <>
-      <Card title="订单列表 API 状态" actions={<StatusTag tone="warning">not-wired</StatusTag>}>
+      <Card title="订单列表 API 状态" actions={<StatusTag tone="warning">未接线</StatusTag>}>
         <HelperText>后端当前提供订单创建与详情查询，尚未提供按用户查询订单列表。本页只复查本浏览器中真实创建过的订单 ID。</HelperText>
       </Card>
       {ordersState.status === "loading" && <LoadingState title="正在读取订单" description="逐个调用 /api/orders/:orderId。" />}
@@ -623,10 +621,10 @@ function OrdersPage({
 function ProfilePage({ cityCode }: { cityCode: CityCode }) {
   return (
     <>
-      <Card title="我的账户" actions={<StatusTag tone="warning">not-wired</StatusTag>}>
+      <Card title="我的账户" actions={<StatusTag tone="warning">未接线</StatusTag>}>
         <HelperText>当前本地测试身份：{CUSTOMER_ID}。该身份用于真实下单请求体和请求头，但后端尚未提供 C 端资料 API。</HelperText>
       </Card>
-      <Card title="账户资料" actions={<StatusTag tone="muted">unavailable</StatusTag>}>
+      <Card title="账户资料" actions={<StatusTag tone="muted">暂不可用</StatusTag>}>
         <Timeline
           items={[
             { key: "profile", title: "资料 API", description: "头像、昵称、手机号尚未开放" },
@@ -635,9 +633,10 @@ function ProfilePage({ cityCode }: { cityCode: CityCode }) {
           ]}
         />
       </Card>
-      <Card title="请求上下文">
-        <HelperText>appType=customer · role=customer · cityCode={cityCode} · userId={CUSTOMER_ID}</HelperText>
-      </Card>
+      <NotWiredState
+        capability="账户资料与地址簿"
+        description={`当前请求上下文：appType=customer · role=customer · cityCode=${cityCode} · userId=${CUSTOMER_ID}`}
+      />
     </>
   );
 }
@@ -645,7 +644,7 @@ function ProfilePage({ cityCode }: { cityCode: CityCode }) {
 export function App() {
   const route = useMemo(currentRoute, []);
   const [cityCode, setCityCode] = useState<CityCode>(readCity);
-  const [catalogState, setCatalogState] = useState<Loadable<CatalogSnapshot>>({ status: "idle" });
+  const [catalogState, setCatalogState] = useState<Loadable<CatalogSnapshot>>({ status: "pending" });
   const [orderIds, setOrderIds] = useState<string[]>(readOrderIds);
   const api = useMemo(() => createCustomerApi(cityCode), [cityCode]);
 

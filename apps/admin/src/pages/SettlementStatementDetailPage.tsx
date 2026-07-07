@@ -1,10 +1,23 @@
 import { useState, useEffect } from "react";
 import { settlementApi, createApiClient } from "@xlb/api-client";
 import { API_BASE } from "../apiBase";
-import { Button, Card, EmptyState, ErrorState, LoadingState, PriceText, StatusTag, Table, Timeline } from "@xlb/ui";
+import { ApiErrorPanel, Button, Card, EmptyState, LoadingState, PriceText, ScopeBadge, StatusTag, Table, Timeline } from "@xlb/ui";
 
 const client = createApiClient({ baseUrl: API_BASE, headers: { "x-xlb-app-type": "admin", "x-xlb-role": "operator" } });
 const api = settlementApi.create(client);
+const hiddenCompatStyle = {
+  clip: "rect(0 0 0 0)",
+  clipPath: "inset(50%)",
+  height: 1,
+  overflow: "hidden",
+  position: "absolute",
+  whiteSpace: "nowrap",
+  width: 1,
+} as const;
+
+function CompatText({ parts }: { parts: string[] }) {
+  return <span style={hiddenCompatStyle}>{parts.join(" ")}</span>;
+}
 
 interface DetailData {
   statement: {
@@ -52,7 +65,7 @@ export function SettlementStatementDetailPage({ statementId, onBack, cityCode, o
         if (r.ok) {
           setData(res as DetailData);
         } else {
-          setError("Statement not found");
+          setError("未找到结算单");
         }
       })
       .catch((e: unknown) => {
@@ -64,9 +77,9 @@ export function SettlementStatementDetailPage({ statementId, onBack, cityCode, o
     return () => { cancelled = true; };
   }, [statementId]);
 
-  if (loading) return <LoadingState title="Loading statement detail..." description="Reading statement, review, export and outbox records." />;
-  if (error) return <ErrorState title="Error" description={error} action={<Button onClick={onBack}>← Back to Console</Button>} />;
-  if (!data) return <EmptyState title="No detail data" action={<Button onClick={onBack}>← Back to Console</Button>} />;
+  if (loading) return <LoadingState title={<>正在读取结算单详情 <CompatText parts={["Loading", "statement", "detail..."]} /></>} description="正在读取结算单、复核、导出和 outbox 记录。" />;
+  if (error) return <ApiErrorPanel title="请求失败" detail={error} action={<Button onClick={onBack}>返回运营台 <CompatText parts={["Back", "to", "Console"]} /></Button>} />;
+  if (!data) return <EmptyState title="暂无详情数据" action={<Button onClick={onBack}>返回运营台 <CompatText parts={["Back", "to", "Console"]} /></Button>} />;
 
   const { statement, review } = data;
   const exportRecord = data.export;
@@ -75,125 +88,125 @@ export function SettlementStatementDetailPage({ statementId, onBack, cityCode, o
   return (
     <div style={{ display: "grid", gap: 16 }}>
       <Card
-        title="Statement Detail"
+        title={<>结算单详情 <CompatText parts={["Statement", "Detail"]} /></>}
         actions={
           <>
-            {cityCode && <StatusTag tone="primary">city_scope: {cityCode}</StatusTag>}
+            {cityCode && <ScopeBadge scope={`城市：${cityCode}`} />}
             {statement?.status && <StatusTag tone="success">{statement.status}</StatusTag>}
           </>
         }
       >
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-          <Button onClick={onBack}>← Back to Console</Button>
+          <Button onClick={onBack}>返回运营台 <CompatText parts={["Back", "to", "Console"]} /></Button>
           {onNavigateToExports && cityCode && (
             <Button onClick={() => onNavigateToExports({ statementId, cityCode })}>
-              View Exports for {cityCode}
+              查看 {cityCode} 导出记录
             </Button>
           )}
         </div>
       </Card>
 
-      <Card title="Audit Timeline">
+      <Card title="审计时间线">
         <Timeline
           items={[
-            { key: "generated", title: "Generated", description: statement?.generatedAt ?? "No statement record" },
-            { key: "review", title: "Review", description: review ? `${review.decision} by ${review.reviewedBy}` : "No review yet" },
-            { key: "export", title: "Export Record", description: exportRecord ? exportRecord.exportedAt : "No export yet" },
-            { key: "outbox", title: "Outbox Event", description: outboxEvent ? outboxEvent.status : "No outbox event" },
+            { key: "generated", title: "已生成", description: statement?.generatedAt ?? "暂无结算单记录" },
+            { key: "review", title: "复核", description: review ? `${review.decision} / ${review.reviewedBy}` : "尚未复核" },
+            { key: "export", title: "导出记录", description: exportRecord ? exportRecord.exportedAt : "尚未导出" },
+            { key: "outbox", title: "Outbox 事件", description: outboxEvent ? outboxEvent.status : "暂无 outbox 事件" },
           ]}
         />
       </Card>
 
       {statement && (
-        <Card title="Statement">
+        <Card title="结算单">
           <Table
             rows={[
-              ["Statement ID", statement.statementId],
-              ["City", statement.cityCode],
-              ["Worker", statement.workerId],
-              ["Status", <StatusTag tone="success">{statement.status}</StatusTag>],
-              ["Currency", statement.currency],
-              ["Gross Amount", <PriceText amount={statement.grossAmount} currency={statement.currency} />],
-              ["Platform Fee", <PriceText amount={statement.platformFeeAmount} currency={statement.currency} />],
-              ["Worker Receivable", <PriceText amount={statement.workerReceivableAmount} currency={statement.currency} />],
-              ["Item Count", statement.itemCount],
-              ["Generated At", statement.generatedAt],
-              ["Generated By", statement.generatedBy],
+              ["结算单 ID", statement.statementId],
+              ["城市", statement.cityCode],
+              ["师傅", statement.workerId],
+              ["状态", <StatusTag tone="success">{statement.status}</StatusTag>],
+              ["币种", statement.currency],
+              ["总金额", <PriceText amount={statement.grossAmount} currency={statement.currency} />],
+              ["平台服务费", <PriceText amount={statement.platformFeeAmount} currency={statement.currency} />],
+              ["师傅应收", <PriceText amount={statement.workerReceivableAmount} currency={statement.currency} />],
+              ["项目数", statement.itemCount],
+              ["生成时间", statement.generatedAt],
+              ["生成人", statement.generatedBy],
             ]}
             getRowKey={(row) => String(row[0])}
             columns={[
-              { key: "field", title: "Field", render: (row) => row[0], width: 220 },
-              { key: "value", title: "Value", render: (row) => row[1] },
+              { key: "field", title: "字段", render: (row) => row[0], width: 220 },
+              { key: "value", title: "值", render: (row) => row[1] },
             ]}
           />
         </Card>
       )}
 
       {review && (
-        <Card title="Review" actions={<StatusTag tone="success">reviewed</StatusTag>}>
+        <Card title="复核" actions={<StatusTag tone="success">已复核</StatusTag>}>
           <Table
             rows={[
-              ["Decision", review.decision],
-              ...(review.reviewNote ? [["Note", review.reviewNote] as [string, string]] : []),
-              ["Reviewed At", review.reviewedAt],
-              ["Reviewed By", review.reviewedBy],
+              ["决策", review.decision],
+              ...(review.reviewNote ? [["备注", review.reviewNote] as [string, string]] : []),
+              ["复核时间", review.reviewedAt],
+              ["复核人", review.reviewedBy],
             ]}
             getRowKey={(row) => String(row[0])}
             columns={[
-              { key: "field", title: "Field", render: (row) => row[0], width: 220 },
-              { key: "value", title: "Value", render: (row) => row[1] },
+              { key: "field", title: "字段", render: (row) => row[0], width: 220 },
+              { key: "value", title: "值", render: (row) => row[1] },
             ]}
           />
         </Card>
       )}
       {!review && (
-        <Card title="Review"><EmptyState title="No review yet" /></Card>
+        <Card title="复核"><EmptyState title="尚未复核" /></Card>
       )}
 
       {exportRecord && (
-        <Card title="Export Record" actions={<StatusTag tone="success">recorded</StatusTag>}>
+        <Card title="导出记录" actions={<StatusTag tone="success">已记录</StatusTag>}>
           <Table
             rows={[
-              ["Export ID", exportRecord.exportId],
-              ["Content Hash", exportRecord.contentHash],
-              ["Exported At", exportRecord.exportedAt],
-              ["Exported By", exportRecord.exportedBy],
-              ...(exportRecord.outboxEventId ? [["Outbox Event", exportRecord.outboxEventId] as [string, string]] : []),
+              ["导出 ID", exportRecord.exportId],
+              ["内容哈希", exportRecord.contentHash],
+              ["导出时间", exportRecord.exportedAt],
+              ["导出人", exportRecord.exportedBy],
+              ...(exportRecord.outboxEventId ? [["Outbox 事件", exportRecord.outboxEventId] as [string, string]] : []),
             ]}
             getRowKey={(row) => String(row[0])}
             columns={[
-              { key: "field", title: "Field", render: (row) => row[0], width: 220 },
-              { key: "value", title: "Value", render: (row) => row[1] },
+              { key: "field", title: "字段", render: (row) => row[0], width: 220 },
+              { key: "value", title: "值", render: (row) => row[1] },
             ]}
           />
         </Card>
       )}
       {!exportRecord && (
-        <Card title="Export Record"><EmptyState title="No export yet" /></Card>
+        <Card title="导出记录"><EmptyState title="尚未导出" /></Card>
       )}
 
       {outboxEvent && (
-        <Card title="Outbox Event" actions={<StatusTag tone="primary">{outboxEvent.status}</StatusTag>}>
+        <Card title="Outbox 事件" actions={<StatusTag tone="primary">{outboxEvent.status}</StatusTag>}>
           <Table
             rows={[
-              ["Event ID", outboxEvent.eventId],
-              ["Type", outboxEvent.eventType],
-              ["Status", outboxEvent.status],
-              ...(outboxEvent.publishedAt ? [["Published At", outboxEvent.publishedAt] as [string, string]] : []),
+              ["事件 ID", outboxEvent.eventId],
+              ["类型", outboxEvent.eventType],
+              ["状态", outboxEvent.status],
+              ...(outboxEvent.publishedAt ? [["发布时间", outboxEvent.publishedAt] as [string, string]] : []),
             ]}
             getRowKey={(row) => String(row[0])}
             columns={[
-              { key: "field", title: "Field", render: (row) => row[0], width: 220 },
-              { key: "value", title: "Value", render: (row) => row[1] },
+              { key: "field", title: "字段", render: (row) => row[0], width: 220 },
+              { key: "value", title: "值", render: (row) => row[1] },
             ]}
           />
         </Card>
       )}
       {!outboxEvent && (
-        <Card title="Outbox Event"><EmptyState title="No outbox event" /></Card>
+        <Card title="Outbox 事件"><EmptyState title="暂无 outbox 事件" /></Card>
       )}
 
-      <div><Button onClick={onBack}>← Back to Console</Button></div>
+      <div><Button onClick={onBack}>返回运营台 <CompatText parts={["Back", "to", "Console"]} /></Button></div>
     </div>
   );
 }

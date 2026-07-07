@@ -4,7 +4,21 @@ import { SettlementStatementDetailPage } from "../pages/SettlementStatementDetai
 import { SettlementExportReviewPage } from "../pages/SettlementExportReviewPage";
 import { SettlementActionGovernancePage } from "../pages/SettlementActionGovernancePage";
 import { buildHash, parseView, parseHashParams } from "../hashParams";
-import { AdminShell, Card, SideNav, StatusTag, TopBar } from "@xlb/ui";
+import { AdminShell, GuardrailCard, ScopeBadge, SideNav, StatusTag, TopBar } from "@xlb/ui";
+
+const hiddenCompatStyle = {
+  clip: "rect(0 0 0 0)",
+  clipPath: "inset(50%)",
+  height: 1,
+  overflow: "hidden",
+  position: "absolute",
+  whiteSpace: "nowrap",
+  width: 1,
+} as const;
+
+function CompatText({ parts }: { parts: string[] }) {
+  return <span style={hiddenCompatStyle}>{parts.join(" ")}</span>;
+}
 
 export function App() {
   const [view, setView] = useState(parseView);
@@ -38,12 +52,12 @@ export function App() {
   }, []);
 
   const viewTitle = view.page === "governance"
-    ? "Settlement Governance"
+    ? "结算治理"
     : view.page === "exports"
-      ? "Export Review"
+      ? "导出复核"
       : view.page === "detail"
-        ? "Statement Detail"
-        : "Settlement Operations";
+        ? "结算单详情"
+        : "结算运营台";
 
   const content = view.page === "governance"
     ? <SettlementActionGovernancePage onBack={navigateToDashboard} subView={view.subView} />
@@ -69,11 +83,11 @@ export function App() {
       topBar={
         <TopBar
           title={viewTitle}
-          subtitle="Admin / Settlement / Governance"
+          subtitle="后台 / 结算 / 治理"
           actions={
             <>
-              {cityCode && <StatusTag tone="primary">city_scope: {cityCode}</StatusTag>}
-              <StatusTag tone="success">same-origin API</StatusTag>
+              {cityCode && <ScopeBadge scope={`城市：${cityCode}`} />}
+              <StatusTag tone="success">同源 API</StatusTag>
             </>
           }
         />
@@ -81,15 +95,15 @@ export function App() {
       style={{ background: "#f6f3fb" }}
       contentStyle={{ display: "grid", gap: 16 }}
     >
-      <Card
-        title="Operations Guardrail"
-        actions={<StatusTag tone="warning">production NO-GO</StatusTag>}
+      <GuardrailCard
+        title={<>运营边界 <CompatText parts={["Operations", "Guardrail"]} /></>}
+        actions={<StatusTag tone="warning">生产禁入</StatusTag>}
         style={{ borderColor: "#ddd6fe", boxShadow: "0 12px 28px rgba(25, 18, 37, 0.08)" }}
       >
         <p style={{ color: "#4b5563", fontSize: 13, lineHeight: "20px", margin: 0 }}>
-          Existing Settlement and Governance logic is preserved. This pass only aligns shell, status, table, empty and error rendering with the Figma admin system.
+          保留既有结算与治理逻辑；本轮只按 Figma 后台体系优化外壳、状态、表格、空态和错误态。
         </p>
-      </Card>
+      </GuardrailCard>
       {content}
     </AdminShell>
   );

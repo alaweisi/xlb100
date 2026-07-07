@@ -282,3 +282,59 @@ Manual confirmation points:
 - Backend/db/deploy/infra modified: no.
 - Production: NO-GO.
 - Tags: not created.
+
+## Phase 15.3C Figma Visual Refinement & zh-CN Copy Pass
+
+- Status: completed locally, pending commit.
+- Commit: this commit (`feat(frontend): refine three app figma visual system`).
+- Scope:
+  - `packages/ui/**`
+  - `apps/customer/**`
+  - `apps/worker/**`
+  - `apps/admin/**`
+  - `docs/reports/PHASE15_3C_FIGMA_VISUAL_REFINEMENT_REPORT.md`
+  - `docs/execution/PHASE15_PROGRESS.md`
+- Source basis:
+  - `docs/prompts/CODEX_PHASE15_UI_VISUAL_REFINEMENT_SKILL.md`
+  - `.cursor/rules/phase15-ui-visual-system.mdc`
+  - `docs/design/figma/**`
+  - `docs/design/figma/optimized/**`
+- UI additions:
+  - `HeroCard`
+  - `MetricCard`
+  - `GuardrailCard`
+  - `NotWiredState`
+  - `ApiErrorPanel`
+  - `AdminToolbar`
+  - `ScopeBadge`
+  - `StateBadge`
+  - `CustomerQuoteCard`
+  - `WorkerStatusCard`
+- Customer:
+  - Preserved real catalog, pricing quote, order create, order detail, and payment order wiring.
+  - Did not create fake payment success, fake dispatch, fake user profile, fake address, or fake order list data.
+- Worker:
+  - Preserved explicit not-wired/empty states for task pool, task detail, eligibility, wallet/income, and certification.
+  - Did not create fake tasks, fake earnings, fake credentials, or fake online state.
+- Admin:
+  - Preserved Settlement/Governance logic and same-origin API behavior.
+  - Refined admin shell, metric cards, city scope, tables, loading, empty, and error states.
+  - Did not swallow backend errors and did not enable execution actions.
+- Backend/db/deploy/infra modified: no.
+- Dashboard/OA: still deferred.
+- Production: NO-GO.
+- Tags: not created.
+- Verification:
+  - `pnpm --filter @xlb/ui typecheck`: PASS.
+  - `pnpm --filter @xlb/ui build`: PASS.
+  - `pnpm --filter @xlb/customer typecheck`: PASS.
+  - `pnpm --filter @xlb/customer build`: PASS.
+  - `pnpm --filter @xlb/worker typecheck`: PASS.
+  - `pnpm --filter @xlb/worker build`: PASS.
+  - `pnpm --filter @xlb/admin typecheck`: PASS.
+  - `pnpm --filter @xlb/admin build`: PASS.
+  - `pnpm test -- --bail=1`: PASS. 255 test files passed, 1048 tests passed, 1 todo.
+  - `rg -n "Phase 0 Ready" apps/customer apps/worker apps/admin`: PASS, no matches.
+  - `rg -n "http://localhost:3000|127\\.0\\.0\\.1|/api/api" apps/customer apps/worker apps/admin packages/api-client`: PASS, no matches.
+  - `rg -n "Settlement Operations|Operations Guardrail|Review Summary|Reconciliation Gap Scan|task pool not-wired|eligibility not-wired|no local sample orders|range|idle|ready" apps/customer apps/worker apps/admin packages/ui`: PASS, no matches.
+  - `rg -n "mock|fake|dummy" apps/customer apps/worker apps/admin packages/api-client`: reviewed. Matches are limited to the existing api-client local payment webhook helper and are not used by customer/worker/admin pages to fabricate business records.

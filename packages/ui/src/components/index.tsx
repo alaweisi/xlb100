@@ -11,7 +11,8 @@ import type {
 
 import { tokens } from "../tokens/index.js";
 
-type Tone = "default" | "primary" | "success" | "warning" | "danger" | "muted";
+export type Tone = "default" | "primary" | "success" | "warning" | "danger" | "muted";
+export type RoleTone = "customer" | "worker" | "admin" | "neutral";
 
 const toneColors: Record<Tone, { background: string; border: string; text: string }> = {
   default: { background: "#ffffff", border: "#d1d5db", text: tokens.colors.text },
@@ -25,6 +26,13 @@ const toneColors: Record<Tone, { background: string; border: string; text: strin
 const radius = "8px";
 const shadow = "0 1px 2px rgba(15, 23, 42, 0.08)";
 const fontFamily = "system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif";
+
+const roleAccents: Record<RoleTone, { background: string; border: string; accent: string; text: string }> = {
+  customer: { background: "#fff7ed", border: "#fed7aa", accent: "#B85F2A", text: "#2B2118" },
+  worker: { background: "#eef6ff", border: "#bfdbfe", accent: "#08172B", text: "#0f172a" },
+  admin: { background: "#f6f3fb", border: "#ddd6fe", accent: "#5b21b6", text: "#191225" },
+  neutral: { background: "#f9fafb", border: "#e5e7eb", accent: tokens.colors.primary, text: tokens.colors.text },
+};
 
 function mergeStyle(base: CSSProperties, override?: CSSProperties): CSSProperties {
   return { ...base, ...override };
@@ -259,6 +267,30 @@ export function Badge({ tone = "default", style, children, ...props }: BadgeProp
 
 export const StatusTag = Badge;
 
+export interface StateBadgeProps extends BadgeProps {
+  label?: ReactNode;
+}
+
+export function StateBadge({ tone = "muted", label, children, ...props }: StateBadgeProps) {
+  return (
+    <Badge tone={tone} {...props}>
+      {label ?? children}
+    </Badge>
+  );
+}
+
+export interface ScopeBadgeProps extends BadgeProps {
+  scope: ReactNode;
+}
+
+export function ScopeBadge({ scope, tone = "primary", ...props }: ScopeBadgeProps) {
+  return (
+    <Badge tone={tone} title="scope" {...props}>
+      {scope}
+    </Badge>
+  );
+}
+
 export interface TabItem {
   key: string;
   label: ReactNode;
@@ -345,7 +377,7 @@ export interface TableProps<Row> {
   emptyText?: ReactNode;
 }
 
-export function Table<Row>({ columns, rows, getRowKey, emptyText = "No records" }: TableProps<Row>) {
+export function Table<Row>({ columns, rows, getRowKey, emptyText = "暂无记录" }: TableProps<Row>) {
   if (rows.length === 0) {
     return <EmptyState title={emptyText} />;
   }
@@ -582,7 +614,7 @@ export function ErrorState(props: StateProps) {
   return <StateBlock tone="danger" {...props} />;
 }
 
-export function LoadingState({ title = "Loading", description }: StateProps) {
+export function LoadingState({ title = "加载中", description }: StateProps) {
   return <StateBlock tone="primary" title={title} description={description} />;
 }
 
@@ -663,6 +695,212 @@ export function StatCard({ label, value, hint, trend, tone = "default", style, .
       <strong style={{ color: tokens.colors.text, fontSize: 24, fontVariantNumeric: "tabular-nums", lineHeight: "30px" }}>{value}</strong>
       {hint && <span style={{ color: "#6b7280", fontSize: 12 }}>{hint}</span>}
     </section>
+  );
+}
+
+export interface MetricCardProps extends Omit<StatCardProps, "role"> {
+  productRole?: RoleTone;
+}
+
+export function MetricCard({ productRole = "neutral", style, ...props }: MetricCardProps) {
+  const roleTone = roleAccents[productRole];
+  return (
+    <StatCard
+      {...props}
+      style={mergeStyle(
+        {
+          background: roleTone.background,
+          borderColor: roleTone.border,
+        },
+        style,
+      )}
+    />
+  );
+}
+
+export interface HeroCardProps extends Omit<HTMLAttributes<HTMLElement>, "title" | "role"> {
+  productRole?: RoleTone;
+  eyebrow?: ReactNode;
+  title: ReactNode;
+  description?: ReactNode;
+  actions?: ReactNode;
+  footer?: ReactNode;
+}
+
+export function HeroCard({ productRole = "neutral", eyebrow, title, description, actions, footer, style, ...props }: HeroCardProps) {
+  const color = roleAccents[productRole];
+  return (
+    <section
+      {...props}
+      style={mergeStyle(
+        {
+          background: color.background,
+          border: `1px solid ${color.border}`,
+          borderRadius: radius,
+          boxShadow: `0 16px 38px rgba(15, 23, 42, ${productRole === "neutral" ? "0.08" : "0.12"})`,
+          boxSizing: "border-box",
+          color: color.text,
+          display: "grid",
+          fontFamily,
+          gap: 12,
+          padding: tokens.spacing.lg,
+        },
+        style,
+      )}
+    >
+      {eyebrow && <p style={{ color: color.accent, fontSize: 12, fontWeight: 800, letterSpacing: 0, margin: 0 }}>{eyebrow}</p>}
+      <div style={{ alignItems: "start", display: "flex", gap: 12, justifyContent: "space-between" }}>
+        <div style={{ display: "grid", gap: 8, minWidth: 0 }}>
+          <h1 style={{ color: color.text, fontSize: 28, lineHeight: "36px", margin: 0 }}>{title}</h1>
+          {description && <p style={{ color: "#64748b", fontSize: 13, lineHeight: "20px", margin: 0 }}>{description}</p>}
+        </div>
+        {actions && <div style={{ alignItems: "center", display: "flex", flex: "0 0 auto", gap: 8 }}>{actions}</div>}
+      </div>
+      {footer && <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>{footer}</div>}
+    </section>
+  );
+}
+
+export interface GuardrailCardProps extends CardProps {
+  tone?: Tone;
+}
+
+export function GuardrailCard({ tone = "warning", title, actions, style, children, ...props }: GuardrailCardProps) {
+  const color = toneColors[tone];
+  return (
+    <Card
+      {...props}
+      title={title}
+      actions={actions}
+      style={mergeStyle(
+        {
+          background: color.background,
+          borderColor: color.border,
+          color: color.text,
+        },
+        style,
+      )}
+    >
+      {children}
+    </Card>
+  );
+}
+
+export interface NotWiredStateProps extends StateProps {
+  capability?: ReactNode;
+}
+
+export function NotWiredState({ capability, title = "能力未接线", description, action }: NotWiredStateProps) {
+  return (
+    <StateBlock
+      tone="warning"
+      title={title}
+      description={
+        <>
+          {capability && <span style={{ display: "block", fontWeight: 700, marginBottom: 4 }}>{capability}</span>}
+          {description}
+        </>
+      }
+      action={action}
+    />
+  );
+}
+
+export interface ApiErrorPanelProps extends StateProps {
+  detail?: ReactNode;
+}
+
+export function ApiErrorPanel({ title = "请求失败", description, detail, action }: ApiErrorPanelProps) {
+  return (
+    <ErrorState
+      title={title}
+      description={
+        <>
+          {description}
+          {detail && <span style={{ display: "block", fontFamily: "monospace", marginTop: 6, wordBreak: "break-word" }}>{detail}</span>}
+        </>
+      }
+      action={action}
+    />
+  );
+}
+
+export interface AdminToolbarProps extends Omit<HTMLAttributes<HTMLDivElement>, "title"> {
+  title?: ReactNode;
+  description?: ReactNode;
+  actions?: ReactNode;
+  meta?: ReactNode;
+}
+
+export function AdminToolbar({ title, description, actions, meta, style, children, ...props }: AdminToolbarProps) {
+  return (
+    <div
+      {...props}
+      style={mergeStyle(
+        {
+          alignItems: "center",
+          background: "#ffffff",
+          border: "1px solid #e5e7eb",
+          borderRadius: radius,
+          boxShadow: shadow,
+          display: "flex",
+          fontFamily,
+          gap: 12,
+          justifyContent: "space-between",
+          padding: tokens.spacing.md,
+        },
+        style,
+      )}
+    >
+      <div style={{ display: "grid", gap: 4, minWidth: 0 }}>
+        {title && <strong style={{ fontSize: 16, lineHeight: "22px" }}>{title}</strong>}
+        {description && <span style={{ color: "#6b7280", fontSize: 13, lineHeight: "18px" }}>{description}</span>}
+        {children}
+      </div>
+      {(meta || actions) && (
+        <div style={{ alignItems: "center", display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "flex-end" }}>
+          {meta}
+          {actions}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export interface CustomerQuoteCardProps extends Omit<CardProps, "title"> {
+  price: ReactNode;
+  label?: ReactNode;
+  meta?: ReactNode;
+  status?: ReactNode;
+}
+
+export function CustomerQuoteCard({ price, label = "当前报价", meta, status, style, children, ...props }: CustomerQuoteCardProps) {
+  return (
+    <Card
+      {...props}
+      actions={status}
+      title={label}
+      style={mergeStyle({ borderColor: "#bbf7d0", boxShadow: "0 12px 28px rgba(16, 185, 129, 0.10)" }, style)}
+    >
+      <div style={{ display: "grid", gap: 8 }}>
+        <div style={{ fontSize: 24, lineHeight: "30px" }}>{price}</div>
+        {meta && <p style={{ color: "#64748b", fontSize: 13, lineHeight: "20px", margin: 0 }}>{meta}</p>}
+        {children}
+      </div>
+    </Card>
+  );
+}
+
+export interface WorkerStatusCardProps extends WorkOrderCardProps {
+  boundary?: ReactNode;
+}
+
+export function WorkerStatusCard({ boundary, children, ...props }: WorkerStatusCardProps) {
+  return (
+    <WorkOrderCard {...props}>
+      {boundary && <p style={{ color: "#64748b", fontSize: 13, lineHeight: "20px", margin: 0 }}>{boundary}</p>}
+      {children}
+    </WorkOrderCard>
   );
 }
 

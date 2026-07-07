@@ -7,9 +7,10 @@ Shared Phase 15.1 UI primitives and shells for XLB frontends.
 - Tokens: `tokens`
 - Primitives: `Button`, `Card`, `Input`, `Select`, `Textarea`, `FormField`
 - Search/filter: `SearchBar`, `Tabs`, `SegmentedControl`
-- Status/display: `Badge`, `StatusTag`, `Table`, `Timeline`, `PriceText`, `StatCard`
+- Status/display: `Badge`, `StatusTag`, `StateBadge`, `ScopeBadge`, `Table`, `Timeline`, `PriceText`, `StatCard`, `MetricCard`
 - Product cards: `ServiceCard`, `OrderCard`, `WorkOrderCard`, `WorkerTaskCard`
-- Feedback: `Modal`, `Drawer`, `BottomSheet`, `Toast`, `EmptyState`, `ErrorState`, `LoadingState`, `Skeleton`
+- Product variants: `HeroCard`, `GuardrailCard`, `CustomerQuoteCard`, `WorkerStatusCard`, `AdminToolbar`
+- Feedback: `Modal`, `Drawer`, `BottomSheet`, `Toast`, `EmptyState`, `ErrorState`, `ApiErrorPanel`, `NotWiredState`, `LoadingState`, `Skeleton`
 - Shells/navigation: `PageShell`, `MobileShell`, `AdminShell`, `BottomNav`, `TopBar`, `SideNav`
 
 ## Boundary
@@ -34,3 +35,13 @@ Phase 15.3B adds visual-only shell extension points for Figma productization:
 - `BottomNav` and `SideNav` support `style`.
 
 These props do not change data ownership. App pages still own API state, routes, and not-wired messaging.
+
+Phase 15.3C adds zh-CN visual refinement components for the three-app Figma pass:
+
+- `HeroCard` provides role-colored customer/worker/admin entry cards through `productRole`; it does not contain route or API logic.
+- `MetricCard` refines `StatCard` for dashboard-like summaries while leaving metric semantics to app pages.
+- `GuardrailCard`, `AdminToolbar`, `ScopeBadge`, and `StateBadge` support admin operation density, city-scope visibility, and guarded workflow status.
+- `NotWiredState` is the explicit state for capabilities that are not connected to real APIs; it must not be replaced with fake success content.
+- `ApiErrorPanel` keeps API error detail visible without swallowing backend errors.
+- `CustomerQuoteCard` presents a real quote payload supplied by the app; it does not calculate prices.
+- `WorkerStatusCard` presents worker-side empty/not-wired boundaries; it must not create sample tasks, earnings, credentials, or online state.

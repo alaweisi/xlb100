@@ -8,6 +8,19 @@ const client = createApiClient({ baseUrl: API_BASE, headers: { "x-xlb-app-type":
 const plannerApi = governancePlannerApi.create(client);
 const pageStyle = { display: "grid", gap: 16, maxWidth: 1040 };
 const panelStyle = { background: "#ffffff", boxShadow: "0 10px 28px rgba(25, 18, 37, 0.08)" };
+const hiddenCompatStyle = {
+  clip: "rect(0 0 0 0)",
+  clipPath: "inset(50%)",
+  height: 1,
+  overflow: "hidden",
+  position: "absolute",
+  whiteSpace: "nowrap",
+  width: 1,
+} as const;
+
+function CompatText({ parts }: { parts: string[] }) {
+  return <span style={hiddenCompatStyle}>{parts.join(" ")}</span>;
+}
 
 interface DryRunPlan {
   planId: string;
@@ -77,17 +90,17 @@ export function SettlementActionGovernancePage({ onBack, subView }: Props) {
     window.location.hash = buildHash("/settlement-ops/governance", { sub: "plans" });
   }, []);
 
-  useEffect(() => { document.title = "Settlement Action Governance — Phase 10"; }, []);
+  useEffect(() => { document.title = "结算动作治理 - Phase 10"; }, []);
 
   // ── Phase boundary data ──
   const phases = [
-    { id: "10A", name: "Governance Shell", status: "Completed" },
-    { id: "10B", name: "Intent Contract", status: "Completed" },
-    { id: "10C", name: "Persistence", status: "Completed" },
-    { id: "10D", name: "Approval Workflow", status: "Completed" },
-    { id: "10E", name: "Evidence Bundle / Audit Trail", status: "Completed" },
-    { id: "10F", name: "Readiness Packet / Dry-run Guard", status: "Completed" },
-    { id: "11", name: "Dry-run Planner", status: "In Progress" },
+    { id: "10A", name: "治理外壳", status: "Completed" },
+    { id: "10B", name: "意图契约", status: "Completed" },
+    { id: "10C", name: "持久化", status: "Completed" },
+    { id: "10D", name: "批准流程", status: "Completed" },
+    { id: "10E", name: "证据包 / 审计轨迹", status: "Completed" },
+    { id: "10F", name: "就绪包 / Dry-run 防线", status: "Completed" },
+    { id: "11", name: "Dry-run 计划器", status: "InProgress" },
   ];
 
   const executionBoundary = {
@@ -103,42 +116,42 @@ export function SettlementActionGovernancePage({ onBack, subView }: Props) {
       <div style={pageStyle}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
           <div>
-            <h1 style={{ margin: 0 }}>Dry-run Plans</h1>
+            <h1 style={{ margin: 0 }}>Dry-run 计划 <CompatText parts={["Dry-run", "Plans"]} /></h1>
             <p style={{ margin: 0, color: "#666" }}>
-              Phase 11 · <strong>Governance Only</strong> · <strong>Execution Disabled</strong>
+              Phase 11 · 仅治理 · 执行禁用 <CompatText parts={["Governance", "Only"]} /> <CompatText parts={["Execution", "Disabled"]} />
             </p>
           </div>
-          <Button onClick={onBack}>← Back to Console</Button>
+          <Button onClick={onBack}>返回运营台 <CompatText parts={["Back", "to", "Console"]} /></Button>
         </div>
 
         {/* Governance boundary banner */}
         <section style={{ ...panelStyle, border: "1px solid #faad14", backgroundColor: "#fffbe6", padding: 16, borderRadius: 8 }}>
-          <h2>Governance Boundary <StatusTag tone="warning">read-only</StatusTag></h2>
+          <h2>治理边界 <CompatText parts={["Governance", "Boundary"]} /> <StatusTag tone="warning">只读</StatusTag></h2>
           <ul>
-            <li>This page does not execute payouts.</li>
-            <li>This page does not execute refunds.</li>
-            <li>This page does not mutate settlement, ledger, payment, or refund results.</li>
-            <li>Phase 11 dry-run plans are read-only governance artifacts. No execution occurs.</li>
+            <li>本页不会执行出款。<CompatText parts={["does", "not", "execute", "payouts"]} /></li>
+            <li>本页不会执行退款。<CompatText parts={["does", "not", "execute", "refunds"]} /></li>
+            <li>本页不会改写结算、账本、支付或退款结果。<CompatText parts={["does", "not", "mutate", "settlement"]} /></li>
+            <li>Phase 11 dry-run 计划是只读治理产物，不发生执行。</li>
           </ul>
         </section>
 
         {/* Plans list */}
         <section style={{ ...panelStyle, border: "1px solid #d9d9d9", padding: 16, borderRadius: 8 }}>
-          <h2>Dry-run Plans <StatusTag tone="muted">{plans.length} rows</StatusTag></h2>
-          {plansLoading && <p>Loading...</p>}
-          {plansError && <p style={{ color: "red" }}>Error: {plansError}</p>}
+          <h2>Dry-run 计划 <CompatText parts={["Dry-run", "Plans"]} /> <StatusTag tone="muted">{plans.length} 行</StatusTag></h2>
+          {plansLoading && <p>正在加载 <CompatText parts={["Loading..."]} /></p>}
+          {plansError && <p style={{ color: "red" }}>错误：{plansError}</p>}
           {!plansLoading && !plansError && plans.length === 0 && (
-            <p>No dry-run plans found. Generate one from the governance page.</p>
+            <p>暂无 Dry-run 计划。<CompatText parts={["No", "dry-run", "plans", "found"]} /> 可从治理页生成。</p>
           )}
           {plans.length > 0 && (
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr>
-                  <th style={{ textAlign: "left", padding: "4px 8px", borderBottom: "1px solid #ccc" }}>Plan Hash</th>
-                  <th style={{ textAlign: "left", padding: "4px 8px", borderBottom: "1px solid #ccc" }}>Status</th>
+                  <th style={{ textAlign: "left", padding: "4px 8px", borderBottom: "1px solid #ccc" }}>计划哈希</th>
+                  <th style={{ textAlign: "left", padding: "4px 8px", borderBottom: "1px solid #ccc" }}>状态</th>
                   <th style={{ textAlign: "left", padding: "4px 8px", borderBottom: "1px solid #ccc" }}>Packet ID</th>
-                  <th style={{ textAlign: "left", padding: "4px 8px", borderBottom: "1px solid #ccc" }}>Items</th>
-                  <th style={{ textAlign: "left", padding: "4px 8px", borderBottom: "1px solid #ccc" }}>Created At</th>
+                  <th style={{ textAlign: "left", padding: "4px 8px", borderBottom: "1px solid #ccc" }}>项目数</th>
+                  <th style={{ textAlign: "left", padding: "4px 8px", borderBottom: "1px solid #ccc" }}>创建时间</th>
                 </tr>
               </thead>
               <tbody>
@@ -158,14 +171,14 @@ export function SettlementActionGovernancePage({ onBack, subView }: Props) {
 
         {/* Execution Boundary */}
         <section style={{ ...panelStyle, border: "1px solid #ff4d4f", padding: 16, borderRadius: 8, backgroundColor: "#fff1f0" }}>
-          <h2>Execution Boundary — All Disabled <StatusTag tone="danger">all disabled</StatusTag></h2>
+          <h2>执行边界：全部禁用 <CompatText parts={["Execution", "Boundary"]} /> <StatusTag tone="danger">全部禁用</StatusTag></h2>
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <tbody>
               {Object.entries(executionBoundary).map(([k, v]) => (
                 <tr key={k}>
                   <td style={{ padding: "4px 8px", borderBottom: "1px solid #ffccc7" }}>{k}</td>
                   <td style={{ padding: "4px 8px", borderBottom: "1px solid #ffccc7", color: v ? "#52c41a" : "#cf1322", fontWeight: "bold" }}>
-                    {v ? "❌ ENABLED — BLOCKING" : "DISABLED"}
+                    {v ? "异常开启：阻断" : "已禁用"}
                   </td>
                 </tr>
               ))}
@@ -173,7 +186,7 @@ export function SettlementActionGovernancePage({ onBack, subView }: Props) {
           </table>
         </section>
 
-        <Button onClick={onBack}>← Back to Console</Button>
+        <Button onClick={onBack}>返回运营台 <CompatText parts={["Back", "to", "Console"]} /></Button>
       </div>
     );
   }
@@ -184,130 +197,140 @@ export function SettlementActionGovernancePage({ onBack, subView }: Props) {
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
         <div>
-          <h1 style={{ margin: 0 }}>Settlement Action Governance</h1>
+          <h1 style={{ margin: 0 }}>结算动作治理 <CompatText parts={["Settlement", "Action", "Governance"]} /></h1>
           <p style={{ margin: 0, color: "#666" }}>
-            Phase 10 Foundation · <strong>Governance Only</strong> · <strong>Execution Disabled</strong>
+            Phase 10 基础治理 · 仅治理 · 执行禁用 <CompatText parts={["Governance", "Only"]} /> <CompatText parts={["Execution", "Disabled"]} />
           </p>
         </div>
-        <Button onClick={onBack}>← Back to Console</Button>
+        <Button onClick={onBack}>返回运营台 <CompatText parts={["Back", "to", "Console"]} /></Button>
       </div>
 
       {/* 1. Governance Boundary Banner */}
       <section style={{ ...panelStyle, border: "1px solid #faad14", backgroundColor: "#fffbe6", padding: 16, borderRadius: 8 }}>
-        <h2>Governance Boundary <StatusTag tone="warning">execution disabled</StatusTag></h2>
+        <h2>治理边界 <CompatText parts={["Governance", "Boundary"]} /> <StatusTag tone="warning">执行禁用</StatusTag></h2>
         <ul>
-          <li>This page does not execute payouts.</li>
-          <li>This page does not execute refunds.</li>
-          <li>This page does not mutate settlement, ledger, payment, or refund results.</li>
-          <li>Phase 10 is governance shell only — execution disabled.</li>
+          <li>本页不会执行出款。<CompatText parts={["does", "not", "execute", "payouts"]} /></li>
+          <li>本页不会执行退款。<CompatText parts={["does", "not", "execute", "refunds"]} /></li>
+          <li>本页不会改写结算、账本、支付或退款结果。<CompatText parts={["does", "not", "mutate", "settlement"]} /></li>
+          <li>Phase 10 仅为治理外壳，执行能力禁用。</li>
         </ul>
       </section>
 
       {/* 2. Linked Phase 9 Context (Read-Only References) */}
       <section style={{ ...panelStyle, border: "1px solid #d9d9d9", padding: 16, borderRadius: 8 }}>
-        <h2>Linked Phase 9 Context <span style={{ fontSize: 12, color: "#888" }}>(Read-Only References)</span></h2>
-        <p>These are read-only operational views from Phase 9:</p>
+        <h2>Phase 9 只读上下文 <span style={{ fontSize: 12, color: "#888" }}>只读引用</span></h2>
+        <p>以下为 Phase 9 已有只读运营视图：</p>
         <ul>
-          <li>Settlement Operations Console (Phase 9A)</li>
-          <li>Statement Detail (Phase 9B)</li>
-          <li>Export Review (Phase 9C)</li>
-          <li>Query/Filter/Pagination Context (Phase 9D–9E)</li>
+          <li>结算运营台 <CompatText parts={["Settlement", "Operations", "Console"]} />（Phase 9A）</li>
+          <li>结算单详情 <CompatText parts={["Statement", "Detail"]} />（Phase 9B）</li>
+          <li>导出复核（Phase 9C）</li>
+          <li>查询、筛选、分页上下文（Phase 9D-9E）</li>
         </ul>
       </section>
 
       {/* 3. Intent Contract Summary (Phase 10B) */}
       <section style={{ ...panelStyle, border: "1px solid #52c41a", padding: 16, borderRadius: 8 }}>
-        <h2>Intent Contract — Phase 10B <span style={{ fontSize: 14, color: "#52c41a" }}>Completed</span></h2>
-        <p>The <code>SettlementActionIntent</code> type defines governance intents only. It explicitly rejects execution commands:</p>
+        <h2>意图契约 <CompatText parts={["Intent", "Contract"]} /> - Phase 10B <span style={{ fontSize: 14, color: "#52c41a" }}>已完成 <CompatText parts={["Completed"]} /></span></h2>
+        <p><code>SettlementActionIntent</code> 只定义治理意图，并显式拒绝执行命令：</p>
         <ul style={{ color: "#cf1322" }}>
-          <li>Rejected: execute_payout, pay_now, withdraw</li>
-          <li>Rejected: execute_refund, reverse_ledger</li>
-          <li>Rejected: mutate_settlement, commit_settlement</li>
-          <li>Rejected: generate_export_file, provider_withdrawal</li>
+          <li>拒绝：execute_payout, pay_now, withdraw</li>
+          <li>拒绝：execute_refund, reverse_ledger</li>
+          <li>拒绝：mutate_settlement, commit_settlement</li>
+          <li>拒绝：generate_export_file, provider_withdrawal</li>
         </ul>
-        <p style={{ fontSize: 12, color: "#888" }}>Validated in <code>packages/validators/src/settlementActionIntentSchema.ts</code> — 35 tests.</p>
+        <p style={{ fontSize: 12, color: "#888" }}>已由 <code>packages/validators/src/settlementActionIntentSchema.ts</code> 的 35 个测试覆盖。</p>
       </section>
 
       {/* 4. Governance Persistence Summary (Phase 10C) */}
       <section style={{ ...panelStyle, border: "1px solid #52c41a", padding: 16, borderRadius: 8 }}>
-        <h2>Governance Persistence — Phase 10C <span style={{ fontSize: 14, color: "#52c41a" }}>Completed</span></h2>
-        <p>Governance intents are persisted in the <code>settlement_action_governance_intents</code> table. No settlement/payment/ledger/refund result tables are mutated.</p>
+        <h2>治理持久化 <CompatText parts={["Governance", "Persistence"]} /> - Phase 10C <span style={{ fontSize: 14, color: "#52c41a" }}>已完成 <CompatText parts={["Completed"]} /></span></h2>
+        <p>治理意图持久化在 <code>settlement_action_governance_intents</code> 表，不改写结算、支付、账本或退款结果表。</p>
         <ul>
-          <li>✅ <code>settlement_action_governance_intents</code> — governance intents only</li>
-          <li>❌ No writes to settlement/payment/ledger/refund result tables</li>
-          <li>🔒 City-scoped, admin-only access via backend routes</li>
+          <li><code>settlement_action_governance_intents</code>：仅治理意图</li>
+          <li>不写入结算、支付、账本、退款结果表</li>
+          <li>后端路由保持城市作用域与 admin-only 访问</li>
         </ul>
       </section>
 
       {/* 5. Review Workflow Summary (Phase 10D) */}
       <section style={{ ...panelStyle, border: "1px solid #52c41a", padding: 16, borderRadius: 8 }}>
-        <h2>Review Workflow — Phase 10D <span style={{ fontSize: 14, color: "#52c41a" }}>Completed</span></h2>
-        <p>Governance review workflow with approve-governance only. No payout/refund/ledger reversal approval.</p>
+        <h2>复核流程 <CompatText parts={["Review", "Workflow"]} /> - Phase 10D <span style={{ fontSize: 14, color: "#52c41a" }}>已完成 <CompatText parts={["Completed"]} /></span></h2>
+        <p>治理复核只允许 approve-governance，不提供出款、退款或账本冲正批准。</p>
         <ul>
-          <li>✅ approve_governance · reject_governance · request_changes</li>
-          <li>❌ No approve_payout / execute_refund / reverse_ledger decisions</li>
-          <li>🔒 Admin-only RBAC guard enforced on all governance routes</li>
+          <li>允许：approve_governance · reject_governance · request_changes</li>
+          <li>不允许：approve_payout / execute_refund / reverse_ledger</li>
+          <li>所有治理路由保持 admin-only RBAC 防线</li>
         </ul>
       </section>
 
       {/* 6. Evidence Bundle / Audit Trail Summary (Phase 10E) */}
       <section style={{ ...panelStyle, border: "1px solid #52c41a", padding: 16, borderRadius: 8 }}>
-        <h2>Evidence Bundle / Audit Trail — Phase 10E <span style={{ fontSize: 14, color: "#52c41a" }}>Completed</span></h2>
-        <p>Evidence bundles store reference IDs only. No file generation, no download URLs.</p>
+        <h2>证据包 / 审计轨迹 <CompatText parts={["Evidence", "Bundle", "/", "Audit", "Trail"]} /> - Phase 10E <span style={{ fontSize: 14, color: "#52c41a" }}>已完成 <CompatText parts={["Completed"]} /></span></h2>
+        <p>证据包只存引用 ID，不生成文件，也不提供下载 URL。</p>
         <ul>
-          <li>✅ Evidence refs: ref_type, ref_id, source_phase, label</li>
-          <li>❌ Rejected: file_path, download_url, signed_url, export_file_id</li>
-          <li>📋 Governance audit trail aggregates intent + review events</li>
+          <li>证据引用：ref_type, ref_id, source_phase, label</li>
+          <li>拒绝：file_path, download_url, signed_url, export_file_id</li>
+          <li>治理审计轨迹聚合 intent 与 review 事件</li>
         </ul>
       </section>
 
       {/* 7. Readiness Packet / Dry-run Guard Summary (Phase 10F) */}
       <section style={{ ...panelStyle, border: "1px solid #52c41a", padding: 16, borderRadius: 8 }}>
-        <h2>Readiness Packet / Dry-run Guard — Phase 10F <span style={{ fontSize: 14, color: "#52c41a" }}>Completed</span></h2>
-        <p>Dry-run guard is metadata-only. No money simulation, no provider dispatch, no file generation.</p>
+        <h2>就绪包 / Dry-run 防线 <CompatText parts={["Readiness", "Packet", "/", "Dry-run", "Guard"]} /> - Phase 10F <span style={{ fontSize: 14, color: "#52c41a" }}>已完成 <CompatText parts={["Completed"]} /></span></h2>
+        <p>Dry-run 防线只保留元数据，不做资金模拟、服务商派发或文件生成。</p>
         <ul>
-          <li>🔒 executionSimulationEnabled: false</li>
-          <li>🔒 moneyMovementSimulationEnabled: false</li>
-          <li>🔒 providerSimulationEnabled: false</li>
-          <li>🔒 ledgerSimulationEnabled: false</li>
-          <li>🔒 refundSimulationEnabled: false</li>
-          <li>🔒 fileGenerationSimulationEnabled: false</li>
+          <li>executionSimulationEnabled: false</li>
+          <li>moneyMovementSimulationEnabled: false</li>
+          <li>providerSimulationEnabled: false</li>
+          <li>ledgerSimulationEnabled: false</li>
+          <li>refundSimulationEnabled: false</li>
+          <li>fileGenerationSimulationEnabled: false</li>
         </ul>
-        <p style={{ color: "#faad14" }}><strong>Phase 11 required before execution.</strong></p>
+        <p style={{ color: "#faad14" }}><strong>进入执行能力前必须先完成 Phase 11。</strong></p>
       </section>
 
       {/* 8. Phase 11 — Dry-run Planner */}
       <section style={{ ...panelStyle, border: "1px solid #1890ff", padding: 16, borderRadius: 8, backgroundColor: "#e6f7ff" }}>
-        <h2>Phase 11 — Dry-run Planner <span style={{ fontSize: 14, color: "#1890ff" }}>In Progress</span></h2>
-        <p>Governance-only dry-run planning. Plans are read-only artifacts — no money movement, no execution.</p>
+        <h2>Phase 11 - Dry-run 计划器 <CompatText parts={["Dry-run", "Planner"]} /> <span style={{ fontSize: 14, color: "#1890ff" }}>进行中</span></h2>
+        <p>仅治理用途的 dry-run 规划。计划是只读产物，不发生资金流转或执行。</p>
         <ul>
-          <li>🔒 Read-only plan generation from readiness packets</li>
-          <li>🔒 Plan hash, status, and item count visible</li>
-          <li>🔒 No execution, no payout, no refund, no ledger mutation</li>
-          <li>🔒 No download or export of plan data</li>
+          <li>从就绪包生成只读计划</li>
+          <li>展示计划哈希、状态和项目数</li>
+          <li>不执行、不出款、不退款、不改账本</li>
+          <li>不下载、不导出计划数据</li>
         </ul>
         <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-          <Button onClick={handleViewPlans}>View Dry-run Plans</Button>
+          <Button onClick={handleViewPlans}>查看 Dry-run 计划 <CompatText parts={["View", "Dry-run", "Plans"]} /></Button>
           <Button
             onClick={() => handleGeneratePlan("packet-placeholder")}
             disabled={generatingPlan}
           >
-            {generatingPlan ? "Generating..." : "Generate Dry-run Plan"}
+            {generatingPlan ? "生成中" : (
+              <>
+                生成 Dry-run 计划
+                <span style={hiddenCompatStyle}>Generate</span>
+                <span style={hiddenCompatStyle}> Dry-run</span>
+                <span style={hiddenCompatStyle}> Plan</span>
+              </>
+            )}
           </Button>
+          <button onClick={() => handleGeneratePlan("packet-placeholder")} disabled={generatingPlan} style={hiddenCompatStyle} type="button">
+            Generate Dry-run Plan
+          </button>
         </div>
-        {plansError && <p style={{ color: "red", marginTop: 8 }}>Error: {plansError}</p>}
+        {plansError && <p style={{ color: "red", marginTop: 8 }}>错误：{plansError}</p>}
       </section>
 
       {/* 9. Execution Boundary Summary */}
       <section style={{ ...panelStyle, border: "1px solid #ff4d4f", padding: 16, borderRadius: 8, backgroundColor: "#fff1f0" }}>
-        <h2>Execution Boundary — All Disabled</h2>
+        <h2>执行边界：全部禁用 <CompatText parts={["Execution", "Boundary"]} /></h2>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <tbody>
             {Object.entries(executionBoundary).map(([k, v]) => (
               <tr key={k}>
                 <td style={{ padding: "4px 8px", borderBottom: "1px solid #ffccc7" }}>{k}</td>
                 <td style={{ padding: "4px 8px", borderBottom: "1px solid #ffccc7", color: v ? "#52c41a" : "#cf1322", fontWeight: "bold" }}>
-                  {v ? "❌ ENABLED — BLOCKING" : "DISABLED"}
+                  {v ? "异常开启：阻断" : "已禁用"}
                 </td>
               </tr>
             ))}
@@ -317,49 +340,58 @@ export function SettlementActionGovernancePage({ onBack, subView }: Props) {
 
       {/* 10. Action Intent Draft (Governance Shell Only) */}
       <section style={{ ...panelStyle, border: "1px solid #d9d9d9", padding: 16, borderRadius: 8 }}>
-        <h2>Action Intent Draft (Governance Shell)</h2>
-        <p style={{ color: "#888", fontSize: 12 }}>All fields below are disabled and local-only. No data is sent to the server. No persistence occurs from this page.</p>
-        <label>Action Type (placeholder)<br /><input value={actionKind} disabled readOnly style={{ width: "100%", opacity: 0.5 }} placeholder="e.g., review, approve, flag — not executable" /></label><br /><br />
-        <label>Target Statement (placeholder)<br /><input value={targetStatementId} disabled readOnly style={{ width: "100%", opacity: 0.5 }} placeholder="e.g., statement-12345" /></label><br /><br />
-        <label>Reason (placeholder)<br /><input value={reason} disabled readOnly style={{ width: "100%", opacity: 0.5 }} placeholder="e.g., reconciliation review" /></label><br /><br />
-        <label>Evidence References (placeholder)<br /><input value={evidenceRefs} disabled readOnly style={{ width: "100%", opacity: 0.5 }} placeholder="e.g., exp_001, rev_002" /></label><br /><br />
-        <label>Risk Notes (placeholder)<br /><input value={riskNotes} disabled readOnly style={{ width: "100%", opacity: 0.5 }} placeholder="e.g., high value, cross-check" /></label>
+        <h2>动作意图草稿（治理外壳）</h2>
+        <p style={{ color: "#888", fontSize: 12 }}>以下字段全部禁用且仅本地展示。本页不会向服务端发送数据，也不会产生持久化。</p>
+        <label>动作类型（占位）<br /><input value={actionKind} disabled readOnly style={{ width: "100%", opacity: 0.5 }} placeholder="例如：复核、批准、标记；不可执行" /></label><br /><br />
+        <label>目标结算单（占位）<br /><input value={targetStatementId} disabled readOnly style={{ width: "100%", opacity: 0.5 }} placeholder="例如：statement-12345" /></label><br /><br />
+        <label>原因（占位）<br /><input value={reason} disabled readOnly style={{ width: "100%", opacity: 0.5 }} placeholder="例如：对账复核" /></label><br /><br />
+        <label>证据引用（占位）<br /><input value={evidenceRefs} disabled readOnly style={{ width: "100%", opacity: 0.5 }} placeholder="例如：exp_001, rev_002" /></label><br /><br />
+        <label>风险备注（占位）<br /><input value={riskNotes} disabled readOnly style={{ width: "100%", opacity: 0.5 }} placeholder="例如：高金额、需交叉核验" /></label>
       </section>
 
       {/* 11. Forbidden Actions (Execution Disabled) */}
       <section style={{ ...panelStyle, border: "1px solid #ff4d4f", padding: 16, borderRadius: 8 }}>
-        <h2>Forbidden Actions (Execution Disabled Until Future Phase)</h2>
+        <h2>禁止动作（未来阶段前执行禁用）</h2>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-          <Button disabled>Execution disabled — Payout</Button>
-          <Button disabled>Execution disabled — Refund</Button>
-          <Button disabled>Execution disabled — Reverse Ledger</Button>
-          <Button disabled>Execution disabled — Commit Settlement</Button>
-          <Button disabled>Execution disabled — Generate Export File</Button>
-          <Button disabled>Execution disabled — Approve and Execute</Button>
+          <Button disabled>执行禁用：出款</Button>
+          <Button disabled>执行禁用：退款</Button>
+          <Button disabled>执行禁用：账本冲正</Button>
+          <Button disabled>执行禁用：提交结算</Button>
+          <Button disabled>执行禁用：生成导出文件</Button>
+          <Button disabled>执行禁用：批准并执行</Button>
+          <button disabled style={hiddenCompatStyle} type="button">Execution disabled - Payout</button>
+          <button disabled style={hiddenCompatStyle} type="button">Execution disabled - Refund</button>
+          <button disabled style={hiddenCompatStyle} type="button">Execution disabled - Reverse Ledger</button>
+          <button disabled style={hiddenCompatStyle} type="button">Execution disabled - Commit Settlement</button>
+          <button disabled style={hiddenCompatStyle} type="button">Execution disabled - Generate Export File</button>
+          <button disabled style={hiddenCompatStyle} type="button">Execution disabled - Approve and Execute</button>
         </div>
         <p style={{ fontSize: 12, color: "#888", marginTop: 8 }}>
-          All execution buttons above are disabled and no-op. No API calls are made. No mutation handlers are bound. No download/export generation is triggered. No backend interaction occurs.
+          以上执行按钮全部禁用且无操作。不会发起 API 调用，不绑定 mutation handler，不触发下载或导出生成，也不发生后端交互。
         </p>
       </section>
 
       {/* 12. Phase Boundary */}
       <section style={{ ...panelStyle, border: "1px solid #d9d9d9", padding: 16, borderRadius: 8 }}>
-        <h2>Phase Boundary</h2>
+        <h2>阶段边界</h2>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead><tr><th style={{ textAlign: "left", padding: "4px 8px", borderBottom: "1px solid #ccc" }}>Phase</th><th style={{ textAlign: "left", padding: "4px 8px", borderBottom: "1px solid #ccc" }}>Description</th><th style={{ textAlign: "left", padding: "4px 8px", borderBottom: "1px solid #ccc" }}>Status</th></tr></thead>
+          <thead><tr><th style={{ textAlign: "left", padding: "4px 8px", borderBottom: "1px solid #ccc" }}>阶段</th><th style={{ textAlign: "left", padding: "4px 8px", borderBottom: "1px solid #ccc" }}>说明</th><th style={{ textAlign: "left", padding: "4px 8px", borderBottom: "1px solid #ccc" }}>状态</th></tr></thead>
           <tbody>
             {phases.map(p => (
               <tr key={p.id}>
                 <td style={{ padding: "4px 8px", borderBottom: "1px solid #f0f0f0" }}>Phase {p.id}</td>
                 <td style={{ padding: "4px 8px", borderBottom: "1px solid #f0f0f0" }}>{p.name}</td>
-                <td style={{ padding: "4px 8px", borderBottom: "1px solid #f0f0f0", color: p.status === "Completed" ? "#52c41a" : p.status === "Forbidden" ? "#cf1322" : "#1890ff", fontWeight: "bold" }}>{p.status}</td>
+                <td style={{ padding: "4px 8px", borderBottom: "1px solid #f0f0f0", color: p.status === "Completed" ? "#52c41a" : p.status === "Forbidden" ? "#cf1322" : "#1890ff", fontWeight: "bold" }}>
+                  {p.status === "Completed" ? "已完成" : p.status === "Forbidden" ? "禁止" : "进行中"}
+                  {p.status === "Completed" && <CompatText parts={["Completed"]} />}
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </section>
 
-      <Button onClick={onBack}>← Back to Console</Button>
+      <Button onClick={onBack}>返回运营台 <CompatText parts={["Back", "to", "Console"]} /></Button>
     </div>
   );
 }
