@@ -66,41 +66,41 @@ function notWiredAction(actionId: string, label: string, reasonCode: WorkflowDis
 
 export const customerWorkflowActions = {
   retryCatalog: () =>
-    action("customer.catalog.retry", "重试目录", "api-derived", {
+    action("customer.catalog.retry", "重新加载", "api-derived", {
       endpoint: "/api/catalog",
       method: "GET",
     }),
-  openServices: () => action("customer.services.open", "全部服务", "api-derived"),
+  openServices: () => action("customer.services.open", "查看全部", "api-derived"),
   selectService: (skuId: string) =>
-    action("customer.catalog.selectSku", "选择", "api-derived", {
+    action("customer.catalog.selectSku", "选这个", "api-derived", {
       enabled: Boolean(skuId),
       disabledReasonCode: "STATE_NOT_ACTIONABLE",
     }),
   retryQuote: (skuId?: string) =>
-    action("customer.pricing.retryQuote", "重试报价", "api-derived", {
+    action("customer.pricing.retryQuote", "重新报价", "api-derived", {
       enabled: Boolean(skuId),
       disabledReasonCode: "STATE_NOT_ACTIONABLE",
       endpoint: "/api/pricing/quote?skuId=:skuId",
       method: "GET",
     }),
   submitOrder: (quoteReady: boolean, selectedSkuId: boolean, submitting: boolean) =>
-    action("customer.order.submit", submitting ? "提交中" : "提交订单", "backend", {
+    action("customer.order.submit", submitting ? "提交中" : "提交订单并生成支付单", "backend", {
       enabled: quoteReady && selectedSkuId && !submitting,
       disabledReasonCode: quoteReady ? "STATE_NOT_ACTIONABLE" : "API_NOT_AVAILABLE",
       endpoint: "/api/orders",
       method: "POST",
     }),
-  viewOrders: () => action("customer.orders.open", "查看订单", "api-derived"),
+  viewOrders: () => action("customer.orders.open", "查看订单记录", "api-derived"),
   retryOrderDetails: (hasOrderIds: boolean) =>
-    action("customer.orders.retryDetails", "重试订单详情", "api-derived", {
+    action("customer.orders.retryDetails", "重新读取订单", "api-derived", {
       enabled: hasOrderIds,
       disabledReasonCode: "WORKFLOW_NOT_IMPLEMENTED",
       endpoint: "/api/orders/:orderId",
       method: "GET",
     }),
-  profileUnavailable: () => notWiredAction("customer.profile.unavailable", "资料未接线", "API_NOT_AVAILABLE"),
-  addressUnavailable: () => notWiredAction("customer.address.unavailable", "地址未接线", "API_NOT_AVAILABLE"),
-  authUnavailable: () => notWiredAction("customer.auth.unavailable", "账号设置未接线", "API_NOT_AVAILABLE"),
+  profileUnavailable: () => notWiredAction("customer.profile.unavailable", "资料待开放", "API_NOT_AVAILABLE"),
+  addressUnavailable: () => notWiredAction("customer.address.unavailable", "地址待开放", "API_NOT_AVAILABLE"),
+  authUnavailable: () => notWiredAction("customer.auth.unavailable", "账号设置待开放", "API_NOT_AVAILABLE"),
 };
 
 export function runWorkflowAction(actionContract: WorkflowActionContract, handler: () => void) {
