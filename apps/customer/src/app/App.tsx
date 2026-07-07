@@ -43,6 +43,7 @@ type CatalogSku = ServiceSku & {
   categoryName: string;
   itemName: string;
 };
+type CatalogCategory = CatalogSnapshot["categories"][number];
 
 const DEFAULT_CITY: CityCode = "hangzhou";
 const CUSTOMER_ID = "customer-demo-001";
@@ -149,6 +150,29 @@ function flattenSkus(catalog?: CatalogSnapshot): CatalogSku[] {
       })),
     ),
   );
+}
+
+function categorySkuCount(category: CatalogCategory): number {
+  return category.items.reduce((total, item) => total + item.skus.length, 0);
+}
+
+function representativeSku(category: CatalogCategory): CatalogSku | undefined {
+  const item = category.items.find((catalogItem) => catalogItem.skus.length > 0);
+  const sku = item?.skus[0];
+  if (!item || !sku) return undefined;
+  return {
+    ...sku,
+    categoryId: category.categoryId,
+    categoryName: category.name,
+    itemName: item.name,
+  };
+}
+
+function representativeSkus(catalog: CatalogSnapshot): CatalogSku[] {
+  return catalog.categories.flatMap((category) => {
+    const sku = representativeSku(category);
+    return sku ? [sku] : [];
+  });
 }
 
 function statusTone(status: string): "success" | "warning" | "danger" | "muted" {
@@ -343,18 +367,18 @@ function CitySelector({
   );
 }
 
-function ServiceShortcutGrid({ services }: { services: CatalogSku[] }) {
+function CategoryShortcutGrid({ categories }: { categories: CatalogCategory[] }) {
   return (
-    <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(4, minmax(0, 1fr))" }}>
-      {services.slice(0, 8).map((sku) => {
-        const selectAction = customerWorkflowActions.selectService(sku.skuId);
+    <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+      {categories.map((category) => {
+        const skuCount = categorySkuCount(category);
         return (
           <button
-            key={sku.skuId}
-            onClick={() => runWorkflowAction(selectAction, () => {
-              window.location.href = `/customer/order/create?skuId=${encodeURIComponent(sku.skuId)}`;
-            })}
-            title={selectAction.disabledReasonCode ?? selectAction.actionId}
+            key={category.categoryId}
+            onClick={() => {
+              window.location.href = `/customer/services?category=${encodeURIComponent(category.categoryId)}`;
+            }}
+            title={`${category.name}，${skuCount} 项可预约服务`}
             type="button"
             style={{
               alignItems: "center",
@@ -364,17 +388,36 @@ function ServiceShortcutGrid({ services }: { services: CatalogSku[] }) {
               boxShadow: "0 6px 14px rgba(43, 33, 24, 0.08)",
               color: "#2B2118",
               cursor: "pointer",
-              display: "grid",
+              display: "flex",
               fontFamily: "inherit",
-              gap: 6,
-              justifyItems: "center",
-              minHeight: 64,
-              padding: "8px 6px",
+              gap: 10,
+              minHeight: 66,
+              padding: "10px",
+              textAlign: "left",
             }}
           >
-            <span aria-hidden="true" style={{ color: "#B85F2A", fontSize: 20, lineHeight: 1 }}>⌁</span>
-            <span style={{ fontSize: 12, fontWeight: 700, lineHeight: "16px", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {sku.itemName}
+            <span
+              aria-hidden="true"
+              style={{
+                alignItems: "center",
+                background: "rgba(184, 95, 42, 0.1)",
+                borderRadius: 12,
+                color: "#B85F2A",
+                display: "inline-flex",
+                flex: "0 0 auto",
+                fontSize: 12,
+                fontWeight: 900,
+                height: 34,
+                justifyContent: "center",
+                lineHeight: "16px",
+                width: 34,
+              }}
+            >
+              {category.categoryId.replace("cat_", "")}
+            </span>
+            <span style={{ display: "grid", gap: 2, minWidth: 0 }}>
+              <span style={{ fontSize: 13, fontWeight: 800, lineHeight: "18px" }}>{category.name}</span>
+              <span style={{ color: "#8a735b", fontSize: 11, fontWeight: 700, lineHeight: "15px" }}>{skuCount} 项服务</span>
             </span>
           </button>
         );
@@ -458,12 +501,16 @@ function HomePage({
       <CatalogState catalogState={catalogState} onRetry={onRetryCatalog} retryAction={retryCatalogAction}>
         {(catalog) => {
           const allServices = flattenSkus(catalog);
-          const services = allServices
-            .filter((sku) => {
-              const text = `${sku.categoryName} ${sku.itemName} ${sku.name}`.toLowerCase();
-              return text.includes(query.trim().toLowerCase());
-            })
-            .slice(0, 6);
+          const normalizedQuery = query.trim().toLowerCase();
+          const services = normalizedQuery
+            ? allServices
+                .filter((sku) => {
+                  const text = `${sku.categoryName} ${sku.itemName} ${sku.name}`.toLowerCase();
+                  return text.includes(normalizedQuery);
+                })
+                .slice(0, 16)
+            : representativeSkus(catalog);
+          const totalSkuCount = allServices.length;
 
           if (services.length === 0) {
             return <EmptyState title="没有匹配服务" description="请更换关键词或切换城市后重试。" />;
@@ -471,7 +518,12 @@ function HomePage({
 
           return (
             <div style={sectionGrid}>
-              <ServiceShortcutGrid services={allServices} />
+              <Card title="全部服务大类" actions={<StatusTag tone="success">{catalog.categories.length} 类</StatusTag>} style={customerFlatCardStyle}>
+                <div style={{ display: "grid", gap: 12 }}>
+                  <HelperText>当前城市共 {catalog.categories.length} 个大类、{totalSkuCount} 项可预约服务。</HelperText>
+                  <CategoryShortcutGrid categories={catalog.categories} />
+                </div>
+              </Card>
               <Card
                 style={{
                   ...customerFlatCardStyle,
@@ -488,7 +540,7 @@ function HomePage({
                 </div>
               </Card>
               <div style={{ alignItems: "center", display: "flex", justifyContent: "space-between" }}>
-                <h2 style={{ color: "#2B2118", fontSize: 18, lineHeight: "24px", margin: 0 }}>推荐服务</h2>
+                <h2 style={{ color: "#2B2118", fontSize: 18, lineHeight: "24px", margin: 0 }}>{normalizedQuery ? "搜索结果" : "按类推荐"}</h2>
                 <Button
                   disabled={!openServicesAction.enabled}
                   onClick={() => runWorkflowAction(openServicesAction, () => { window.location.href = "/customer/services"; })}
@@ -537,9 +589,21 @@ function ServicesPage({
   onRetryCatalog: () => void;
 }) {
   const [query, setQuery] = useState("");
-  const [activeCategory, setActiveCategory] = useState("all");
+  const initialCategory = useMemo(() => new URLSearchParams(window.location.search).get("category") ?? "all", []);
+  const [activeCategory, setActiveCategory] = useState(initialCategory);
   const binding = createCustomerWorkflowBinding({ route: "services", cityCode });
   const retryCatalogAction = customerWorkflowActions.retryCatalog();
+
+  function updateActiveCategory(categoryId: string) {
+    setActiveCategory(categoryId);
+    const url = new URL(window.location.href);
+    if (categoryId === "all") {
+      url.searchParams.delete("category");
+    } else {
+      url.searchParams.set("category", categoryId);
+    }
+    window.history.replaceState(null, "", url.toString());
+  }
 
   return (
     <RuntimeThemeSurface binding={binding}>
@@ -552,24 +616,30 @@ function ServicesPage({
       />
       <CatalogState catalogState={catalogState} onRetry={onRetryCatalog} retryAction={retryCatalogAction}>
         {(catalog) => {
+          const validActiveCategory = activeCategory === "all" || catalog.categories.some((category) => category.categoryId === activeCategory)
+            ? activeCategory
+            : "all";
           const tabs = [
             { key: "all", label: "全部" },
-            ...catalog.categories.slice(0, 8).map((category) => ({
+            ...catalog.categories.map((category) => ({
               key: category.categoryId,
               label: category.name,
             })),
           ];
           const services = flattenSkus(catalog).filter((sku) => {
-            const matchesCategory = activeCategory === "all" || sku.categoryId === activeCategory;
+            const matchesCategory = validActiveCategory === "all" || sku.categoryId === validActiveCategory;
             const text = `${sku.categoryName} ${sku.itemName} ${sku.name}`.toLowerCase();
             return matchesCategory && text.includes(query.trim().toLowerCase());
           });
+          const activeCategoryName = validActiveCategory === "all"
+            ? "全部服务"
+            : catalog.categories.find((category) => category.categoryId === validActiveCategory)?.name ?? "全部服务";
 
           return (
             <>
-              <Tabs activeKey={activeCategory} onChange={setActiveCategory} items={tabs} density="compact" />
-              <Card title="可预约服务" actions={<StatusTag tone="success">{services.length} 项</StatusTag>} style={customerFlatCardStyle}>
-                <HelperText>先选服务，下一步确认价格后再提交订单。</HelperText>
+              <Tabs activeKey={validActiveCategory} onChange={updateActiveCategory} items={tabs} density="compact" />
+              <Card title={activeCategoryName} actions={<StatusTag tone="success">{services.length} 项</StatusTag>} style={customerFlatCardStyle}>
+                <HelperText>共 {catalog.categories.length} 个服务大类。先选服务，下一步确认价格后再提交订单。</HelperText>
               </Card>
               {services.length === 0 ? (
                 <EmptyState title="没有匹配服务" description="可以调整分类或搜索词后再试。" />
