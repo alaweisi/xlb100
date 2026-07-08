@@ -1800,3 +1800,116 @@ Duration 343.76s
 ### 本轮结论
 
 订单服务地址、联系人、联系电话、预约时间已从 DB、契约、API、后端读写、客户下单页、客户订单列表和测试链路完整接通；`cityAreaByCode` 旧映射错误已修复；本轮没有引入真实地图、评价、提现或自动调度能力。
+
+## dispatch / ledger / settlement 自动 run-once 本地核实（2026-07-08）
+
+### 本轮改动
+
+新增后端自动处理器：
+
+- [backend/src/jobs/autoRun.ts](../backend/src/jobs/autoRun.ts)：新增 `startAutoRunJobs()`，按 city 顺序循环执行 `dispatch -> ledger -> settlement.prepare`
+- [packages/config/src/env.ts](../packages/config/src/env.ts)：新增 `AUTO_RUN_ENABLED`、`AUTO_RUN_INTERVAL_MS`、`AUTO_RUN_CITY_CODES` 配置解析
+- [backend/src/server.ts](../backend/src/server.ts)：`app.listen()` 成功后才按 env 启动 auto-run；`SIGINT` / `SIGTERM` 时停止 interval 并关闭 Fastify
+- [.env.example](../.env.example)、[.env.staging.example](../.env.staging.example)：新增 demo-only auto-run 示例，默认关闭
+- [.env.production.example](../.env.production.example)：显式保留 `AUTO_RUN_ENABLED=false`，并注明生产不得默认启用 demo auto-run
+
+关键边界：
+
+- 默认关闭：`AUTO_RUN_ENABLED=false`
+- 测试隔离：`NODE_ENV=test` 时强制禁用，即使 `AUTO_RUN_ENABLED=true` 也不启动
+- 容错：每个 city、每个 step 单独 `try/catch`，错误只记日志，不让 backend 进程崩溃
+- 防重入：上一轮未完成时跳过下一轮 tick，`finally` 释放 `isRunning`
+- 本轮不做师傅自动接单、自动开始、自动完成；演示链路目前会在 `dispatch_task.status = queued` 停住，等待 P1 师傅端真实接线后继续闭环
+
+### 手动开启验证
+
+临时启动命令使用 3100 端口和 2 秒 interval 便于本地观察；代码默认 interval 仍是 8000ms。
+
+```text
+set "AUTO_RUN_ENABLED=true" && set "AUTO_RUN_INTERVAL_MS=2000" && set "AUTO_RUN_CITY_CODES=hangzhou" && set "BACKEND_PORT=3100" && pnpm --filter @xlb/backend exec tsx src/server.ts
+```
+
+启动日志证明 auto-run 已启用：
+
+```text
+Server listening at http://127.0.0.1:3100
+{"enabled":true,"intervalMs":2000,"cityCodes":["hangzhou"],"msg":"auto-run started"}
+{"step":"dispatch","cityCode":"hangzhou","processed":0,"msg":"auto-run step completed"}
+{"step":"ledger","cityCode":"hangzhou","processed":0,"msg":"auto-run step completed"}
+{"step":"settlement.prepare","cityCode":"hangzhou","processed":0,"msg":"auto-run step completed"}
+{"intervalMs":2000,"msg":"auto-run skipped overlapping tick"}
+```
+
+通过真实 HTTP 路由下单、创建支付单、模拟支付成功：
+
+```text
+POST http://127.0.0.1:3100/api/orders
+POST http://127.0.0.1:3100/api/payments/orders
+POST http://127.0.0.1:3100/api/payments/mock-webhook
+
+{
+  "orderId": "ord_mrbz4479_c79ab35f",
+  "paymentOrderId": "pay_mrbz448o_3c4d49de",
+  "paymentStatus": "paid",
+  "orderIdFromWebhook": "ord_mrbz4479_c79ab35f"
+}
+```
+
+随后 auto-run 日志显示 dispatch 自动处理到 1 条：
+
+```text
+{"step":"dispatch","cityCode":"hangzhou","processed":1,"msg":"auto-run step completed"}
+{"step":"ledger","cityCode":"hangzhou","processed":0,"msg":"auto-run step completed"}
+{"step":"settlement.prepare","cityCode":"hangzhou","processed":0,"msg":"auto-run step completed"}
+```
+
+数据库查询确认自动生成了派单任务：
+
+```sql
+SELECT dispatch_task_id, city_code, order_id, status, stream_name, stream_entry_id
+FROM dispatch_tasks
+WHERE order_id = 'ord_mrbz4479_c79ab35f';
+```
+
+```json
+[
+  {
+    "dispatch_task_id": "dpt_mrbz476z_147d4eac",
+    "city_code": "hangzhou",
+    "order_id": "ord_mrbz4479_c79ab35f",
+    "status": "queued",
+    "stream_name": "xlb:dispatch:hangzhou:orders",
+    "stream_entry_id": "1783508843645-0"
+  }
+]
+```
+
+### 测试隔离验证
+
+第一次以 180 秒超时运行完整串行测试时命令超时，终止进程触发 Node `EPIPE`；放宽超时后同一测试命令通过。
+
+```text
+$env:AUTO_RUN_ENABLED='true'; $env:NODE_ENV='test'; pnpm exec vitest run --pool=forks --poolOptions.forks.singleFork
+
+Test Files 255 passed (255)
+Tests 1048 passed | 1 todo (1049)
+Duration 365.88s
+```
+
+这证明即使误设 `AUTO_RUN_ENABLED=true`，`NODE_ENV=test` 也不会让后台 auto-run 介入测试时序。
+
+### 编译验证
+
+```text
+pnpm turbo run typecheck
+Tasks: 16 successful, 16 total
+```
+
+```text
+pnpm turbo run build
+Tasks: 11 successful, 11 total
+```
+
+### 本轮结论
+
+dispatch / ledger / settlement prepare 三个 run-once 处理器已经具备显式开关控制的自动循环能力，本地验证显示支付后的订单可以自动生成 `dispatch_task`。完整演示闭环仍未完成：由于 `apps/worker` 仍是 guardrail 占位，本轮不会自动接单/履约，链路会停在“等待师傅接单”；下一阶段应优先推进 P1 师傅端真实任务池、接单、开始服务、完成服务接线。

@@ -1,6 +1,9 @@
 export interface EnvConfig {
   nodeEnv: string;
   backendPort: number;
+  autoRunEnabled: boolean;
+  autoRunIntervalMs: number;
+  autoRunCityCodes: string[];
   mysqlHost: string;
   mysqlPort: number;
   mysqlDatabase: string;
@@ -22,11 +25,29 @@ function readEnvInt(key: string, fallback: number): number {
   return Number.isNaN(n) ? fallback : n;
 }
 
+function readEnvBool(key: string, fallback: boolean): boolean {
+  const raw = process.env[key];
+  if (raw === undefined || raw === "") return fallback;
+  return raw.toLowerCase() === "true";
+}
+
+function readEnvList(key: string, fallback: string[]): string[] {
+  const raw = process.env[key];
+  if (raw === undefined || raw.trim() === "") return fallback;
+  return raw
+    .split(",")
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0);
+}
+
 /** Load env with defaults aligned to deploy/compose/docker-compose.local.yml */
 export function loadEnv(): EnvConfig {
   return {
     nodeEnv: readEnv("NODE_ENV", "development"),
     backendPort: readEnvInt("BACKEND_PORT", 3000),
+    autoRunEnabled: readEnvBool("AUTO_RUN_ENABLED", false),
+    autoRunIntervalMs: readEnvInt("AUTO_RUN_INTERVAL_MS", 8000),
+    autoRunCityCodes: readEnvList("AUTO_RUN_CITY_CODES", ["hangzhou"]),
     mysqlHost: readEnv("MYSQL_HOST", "127.0.0.1"),
     mysqlPort: readEnvInt("MYSQL_PORT", 3306),
     mysqlDatabase: readEnv("MYSQL_DATABASE", "xlb_local"),
