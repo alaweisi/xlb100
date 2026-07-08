@@ -1557,3 +1557,126 @@ Pool is closed.
 - `tests/unit/**` 中纯单元和 UI 组件测试保持默认并行。
 - DB project 使用更精细的 run-level teardown，避免 per-file `afterAll` 关闭仍被 singleton 引用的 pool。
 - 后续再评估 repository 是否应避免长期缓存具体 Pool 对象，改为查询时获取当前 pool 或注入测试专用 pool。
+
+---
+
+## 22. 二次全量体检核实（本地，2026-07-08）
+
+### 本次本地基线
+
+本轮仅使用本地仓库与本地 Docker/MySQL/Redis，不查询 GitHub Actions，不 push，不开 PR。
+
+```text
+git branch -a
+  本地分支包含 fix/ci-test-gate-and-migration-bootstrap、main、spike/worker-admin-readonly-uat-from-stash 等；远端引用也存在但本轮未做云端查询。
+
+git switch fix/ci-test-gate-and-migration-bootstrap
+  Your branch is up to date with 'origin/fix/ci-test-gate-and-migration-bootstrap'.
+
+git log --oneline -15
+  29149a7 docs(report): add phase16 v1.8 healthcheck
+  fb3cd6d fix(ci): provision mysql redis services for test gate
+  c3fb974 fix(db): bootstrap migration runner on empty database
+  a54f707 fix(test): isolate settlement ui component tests
+  7206f71 fix(test): close mysql pool in vitest teardown
+  8f896b7 feat(auth): add customer admin identity foundation
+  5992136 docs(uat): map worker admin real business readiness
+  2125aa7 docs(uat): record root test gate triage
+  ...
+
+git status
+  On branch fix/ci-test-gate-and-migration-bootstrap
+  Your branch is up to date with 'origin/fix/ci-test-gate-and-migration-bootstrap'.
+  nothing to commit, working tree clean
+```
+
+### 13 项复核表
+
+| # | 问题 | 当前状态 | 本地证据 |
+|---:|---|---|---|
+| 1 | `customers` / `admin_users` 表是否存在且可用 | 已关闭 | `docker exec xlb-mysql-local mysql ... "SHOW CREATE TABLE customers; SHOW CREATE TABLE admin_users; SELECT ..."` 返回两张表 DDL，`customers_count=1`、`admin_users_count=3`，`schema_migrations` 含 `028_customers_admin_users`。代码/DDL 证据：[db/migrations/028_customers_admin_users.sql](../db/migrations/028_customers_admin_users.sql)、[db/seed/011_customers_admin_users.seed.sql](../db/seed/011_customers_admin_users.seed.sql)。 |
+| 2 | JWT 登录链路是否可用 | 部分完成 | 本地 `app.inject` 实测：`POST /api/auth/customer/login` + `{ phone:"13800000001", code:"1234" }` 返回 `CUSTOMER_LOGIN_STATUS 200`、`tokenParts:3`；随后 `GET /api/debug/context` 携带 `Authorization: Bearer <token>` 返回 `DEBUG_WITH_TOKEN_STATUS 200`、`userId:"customer-demo-001"`，可证明签发与验证真实工作。残留见 #3/#4/#5。代码证据：[backend/src/auth/authRoutes.ts](../backend/src/auth/authRoutes.ts)、[backend/src/auth/authService.ts](../backend/src/auth/authService.ts)、[backend/src/context/requestContext.ts](../backend/src/context/requestContext.ts)。 |
+| 3 | header fallback 是否仍可被伪造 | 未开始 | 同一 `app.inject` 实测：不带 token，仅带 `x-xlb-user-id: forged-customer-id` 请求 `/api/debug/context` 返回 `DEBUG_HEADER_FALLBACK_STATUS 200`、`userId:"forged-customer-id"`。代码仍是 token-first 后保留 header fallback：[backend/src/context/requestContext.ts](../backend/src/context/requestContext.ts)。另外 [backend/src/auth/tokenAuth.ts](../backend/src/auth/tokenAuth.ts) 虽有 401 逻辑，但当前 [backend/src/app.ts](../backend/src/app.ts) 未挂该 preHandler。 |
+| 4 | admin 端前端是否已接 token | 未开始 | `rg -n "Authorization|Bearer|createAuthApi|x-xlb-app-type|x-xlb-role" apps/admin/src ...` 显示 admin 页面仍直接 `createApiClient({ headers: { "x-xlb-app-type": "admin", "x-xlb-role": "operator" } })`，未发现 `Authorization` / `Bearer` / `createAuthApi` 接入。证据：[apps/admin/src/pages/SettlementOpsPage.tsx](../apps/admin/src/pages/SettlementOpsPage.tsx)、[apps/admin/src/pages/SettlementStatementDetailPage.tsx](../apps/admin/src/pages/SettlementStatementDetailPage.tsx)、[apps/admin/src/pages/SettlementExportReviewPage.tsx](../apps/admin/src/pages/SettlementExportReviewPage.tsx)、[apps/admin/src/pages/SettlementActionGovernancePage.tsx](../apps/admin/src/pages/SettlementActionGovernancePage.tsx)。 |
+| 5 | 验证码是否仍固定 `"1234"` | 未开始 | 代码扫描命中 `const MOCK_CODE = "1234"`，本地 inject 也确认 `code:"1234"` 登录 200、`code:"0000"` 返回 `CUSTOMER_BAD_CODE_STATUS 401`。证据：[backend/src/auth/authService.ts](../backend/src/auth/authService.ts)、[backend/src/auth/authRoutes.ts](../backend/src/auth/authRoutes.ts)、[apps/customer/src/pages/customerPageShell.tsx](../apps/customer/src/pages/customerPageShell.tsx)。 |
+| 6 | 完整串行 Vitest 是否仍 255/255 | 部分完成（回退） | 本轮真实命令 `pnpm exec vitest run --pool=forks --poolOptions.forks.singleFork` 返回失败：`Test Files 3 failed \| 252 passed (255)`、`Tests 3 failed \| 1045 passed \| 1 todo (1049)`。失败均为旧 no-ui gate：`check-worker-receivable-statement-audit-no-ui.ps1`、`check-phase8k-no-ui.ps1`、`check-phase8l-no-ui.ps1`。单独跑三脚本均输出 `FAILED - UI files changed`，列出 `apps/customer/src/app/App.tsx`、`apps/customer/src/pages/CustomerOrderCreatePage.tsx`、`apps/customer/src/pages/customerPageShell.tsx`。这是本轮新发现，不再能标记为 255/255。 |
+| 7 | 裸 `pnpm test` 默认并行结果 | 部分完成 | 本轮真实命令 `pnpm test` 返回：`Test Files 25 failed \| 230 passed (255)`、`Tests 33 failed \| 1015 passed \| 1 todo (1049)`。构成：30 个失败为 `Could not acquire Phase 8B integration-test lock`，另 3 个为 #6 的 no-ui gate 失败。未见本次摘要中出现 `Pool is closed`。 |
+| 8 | Phase 8B advisory lock 是否已处理 | 未开始 | 代码仍为单一 MySQL advisory lock：`SELECT GET_LOCK('xlb-phase8b-integration-tests', 30) AS acquired`，失败时抛 `Could not acquire Phase 8B integration-test lock`；`git diff main...HEAD -- tests/integration/helpers/settlementTestHelper.ts` 无改动输出。证据：[tests/integration/helpers/settlementTestHelper.ts](../tests/integration/helpers/settlementTestHelper.ts)。 |
+| 9 | CI workflow services / migrate / seed / 串行测试命令是否仍在 | 已关闭（静态存在） | `rg -n "services:|mysql:|redis:|Migrate database|Seed database|pnpm exec vitest run --pool=forks --poolOptions.forks.singleFork" .github/workflows/ci.yml` 返回：`services:`、`mysql: image mysql:8`、`redis: image redis:7`、`Migrate database`、`Seed database`、`run: pnpm exec vitest run --pool=forks --poolOptions.forks.singleFork`。证据：[.github/workflows/ci.yml](../.github/workflows/ci.yml)。 |
+| 10 | `apps/worker` 在 main 和当前分支的真实状态 | 未开始 | `git diff --name-status main...HEAD -- apps/worker packages/api-client/src/worker.ts backend/src/worker tests/integration/workerTaskPoolApi.test.ts` 无输出，说明当前 fix 分支没有合入 worker 接线差异。`git grep` 在 `HEAD` 与 `main` 均命中 `not-wired`、`guardrail`、`task-pool.not-wired`、`worker.accept.disabled`。证据：[apps/worker/src/adapters/workflowBindings.ts](../apps/worker/src/adapters/workflowBindings.ts)、[apps/worker/src/app/App.tsx](../apps/worker/src/app/App.tsx)。 |
+| 11 | spike 分支只读接线是否还在、是否被合并、是否仍通过 | 部分完成 | `git log --left-right --cherry-pick main...spike/worker-admin-readonly-uat-from-stash` 显示 spike 独有 `d940574`、`e9afb7e`；`git merge-base --is-ancestor spike/worker-admin-readonly-uat-from-stash HEAD/main` 均返回 `spike is NOT ancestor`，未合并。`git grep` 在 spike 命中 `api.getTaskPool()`、`WorkerTaskPoolResponse`、`OrderTraceabilityPage`。在 spike 上执行 `pnpm typecheck` 返回 `Tasks: 17 successful, 17 total`；`pnpm turbo run build` 返回 `Tasks: 11 successful, 11 total`。状态：参考素材仍在且可构建，但未进主线。 |
+| 12 | README / AGENTS 过时 Phase 描述是否仍存在 | 未开始 | `rg -n "当前阶段|Phase 0|Phase 3|禁止写任何真实业务逻辑" README.md AGENTS.md .cursor/rules/xlb-architecture-mandatory.mdc` 返回：`README.md:6 当前阶段：Phase 3 已封版`、`README.md:8 Phase 0-3...`、`AGENTS.md:23 Phase 0 约束（当前阶段）`、`AGENTS.md:25 禁止写任何真实业务逻辑`、`.cursor/rules/xlb-architecture-mandatory.mdc:11 Phase 0 禁止业务实现`。证据：[README.md](../README.md)、[AGENTS.md](../AGENTS.md)、[.cursor/rules/xlb-architecture-mandatory.mdc](../.cursor/rules/xlb-architecture-mandatory.mdc)。 |
+| 13 | 所有包 lint 脚本是否仍是空跑 | 未开始 | PowerShell 遍历所有 `package.json` 的 `scripts.lint`：根目录为 `lint=turbo run lint`；其余 11 个有 lint 脚本的 workspace 包均为 `lint=echo "lint: skipped phase 0"`，包括 `@xlb/admin`、`@xlb/customer`、`@xlb/worker`、`@xlb/backend`、`@xlb/api-client`、`@xlb/config`、`@xlb/module-loader`、`@xlb/shared`、`@xlb/types`、`@xlb/ui`、`@xlb/validators`。证据：各包 `package.json`。 |
+
+### 本轮新增发现
+
+1. **串行 Vitest gate 已回退为红。** 当前 fix 分支相对 `main` 改动了 3 个 customer UI 文件，触发 Phase 8I/8K/8L 旧 no-ui gate，导致串行全量从此前记录的 `255 passed (255)` 变为 `3 failed | 252 passed (255)`。
+2. **裸 `pnpm test` 仍是红。** 默认并行仍有 Phase 8B advisory lock 竞争；本轮失败数为 `25 failed files / 33 failed tests`，其中 3 个来自 no-ui gate，30 个来自 Phase 8B lock。
+3. **本轮未观察到 `Pool is closed` 出现在最终失败摘要。** 这不等于并行池生命周期问题已根治，只表示本次裸跑摘要中的失败主因不是它。
+
+### 一句话总结
+
+与 P0-P4 优先级列表相比：`customers/admin_users` 表和 JWT customer 登录基础链路可标记为已落地但 P0 仍只能算部分完成；P2 串行测试 gate 本轮发现新红灯，不能标记完成；P1 师傅端主线仍未开始、spike 只可作参考；P3 文档过时未修；P4 lint 未配置仍未开始。
+
+---
+
+## 23. 广谱 no-ui/path gate 排查收尾（本地，2026-07-08）
+
+### 本轮已完成
+
+本轮确认并收窄了 7 个历史 Phase 验收型广谱 UI/path gate：
+
+| Gate | 处理方式 | 验证 |
+|---|---|---|
+| `check-worker-receivable-statement-audit-no-ui.ps1` | 保留 `main...HEAD`，但只检查 settlement audit/admin UI 域；不再把 `apps/customer/**`、`apps/worker/**` 作为违规对象 | 单脚本 passed；对应 security gates passed |
+| `check-phase8j-no-ui.ps1` | 同上，收窄到 worker statement review summary/admin UI 域 | 单脚本 passed；`workerReceivableStatementReviewSummaryGates.test.ts` passed |
+| `check-phase8k-no-ui.ps1` | 同上，收窄到 settlement audit summary/admin UI 域 | 单脚本 passed；对应 security gates passed |
+| `check-phase8l-no-ui.ps1` | 同上，收窄到 reconciliation gap scan/admin UI 域 | 单脚本 passed；对应 security gates passed |
+| `check-phase9a-no-customer-worker-ui.ps1` | 将一次性 Phase 9A admin console 验收的 customer/worker 广谱路径扫描，收窄为 settlement admin UI 域检查 | 单脚本 passed；`settlementOpsPage.test.tsx` 16/16 passed |
+| `check-phase9b-no-customer-worker-ui.ps1` | 将一次性 Phase 9B admin drilldown 验收的 customer/worker 广谱路径扫描，收窄为 settlement admin UI 域检查 | 单脚本 passed；`settlementStatementDetailPage.test.tsx` 14/14 passed |
+| `check-phase9c-no-customer-worker-ui.ps1` | 将一次性 Phase 9C admin export review 验收的 customer/worker 广谱路径扫描，收窄为 settlement admin UI 域检查 | 单脚本 passed；`settlementExportReviewPage.test.tsx` 11/11 passed |
+
+这次全部改动只涉及 `scripts/` 下 7 个 PowerShell gate 脚本；没有修改任何测试断言，也没有修改任何业务代码。
+
+### 已确认无需处理
+
+| Gate | 结论 | 证据 |
+|---|---|---|
+| `check-phase9d-no-new-pages.ps1` | 天然通过，本分支未新增 `apps/admin/src/pages/` 页面文件；不处理 | `check-phase9d-no-new-pages: passed (Phase 10 governance page allowed)` |
+| `check-phase9e-no-new-pages.ps1` | 天然通过，本分支未新增 `apps/admin/src/pages/` 页面文件；不处理 | `check-phase9e-no-new-pages: passed (Phase 10 governance page allowed)` |
+| `check-phase12-no-ui-execution-controls.ps1` | 属于真实内容型安全护栏，检查 admin 执行按钮是否未 disabled；不是广谱路径误伤；本分支天然通过 | `check-phase12-no-ui-execution-controls: self-test passed` / `check-phase12-no-ui-execution-controls: passed` |
+
+### 新发现但本轮不处理
+
+`pnpm preflight` 在上述 no-ui/path gate 之后继续失败于另一类 gate：
+
+```text
+check-phase9a-no-payout-payment-instruction: FAILED - docs/health-check-2026-07-08.md:
++| 师傅提现/银行卡缺失 | wallet/withdraw/bank 未见真实模型 | W 端收益闭环不足 |
+docs/health-check-2026-07-08.md:
++abc1833 fix(security): narrow provider withdraw ui gate scope
+docs/health-check-2026-07-08.md:
++| Database | 70% | 42 张表，migration 可跑通；缺 customers/admin_users/address/scheduled_at/rating/withdraw/bank 等产品必需实体 |
+```
+
+该失败来自 `docs/health-check-2026-07-08.md` 中的正常诊断性文字。依据是 `check-phase9a-no-payout-payment-instruction.ps1` 使用 `git diff main...HEAD -- . ':!scripts/' ':!tests/' ':!docs/release/'` 扫描新增行关键词（含 `withdraw`），而失败输出明确列出的命中文件均为本报告文档，不是业务代码文件。
+
+这说明项目中还存在另一类“diff 内容关键词扫描”型 gate，会误伤体检报告等文档里的正常诊断性描述。这类问题和本轮处理的 no-ui 广谱路径扫描不是同一个 gate 家族，规模未知，留作独立待办，不在本轮排查范围内继续展开。
+
+Phase 15 报告提到的 `no-provider-withdraw-ui` 家族同样保留为独立待办，本轮未处理。
+
+### 本轮范围结论
+
+`pnpm preflight` 完整通过不是本轮原始目标。本轮原始目标是把测试 gate 从假绿恢复为可重复验证的真绿，特别是 CI 使用的串行 Vitest 基线。该目标已经达成并反复验证。
+
+最终核心验证结果：
+
+```text
+pnpm exec vitest run --pool=forks --poolOptions.forks.singleFork
+
+Test Files 255 passed (255)
+Tests 1048 passed | 1 todo (1049)
+Duration 375.37s
+```
+
+因此，本轮 CI/test gate 修复链条到此收尾：串行测试基线已恢复为 255/255；历史 no-ui/path gate 的当前分支误伤已在 7 个目标脚本内收窄；新的 diff 内容关键词扫描家族不在本轮继续追。
