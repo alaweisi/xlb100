@@ -1,8 +1,110 @@
 # XLB / 喜乐帮 全量体检报告
 
-Addendum: P1 Stage 1 worker readonly wiring record is in [health-check-2026-07-08-p1-worker-readonly.md](./health-check-2026-07-08-p1-worker-readonly.md).
+## P1 Execution Updates
 
-Addendum: P1 worker task-pool latest-first ordering fix record is in [health-check-2026-07-08-p1-task-pool-ordering.md](./health-check-2026-07-08-p1-task-pool-ordering.md).
+This health-check file remains the single visible record for 2026-07-08 findings and follow-up fixes. Earlier P1 addendum notes have been merged back here to avoid overlapping health-check files.
+
+### P1 Stage 1: Worker readonly wiring
+
+Scope completed:
+
+- `packages/api-client/src/worker.ts`: added `getTaskPool()` for `GET /api/worker/task-pool`.
+- `apps/worker/package.json`: added workspace dependency on `@xlb/api-client`.
+- `apps/worker/src/app/App.tsx`: replaced the guardrail-only worker shell with real readonly task-pool, fulfillment list, and fulfillment detail rendering.
+- `apps/worker/vite.config.ts`: added local dev-only `/api` proxy through `XLB_WORKER_PROXY_TARGET`.
+
+Boundary kept:
+
+- Accept / start / complete were still disabled in Stage 1.
+- Worker identity stayed on demo header identity: `x-xlb-app-type=worker`, `x-xlb-role=worker`, `x-xlb-city-code=hangzhou`, `x-xlb-user-id=worker-demo-hangzhou`.
+
+Manual UAT evidence:
+
+- Created paid order `ord_mrc4f1bx_5ba94318`, payment `pay_mrc4f1dp_3947d563`, amount `CNY 89.00`, SKU `sku_home_daily_2h`.
+- Auto-run generated queued dispatch task `dpt_mrc4f5fp_c4e5a38b`.
+- Worker task-pool page showed the real queued task row.
+- Because local DB had 100+ historical queued tasks and task-pool was then ordered `created_at ASC LIMIT 100`, the local test row's `created_at` was temporarily moved earlier for browser visibility. This exposed a real ordering problem rather than a frontend wiring issue.
+
+Verification:
+
+- `pnpm turbo run typecheck`: passed, 17 successful.
+- `pnpm turbo run build`: passed, 11 successful.
+- Full serial Vitest passed after stopping the manual-UAT auto-run backend process: `255 passed`, `1048 passed | 1 todo` at that time.
+
+### P1 task-pool ordering fix
+
+Scope completed:
+
+- `backend/src/dispatch/dispatchRepository.ts` `listQueuedTasks()` changed from oldest-first to latest-first:
+
+```sql
+ORDER BY created_at DESC, dispatch_task_id DESC
+```
+
+Reason:
+
+- With fixed `LIMIT 100`, `created_at ASC` can hide new queued tasks behind old historical tasks, making new work invisible on the first worker task-pool page.
+- Secondary `dispatch_task_id DESC` keeps same-timestamp ordering stable.
+
+Explicitly not changed:
+
+- No API response shape change.
+- No pagination parameter.
+- No task-pool service/routes/type/api-client changes.
+
+Regression coverage:
+
+- `tests/integration/workerTaskPoolApi.test.ts`: added coverage that newest queued task appears first.
+
+Verification:
+
+- `pnpm exec vitest run tests/integration/workerTaskPoolApi.test.ts --pool=forks --poolOptions.forks.singleFork`: passed.
+- `pnpm turbo run typecheck`: passed.
+- `pnpm turbo run build`: passed.
+- Full serial Vitest: `255 passed`, `1049 passed | 1 todo`.
+
+Follow-up:
+
+- `P1 follow-up: define worker task-pool ordering/pagination before enabling accept UAT`
+- Status: latest-first default ordering is resolved. Full pagination, filtering, and distance/priority ordering remain TODO and should be designed separately.
+
+### P1 Stage 2-5 main-chain progress
+
+Completed:
+
+- Stage 2: Worker task-pool accept flow opened. Commit: `7909e07 feat(worker): wire task pool accept flow`.
+- Stage 3: Worker fulfillment lifecycle actions opened. Commit: `334f302 feat(worker): enable fulfillment lifecycle actions`.
+- Stage 4: Customer aftersale request entry opened. Commit: `7339210 feat(customer): add aftersale request entry`.
+- Stage 5: Admin order fulfillment trace added as a read-only operations view in the current Stage 5 change set.
+
+Stage 5 scope:
+
+- `backend/src/order/orderTraceRoutes.ts`: added narrow read-only admin trace endpoint.
+- `backend/src/app.ts`: registered the route.
+- `packages/api-client/src/admin.ts`: added `getOrderTrace()`.
+- `apps/admin/src/app/App.tsx`, `apps/admin/src/hashParams.ts`, `apps/admin/src/pages/OrderTracePage.tsx`: added read-only Admin order trace view.
+- `tests/integration/refundReversalMvp.test.ts`: extended existing integration test to verify admin trace reads a completed fulfillment and requested aftersale record.
+
+Backend API reuse check:
+
+- Existing `GET /api/orders/:orderId` and `GET /api/dispatch/tasks` are available.
+- Existing worker fulfillment read APIs are scoped to `appType=worker`, `role=worker`, and `workerId`.
+- Existing aftersale APIs only cover customer refund request creation and admin approval.
+- Because there was no admin-readable fulfillment/aftersale query, Stage 5 added one narrow read-only aggregate endpoint: `GET /api/internal/admin/order-traces/:orderId`.
+
+Boundary kept:
+
+- Admin order trace is read-only.
+- No order/dispatch/fulfillment/aftersale/payment/ledger/settlement mutation.
+- No database migration.
+- No refund approval UI, provider refund, ledger reversal, or settlement execution exposure.
+
+Verification:
+
+- `pnpm exec vitest run tests/integration/refundReversalMvp.test.ts --pool=forks --poolOptions.forks.singleFork`: passed.
+- `pnpm turbo run typecheck`: passed.
+- `pnpm turbo run build`: passed.
+- Full serial Vitest: `255 passed`, `1049 passed | 1 todo`.
 
 日期：2026-07-08  
 检查范围：`E:\xlb100` monorepo 全量目录、文档、三端 App、后端、数据库、测试、CI/CD、Git 状态。  

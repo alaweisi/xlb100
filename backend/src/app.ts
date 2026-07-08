@@ -26,6 +26,7 @@ import { registerPlannerRoutes } from "./planner/plannerRoutes.js";
 import { registerPreparationRoutes } from "./preparation/envelopeRoutes.js";
 import { registerAftersaleModule } from "./aftersale/aftersaleModule.js";
 import { registerAuthRoutes } from "./auth/authRoutes.js";
+import { registerOrderTraceRoutes } from "./order/orderTraceRoutes.js";
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({ logger: true });
@@ -110,6 +111,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await registerPlannerRoutes(app);
   await registerPreparationRoutes(app);
   await registerAftersaleModule(app);
+  await registerOrderTraceRoutes(app);
 
   return app;
 }

@@ -38,6 +38,24 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
           expect(refund.status).toBe("requested");
           expect(refund.amount).toBe(89);
 
+          const traceResponse = await app.inject({
+            method: "GET",
+            url: `/api/internal/admin/order-traces/${orderId}`,
+            headers: ledgerOperatorHeaders,
+          });
+          expect(traceResponse.statusCode).toBe(200);
+          expect(traceResponse.json().trace).toMatchObject({
+            order: { orderId, customerId: "customer-dispatch-001", status: "paid" },
+            payment: { status: "paid" },
+            dispatch: { status: "accepted" },
+            fulfillment: {
+              fulfillmentId,
+              workerId: "worker-demo-hangzhou",
+              status: "completed",
+            },
+            aftersale: { refundId: refund.refundId, status: "requested" },
+          });
+
           const approvalResponse = await app.inject({
             method: "POST",
             url: `/api/internal/aftersale/refunds/${refund.refundId}/approve`,
