@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { App } from "../../apps/admin/src/app/App";
 
 const { mockGet } = vi.hoisted(() => ({ mockGet: vi.fn() }));
@@ -52,6 +52,7 @@ describe("Phase 9B — Drilldown / Detail Foundation", () => {
     window.location.hash = "";
   });
   afterEach(() => {
+    cleanup();
     window.location.hash = "";
   });
 

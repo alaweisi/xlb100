@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
-import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { cleanup, render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { SettlementOpsPage } from "@xlb/admin-pages/SettlementOpsPage";
 
 const { mockGet } = vi.hoisted(() => ({ mockGet: vi.fn() }));
@@ -32,6 +32,10 @@ describe("Phase 9A Settlement Ops Console", () => {
   beforeEach(() => {
     mockGet.mockReset();
     mockGet.mockResolvedValue({ ok: true, items: [] });
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 
   describe("unit rendering", () => {

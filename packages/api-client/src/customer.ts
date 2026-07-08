@@ -49,7 +49,7 @@ export interface PriceQuoteResponse {
 }
 
 export interface CreateOrderBody {
-  customerId: string;
+  customerId?: string; // Phase 14: optional — backend derives from auth token/context
   skuId: string;
   quantity: number;
 }

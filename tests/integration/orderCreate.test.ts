@@ -8,6 +8,7 @@ const customerHeaders = {
   [XLB_HEADERS.appType]: "customer",
   [XLB_HEADERS.role]: "customer",
   [XLB_HEADERS.cityCode]: "hangzhou",
+  [XLB_HEADERS.userId]: "customer-demo-001",
 };
 
 describe.skipIf(!runDb)("orderCreate integration", { timeout: 15000 }, () => {

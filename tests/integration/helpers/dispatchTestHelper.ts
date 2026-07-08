@@ -6,6 +6,7 @@ export const customerHeaders = {
   [XLB_HEADERS.appType]: "customer",
   [XLB_HEADERS.role]: "customer",
   [XLB_HEADERS.cityCode]: "hangzhou",
+  [XLB_HEADERS.userId]: "customer-dispatch-001",
 };
 
 export const operatorHeaders = {

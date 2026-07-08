@@ -25,7 +25,7 @@ import {
 } from "../adapters/catalogAdapters";
 import { toCustomerQuoteViewModel } from "../adapters/pricingAdapter";
 import { createCustomerUiBinding } from "../adapters/workflowAdapter";
-import { CUSTOMER_ID, UatDebugPanel, useSearchParamSku } from "./customerPageShell";
+import { UatDebugPanel, useSearchParamSku } from "./customerPageShell";
 
 type QuoteState =
   | { status: "pending" }
@@ -42,7 +42,7 @@ export interface CustomerOrderCreatePageProps {
   api: {
     getPriceQuote(skuId: string): Promise<{ quote: PriceQuote }>;
     createOrder(payload: {
-      customerId: string;
+      customerId?: string; // Phase 14: optional — backend derives from auth context
       skuId: string;
       quantity: number;
     }): Promise<{ order: Order }>;
@@ -66,7 +66,8 @@ function statusTone(status: string): "success" | "warning" | "danger" | "muted" 
 
 function createOrderRequestPayload(skuId: string, quantity: number) {
   return {
-    customerId: CUSTOMER_ID,
+    // Phase 14: customerId no longer sent from client;
+    // backend derives it from auth token/context.
     skuId,
     quantity,
   };

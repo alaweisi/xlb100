@@ -14,7 +14,12 @@ export async function registerGovernanceIntentRoutes(app: FastifyInstance): Prom
     if (rawBody.cityCode && rawBody.cityCode !== ctx.cityCode) {
       return reply.status(400).send({ ok: false, error: "cityCode mismatch with request context" });
     }
-    const body = { ...rawBody, cityCode: ctx.cityCode };
+    // Phase 14 auth fix: requestedByAdminId MUST come from authenticated context,
+    // NOT from client body. Prevents identity forgery in governance intents.
+    if (!ctx.userId) {
+      return reply.status(401).send({ ok: false, error: "authenticated user identity required for governance intent" });
+    }
+    const body = { ...rawBody, cityCode: ctx.cityCode, requestedByAdminId: ctx.userId };
     const p = createGovernanceIntentRequestSchema.safeParse(body);
     if (!p.success) return reply.status(400).send({ ok: false, error: "invalid governance intent request" });
     try { const intent = await governanceIntentService.createDraft(ctx, p.data); return { ok: true, intent }; }

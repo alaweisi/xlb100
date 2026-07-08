@@ -4,6 +4,14 @@ import type { RowDataPacket } from "mysql2/promise";
 import { getDbPath } from "./paths.js";
 import { getMysqlPool } from "./mysqlPool.js";
 
+const SCHEMA_MIGRATIONS_BOOTSTRAP_SQL = `
+CREATE TABLE IF NOT EXISTS schema_migrations (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  version VARCHAR(64) NOT NULL UNIQUE,
+  applied_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+)
+`;
+
 export type MigrationResult = {
   applied: string[];
   skipped: string[];
@@ -36,6 +44,11 @@ async function recordMigration(version: string): Promise<void> {
   );
 }
 
+async function ensureSchemaMigrationsTable(): Promise<void> {
+  const pool = getMysqlPool();
+  await pool.query(SCHEMA_MIGRATIONS_BOOTSTRAP_SQL);
+}
+
 async function executeSqlFile(filePath: string): Promise<void> {
   const sql = fs.readFileSync(filePath, "utf8");
   const env = await import("@xlb/config").then((m) => m.loadEnv());
@@ -59,6 +72,8 @@ export async function runMigrations(): Promise<MigrationResult> {
   const skipped: string[] = [];
   const files = listMigrationFiles();
 
+  await ensureSchemaMigrationsTable();
+
   for (const file of files) {
     const version = file.replace(/\.sql$/, "");
     if (await isMigrationApplied(version)) {
@@ -76,6 +91,7 @@ export async function runMigrations(): Promise<MigrationResult> {
 }
 
 export async function getAppliedMigrations(): Promise<string[]> {
+  await ensureSchemaMigrationsTable();
   const pool = getMysqlPool();
   const [rows] = await pool.query<RowDataPacket[]>(
     "SELECT version FROM schema_migrations ORDER BY id",
