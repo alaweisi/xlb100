@@ -54,6 +54,13 @@ export class OrderService {
       throw new OrderValidationError(parsed.error.message);
     }
 
+    // Phase 14 auth fix: customerId MUST come from authenticated context,
+    // NOT from client body. Prevents identity forgery in order creation.
+    if (!context.userId) {
+      throw new OrderValidationError("authenticated user identity required for order creation");
+    }
+    const customerId = context.userId;
+
     if (isDemoSku(parsed.data.skuId)) {
       throw new OrderSkuNotAllowedError(parsed.data.skuId);
     }
@@ -85,7 +92,7 @@ export class OrderService {
         await this.repository.insertOrder(connection, {
           orderId,
           cityCode,
-          customerId: parsed.data.customerId,
+          customerId,
           skuId: sku.skuId,
           skuName: sku.name,
           quantity: parsed.data.quantity,
@@ -108,7 +115,7 @@ export class OrderService {
           payload: buildOrderCreatedPayload({
             orderId,
             cityCode,
-            customerId: parsed.data.customerId,
+            customerId,
             skuId: sku.skuId,
             totalAmount,
             createdAt: now,

@@ -12,23 +12,42 @@ import {
   createCustomerApiClient,
   CustomerLoadable,
   detectCustomerRoute,
+  loginCustomer,
   readCustomerCityCode,
   readOrderIds,
+  readStoredSession,
+  type CustomerSession,
   writeCustomerCityCode,
 } from "../pages/customerPageShell";
-
-function createApi(cityCode: CityCode) {
-  return createCustomerApiClient(cityCode);
-}
 
 export function App() {
   const initialCityCode = useMemo(() => readCustomerCityCode(), []);
   const [cityCode, setCityCode] = useState<CityCode>(initialCityCode);
   const [catalogState, setCatalogState] = useState<CustomerLoadable<CatalogSnapshot>>({ status: "loading" });
   const [orderIds, setOrderIds] = useState<string[]>(() => readOrderIds());
+  const [session, setSession] = useState<CustomerSession | null>(() => readStoredSession());
   const currentRoute = useMemo(() => detectCustomerRoute(), []);
 
-  const api = useMemo(() => createApi(cityCode), [cityCode]);
+  // Login on mount (idempotent: reuses stored token if still valid)
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      if (readStoredSession()) return; // already have a session
+      try {
+        const s = await loginCustomer();
+        if (!cancelled) setSession(s);
+      } catch {
+        // If login fails, proceed with header fallback.
+        // The backend returns 401 for routes that require real auth.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const api = useMemo(
+    () => createCustomerApiClient(cityCode, session?.token),
+    [cityCode, session?.token],
+  );
   const setCityAndPersist = useCallback((next: CityCode) => {
     writeCustomerCityCode(next);
     setCityCode(next);

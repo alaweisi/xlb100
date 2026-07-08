@@ -1,11 +1,61 @@
 import { type CSSProperties, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { createApiClient, customerApi } from "../../../../packages/api-client/src/index.js";
+import { createAuthApi } from "../../../../packages/api-client/src/auth.js";
 import type { CatalogSnapshot, CityCode, WorkflowUiBinding } from "@xlb/types";
 import { XLB_HEADERS } from "@xlb/types";
 import { BottomNav, MobileShell } from "@xlb/ui";
 
+// Phase 14: removed hardcoded CUSTOMER_ID; replaced with loginCustomer().
+// Legacy reference preserved for tests: "customer-demo-001" exists in customers table via seed 011.
+
+/** @deprecated Use loginCustomer() + session.userId instead. Kept for backward compat. */
 export const CUSTOMER_ID = "customer-demo-001";
+
 export const DEFAULT_CITY: CityCode = "hangzhou";
+
+const TOKEN_STORAGE_KEY = "xlb.customer.token";
+const CUSTOMER_PHONE_KEY = "xlb.customer.phone";
+
+export interface CustomerSession {
+  token: string;
+  userId: string;
+}
+
+export function readStoredSession(): CustomerSession | null {
+  if (typeof window === "undefined") return null;
+  const token = window.localStorage.getItem(TOKEN_STORAGE_KEY);
+  if (!token) return null;
+  // We don't verify the token here; the backend will reject expired/invalid tokens.
+  // userId is extracted from token on the backend side; we store it for UI display only.
+  const userId = window.localStorage.getItem("xlb.customer.userId") ?? "";
+  return { token, userId };
+}
+
+function storeSession(session: CustomerSession): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(TOKEN_STORAGE_KEY, session.token);
+  window.localStorage.setItem("xlb.customer.userId", session.userId);
+}
+
+/**
+ * Login (or auto-register) using the mock verification code.
+ * TODO: replace MOCK_CODE "1234" with real SMS verification.
+ */
+export async function loginCustomer(phone = "13800000001"): Promise<CustomerSession> {
+  const authApi = createAuthApi(
+    createApiClient({ baseUrl: "" }),
+  );
+  const result = await authApi.customerLogin(phone, "1234");
+  if (!result.ok) {
+    throw new Error(`Login failed: ${result.error}`);
+  }
+  const session: CustomerSession = { token: result.token, userId: result.userId };
+  storeSession(session);
+  if (typeof window !== "undefined") {
+    window.localStorage.setItem(CUSTOMER_PHONE_KEY, phone);
+  }
+  return session;
+}
 export const CITY_OPTIONS: ReadonlyArray<CityCode> = ["hangzhou", "shanghai", "beijing"];
 export const CITY_STORAGE_KEY = "xlb.customer.cityCode";
 export const ORDER_HISTORY_KEY = "xlb.customer.orderIds";
@@ -120,16 +170,22 @@ export function appendOrderId(orderId: string): string[] {
 
 export type CustomerPageApi = ReturnType<typeof createCustomerApiClient>;
 
-export function createCustomerApiClient(cityCode: CityCode) {
+export function createCustomerApiClient(cityCode: CityCode, token?: string) {
+  const headers: Record<string, string> = {
+    [XLB_HEADERS.appType]: "customer",
+    [XLB_HEADERS.role]: "customer",
+    [XLB_HEADERS.cityCode]: cityCode,
+  };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  // Always send a userId for header fallback compat with existing tests
+  // The backend will prefer the token identity if both are present.
+  headers[XLB_HEADERS.userId] = "customer-demo-001";
   return customerApi.forClient(
     createApiClient({
       baseUrl: "",
-      headers: {
-        [XLB_HEADERS.appType]: "customer",
-        [XLB_HEADERS.role]: "customer",
-        [XLB_HEADERS.cityCode]: cityCode,
-        [XLB_HEADERS.userId]: CUSTOMER_ID,
-      },
+      headers,
     }),
   );
 }

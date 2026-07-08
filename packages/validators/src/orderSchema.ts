@@ -10,7 +10,7 @@ export const orderStatusSchema = z.enum([
 ]);
 
 export const createOrderSchema = z.object({
-  customerId: z.string().min(1).max(64),
+  customerId: z.string().min(1).max(64).optional(),
   skuId: z.string().min(1).max(128),
   quantity: z.number().int().min(1),
 });

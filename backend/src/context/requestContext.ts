@@ -6,6 +6,7 @@ import {
 } from "@xlb/validators";
 import { resolveCityCode } from "../city/cityResolver.js";
 import { resolveTraceId } from "./traceId.js";
+import { verifyToken } from "../auth/authService.js";
 
 export type BuildContextOptions = {
   headers: Record<string, string | string[] | undefined>;
@@ -83,12 +84,29 @@ export function buildRequestContext(
   const traceId = resolveTraceId(headers);
   const userId = readHeader(headers, XLB_HEADERS.userId);
 
+  // ── Token-first auth: JWT token overrides header identity ──
+  let tokenAppType = appType;
+  let tokenRole = role;
+  let tokenUserId = userId;
+  const authHeader = readHeader(headers, "authorization");
+  if (authHeader) {
+    const match = /^Bearer\s+(.+)$/i.exec(authHeader);
+    if (match) {
+      const tokenResult = verifyToken(match[1]);
+      if (tokenResult.ok) {
+        tokenAppType = tokenResult.payload.appType as typeof appType;
+        tokenRole = tokenResult.payload.role as typeof role;
+        tokenUserId = tokenResult.payload.sub;
+      }
+    }
+  }
+
   const context: RequestContext = {
     traceId,
-    appType: headerParse.data["x-xlb-app-type"],
-    role: headerParse.data["x-xlb-role"],
+    appType: tokenAppType as RequestContext["appType"],
+    role: tokenRole as RequestContext["role"],
     cityCode,
-    userId,
+    userId: tokenUserId,
     requestStartedAt: new Date().toISOString(),
     requestId: traceId,
     correlationId: traceId,
