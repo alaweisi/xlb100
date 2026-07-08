@@ -17,18 +17,24 @@ import {
   WorkflowTimeline,
 } from "@xlb/ui";
 import type { CustomerLoadable } from "./customerPageShell";
-import { cityAreaByCode, getCatalogSkus as normalizeCatalogSkus } from "../adapters/catalogAdapters";
+import {
+  CUSTOMER_ID,
+  cityAreaByCode,
+  dedupeCatalogSkusByName,
+  getCatalogSkuDisplayLabel,
+  getCatalogSkus as normalizeCatalogSkus,
+} from "../adapters/catalogAdapters";
+import { toCustomerQuoteViewModel } from "../adapters/pricingAdapter";
 import { createCustomerUiBinding } from "../adapters/workflowAdapter";
 import { UatDebugPanel, useSearchParamSku } from "./customerPageShell";
 
 type QuoteState =
   | { status: "pending" | "loading" }
-  | { status: "success"; quote: PriceQuote }
-  | { status: "error"; error: string };
+  | { status: "success"; quote: PriceQuote; quoteViewModel: ReturnType<typeof toCustomerQuoteViewModel> };
 
 type SubmitState =
   | { status: "pending" | "submitting" }
-  | { status: "success"; order: Order; paymentOrder: PaymentOrder; verifiedOrder: Order }
+  | { status: "success"; order: Order; paymentOrder: PaymentOrder; orderDetail: Order }
   | { status: "error"; error: string };
 
 export interface CustomerOrderCreatePageProps {
@@ -45,17 +51,10 @@ export interface CustomerOrderCreatePageProps {
   catalogState: CustomerLoadable<CatalogSnapshot>;
   cityCode: CityCode;
   onOrderCreated: (orderId: string) => void;
-  onRetryCatalog: () => void;
 }
 
-function createOrderPayload(cityCode: CityCode, selectedSkuId: string, quantity: number) {
-  return {
-    customerId: "customer-demo-001",
-    cityCode,
-    skuId: selectedSkuId,
-    quantity,
-  };
-}
+const catalogSourceEndpoint = "GET /api/catalog";
+const pricingEndpoint = "GET /api/pricing/quote";
 
 function statusTone(status: string): "success" | "warning" | "danger" | "muted" {
   if (status === "paid") return "success";
@@ -64,12 +63,19 @@ function statusTone(status: string): "success" | "warning" | "danger" | "muted" 
   return "muted";
 }
 
+function createOrderRequestPayload(skuId: string, quantity: number) {
+  return {
+    customerId: CUSTOMER_ID,
+    skuId,
+    quantity,
+  };
+}
+
 export function CustomerOrderCreatePage({
   api,
   catalogState,
   cityCode,
   onOrderCreated,
-  onRetryCatalog,
 }: CustomerOrderCreatePageProps) {
   const initialSkuId = useSearchParamSku();
   const [selectedSkuId, setSelectedSkuId] = useState(initialSkuId ?? "");
@@ -77,11 +83,22 @@ export function CustomerOrderCreatePage({
   const [quoteState, setQuoteState] = useState<QuoteState>({ status: "pending" });
   const [submitState, setSubmitState] = useState<SubmitState>({ status: "pending" });
 
-  const skus = useMemo(
-    () => normalizeCatalogSkus(catalogState.status === "success" ? catalogState.data : undefined),
-    [catalogState],
-  );
-  const selectedSku = skus.find((sku) => sku.skuId === selectedSkuId);
+  const allSkus = useMemo(() => {
+    if (catalogState.status !== "success") return [];
+    const source = normalizeCatalogSkus(catalogState.data);
+    return source;
+  }, [catalogState]);
+
+  const skus = useMemo(() => dedupeCatalogSkusByName(allSkus), [allSkus]);
+
+  const selectedSku = allSkus.find((sku) => sku.skuId === selectedSkuId) ?? null;
+  const selectedSkuSummary = selectedSku ? getCatalogSkuDisplayLabel(selectedSku) : null;
+  const optionSkus = useMemo(() => {
+    if (!selectedSku || selectedSkuId === "" || skus.some((sku) => sku.skuId === selectedSkuId)) {
+      return skus;
+    }
+    return [...skus, selectedSku];
+  }, [skus, selectedSku, selectedSkuId]);
 
   const binding = createCustomerUiBinding({
     route: "createOrder",
@@ -90,6 +107,7 @@ export function CustomerOrderCreatePage({
     quoteReady: quoteState.status === "success",
     submitting: submitState.status === "submitting",
   });
+
   const actionById = useMemo(() => {
     return binding.availableActions.reduce(
       (map, action) => {
@@ -103,10 +121,12 @@ export function CustomerOrderCreatePage({
   const canSubmit = Boolean(selectedSkuId) && quoteState.status === "success" && submitState.status !== "submitting";
 
   useEffect(() => {
-    if (catalogState.status === "success" && !selectedSkuId && skus[0]) {
+    if (catalogState.status !== "success" || !allSkus.length) return;
+    const hasValidSelectedSku = Boolean(selectedSkuId) && allSkus.some((sku) => sku.skuId === selectedSkuId);
+    if (!hasValidSelectedSku && skus.length > 0) {
       setSelectedSkuId(skus[0].skuId);
     }
-  }, [catalogState, selectedSkuId, skus]);
+  }, [catalogState.status, allSkus, skus, selectedSkuId]);
 
   useEffect(() => {
     if (!selectedSkuId) {
@@ -116,11 +136,26 @@ export function CustomerOrderCreatePage({
     setQuoteState({ status: "loading" });
     void api
       .getPriceQuote(selectedSkuId)
-      .then((result) => setQuoteState({ status: "success", quote: result.quote }))
+      .then((result) =>
+        setQuoteState({ status: "success", quote: result.quote, quoteViewModel: toCustomerQuoteViewModel(result.quote) }),
+      )
       .catch((error: unknown) => {
         setQuoteState({ status: "error", error: error instanceof Error ? error.message : "Get quote failed" });
       });
   }, [api, selectedSkuId]);
+
+  const retryQuote = () => {
+    if (!selectedSkuId) return;
+    setQuoteState({ status: "loading" });
+    void api
+      .getPriceQuote(selectedSkuId)
+      .then((result) =>
+        setQuoteState({ status: "success", quote: result.quote, quoteViewModel: toCustomerQuoteViewModel(result.quote) }),
+      )
+      .catch((error: unknown) => {
+        setQuoteState({ status: "error", error: error instanceof Error ? error.message : "Get quote failed" });
+      });
+  };
 
   function clearSubmitError() {
     if (submitState.status === "error") {
@@ -135,27 +170,31 @@ export function CustomerOrderCreatePage({
       return;
     }
 
+    const requestPayload = createOrderRequestPayload(selectedSkuId, quantity);
     setSubmitState({ status: "submitting" });
     try {
-      const request = createOrderPayload(cityCode, selectedSkuId, quantity);
-      const orderResponse = await api.createOrder({
-        customerId: request.customerId,
-        skuId: request.skuId,
-        quantity: request.quantity,
-      });
+      const orderResponse = await api.createOrder(requestPayload);
       const paymentResponse = await api.createPaymentOrder({ orderId: orderResponse.order.orderId });
-      const verifiedOrder = await api.getOrder(orderResponse.order.orderId);
+      const verifiedOrderResponse = await api.getOrder(orderResponse.order.orderId);
       onOrderCreated(orderResponse.order.orderId);
       setSubmitState({
         status: "success",
         order: orderResponse.order,
         paymentOrder: paymentResponse.paymentOrder,
-        verifiedOrder: verifiedOrder.order,
+        orderDetail: verifiedOrderResponse.order,
       });
     } catch (error) {
       setSubmitState({ status: "error", error: error instanceof Error ? error.message : "Submit failed" });
     }
   }
+
+  const createOrderPayload = selectedSkuId ? createOrderRequestPayload(selectedSkuId, quantity) : null;
+  const uatCreateOrderPayload = selectedSkuId
+    ? {
+        ...createOrderPayload,
+        cityCode,
+      }
+    : null;
 
   return (
     <CustomerOrderCreateTemplate route="/customer/order/create" cityCode={cityCode} binding={binding}>
@@ -167,14 +206,14 @@ export function CustomerOrderCreatePage({
               <option value="" disabled>
                 Select service
               </option>
-              {skus.map((sku) => (
+              {optionSkus.map((sku) => (
                 <option key={sku.skuId} value={sku.skuId}>
-                  {`${sku.name} / ${sku.subtitle}`}
+                  {getCatalogSkuDisplayLabel(sku).optionLabel}
                 </option>
               ))}
             </Select>
           </FormField>
-          <FormField label="Quantity" description="Minimum is 1. Cannot input 0.">
+          <FormField label="Quantity" description="Minimum is 1. It cannot be reduced to zero.">
             <QuantityStepper min={1} value={quantity} onChange={setQuantity} />
           </FormField>
         </div>
@@ -182,10 +221,12 @@ export function CustomerOrderCreatePage({
         {selectedSku && (
           <ServiceCard
             title={selectedSku.name}
-            subtitle={[selectedSku.categoryName, selectedSku.itemName, selectedSku.unit].filter(Boolean).join(" / ")}
+            subtitle={selectedSkuSummary?.subtitle ?? [selectedSku.categoryPathLabel, selectedSku.unit].filter(Boolean).join(" / ")}
             status={<StatusTag tone="success">selected</StatusTag>}
             actionLabel="Change service"
-            onClick={() => (window.location.href = "/customer/services")}
+            onClick={() => {
+              window.location.href = `/customer/services?${new URLSearchParams({ cityCode }).toString()}`;
+            }}
           />
         )}
 
@@ -197,16 +238,16 @@ export function CustomerOrderCreatePage({
             action={
               <ActionDock
                 actions={actionById["customer.pricing.retryQuote"] ? [actionById["customer.pricing.retryQuote"]] : []}
-                onAction={() => onRetryCatalog()}
+                onAction={() => retryQuote()}
               />
             }
           />
         )}
         {quoteState.status === "success" && (
           <CustomerQuoteCard
-            label={selectedSku ? selectedSku.name : "Current quote"}
+            label={selectedSku?.name ?? "Current quote"}
             price={<PriceText amount={quoteState.quote.basePrice} currency={quoteState.quote.currency} />}
-            meta={`${quoteState.quote.priceText} / ${quoteState.quote.priceType}`}
+            meta={`${quoteState.quoteViewModel.priceText} / ${quoteState.quoteViewModel.priceType}`}
           />
         )}
 
@@ -222,13 +263,22 @@ export function CustomerOrderCreatePage({
             {
               key: "order",
               title: "Create order",
-              description: submitState.status === "success" ? "order created" : submitState.status === "error" ? "blocked" : "waiting submit",
-              state: submitState.status === "success" ? "complete" : submitState.status === "error" ? "blocked" : "pending",
+              description:
+                submitState.status === "success"
+                  ? `order created ${submitState.order.orderId}`
+                  : submitState.status === "error"
+                    ? "blocked"
+                    : "waiting submit",
+              state:
+                submitState.status === "success" ? "complete" : submitState.status === "error" ? "blocked" : "pending",
             },
             {
               key: "payment",
               title: "Create payment",
-              description: submitState.status === "success" ? "payment order created" : "waiting order",
+              description:
+                submitState.status === "success"
+                  ? `payment order ${submitState.paymentOrder.paymentOrderId}`
+                  : "waiting order",
               state: submitState.status === "success" ? "current" : "pending",
             },
           ]}
@@ -244,23 +294,27 @@ export function CustomerOrderCreatePage({
           <ErrorState
             title="Submit failed"
             description={submitState.error}
-            action={<Button type="button" onClick={() => void submitOrder()}>Try again</Button>}
+            action={<Button type="button" onClick={() => void submitOrder()}>
+              Try again
+            </Button>}
           />
         )}
         {submitState.status === "success" && (
           <div style={{ display: "grid", gap: 10 }}>
             <StatusTag tone="success">Order ID: {submitState.order.orderId}</StatusTag>
             <ServiceCard
-              title="Order created"
-              subtitle={`${submitState.verifiedOrder.quantity}${submitState.verifiedOrder.unit} / ${submitState.verifiedOrder.status}`}
-              status={<StatusTag tone={statusTone(submitState.order.status)}>{submitState.order.status}</StatusTag>}
-              priceText={<PriceText amount={submitState.order.totalAmount} currency={submitState.order.currency} />}
-              actionLabel="View orders"
+              title={submitState.order.skuName}
+              subtitle={`${submitState.orderDetail.quantity} ${submitState.orderDetail.unit} / ${submitState.orderDetail.status}`}
+              status={<StatusTag tone={statusTone(submitState.orderDetail.status)}>{submitState.orderDetail.status}</StatusTag>}
+              priceText={<PriceText amount={submitState.orderDetail.totalAmount} currency={submitState.orderDetail.currency} />}
+              actionLabel="View order detail"
               onClick={() => {
                 window.location.href = "/customer/orders";
               }}
             />
-            <StatusTag tone="warning">Payment order: {submitState.paymentOrder.paymentOrderId}</StatusTag>
+            <StatusTag tone="warning">
+              {`Payment order: ${submitState.paymentOrder.paymentOrderId} (${submitState.paymentOrder.status})`}
+            </StatusTag>
           </div>
         )}
       </section>
@@ -270,15 +324,18 @@ export function CustomerOrderCreatePage({
         binding={binding}
         facts={[
           { label: "city_code", value: cityCode },
-          { label: "skuId", value: selectedSkuId || null },
-          { label: "quantity", value: quantity },
+          { label: "selectedSkuId", value: selectedSku?.skuId ?? null },
+          { label: "selectedSkuName", value: selectedSku?.name ?? null },
           { label: "quote", value: quoteState.status === "success" ? quoteState.quote : quoteState },
-          { label: "create order payload", value: selectedSkuId ? createOrderPayload(cityCode, selectedSkuId, quantity) : null },
+          { label: "catalog source endpoint", value: catalogSourceEndpoint },
+          { label: "pricing endpoint", value: pricingEndpoint },
+          { label: "createOrderPayload", value: uatCreateOrderPayload },
           { label: "orderId", value: submitState.status === "success" ? submitState.order.orderId : null },
           { label: "paymentOrderId", value: submitState.status === "success" ? submitState.paymentOrder.paymentOrderId : null },
-          { label: "order detail response", value: submitState.status === "success" ? submitState.verifiedOrder : null },
+          { label: "orderDetail", value: submitState.status === "success" ? submitState.orderDetail : null },
           { label: "workflow state", value: binding.state },
           { label: "availableActions", value: binding.availableActions },
+          { label: "disabledReason", value: binding.disabledReasons },
         ]}
       />
     </CustomerOrderCreateTemplate>

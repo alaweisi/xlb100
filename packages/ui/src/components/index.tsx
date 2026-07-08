@@ -316,6 +316,7 @@ export interface LocationSearchBarProps extends Omit<HTMLAttributes<HTMLDivEleme
   value: string;
   onSearchChange: (value: string) => void;
   onCityClick?: () => void;
+  onSearchSubmit?: (value: string) => void;
 }
 
 export function LocationSearchBar({
@@ -325,10 +326,18 @@ export function LocationSearchBar({
   value,
   onSearchChange,
   onCityClick,
+  onSearchSubmit,
   style,
   ...props
 }: LocationSearchBarProps) {
   const safeAreaLabel = areaLabel ?? "";
+  const canSubmit = typeof onSearchSubmit === "function";
+
+  function triggerSearchSubmit() {
+    if (canSubmit) {
+      onSearchSubmit(value.trim());
+    }
+  }
 
   return (
     <div
@@ -395,6 +404,12 @@ export function LocationSearchBar({
           placeholder={placeholder}
           type="search"
           value={value}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              triggerSearchSubmit();
+            }
+          }}
           style={{
             appearance: "none",
             background: "transparent",
@@ -408,7 +423,23 @@ export function LocationSearchBar({
           }}
         />
         <span aria-hidden="true" style={{ color: "#94a3b8", fontSize: 17, flex: "0 0 auto" }}>
-          🔍
+          {canSubmit ? (
+            <button
+              type="button"
+              onClick={triggerSearchSubmit}
+              style={{
+                background: "transparent",
+                border: 0,
+                color: "#3b82f6",
+                cursor: "pointer",
+                fontFamily,
+                fontSize: 17,
+                padding: 0,
+              }}
+            >
+              🔍
+            </button>
+          ) : null}
         </span>
       </div>
     </div>

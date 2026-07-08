@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { CatalogSnapshot, CityCode } from "@xlb/types";
 import {
   ActionDock,
@@ -13,9 +13,15 @@ import {
   StatusTag,
   Tabs,
 } from "@xlb/ui";
-import { cityDisplayLabel, getCatalogSkus } from "../adapters/catalogAdapters";
+import {
+  CITY_OPTIONS,
+  CustomerLoadable,
+  setRouteSearchParams,
+  useRouteSearchParams,
+  useSearchParamSku,
+} from "./customerPageShell";
+import { cityDisplayLabel, getCatalogSkuDisplayLabel, getCatalogSkus } from "../adapters/catalogAdapters";
 import { createCustomerUiBinding } from "../adapters/workflowAdapter";
-import type { CustomerLoadable } from "./customerPageShell";
 import { UatDebugPanel } from "./customerPageShell";
 
 type CatalogCategoryTab = {
@@ -23,14 +29,8 @@ type CatalogCategoryTab = {
   label: string;
 };
 
-function dedupePathParts(parts: Array<string | undefined>): string[] {
-  const values = parts.filter(Boolean).map((item) => item!.trim());
-  const out: string[] = [];
-  for (const item of values) {
-    if (!out.includes(item)) out.push(item);
-  }
-  return out;
-}
+const catalogSourceEndpoint = "GET /api/catalog";
+const SEARCH_MODE = "client-filter";
 
 export function CustomerServicesPage({
   cityCode,
@@ -43,6 +43,8 @@ export function CustomerServicesPage({
 }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategoryId, setActiveCategoryId] = useState<string>("all");
+  const routeSearchQuery = useRouteSearchParams("q");
+  const selectedSkuIdFromRoute = useSearchParamSku();
   const binding = createCustomerUiBinding({ route: "services", cityCode });
 
   const actionById = useMemo(() => {
@@ -54,6 +56,10 @@ export function CustomerServicesPage({
       {} as Record<string, (typeof binding.availableActions)[number]>,
     );
   }, [binding]);
+
+  useEffect(() => {
+    setSearchQuery(routeSearchQuery ?? "");
+  }, [routeSearchQuery]);
 
   const allSkus = useMemo(() => {
     if (catalogState.status !== "success") return [];
@@ -70,11 +76,40 @@ export function CustomerServicesPage({
   const filteredSkus = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     return allSkus.filter((sku) => {
-      const matchText = `${sku.name} ${sku.itemName} ${sku.categoryName} ${sku.subtitle}`.toLowerCase();
+      const matchText = `${sku.name} ${sku.categoryPathLabel} ${sku.unit}`.toLowerCase();
       const matchCategory = activeCategoryId === "all" || sku.categoryId === activeCategoryId;
       return matchCategory && (query ? matchText.includes(query) : true);
     });
   }, [activeCategoryId, allSkus, searchQuery]);
+
+  const selectedSku = useMemo(() => {
+    if (!selectedSkuIdFromRoute) return null;
+    return allSkus.find((sku) => sku.skuId === selectedSkuIdFromRoute) ?? null;
+  }, [allSkus, selectedSkuIdFromRoute]);
+
+  const catalogQueryParams = (nextQuery: string) => {
+    const trimmed = nextQuery.trim();
+    const params = new URLSearchParams({ cityCode });
+    if (trimmed) {
+      params.set("q", trimmed);
+    }
+    return params;
+  };
+
+  const updateRouteSearchQuery = (nextQuery: string) => {
+    const trimmed = nextQuery.trim();
+    setSearchQuery(trimmed);
+    setRouteSearchParams({ cityCode, q: trimmed || null });
+  };
+
+  const onCityChange = () => {
+    const nextIndex = (CITY_OPTIONS.indexOf(cityCode) + 1) % CITY_OPTIONS.length;
+    const nextCity = CITY_OPTIONS[nextIndex];
+    const params = catalogQueryParams(searchQuery);
+    window.location.href = `/customer/services?${new URLSearchParams({ cityCode: nextCity, ...(params.get("q") ? { q: params.get("q")! } : {}) })}`;
+  };
+
+  const retryAction = actionById["customer.catalog.retry"];
 
   const header = (
     <Card title="Service discovery">
@@ -82,15 +117,14 @@ export function CustomerServicesPage({
         cityLabel={cityCode}
         areaLabel={cityDisplayLabel(cityCode)}
         onSearchChange={setSearchQuery}
-        placeholder="Search service"
+        onSearchSubmit={updateRouteSearchQuery}
+        placeholder="Search cleaning, repair, moving"
         value={searchQuery}
-        onCityClick={() => {}}
+        onCityClick={onCityChange}
       />
       <CustomerAnswerCard state={binding.state} />
     </Card>
   );
-
-  const retryAction = actionById["customer.catalog.retry"];
 
   return (
     <CustomerServicesTemplate route="/customer/services" cityCode={cityCode} binding={binding} header={header}>
@@ -120,6 +154,7 @@ export function CustomerServicesPage({
           }
         />
       )}
+
       {catalogState.status === "success" && catalogState.data.categories.length === 0 && (
         <EmptyState title="No service available" description="Current city has no service catalog." />
       )}
@@ -128,16 +163,16 @@ export function CustomerServicesPage({
         <section style={{ display: "grid", gap: 10 }}>
           <div style={{ alignItems: "center", color: "#64748b", display: "flex", justifyContent: "space-between" }}>
             <strong>Service list</strong>
-            <StatusTag tone="success">{filteredSkus.length} items</StatusTag>
+            <StatusTag tone="success">{`${filteredSkus.length} items`}</StatusTag>
           </div>
           {filteredSkus.map((sku) => {
-            const subtitleParts = dedupePathParts([sku.categoryName, sku.itemName, sku.unit]);
+            const skuDisplay = getCatalogSkuDisplayLabel(sku);
             return (
               <ServiceCard
                 key={sku.skuId}
                 title={sku.name}
-                subtitle={subtitleParts.join(" / ")}
-                status={<StatusTag tone="muted">Orderable</StatusTag>}
+                subtitle={skuDisplay.subtitle}
+                status={<StatusTag tone="muted">Available</StatusTag>}
                 onClick={() => {
                   const params = new URLSearchParams({ skuId: sku.skuId });
                   window.location.href = `/customer/order/create?${params.toString()}`;
@@ -148,14 +183,26 @@ export function CustomerServicesPage({
         </section>
       )}
 
+      {catalogState.status === "success" && filteredSkus.length === 0 && (
+        <EmptyState
+          title="No matching services"
+          description={searchQuery.trim() ? `No services found for "${searchQuery}"` : "No service is available in selected filters"}
+        />
+      )}
+
       <UatDebugPanel
         binding={binding}
         facts={[
           { label: "city_code", value: cityCode },
-          { label: "search query", value: searchQuery },
-          { label: "catalog category count", value: catalogState.status === "success" ? catalogState.data.categories.length : 0 },
+          { label: "searchQuery", value: searchQuery },
+          { label: "matchedSkuCount", value: filteredSkus.length },
+          { label: "searchMode", value: SEARCH_MODE },
+          { label: "catalog source endpoint", value: catalogSourceEndpoint },
+          { label: "selectedSkuId", value: selectedSkuIdFromRoute ?? null },
+          { label: "selectedSkuName", value: selectedSku?.name ?? null },
           { label: "workflow state", value: binding.state },
           { label: "availableActions", value: binding.availableActions },
+          { label: "disabledReason", value: binding.disabledReasons },
         ]}
       />
     </CustomerServicesTemplate>

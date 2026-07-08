@@ -95,7 +95,6 @@ export function App() {
         api={orderCreateApi}
         catalogState={catalogState}
         cityCode={cityCode}
-        onRetryCatalog={handleRetryCatalog}
         onOrderCreated={handleOrderCreated}
       />
     );

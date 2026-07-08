@@ -18,6 +18,13 @@ export type CustomerLoadable<T> =
   | { status: "success"; data: T; error?: undefined }
   | { status: "error"; data?: T; error: string };
 
+export function readCustomerCityFromSearch(): CityCode | null {
+  if (typeof window === "undefined") return null;
+  const params = new URLSearchParams(window.location.search);
+  const fromQuery = params.get("cityCode") as CityCode | null;
+  return fromQuery && CITY_OPTIONS.includes(fromQuery) ? fromQuery : null;
+}
+
 export const customerRouteConfig: Record<
   CustomerRoute,
   { label: string; href: string; title: string; icon: string; prominent?: boolean }
@@ -40,8 +47,18 @@ export function detectCustomerRoute(pathname = window.location.pathname): Custom
 
 export function readCustomerCityCode(): CityCode {
   if (typeof window === "undefined") return DEFAULT_CITY;
+  const fromQuery = readCustomerCityFromSearch();
+  if (fromQuery) {
+    window.localStorage.setItem(CITY_STORAGE_KEY, fromQuery);
+    return fromQuery;
+  }
+
   const stored = window.localStorage.getItem(CITY_STORAGE_KEY);
-  return CITY_OPTIONS.includes(stored as CityCode) ? (stored as CityCode) : DEFAULT_CITY;
+  const city = CITY_OPTIONS.includes(stored as CityCode) ? (stored as CityCode) : DEFAULT_CITY;
+  if (!stored || city !== stored) {
+    window.localStorage.setItem(CITY_STORAGE_KEY, city);
+  }
+  return city;
 }
 
 export function writeCustomerCityCode(cityCode: CityCode): void {
@@ -69,6 +86,28 @@ export function readOrderIds(): string[] {
   } catch {
     return [];
   }
+}
+
+export function readRouteSearchParam(key: string): string | null {
+  if (typeof window === "undefined") return null;
+  return new URLSearchParams(window.location.search).get(key);
+}
+
+export function setRouteSearchParams(patches: Record<string, string | null>, keepPathname = true): string {
+  if (typeof window === "undefined") return "";
+  const params = new URLSearchParams(window.location.search);
+  Object.entries(patches).forEach(([key, value]) => {
+    if (value === null || value === "") {
+      params.delete(key);
+    } else {
+      params.set(key, value);
+    }
+  });
+  const query = params.toString();
+  const next = `${keepPathname ? window.location.pathname : ""}${query ? `?${query}` : ""}`;
+  window.history.replaceState({}, "", next);
+  window.dispatchEvent(new Event("customer-route-search-change"));
+  return next;
 }
 
 export function appendOrderId(orderId: string): string[] {
@@ -247,7 +286,14 @@ export function useRouteSearchParams(key: string): string | null {
   const [value, setValue] = useState<string | null>(null);
   useEffect(() => {
     if (typeof window === "undefined") return;
-    setValue(new URLSearchParams(window.location.search).get(key));
+    const sync = () => setValue(readRouteSearchParam(key));
+    sync();
+    window.addEventListener("popstate", sync);
+    window.addEventListener("customer-route-search-change", sync);
+    return () => {
+      window.removeEventListener("popstate", sync);
+      window.removeEventListener("customer-route-search-change", sync);
+    };
   }, [key]);
   return value;
 }

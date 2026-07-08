@@ -11,6 +11,12 @@ export interface CatalogSkuViewModel {
   subtitle: string;
 }
 
+export interface CatalogSkuDisplayModel {
+  title: string;
+  subtitle: string;
+  optionLabel: string;
+}
+
 export interface CatalogCategoryViewModel {
   categoryId: string;
   categoryName: string;
@@ -67,6 +73,26 @@ function dedupe(parts: Array<string | undefined>): string[] {
   return deduped;
 }
 
+function dedupeDisplayText(parts: Array<string | undefined>): string[] {
+  const values = parts
+    .filter(Boolean)
+    .map((item) => item!.trim())
+    .filter(Boolean);
+  const deduped: string[] = [];
+  const seen = new Set<string>();
+
+  for (const value of values) {
+    const key = value.toLowerCase();
+    if (seen.has(key)) {
+      continue;
+    }
+    deduped.push(value);
+    seen.add(key);
+  }
+
+  return deduped;
+}
+
 function catalogItemToSku(
   categoryName: string,
   itemName: string,
@@ -92,6 +118,25 @@ export function getCatalogSkus(catalog?: CatalogSnapshot): CatalogSkuViewModel[]
       item.skus.map((sku) => catalogItemToSku(category.name, item.name, sku, category.categoryId)),
     ),
   );
+}
+
+export function getCatalogSkuDisplayLabel(sku: CatalogSkuViewModel): CatalogSkuDisplayModel {
+  return {
+    title: sku.name,
+    subtitle: dedupeDisplayText([sku.categoryPathLabel, sku.unit]).join(" / "),
+    optionLabel: dedupeDisplayText([sku.name, sku.categoryPathLabel, sku.unit]).join(" / "),
+  };
+}
+
+export function dedupeCatalogSkusByName(skus: CatalogSkuViewModel[]): CatalogSkuViewModel[] {
+  const map = new Map<string, CatalogSkuViewModel>();
+  for (const sku of skus) {
+    const key = sku.name.trim().toLowerCase();
+    if (!map.has(key)) {
+      map.set(key, sku);
+    }
+  }
+  return Array.from(map.values());
 }
 
 export function orderedHomeCategories(catalog: CatalogSnapshot): CatalogCategory[] {
@@ -146,4 +191,3 @@ export function toCatalogDisplayModels(catalog: CatalogSnapshot, selectedSkuId?:
     total: allSkus.length,
   };
 }
-

@@ -12,7 +12,7 @@ import {
   LocationSearchBar,
   ServiceCard,
 } from "@xlb/ui";
-import { CITY_OPTIONS, CustomerLoadable, customerRouteConfig, UatDebugPanel, useSearchParamSku } from "./customerPageShell";
+import { CITY_OPTIONS, CustomerLoadable, UatDebugPanel } from "./customerPageShell";
 import { cityDisplayLabel, representativeHomeSkus } from "../adapters/catalogAdapters";
 import { createCustomerUiBinding } from "../adapters/workflowAdapter";
 
@@ -23,11 +23,13 @@ function HomeHeader({
   onCityChange,
   searchQuery,
   onSearchChange,
+  onSearchSubmit,
 }: {
   cityCode: City;
   onCityChange: (next: City) => void;
   searchQuery: string;
   onSearchChange: (value: string) => void;
+  onSearchSubmit: (value: string) => void;
 }) {
   return (
     <Card title="Service search">
@@ -37,6 +39,7 @@ function HomeHeader({
         placeholder="Search cleaning, repair, moving"
         value={searchQuery}
         onSearchChange={onSearchChange}
+        onSearchSubmit={onSearchSubmit}
         onCityClick={() => {
           const nextIndex = (CITY_OPTIONS.indexOf(cityCode) + 1) % CITY_OPTIONS.length;
           const nextCity = CITY_OPTIONS[nextIndex];
@@ -55,7 +58,6 @@ export interface CustomerHomePageProps {
 
 export function CustomerHomePage({ cityCode, catalogState, onRetryCatalog }: CustomerHomePageProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const selectedSkuId = useSearchParamSku();
   const binding = createCustomerUiBinding({
     route: "home",
     cityCode,
@@ -72,18 +74,22 @@ export function CustomerHomePage({ cityCode, catalogState, onRetryCatalog }: Cus
 
   const quickSkus = useMemo(() => {
     if (catalogState.status !== "success") return [];
-    return representativeHomeSkus(catalogState.data).filter((sku) => {
-      if (!searchQuery) return true;
-      const text = `${sku.name} ${sku.categoryName} ${sku.itemName} ${sku.subtitle}`.toLowerCase();
-      return text.includes(searchQuery.toLowerCase());
-    });
-  }, [catalogState, searchQuery]);
+    return representativeHomeSkus(catalogState.data);
+  }, [catalogState]);
 
   const openServicesAction = actionById["customer.services.open"];
-  const cityCopy = cityDisplayLabel(cityCode);
   const onCityChange = (next: City) => {
     window.location.href = `/customer/?${new URLSearchParams({ cityCode: next }).toString()}`;
   };
+
+  function navigateToServices(query: string) {
+    const trimmed = query.trim();
+    const params = new URLSearchParams({ cityCode: cityCode });
+    if (trimmed) {
+      params.set("q", trimmed);
+    }
+    window.location.href = `/customer/services?${params.toString()}`;
+  }
 
   return (
     <CustomerHomeTemplate
@@ -93,7 +99,7 @@ export function CustomerHomePage({ cityCode, catalogState, onRetryCatalog }: Cus
       actions={
         <ActionDock
           actions={openServicesAction ? [openServicesAction] : []}
-          onAction={() => (window.location.href = "/customer/services")}
+          onAction={() => (window.location.href = `/customer/services?${new URLSearchParams({ cityCode }).toString()}`)}
           density="compact"
         />
       }
@@ -103,11 +109,8 @@ export function CustomerHomePage({ cityCode, catalogState, onRetryCatalog }: Cus
         onCityChange={onCityChange}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
+        onSearchSubmit={navigateToServices}
       />
-
-      <Card title={customerRouteConfig.home.title}>
-        <p style={{ color: "#6b7280", fontSize: 12, margin: 0 }}>当前城市：{cityCopy}</p>
-      </Card>
 
       {catalogState.status === "loading" && (
         <LoadingState title="服务目录加载中" description="正在读取服务目录" />
@@ -146,7 +149,6 @@ export function CustomerHomePage({ cityCode, catalogState, onRetryCatalog }: Cus
               }}
             />
           ))}
-          {selectedSkuId ? <p style={{ color: "#64748b", fontSize: 12 }}>当前选中 SKU：{selectedSkuId}</p> : null}
         </section>
       )}
 
@@ -154,8 +156,10 @@ export function CustomerHomePage({ cityCode, catalogState, onRetryCatalog }: Cus
       <UatDebugPanel
         binding={binding}
         facts={[
+          { label: "catalog source endpoint", value: "GET /api/catalog" },
           { label: "city_code", value: cityCode },
           { label: "search query", value: searchQuery },
+          { label: "matchedSkuCount", value: quickSkus.length },
           { label: "workflow state", value: binding.state },
           { label: "availableActions", value: binding.availableActions },
           { label: "disabledReason", value: binding.disabledReasons },
