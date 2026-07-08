@@ -65,9 +65,15 @@ export {
   type OrderReviewInput,
 } from "./reviewSchema.js";
 export {
+  dispatchEventSchema,
+  dispatchEventTypeSchema,
+  dispatchOfferSchema,
+  dispatchOfferStatusSchema,
   dispatchTaskSchema,
   dispatchTaskStatusSchema,
   dispatchStreamMessageSchema,
+  type DispatchEventInput,
+  type DispatchOfferInput,
   type DispatchTaskInput,
   type DispatchStreamMessageInput,
 } from "./dispatchSchema.js";

@@ -8,7 +8,20 @@ export interface WorkerTaskPoolItemResponse {
   skuId: string;
   amount: number;
   streamName: string;
-  status: "queued" | "accepted" | "failed";
+  status:
+    | "pending"
+    | "queued"
+    | "offering"
+    | "accepted"
+    | "expired"
+    | "reassigning"
+    | "completed"
+    | "rejected"
+    | "timeout"
+    | "no_match"
+    | "manual_review"
+    | "failed"
+    | "cancelled";
   createdAt: string;
 }
 
@@ -71,6 +84,11 @@ export type FulfillmentLifecycleResponse = {
   idempotent: boolean;
 };
 
+export type WorkerTaskMutationResponse = {
+  ok: true;
+  task: WorkerTaskPoolItemResponse;
+};
+
 export type CompleteFulfillmentInput = {
   completionNote?: string;
 };
@@ -83,6 +101,21 @@ export function createWorkerApi(client: ApiClient) {
     acceptTask(dispatchTaskId: string): Promise<AcceptTaskResponse> {
       return client.post<AcceptTaskResponse>(
         `/api/worker/tasks/${encodeURIComponent(dispatchTaskId)}/accept`,
+        {},
+      );
+    },
+    rejectTask(
+      dispatchTaskId: string,
+      reason = "worker rejected offer",
+    ): Promise<WorkerTaskMutationResponse> {
+      return client.post<WorkerTaskMutationResponse>(
+        `/api/worker/tasks/${encodeURIComponent(dispatchTaskId)}/reject`,
+        { reason },
+      );
+    },
+    simulateTaskTimeout(dispatchTaskId: string): Promise<WorkerTaskMutationResponse> {
+      return client.post<WorkerTaskMutationResponse>(
+        `/api/worker/tasks/${encodeURIComponent(dispatchTaskId)}/simulate-timeout`,
         {},
       );
     },

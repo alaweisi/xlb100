@@ -169,8 +169,8 @@ function formatAmount(amount: number): string {
 function statusTone(status: string): "primary" | "success" | "warning" | "danger" | "muted" {
   if (status === "completed") return "success";
   if (status === "in_progress") return "primary";
-  if (status === "accepted" || status === "queued") return "warning";
-  if (status === "cancelled" || status === "failed") return "danger";
+  if (status === "accepted" || status === "queued" || status === "offering" || status === "reassigning") return "warning";
+  if (status === "cancelled" || status === "failed" || status === "no_match" || status === "manual_review") return "danger";
   return "muted";
 }
 
@@ -323,10 +323,14 @@ function HallPage({
   acceptError,
   acceptNotice,
   acceptingDispatchTaskId,
+  simulationAction,
+  simulationControlsEnabled,
   cityCode,
   workerId,
   onRefresh,
   onAccept,
+  onReject,
+  onSimulateTimeout,
 }: {
   tasks: WorkerTaskPoolItem[];
   loading: boolean;
@@ -334,14 +338,18 @@ function HallPage({
   acceptError: string | null;
   acceptNotice: string | null;
   acceptingDispatchTaskId: string | null;
+  simulationAction: { type: "reject" | "timeout"; dispatchTaskId: string } | null;
+  simulationControlsEnabled: boolean;
   cityCode: string;
   workerId: string;
   onRefresh: () => void;
   onAccept: (dispatchTaskId: string) => void;
+  onReject: (dispatchTaskId: string) => void;
+  onSimulateTimeout: (dispatchTaskId: string) => void;
 }) {
   return (
     <>
-      <Card title="Task Pool Status" actions={<StatusTag tone="success">{tasks.length} queued</StatusTag>} style={workerPanelStyle}>
+      <Card title="Task Pool Status" actions={<StatusTag tone="success">{tasks.length} available</StatusTag>} style={workerPanelStyle}>
         <p style={helperText}>
           city={cityCode}, worker={workerId}. Source: GET /api/worker/task-pool.
         </p>
@@ -381,21 +389,48 @@ function HallPage({
                 {
                   key: "actions",
                   title: "Action",
-                  render: (row) => (
-                    <Button
-                      disabled={row.status !== "queued" || acceptingDispatchTaskId !== null}
-                      onClick={() => onAccept(row.dispatchTaskId)}
-                      variant="primary"
-                    >
-                      {acceptingDispatchTaskId === row.dispatchTaskId ? "Accepting" : "Accept"}
-                    </Button>
-                  ),
+                  render: (row) => {
+                    const canAccept = row.status === "queued" || row.status === "offering";
+                    const canSimulate = simulationControlsEnabled && row.status === "offering";
+                    const busy = acceptingDispatchTaskId !== null || simulationAction !== null;
+                    return (
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                        <Button
+                          disabled={!canAccept || busy}
+                          onClick={() => onAccept(row.dispatchTaskId)}
+                          variant="primary"
+                        >
+                          {acceptingDispatchTaskId === row.dispatchTaskId ? "Accepting" : "Accept"}
+                        </Button>
+                        {simulationControlsEnabled && (
+                          <>
+                            <Button
+                              disabled={!canSimulate || busy}
+                              onClick={() => onReject(row.dispatchTaskId)}
+                            >
+                              {simulationAction?.type === "reject" && simulationAction.dispatchTaskId === row.dispatchTaskId
+                                ? "Rejecting"
+                                : "Reject"}
+                            </Button>
+                            <Button
+                              disabled={!canSimulate || busy}
+                              onClick={() => onSimulateTimeout(row.dispatchTaskId)}
+                            >
+                              {simulationAction?.type === "timeout" && simulationAction.dispatchTaskId === row.dispatchTaskId
+                                ? "Timing out"
+                                : "Timeout"}
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    );
+                  },
                 },
               ]}
             />
           )}
           <p style={{ ...helperText, color: "#ffd37d", marginTop: 10 }}>
-            Boundary: Accept is the only enabled write action in P1 stage 2.
+            Boundary: Accept is real. Reject and timeout are test-only dispatch simulation controls.
           </p>
         </Card>
       )}
@@ -593,6 +628,7 @@ export function App() {
   const [loadingTasks, setLoadingTasks] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [acceptingDispatchTaskId, setAcceptingDispatchTaskId] = useState<string | null>(null);
+  const [simulationAction, setSimulationAction] = useState<{ type: "reject" | "timeout"; dispatchTaskId: string } | null>(null);
   const [lifecycleAction, setLifecycleAction] = useState<"start" | "complete" | null>(null);
   const [hallError, setHallError] = useState<string | null>(null);
   const [tasksError, setTasksError] = useState<string | null>(null);
@@ -601,6 +637,8 @@ export function App() {
   const [acceptNotice, setAcceptNotice] = useState<string | null>(null);
   const [lifecycleError, setLifecycleError] = useState<string | null>(null);
   const [lifecycleNotice, setLifecycleNotice] = useState<string | null>(null);
+  const simulationControlsEnabled =
+    ((import.meta as ImportMeta & { env?: { MODE?: string } }).env?.MODE ?? "development") !== "production";
 
   const api = useMemo(
     () => createWorkerClient({ cityCode: workerCityCode, workerId }),
@@ -678,6 +716,42 @@ export function App() {
     [api, loadFulfillments, loadTaskPool],
   );
 
+  const rejectTask = useCallback(
+    async (dispatchTaskId: string) => {
+      setSimulationAction({ type: "reject", dispatchTaskId });
+      setAcceptError(null);
+      setAcceptNotice(null);
+      try {
+        const response = await api.rejectTask(dispatchTaskId);
+        setAcceptNotice(`Rejected ${dispatchTaskId}; dispatch task is now ${response.task.status}.`);
+        await loadTaskPool();
+      } catch (error) {
+        setAcceptError(error instanceof Error ? error.message : "Failed to reject task");
+      } finally {
+        setSimulationAction(null);
+      }
+    },
+    [api, loadTaskPool],
+  );
+
+  const simulateTaskTimeout = useCallback(
+    async (dispatchTaskId: string) => {
+      setSimulationAction({ type: "timeout", dispatchTaskId });
+      setAcceptError(null);
+      setAcceptNotice(null);
+      try {
+        const response = await api.simulateTaskTimeout(dispatchTaskId);
+        setAcceptNotice(`Timed out ${dispatchTaskId}; dispatch task is now ${response.task.status}.`);
+        await loadTaskPool();
+      } catch (error) {
+        setAcceptError(error instanceof Error ? error.message : "Failed to simulate timeout");
+      } finally {
+        setSimulationAction(null);
+      }
+    },
+    [api, loadTaskPool],
+  );
+
   const refreshFulfillmentState = useCallback(
     async (fulfillmentId: string) => {
       await Promise.all([loadTaskPool(), loadFulfillments(), loadTaskDetail(fulfillmentId)]);
@@ -745,10 +819,14 @@ export function App() {
         acceptError={acceptError}
         acceptNotice={acceptNotice}
         acceptingDispatchTaskId={acceptingDispatchTaskId}
+        simulationAction={simulationAction}
+        simulationControlsEnabled={simulationControlsEnabled}
         cityCode={workerCityCode}
         workerId={workerId}
         onRefresh={loadTaskPool}
         onAccept={(dispatchTaskId) => void acceptTask(dispatchTaskId)}
+        onReject={(dispatchTaskId) => void rejectTask(dispatchTaskId)}
+        onSimulateTimeout={(dispatchTaskId) => void simulateTaskTimeout(dispatchTaskId)}
       />
     ) : route.route === "tasks" ? (
       <TasksPage

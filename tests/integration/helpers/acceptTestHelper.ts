@@ -54,8 +54,9 @@ export async function ensureHangzhouWorkerEligible(): Promise<void> {
 
 export async function createQueuedDispatchTask(
   app: FastifyInstance,
+  skuId = "sku_home_daily_2h",
 ): Promise<string> {
-  const orderId = await createPaidOrderForDispatch(app);
+  const orderId = await createPaidOrderForDispatch(app, skuId);
   const pool = getMysqlPool();
 
   for (let i = 0; i < 50; i++) {

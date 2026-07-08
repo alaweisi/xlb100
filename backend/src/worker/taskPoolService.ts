@@ -10,9 +10,10 @@ export class TaskPoolService {
     private readonly dispatch: DispatchRepository = dispatchRepository,
   ) {}
 
-  async listQueuedTasksForCity(
+  async listAvailableTasksForWorker(
     context: RequestContext,
     cityCode: CityCode,
+    workerId: string,
     limit = 100,
   ): Promise<WorkerTaskPoolItem[]> {
     assertCityScopedContext(context);
@@ -20,7 +21,12 @@ export class TaskPoolService {
       throw new Error("city_code mismatch in task pool query");
     }
 
-    const tasks = await this.dispatch.listQueuedTasks(context, cityCode, limit);
+    const tasks = await this.dispatch.listAvailableTasksForWorker(
+      context,
+      cityCode,
+      workerId,
+      limit,
+    );
     return tasks.map((task) => ({
       dispatchTaskId: task.dispatchTaskId,
       cityCode: task.cityCode,

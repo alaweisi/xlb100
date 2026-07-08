@@ -4,6 +4,91 @@
 
 This health-check file remains the single visible record for 2026-07-08 findings and follow-up fixes. Earlier P1 addendum notes have been merged back here to avoid overlapping health-check files.
 
+### Investor Simulation Dispatch Readiness
+
+Scope completed:
+
+- Dispatch state machine simulation expanded from simple `queued -> accepted` into traceable operational states:
+  - `queued`
+  - `offering`
+  - `accepted`
+  - `expired`
+  - `reassigning`
+  - `completed`
+  - `rejected`
+  - `timeout`
+  - `no_match`
+  - `manual_review`
+  - `cancelled`
+- Added dispatch offer fan-out and timeline persistence:
+  - `dispatch_offers`
+  - `dispatch_events`
+- Added simulated worker matching using existing business facts plus minimal simulation metadata:
+  - city binding
+  - SKU eligibility / qualification
+  - online status
+  - available/busy/suspended/certified state
+  - `distance_km` for nearest-first simulated ordering
+- Added admin/internal dispatch processors:
+  - `POST /api/internal/dispatch/match-once`
+  - `POST /api/internal/dispatch/retry-once`
+  - `POST /api/internal/dispatch/timeout-once`
+- Added worker simulation actions:
+  - `POST /api/worker/tasks/:dispatchTaskId/reject`
+  - `POST /api/worker/tasks/:dispatchTaskId/simulate-timeout`
+- Worker task pool now shows open `queued` tasks plus active `offering` tasks for the current worker.
+- Worker UI exposes Reject / Timeout controls only for non-production simulation builds.
+- Fulfillment completion now marks the related dispatch task `completed` and writes `TASK_COMPLETED` into `dispatch_events`.
+- Admin Order Trace now includes dispatch `last_reason` and dispatch event timeline.
+- Auto-run now runs simulated dispatch matching after dispatch outbox processing; test environment remains disabled.
+
+Closed investor-demo questions:
+
+- No worker available: task becomes `no_match`, `last_reason` carries `正在寻找服务人员`, and Admin trace shows the exception.
+- Worker rejects: `WORKER_REJECTED` is recorded and remaining/next candidates can accept.
+- Worker timeout: `OFFER_TIMEOUT` is recorded, the task enters `reassigning`, and retry matching can offer the next worker.
+- Skill mismatch: candidates require matching `worker_qualifications` for the order SKU.
+- City isolation: candidate workers must be bound/online/eligible in the same `city_code`.
+- Multiple-worker competition: multiple active offers can exist, first accept wins, other active offers become `cancelled`.
+- Why this worker: `OFFER_CREATED` events record distance-based candidate ordering.
+
+Database change:
+
+- Added `db/migrations/031_dispatch_simulation_mvp.sql`.
+- Added tables: `dispatch_offers`, `dispatch_events`.
+- Added dispatch task metadata: `attempt_count`, `max_attempts`, `last_reason`.
+- Added worker simulation metadata: `dispatch_status`, `is_certified`, `distance_km`.
+- Updated demo seed so `worker-demo-hangzhou` is online/available/certified with a simulated distance.
+
+Boundary kept:
+
+- No Gaode/Amap integration.
+- No real location/check-in.
+- No SMS provider.
+- No WeChat Pay or Alipay provider work.
+- No AI dispatch.
+- No settlement, ledger, refund, or payment execution expansion.
+
+Remaining formal integration TODO:
+
+- Real map/geocoding/distance/route provider.
+- Real worker/customer location and check-in.
+- Real SMS notification/verification provider.
+- Formal payment/refund providers: WeChat Pay and Alipay.
+- Production worker login/token replacement for demo header identity.
+- ICP, production domain/TLS, app-store or mini-program distribution readiness.
+
+Verification:
+
+- `pnpm --filter @xlb/backend exec tsx src/dal/migrateCli.ts`: applied `031_dispatch_simulation_mvp`.
+- `pnpm --filter @xlb/backend exec tsx src/dal/seedCli.ts`: passed.
+- `pnpm exec vitest run tests/integration/dispatchRunOnce.test.ts --pool=forks --poolOptions.forks.singleFork`: passed.
+- `pnpm exec vitest run tests/integration/workerAcceptApi.test.ts tests/integration/workerTaskPoolApi.test.ts tests/contract/dispatchTask.contract.test.ts tests/unit/dispatchTaskSchema.test.ts --pool=forks --poolOptions.forks.singleFork`: passed.
+- `pnpm exec vitest run tests/integration/refundReversalMvp.test.ts --pool=forks --poolOptions.forks.singleFork`: passed after updating Admin trace expectation from dispatch `accepted` to `completed`.
+- `pnpm turbo run typecheck`: passed, 17 successful.
+- `pnpm turbo run build`: passed, 11 successful.
+- Full serial Vitest: `255 passed`, `1049 passed | 1 todo`.
+
 ### P1 Stage 7: simulated operation-flow correction
 
 Current wrong flow identified:

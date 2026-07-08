@@ -16,6 +16,10 @@ export function generateDispatchTaskId(): string {
   return `dpt_${Date.now().toString(36)}_${randomBytes(4).toString("hex")}`;
 }
 
+export function generateDispatchOfferId(): string {
+  return `dof_${Date.now().toString(36)}_${randomBytes(4).toString("hex")}`;
+}
+
 export function generateCertificationId(): string {
   return `cert_${Date.now().toString(36)}_${randomBytes(4).toString("hex")}`;
 }

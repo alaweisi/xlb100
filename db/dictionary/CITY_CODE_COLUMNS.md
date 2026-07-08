@@ -18,6 +18,8 @@ Phase 1 city foundation. All city-scoped business tables (Phase 2+) **must** inc
 | Table | city_code column | Notes |
 |-------|------------------|-------|
 | `dispatch_tasks` | required FK | One task per order; city-scoped Redis stream |
+| `dispatch_offers` | required FK | Simulated offer rows per candidate worker |
+| `dispatch_events` | required FK | City-scoped dispatch timeline events |
 
 ## Phase 7A tables with city_code
 

@@ -36,9 +36,10 @@ export async function registerTaskPoolRoutes(app: FastifyInstance): Promise<void
 
       try {
         await workerService.assertWorkerBoundToCity(context.userId, cityCode);
-        const tasks = await taskPoolService.listQueuedTasksForCity(
+        const tasks = await taskPoolService.listAvailableTasksForWorker(
           context,
           cityCode,
+          context.userId,
         );
         return { ok: true, cityCode, tasks };
       } catch (error) {

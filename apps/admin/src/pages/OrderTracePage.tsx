@@ -40,8 +40,8 @@ function toneFor(status?: string | null): Tone {
   if (status === "paid" || status === "accepted" || status === "completed" || status === "requested" || status === "created" || status === "approved") {
     return "success";
   }
-  if (status === "queued" || status === "in_progress" || status === "pending") return "warning";
-  if (status === "failed" || status === "cancelled") return "danger";
+  if (status === "queued" || status === "offering" || status === "reassigning" || status === "in_progress" || status === "pending") return "warning";
+  if (status === "failed" || status === "cancelled" || status === "no_match" || status === "manual_review" || status === "timeout" || status === "rejected") return "danger";
   return "primary";
 }
 
@@ -121,7 +121,7 @@ export function OrderTracePage({ initialCityCode, initialOrderId }: Props) {
           actor: "-",
           status: trace.dispatch?.status || null,
           amount: "-",
-          note: trace.dispatch?.updatedAt || "-",
+          note: trace.dispatch?.customerMessage || trace.dispatch?.updatedAt || "-",
         },
         {
           key: "fulfillment",
@@ -212,6 +212,23 @@ export function OrderTracePage({ initialCityCode, initialOrderId }: Props) {
                 { key: "note", title: "Note", render: (row) => row.note },
               ]}
             />
+          </Card>
+
+          <Card title="Dispatch timeline">
+            {trace.dispatch?.timeline.length ? (
+              <Table
+                rows={trace.dispatch.timeline}
+                getRowKey={(row) => row.dispatchEventId}
+                columns={[
+                  { key: "createdAt", title: "Time", render: (row) => row.createdAt },
+                  { key: "eventType", title: "Event", render: (row) => row.eventType },
+                  { key: "workerId", title: "Worker", render: (row) => row.workerId || "-" },
+                  { key: "reason", title: "Reason", render: (row) => row.reason || "-" },
+                ]}
+              />
+            ) : (
+              <EmptyState title="No dispatch events" description="Dispatch events appear after run-once, matching, reject, timeout, or accept simulation." />
+            )}
           </Card>
         </>
       )}

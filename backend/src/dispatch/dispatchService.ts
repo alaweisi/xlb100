@@ -6,7 +6,7 @@ import {
   eventOutboxRepository,
   EventOutboxRepository,
 } from "../events/eventOutbox.js";
-import { generateDispatchTaskId } from "../events/eventIds.js";
+import { generateDispatchTaskId, generateEventId } from "../events/eventIds.js";
 import { getDispatchStreamName } from "../streams/cityStreamNames.js";
 import {
   dispatchStreamPublisher,
@@ -148,6 +148,13 @@ export class DispatchService {
         cityCode,
         streamEntryId,
       );
+      await this.tasks.insertEvent(connection, {
+        dispatchEventId: generateEventId(),
+        dispatchTaskId,
+        cityCode,
+        eventType: "TASK_QUEUED",
+        reason: "order created dispatch task",
+      });
       await this.outbox.markEventPublished(connection, event.eventId, cityCode);
     });
 

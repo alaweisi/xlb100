@@ -10,6 +10,10 @@ import {
   eventOutboxRepository,
   EventOutboxRepository,
 } from "../events/eventOutbox.js";
+import {
+  dispatchRepository,
+  DispatchRepository,
+} from "../dispatch/dispatchRepository.js";
 import { generateEventId } from "../events/eventIds.js";
 import {
   buildFulfillmentCompletedPayload,
@@ -54,6 +58,7 @@ export class FulfillmentService {
     private readonly outboxRepository: EventOutboxRepository = eventOutboxRepository,
     private readonly transactionRunner: TransactionRunner = withTransaction,
     private readonly now: () => Date = () => new Date(),
+    private readonly dispatchStatusRepository?: DispatchRepository,
   ) {}
 
   async startFulfillment(
@@ -176,6 +181,21 @@ export class FulfillmentService {
           completionNote,
         }) as unknown as Record<string, unknown>,
       });
+      if (this.dispatchStatusRepository) {
+        await this.dispatchStatusRepository.markCompleted(
+          connection,
+          fulfillment.dispatchTaskId,
+          cityCode,
+        );
+        await this.dispatchStatusRepository.insertEvent(connection, {
+          dispatchEventId: generateEventId(),
+          dispatchTaskId: fulfillment.dispatchTaskId,
+          cityCode,
+          eventType: "TASK_COMPLETED",
+          workerId,
+          reason: "worker fulfillment completed",
+        });
+      }
 
       return {
         fulfillment: {
@@ -239,4 +259,10 @@ export class FulfillmentService {
   }
 }
 
-export const fulfillmentService = new FulfillmentService();
+export const fulfillmentService = new FulfillmentService(
+  fulfillmentRepository,
+  eventOutboxRepository,
+  withTransaction,
+  () => new Date(),
+  dispatchRepository,
+);

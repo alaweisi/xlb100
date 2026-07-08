@@ -27,6 +27,7 @@ type OrderTraceRow = RowDataPacket & {
   payment_updated_at: NullableDate;
   dispatch_task_id: string | null;
   dispatch_status: string | null;
+  dispatch_last_reason: string | null;
   dispatch_updated_at: NullableDate;
   fulfillment_id: string | null;
   worker_id: string | null;
@@ -46,6 +47,14 @@ type OrderTraceRow = RowDataPacket & {
   refund_reason: string | null;
   requested_at: NullableDate;
   approved_at: NullableDate;
+};
+
+type DispatchTimelineRow = RowDataPacket & {
+  dispatch_event_id: string;
+  event_type: string;
+  worker_id: string | null;
+  reason: string | null;
+  created_at: Date;
 };
 
 function iso(value: NullableDate | undefined): string | null {
@@ -93,6 +102,7 @@ export async function registerOrderTraceRoutes(app: FastifyInstance): Promise<vo
                 p.updated_at AS payment_updated_at,
                 dt.dispatch_task_id,
                 dt.status AS dispatch_status,
+                dt.last_reason AS dispatch_last_reason,
                 dt.updated_at AS dispatch_updated_at,
                 f.fulfillment_id,
                 f.worker_id,
@@ -147,6 +157,26 @@ export async function registerOrderTraceRoutes(app: FastifyInstance): Promise<vo
         });
       }
 
+      const dispatchTimeline = row.dispatch_task_id
+        ? await getMysqlPool().query<DispatchTimelineRow[]>(
+            `SELECT dispatch_event_id, event_type, worker_id, reason, created_at
+               FROM dispatch_events
+              WHERE city_code = ?
+                AND dispatch_task_id = ?
+              ORDER BY created_at ASC, dispatch_event_id ASC`,
+            [cityCode, row.dispatch_task_id],
+          )
+        : null;
+      const dispatchEvents = dispatchTimeline
+        ? dispatchTimeline[0].map((event) => ({
+            dispatchEventId: event.dispatch_event_id,
+            eventType: event.event_type,
+            workerId: event.worker_id,
+            reason: event.reason,
+            createdAt: event.created_at.toISOString(),
+          }))
+        : [];
+
       return {
         ok: true,
         trace: {
@@ -175,7 +205,9 @@ export async function registerOrderTraceRoutes(app: FastifyInstance): Promise<vo
             ? {
                 dispatchTaskId: row.dispatch_task_id,
                 status: row.dispatch_status,
+                customerMessage: row.dispatch_last_reason,
                 updatedAt: iso(row.dispatch_updated_at),
+                timeline: dispatchEvents,
               }
             : null,
           fulfillment: row.fulfillment_id

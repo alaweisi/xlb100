@@ -36,9 +36,19 @@
 
 | Table | Purpose | city_code |
 |-------|---------|-----------|
-| `dispatch_tasks` | City-scoped dispatch task from `order.paid` outbox | required |
+| `dispatch_tasks` | City-scoped dispatch task from `order.created` outbox | required |
+| `dispatch_offers` | Simulated worker offers for dispatch candidate fan-out | required |
+| `dispatch_events` | Dispatch timeline for queued/offered/rejected/timeout/accepted states | required |
 
-**Rules:** dispatch_tasks created only by consuming `event_outbox.order.paid`. One task per order. Redis stream per city: `xlb:dispatch:{cityCode}:orders`. No worker assignment in Phase 5A.
+**Rules:** dispatch_tasks created only by consuming `event_outbox.order.created`. One task per order. Redis stream per city: `xlb:dispatch:{cityCode}:orders`. No worker assignment in Phase 5A historical baseline.
+
+## P1 Investor Simulation dispatch readiness
+
+`dispatch_tasks` now carries simulation status metadata (`attempt_count`,
+`max_attempts`, `last_reason`). Worker matching remains simulated: city,
+eligibility, online/available/certified state, and `distance_km` are used only
+to produce operationally traceable offers before real map/location/SMS systems
+exist.
 
 ## Phase 5B tables (worker pool / task pool readiness)
 

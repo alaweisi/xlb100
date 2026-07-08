@@ -1,6 +1,7 @@
 import type { CityCode, RequestContext } from "@xlb/types";
 import type { EnvConfig } from "@xlb/config";
 import { dispatchService } from "../dispatch/dispatchService.js";
+import { dispatchSimulationService } from "../dispatch/dispatchSimulationService.js";
 import { ledgerService } from "../ledger/ledgerService.js";
 import { settlementPreparationService } from "../settlement/settlementPreparationService.js";
 
@@ -14,7 +15,7 @@ export type AutoRunHandle = {
   stop: () => void;
 };
 
-type AutoRunStep = "dispatch" | "ledger" | "settlement.prepare";
+type AutoRunStep = "dispatch" | "dispatch.match" | "ledger" | "settlement.prepare";
 
 type AutoRunOptions = {
   env: EnvConfig;
@@ -44,6 +45,12 @@ async function runStep(
   try {
     if (step === "dispatch") {
       const result = await dispatchService.runDispatchOutboxOnce(context, cityCode);
+      logger.info({ step, cityCode, processed: result.processed }, "auto-run step completed");
+      return;
+    }
+
+    if (step === "dispatch.match") {
+      const result = await dispatchSimulationService.matchOpenTasksOnce(context);
       logger.info({ step, cityCode, processed: result.processed }, "auto-run step completed");
       return;
     }
@@ -93,6 +100,7 @@ export function startAutoRunJobs({ env, logger }: AutoRunOptions): AutoRunHandle
       for (const cityCode of cityCodes) {
         const context = buildAutoRunContext(cityCode);
         await runStep("dispatch", cityCode, context, logger);
+        await runStep("dispatch.match", cityCode, context, logger);
         await runStep("ledger", cityCode, context, logger);
         await runStep("settlement.prepare", cityCode, context, logger);
       }

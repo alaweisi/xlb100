@@ -155,7 +155,28 @@ export class WorkerAcceptService {
       throw new TaskAlreadyAcceptedError(dispatchTaskId);
     }
 
-    if (task.status !== "queued") {
+    const isOfferBasedAccept = task.status === "offering";
+    const workerOffer = isOfferBasedAccept
+      ? await this.dispatchRepo.findOfferForWorker(
+          context,
+          cityCode,
+          dispatchTaskId,
+          workerId,
+        )
+      : null;
+    const activeOffersBeforeAccept = isOfferBasedAccept
+      ? await this.dispatchRepo.listActiveOffersForTask(
+          context,
+          cityCode,
+          dispatchTaskId,
+        )
+      : [];
+
+    if (isOfferBasedAccept && workerOffer?.status !== "offering") {
+      throw new InvalidDispatchTaskStatusError("offering_without_worker_offer");
+    }
+
+    if (task.status !== "queued" && task.status !== "offering") {
       throw new InvalidDispatchTaskStatusError(task.status);
     }
 
@@ -165,6 +186,18 @@ export class WorkerAcceptService {
 
     try {
       await withTransaction(async (connection) => {
+        if (workerOffer) {
+          const offerMarked = await this.dispatchRepo.markOfferAccepted(
+            connection,
+            dispatchTaskId,
+            cityCode,
+            workerId,
+          );
+          if (!offerMarked) {
+            throw new TaskAlreadyAcceptedError(dispatchTaskId);
+          }
+        }
+
         const marked = await this.dispatchRepo.markAccepted(
           connection,
           dispatchTaskId,
@@ -172,6 +205,15 @@ export class WorkerAcceptService {
         );
         if (!marked) {
           throw new TaskAlreadyAcceptedError(dispatchTaskId);
+        }
+
+        if (workerOffer) {
+          await this.dispatchRepo.markOtherOffersCancelled(
+            connection,
+            dispatchTaskId,
+            cityCode,
+            workerId,
+          );
         }
 
         await this.acceptRepo.insert(connection, {
@@ -227,6 +269,29 @@ export class WorkerAcceptService {
             status: "accepted",
           }) as unknown as Record<string, unknown>,
         });
+
+        await this.dispatchRepo.insertEvent(connection, {
+          dispatchEventId: generateEventId(),
+          dispatchTaskId,
+          cityCode,
+          eventType: "WORKER_ACCEPTED",
+          workerId,
+          reason: workerOffer
+            ? "worker accepted dispatch offer"
+            : "worker accepted open queued task",
+        });
+
+        for (const offer of activeOffersBeforeAccept) {
+          if (offer.workerId === workerId) continue;
+          await this.dispatchRepo.insertEvent(connection, {
+            dispatchEventId: generateEventId(),
+            dispatchTaskId,
+            cityCode,
+            eventType: "OFFER_CANCELLED",
+            workerId: offer.workerId,
+            reason: `accepted by ${workerId}`,
+          });
+        }
       });
     } catch (error) {
       if (error instanceof TaskAlreadyAcceptedError) {

@@ -90,6 +90,10 @@ export type {
   ReconciliationGapScanResponse,
 } from "./settlement.js";
 export type {
+  DispatchEvent,
+  DispatchEventType,
+  DispatchOffer,
+  DispatchOfferStatus,
   DispatchTask,
   DispatchTaskStatus,
   DispatchStreamMessage,

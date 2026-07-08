@@ -8,6 +8,27 @@ import {
   dispatchService,
   DispatchValidationError,
 } from "./dispatchService.js";
+import {
+  dispatchSimulationService,
+  DispatchSimulationError,
+} from "./dispatchSimulationService.js";
+
+function authorizeDispatchOperator(context: ReturnType<typeof getRequestContext>) {
+  const authz = authorizeRequest(context);
+  if (!authz.ok) {
+    return { ok: false as const, statusCode: authz.statusCode, error: authz.message };
+  }
+
+  if (context.appType !== "admin" || context.role !== "operator") {
+    return {
+      ok: false as const,
+      statusCode: 403,
+      error: "dispatch run-once requires admin app with operator role",
+    };
+  }
+
+  return { ok: true as const };
+}
 
 export async function registerDispatchModule(app: FastifyInstance): Promise<void> {
   app.post(
@@ -16,16 +37,9 @@ export async function registerDispatchModule(app: FastifyInstance): Promise<void
     async (request, reply) => {
       const context = getRequestContext(request);
 
-      const authz = authorizeRequest(context);
+      const authz = authorizeDispatchOperator(context);
       if (!authz.ok) {
-        return reply.status(authz.statusCode).send({ ok: false, error: authz.message });
-      }
-
-      if (context.appType !== "admin" || context.role !== "operator") {
-        return reply.status(403).send({
-          ok: false,
-          error: "dispatch run-once requires admin app with operator role",
-        });
+        return reply.status(authz.statusCode).send({ ok: false, error: authz.error });
       }
 
       try {
@@ -34,6 +48,96 @@ export async function registerDispatchModule(app: FastifyInstance): Promise<void
       } catch (error) {
         if (error instanceof DispatchValidationError) {
           return reply.status(400).send({ ok: false, error: error.message });
+        }
+        throw error;
+      }
+    },
+  );
+
+  app.post(
+    "/api/internal/dispatch/match-once",
+    { preHandler: createRequestContextMiddleware({ requireCityCode: true }) },
+    async (request, reply) => {
+      const context = getRequestContext(request);
+      const authz = authorizeDispatchOperator(context);
+      if (!authz.ok) {
+        return reply.status(authz.statusCode).send({ ok: false, error: authz.error });
+      }
+
+      try {
+        const body = (request.body ?? {}) as { dispatchTaskId?: string; limit?: number };
+        const result = body.dispatchTaskId
+          ? await dispatchSimulationService.matchDispatchTaskOnce(
+              context,
+              body.dispatchTaskId,
+            )
+          : await dispatchSimulationService.matchOpenTasksOnce(
+              context,
+              Number.isFinite(body.limit) && body.limit ? body.limit : undefined,
+            );
+        return { ok: true, processed: result.processed, tasks: result.tasks };
+      } catch (error) {
+        if (error instanceof DispatchSimulationError) {
+          return reply.status(error.statusCode).send({ ok: false, error: error.message });
+        }
+        throw error;
+      }
+    },
+  );
+
+  app.post(
+    "/api/internal/dispatch/retry-once",
+    { preHandler: createRequestContextMiddleware({ requireCityCode: true }) },
+    async (request, reply) => {
+      const context = getRequestContext(request);
+      const authz = authorizeDispatchOperator(context);
+      if (!authz.ok) {
+        return reply.status(authz.statusCode).send({ ok: false, error: authz.error });
+      }
+
+      try {
+        const body = (request.body ?? {}) as { dispatchTaskId?: string; limit?: number };
+        const result = body.dispatchTaskId
+          ? await dispatchSimulationService.matchDispatchTaskOnce(
+              context,
+              body.dispatchTaskId,
+            )
+          : await dispatchSimulationService.matchOpenTasksOnce(
+              context,
+              Number.isFinite(body.limit) && body.limit ? body.limit : undefined,
+            );
+        return { ok: true, processed: result.processed, tasks: result.tasks };
+      } catch (error) {
+        if (error instanceof DispatchSimulationError) {
+          return reply.status(error.statusCode).send({ ok: false, error: error.message });
+        }
+        throw error;
+      }
+    },
+  );
+
+  app.post(
+    "/api/internal/dispatch/timeout-once",
+    { preHandler: createRequestContextMiddleware({ requireCityCode: true }) },
+    async (request, reply) => {
+      const context = getRequestContext(request);
+      const authz = authorizeDispatchOperator(context);
+      if (!authz.ok) {
+        return reply.status(authz.statusCode).send({ ok: false, error: authz.error });
+      }
+
+      const body = (request.body ?? {}) as { timeoutMinutes?: number };
+      try {
+        const result = await dispatchSimulationService.runTimeoutOnce(
+          context,
+          Number.isFinite(body.timeoutMinutes) && body.timeoutMinutes
+            ? body.timeoutMinutes
+            : undefined,
+        );
+        return { ok: true, processed: result.processed, tasks: result.tasks };
+      } catch (error) {
+        if (error instanceof DispatchSimulationError) {
+          return reply.status(error.statusCode).send({ ok: false, error: error.message });
         }
         throw error;
       }

@@ -24,7 +24,15 @@ export interface AdminOrderTrace {
   dispatch: {
     dispatchTaskId: string;
     status: string | null;
+    customerMessage: string | null;
     updatedAt: string | null;
+    timeline: {
+      dispatchEventId: string;
+      eventType: string;
+      workerId: string | null;
+      reason: string | null;
+      createdAt: string;
+    }[];
   } | null;
   fulfillment: {
     fulfillmentId: string;

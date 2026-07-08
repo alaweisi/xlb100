@@ -16,14 +16,17 @@ export const operatorHeaders = {
   [XLB_HEADERS.cityCode]: "hangzhou",
 };
 
-export async function createOrderForDispatch(app: FastifyInstance): Promise<string> {
+export async function createOrderForDispatch(
+  app: FastifyInstance,
+  skuId = "sku_home_daily_2h",
+): Promise<string> {
   const orderRes = await app.inject({
     method: "POST",
     url: "/api/orders",
     headers: customerHeaders,
     payload: {
       customerId: "customer-dispatch-001",
-      skuId: "sku_home_daily_2h",
+      skuId,
       quantity: 1,
       ...serviceAddressSchedulePayload,
     },

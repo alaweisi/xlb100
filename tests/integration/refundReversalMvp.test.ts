@@ -72,7 +72,7 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
           expect(traceResponse.json().trace).toMatchObject({
             order: { orderId, customerId: "customer-dispatch-001", status: "paid" },
             payment: { status: "paid" },
-            dispatch: { status: "accepted" },
+            dispatch: { status: "completed" },
             fulfillment: {
               fulfillmentId,
               workerId: "worker-demo-hangzhou",
