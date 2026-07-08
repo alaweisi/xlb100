@@ -1053,3 +1053,28 @@ Manual confirmation points:
   - No app/backend/db/deploy/infra edits.
   - No fake settlement, fake receivable, or provider-withdraw behavior introduced.
   - Production remains NO-GO.
+
+## Phase 15.3V-1B Worker/Admin Real Business UAT Readiness Scan
+
+- Status: completed locally, pending commit.
+- Baseline evidence:
+  - `2125aa7 docs(uat): record root test gate triage`.
+- Scope:
+  - `docs/reports/PHASE15_3V1_WORKER_ADMIN_REAL_BUSINESS_UAT_SCAN.md`
+  - `docs/execution/PHASE15_PROGRESS.md`
+- Objective:
+  - Read-only validation scan for Admin/Worker real-business UAT readiness based on existing routes, api-client contracts, and backend endpoints.
+- Findings:
+  - Admin coverage is currently settlement/governance-oriented and does not provide customer order/detail routes by orderId.
+  - Worker app is a guarded workflow shell: task/fact/action routes are defined but UI execution is intentionally not wired.
+  - CONTRACT_MISSING and UAT_BLOCKER items were recorded explicitly for order traceability and task execution paths.
+- Safety:
+  - No Worker/Admin app implementation changes in this phase.
+  - No backend/db/deploy/infra edits.
+  - No mock/fake/dummy behavior introduced.
+  - production NO-GO.
+- Test/validation status:
+  - `pnpm test`: PASS baseline (`255 passed / 1 todo`) was retained during this scan phase.
+- Exit target:
+  - Worker/Admin docs-only scan complete.
+  - Real-business implementation remains blocked until explicit next knife and UAT handoff follow-up.
