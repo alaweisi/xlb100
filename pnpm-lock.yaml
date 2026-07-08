@@ -38,6 +38,9 @@ importers:
 
   apps/admin:
     dependencies:
+      '@xlb/api-client':
+        specifier: workspace:*
+        version: link:../../packages/api-client
       '@xlb/types':
         specifier: workspace:*
         version: link:../../packages/types
