@@ -6,6 +6,7 @@ type OrderStatus = "draft" | "pending_payment" | "paid" | "cancelled";
 type ScheduledTimeSlot = "morning" | "afternoon" | "evening";
 type PaymentStatus = "pending" | "paid" | "failed" | "closed";
 type PaymentProvider = "mock";
+type RefundRequestStatus = "requested" | "approved";
 
 export interface CatalogSnapshotResponse {
   cityCode: CityCode;
@@ -73,6 +74,12 @@ export interface MockPaySuccessBody {
   status: "paid";
 }
 
+export interface CreateRefundRequestBody {
+  orderId: string;
+  amount?: number;
+  reason?: string;
+}
+
 export interface OrderResponse {
   orderId: string;
   cityCode: CityCode;
@@ -120,6 +127,22 @@ export interface PaymentOrderResponse {
   updatedAt: string;
 }
 
+export interface RefundRequestResponse {
+  refundId: string;
+  cityCode: CityCode;
+  orderId: string;
+  customerId: string;
+  fulfillmentId: string;
+  paymentOrderId: string;
+  amount: number;
+  currency: "CNY";
+  reason: string | null;
+  status: RefundRequestStatus;
+  requestedAt: string;
+  approvedAt: string | null;
+  approvedByAdminId: string | null;
+}
+
 export function createCustomerOrderApi(client: ApiClient) {
   return {
     getCatalog() {
@@ -148,6 +171,13 @@ export function createCustomerOrderApi(client: ApiClient) {
         orderId: string;
         idempotent: boolean;
       }>("/api/payments/mock-webhook", body);
+    },
+    createRefundRequest(body: CreateRefundRequestBody) {
+      return client.post<{
+        ok: true;
+        refund: RefundRequestResponse;
+        idempotent: boolean;
+      }>("/api/aftersale/refunds", body);
     },
   };
 }

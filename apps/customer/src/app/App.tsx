@@ -98,6 +98,7 @@ export function App() {
 
   const ordersApi: CustomerOrdersPageProps["api"] = {
     getOrder: (orderId) => api.getOrder(orderId),
+    createRefundRequest: (payload) => api.createRefundRequest(payload),
   };
 
   if (currentRoute === "home") {
