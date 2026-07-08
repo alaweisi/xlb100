@@ -186,7 +186,7 @@ export class DispatchRepository extends RepositoryBase {
               source_event_id, stream_name, stream_entry_id, status, created_at, updated_at
        FROM dispatch_tasks
        WHERE ${where.clause} AND status = 'queued'
-       ORDER BY created_at ASC
+       ORDER BY created_at DESC, dispatch_task_id DESC
        LIMIT ?`,
       [...where.params, limit],
     );

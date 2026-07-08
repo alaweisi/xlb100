@@ -1,5 +1,9 @@
 # XLB / 喜乐帮 全量体检报告
 
+Addendum: P1 Stage 1 worker readonly wiring record is in [health-check-2026-07-08-p1-worker-readonly.md](./health-check-2026-07-08-p1-worker-readonly.md).
+
+Addendum: P1 worker task-pool latest-first ordering fix record is in [health-check-2026-07-08-p1-task-pool-ordering.md](./health-check-2026-07-08-p1-task-pool-ordering.md).
+
 日期：2026-07-08  
 检查范围：`E:\xlb100` monorepo 全量目录、文档、三端 App、后端、数据库、测试、CI/CD、Git 状态。  
 检查原则：只检查和记录，不修改业务代码。本报告替换了原先同名未跟踪报告文件，原因是原文件中文编码乱码且部分结论需要按本次命令重新核实。

@@ -11,6 +11,7 @@
     "lint": "echo \"lint: skipped phase 0\""
   },
   "dependencies": {
+    "@xlb/api-client": "workspace:*",
     "@xlb/types": "workspace:*",
     "@xlb/ui": "workspace:*",
     "react": "^18.3.1",
