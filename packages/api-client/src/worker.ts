@@ -1,6 +1,17 @@
 /** Phase 7A/7B worker accept + fulfillment lifecycle API */
 import type { ApiClient } from "./createApiClient.js";
 
+export interface WorkerTaskPoolItem {
+  dispatchTaskId: string;
+  cityCode: string;
+  orderId: string;
+  skuId: string;
+  amount: number;
+  streamName: string;
+  status: string;
+  createdAt: string;
+}
+
 export interface WorkerTaskAcceptanceResponse {
   acceptanceId: string;
   dispatchTaskId: string;
@@ -37,6 +48,12 @@ export type AcceptTaskResponse = {
   idempotent: boolean;
 };
 
+export interface WorkerTaskPoolResponse {
+  ok: true;
+  cityCode: string;
+  tasks: WorkerTaskPoolItem[];
+}
+
 export type FulfillmentListResponse = {
   ok: true;
   cityCode: string;
@@ -60,6 +77,9 @@ export type CompleteFulfillmentInput = {
 
 export function createWorkerApi(client: ApiClient) {
   return {
+    getTaskPool(): Promise<WorkerTaskPoolResponse> {
+      return client.get<WorkerTaskPoolResponse>("/api/worker/task-pool");
+    },
     acceptTask(dispatchTaskId: string): Promise<AcceptTaskResponse> {
       return client.post<AcceptTaskResponse>(
         `/api/worker/tasks/${encodeURIComponent(dispatchTaskId)}/accept`,
