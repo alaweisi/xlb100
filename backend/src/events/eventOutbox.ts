@@ -151,6 +151,76 @@ export class EventOutboxRepository extends RepositoryBase {
     return rows.map(mapOutboxRow);
   }
 
+  async findPendingOrderCreatedForDispatch(
+    context: RequestContext,
+    cityCode: CityCode,
+    limit = 100,
+  ): Promise<EventOutbox[]> {
+    this.requireContext(context);
+    assertCityScopedContext(context);
+    if (context.cityCode !== cityCode) {
+      throw new Error("city_code mismatch in outbox query");
+    }
+
+    const where = buildCityScopedWhere(cityCode, "e.city_code");
+    const [rows] = await this.pool.query<OutboxRow[]>(
+      `SELECT e.event_id, e.event_type, e.aggregate_type, e.aggregate_id, e.city_code,
+              e.payload_json, e.status, e.created_at, e.published_at
+       FROM event_outbox e
+       INNER JOIN orders o
+          ON o.city_code = e.city_code
+         AND o.order_id = e.aggregate_id
+       WHERE ${where.clause}
+         AND e.status = 'pending'
+         AND e.event_type = 'order.created'
+         AND o.status = 'pending_dispatch'
+       ORDER BY e.created_at DESC
+       LIMIT ?`,
+      [...where.params, limit],
+    );
+
+    return rows.map(mapOutboxRow);
+  }
+
+  async findPendingFulfillmentCompletedForLedger(
+    context: RequestContext,
+    cityCode: CityCode,
+    limit = 100,
+  ): Promise<EventOutbox[]> {
+    this.requireContext(context);
+    assertCityScopedContext(context);
+    if (context.cityCode !== cityCode) {
+      throw new Error("city_code mismatch in outbox query");
+    }
+
+    const where = buildCityScopedWhere(cityCode, "e.city_code");
+    const [rows] = await this.pool.query<OutboxRow[]>(
+      `SELECT e.event_id, e.event_type, e.aggregate_type, e.aggregate_id, e.city_code,
+              e.payload_json, e.status, e.created_at, e.published_at
+       FROM event_outbox e
+       INNER JOIN fulfillments f
+          ON f.city_code = e.city_code
+         AND f.fulfillment_id = e.aggregate_id
+       INNER JOIN orders o
+          ON o.city_code = f.city_code
+         AND o.order_id = f.order_id
+       INNER JOIN payment_orders p
+          ON p.city_code = o.city_code
+         AND p.order_id = o.order_id
+         AND p.status = 'paid'
+       WHERE ${where.clause}
+         AND e.status = 'pending'
+         AND e.event_type = 'fulfillment.completed'
+         AND f.status = 'completed'
+         AND o.status = 'paid'
+       ORDER BY e.created_at DESC
+       LIMIT ?`,
+      [...where.params, limit],
+    );
+
+    return rows.map(mapOutboxRow);
+  }
+
   async markEventPublished(
     connection: PoolConnection,
     eventId: string,

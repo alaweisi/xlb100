@@ -9,7 +9,7 @@ import { createPaidOrderForDispatch, operatorHeaders } from "./helpers/dispatchT
 const runDb = process.env.XLB_SKIP_DB_TESTS !== "1";
 
 describe.skipIf(!runDb)("outboxToDispatchStream integration", { timeout: 20000 }, () => {
-  it("marks order.paid as published and writes Redis stream", async () => {
+  it("marks order.created as published and writes Redis stream", async () => {
     const app = await buildApp();
     const orderId = await createPaidOrderForDispatch(app);
 
@@ -26,7 +26,7 @@ describe.skipIf(!runDb)("outboxToDispatchStream integration", { timeout: 20000 }
       const [events] = await pool.query<
         (RowDataPacket & { status: string })[]
       >(
-        `SELECT status FROM event_outbox WHERE event_type = 'order.paid' AND aggregate_id = ?`,
+        `SELECT status FROM event_outbox WHERE event_type = 'order.created' AND aggregate_id = ?`,
         [orderId],
       );
       status = events[0]?.status ?? "pending";

@@ -18,8 +18,8 @@ if ($content -notmatch "insertEvent") {
 if ($content -notmatch "payment\.paid") {
   $errors += "paymentOrderService must write payment.paid event"
 }
-if ($content -notmatch "order\.paid") {
-  $errors += "paymentOrderService must write order.paid event"
+if ($content -match "eventType:\s*`"order\.paid`"") {
+  $errors += "paymentOrderService must not write order.paid event after Stage 7"
 }
 if ($content -match "dispatchService|dispatchStream|workerMatcher") {
   $errors += "paymentOrderService must not call dispatch"

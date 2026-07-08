@@ -43,6 +43,15 @@ export const orderPaidEventPayloadSchema = z.object({
   paidAt: z.string().min(1),
 });
 
+export const orderCreatedEventPayloadSchema = z.object({
+  orderId: z.string().min(1).max(64),
+  cityCode: cityCodeSchema,
+  customerId: z.string().min(1).max(64),
+  skuId: z.string().min(1).max(128),
+  totalAmount: z.number().min(0),
+  createdAt: z.string().min(1),
+});
+
 export const refundApprovedEventPayloadSchema = z.object({
   refundId: z.string().min(1).max(64),
   orderId: z.string().min(1).max(64),
@@ -58,4 +67,5 @@ export const refundApprovedEventPayloadSchema = z.object({
 
 export type EventOutboxInput = z.infer<typeof eventOutboxSchema>;
 export type OrderPaidEventPayloadInput = z.infer<typeof orderPaidEventPayloadSchema>;
+export type OrderCreatedEventPayloadInput = z.infer<typeof orderCreatedEventPayloadSchema>;
 export type RefundApprovedEventPayloadInput = z.infer<typeof refundApprovedEventPayloadSchema>;

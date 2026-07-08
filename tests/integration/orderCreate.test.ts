@@ -31,7 +31,7 @@ describe.skipIf(!runDb)("orderCreate integration", { timeout: 15000 }, () => {
     expect(body.ok).toBe(true);
     expect(body.order.cityCode).toBe("hangzhou");
     expect(body.order.skuId).toBe("sku_home_daily_2h");
-    expect(body.order.status).toBe("pending_payment");
+    expect(body.order.status).toBe("pending_dispatch");
     expect(body.order.priceText).toBe("¥89/2小时");
     expect(body.order.priceRuleId).toBe("price_hangzhou_sku_home_daily_2h");
     expect(body.order.totalAmount).toBe(89);

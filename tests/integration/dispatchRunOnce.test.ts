@@ -7,7 +7,7 @@ import { createPaidOrderForDispatch, operatorHeaders } from "./helpers/dispatchT
 const runDb = process.env.XLB_SKIP_DB_TESTS !== "1";
 
 describe.skipIf(!runDb)("dispatchRunOnce integration", { timeout: 20000 }, () => {
-  it("processes pending order.paid into dispatch_task", async () => {
+  it("processes pending order.created into dispatch_task", async () => {
     const app = await buildApp();
     const orderId = await createPaidOrderForDispatch(app);
 

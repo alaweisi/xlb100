@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import type { RowDataPacket } from "mysql2/promise";
 import { getMysqlPool } from "../../../backend/src/dal/mysqlPool.js";
 import { workerHangzhouHeaders } from "./acceptTestHelper.js";
+import { customerHeaders } from "./dispatchTestHelper.js";
 import { createAcceptedFulfillment } from "./fulfillmentTestHelper.js";
 
 export const ledgerOperatorHeaders = {
@@ -18,8 +19,19 @@ export async function createCompletedFulfillment(app: FastifyInstance): Promise<
   if (started.statusCode !== 200) throw new Error(`Failed to start fulfillment: ${started.body}`);
   const completed = await app.inject({ method: "POST", url: `/api/worker/fulfillments/${accepted.fulfillmentId}/complete`, headers: workerHangzhouHeaders, payload: { completionNote: "Phase 8A ledger test" } });
   if (completed.statusCode !== 200) throw new Error(`Failed to complete fulfillment: ${completed.body}`);
-  const [payments] = await getMysqlPool().query<(RowDataPacket & { payment_order_id: string })[]>("SELECT payment_order_id FROM payment_orders WHERE order_id = ? AND city_code = 'hangzhou' AND status = 'paid' LIMIT 1", [accepted.orderId]);
-  return { fulfillmentId: accepted.fulfillmentId, orderId: accepted.orderId, paymentOrderId: payments[0]!.payment_order_id };
+  const confirmed = await app.inject({ method: "POST", url: `/api/orders/${accepted.orderId}/confirm-service`, headers: customerHeaders, payload: {} });
+  if (confirmed.statusCode !== 200) throw new Error(`Failed to confirm service: ${confirmed.body}`);
+  const payRes = await app.inject({ method: "POST", url: "/api/payments/orders", headers: customerHeaders, payload: { orderId: accepted.orderId } });
+  if (payRes.statusCode !== 200) throw new Error(`Failed to create post-service payment order: ${payRes.body}`);
+  const paymentOrderId = (payRes.json().paymentOrder as { paymentOrderId: string }).paymentOrderId;
+  const paid = await app.inject({
+    method: "POST",
+    url: "/api/payments/mock-webhook",
+    headers: customerHeaders,
+    payload: { paymentOrderId, providerTradeNo: `mock-trade-ledger-${Date.now()}`, status: "paid" },
+  });
+  if (paid.statusCode !== 200) throw new Error(`Failed to mock pay after service: ${paid.body}`);
+  return { fulfillmentId: accepted.fulfillmentId, orderId: accepted.orderId, paymentOrderId };
 }
 
 export async function runLedgerOnce(app: FastifyInstance) {

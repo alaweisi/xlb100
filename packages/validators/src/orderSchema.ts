@@ -4,6 +4,8 @@ import { priceTypeSchema } from "./pricingSchema.js";
 
 export const orderStatusSchema = z.enum([
   "draft",
+  "pending_dispatch",
+  "service_completed",
   "pending_payment",
   "paid",
   "cancelled",

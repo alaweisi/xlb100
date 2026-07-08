@@ -8,6 +8,7 @@ import { pricingRepository, PricingRepository } from "../pricing/pricingReposito
 import { eventOutboxRepository, EventOutboxRepository } from "../events/eventOutbox.js";
 import { buildOrderCreatedPayload } from "../events/orderPaidEvent.js";
 import { generateEventId, generateOrderId } from "../events/eventIds.js";
+import { assertOrderTransition } from "./orderStateMachine.js";
 import { orderRepository, OrderRepository } from "./orderRepository.js";
 
 export class OrderValidationError extends Error {
@@ -34,6 +35,24 @@ export class OrderSkuNotAllowedError extends Error {
   constructor(skuId: string) {
     super(`SKU not allowed for order: ${skuId}`);
     this.name = "OrderSkuNotAllowedError";
+  }
+}
+
+export class OrderOwnershipError extends Error {
+  readonly statusCode = 403;
+
+  constructor(orderId: string) {
+    super(`Order is not owned by current customer: ${orderId}`);
+    this.name = "OrderOwnershipError";
+  }
+}
+
+export class OrderServiceConfirmationError extends Error {
+  readonly statusCode = 409;
+
+  constructor(message: string) {
+    super(message);
+    this.name = "OrderServiceConfirmationError";
   }
 }
 
@@ -111,7 +130,7 @@ export class OrderService {
           basePrice: priceRule.basePrice,
           currency: priceRule.currency,
           totalAmount,
-          status: "pending_payment",
+          status: "pending_dispatch",
         });
 
         await this.outboxRepo.insertEvent(connection, {
@@ -146,6 +165,48 @@ export class OrderService {
         throw new OrderNotFoundError(orderId);
       }
       return order;
+    });
+  }
+
+  async confirmServiceCompleted(context: RequestContext, orderId: string): Promise<Order> {
+    return executeCityScoped(context, async (cityCode) => {
+      if (!context.userId) {
+        throw new OrderValidationError("authenticated user identity required for service confirmation");
+      }
+
+      const order = await this.repository.findById(context, cityCode, orderId);
+      if (!order) {
+        throw new OrderNotFoundError(orderId);
+      }
+      if (order.customerId !== context.userId) {
+        throw new OrderOwnershipError(orderId);
+      }
+      if (order.status === "service_completed") {
+        return order;
+      }
+
+      assertOrderTransition(order.status, "service_completed");
+
+      const completedFulfillment = await this.repository.findCompletedFulfillmentForOrder(
+        context,
+        cityCode,
+        orderId,
+      );
+      if (!completedFulfillment) {
+        throw new OrderServiceConfirmationError(
+          "Order can be confirmed only after worker fulfillment is completed",
+        );
+      }
+
+      await withTransaction(async (connection) => {
+        await this.repository.updateStatus(connection, cityCode, orderId, "service_completed");
+      });
+
+      const updated = await this.repository.findById(context, cityCode, orderId);
+      if (!updated) {
+        throw new Error("Failed to load confirmed order");
+      }
+      return updated;
     });
   }
 }

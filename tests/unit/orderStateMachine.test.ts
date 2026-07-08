@@ -6,21 +6,21 @@ import {
 } from "../../backend/src/order/orderStateMachine.js";
 
 describe("orderStateMachine", () => {
-  it("allows draft to pending_payment", () => {
-    expect(canTransitionOrder("draft", "pending_payment")).toBe(true);
+  it("allows draft to pending_dispatch", () => {
+    expect(canTransitionOrder("draft", "pending_dispatch")).toBe(true);
   });
 
-  it("allows pending_payment to paid", () => {
-    expect(canTransitionOrder("pending_payment", "paid")).toBe(true);
+  it("allows pending_dispatch to service_completed", () => {
+    expect(canTransitionOrder("pending_dispatch", "service_completed")).toBe(true);
   });
 
-  it("allows pending_payment to cancelled", () => {
-    expect(canTransitionOrder("pending_payment", "cancelled")).toBe(true);
+  it("allows service_completed to paid", () => {
+    expect(canTransitionOrder("service_completed", "paid")).toBe(true);
   });
 
-  it("forbids paid to pending_payment", () => {
-    expect(canTransitionOrder("paid", "pending_payment")).toBe(false);
-    expect(() => assertOrderTransition("paid", "pending_payment")).toThrow(
+  it("forbids paid to service_completed", () => {
+    expect(canTransitionOrder("paid", "service_completed")).toBe(false);
+    expect(() => assertOrderTransition("paid", "service_completed")).toThrow(
       InvalidOrderTransitionError,
     );
   });

@@ -2,7 +2,13 @@ import type { ApiClient } from "./createApiClient.js";
 
 type CityCode = string;
 type PriceType = "fixed" | "range" | "from" | "estimate_from" | "onsite_quote";
-type OrderStatus = "draft" | "pending_payment" | "paid" | "cancelled";
+type OrderStatus =
+  | "draft"
+  | "pending_dispatch"
+  | "service_completed"
+  | "pending_payment"
+  | "paid"
+  | "cancelled";
 type ScheduledTimeSlot = "morning" | "afternoon" | "evening";
 type PaymentStatus = "pending" | "paid" | "failed" | "closed";
 type PaymentProvider = "mock";
@@ -179,6 +185,12 @@ export function createCustomerOrderApi(client: ApiClient) {
     },
     getOrder(orderId: string) {
       return client.get<{ ok: true; order: OrderResponse }>(`/api/orders/${orderId}`);
+    },
+    confirmService(orderId: string) {
+      return client.post<{ ok: true; order: OrderResponse }>(
+        `/api/orders/${encodeURIComponent(orderId)}/confirm-service`,
+        {},
+      );
     },
     createPaymentOrder(body: CreatePaymentOrderBody) {
       return client.post<{ ok: true; paymentOrder: PaymentOrderResponse }>(

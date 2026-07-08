@@ -32,8 +32,8 @@ foreach ($path in $orderTests) {
   if ($content -match "demo_cleaning_sku") {
     $errors += "$path must not use demo_cleaning_sku"
   }
-  if ($content -notmatch "sku_home_daily_2h") {
-    $errors += "$path must reference official sku_home_daily_2h"
+  if ($content -notmatch "sku_home_daily_2h" -and $content -notmatch "createAcceptedFulfillment") {
+    $errors += "$path must reference official sku_home_daily_2h or the official-SKU fulfillment helper"
   }
 }
 

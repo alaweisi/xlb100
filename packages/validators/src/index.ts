@@ -40,9 +40,11 @@ export {
 export {
   eventOutboxSchema,
   outboxEventTypeSchema,
+  orderCreatedEventPayloadSchema,
   orderPaidEventPayloadSchema,
   refundApprovedEventPayloadSchema,
   type EventOutboxInput,
+  type OrderCreatedEventPayloadInput,
   type OrderPaidEventPayloadInput,
   type RefundApprovedEventPayloadInput,
 } from "./eventOutboxSchema.js";

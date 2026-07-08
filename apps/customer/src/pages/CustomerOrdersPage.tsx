@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { CityCode, Order, OrderReview, RefundRequest } from "@xlb/types";
+import type { CityCode, Order, OrderReview, PaymentOrder, RefundRequest } from "@xlb/types";
 import {
   Button,
   CustomerAnswerCard,
@@ -18,6 +18,17 @@ import { UatDebugPanel } from "./customerPageShell";
 
 interface CustomerOrderApi {
   getOrder(orderId: string): Promise<{ order: Order }>;
+  confirmService(orderId: string): Promise<{ order: Order }>;
+  createPaymentOrder(payload: { orderId: string }): Promise<{ paymentOrder: PaymentOrder }>;
+  mockPaySuccess(payload: {
+    paymentOrderId: string;
+    providerTradeNo: string;
+    status: "paid";
+  }): Promise<{
+    paymentOrder: PaymentOrder;
+    orderId: string;
+    idempotent: boolean;
+  }>;
   createRefundRequest(payload: { orderId: string; reason?: string }): Promise<{
     refund: RefundRequest;
     idempotent: boolean;
@@ -49,9 +60,19 @@ type ReviewUiState =
   | { status: "success"; review: OrderReview; idempotent: boolean }
   | { status: "error"; error: string };
 
+type ConfirmUiState =
+  | { status: "idle" | "submitting" }
+  | { status: "success"; order: Order }
+  | { status: "error"; error: string };
+
+type PaymentUiState =
+  | { status: "idle" | "submitting" }
+  | { status: "success"; paymentOrder: PaymentOrder; idempotent: boolean }
+  | { status: "error"; error: string };
+
 function orderStatusTone(status: string): "success" | "warning" | "muted" {
   if (status === "paid") return "success";
-  if (status === "pending_payment") return "warning";
+  if (status === "pending_payment" || status === "pending_dispatch" || status === "service_completed") return "warning";
   return "muted";
 }
 
@@ -70,6 +91,8 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
   const [reviewRatings, setReviewRatings] = useState<Record<string, number>>({});
   const [reviewComments, setReviewComments] = useState<Record<string, string>>({});
   const [reviewStates, setReviewStates] = useState<Record<string, ReviewUiState>>({});
+  const [confirmStates, setConfirmStates] = useState<Record<string, ConfirmUiState>>({});
+  const [paymentStates, setPaymentStates] = useState<Record<string, PaymentUiState>>({});
 
   useEffect(() => {
     if (orderIds.length === 0) {
@@ -173,6 +196,66 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
     }
   }
 
+  async function confirmService(orderId: string) {
+    setConfirmStates((previous) => ({
+      ...previous,
+      [orderId]: { status: "submitting" },
+    }));
+    try {
+      const result = await api.confirmService(orderId);
+      setOrders((previous) =>
+        previous.map((order) => (order.orderId === orderId ? result.order : order)),
+      );
+      setConfirmStates((previous) => ({
+        ...previous,
+        [orderId]: { status: "success", order: result.order },
+      }));
+    } catch (err) {
+      setConfirmStates((previous) => ({
+        ...previous,
+        [orderId]: {
+          status: "error",
+          error: err instanceof Error ? err.message : "confirm service failed",
+        },
+      }));
+    }
+  }
+
+  async function payAfterService(orderId: string) {
+    setPaymentStates((previous) => ({
+      ...previous,
+      [orderId]: { status: "submitting" },
+    }));
+    try {
+      const payment = await api.createPaymentOrder({ orderId });
+      const paid = await api.mockPaySuccess({
+        paymentOrderId: payment.paymentOrder.paymentOrderId,
+        providerTradeNo: `mock-trade-service-${Date.now()}`,
+        status: "paid",
+      });
+      const refreshed = await api.getOrder(orderId);
+      setOrders((previous) =>
+        previous.map((order) => (order.orderId === orderId ? refreshed.order : order)),
+      );
+      setPaymentStates((previous) => ({
+        ...previous,
+        [orderId]: {
+          status: "success",
+          paymentOrder: paid.paymentOrder,
+          idempotent: paid.idempotent,
+        },
+      }));
+    } catch (err) {
+      setPaymentStates((previous) => ({
+        ...previous,
+        [orderId]: {
+          status: "error",
+          error: err instanceof Error ? err.message : "service payment failed",
+        },
+      }));
+    }
+  }
+
   return (
     <CustomerOrdersTemplate route="/customer/orders" cityCode={cityCode} binding={binding}>
       {loading && <LoadingState title="Loading latest orders" description="Reading order API..." />}
@@ -186,6 +269,10 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
         sortedOrders.map((order) => {
           const refundState = refundStates[order.orderId] ?? { status: "idle" };
           const reviewState = reviewStates[order.orderId] ?? { status: "idle" };
+          const confirmState = confirmStates[order.orderId] ?? { status: "idle" };
+          const paymentState = paymentStates[order.orderId] ?? { status: "idle" };
+          const isConfirmAllowed = order.status === "pending_dispatch";
+          const isPaymentAllowed = order.status === "service_completed";
           const isRefundRequestAllowed = order.status === "paid";
           const isReviewRequestAllowed = order.status === "paid";
 
@@ -208,6 +295,41 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
               }
             >
               <div style={{ display: "grid", gap: 8 }}>
+                <strong style={{ color: "#2b2118", fontSize: 13, lineHeight: "18px" }}>
+                  Service confirmation and mock payment
+                </strong>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                  <Button
+                    disabled={!isConfirmAllowed || confirmState.status === "submitting"}
+                    onClick={() => void confirmService(order.orderId)}
+                  >
+                    {confirmState.status === "submitting" ? "Confirming" : "Confirm service"}
+                  </Button>
+                  <Button
+                    disabled={!isPaymentAllowed || paymentState.status === "submitting"}
+                    onClick={() => void payAfterService(order.orderId)}
+                    variant="primary"
+                  >
+                    {paymentState.status === "submitting" ? "Paying" : "Mock pay"}
+                  </Button>
+                </div>
+                {confirmState.status === "success" && (
+                  <StatusTag tone="success">confirmed {confirmState.order.status}</StatusTag>
+                )}
+                {confirmState.status === "error" && (
+                  <span style={{ color: "#b42318", fontSize: 12, lineHeight: "18px" }}>{confirmState.error}</span>
+                )}
+                {paymentState.status === "success" && (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                    <StatusTag tone="success">payment {paymentState.paymentOrder.status}</StatusTag>
+                    <StatusTag tone="muted">{paymentState.paymentOrder.paymentOrderId}</StatusTag>
+                    {paymentState.idempotent && <StatusTag tone="warning">existing payment</StatusTag>}
+                  </div>
+                )}
+                {paymentState.status === "error" && (
+                  <span style={{ color: "#b42318", fontSize: 12, lineHeight: "18px" }}>{paymentState.error}</span>
+                )}
+
                 <strong style={{ color: "#2b2118", fontSize: 13, lineHeight: "18px" }}>
                   Service review
                 </strong>
@@ -319,6 +441,8 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
           { label: "order ids", value: orderIds },
           { label: "order list count", value: orders.length },
           { label: "review states", value: reviewStates },
+          { label: "confirm states", value: confirmStates },
+          { label: "payment states", value: paymentStates },
           { label: "refund request states", value: refundStates },
           { label: "workflow state", value: binding.state },
         ]}

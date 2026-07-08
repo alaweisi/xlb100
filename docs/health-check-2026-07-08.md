@@ -4,6 +4,70 @@
 
 This health-check file remains the single visible record for 2026-07-08 findings and follow-up fixes. Earlier P1 addendum notes have been merged back here to avoid overlapping health-check files.
 
+### P1 Stage 7: simulated operation-flow correction
+
+Current wrong flow identified:
+
+- Previous simulated chain was `Order -> Payment -> Dispatch -> Fulfillment`.
+- This was operationally unrealistic for the current v1.8 service scenario because customer payment happened before dispatch and before service completion.
+- Older health-check sections below that mention "pay then dispatch" are retained as historical records, but this Stage 7 section supersedes them as the current truth.
+
+Corrected simulated flow:
+
+- Target flow is now `Order -> Dispatch -> Worker Accept -> Start Service -> Complete Service -> Customer Confirm -> Mock Payment`.
+- `POST /api/orders` now creates orders in `pending_dispatch`.
+- Dispatch now consumes eligible `order.created` outbox events instead of `order.paid`.
+- Dispatch outbox scanning is narrowed to `order.created` events whose orders are still `pending_dispatch`, latest-first, so old historical `order.created` backlog does not re-dispatch already-processed orders.
+- New customer confirmation endpoint: `POST /api/orders/:orderId/confirm-service`.
+- Service confirmation requires the current customer to own the order and requires a completed fulfillment.
+- `POST /api/payments/orders` now only accepts `service_completed` orders.
+- Mock payment webhook transitions `service_completed -> paid` and writes `payment.paid`; it no longer emits `order.paid`.
+- Ledger accrual scanning is narrowed to `fulfillment.completed` events that already have completed fulfillment, paid order, and paid payment order.
+
+Customer app synchronization:
+
+- Order creation page no longer creates a payment order immediately after order creation.
+- Customer order page now exposes simulated "Confirm service" and "Mock pay" actions in that order.
+- Review and aftersale entries remain available only after the order reaches `paid`.
+
+Files changed:
+
+- Backend/order/payment/dispatch/ledger: `backend/src/order/orderStateMachine.ts`, `backend/src/order/orderService.ts`, `backend/src/order/orderRoutes.ts`, `backend/src/order/orderRepository.ts`, `backend/src/payment/paymentOrderService.ts`, `backend/src/dispatch/dispatchService.ts`, `backend/src/events/eventOutbox.ts`, `backend/src/ledger/ledgerOutboxConsumer.ts`.
+- Contracts/API/frontend: `packages/types/src/order.ts`, `packages/validators/src/orderSchema.ts`, `packages/validators/src/eventOutboxSchema.ts`, `packages/validators/src/index.ts`, `packages/api-client/src/customer.ts`, `apps/customer/src/app/App.tsx`, `apps/customer/src/pages/CustomerOrderCreatePage.tsx`, `apps/customer/src/pages/CustomerOrdersPage.tsx`, `apps/customer/src/adapters/orderAdapter.ts`, `apps/customer/src/adapters/workflowBindings.ts`.
+- Tests/gates/docs: updated dispatch/payment/ledger/order tests and shared helpers; updated dispatch, outbox, ledger, and official-SKU guard scripts; updated dispatch/streams README notes.
+
+Database change:
+
+- No database migration or schema change.
+- New order statuses are string values in the existing `orders.status` column.
+
+Closed risks:
+
+- Payment is no longer a prerequisite for dispatch.
+- Payment no longer triggers dispatch through `order.paid`.
+- Fulfillment completion no longer implies payment.
+- Ledger will not try to accrue completed fulfillments before customer confirmation and mock payment.
+- Historical pending `order.created` events no longer backfill dispatch tasks for orders outside `pending_dispatch`.
+
+Remaining risks and formal integration TODO:
+
+- Payment/refund remains mock-only; WeChat Pay and Alipay production payment/refund providers are still TODO.
+- No real provider refund, ledger reversal automation, or settlement execution was added in Stage 7.
+- Amap/Gaode map, geocoding, distance, route, and location check-in flows remain TODO.
+- SMS verification remains mock/fixed-code based and must be replaced before production.
+- ICP filing, production domain/TLS, app-store/mini-program distribution readiness remain TODO.
+- Worker authentication still uses demo/header identity and must be replaced by worker login/token.
+- Customer confirmation is a minimal simulated endpoint; production UX still needs stronger order-detail context and customer dispute edge cases.
+
+Verification:
+
+- `pnpm exec vitest run tests/integration/orderPaymentOutbox.test.ts tests/integration/dispatchRunOnce.test.ts tests/integration/outboxToDispatchStream.test.ts tests/integration/mockPaymentWebhook.test.ts --pool=forks --poolOptions.forks.singleFork`: passed.
+- `pnpm exec vitest run tests/integration/paymentOrder.test.ts tests/integration/ledgerRunOnce.test.ts tests/integration/settlementPrepareOnce.test.ts tests/security/orderRequiresOfficialSku.test.ts --pool=forks --poolOptions.forks.singleFork`: passed.
+- `pnpm exec vitest run tests/integration/fulfillmentNoOrderPaymentMutation.test.ts tests/security/ledgerConsumesOutboxOnly.test.ts tests/unit/ledgerOutboxConsumer.test.ts --pool=forks --poolOptions.forks.singleFork`: passed.
+- `pnpm turbo run typecheck`: passed, 17 successful.
+- `pnpm turbo run build`: passed, 11 successful.
+- Full serial Vitest: `255 passed`, `1049 passed | 1 todo`.
+
 ### P1 Stage 1: Worker readonly wiring
 
 Scope completed:

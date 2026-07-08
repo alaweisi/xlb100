@@ -1,4 +1,4 @@
-﻿import type { Order } from "@xlb/types";
+import type { Order } from "@xlb/types";
 
 export interface OrderStatusViewModel {
   id: string;
@@ -22,7 +22,13 @@ export function toOrderStatusTone(status: string): "success" | "warning" | "dang
     return "danger";
   }
 
-  if (status === "pending" || status === "pending_payment" || status === "draft") {
+  if (
+    status === "pending" ||
+    status === "pending_payment" ||
+    status === "pending_dispatch" ||
+    status === "service_completed" ||
+    status === "draft"
+  ) {
     return "warning";
   }
 

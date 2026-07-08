@@ -1,4 +1,4 @@
-# Phase 5A gate: dispatch must consume event_outbox order.paid only
+# Phase 5A/P1 Stage 7 gate: dispatch must consume event_outbox order.created only
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 
@@ -12,8 +12,13 @@ if (-not (Test-Path $serviceFile)) {
 
 $content = Get-Content $serviceFile -Raw
 
-if ($content -notmatch "order\.paid") {
-  Write-Host "check-dispatch-consumes-outbox-only FAILED: dispatchService must reference order.paid"
+if ($content -notmatch "order\.created") {
+  Write-Host "check-dispatch-consumes-outbox-only FAILED: dispatchService must reference order.created"
+  exit 1
+}
+
+if ($content -match "findPendingEventsByType\([^)]*order\.paid") {
+  Write-Host "check-dispatch-consumes-outbox-only FAILED: dispatchService must not consume order.paid"
   exit 1
 }
 

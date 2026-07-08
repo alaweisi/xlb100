@@ -14,7 +14,7 @@ describe("dispatchService", () => {
     correlationId: "corr-1",
   };
 
-  it("rejects non order.paid events", async () => {
+  it("rejects non order.created events", async () => {
     const service = new DispatchService();
     const event: EventOutbox = {
       eventId: "evt_1",
@@ -28,7 +28,7 @@ describe("dispatchService", () => {
       publishedAt: null,
     };
 
-    await expect(service.processPaidOrderEvent(context, event)).rejects.toThrow(
+    await expect(service.processOrderCreatedEvent(context, event)).rejects.toThrow(
       DispatchValidationError,
     );
   });

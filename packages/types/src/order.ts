@@ -1,7 +1,13 @@
 import type { CityCode } from "./city.js";
 import type { PriceType } from "./pricing.js";
 
-export type OrderStatus = "draft" | "pending_payment" | "paid" | "cancelled";
+export type OrderStatus =
+  | "draft"
+  | "pending_dispatch"
+  | "service_completed"
+  | "pending_payment"
+  | "paid"
+  | "cancelled";
 export type ScheduledTimeSlot = "morning" | "afternoon" | "evening";
 
 export interface Order {

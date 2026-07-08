@@ -7,9 +7,12 @@ import { authorizeRequest } from "../gateway/authz.js";
 import {
   orderService,
   OrderNotFoundError,
+  OrderOwnershipError,
+  OrderServiceConfirmationError,
   OrderSkuNotAllowedError,
   OrderValidationError,
 } from "./orderService.js";
+import { InvalidOrderTransitionError } from "./orderStateMachine.js";
 
 export async function registerOrderModule(app: FastifyInstance): Promise<void> {
   app.post(
@@ -54,6 +57,44 @@ export async function registerOrderModule(app: FastifyInstance): Promise<void> {
       } catch (error) {
         if (error instanceof OrderNotFoundError) {
           return reply.status(404).send({ ok: false, error: error.message });
+        }
+        throw error;
+      }
+    },
+  );
+
+  app.post(
+    "/api/orders/:orderId/confirm-service",
+    { preHandler: createRequestContextMiddleware({ requireCityCode: true }) },
+    async (request, reply) => {
+      const context = getRequestContext(request);
+
+      const authz = authorizeRequest(context);
+      if (!authz.ok) {
+        return reply.status(authz.statusCode).send({ ok: false, error: authz.message });
+      }
+
+      const { orderId } = request.params as { orderId: string };
+
+      try {
+        const order = await orderService.confirmServiceCompleted(context, orderId);
+        return { ok: true, order };
+      } catch (error) {
+        if (error instanceof OrderNotFoundError) {
+          return reply.status(404).send({ ok: false, error: error.message });
+        }
+        if (error instanceof OrderOwnershipError) {
+          return reply.status(403).send({ ok: false, error: error.message });
+        }
+        if (
+          error instanceof OrderValidationError ||
+          error instanceof OrderServiceConfirmationError ||
+          error instanceof InvalidOrderTransitionError
+        ) {
+          return reply.status((error as { statusCode?: number }).statusCode ?? 400).send({
+            ok: false,
+            error: error.message,
+          });
         }
         throw error;
       }

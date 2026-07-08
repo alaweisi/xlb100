@@ -1,7 +1,9 @@
 import type { OrderStatus } from "@xlb/types";
 
 const ALLOWED_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
-  draft: ["pending_payment"],
+  draft: ["pending_dispatch"],
+  pending_dispatch: ["service_completed", "cancelled"],
+  service_completed: ["paid", "cancelled"],
   pending_payment: ["paid", "cancelled"],
   paid: [],
   cancelled: [],

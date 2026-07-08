@@ -9,7 +9,6 @@ import { executeCityScoped } from "../dal/scopedExecutor.js";
 import { withTransaction } from "../dal/transaction.js";
 import { eventOutboxRepository, EventOutboxRepository } from "../events/eventOutbox.js";
 import {
-  buildOrderPaidPayload,
   buildPaymentPaidPayload,
 } from "../events/orderPaidEvent.js";
 import { generateEventId, generatePaymentOrderId } from "../events/eventIds.js";
@@ -60,9 +59,9 @@ export class PaymentOrderService {
         throw new OrderNotFoundError(parsed.data.orderId);
       }
 
-      if (order.status !== "pending_payment") {
+      if (order.status !== "service_completed") {
         throw new PaymentValidationError(
-          `Order must be pending_payment, current status=${order.status}`,
+          `Order must be service_completed, current status=${order.status}`,
         );
       }
 
@@ -151,21 +150,6 @@ export class PaymentOrderService {
           }) as unknown as Record<string, unknown>,
         });
 
-        await this.outboxRepo.insertEvent(connection, {
-          eventId: generateEventId(),
-          eventType: "order.paid",
-          aggregateType: "order",
-          aggregateId: order.orderId,
-          cityCode,
-          payload: buildOrderPaidPayload({
-            orderId: order.orderId,
-            cityCode,
-            customerId: order.customerId,
-            skuId: order.skuId,
-            amount: order.totalAmount,
-            paidAt,
-          }) as unknown as Record<string, unknown>,
-        });
       });
 
       const updated = await this.paymentRepo.findById(

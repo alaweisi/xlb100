@@ -1,5 +1,5 @@
 import type { CityCode, DispatchTask, EventOutbox, RequestContext } from "@xlb/types";
-import { orderPaidEventPayloadSchema } from "@xlb/validators";
+import { orderCreatedEventPayloadSchema } from "@xlb/validators";
 import { withTransaction } from "../dal/transaction.js";
 import { executeCityScoped, assertCityScopedContext } from "../dal/scopedExecutor.js";
 import {
@@ -40,13 +40,13 @@ export class DispatchService {
     private readonly publisher: DispatchStreamPublisher = dispatchStreamPublisher,
   ) {}
 
-  async processPaidOrderEvent(
+  async processOrderCreatedEvent(
     context: RequestContext,
     event: EventOutbox,
   ): Promise<DispatchTask> {
-    if (event.eventType !== "order.paid") {
+    if (event.eventType !== "order.created") {
       throw new DispatchValidationError(
-        `dispatch only consumes order.paid, got ${event.eventType}`,
+        `dispatch only consumes order.created, got ${event.eventType}`,
       );
     }
 
@@ -69,9 +69,19 @@ export class DispatchService {
       return existing;
     }
 
-    const payload = orderPaidEventPayloadSchema.parse(event.payload);
+    const payload = orderCreatedEventPayloadSchema.parse(event.payload);
     if (payload.cityCode !== cityCode) {
       throw new DispatchValidationError("payload cityCode mismatch");
+    }
+
+    const existingByOrder = await this.tasks.findByOrderId(context, cityCode, payload.orderId);
+    if (existingByOrder) {
+      if (event.status === "pending") {
+        await withTransaction(async (connection) => {
+          await this.outbox.markEventPublished(connection, event.eventId, cityCode);
+        });
+      }
+      return existingByOrder;
     }
 
     const dispatchTaskId = generateDispatchTaskId();
@@ -85,19 +95,22 @@ export class DispatchService {
           orderId: payload.orderId,
           customerId: payload.customerId,
           skuId: payload.skuId,
-          amount: payload.amount,
+          amount: payload.totalAmount,
           sourceEventId: event.eventId,
           streamName,
         });
       });
     } catch (error) {
       if (isDuplicateEntryError(error)) {
-        const raced = await this.tasks.findBySourceEventId(
-          context,
-          cityCode,
-          event.eventId,
-        );
+        const raced =
+          (await this.tasks.findBySourceEventId(context, cityCode, event.eventId)) ??
+          (await this.tasks.findByOrderId(context, cityCode, payload.orderId));
         if (raced) {
+          if (event.status === "pending") {
+            await withTransaction(async (connection) => {
+              await this.outbox.markEventPublished(connection, event.eventId, cityCode);
+            });
+          }
           return raced;
         }
       }
@@ -154,15 +167,11 @@ export class DispatchService {
     cityCode?: CityCode,
   ): Promise<{ processed: number; tasks: DispatchTask[] }> {
     const resolvedCity = cityCode ?? assertCityScopedContext(context);
-    const events = await this.outbox.findPendingEventsByType(
-      context,
-      resolvedCity,
-      "order.paid",
-    );
+    const events = await this.outbox.findPendingOrderCreatedForDispatch(context, resolvedCity);
 
     const tasks: DispatchTask[] = [];
     for (const event of events) {
-      const task = await this.processPaidOrderEvent(context, event);
+      const task = await this.processOrderCreatedEvent(context, event);
       tasks.push(task);
     }
 

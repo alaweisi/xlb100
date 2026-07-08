@@ -92,12 +92,14 @@ export function App() {
   const orderCreateApi: CustomerOrderCreatePageProps["api"] = {
     getPriceQuote: (skuId) => api.getPriceQuote(skuId),
     createOrder: (payload) => api.createOrder(payload),
-    createPaymentOrder: (request) => api.createPaymentOrder(request),
     getOrder: (orderId) => api.getOrder(orderId),
   };
 
   const ordersApi: CustomerOrdersPageProps["api"] = {
     getOrder: (orderId) => api.getOrder(orderId),
+    confirmService: (orderId) => api.confirmService(orderId),
+    createPaymentOrder: (payload) => api.createPaymentOrder(payload),
+    mockPaySuccess: (payload) => api.mockPaySuccess(payload),
     createRefundRequest: (payload) => api.createRefundRequest(payload),
     createOrderReview: (payload) => api.createOrderReview(payload),
   };

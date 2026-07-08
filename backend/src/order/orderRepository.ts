@@ -42,6 +42,11 @@ type SkuRow = RowDataPacket & {
   is_enabled: number;
 };
 
+type FulfillmentStatusRow = RowDataPacket & {
+  fulfillment_id: string;
+  status: string;
+};
+
 function mapOrder(row: OrderRow): Order {
   return {
     orderId: row.order_id,
@@ -194,6 +199,31 @@ export class OrderRepository extends RepositoryBase {
       `UPDATE orders SET status = ? WHERE order_id = ? AND city_code = ?`,
       [status, orderId, cityCode],
     );
+  }
+
+  async findCompletedFulfillmentForOrder(
+    context: RequestContext,
+    cityCode: CityCode,
+    orderId: string,
+  ): Promise<{ fulfillmentId: string; status: string } | null> {
+    this.requireContext(context);
+    assertCityScopedContext(context);
+    if (context.cityCode !== cityCode) {
+      throw new Error("city_code mismatch in fulfillment query");
+    }
+
+    const [rows] = await this.pool.query<FulfillmentStatusRow[]>(
+      `SELECT fulfillment_id, status
+       FROM fulfillments
+       WHERE city_code = ? AND order_id = ? AND status = 'completed'
+       ORDER BY completed_at DESC, created_at DESC
+       LIMIT 1`,
+      [cityCode, orderId],
+    );
+
+    return rows[0]
+      ? { fulfillmentId: rows[0].fulfillment_id, status: rows[0].status }
+      : null;
   }
 }
 

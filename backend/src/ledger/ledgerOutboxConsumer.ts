@@ -24,10 +24,9 @@ export class LedgerOutboxConsumer {
     context: RequestContext,
   ): Promise<{ processed: number; accruals: LedgerAccrual[] }> {
     const cityCode = assertCityScopedContext(context);
-    const events = await this.outbox.findPendingEventsByType(
+    const events = await this.outbox.findPendingFulfillmentCompletedForLedger(
       context,
       cityCode,
-      "fulfillment.completed",
     );
     const accruals: LedgerAccrual[] = [];
     for (const event of events) {

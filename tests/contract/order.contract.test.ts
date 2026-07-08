@@ -41,7 +41,7 @@ describe("order contract", () => {
       basePrice: 89,
       currency: "CNY",
       totalAmount: 89,
-      status: "pending_payment",
+      status: "pending_dispatch",
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });

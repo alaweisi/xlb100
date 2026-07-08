@@ -16,7 +16,7 @@ const sampleOrder: Order = {
   basePrice: 89,
   currency: "CNY",
   totalAmount: 89,
-  status: "pending_payment",
+  status: "service_completed",
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
 };

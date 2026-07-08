@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { CatalogSnapshot, CityCode, Order, PaymentOrder, PriceQuote, ScheduledTimeSlot } from "@xlb/types";
+import type { CatalogSnapshot, CityCode, Order, PriceQuote, ScheduledTimeSlot } from "@xlb/types";
 import {
   ActionDock,
   Button,
@@ -45,7 +45,7 @@ type QuoteState =
 
 type SubmitState =
   | { status: "pending" | "submitting" }
-  | { status: "success"; order: Order; paymentOrder: PaymentOrder; orderDetail: Order }
+  | { status: "success"; order: Order; orderDetail: Order }
   | { status: "error"; error: string };
 
 interface CreateOrderFormDetails {
@@ -75,7 +75,6 @@ export interface CustomerOrderCreatePageProps {
       scheduledAt: string;
       scheduledTimeSlot: ScheduledTimeSlot;
     }): Promise<{ order: Order }>;
-    createPaymentOrder(request: { orderId: string }): Promise<{ paymentOrder: PaymentOrder }>;
     getOrder(orderId: string): Promise<{ order: Order }>;
   };
   catalogState: CustomerLoadable<CatalogSnapshot>;
@@ -89,7 +88,13 @@ const pricingEndpoint = "GET /api/pricing/quote";
 function statusTone(status: string): "success" | "warning" | "danger" | "muted" {
   if (status === "paid") return "success";
   if (status === "cancelled" || status === "failed" || status === "closed") return "danger";
-  if (status === "pending" || status === "pending_payment" || status === "draft") return "warning";
+  if (
+    status === "pending" ||
+    status === "pending_payment" ||
+    status === "pending_dispatch" ||
+    status === "service_completed" ||
+    status === "draft"
+  ) return "warning";
   return "muted";
 }
 
@@ -247,13 +252,11 @@ export function CustomerOrderCreatePage({
     setSubmitState({ status: "submitting" });
     try {
       const orderResponse = await api.createOrder(requestPayload);
-      const paymentResponse = await api.createPaymentOrder({ orderId: orderResponse.order.orderId });
       const verifiedOrderResponse = await api.getOrder(orderResponse.order.orderId);
       onOrderCreated(orderResponse.order.orderId);
       setSubmitState({
         status: "success",
         order: orderResponse.order,
-        paymentOrder: paymentResponse.paymentOrder,
         orderDetail: verifiedOrderResponse.order,
       });
     } catch (error) {
@@ -411,12 +414,12 @@ export function CustomerOrderCreatePage({
             },
             {
               key: "payment",
-              title: "Create payment",
+              title: "Pay after service",
               description:
                 submitState.status === "success"
-                  ? `payment order ${submitState.paymentOrder.paymentOrderId}`
+                  ? "waiting worker fulfillment and customer confirm"
                   : "waiting order",
-              state: submitState.status === "success" ? "current" : "pending",
+              state: "pending",
             },
           ]}
         />
@@ -449,9 +452,7 @@ export function CustomerOrderCreatePage({
                 window.location.href = "/customer/orders";
               }}
             />
-            <StatusTag tone="warning">
-              {`Payment order: ${submitState.paymentOrder.paymentOrderId} (${submitState.paymentOrder.status})`}
-            </StatusTag>
+            <StatusTag tone="warning">Payment opens after worker completion and customer confirmation</StatusTag>
           </div>
         )}
       </section>
@@ -470,7 +471,6 @@ export function CustomerOrderCreatePage({
           { label: "service address", value: orderFormDetails },
           { label: "schedule label", value: formatScheduledLabel(orderFormDetails.scheduledAt, orderFormDetails.scheduledTimeSlot) },
           { label: "orderId", value: submitState.status === "success" ? submitState.order.orderId : null },
-          { label: "paymentOrderId", value: submitState.status === "success" ? submitState.paymentOrder.paymentOrderId : null },
           { label: "orderDetail", value: submitState.status === "success" ? submitState.orderDetail : null },
           { label: "workflow state", value: binding.state },
           { label: "availableActions", value: binding.availableActions },

@@ -299,7 +299,7 @@ function buildCreateOrderBinding(input: CustomerBindingInput): WorkflowUiBinding
       source: "frontend-derived-from-api",
       customerAnswer: {
         currentStep: input.quoteReady ? "Quote loaded from pricing service" : "Waiting for quote",
-        nextAvailableStep: submitAction.enabled ? "Create order and payment order" : "Obtain quote first",
+        nextAvailableStep: submitAction.enabled ? "Create order" : "Obtain quote first",
         blockedReason: submitAction.disabledReasonCode ?? undefined,
         recoveryPath: "Retry quote from pricing API",
       },

@@ -16,7 +16,7 @@ export const operatorHeaders = {
   [XLB_HEADERS.cityCode]: "hangzhou",
 };
 
-export async function createPaidOrderForDispatch(app: FastifyInstance): Promise<string> {
+export async function createOrderForDispatch(app: FastifyInstance): Promise<string> {
   const orderRes = await app.inject({
     method: "POST",
     url: "/api/orders",
@@ -30,37 +30,10 @@ export async function createPaidOrderForDispatch(app: FastifyInstance): Promise<
   });
   const order = assertResponseJson<{ order: { orderId: string } }>(orderRes, "POST /api/orders", [200]).order;
   if (!order.orderId) {
-    throw new Error("createPaidOrderForDispatch: orderId missing from /api/orders response");
-  }
-
-  const payRes = await app.inject({
-    method: "POST",
-    url: "/api/payments/orders",
-    headers: customerHeaders,
-    payload: { orderId: order.orderId },
-  });
-  const paymentOrderId = assertResponseJson<{ paymentOrder: { paymentOrderId: string } }>(
-    payRes,
-    "POST /api/payments/orders",
-    [200],
-  ).paymentOrder.paymentOrderId;
-  if (!paymentOrderId) {
-    throw new Error("createPaidOrderForDispatch: paymentOrderId missing from /api/payments/orders response");
-  }
-
-  const webhookRes = await app.inject({
-    method: "POST",
-    url: "/api/payments/mock-webhook",
-    headers: customerHeaders,
-    payload: {
-      paymentOrderId,
-      providerTradeNo: `mock-trade-dispatch-${Date.now()}`,
-      status: "paid",
-    },
-  });
-  if (webhookRes.statusCode !== 200) {
-    throw new Error(`createPaidOrderForDispatch: POST /api/payments/mock-webhook returned status ${webhookRes.statusCode}`);
+    throw new Error("createOrderForDispatch: orderId missing from /api/orders response");
   }
 
   return order.orderId;
 }
+
+export const createPaidOrderForDispatch = createOrderForDispatch;

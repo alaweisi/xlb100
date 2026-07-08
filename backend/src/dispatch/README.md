@@ -1,6 +1,6 @@
-﻿# Dispatch module — Phase 5A
+# Dispatch module — Phase 5A
 
-Consumes `event_outbox.order.paid` only. Creates `dispatch_tasks` and publishes to city-scoped Redis Stream.
+Consumes `event_outbox.order.created` only. Creates `dispatch_tasks` and publishes to city-scoped Redis Stream.
 
 **Phase 5A does NOT:**
 - Assign workers (`workerMatcher` is placeholder)

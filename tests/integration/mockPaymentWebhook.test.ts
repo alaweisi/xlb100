@@ -1,49 +1,50 @@
 import { describe, it, expect } from "vitest";
 import { buildApp } from "../../backend/src/app.js";
-import { XLB_HEADERS } from "@xlb/types";
-import { serviceAddressSchedulePayload } from "./helpers/orderTestPayload";
+import { customerHeaders as dispatchCustomerHeaders } from "./helpers/dispatchTestHelper.js";
+import { createAcceptedFulfillment } from "./helpers/fulfillmentTestHelper.js";
+import { workerHangzhouHeaders } from "./helpers/acceptTestHelper.js";
 
 const runDb = process.env.XLB_SKIP_DB_TESTS !== "1";
 
-const customerHeaders = {
-  [XLB_HEADERS.appType]: "customer",
-  [XLB_HEADERS.role]: "customer",
-  [XLB_HEADERS.cityCode]: "hangzhou",
-  [XLB_HEADERS.userId]: "customer-demo-001",
-};
-
-async function createOrderAndPayment(app: Awaited<ReturnType<typeof buildApp>>) {
-  const orderRes = await app.inject({
+async function createConfirmedOrderAndPayment(app: Awaited<ReturnType<typeof buildApp>>) {
+  const accepted = await createAcceptedFulfillment(app);
+  await app.inject({
     method: "POST",
-    url: "/api/orders",
-    headers: customerHeaders,
-    payload: {
-      customerId: "customer-demo-001",
-      skuId: "sku_home_daily_2h",
-      quantity: 1,
-      ...serviceAddressSchedulePayload,
-    },
+    url: `/api/worker/fulfillments/${accepted.fulfillmentId}/start`,
+    headers: workerHangzhouHeaders,
+    payload: {},
   });
-  const order = orderRes.json().order as { orderId: string };
+  await app.inject({
+    method: "POST",
+    url: `/api/worker/fulfillments/${accepted.fulfillmentId}/complete`,
+    headers: workerHangzhouHeaders,
+    payload: {},
+  });
+  await app.inject({
+    method: "POST",
+    url: `/api/orders/${accepted.orderId}/confirm-service`,
+    headers: dispatchCustomerHeaders,
+    payload: {},
+  });
   const payRes = await app.inject({
     method: "POST",
     url: "/api/payments/orders",
-    headers: customerHeaders,
-    payload: { orderId: order.orderId },
+    headers: dispatchCustomerHeaders,
+    payload: { orderId: accepted.orderId },
   });
   const paymentOrder = payRes.json().paymentOrder as { paymentOrderId: string };
-  return { orderId: order.orderId, paymentOrderId: paymentOrder.paymentOrderId };
+  return { orderId: accepted.orderId, paymentOrderId: paymentOrder.paymentOrderId };
 }
 
 describe.skipIf(!runDb)("mockPaymentWebhook integration", { timeout: 15000 }, () => {
   it("marks payment and order paid", async () => {
     const app = await buildApp();
-    const { orderId, paymentOrderId } = await createOrderAndPayment(app);
+    const { orderId, paymentOrderId } = await createConfirmedOrderAndPayment(app);
 
     const webhook = await app.inject({
       method: "POST",
       url: "/api/payments/mock-webhook",
-      headers: customerHeaders,
+      headers: dispatchCustomerHeaders,
       payload: {
         paymentOrderId,
         providerTradeNo: "mock-trade-001",
@@ -56,7 +57,7 @@ describe.skipIf(!runDb)("mockPaymentWebhook integration", { timeout: 15000 }, ()
     const orderGet = await app.inject({
       method: "GET",
       url: `/api/orders/${orderId}`,
-      headers: customerHeaders,
+      headers: dispatchCustomerHeaders,
     });
     expect(orderGet.json().order.status).toBe("paid");
     await app.close();
@@ -64,7 +65,7 @@ describe.skipIf(!runDb)("mockPaymentWebhook integration", { timeout: 15000 }, ()
 
   it("is idempotent on duplicate webhook", async () => {
     const app = await buildApp();
-    const { paymentOrderId } = await createOrderAndPayment(app);
+    const { paymentOrderId } = await createConfirmedOrderAndPayment(app);
     const payload = {
       paymentOrderId,
       providerTradeNo: "mock-trade-002",
@@ -74,13 +75,13 @@ describe.skipIf(!runDb)("mockPaymentWebhook integration", { timeout: 15000 }, ()
     const first = await app.inject({
       method: "POST",
       url: "/api/payments/mock-webhook",
-      headers: customerHeaders,
+      headers: dispatchCustomerHeaders,
       payload,
     });
     const second = await app.inject({
       method: "POST",
       url: "/api/payments/mock-webhook",
-      headers: customerHeaders,
+      headers: dispatchCustomerHeaders,
       payload,
     });
     expect(first.json().idempotent).toBe(false);

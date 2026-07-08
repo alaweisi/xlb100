@@ -9,11 +9,11 @@ describe("ledgerOutboxConsumer", () => {
     const context: RequestContext = { traceId: "t", appType: "admin", role: "operator", cityCode: "hangzhou", requestStartedAt: new Date().toISOString() };
     const event = { eventId: "evt", eventType: "fulfillment.completed", aggregateId: "ful", cityCode: "hangzhou" } as EventOutbox;
     const accrual = { accrualId: "lac" };
-    const outbox = { findPendingEventsByType: vi.fn().mockResolvedValue([event]) };
+    const outbox = { findPendingFulfillmentCompletedForLedger: vi.fn().mockResolvedValue([event]) };
     const service = { accrue: vi.fn().mockResolvedValue({ accrual, entries: [], idempotent: false }) };
     const consumer = new LedgerOutboxConsumer(outbox as unknown as EventOutboxRepository, service as unknown as LedgerAccrualService);
 
     expect(await consumer.runOnce(context)).toMatchObject({ processed: 1, accruals: [accrual] });
-    expect(outbox.findPendingEventsByType).toHaveBeenCalledWith(context, "hangzhou", "fulfillment.completed");
+    expect(outbox.findPendingFulfillmentCompletedForLedger).toHaveBeenCalledWith(context, "hangzhou");
   });
 });

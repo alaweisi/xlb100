@@ -1,36 +1,38 @@
 import { describe, it, expect } from "vitest";
 import { buildApp } from "../../backend/src/app.js";
-import { XLB_HEADERS } from "@xlb/types";
-import { serviceAddressSchedulePayload } from "./helpers/orderTestPayload";
+import { customerHeaders } from "./helpers/dispatchTestHelper.js";
+import { createAcceptedFulfillment } from "./helpers/fulfillmentTestHelper.js";
+import { workerHangzhouHeaders } from "./helpers/acceptTestHelper.js";
 
 const runDb = process.env.XLB_SKIP_DB_TESTS !== "1";
 
-const customerHeaders = {
-  [XLB_HEADERS.appType]: "customer",
-  [XLB_HEADERS.role]: "customer",
-  [XLB_HEADERS.cityCode]: "hangzhou",
-  [XLB_HEADERS.userId]: "customer-demo-001",
-};
-
-async function createPendingOrder(app: Awaited<ReturnType<typeof buildApp>>) {
-  const response = await app.inject({
+async function createConfirmedOrder(app: Awaited<ReturnType<typeof buildApp>>) {
+  const accepted = await createAcceptedFulfillment(app);
+  await app.inject({
     method: "POST",
-    url: "/api/orders",
-    headers: customerHeaders,
-    payload: {
-      customerId: "customer-demo-001",
-      skuId: "sku_home_daily_2h",
-      quantity: 1,
-      ...serviceAddressSchedulePayload,
-    },
+    url: `/api/worker/fulfillments/${accepted.fulfillmentId}/start`,
+    headers: workerHangzhouHeaders,
+    payload: {},
   });
-  return response.json().order as { orderId: string };
+  await app.inject({
+    method: "POST",
+    url: `/api/worker/fulfillments/${accepted.fulfillmentId}/complete`,
+    headers: workerHangzhouHeaders,
+    payload: {},
+  });
+  await app.inject({
+    method: "POST",
+    url: `/api/orders/${accepted.orderId}/confirm-service`,
+    headers: customerHeaders,
+    payload: {},
+  });
+  return { orderId: accepted.orderId };
 }
 
 describe.skipIf(!runDb)("paymentOrder integration", { timeout: 15000 }, () => {
-  it("creates payment_order for pending order", async () => {
+  it("creates payment_order for confirmed completed service order", async () => {
     const app = await buildApp();
-    const order = await createPendingOrder(app);
+    const order = await createConfirmedOrder(app);
     const response = await app.inject({
       method: "POST",
       url: "/api/payments/orders",
