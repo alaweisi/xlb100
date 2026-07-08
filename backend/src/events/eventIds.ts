@@ -47,3 +47,7 @@ export function generateLedgerAccrualId(): string {
 export function generateRefundId(): string {
   return `rfd_${Date.now().toString(36)}_${randomBytes(4).toString("hex")}`;
 }
+
+export function generateOrderReviewId(): string {
+  return `rev_${Date.now().toString(36)}_${randomBytes(4).toString("hex")}`;
+}

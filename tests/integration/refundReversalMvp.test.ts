@@ -2,6 +2,7 @@ import type { RowDataPacket } from "mysql2/promise";
 import { describe, expect, it } from "vitest";
 import { buildApp } from "../../backend/src/app.js";
 import { getMysqlPool } from "../../backend/src/dal/mysqlPool.js";
+import { runMigrations } from "../../backend/src/dal/migrationRunner.js";
 import { ensureHangzhouWorkerEligible } from "./helpers/acceptTestHelper.js";
 import {
   createCompletedFulfillment,
@@ -17,11 +18,35 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
   () => {
     it("emits refund.approved and creates three audited reversal ledger entries", () =>
       withLedgerTestLock(async () => {
+        await runMigrations();
         await ensureHangzhouWorkerEligible();
         const app = await buildApp();
         try {
           const { fulfillmentId, orderId } = await createCompletedFulfillment(app);
           await runLedgerOnce(app);
+
+          const reviewResponse = await app.inject({
+            method: "POST",
+            url: `/api/orders/${orderId}/reviews`,
+            headers: customerHeaders,
+            payload: {
+              workerId: "worker-demo-hangzhou",
+              rating: 5,
+              comment: "Stage 6 simulated full-flow review",
+            },
+          });
+          expect(reviewResponse.statusCode).toBe(200);
+          const review = reviewResponse.json().review as {
+            reviewId: string;
+            status: string;
+            workerId: string;
+            rating: number;
+          };
+          expect(review).toMatchObject({
+            status: "created",
+            workerId: "worker-demo-hangzhou",
+            rating: 5,
+          });
 
           const refundResponse = await app.inject({
             method: "POST",
@@ -53,6 +78,7 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
               workerId: "worker-demo-hangzhou",
               status: "completed",
             },
+            review: { reviewId: review.reviewId, status: "created", rating: 5 },
             aftersale: { refundId: refund.refundId, status: "requested" },
           });
 
@@ -64,6 +90,27 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
           });
           expect(approvalResponse.statusCode).toBe(200);
           expect(approvalResponse.json().refund.status).toBe("approved");
+
+          const approvedTraceResponse = await app.inject({
+            method: "GET",
+            url: `/api/internal/admin/order-traces/${orderId}`,
+            headers: ledgerOperatorHeaders,
+          });
+          expect(approvedTraceResponse.statusCode).toBe(200);
+          expect(approvedTraceResponse.json().trace).toMatchObject({
+            review: { reviewId: review.reviewId, status: "created", rating: 5 },
+            aftersale: { refundId: refund.refundId, status: "approved" },
+          });
+
+          const [preReverseEntries] = await getMysqlPool().query<RowDataPacket[]>(
+            `SELECT entry_id
+               FROM ledger_entries
+              WHERE city_code = 'hangzhou'
+                AND source_type = 'refund.approved'
+                AND source_id = ?`,
+            [fulfillmentId],
+          );
+          expect(preReverseEntries).toHaveLength(0);
 
           const [refundEvents] = await getMysqlPool().query<
             (RowDataPacket & { event_id: string; status: string })[]

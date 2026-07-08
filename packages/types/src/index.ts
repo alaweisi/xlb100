@@ -128,6 +128,11 @@ export type {
   CreateRefundRequest,
   ApproveRefundRequest,
 } from "./refund.js";
+export type {
+  OrderReviewStatus,
+  OrderReview,
+  CreateOrderReview,
+} from "./review.js";
 export type { ModulePlaceholder } from "./module.js";
 export type {
   GovernanceActionKind,

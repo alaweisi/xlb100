@@ -34,6 +34,11 @@ type OrderTraceRow = RowDataPacket & {
   started_at: NullableDate;
   completed_at: NullableDate;
   fulfillment_updated_at: NullableDate;
+  review_id: string | null;
+  review_status: string | null;
+  review_rating: number | null;
+  review_comment: string | null;
+  review_created_at: NullableDate;
   refund_id: string | null;
   refund_status: string | null;
   refund_amount: string | null;
@@ -95,6 +100,11 @@ export async function registerOrderTraceRoutes(app: FastifyInstance): Promise<vo
                 f.started_at,
                 f.completed_at,
                 f.updated_at AS fulfillment_updated_at,
+                rev.review_id,
+                rev.status AS review_status,
+                rev.rating AS review_rating,
+                rev.comment AS review_comment,
+                rev.created_at AS review_created_at,
                 rr.refund_id,
                 rr.status AS refund_status,
                 rr.amount AS refund_amount,
@@ -115,11 +125,15 @@ export async function registerOrderTraceRoutes(app: FastifyInstance): Promise<vo
            LEFT JOIN aftersale_refund_requests rr
              ON rr.city_code = o.city_code
             AND rr.order_id = o.order_id
+           LEFT JOIN order_reviews rev
+             ON rev.city_code = o.city_code
+            AND rev.order_id = o.order_id
           WHERE o.city_code = ?
             AND o.order_id = ?
           ORDER BY p.created_at DESC,
                    dt.created_at DESC,
                    f.created_at DESC,
+                   rev.created_at DESC,
                    rr.requested_at DESC
           LIMIT 1`,
         [cityCode, orderId],
@@ -172,6 +186,15 @@ export async function registerOrderTraceRoutes(app: FastifyInstance): Promise<vo
                 startedAt: iso(row.started_at),
                 completedAt: iso(row.completed_at),
                 updatedAt: iso(row.fulfillment_updated_at),
+              }
+            : null,
+          review: row.review_id
+            ? {
+                reviewId: row.review_id,
+                status: row.review_status,
+                rating: Number(row.review_rating),
+                comment: row.review_comment,
+                createdAt: iso(row.review_created_at),
               }
             : null,
           aftersale: row.refund_id

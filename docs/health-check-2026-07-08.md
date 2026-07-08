@@ -106,6 +106,66 @@ Verification:
 - `pnpm turbo run build`: passed.
 - Full serial Vitest: `255 passed`, `1049 passed | 1 todo`.
 
+### P1 Stage 6: simulated business closure
+
+Completed:
+
+- Added minimal customer order review capability:
+  - `POST /api/orders/:orderId/reviews`
+  - status stops at `created`
+  - fields: `orderId`, `workerId`, `rating`, `comment`
+  - only accepts paid orders with a matching completed fulfillment and matching customer identity
+- Reused existing simulated aftersale approval:
+  - `POST /api/internal/aftersale/refunds/:refundId/approve`
+  - status transitions `requested -> approved`
+  - no provider refund call is made
+  - no settlement execution is made
+  - ledger reversal remains a separate explicit internal processor and is not triggered by approval itself
+- Extended Admin Order Trace to show:
+  - `review.status`
+  - `aftersale.status`
+- Extended Customer order page with a simulated review submission entry.
+
+Database change:
+
+- Added `db/migrations/030_order_review_mvp.sql`
+- New table: `order_reviews`
+- No existing table was restructured.
+
+Closed issues:
+
+- Worker can see, accept, start, and complete a dispatched task in the simulated chain.
+- Customer can create aftersale request after completed fulfillment and ledger accrual readiness.
+- Admin can observe order/payment/dispatch/fulfillment/review/aftersale state in one read-only trace.
+- Customer can submit a review after a completed fulfillment.
+- Aftersale request can be approved as a simulated status transition.
+
+Remaining risks:
+
+- Worker authentication is still demo/header based; production worker login/token is not done.
+- Customer review UI relies on entering the worker id in the simulation page; production UX should derive this from order fulfillment detail.
+- Aftersale approval still emits `refund.approved` for downstream reversal infrastructure, but Stage 6 does not execute refund, ledger reversal, or settlement automatically.
+- Task-pool pagination/filtering/distance or priority ordering remains a follow-up.
+- Admin trace is order-id lookup only; broader admin order search/listing is not implemented.
+
+Future formal integration TODO:
+
+- WeChat Pay production payment/refund provider.
+- Alipay production payment/refund provider.
+- Amap/Gaode map, geocoding, distance, and location flows.
+- SMS provider for login/notifications.
+- ICP filing.
+- Production domain and TLS setup.
+- App store / mini-program / distribution review readiness.
+
+Verification:
+
+- `pnpm exec vitest run tests/integration/migrationRunner.test.ts --pool=forks --poolOptions.forks.singleFork`: passed.
+- `pnpm exec vitest run tests/integration/refundReversalMvp.test.ts --pool=forks --poolOptions.forks.singleFork`: passed.
+- `pnpm turbo run typecheck`: passed.
+- `pnpm turbo run build`: passed.
+- Full serial Vitest: `255 passed`, `1049 passed | 1 todo`.
+
 日期：2026-07-08  
 检查范围：`E:\xlb100` monorepo 全量目录、文档、三端 App、后端、数据库、测试、CI/CD、Git 状态。  
 检查原则：只检查和记录，不修改业务代码。本报告替换了原先同名未跟踪报告文件，原因是原文件中文编码乱码且部分结论需要按本次命令重新核实。

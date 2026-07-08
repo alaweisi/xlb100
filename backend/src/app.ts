@@ -27,6 +27,7 @@ import { registerPreparationRoutes } from "./preparation/envelopeRoutes.js";
 import { registerAftersaleModule } from "./aftersale/aftersaleModule.js";
 import { registerAuthRoutes } from "./auth/authRoutes.js";
 import { registerOrderTraceRoutes } from "./order/orderTraceRoutes.js";
+import { registerOrderReviewRoutes } from "./review/orderReviewRoutes.js";
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({ logger: true });
@@ -98,6 +99,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await registerCatalogModule(app);
   await registerPricingModule(app);
   await registerOrderModule(app);
+  await registerOrderReviewRoutes(app);
   await registerPaymentModule(app);
   await registerDispatchModule(app);
   await registerWorkerModule(app);

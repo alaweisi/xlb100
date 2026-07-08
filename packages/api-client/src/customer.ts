@@ -7,6 +7,7 @@ type ScheduledTimeSlot = "morning" | "afternoon" | "evening";
 type PaymentStatus = "pending" | "paid" | "failed" | "closed";
 type PaymentProvider = "mock";
 type RefundRequestStatus = "requested" | "approved";
+type OrderReviewStatus = "created";
 
 export interface CatalogSnapshotResponse {
   cityCode: CityCode;
@@ -80,6 +81,13 @@ export interface CreateRefundRequestBody {
   reason?: string;
 }
 
+export interface CreateOrderReviewBody {
+  orderId: string;
+  workerId: string;
+  rating: number;
+  comment: string;
+}
+
 export interface OrderResponse {
   orderId: string;
   cityCode: CityCode;
@@ -143,6 +151,20 @@ export interface RefundRequestResponse {
   approvedByAdminId: string | null;
 }
 
+export interface OrderReviewResponse {
+  reviewId: string;
+  cityCode: CityCode;
+  orderId: string;
+  customerId: string;
+  workerId: string;
+  fulfillmentId: string;
+  rating: number;
+  comment: string;
+  status: OrderReviewStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export function createCustomerOrderApi(client: ApiClient) {
   return {
     getCatalog() {
@@ -178,6 +200,13 @@ export function createCustomerOrderApi(client: ApiClient) {
         refund: RefundRequestResponse;
         idempotent: boolean;
       }>("/api/aftersale/refunds", body);
+    },
+    createOrderReview({ orderId, ...body }: CreateOrderReviewBody) {
+      return client.post<{
+        ok: true;
+        review: OrderReviewResponse;
+        idempotent: boolean;
+      }>(`/api/orders/${encodeURIComponent(orderId)}/reviews`, body);
     },
   };
 }

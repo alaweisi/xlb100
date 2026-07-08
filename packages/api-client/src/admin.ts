@@ -34,6 +34,13 @@ export interface AdminOrderTrace {
     completedAt: string | null;
     updatedAt: string | null;
   } | null;
+  review: {
+    reviewId: string;
+    status: string | null;
+    rating: number;
+    comment: string;
+    createdAt: string | null;
+  } | null;
   aftersale: {
     refundId: string;
     status: string | null;

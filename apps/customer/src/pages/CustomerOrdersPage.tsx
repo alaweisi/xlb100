@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import type { CityCode, Order, RefundRequest } from "@xlb/types";
+import type { CityCode, Order, OrderReview, RefundRequest } from "@xlb/types";
 import {
   Button,
   CustomerAnswerCard,
   CustomerOrdersTemplate,
   EmptyState,
   ErrorState,
+  Input,
   LoadingState,
   OrderCard,
   StatusTag,
@@ -21,6 +22,15 @@ interface CustomerOrderApi {
     refund: RefundRequest;
     idempotent: boolean;
   }>;
+  createOrderReview(payload: {
+    orderId: string;
+    workerId: string;
+    rating: number;
+    comment: string;
+  }): Promise<{
+    review: OrderReview;
+    idempotent: boolean;
+  }>;
 }
 
 export interface CustomerOrdersPageProps {
@@ -32,6 +42,11 @@ export interface CustomerOrdersPageProps {
 type RefundUiState =
   | { status: "idle" | "submitting" }
   | { status: "success"; refund: RefundRequest; idempotent: boolean }
+  | { status: "error"; error: string };
+
+type ReviewUiState =
+  | { status: "idle" | "submitting" }
+  | { status: "success"; review: OrderReview; idempotent: boolean }
   | { status: "error"; error: string };
 
 function orderStatusTone(status: string): "success" | "warning" | "muted" {
@@ -51,6 +66,10 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
   const [error, setError] = useState<string | null>(null);
   const [refundReasons, setRefundReasons] = useState<Record<string, string>>({});
   const [refundStates, setRefundStates] = useState<Record<string, RefundUiState>>({});
+  const [reviewWorkerIds, setReviewWorkerIds] = useState<Record<string, string>>({});
+  const [reviewRatings, setReviewRatings] = useState<Record<string, number>>({});
+  const [reviewComments, setReviewComments] = useState<Record<string, string>>({});
+  const [reviewStates, setReviewStates] = useState<Record<string, ReviewUiState>>({});
 
   useEffect(() => {
     if (orderIds.length === 0) {
@@ -120,6 +139,40 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
     }
   }
 
+  async function submitReview(orderId: string) {
+    const workerId = (reviewWorkerIds[orderId] || "worker-demo-hangzhou").trim();
+    const rating = reviewRatings[orderId] || 5;
+    const comment = reviewComments[orderId]?.trim() || "Service completed as expected";
+    setReviewStates((previous) => ({
+      ...previous,
+      [orderId]: { status: "submitting" },
+    }));
+    try {
+      const result = await api.createOrderReview({
+        orderId,
+        workerId,
+        rating,
+        comment,
+      });
+      setReviewStates((previous) => ({
+        ...previous,
+        [orderId]: {
+          status: "success",
+          review: result.review,
+          idempotent: result.idempotent,
+        },
+      }));
+    } catch (err) {
+      setReviewStates((previous) => ({
+        ...previous,
+        [orderId]: {
+          status: "error",
+          error: err instanceof Error ? err.message : "create review failed",
+        },
+      }));
+    }
+  }
+
   return (
     <CustomerOrdersTemplate route="/customer/orders" cityCode={cityCode} binding={binding}>
       {loading && <LoadingState title="Loading latest orders" description="Reading order API..." />}
@@ -132,7 +185,9 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
         orders.length > 0 &&
         sortedOrders.map((order) => {
           const refundState = refundStates[order.orderId] ?? { status: "idle" };
+          const reviewState = reviewStates[order.orderId] ?? { status: "idle" };
           const isRefundRequestAllowed = order.status === "paid";
+          const isReviewRequestAllowed = order.status === "paid";
 
           return (
             <OrderCard
@@ -153,6 +208,73 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
               }
             >
               <div style={{ display: "grid", gap: 8 }}>
+                <strong style={{ color: "#2b2118", fontSize: 13, lineHeight: "18px" }}>
+                  Service review
+                </strong>
+                <span style={{ color: "#64748b", fontSize: 12, lineHeight: "18px" }}>
+                  Creates only a review record with status=created. Backend accepts it only after worker completion.
+                </span>
+                <div style={{ display: "grid", gap: 8, gridTemplateColumns: "minmax(0, 1fr) 120px" }}>
+                  <Input
+                    disabled={!isReviewRequestAllowed || reviewState.status === "submitting"}
+                    placeholder="worker-demo-hangzhou"
+                    value={reviewWorkerIds[order.orderId] ?? "worker-demo-hangzhou"}
+                    onChange={(event) =>
+                      setReviewWorkerIds((previous) => ({
+                        ...previous,
+                        [order.orderId]: event.target.value,
+                      }))
+                    }
+                  />
+                  <Input
+                    disabled={!isReviewRequestAllowed || reviewState.status === "submitting"}
+                    max={5}
+                    min={1}
+                    type="number"
+                    value={reviewRatings[order.orderId] ?? 5}
+                    onChange={(event) =>
+                      setReviewRatings((previous) => ({
+                        ...previous,
+                        [order.orderId]: Number(event.target.value),
+                      }))
+                    }
+                  />
+                </div>
+                <Textarea
+                  disabled={!isReviewRequestAllowed || reviewState.status === "submitting"}
+                  maxLength={500}
+                  placeholder="Review comment"
+                  value={reviewComments[order.orderId] ?? ""}
+                  onChange={(event) =>
+                    setReviewComments((previous) => ({
+                      ...previous,
+                      [order.orderId]: event.target.value,
+                    }))
+                  }
+                />
+                <div>
+                  <Button
+                    disabled={!isReviewRequestAllowed || reviewState.status === "submitting"}
+                    onClick={() => void submitReview(order.orderId)}
+                  >
+                    {reviewState.status === "submitting" ? "Submitting review" : "Submit review"}
+                  </Button>
+                </div>
+                {!isReviewRequestAllowed && (
+                  <StatusTag tone="muted">Available after payment and worker completion</StatusTag>
+                )}
+                {reviewState.status === "success" && (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                    <StatusTag tone="success">review {reviewState.review.status}</StatusTag>
+                    <StatusTag tone="muted">{reviewState.review.reviewId}</StatusTag>
+                    <StatusTag tone="muted">{reviewState.review.rating}/5</StatusTag>
+                    {reviewState.idempotent && <StatusTag tone="warning">existing review</StatusTag>}
+                  </div>
+                )}
+                {reviewState.status === "error" && (
+                  <span style={{ color: "#b42318", fontSize: 12, lineHeight: "18px" }}>{reviewState.error}</span>
+                )}
+
                 <strong style={{ color: "#2b2118", fontSize: 13, lineHeight: "18px" }}>
                   Aftersale request
                 </strong>
@@ -196,6 +318,7 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
           { label: "city_code", value: cityCode },
           { label: "order ids", value: orderIds },
           { label: "order list count", value: orders.length },
+          { label: "review states", value: reviewStates },
           { label: "refund request states", value: refundStates },
           { label: "workflow state", value: binding.state },
         ]}

@@ -99,6 +99,7 @@ export function App() {
   const ordersApi: CustomerOrdersPageProps["api"] = {
     getOrder: (orderId) => api.getOrder(orderId),
     createRefundRequest: (payload) => api.createRefundRequest(payload),
+    createOrderReview: (payload) => api.createOrderReview(payload),
   };
 
   if (currentRoute === "home") {

@@ -37,7 +37,7 @@ interface Props {
 
 function toneFor(status?: string | null): Tone {
   if (!status) return "muted";
-  if (status === "paid" || status === "accepted" || status === "completed" || status === "requested") {
+  if (status === "paid" || status === "accepted" || status === "completed" || status === "requested" || status === "created" || status === "approved") {
     return "success";
   }
   if (status === "queued" || status === "in_progress" || status === "pending") return "warning";
@@ -133,6 +133,15 @@ export function OrderTracePage({ initialCityCode, initialOrderId }: Props) {
           note: trace.fulfillment?.completedAt || trace.fulfillment?.startedAt || "-",
         },
         {
+          key: "review",
+          stage: "Review",
+          id: trace.review?.reviewId || "-",
+          actor: trace.order.customerId,
+          status: trace.review?.status || null,
+          amount: trace.review ? `${trace.review.rating}/5` : "-",
+          note: trace.review?.comment || "-",
+        },
+        {
           key: "aftersale",
           stage: "AfterSale",
           id: trace.aftersale?.refundId || "-",
@@ -173,18 +182,19 @@ export function OrderTracePage({ initialCityCode, initialOrderId }: Props) {
       {loading && <LoadingState title="Loading order trace" description="Reading the read-only admin trace for this order." />}
       {error && <ApiErrorPanel title="Trace request failed" detail={error} action={<Button onClick={() => void loadTrace()}>Retry</Button>} />}
       {!loading && !error && !trace && (
-        <EmptyState title="No order selected" description="Enter an order id to inspect payment, dispatch, fulfillment, and aftersale state." />
+        <EmptyState title="No order selected" description="Enter an order id to inspect payment, dispatch, fulfillment, review, and aftersale state." />
       )}
 
       {trace && (
         <>
           <Card title="Current state">
-            <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(6, minmax(0, 1fr))" }}>
+            <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(7, minmax(0, 1fr))" }}>
               <div><strong>orderId</strong><br />{trace.order.orderId}</div>
               <div><strong>customer</strong><br />{trace.order.customerId}</div>
               <div><strong>payment</strong><br />{statusTag(trace.payment?.status)}</div>
               <div><strong>dispatch</strong><br />{statusTag(trace.dispatch?.status)}</div>
               <div><strong>worker</strong><br />{trace.fulfillment?.workerId || "-"}</div>
+              <div><strong>review</strong><br />{statusTag(trace.review?.status)}</div>
               <div><strong>aftersale</strong><br />{statusTag(trace.aftersale?.status)}</div>
             </div>
           </Card>
