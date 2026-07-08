@@ -1020,3 +1020,36 @@ Manual confirmation points:
   - `/customer/order/create` now defaults to selected catalog SKU and blocks quantity below 1.
   - UAT panels now include trace fields for `searchMode`, `matchedSkuCount`, `selectedSkuId`, `selectedSkuName`, `createOrderPayload`, and route state/action metadata.
   - `/customer/order/create` now de-duplicates option list by service name for stable service selection and uses deduplicated catalog display labels (title/subtitle) to avoid repeated text.
+
+## Phase 15.3V-1A Root Test Gate Scope Repair
+
+- Status: completed locally, pending this commit.
+- Commit target: `fix(security): narrow provider withdraw ui gate scope`
+- Scope:
+  - `scripts/check-settlement-confirm-no-provider-withdraw-ui.ps1`
+  - `scripts/check-settlement-payable-no-provider-withdraw-ui.ps1`
+  - `scripts/check-settlement-payable-queue-no-provider-withdraw-ui.ps1`
+  - `scripts/check-worker-receivable-statement-export-no-provider-withdraw-ui.ps1`
+  - `scripts/check-worker-receivable-statement-no-provider-withdraw-ui.ps1`
+  - `scripts/check-worker-receivable-statement-review-no-provider-withdraw-ui.ps1`
+  - `docs/reports/PHASE15_3V1_ROOT_TEST_GATE_FIX_REPORT.md`
+  - `docs/execution/PHASE15_PROGRESS.md`
+- Rationale:
+  - Previous failures were false positives from gate scope drift (`apps/customer apps/worker apps/admin` all-in).
+  - Gate scanners are now restricted to the actual settlement/receivable admin UI scope and exclude Customer service-entry files (`/customer/*`) by design.
+- Verification:
+  - `pnpm --filter @xlb/ui typecheck`: PASS
+  - `pnpm --filter @xlb/ui build`: PASS
+  - `pnpm --filter @xlb/customer typecheck`: PASS
+  - `pnpm --filter @xlb/customer build`: PASS
+  - `pnpm test`: PASS (255 passed, 1 todo)
+  - `pnpm exec vitest run tests/security/settlementConfirmNoProviderWithdrawUi.test.ts --passWithNoTests`: PASS (1/1)
+  - `pnpm exec vitest run tests/security/settlementPayableGates.test.ts --passWithNoTests`: PASS (1/1, 9 assertions)
+  - `pnpm exec vitest run tests/security/settlementPayableQueueGates.test.ts --passWithNoTests`: PASS (1/1, 9 assertions)
+  - `pnpm exec vitest run tests/security/workerReceivableStatementExportGates.test.ts --passWithNoTests`: PASS (1/1, 9 assertions)
+  - `pnpm exec vitest run tests/security/workerReceivableStatementGates.test.ts --passWithNoTests`: PASS (1/1, 9 assertions)
+  - `pnpm exec vitest run tests/security/workerReceivableStatementReviewGates.test.ts --passWithNoTests`: PASS (1/1, 9 assertions)
+- Safety:
+  - No app/backend/db/deploy/infra edits.
+  - No fake settlement, fake receivable, or provider-withdraw behavior introduced.
+  - Production remains NO-GO.

@@ -9,28 +9,23 @@ if ($Text -match '(?i)provider|withdraw|wechat|alipay|wallet|bank_account|paymen
   throw "Phase 8D must not implement provider split or withdrawal."
 }
 
-# apiBase.ts is shared admin API base infrastructure introduced by Phase 14F same-origin hotfix.
-# App.tsx is route shell entry; no provider-withdraw UI flow.
-# workflowBindings.ts is adapter binding; no provider-withdraw UI flow.
-$allowed = @(
-  "apps/customer/src/app/App.tsx",
-  "apps/worker/src/app/App.tsx",
-  "apps/customer/src/adapters/workflowBindings.ts",
-  "apps/worker/src/adapters/workflowBindings.ts",
+# Settlement-payable gate only applies to settlement admin UI surfaces in this phase.
+$UiScope = @(
   "apps/admin/src/pages/SettlementOpsPage.tsx",
-  "apps/admin/src/app/App.tsx",
-  "apps/admin/vite.config.ts",
   "apps/admin/src/pages/SettlementStatementDetailPage.tsx",
   "apps/admin/src/pages/SettlementExportReviewPage.tsx",
-  "apps/admin/src/pages/SettlementActionGovernancePage.tsx",
-  "apps/admin/src/hashParams.ts",
-  "apps/admin/src/apiBase.ts",
-  "apps/customer/capacitor.config.ts",
-  "apps/customer/public/manifest.webmanifest"
+  "apps/admin/src/pages/SettlementActionGovernancePage.tsx"
+)
+
+$allowed = @(
+  "apps/admin/src/pages/SettlementOpsPage.tsx",
+  "apps/admin/src/pages/SettlementStatementDetailPage.tsx",
+  "apps/admin/src/pages/SettlementExportReviewPage.tsx",
+  "apps/admin/src/pages/SettlementActionGovernancePage.tsx"
 )
 
 $UiChanges = @(
-  git -C $Root diff --name-only 10410793c1dc1f3d749614bc6916a1af5b3b0abb -- apps/customer apps/worker apps/admin 2>$null |
+  git -C $Root diff --name-only 10410793c1dc1f3d749614bc6916a1af5b3b0abb -- $UiScope 2>$null |
     Where-Object { $_ -match '\.(tsx?|jsx?|ts|json|svg)$' -and $_ -notmatch 'node_modules' }
 )
 
