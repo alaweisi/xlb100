@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { XLB_HEADERS } from "@xlb/types";
 import { assertResponseJson } from "./httpResponseTestHelper";
+import { serviceAddressSchedulePayload } from "./orderTestPayload";
 
 export const customerHeaders = {
   [XLB_HEADERS.appType]: "customer",
@@ -24,6 +25,7 @@ export async function createPaidOrderForDispatch(app: FastifyInstance): Promise<
       customerId: "customer-dispatch-001",
       skuId: "sku_home_daily_2h",
       quantity: 1,
+      ...serviceAddressSchedulePayload,
     },
   });
   const order = assertResponseJson<{ order: { orderId: string } }>(orderRes, "POST /api/orders", [200]).order;

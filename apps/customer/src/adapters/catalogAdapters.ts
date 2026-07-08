@@ -30,8 +30,8 @@ type CatalogCategory = CatalogSnapshot["categories"][number];
 type CatalogItem = ServiceItem & CatalogCategory["items"][number];
 
 export const cityAreaByCode: Record<CityCode, string> = {
-  hangzhou: "静安区",
-  shanghai: "黄埔区",
+  hangzhou: "西湖区",
+  shanghai: "静安区",
   beijing: "朝阳区",
 };
 

@@ -1680,3 +1680,123 @@ Duration 375.37s
 ```
 
 因此，本轮 CI/test gate 修复链条到此收尾：串行测试基线已恢复为 255/255；历史 no-ui/path gate 的当前分支误伤已在 7 个目标脚本内收窄；新的 diff 内容关键词扫描家族不在本轮继续追。
+
+---
+
+## 24. 订单服务地址与预约时间改造（本地，2026-07-08）
+
+### 本轮新增能力
+
+为“模拟版三端 App 完整体验”补齐客户下单时的上门服务信息。此前 `POST /api/orders` 只提交 `skuId` 和 `quantity`；本轮新增服务地址、联系人和预约时间，使合伙人/投资人演示时能看到更像真实家政订单的闭环。
+
+### 数据库变更
+
+新增 migration：[db/migrations/029_order_service_address_schedule.sql](../db/migrations/029_order_service_address_schedule.sql)
+
+`orders` 表新增 8 个字段：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `address_province` | `VARCHAR(64) NULL` | 服务地址省份快照 |
+| `address_city` | `VARCHAR(64) NULL` | 服务地址城市展示名 |
+| `address_district` | `VARCHAR(64) NULL` | 服务地址区县 |
+| `detail_address` | `VARCHAR(255) NULL` | 用户手填详细地址 |
+| `contact_name` | `VARCHAR(64) NULL` | 上门联系人 |
+| `contact_phone` | `VARCHAR(32) NULL` | 联系电话 |
+| `scheduled_at` | `TIMESTAMP NULL` | 预约服务时间 |
+| `scheduled_time_slot` | `VARCHAR(32) NULL` | 粗粒度时间段：`morning/afternoon/evening` |
+
+同时新增索引：
+
+```sql
+idx_orders_city_scheduled_at (city_code, scheduled_at)
+```
+
+本地 migration 验证：
+
+```text
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/migrate-local.ps1
+APPLY 029_order_service_address_schedule
+migrate-local: passed
+
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/migrate-local.ps1
+SKIP 029_order_service_address_schedule (already applied)
+migrate-local: passed
+```
+
+### 契约与后端变更
+
+更新订单契约：
+
+- [packages/types/src/order.ts](../packages/types/src/order.ts)：`Order` 新增地址/联系人/预约字段，并新增 `ScheduledTimeSlot`
+- [packages/validators/src/orderSchema.ts](../packages/validators/src/orderSchema.ts)：`createOrderSchema` 对新提交订单要求地址、联系人、手机号、`scheduledAt`、`scheduledTimeSlot` 必填
+- [packages/api-client/src/customer.ts](../packages/api-client/src/customer.ts)：`CreateOrderBody` 和 `OrderResponse` 同步新增字段
+
+更新后端读写：
+
+- [backend/src/order/orderRepository.ts](../backend/src/order/orderRepository.ts)：insert/select/map 新增 8 个字段
+- [backend/src/order/orderService.ts](../backend/src/order/orderService.ts)：创建订单时写入地址和预约信息
+- [backend/src/order/orderRoutes.ts](../backend/src/order/orderRoutes.ts)：沿用现有 `POST /api/orders` / `GET /api/orders/:orderId`，无新增 endpoint
+
+### 前端变更
+
+新增订单地址模拟数据：[apps/customer/src/adapters/orderAddressOptions.ts](../apps/customer/src/adapters/orderAddressOptions.ts)
+
+- `hangzhou`：浙江省 / 杭州市 / 西湖区、上城区、拱墅区、滨江区
+- `shanghai`：上海市 / 上海市 / 黄浦区、静安区、徐汇区、浦东新区
+- `beijing`：北京市 / 北京市 / 朝阳区、海淀区、东城区、西城区
+
+修复旧 bug：[apps/customer/src/adapters/catalogAdapters.ts](../apps/customer/src/adapters/catalogAdapters.ts)
+
+- 原 `cityAreaByCode` 中 `hangzhou` 错误映射到上海区名，已修为 `西湖区`
+- `shanghai` 默认区从错误的 `黄埔区` 修为 `静安区`
+- `beijing` 保持 `朝阳区`
+
+改造客户下单页：[apps/customer/src/pages/CustomerOrderCreatePage.tsx](../apps/customer/src/pages/CustomerOrderCreatePage.tsx)
+
+- 流程从“服务 + 数量”扩展为“服务 → 地址 → 预约时间 → 确认”
+- 地址使用固定省市区下拉 + 详细地址文本框
+- 联系人、手机号改为下单必填
+- 预约时间使用“明天/后天/本周末 + 上午/下午/晚上”粗粒度选择
+- `WorkflowTimeline` 新增 `Fill address` 和 `Pick schedule`
+- UAT debug payload 展示地址和预约时间
+
+更新客户订单列表：[apps/customer/src/pages/CustomerOrdersPage.tsx](../apps/customer/src/pages/CustomerOrdersPage.tsx)
+
+- 订单卡片展示区县、详细地址、预约时间、联系人、联系电话
+
+### 测试同步
+
+更新直接创建订单的测试请求体：
+
+- [tests/contract/order.contract.test.ts](../tests/contract/order.contract.test.ts)
+- [tests/integration/orderCreate.test.ts](../tests/integration/orderCreate.test.ts)
+- [tests/integration/paymentOrder.test.ts](../tests/integration/paymentOrder.test.ts)
+- [tests/integration/mockPaymentWebhook.test.ts](../tests/integration/mockPaymentWebhook.test.ts)
+- [tests/integration/orderPaymentOutbox.test.ts](../tests/integration/orderPaymentOutbox.test.ts)
+- [tests/integration/helpers/dispatchTestHelper.ts](../tests/integration/helpers/dispatchTestHelper.ts)
+- [tests/security/noOrderWithoutCity.test.ts](../tests/security/noOrderWithoutCity.test.ts)
+- 新增共享测试 payload：[tests/integration/helpers/orderTestPayload.ts](../tests/integration/helpers/orderTestPayload.ts)
+
+### 最终验证
+
+```text
+pnpm turbo run typecheck
+Tasks: 16 successful, 16 total
+```
+
+```text
+pnpm turbo run build
+Tasks: 11 successful, 11 total
+```
+
+```text
+pnpm exec vitest run --pool=forks --poolOptions.forks.singleFork
+Test Files 255 passed (255)
+Tests 1048 passed | 1 todo (1049)
+Duration 343.76s
+```
+
+### 本轮结论
+
+订单服务地址、联系人、联系电话、预约时间已从 DB、契约、API、后端读写、客户下单页、客户订单列表和测试链路完整接通；`cityAreaByCode` 旧映射错误已修复；本轮没有引入真实地图、评价、提现或自动调度能力。

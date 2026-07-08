@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { buildApp } from "../../backend/src/app.js";
 import { XLB_HEADERS } from "@xlb/types";
+import { serviceAddressSchedulePayload } from "./helpers/orderTestPayload";
 
 const runDb = process.env.XLB_SKIP_DB_TESTS !== "1";
 
@@ -20,6 +21,7 @@ async function createPendingOrder(app: Awaited<ReturnType<typeof buildApp>>) {
       customerId: "customer-demo-001",
       skuId: "sku_home_daily_2h",
       quantity: 1,
+      ...serviceAddressSchedulePayload,
     },
   });
   return response.json().order as { orderId: string };

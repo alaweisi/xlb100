@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { CityCode, Order } from "@xlb/types";
 import { CustomerAnswerCard, CustomerOrdersTemplate, EmptyState, ErrorState, LoadingState, OrderCard, StatusTag } from "@xlb/ui";
+import { formatScheduledLabel } from "../adapters/orderAddressOptions";
 import { createCustomerUiBinding } from "../adapters/workflowAdapter";
 import { UatDebugPanel } from "./customerPageShell";
 
@@ -76,8 +77,8 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
           <OrderCard
             key={order.orderId}
             title={order.skuName}
-            description={`Quantity ${order.quantity}${order.unit}`}
-            meta={`${order.createdAt} · ${order.cityCode}`}
+            description={`Quantity ${order.quantity}${order.unit} / ${order.addressDistrict} ${order.detailAddress}`.trim()}
+            meta={`${formatScheduledLabel(order.scheduledAt, order.scheduledTimeSlot)} / ${order.contactName} ${order.contactPhone}`}
             status={<StatusTag tone={order.status === "paid" ? "success" : order.status === "pending_payment" ? "warning" : "muted"}>{order.status}</StatusTag>}
             priceText={`¥${order.totalAmount}`}
           />

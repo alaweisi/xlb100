@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { CatalogSnapshot, CityCode, Order, PaymentOrder, PriceQuote } from "@xlb/types";
+import type { CatalogSnapshot, CityCode, Order, PaymentOrder, PriceQuote, ScheduledTimeSlot } from "@xlb/types";
 import {
   ActionDock,
   Button,
@@ -8,12 +8,14 @@ import {
   CustomerQuoteCard,
   ErrorState,
   FormField,
+  Input,
   LoadingState,
   PriceText,
   QuantityStepper,
   Select,
   ServiceCard,
   StatusTag,
+  Textarea,
   WorkflowTimeline,
 } from "@xlb/ui";
 import type { CustomerLoadable } from "./customerPageShell";
@@ -25,6 +27,14 @@ import {
 } from "../adapters/catalogAdapters";
 import { toCustomerQuoteViewModel } from "../adapters/pricingAdapter";
 import { createCustomerUiBinding } from "../adapters/workflowAdapter";
+import {
+  buildScheduledAt,
+  formatScheduledLabel,
+  getOrderAddressOption,
+  getServiceTimeSlot,
+  scheduleDayOptions,
+  serviceTimeSlots,
+} from "../adapters/orderAddressOptions";
 import { UatDebugPanel, useSearchParamSku } from "./customerPageShell";
 
 type QuoteState =
@@ -38,6 +48,17 @@ type SubmitState =
   | { status: "success"; order: Order; paymentOrder: PaymentOrder; orderDetail: Order }
   | { status: "error"; error: string };
 
+interface CreateOrderFormDetails {
+  addressProvince: string;
+  addressCity: string;
+  addressDistrict: string;
+  detailAddress: string;
+  contactName: string;
+  contactPhone: string;
+  scheduledAt: string;
+  scheduledTimeSlot: ScheduledTimeSlot;
+}
+
 export interface CustomerOrderCreatePageProps {
   api: {
     getPriceQuote(skuId: string): Promise<{ quote: PriceQuote }>;
@@ -45,6 +66,14 @@ export interface CustomerOrderCreatePageProps {
       customerId?: string; // Phase 14: optional — backend derives from auth context
       skuId: string;
       quantity: number;
+      addressProvince: string;
+      addressCity: string;
+      addressDistrict: string;
+      detailAddress: string;
+      contactName: string;
+      contactPhone: string;
+      scheduledAt: string;
+      scheduledTimeSlot: ScheduledTimeSlot;
     }): Promise<{ order: Order }>;
     createPaymentOrder(request: { orderId: string }): Promise<{ paymentOrder: PaymentOrder }>;
     getOrder(orderId: string): Promise<{ order: Order }>;
@@ -64,12 +93,13 @@ function statusTone(status: string): "success" | "warning" | "danger" | "muted" 
   return "muted";
 }
 
-function createOrderRequestPayload(skuId: string, quantity: number) {
+function createOrderRequestPayload(skuId: string, quantity: number, details: CreateOrderFormDetails) {
   return {
     // Phase 14: customerId no longer sent from client;
     // backend derives it from auth token/context.
     skuId,
     quantity,
+    ...details,
   };
 }
 
@@ -82,8 +112,31 @@ export function CustomerOrderCreatePage({
   const initialSkuId = useSearchParamSku();
   const [selectedSkuId, setSelectedSkuId] = useState(initialSkuId ?? "");
   const [quantity, setQuantity] = useState(1);
+  const [selectedDistrict, setSelectedDistrict] = useState(() => getOrderAddressOption(cityCode).districts[0]);
+  const [detailAddress, setDetailAddress] = useState("喜乐帮演示小区 3 栋 502");
+  const [contactName, setContactName] = useState("演示用户");
+  const [contactPhone, setContactPhone] = useState("13800000001");
+  const [scheduleDayOffset, setScheduleDayOffset] = useState(1);
+  const [scheduledTimeSlot, setScheduledTimeSlot] = useState<ScheduledTimeSlot>("morning");
   const [quoteState, setQuoteState] = useState<QuoteState>({ status: "pending" });
   const [submitState, setSubmitState] = useState<SubmitState>({ status: "pending" });
+
+  const addressOption = useMemo(() => getOrderAddressOption(cityCode), [cityCode]);
+  const scheduledAt = useMemo(
+    () => buildScheduledAt(scheduleDayOffset, scheduledTimeSlot),
+    [scheduleDayOffset, scheduledTimeSlot],
+  );
+  const selectedTimeSlot = getServiceTimeSlot(scheduledTimeSlot);
+  const orderFormDetails: CreateOrderFormDetails = {
+    addressProvince: addressOption.province,
+    addressCity: addressOption.city,
+    addressDistrict: selectedDistrict,
+    detailAddress: detailAddress.trim(),
+    contactName: contactName.trim(),
+    contactPhone: contactPhone.trim(),
+    scheduledAt,
+    scheduledTimeSlot,
+  };
 
   const allSkus = useMemo(() => {
     if (catalogState.status !== "success") return [];
@@ -120,7 +173,25 @@ export function CustomerOrderCreatePage({
     );
   }, [binding]);
 
-  const canSubmit = Boolean(selectedSkuId) && quoteState.status === "success" && submitState.status !== "submitting";
+  const isContactPhoneValid = /^1[3-9]\d{9}$/.test(orderFormDetails.contactPhone);
+  const isAddressReady =
+    Boolean(orderFormDetails.addressDistrict) &&
+    orderFormDetails.detailAddress.length >= 2 &&
+    Boolean(orderFormDetails.contactName) &&
+    isContactPhoneValid;
+  const isScheduleReady = Boolean(orderFormDetails.scheduledAt) && Boolean(orderFormDetails.scheduledTimeSlot);
+  const canSubmit =
+    Boolean(selectedSkuId) &&
+    quoteState.status === "success" &&
+    isAddressReady &&
+    isScheduleReady &&
+    submitState.status !== "submitting";
+
+  useEffect(() => {
+    if (!addressOption.districts.includes(selectedDistrict)) {
+      setSelectedDistrict(addressOption.districts[0]);
+    }
+  }, [addressOption, selectedDistrict]);
 
   useEffect(() => {
     if (catalogState.status !== "success" || !allSkus.length) return;
@@ -168,11 +239,11 @@ export function CustomerOrderCreatePage({
   async function submitOrder() {
     clearSubmitError();
     if (!canSubmit || !selectedSkuId) {
-      setSubmitState({ status: "error", error: "Please pick a service and keep a valid quote before submit." });
+      setSubmitState({ status: "error", error: "Please complete service, address, contact and schedule before submit." });
       return;
     }
 
-    const requestPayload = createOrderRequestPayload(selectedSkuId, quantity);
+    const requestPayload = createOrderRequestPayload(selectedSkuId, quantity, orderFormDetails);
     setSubmitState({ status: "submitting" });
     try {
       const orderResponse = await api.createOrder(requestPayload);
@@ -190,7 +261,7 @@ export function CustomerOrderCreatePage({
     }
   }
 
-  const createOrderPayload = selectedSkuId ? createOrderRequestPayload(selectedSkuId, quantity) : null;
+  const createOrderPayload = selectedSkuId ? createOrderRequestPayload(selectedSkuId, quantity, orderFormDetails) : null;
   const uatCreateOrderPayload = selectedSkuId
     ? {
         ...createOrderPayload,
@@ -218,6 +289,58 @@ export function CustomerOrderCreatePage({
           <FormField label="Quantity" description="Minimum is 1. It cannot be reduced to zero.">
             <QuantityStepper min={1} value={quantity} onChange={setQuantity} />
           </FormField>
+          <FormField label="District" description={`${addressOption.province} / ${addressOption.city}`}>
+            <Select value={selectedDistrict} onChange={(event) => setSelectedDistrict(event.target.value)}>
+              {addressOption.districts.map((district) => (
+                <option key={district} value={district}>
+                  {district}
+                </option>
+              ))}
+            </Select>
+          </FormField>
+          <FormField label="Detail address" description="Example: building, unit and room number">
+            <Textarea
+              value={detailAddress}
+              onChange={(event) => setDetailAddress(event.target.value)}
+              placeholder="XX小区3栋502"
+            />
+          </FormField>
+          <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
+            <FormField label="Contact name">
+              <Input value={contactName} onChange={(event) => setContactName(event.target.value)} placeholder="联系人" />
+            </FormField>
+            <FormField label="Contact phone" error={contactPhone && !isContactPhoneValid ? "请输入 11 位手机号" : undefined}>
+              <Input
+                value={contactPhone}
+                onChange={(event) => setContactPhone(event.target.value)}
+                inputMode="tel"
+                placeholder="13800000001"
+              />
+            </FormField>
+          </div>
+          <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
+            <FormField label="Service date">
+              <Select value={String(scheduleDayOffset)} onChange={(event) => setScheduleDayOffset(Number(event.target.value))}>
+                {scheduleDayOptions.map((option) => (
+                  <option key={option.offsetDays} value={option.offsetDays}>
+                    {option.label}
+                  </option>
+                ))}
+              </Select>
+            </FormField>
+            <FormField label="Time slot" description={selectedTimeSlot.timeRange}>
+              <Select
+                value={scheduledTimeSlot}
+                onChange={(event) => setScheduledTimeSlot(event.target.value as ScheduledTimeSlot)}
+              >
+                {serviceTimeSlots.map((slot) => (
+                  <option key={slot.slot} value={slot.slot}>
+                    {slot.label} {slot.timeRange}
+                  </option>
+                ))}
+              </Select>
+            </FormField>
+          </div>
         </div>
 
         {selectedSku && (
@@ -263,6 +386,18 @@ export function CustomerOrderCreatePage({
               state: quoteState.status === "success" ? "complete" : "current",
             },
             {
+              key: "address",
+              title: "Fill address",
+              description: isAddressReady ? `${selectedDistrict} ${orderFormDetails.detailAddress}` : "waiting address",
+              state: isAddressReady ? "complete" : quoteState.status === "success" ? "current" : "pending",
+            },
+            {
+              key: "schedule",
+              title: "Pick schedule",
+              description: isScheduleReady ? formatScheduledLabel(orderFormDetails.scheduledAt, orderFormDetails.scheduledTimeSlot) : "waiting schedule",
+              state: isScheduleReady ? "complete" : isAddressReady ? "current" : "pending",
+            },
+            {
               key: "order",
               title: "Create order",
               description:
@@ -306,7 +441,7 @@ export function CustomerOrderCreatePage({
             <StatusTag tone="success">Order ID: {submitState.order.orderId}</StatusTag>
             <ServiceCard
               title={submitState.order.skuName}
-              subtitle={`${submitState.orderDetail.quantity} ${submitState.orderDetail.unit} / ${submitState.orderDetail.status}`}
+              subtitle={`${submitState.orderDetail.quantity} ${submitState.orderDetail.unit} / ${submitState.orderDetail.addressDistrict} ${submitState.orderDetail.detailAddress} / ${formatScheduledLabel(submitState.orderDetail.scheduledAt, submitState.orderDetail.scheduledTimeSlot)}`}
               status={<StatusTag tone={statusTone(submitState.orderDetail.status)}>{submitState.orderDetail.status}</StatusTag>}
               priceText={<PriceText amount={submitState.orderDetail.totalAmount} currency={submitState.orderDetail.currency} />}
               actionLabel="View order detail"
@@ -332,6 +467,8 @@ export function CustomerOrderCreatePage({
           { label: "catalog source endpoint", value: catalogSourceEndpoint },
           { label: "pricing endpoint", value: pricingEndpoint },
           { label: "createOrderPayload", value: uatCreateOrderPayload },
+          { label: "service address", value: orderFormDetails },
+          { label: "schedule label", value: formatScheduledLabel(orderFormDetails.scheduledAt, orderFormDetails.scheduledTimeSlot) },
           { label: "orderId", value: submitState.status === "success" ? submitState.order.orderId : null },
           { label: "paymentOrderId", value: submitState.status === "success" ? submitState.paymentOrder.paymentOrderId : null },
           { label: "orderDetail", value: submitState.status === "success" ? submitState.orderDetail : null },

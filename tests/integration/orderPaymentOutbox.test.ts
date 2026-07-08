@@ -3,6 +3,7 @@ import { buildApp } from "../../backend/src/app.js";
 import { XLB_HEADERS } from "@xlb/types";
 import { getMysqlPool } from "../../backend/src/dal/mysqlPool.js";
 import type { RowDataPacket } from "mysql2/promise";
+import { serviceAddressSchedulePayload } from "./helpers/orderTestPayload";
 
 const runDb = process.env.XLB_SKIP_DB_TESTS !== "1";
 
@@ -25,6 +26,7 @@ describe.skipIf(!runDb)("orderPaymentOutbox integration", { timeout: 15000 }, ()
         customerId: "customer-demo-001",
         skuId: "sku_home_daily_2h",
         quantity: 1,
+        ...serviceAddressSchedulePayload,
       },
     });
     const order = orderRes.json().order as { orderId: string };

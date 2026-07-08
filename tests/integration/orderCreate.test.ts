@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { buildApp } from "../../backend/src/app.js";
 import { XLB_HEADERS } from "@xlb/types";
+import { serviceAddressSchedulePayload } from "./helpers/orderTestPayload";
 
 const runDb = process.env.XLB_SKIP_DB_TESTS !== "1";
 
@@ -22,6 +23,7 @@ describe.skipIf(!runDb)("orderCreate integration", { timeout: 15000 }, () => {
         customerId: "customer-demo-001",
         skuId: "sku_home_daily_2h",
         quantity: 1,
+        ...serviceAddressSchedulePayload,
       },
     });
     expect(response.statusCode).toBe(200);
@@ -33,6 +35,9 @@ describe.skipIf(!runDb)("orderCreate integration", { timeout: 15000 }, () => {
     expect(body.order.priceText).toBe("¥89/2小时");
     expect(body.order.priceRuleId).toBe("price_hangzhou_sku_home_daily_2h");
     expect(body.order.totalAmount).toBe(89);
+    expect(body.order.addressDistrict).toBe("西湖区");
+    expect(body.order.detailAddress).toBe("喜乐帮演示小区 3 栋 502");
+    expect(body.order.scheduledTimeSlot).toBe("morning");
     await app.close();
   });
 
@@ -46,6 +51,7 @@ describe.skipIf(!runDb)("orderCreate integration", { timeout: 15000 }, () => {
         customerId: "customer-demo-001",
         skuId: "demo_cleaning_sku",
         quantity: 1,
+        ...serviceAddressSchedulePayload,
       },
     });
     expect(response.statusCode).toBe(400);
@@ -65,6 +71,7 @@ describe.skipIf(!runDb)("orderCreate integration", { timeout: 15000 }, () => {
         customerId: "customer-demo-001",
         skuId: "sku_home_daily_2h",
         quantity: 1,
+        ...serviceAddressSchedulePayload,
       },
     });
     expect(response.statusCode).toBe(400);
