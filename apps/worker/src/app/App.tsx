@@ -50,14 +50,14 @@ const routeConfig: Record<
     label: "Tasks",
     href: "/worker/tasks",
     title: "My Tasks",
-    subtitle: "Read-only fulfillment list",
+    subtitle: "Fulfillment lifecycle",
     icon: "T",
   },
   taskDetail: {
     label: "Detail",
     href: "/worker/tasks",
     title: "Task Detail",
-    subtitle: "Read-only fulfillment detail",
+    subtitle: "Start and complete service",
     icon: "D",
   },
   wallet: {
@@ -199,7 +199,7 @@ function PhoneStatusBar() {
 
 function WorkerPageHeader({ route }: { route: WorkerRoute }) {
   const config = routeConfig[route];
-  const isReadonlyRoute = route === "hall" || route === "tasks" || route === "taskDetail";
+  const isWorkerApiRoute = route === "hall" || route === "tasks" || route === "taskDetail";
 
   return (
     <header style={{ display: "grid", gap: 10, padding: "20px 20px 8px" }}>
@@ -222,8 +222,8 @@ function WorkerPageHeader({ route }: { route: WorkerRoute }) {
             {config.title}
           </h1>
         </div>
-        <StatusTag tone={isReadonlyRoute ? "success" : "warning"}>
-          {isReadonlyRoute ? "Real API" : "Not wired"}
+        <StatusTag tone={isWorkerApiRoute ? "success" : "warning"}>
+          {isWorkerApiRoute ? "Real API" : "Not wired"}
         </StatusTag>
       </div>
     </header>
@@ -300,7 +300,7 @@ function ContextCard({
     <Card title="Demo Identity" actions={<StatusTag tone="muted">Header identity</StatusTag>} style={workerPanelStyle}>
       <div style={{ display: "grid", gap: 10 }}>
         <p style={helperText}>
-          P1 stage 2 uses worker headers only. Worker login/token remains a known later security task.
+          P1 stage 3 uses worker headers only. Worker login/token remains a known later security task.
         </p>
         <FormField label="cityCode">
           <Input value={cityCode} onChange={(event) => onCityChange(event.target.value || DEFAULT_CITY_CODE)} />
@@ -419,7 +419,7 @@ function TasksPage({
   return (
     <>
       <Card title="Fulfillment Status" actions={<StatusTag tone="success">{fulfillments.length} total</StatusTag>} style={workerPanelStyle}>
-        <p style={helperText}>Source: GET /api/worker/fulfillments. Start and complete stay disabled in this stage.</p>
+        <p style={helperText}>Source: GET /api/worker/fulfillments. Open a task to start or complete service.</p>
       </Card>
 
       {loading && <LoadingState title="Loading fulfillments" description="Requesting real fulfillment list data." />}
@@ -457,14 +457,27 @@ function TaskDetailPage({
   loading,
   error,
   fulfillmentId,
+  lifecycleError,
+  lifecycleNotice,
+  lifecycleAction,
   onBack,
+  onStart,
+  onComplete,
 }: {
   fulfillment: Fulfillment | null;
   loading: boolean;
   error: string | null;
   fulfillmentId: string;
+  lifecycleError: string | null;
+  lifecycleNotice: string | null;
+  lifecycleAction: "start" | "complete" | null;
   onBack: () => void;
+  onStart: (fulfillmentId: string) => void;
+  onComplete: (fulfillmentId: string) => void;
 }) {
+  const canStart = fulfillment?.status === "accepted";
+  const canComplete = fulfillment?.status === "in_progress";
+
   const rows = fulfillment
     ? [
         ["fulfillmentId", fulfillment.fulfillmentId],
@@ -495,6 +508,16 @@ function TaskDetailPage({
           <p style={{ ...helperText, color: "#fda29b" }}>{error}</p>
         </Card>
       )}
+      {lifecycleError && (
+        <Card title="Action failed" actions={<StatusTag tone="danger">Error</StatusTag>} style={workerPanelStyle}>
+          <p style={{ ...helperText, color: "#fda29b" }}>{lifecycleError}</p>
+        </Card>
+      )}
+      {lifecycleNotice && (
+        <Card title="Action completed" actions={<StatusTag tone="success">Updated</StatusTag>} style={workerPanelStyle}>
+          <p style={helperText}>{lifecycleNotice}</p>
+        </Card>
+      )}
 
       {!loading && !error && fulfillment && (
         <Card title="Field Snapshot" style={workerPanelStyle}>
@@ -509,14 +532,26 @@ function TaskDetailPage({
         </Card>
       )}
 
-      <Card title="Actions" actions={<StatusTag tone="muted">Disabled</StatusTag>} style={workerPanelStyle}>
+      <Card title="Actions" actions={<StatusTag tone="success">Lifecycle</StatusTag>} style={workerPanelStyle}>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-          <Button disabled>Start service</Button>
-          <Button disabled>Complete service</Button>
+          <Button
+            disabled={!canStart || lifecycleAction !== null}
+            onClick={() => onStart(fulfillmentId)}
+            variant="primary"
+          >
+            {lifecycleAction === "start" ? "Starting" : "Start service"}
+          </Button>
+          <Button
+            disabled={!canComplete || lifecycleAction !== null}
+            onClick={() => onComplete(fulfillmentId)}
+            variant="primary"
+          >
+            {lifecycleAction === "complete" ? "Completing" : "Complete service"}
+          </Button>
           <Button onClick={onBack}>Back to list</Button>
         </div>
         <p style={{ ...helperText, color: "#ffd37d", marginTop: 10 }}>
-          Boundary: start and complete write actions stay disabled in P1 stage 2.
+          Boundary: only start and complete fulfillment actions are enabled in P1 stage 3.
         </p>
       </Card>
     </>
@@ -558,11 +593,14 @@ export function App() {
   const [loadingTasks, setLoadingTasks] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [acceptingDispatchTaskId, setAcceptingDispatchTaskId] = useState<string | null>(null);
+  const [lifecycleAction, setLifecycleAction] = useState<"start" | "complete" | null>(null);
   const [hallError, setHallError] = useState<string | null>(null);
   const [tasksError, setTasksError] = useState<string | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [acceptError, setAcceptError] = useState<string | null>(null);
   const [acceptNotice, setAcceptNotice] = useState<string | null>(null);
+  const [lifecycleError, setLifecycleError] = useState<string | null>(null);
+  const [lifecycleNotice, setLifecycleNotice] = useState<string | null>(null);
 
   const api = useMemo(
     () => createWorkerClient({ cityCode: workerCityCode, workerId }),
@@ -640,6 +678,49 @@ export function App() {
     [api, loadFulfillments, loadTaskPool],
   );
 
+  const refreshFulfillmentState = useCallback(
+    async (fulfillmentId: string) => {
+      await Promise.all([loadTaskPool(), loadFulfillments(), loadTaskDetail(fulfillmentId)]);
+    },
+    [loadFulfillments, loadTaskDetail, loadTaskPool],
+  );
+
+  const startFulfillment = useCallback(
+    async (fulfillmentId: string) => {
+      setLifecycleAction("start");
+      setLifecycleError(null);
+      setLifecycleNotice(null);
+      try {
+        const response = await api.startFulfillment(fulfillmentId);
+        setLifecycleNotice(`Fulfillment ${response.fulfillment.fulfillmentId} is now ${response.fulfillment.status}.`);
+        await refreshFulfillmentState(fulfillmentId);
+      } catch (error) {
+        setLifecycleError(error instanceof Error ? error.message : "Failed to start service");
+      } finally {
+        setLifecycleAction(null);
+      }
+    },
+    [api, refreshFulfillmentState],
+  );
+
+  const completeFulfillment = useCallback(
+    async (fulfillmentId: string) => {
+      setLifecycleAction("complete");
+      setLifecycleError(null);
+      setLifecycleNotice(null);
+      try {
+        const response = await api.completeFulfillment(fulfillmentId);
+        setLifecycleNotice(`Fulfillment ${response.fulfillment.fulfillmentId} is now ${response.fulfillment.status}.`);
+        await refreshFulfillmentState(fulfillmentId);
+      } catch (error) {
+        setLifecycleError(error instanceof Error ? error.message : "Failed to complete service");
+      } finally {
+        setLifecycleAction(null);
+      }
+    },
+    [api, refreshFulfillmentState],
+  );
+
   useEffect(() => {
     const onRouteChange = () => setRoute(resolveRoute());
     window.addEventListener("popstate", onRouteChange);
@@ -683,7 +764,12 @@ export function App() {
         loading={loadingDetail}
         error={detailError}
         fulfillmentId={route.fulfillmentId}
+        lifecycleError={lifecycleError}
+        lifecycleNotice={lifecycleNotice}
+        lifecycleAction={lifecycleAction}
         onBack={() => navigate("/worker/tasks")}
+        onStart={(fulfillmentId) => void startFulfillment(fulfillmentId)}
+        onComplete={(fulfillmentId) => void completeFulfillment(fulfillmentId)}
       />
     ) : route.route === "wallet" ? (
       <PlaceholderPage title="Wallet">
