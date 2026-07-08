@@ -2,11 +2,24 @@
 
 ## Current Status
 
-- Current subdivision: Phase 15.1 packages/ui minimum Design System.
+- Current status target: `THREE_APP_REAL_BUSINESS_UAT_DESIGN_READY`.
+- Current subdivision: Phase 15.3V 三端真实业务 UAT 设计交付（Customer/Woker/Admin）。
 - Strategy: Local-first only.
 - Production: NO-GO.
 - Cloud-staging deploy: not performed.
 - Tags: not created.
+
+## Phase 15.3V-1 Three-App Real Business UAT Design Handoff
+
+- Status: completed locally, pending commit.
+- Artifact:
+  - `docs/reports/PHASE15_3V1_THREE_APP_REAL_BUSINESS_UAT_DESIGN_HANDOFF.md`
+- Scope:
+  - Product-design handoff only (customer / worker / admin real-business UAT readiness).
+- Scope rules kept:
+  - No backend/db/deploy/infra changes.
+  - No production rollout.
+  - No fake/mock/dummy business data.
 
 ## Phase 15.1 Scope
 
@@ -949,3 +962,61 @@ Manual confirmation points:
   - No worker/admin/backend/db/deploy/infra changes.
   - No production deployment.
   - No new dependencies.
+
+## Phase 15.3V-1 Customer Backend Contract Traceability & UAT Field Mapping (Docs Only)
+
+- Status: completed locally, docs-only, no code changes.
+- Scope:
+  - `docs/reports/PHASE15_3V1_CUSTOMER_BACKEND_UI_CONTRACT_MAP.md`
+  - `docs/reports/PHASE15_3V1_CUSTOMER_UAT_FIELD_TRACEABILITY.md`
+- Deliverable:
+  - Added UAT field traceability mapping for required inspection fields.
+  - Added `CONTRACT_MISSING` gap list (catalog search, pricing split fields, workflow state/action provenance, payment status stream, order list scope).
+  - Documented UAT可见与用户面默认隐藏字段边界。
+- Safety:
+  - No backend/db/deploy/infra/app code changes.
+  - No tags, no deployment, production NO-GO.
+- Verification:
+  - 文档更新完成，仅为只读扫描与映射补齐。
+
+## Phase 15.3V-1 Customer UAT Review Checklist (Docs Only)
+
+- Status: completed locally, docs-only, no code changes.
+- Scope:
+  - `docs/reports/PHASE15_3V1_CUSTOMER_UAT_REVIEW_CHECKLIST.md`
+  - `docs/execution/PHASE15_PROGRESS.md`
+- Deliverable:
+  - Translated contract map + field traceability into executable field-level UAT checklist.
+  - Added route-level acceptance steps for `/customer/`, `/customer/services`, `/customer/order/create`.
+  - Added explicit CONTRACT_MISSING enforcement checks (search, pricing split fields, workflow provenance, payment status completeness, order list scope).
+  - Added staging UAT runbook order and PASS criteria.
+- Safety:
+  - No backend/db/deploy/infra/app code changes.
+  - No deployment, no tags, production NO-GO.
+
+## Phase 15.3V-1 Customer Service Discovery & Order Entry UI Slice (Route Implementation)
+
+- Status: completed locally, pending this commit.
+- Goal:
+  - Implement `/customer/` -> `/customer/services` -> `/customer/order/create` with real catalog/pricing/order/payment order-detail flow.
+  - Remove home double city card and keep one integrated city-search bar.
+  - Keep all behavior contract-driven and contract-gap explicit in UAT.
+- Scope:
+  - `apps/customer/src/pages/CustomerHomePage.tsx`
+  - `apps/customer/src/pages/CustomerServicesPage.tsx`
+  - `apps/customer/src/pages/CustomerOrderCreatePage.tsx`
+  - `apps/customer/src/app/App.tsx`
+  - `apps/customer/src/pages/customerPageShell.tsx`
+  - `apps/customer/src/adapters/catalogAdapters.ts`
+  - `packages/ui/src/components/index.tsx`
+  - `docs/execution/PHASE15_PROGRESS.md`
+- Constraint mode:
+  - Backend: read-only contract usage only.
+  - No fake services/orders/payment/dispatch.
+  - No worker/admin/backend/db/deploy/infra modifications.
+  - No production deployment.
+- Notes:
+  - `/customer/services` now reads and updates `q` query and applies local filtering when `/api/catalog/search` is unavailable.
+  - `/customer/order/create` now defaults to selected catalog SKU and blocks quantity below 1.
+  - UAT panels now include trace fields for `searchMode`, `matchedSkuCount`, `selectedSkuId`, `selectedSkuName`, `createOrderPayload`, and route state/action metadata.
+  - `/customer/order/create` now de-duplicates option list by service name for stable service selection and uses deduplicated catalog display labels (title/subtitle) to avoid repeated text.
