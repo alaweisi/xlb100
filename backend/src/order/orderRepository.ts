@@ -11,6 +11,14 @@ import {
 type OrderRow = RowDataPacket & {
   order_id: string;
   city_code: string;
+  address_province: string | null;
+  address_city: string | null;
+  address_district: string | null;
+  detail_address: string | null;
+  contact_name: string | null;
+  contact_phone: string | null;
+  scheduled_at: Date | null;
+  scheduled_time_slot: string | null;
   customer_id: string;
   sku_id: string;
   sku_name: string;
@@ -38,6 +46,14 @@ function mapOrder(row: OrderRow): Order {
   return {
     orderId: row.order_id,
     cityCode: row.city_code as CityCode,
+    addressProvince: row.address_province ?? "",
+    addressCity: row.address_city ?? "",
+    addressDistrict: row.address_district ?? "",
+    detailAddress: row.detail_address ?? "",
+    contactName: row.contact_name ?? "",
+    contactPhone: row.contact_phone ?? "",
+    scheduledAt: row.scheduled_at?.toISOString() ?? "",
+    scheduledTimeSlot: (row.scheduled_time_slot ?? "morning") as Order["scheduledTimeSlot"],
     customerId: row.customer_id,
     skuId: row.sku_id,
     skuName: row.sku_name,
@@ -58,6 +74,14 @@ function mapOrder(row: OrderRow): Order {
 export type InsertOrderInput = {
   orderId: string;
   cityCode: CityCode;
+  addressProvince: string;
+  addressCity: string;
+  addressDistrict: string;
+  detailAddress: string;
+  contactName: string;
+  contactPhone: string;
+  scheduledAt: string;
+  scheduledTimeSlot: Order["scheduledTimeSlot"];
   customerId: string;
   skuId: string;
   skuName: string;
@@ -101,12 +125,22 @@ export class OrderRepository extends RepositoryBase {
   async insertOrder(connection: PoolConnection, input: InsertOrderInput): Promise<void> {
     await connection.query(
       `INSERT INTO orders
-        (order_id, city_code, customer_id, sku_id, sku_name, quantity, unit,
+        (order_id, city_code, address_province, address_city, address_district,
+         detail_address, contact_name, contact_phone, scheduled_at, scheduled_time_slot,
+         customer_id, sku_id, sku_name, quantity, unit,
          price_rule_id, price_text, price_type, base_price, currency, total_amount, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         input.orderId,
         input.cityCode,
+        input.addressProvince,
+        input.addressCity,
+        input.addressDistrict,
+        input.detailAddress,
+        input.contactName,
+        input.contactPhone,
+        new Date(input.scheduledAt),
+        input.scheduledTimeSlot,
         input.customerId,
         input.skuId,
         input.skuName,
@@ -137,6 +171,8 @@ export class OrderRepository extends RepositoryBase {
     const where = buildCityScopedWhere(cityCode);
     const [rows] = await this.pool.query<OrderRow[]>(
       `SELECT order_id, city_code, customer_id, sku_id, sku_name, quantity, unit,
+              address_province, address_city, address_district, detail_address,
+              contact_name, contact_phone, scheduled_at, scheduled_time_slot,
               price_rule_id, price_text, price_type, base_price, currency, total_amount,
               status, created_at, updated_at
        FROM orders

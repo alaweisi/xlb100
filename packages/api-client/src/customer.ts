@@ -3,6 +3,7 @@ import type { ApiClient } from "./createApiClient.js";
 type CityCode = string;
 type PriceType = "fixed" | "range" | "from" | "estimate_from" | "onsite_quote";
 type OrderStatus = "draft" | "pending_payment" | "paid" | "cancelled";
+type ScheduledTimeSlot = "morning" | "afternoon" | "evening";
 type PaymentStatus = "pending" | "paid" | "failed" | "closed";
 type PaymentProvider = "mock";
 
@@ -52,6 +53,14 @@ export interface CreateOrderBody {
   customerId?: string; // Phase 14: optional — backend derives from auth token/context
   skuId: string;
   quantity: number;
+  addressProvince: string;
+  addressCity: string;
+  addressDistrict: string;
+  detailAddress: string;
+  contactName: string;
+  contactPhone: string;
+  scheduledAt: string;
+  scheduledTimeSlot: ScheduledTimeSlot;
 }
 
 export interface CreatePaymentOrderBody {
@@ -67,6 +76,14 @@ export interface MockPaySuccessBody {
 export interface OrderResponse {
   orderId: string;
   cityCode: CityCode;
+  addressProvince: string;
+  addressCity: string;
+  addressDistrict: string;
+  detailAddress: string;
+  contactName: string;
+  contactPhone: string;
+  scheduledAt: string;
+  scheduledTimeSlot: ScheduledTimeSlot;
   customerId: string;
   skuId: string;
   skuName: string;
