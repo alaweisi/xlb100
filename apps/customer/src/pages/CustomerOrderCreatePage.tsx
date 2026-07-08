@@ -18,7 +18,6 @@ import {
 } from "@xlb/ui";
 import type { CustomerLoadable } from "./customerPageShell";
 import {
-  CUSTOMER_ID,
   cityAreaByCode,
   dedupeCatalogSkusByName,
   getCatalogSkuDisplayLabel,
@@ -26,10 +25,12 @@ import {
 } from "../adapters/catalogAdapters";
 import { toCustomerQuoteViewModel } from "../adapters/pricingAdapter";
 import { createCustomerUiBinding } from "../adapters/workflowAdapter";
-import { UatDebugPanel, useSearchParamSku } from "./customerPageShell";
+import { CUSTOMER_ID, UatDebugPanel, useSearchParamSku } from "./customerPageShell";
 
 type QuoteState =
-  | { status: "pending" | "loading" }
+  | { status: "pending" }
+  | { status: "loading" }
+  | { status: "error"; error: string }
   | { status: "success"; quote: PriceQuote; quoteViewModel: ReturnType<typeof toCustomerQuoteViewModel> };
 
 type SubmitState =
