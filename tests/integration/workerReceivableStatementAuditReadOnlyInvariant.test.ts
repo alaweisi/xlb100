@@ -7,6 +7,7 @@ import {
   createQueuedSettlement,
   exportWorkerReceivableStatementOnce,
   generateWorkerReceivableStatements,
+  settlementHeaders,
   withSettlementTestLock,
 } from "./helpers/settlementTestHelper.js";
 
@@ -65,12 +66,7 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
           await app.inject({
             method: "GET",
             url: "/api/internal/settlement/worker-statement-audit",
-            headers: {
-              "x-xlb-app-type": "admin",
-              "x-xlb-role": "operator",
-              "x-xlb-city-code": "hangzhou",
-              "x-xlb-user-id": "operator-hangzhou",
-            },
+            headers: settlementHeaders("hangzhou"),
           });
 
           const [after] = await pool.query<RowDataPacket[]>(
@@ -99,12 +95,7 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
           await app.inject({
             method: "GET",
             url: "/api/internal/settlement/worker-statement-audit",
-            headers: {
-              "x-xlb-app-type": "admin",
-              "x-xlb-role": "operator",
-              "x-xlb-city-code": "hangzhou",
-              "x-xlb-user-id": "operator-hangzhou",
-            },
+            headers: settlementHeaders("hangzhou"),
           });
 
           const [after] = await pool.query<RowDataPacket[]>(
@@ -133,12 +124,7 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
           await app.inject({
             method: "GET",
             url: "/api/internal/settlement/worker-statement-audit",
-            headers: {
-              "x-xlb-app-type": "admin",
-              "x-xlb-role": "operator",
-              "x-xlb-city-code": "hangzhou",
-              "x-xlb-user-id": "operator-hangzhou",
-            },
+            headers: settlementHeaders("hangzhou"),
           });
 
           const [after] = await pool.query<RowDataPacket[]>(
@@ -165,12 +151,7 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
           await app.inject({
             method: "GET",
             url: "/api/internal/settlement/worker-statement-audit",
-            headers: {
-              "x-xlb-app-type": "admin",
-              "x-xlb-role": "operator",
-              "x-xlb-city-code": "hangzhou",
-              "x-xlb-user-id": "operator-hangzhou",
-            },
+            headers: settlementHeaders("hangzhou"),
           });
 
           const afterCount = await countOutboxForAggregates(aggregateIds);
@@ -196,12 +177,7 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
           await app.inject({
             method: "GET",
             url: "/api/internal/settlement/worker-statement-audit",
-            headers: {
-              "x-xlb-app-type": "admin",
-              "x-xlb-role": "operator",
-              "x-xlb-city-code": "hangzhou",
-              "x-xlb-user-id": "operator-hangzhou",
-            },
+            headers: settlementHeaders("hangzhou"),
           });
 
           const [after] = await pool.query<RowDataPacket[]>(
@@ -237,12 +213,7 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
           await app.inject({
             method: "GET",
             url: `/api/internal/settlement/worker-statement-audit/${statementId}`,
-            headers: {
-              "x-xlb-app-type": "admin",
-              "x-xlb-role": "operator",
-              "x-xlb-city-code": "hangzhou",
-              "x-xlb-user-id": "operator-hangzhou",
-            },
+            headers: settlementHeaders("hangzhou"),
           });
 
           const [afterStmt] = await pool.query<RowDataPacket[]>(
@@ -288,12 +259,7 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
           await app.inject({
             method: "GET",
             url: "/api/internal/settlement/worker-statement-export-audit",
-            headers: {
-              "x-xlb-app-type": "admin",
-              "x-xlb-role": "operator",
-              "x-xlb-city-code": "hangzhou",
-              "x-xlb-user-id": "operator-hangzhou",
-            },
+            headers: settlementHeaders("hangzhou"),
           });
 
           const [afterStmt] = await pool.query<RowDataPacket[]>(

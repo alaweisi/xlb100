@@ -1,14 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { buildRequestContext } from "../../backend/src/context/requestContext.js";
 import { cityRouter } from "../../backend/src/city/cityRouter.js";
-import { XLB_HEADERS } from "@xlb/types";
+import { createToken } from "../../backend/src/auth/tokenAuth.js";
 
 describe("noMissingCityCode", () => {
   it("rejects city-scoped route without city_code header", () => {
     const result = buildRequestContext({
       headers: {
-        [XLB_HEADERS.appType]: "customer",
-        [XLB_HEADERS.role]: "customer",
+        Authorization: `Bearer ${createToken("customer-demo-001", "customer", "customer")}`,
       },
       requireCityCode: true,
     });

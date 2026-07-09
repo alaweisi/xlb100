@@ -17,10 +17,10 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")("worker receivable statem
       const missingIdentity = await app.inject({
         method: "POST",
         url: `/api/internal/settlement/worker-statements/${statementId}/export-once`,
-        headers: { "x-xlb-app-type": "admin", "x-xlb-role": "operator", "x-xlb-city-code": "hangzhou" },
+        headers: { "x-xlb-city-code": "hangzhou" },
         payload: {},
       });
-      expect(missingIdentity.statusCode).toBe(403);
+      expect(missingIdentity.statusCode).toBe(401);
 
       const response = await exportWorkerReceivableStatementOnce(app, statementId);
       expect(response.statusCode).toBe(200);

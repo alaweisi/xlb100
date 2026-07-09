@@ -44,13 +44,13 @@ export const governanceReviewRecordSchema = z.object({
 export const submitReviewRequestSchema = z.object({
   cityCode: cityCodeSchema,
   intentId: idSchema,
-  submittedByAdminId: idSchema,
+  submittedByAdminId: idSchema.optional(),
   reviewNote: z.string().min(1).max(1000).nullable().optional().default(null),
 }).strict();
 
 export const reviewDecisionRequestSchema = z.object({
   reviewDecision: governanceReviewDecisionSchema,
-  reviewedByAdminId: idSchema,
+  reviewedByAdminId: idSchema.optional(),
   reviewNote: z.string().min(1).max(1000).nullable().optional().default(null),
   rejectionReason: z.string().min(1).max(1000).nullable().optional().default(null),
   changesRequestedNote: z.string().min(1).max(1000).nullable().optional().default(null),

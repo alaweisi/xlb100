@@ -30,7 +30,7 @@ import { registerOrderTraceRoutes } from "./order/orderTraceRoutes.js";
 import { registerOrderReviewRoutes } from "./review/orderReviewRoutes.js";
 
 export async function buildApp(): Promise<FastifyInstance> {
-  const app = Fastify({ logger: true });
+  const app = Fastify({ logger: process.env.NODE_ENV === "test" ? false : true });
 
   app.get("/health", async () => ({
     status: "ok",

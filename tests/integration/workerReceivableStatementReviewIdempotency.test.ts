@@ -6,6 +6,7 @@ import {
   createStatementReadySettlement,
   getWorkerReceivableStatementReview,
   reviewWorkerReceivableStatementOnce,
+  settlementHeaders,
   withSettlementTestLock,
 } from "./helpers/settlementTestHelper.js";
 
@@ -81,12 +82,7 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")("worker receivable statem
       const response = await app.inject({
         method: "POST",
         url: `/api/internal/settlement/worker-statements/${statementId}/review-once`,
-        headers: {
-          "x-xlb-app-type": "admin",
-          "x-xlb-role": "operator",
-          "x-xlb-city-code": "hangzhou",
-          "x-xlb-user-id": "operator-hangzhou",
-        },
+        headers: settlementHeaders("hangzhou"),
         payload: { decision: "paid" },
       });
       expect(response.statusCode).toBe(400);

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildApp } from "../../backend/src/app.js";
-import { createQueuedSettlement, withSettlementTestLock } from "./helpers/settlementTestHelper.js";
+import { createQueuedSettlement, settlementHeaders, withSettlementTestLock } from "./helpers/settlementTestHelper.js";
 
 describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
   "reconciliation gap scan city scope",
@@ -16,7 +16,7 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
           const res = await app.inject({
             method: "GET",
             url: "/api/internal/settlement/reconciliation-gap-scan",
-            headers: { "x-xlb-app-type": "admin", "x-xlb-role": "operator", "x-xlb-city-code": "shanghai", "x-xlb-user-id": "op" },
+            headers: settlementHeaders("shanghai"),
           });
           expect(res.statusCode).toBe(200);
           const body = res.json();

@@ -1,22 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { buildApp } from "../../backend/src/app.js";
-import { XLB_HEADERS } from "@xlb/types";
+import { adminAuthHeaders, bearerHeaders, workerAuthHeaders } from "./helpers/authTestHelper.js";
 
 const runDb = process.env.XLB_SKIP_DB_TESTS !== "1";
 
-const workerHangzhouHeaders = {
-  [XLB_HEADERS.appType]: "worker",
-  [XLB_HEADERS.role]: "worker",
-  [XLB_HEADERS.cityCode]: "hangzhou",
-  [XLB_HEADERS.userId]: "worker-demo-hangzhou",
-};
-
-const adminHangzhouHeaders = {
-  [XLB_HEADERS.appType]: "admin",
-  [XLB_HEADERS.role]: "operator",
-  [XLB_HEADERS.cityCode]: "hangzhou",
-  [XLB_HEADERS.userId]: "admin-hangzhou",
-};
+const workerHangzhouHeaders = workerAuthHeaders("worker-demo-hangzhou", "hangzhou");
+const adminHangzhouHeaders = adminAuthHeaders("admin-hangzhou", "hangzhou");
 
 describe.skipIf(!runDb)("workerCertificationApi integration", { timeout: 20000 }, () => {
   it("submits certification successfully", async () => {
@@ -43,11 +32,7 @@ describe.skipIf(!runDb)("workerCertificationApi integration", { timeout: 20000 }
     const res = await app.inject({
       method: "POST",
       url: "/api/worker/certifications",
-      headers: {
-        [XLB_HEADERS.appType]: "worker",
-        [XLB_HEADERS.role]: "worker",
-        [XLB_HEADERS.userId]: "worker-demo-hangzhou",
-      },
+      headers: bearerHeaders({ appType: "worker", role: "worker", userId: "worker-demo-hangzhou" }),
       payload: {
         certType: "home_service_basic",
         certName: "测试",

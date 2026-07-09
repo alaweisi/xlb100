@@ -1,16 +1,15 @@
 import type { RequestContext } from "@xlb/types";
 import { XLB_HEADERS } from "@xlb/types";
-import {
-  requestContextHeadersSchema,
-  requestContextSchema,
-} from "@xlb/validators";
+import { requestContextSchema } from "@xlb/validators";
+import type { TokenPayload } from "../auth/tokenAuth.js";
+import { extractBearerToken, verifyToken } from "../auth/tokenAuth.js";
 import { resolveCityCode } from "../city/cityResolver.js";
 import { resolveTraceId } from "./traceId.js";
-import { verifyToken } from "../auth/authService.js";
 
 export type BuildContextOptions = {
   headers: Record<string, string | string[] | undefined>;
   requireCityCode?: boolean;
+  requireAuth?: boolean;
 };
 
 export type BuildContextResult =
@@ -26,45 +25,45 @@ function readHeader(
   return raw;
 }
 
+function resolveTokenPayload(
+  headers: Record<string, string | string[] | undefined>,
+  requireAuth: boolean,
+): { ok: true; payload: TokenPayload } | { ok: false; statusCode: 401; message: string } {
+  const bearer = extractBearerToken(headers);
+  if (!bearer.ok) {
+    return requireAuth
+      ? { ok: false, statusCode: 401, message: bearer.error }
+      : { ok: false, statusCode: 401, message: "authorization bearer token required" };
+  }
+
+  const verified = verifyToken(bearer.token);
+  if (!verified.ok) {
+    return { ok: false, statusCode: 401, message: verified.error };
+  }
+
+  return { ok: true, payload: verified.payload };
+}
+
 export function buildRequestContext(
   options: BuildContextOptions,
 ): BuildContextResult {
-  const { headers, requireCityCode = false } = options;
+  const { headers, requireCityCode = false, requireAuth = true } = options;
 
-  const appType = readHeader(headers, XLB_HEADERS.appType);
-  const role = readHeader(headers, XLB_HEADERS.role);
-  const cityCodeRaw = readHeader(headers, XLB_HEADERS.cityCode);
-
-  if (!appType || !role) {
+  const token = resolveTokenPayload(headers, requireAuth);
+  if (!token.ok) {
     return {
       ok: false,
-      statusCode: 400,
-      message: "Missing required headers: x-xlb-app-type and x-xlb-role",
+      statusCode: token.statusCode,
+      message: token.message,
     };
   }
 
+  const cityCodeRaw = readHeader(headers, XLB_HEADERS.cityCode);
   if (requireCityCode && !cityCodeRaw) {
     return {
       ok: false,
       statusCode: 400,
       message: "Missing required header: x-xlb-city-code",
-    };
-  }
-
-  const headerParse = requestContextHeadersSchema.safeParse({
-    [XLB_HEADERS.traceId]: readHeader(headers, XLB_HEADERS.traceId),
-    [XLB_HEADERS.appType]: appType,
-    [XLB_HEADERS.role]: role,
-    [XLB_HEADERS.cityCode]: cityCodeRaw,
-    [XLB_HEADERS.userId]: readHeader(headers, XLB_HEADERS.userId),
-  });
-
-  if (!headerParse.success) {
-    return {
-      ok: false,
-      statusCode: 400,
-      message: "Invalid request context headers",
-      details: headerParse.error.flatten(),
     };
   }
 
@@ -82,31 +81,12 @@ export function buildRequestContext(
   }
 
   const traceId = resolveTraceId(headers);
-  const userId = readHeader(headers, XLB_HEADERS.userId);
-
-  // ── Token-first auth: JWT token overrides header identity ──
-  let tokenAppType = appType;
-  let tokenRole = role;
-  let tokenUserId = userId;
-  const authHeader = readHeader(headers, "authorization");
-  if (authHeader) {
-    const match = /^Bearer\s+(.+)$/i.exec(authHeader);
-    if (match) {
-      const tokenResult = verifyToken(match[1]);
-      if (tokenResult.ok) {
-        tokenAppType = tokenResult.payload.appType as typeof appType;
-        tokenRole = tokenResult.payload.role as typeof role;
-        tokenUserId = tokenResult.payload.sub;
-      }
-    }
-  }
-
   const context: RequestContext = {
     traceId,
-    appType: tokenAppType as RequestContext["appType"],
-    role: tokenRole as RequestContext["role"],
+    appType: token.payload.appType as RequestContext["appType"],
+    role: token.payload.role as RequestContext["role"],
     cityCode,
-    userId: tokenUserId,
+    userId: token.payload.sub,
     requestStartedAt: new Date().toISOString(),
     requestId: traceId,
     correlationId: traceId,

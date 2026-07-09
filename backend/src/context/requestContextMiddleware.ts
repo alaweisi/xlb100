@@ -11,12 +11,13 @@ declare module "fastify" {
 
 export type RequestContextMiddlewareOptions = {
   requireCityCode?: boolean;
+  requireAuth?: boolean;
 };
 
 export function createRequestContextMiddleware(
   options: RequestContextMiddlewareOptions = {},
 ) {
-  const { requireCityCode = false } = options;
+  const { requireCityCode = false, requireAuth = true } = options;
 
   return async function requestContextMiddleware(
     request: FastifyRequest,
@@ -25,6 +26,7 @@ export function createRequestContextMiddleware(
     const result = buildRequestContext({
       headers: request.headers,
       requireCityCode,
+      requireAuth,
     });
 
     if (!result.ok) {

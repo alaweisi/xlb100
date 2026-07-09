@@ -5,11 +5,24 @@ import { SettlementExportReviewPage } from "../pages/SettlementExportReviewPage"
 import { SettlementActionGovernancePage } from "../pages/SettlementActionGovernancePage";
 import { OrderTracePage } from "../pages/OrderTracePage";
 import { buildHash, parseHashParams, parseView } from "../hashParams";
-import { AdminShell, GuardrailCard, ScopeBadge, SideNav, StatusTag, TopBar } from "@xlb/ui";
+import {
+  clearAdminSession,
+  loginAdmin,
+  loginAdminWithCode,
+  readStoredAdminSession,
+  requestAdminLoginCode,
+  type AdminSession,
+} from "../adminAuth";
+import { AdminShell, Button, FormField, GuardrailCard, Input, ScopeBadge, SideNav, StatusTag, TopBar } from "@xlb/ui";
 
 export function App() {
   const [view, setView] = useState(parseView);
   const [params, setParams] = useState(parseHashParams);
+  const [session, setSession] = useState<AdminSession | null>(() => readStoredAdminSession());
+  const [authLoading, setAuthLoading] = useState(() => !readStoredAdminSession());
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [loginUsername, setLoginUsername] = useState(() => readStoredAdminSession()?.username ?? "admin_hz");
+  const [loginCode, setLoginCode] = useState("");
 
   const onHashChange = useCallback(() => {
     setView(parseView());
@@ -20,6 +33,59 @@ export function App() {
     window.addEventListener("hashchange", onHashChange);
     return () => window.removeEventListener("hashchange", onHashChange);
   }, [onHashChange]);
+
+  useEffect(() => {
+    if (session) return;
+    let cancelled = false;
+    setAuthLoading(true);
+    void loginAdmin(loginUsername)
+      .then((next) => {
+        if (!cancelled) {
+          setSession(next);
+          setAuthError(null);
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setAuthError(error instanceof Error ? error.message : "Admin login failed");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setAuthLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  const handleRequestCode = useCallback(async () => {
+    setAuthLoading(true);
+    setAuthError(null);
+    try {
+      await requestAdminLoginCode(loginUsername);
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : "Admin code request failed");
+    } finally {
+      setAuthLoading(false);
+    }
+  }, [loginUsername]);
+
+  const handleLogin = useCallback(async () => {
+    setAuthLoading(true);
+    setAuthError(null);
+    try {
+      const next = await loginAdminWithCode(loginUsername, loginCode);
+      setSession(next);
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : "Admin login failed");
+    } finally {
+      setAuthLoading(false);
+    }
+  }, [loginCode, loginUsername]);
+
+  const handleLogout = useCallback(() => {
+    clearAdminSession();
+    setSession(null);
+    setLoginCode("");
+  }, []);
 
   const cityCode = params.get("cityCode") || undefined;
 
@@ -58,6 +124,33 @@ export function App() {
         : view.page === "detail"
           ? "Statement Detail"
           : "Settlement Ops";
+
+  if (!session) {
+    return (
+      <div style={{ alignItems: "center", background: "#f6f3fb", display: "grid", minHeight: "100vh", padding: 24 }}>
+        <div style={{ margin: "0 auto", maxWidth: 440, width: "100%" }}>
+          <GuardrailCard
+            title="XLB Admin Login"
+            actions={<StatusTag tone={authLoading ? "warning" : "primary"}>{authLoading ? "checking" : "token required"}</StatusTag>}
+          >
+            <div style={{ display: "grid", gap: 12 }}>
+              <FormField label="Username">
+                <Input value={loginUsername} onChange={(event) => setLoginUsername(event.target.value)} />
+              </FormField>
+              <FormField label="Verification code">
+                <Input value={loginCode} onChange={(event) => setLoginCode(event.target.value)} />
+              </FormField>
+              <div style={{ display: "flex", gap: 8 }}>
+                <Button onClick={handleRequestCode} disabled={authLoading}>Request code</Button>
+                <Button onClick={handleLogin} disabled={authLoading || !loginCode.trim()} variant="primary">Login</Button>
+              </div>
+              {authError && <p style={{ color: "#b91c1c", fontSize: 13, margin: 0 }}>{authError}</p>}
+            </div>
+          </GuardrailCard>
+        </div>
+      </div>
+    );
+  }
 
   const content = view.page === "orderTrace"
     ? (
@@ -140,7 +233,9 @@ export function App() {
           actions={
             <>
               {cityCode && <ScopeBadge scope={`city: ${cityCode}`} />}
+              <StatusTag tone="primary">{session.userId}</StatusTag>
               <StatusTag tone="success">same-origin API</StatusTag>
+              <Button onClick={handleLogout}>Logout</Button>
             </>
           }
         />

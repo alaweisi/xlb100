@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { buildApp } from "../../backend/src/app.js";
-import { XLB_HEADERS } from "@xlb/types";
+import { bearerHeaders } from "./helpers/authTestHelper.js";
 
 const runDb = process.env.XLB_SKIP_DB_TESTS !== "1";
 
@@ -10,11 +10,7 @@ describe.skipIf(!runDb)("catalogApi integration", () => {
     const response = await app.inject({
       method: "GET",
       url: "/api/catalog",
-      headers: {
-        [XLB_HEADERS.appType]: "customer",
-        [XLB_HEADERS.role]: "customer",
-        [XLB_HEADERS.cityCode]: "hangzhou",
-      },
+      headers: bearerHeaders({ appType: "customer", role: "customer", userId: "customer-demo-001", cityCode: "hangzhou" }),
     });
     expect(response.statusCode).toBe(200);
     const body = response.json();
@@ -29,10 +25,7 @@ describe.skipIf(!runDb)("catalogApi integration", () => {
     const response = await app.inject({
       method: "GET",
       url: "/api/catalog",
-      headers: {
-        [XLB_HEADERS.appType]: "customer",
-        [XLB_HEADERS.role]: "customer",
-      },
+      headers: bearerHeaders({ appType: "customer", role: "customer", userId: "customer-demo-001" }),
     });
     expect(response.statusCode).toBe(400);
     await app.close();

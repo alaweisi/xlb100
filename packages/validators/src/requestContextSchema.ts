@@ -33,10 +33,7 @@ export type RequestContextInput = z.infer<typeof requestContextSchema>;
 /** Headers required for context-aware API routes */
 export const requestContextHeadersSchema = z.object({
   "x-xlb-trace-id": z.string().min(1).optional(),
-  "x-xlb-app-type": appTypeSchema,
-  "x-xlb-role": roleSchema,
   "x-xlb-city-code": cityCodeSchema.optional(),
-  "x-xlb-user-id": z.string().optional(),
 });
 
 export type RequestContextHeadersInput = z.infer<

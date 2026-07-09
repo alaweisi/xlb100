@@ -1,18 +1,15 @@
 import { describe, it, expect } from "vitest";
 import { buildApp } from "../../backend/src/app.js";
-import { XLB_HEADERS } from "@xlb/types";
 import { getMysqlPool } from "../../backend/src/dal/mysqlPool.js";
 import type { RowDataPacket } from "mysql2/promise";
+import { adminAuthHeaders, workerAuthHeaders, bearerHeaders } from "./helpers/authTestHelper.js";
 import { serviceAddressSchedulePayload } from "./helpers/orderTestPayload";
 
 const runDb = process.env.XLB_SKIP_DB_TESTS !== "1";
 
-const customerHeaders = {
-  [XLB_HEADERS.appType]: "customer",
-  [XLB_HEADERS.role]: "customer",
-  [XLB_HEADERS.cityCode]: "hangzhou",
-  [XLB_HEADERS.userId]: "customer-demo-001",
-};
+const customerHeaders = bearerHeaders({ appType: "customer", role: "customer", userId: "customer-demo-001", cityCode: "hangzhou" });
+const operatorHeaders = adminAuthHeaders("operator-hangzhou", "hangzhou");
+const workerHeaders = workerAuthHeaders("worker-demo-hangzhou", "hangzhou");
 
 describe.skipIf(!runDb)("orderPaymentOutbox integration", { timeout: 15000 }, () => {
   it("writes order.created and post-service payment.paid to event_outbox", async () => {
@@ -31,54 +28,43 @@ describe.skipIf(!runDb)("orderPaymentOutbox integration", { timeout: 15000 }, ()
     });
     const order = orderRes.json().order as { orderId: string };
 
-    await app.inject({
-      method: "POST",
-      url: "/api/internal/dispatch/run-once",
-      headers: {
-        [XLB_HEADERS.appType]: "admin",
-        [XLB_HEADERS.role]: "operator",
-        [XLB_HEADERS.cityCode]: "hangzhou",
-      },
-      payload: {},
-    });
-
     const pool = getMysqlPool();
-    const [tasks] = await pool.query<(RowDataPacket & { dispatch_task_id: string })[]>(
-      `SELECT dispatch_task_id FROM dispatch_tasks WHERE order_id = ? AND status = 'queued' LIMIT 1`,
-      [order.orderId],
-    );
+    let dispatchTaskId: string | undefined;
+    for (let i = 0; i < 50; i++) {
+      await app.inject({
+        method: "POST",
+        url: "/api/internal/dispatch/run-once",
+        headers: operatorHeaders,
+        payload: {},
+      });
+      const [tasks] = await pool.query<(RowDataPacket & { dispatch_task_id: string })[]>(
+        `SELECT dispatch_task_id FROM dispatch_tasks WHERE order_id = ? AND status = 'queued' LIMIT 1`,
+        [order.orderId],
+      );
+      if (tasks[0]?.dispatch_task_id) {
+        dispatchTaskId = tasks[0].dispatch_task_id;
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    expect(dispatchTaskId).toBeTruthy();
     const acceptRes = await app.inject({
       method: "POST",
-      url: `/api/worker/tasks/${tasks[0]!.dispatch_task_id}/accept`,
-      headers: {
-        [XLB_HEADERS.appType]: "worker",
-        [XLB_HEADERS.role]: "worker",
-        [XLB_HEADERS.cityCode]: "hangzhou",
-        [XLB_HEADERS.userId]: "worker-demo-hangzhou",
-      },
+      url: `/api/worker/tasks/${dispatchTaskId}/accept`,
+      headers: workerHeaders,
       payload: {},
     });
     const fulfillmentId = acceptRes.json().fulfillment.fulfillmentId as string;
     await app.inject({
       method: "POST",
       url: `/api/worker/fulfillments/${fulfillmentId}/start`,
-      headers: {
-        [XLB_HEADERS.appType]: "worker",
-        [XLB_HEADERS.role]: "worker",
-        [XLB_HEADERS.cityCode]: "hangzhou",
-        [XLB_HEADERS.userId]: "worker-demo-hangzhou",
-      },
+      headers: workerHeaders,
       payload: {},
     });
     await app.inject({
       method: "POST",
       url: `/api/worker/fulfillments/${fulfillmentId}/complete`,
-      headers: {
-        [XLB_HEADERS.appType]: "worker",
-        [XLB_HEADERS.role]: "worker",
-        [XLB_HEADERS.cityCode]: "hangzhou",
-        [XLB_HEADERS.userId]: "worker-demo-hangzhou",
-      },
+      headers: workerHeaders,
       payload: {},
     });
     await app.inject({

@@ -67,7 +67,7 @@ export interface CreateGovernanceIntentRequest {
   actionKind: GovernanceActionKind;
   targetType?: string | null;
   targetRef?: string | null;
-  requestedByAdminId: string;
+  requestedByAdminId?: string;
   requestedReason: string;
   evidenceRefs?: string[];
   riskFlags?: string[];

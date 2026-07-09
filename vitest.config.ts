@@ -7,6 +7,18 @@ export default defineConfig({
     environment: "node",
     include: ["tests/**/*.test.ts", "tests/**/*.test.tsx"],
     setupFiles: ["tests/setup.ts"],
+    fileParallelism: false,
+    maxConcurrency: 1,
+    maxWorkers: 1,
+    sequence: {
+      concurrent: false,
+    },
+    pool: "forks",
+    poolOptions: {
+      forks: {
+        singleFork: true,
+      },
+    },
   },
   resolve: {
     alias: [

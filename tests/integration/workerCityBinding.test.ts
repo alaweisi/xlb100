@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { buildApp } from "../../backend/src/app.js";
-import { XLB_HEADERS } from "@xlb/types";
 import { getMysqlPool } from "../../backend/src/dal/mysqlPool.js";
 import type { RowDataPacket } from "mysql2/promise";
+import { workerAuthHeaders } from "./helpers/authTestHelper.js";
 
 const runDb = process.env.XLB_SKIP_DB_TESTS !== "1";
 
@@ -24,12 +24,7 @@ describe.skipIf(!runDb)("workerCityBinding integration", () => {
     const res = await app.inject({
       method: "GET",
       url: "/api/worker/task-pool",
-      headers: {
-        [XLB_HEADERS.appType]: "worker",
-        [XLB_HEADERS.role]: "worker",
-        [XLB_HEADERS.cityCode]: "shanghai",
-        [XLB_HEADERS.userId]: "worker-demo-hangzhou",
-      },
+      headers: workerAuthHeaders("worker-demo-hangzhou", "shanghai"),
     });
     expect(res.statusCode).toBe(403);
     await app.close();

@@ -35,7 +35,7 @@ export async function registerFulfillmentRoutes(
       if (!context.userId) {
         return reply.status(403).send({
           ok: false,
-          error: "Missing required header: x-xlb-user-id",
+          error: "Missing authenticated worker identity",
         });
       }
 
@@ -77,7 +77,7 @@ export async function registerFulfillmentRoutes(
       if (!context.userId) {
         return reply.status(403).send({
           ok: false,
-          error: "Missing required header: x-xlb-user-id",
+          error: "Missing authenticated worker identity",
         });
       }
 
@@ -122,7 +122,7 @@ export async function registerFulfillmentRoutes(
       if (!context.userId) {
         return reply.status(403).send({
           ok: false,
-          error: "Missing required header: x-xlb-user-id",
+          error: "Missing authenticated worker identity",
         });
       }
 
@@ -172,7 +172,7 @@ export async function registerFulfillmentRoutes(
       if (!context.userId) {
         return reply.status(403).send({
           ok: false,
-          error: "Missing required header: x-xlb-user-id",
+          error: "Missing authenticated worker identity",
         });
       }
 

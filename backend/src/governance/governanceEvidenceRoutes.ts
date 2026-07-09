@@ -8,7 +8,7 @@ const preHandler = [createRequestContextMiddleware({ requireCityCode: true }), r
 
 export async function registerGovernanceEvidenceRoutes(app: FastifyInstance): Promise<void> {
   app.post("/api/internal/settlement-action-governance/evidence-bundles", { preHandler }, async (request: FastifyRequest, reply) => {
-    const ctx = getRequestContext(request); const body = { ...(request.body as Record<string,unknown>??{}), cityCode: ctx.cityCode };
+    const ctx = getRequestContext(request); if (!ctx.userId) return reply.status(401).send({ ok:false,error:"authenticated admin identity required for evidence bundle" }); const body = { ...(request.body as Record<string,unknown>??{}), cityCode: ctx.cityCode, createdByAdminId: ctx.userId };
     const p = createEvidenceBundleRequestSchema.safeParse(body); if (!p.success) return reply.status(400).send({ ok:false,error:"invalid" });
     try { const b = await governanceEvidenceService.createBundle(ctx, p.data); return { ok:true, bundle:b }; } catch(e) { return reply.status(500).send({ ok:false,error:String(e) }); }
   });

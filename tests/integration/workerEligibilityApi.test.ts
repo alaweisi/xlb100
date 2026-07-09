@@ -2,17 +2,13 @@ import { describe, it, expect } from "vitest";
 import { buildApp } from "../../backend/src/app.js";
 import { getMysqlPool } from "../../backend/src/dal/mysqlPool.js";
 import type { RowDataPacket } from "mysql2/promise";
-import { XLB_HEADERS } from "@xlb/types";
+import { bearerHeaders, workerAuthHeaders } from "./helpers/authTestHelper.js";
 import { createQueuedDispatchTask } from "./helpers/acceptTestHelper.js";
 
 const runDb = process.env.XLB_SKIP_DB_TESTS !== "1";
 
-const workerHangzhouHeaders = {
-  [XLB_HEADERS.appType]: "worker",
-  [XLB_HEADERS.role]: "worker",
-  [XLB_HEADERS.cityCode]: "hangzhou",
-  [XLB_HEADERS.userId]: "worker-demo-hangzhou",
-};
+const workerHangzhouHeaders = workerAuthHeaders("worker-demo-hangzhou", "hangzhou");
+const workerShanghaiHeaders = workerAuthHeaders("worker-demo-hangzhou", "shanghai");
 
 describe.skipIf(!runDb)("workerEligibilityApi integration", { timeout: 20000 }, () => {
   it("returns eligible for demo worker with approved cert", async () => {
@@ -37,11 +33,7 @@ describe.skipIf(!runDb)("workerEligibilityApi integration", { timeout: 20000 }, 
     const res = await app.inject({
       method: "GET",
       url: "/api/worker/eligibility?skuId=sku_home_daily_2h",
-      headers: {
-        [XLB_HEADERS.appType]: "worker",
-        [XLB_HEADERS.role]: "worker",
-        [XLB_HEADERS.userId]: "worker-demo-hangzhou",
-      },
+      headers: bearerHeaders({ appType: "worker", role: "worker", userId: "worker-demo-hangzhou" }),
     });
     expect(res.statusCode).toBe(400);
     await app.close();
@@ -52,10 +44,7 @@ describe.skipIf(!runDb)("workerEligibilityApi integration", { timeout: 20000 }, 
     const res = await app.inject({
       method: "GET",
       url: "/api/worker/eligibility?skuId=sku_home_daily_2h",
-      headers: {
-        ...workerHangzhouHeaders,
-        [XLB_HEADERS.cityCode]: "shanghai",
-      },
+      headers: workerShanghaiHeaders,
     });
     expect(res.statusCode).toBe(403);
     await app.close();

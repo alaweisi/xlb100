@@ -43,6 +43,10 @@ class GovernanceEvidenceService {
 
   async createBundle(ctx: RequestContext, req: CreateEvidenceBundleRequest): Promise<GovernanceEvidenceBundleRecord> {
     const cityCode = assertCityScopedContext(ctx);
+    const adminId = ctx.userId;
+    if (!adminId) {
+      throw new Error("authenticated admin identity required for evidence bundle");
+    }
     // B4 FIX: verify intent belongs to current city
     await assertGovernanceIntentInCity(this.pool, req.intentId, cityCode);
     // Verify review belongs to current city if provided
@@ -56,7 +60,7 @@ class GovernanceEvidenceService {
       `INSERT INTO settlement_action_governance_evidence_bundles
         (id, city_code, intent_id, review_id, statement_id, bundle_status, evidence_refs_json, phase9_context_json, review_history_refs_json, audit_trail_refs_json, risk_summary, created_by_admin_id, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, 'draft', '[]', '{}', '[]', '[]', ?, ?, ?, ?)`,
-      [id, cityCode, req.intentId, req.reviewId ?? null, req.statementId ?? null, req.riskSummary ?? null, req.createdByAdminId, now, now],
+      [id, cityCode, req.intentId, req.reviewId ?? null, req.statementId ?? null, req.riskSummary ?? null, adminId, now, now],
     );
     return (await this.getBundle(ctx, id))!;
   }

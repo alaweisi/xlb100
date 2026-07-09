@@ -2,14 +2,11 @@ import type { FastifyInstance } from "fastify";
 import type { RowDataPacket } from "mysql2/promise";
 import { getMysqlPool } from "../../../backend/src/dal/mysqlPool.js";
 import { workerHangzhouHeaders } from "./acceptTestHelper.js";
+import { adminAuthHeaders } from "./authTestHelper.js";
 import { customerHeaders } from "./dispatchTestHelper.js";
 import { createAcceptedFulfillment } from "./fulfillmentTestHelper.js";
 
-export const ledgerOperatorHeaders = {
-  "x-xlb-app-type": "admin",
-  "x-xlb-role": "operator",
-  "x-xlb-city-code": "hangzhou",
-};
+export const ledgerOperatorHeaders = adminAuthHeaders("operator-hangzhou", "hangzhou");
 
 export async function createCompletedFulfillment(app: FastifyInstance): Promise<{
   fulfillmentId: string; orderId: string; paymentOrderId: string;
@@ -41,7 +38,7 @@ export async function runLedgerOnce(app: FastifyInstance) {
 export async function withLedgerTestLock<T>(callback: () => Promise<T>): Promise<T> {
   const connection = await getMysqlPool().getConnection();
   try {
-    const [rows] = await connection.query<(RowDataPacket & { acquired: number })[]>("SELECT GET_LOCK('xlb-phase8a-integration-tests', 30) AS acquired");
+    const [rows] = await connection.query<(RowDataPacket & { acquired: number })[]>("SELECT GET_LOCK('xlb-phase8a-integration-tests', 300) AS acquired");
     if (rows[0]?.acquired !== 1) throw new Error("Could not acquire Phase 8A integration-test lock");
     return await callback();
   } finally {
