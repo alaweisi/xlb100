@@ -12,10 +12,10 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")("settlement payable readi
       const missingIdentity = await app.inject({
         method: "POST",
         url: `/api/internal/settlement/batches/${batch.settlementBatchId}/mark-payable`,
-        headers: { "x-xlb-app-type": "admin", "x-xlb-role": "operator", "x-xlb-city-code": "hangzhou" },
+        headers: { "x-xlb-city-code": "hangzhou" },
         payload: {},
       });
-      expect(missingIdentity.statusCode).toBe(403);
+      expect(missingIdentity.statusCode).toBe(401);
       const response = await markSettlementPayable(app, batch.settlementBatchId);
       expect(response.statusCode).toBe(200);
       expect(response.json()).toMatchObject({

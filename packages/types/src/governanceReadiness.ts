@@ -22,7 +22,7 @@ export interface GovernanceReadinessPacketRecord {
   createdByAdminId: string; createdAt: string; updatedAt: string; archivedAt: string | null;
 }
 
-export interface CreateReadinessPacketRequest { cityCode: CityCode; intentId: string; reviewId?: string | null; evidenceBundleId?: string | null; statementId?: string | null; createdByAdminId: string; }
+export interface CreateReadinessPacketRequest { cityCode: CityCode; intentId: string; reviewId?: string | null; evidenceBundleId?: string | null; statementId?: string | null; createdByAdminId?: string; }
 
 export interface ReadinessPacketResponse { ok: true; packet: GovernanceReadinessPacketRecord; }
 export interface ReadinessPacketListResponse { ok: true; packets: GovernanceReadinessPacketRecord[]; }

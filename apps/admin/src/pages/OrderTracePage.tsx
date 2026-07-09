@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { adminApi, createApiClient } from "@xlb/api-client";
-import { API_BASE } from "../apiBase";
+import { adminOrderTraceApi } from "../adminAuth";
 import { buildHash, parseHashParams } from "../hashParams";
 import {
   ApiErrorPanel,
@@ -15,18 +14,7 @@ import {
   Table,
 } from "@xlb/ui";
 
-function createOrderTraceApi(cityCode: string) {
-  return adminApi.create(createApiClient({
-    baseUrl: API_BASE,
-    headers: {
-      "x-xlb-app-type": "admin",
-      "x-xlb-role": "operator",
-      "x-xlb-city-code": cityCode,
-    },
-  }));
-}
-
-type AdminApi = ReturnType<typeof adminApi.create>;
+type AdminApi = typeof adminOrderTraceApi;
 type OrderTrace = Awaited<ReturnType<AdminApi["getOrderTrace"]>>["trace"];
 type Tone = "default" | "primary" | "success" | "warning" | "danger" | "muted";
 
@@ -74,12 +62,12 @@ export function OrderTracePage({ initialCityCode, initialOrderId }: Props) {
     setLoading(true);
     setError(null);
     try {
-      const response = await createOrderTraceApi(nextCityCode).getOrderTrace(nextOrderId);
-      setTrace(response.trace);
       window.location.hash = buildHash("/order-trace", {
         cityCode: nextCityCode,
         orderId: nextOrderId,
       });
+      const response = await adminOrderTraceApi.getOrderTrace(nextOrderId);
+      setTrace(response.trace);
     } catch (e) {
       setTrace(null);
       setError(String(e));

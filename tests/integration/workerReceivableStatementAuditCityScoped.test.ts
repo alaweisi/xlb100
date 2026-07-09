@@ -7,6 +7,7 @@ import {
   exportWorkerReceivableStatementOnce,
   generateWorkerReceivableStatements,
   reviewWorkerReceivableStatementOnce,
+  settlementHeaders,
   withSettlementTestLock,
 } from "./helpers/settlementTestHelper.js";
 
@@ -25,12 +26,7 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
           const detail = await app.inject({
             method: "GET",
             url: `/api/internal/settlement/worker-statement-audit/${statementId}`,
-            headers: {
-              "x-xlb-app-type": "admin",
-              "x-xlb-role": "operator",
-              "x-xlb-city-code": "shanghai",
-              "x-xlb-user-id": "operator-shanghai",
-            },
+            headers: settlementHeaders("shanghai"),
           });
           expect(detail.statusCode).toBe(404);
         } finally {
@@ -49,12 +45,7 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
           const list = await app.inject({
             method: "GET",
             url: "/api/internal/settlement/worker-statement-audit",
-            headers: {
-              "x-xlb-app-type": "admin",
-              "x-xlb-role": "operator",
-              "x-xlb-city-code": "shanghai",
-              "x-xlb-user-id": "operator-shanghai",
-            },
+            headers: settlementHeaders("shanghai"),
           });
           expect(list.statusCode).toBe(200);
           const body = list.json();
@@ -77,12 +68,7 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
           const list = await app.inject({
             method: "GET",
             url: "/api/internal/settlement/worker-statement-export-audit",
-            headers: {
-              "x-xlb-app-type": "admin",
-              "x-xlb-role": "operator",
-              "x-xlb-city-code": "shanghai",
-              "x-xlb-user-id": "operator-shanghai",
-            },
+            headers: settlementHeaders("shanghai"),
           });
           expect(list.statusCode).toBe(200);
           const body = list.json();
@@ -100,12 +86,7 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
           const response = await app.inject({
             method: "GET",
             url: "/api/internal/settlement/worker-statement-audit",
-            headers: {
-              "x-xlb-app-type": "admin",
-              "x-xlb-role": "operator",
-              "x-xlb-city-code": "",
-              "x-xlb-user-id": "operator",
-            },
+            headers: settlementHeaders(""),
           });
           expect(response.statusCode).toBe(400);
         } finally {
@@ -120,12 +101,7 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
           const response = await app.inject({
             method: "GET",
             url: "/api/internal/settlement/worker-statement-audit/wrs-1",
-            headers: {
-              "x-xlb-app-type": "admin",
-              "x-xlb-role": "operator",
-              "x-xlb-city-code": "",
-              "x-xlb-user-id": "operator",
-            },
+            headers: settlementHeaders(""),
           });
           expect(response.statusCode).toBe(400);
         } finally {

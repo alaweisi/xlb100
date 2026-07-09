@@ -7,6 +7,12 @@ import { SettlementActionGovernancePage } from "@xlb/admin-pages/SettlementActio
 const { mockGet, mockPost } = vi.hoisted(() => ({ mockGet: vi.fn(), mockPost: vi.fn() }));
 vi.mock("@xlb/api-client", () => ({
   createApiClient: () => ({ get: mockGet, post: mockPost }),
+  createAuthApi: () => ({
+    requestAdminLoginCode: () => Promise.resolve({ ok: true }),
+    getAdminDebugCode: () => Promise.resolve({ ok: true, code: "000000" }),
+    adminLogin: () => Promise.resolve({ ok: true, token: "test-admin-token", userId: "operator-hangzhou", role: "operator" }),
+  }),
+  adminApi: { create: () => ({}) },
   settlementApi: {
     create: () => ({
       listStatementAudit: () => mockGet("listStatementAudit"),

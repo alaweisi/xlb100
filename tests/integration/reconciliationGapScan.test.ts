@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildApp } from "../../backend/src/app.js";
-import { createQueuedSettlement, withSettlementTestLock } from "./helpers/settlementTestHelper.js";
+import { createQueuedSettlement, settlementHeaders, withSettlementTestLock } from "./helpers/settlementTestHelper.js";
 
 describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
   "reconciliation gap scan",
@@ -14,7 +14,7 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
           const res = await app.inject({
             method: "GET",
             url: "/api/internal/settlement/reconciliation-gap-scan",
-            headers: { "x-xlb-app-type": "admin", "x-xlb-role": "operator", "x-xlb-city-code": "hangzhou", "x-xlb-user-id": "op" },
+            headers: settlementHeaders("hangzhou"),
           });
           expect(res.statusCode).toBe(200);
           const body = res.json();
@@ -33,7 +33,7 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
           const res = await app.inject({
             method: "GET",
             url: "/api/internal/settlement/reconciliation-gap-scan?gapType=payable-queue",
-            headers: { "x-xlb-app-type": "admin", "x-xlb-role": "operator", "x-xlb-city-code": "hangzhou", "x-xlb-user-id": "op" },
+            headers: settlementHeaders("hangzhou"),
           });
           expect(res.statusCode).toBe(200);
           const body = res.json();
@@ -56,7 +56,7 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
           const res = await app.inject({
             method: "GET",
             url: "/api/internal/settlement/reconciliation-gap-scan?gapType=batch-payable",
-            headers: { "x-xlb-app-type": "admin", "x-xlb-role": "operator", "x-xlb-city-code": "hangzhou", "x-xlb-user-id": "op" },
+            headers: settlementHeaders("hangzhou"),
           });
           expect(res.statusCode).toBe(200);
           const body = res.json();
@@ -72,7 +72,7 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
           const res = await app.inject({
             method: "GET",
             url: "/api/internal/settlement/reconciliation-gap-scan?gapType=invalid",
-            headers: { "x-xlb-app-type": "admin", "x-xlb-role": "operator", "x-xlb-city-code": "hangzhou", "x-xlb-user-id": "op" },
+            headers: settlementHeaders("hangzhou"),
           });
           expect(res.statusCode).toBe(400);
         } finally { await app.close(); }

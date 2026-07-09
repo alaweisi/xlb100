@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { buildApp } from "../../backend/src/app.js";
-import { XLB_HEADERS } from "@xlb/types";
+import { bearerHeaders } from "../integration/helpers/authTestHelper.js";
 
 describe("noDispatchWithoutCity", () => {
   it("rejects dispatch run-once without cityCode header", async () => {
@@ -9,10 +9,7 @@ describe("noDispatchWithoutCity", () => {
     const res = await app.inject({
       method: "POST",
       url: "/api/internal/dispatch/run-once",
-      headers: {
-        [XLB_HEADERS.appType]: "admin",
-        [XLB_HEADERS.role]: "operator",
-      },
+      headers: bearerHeaders({ appType: "admin", role: "operator", userId: "operator-hangzhou" }),
       payload: {},
     });
 
@@ -26,10 +23,7 @@ describe("noDispatchWithoutCity", () => {
     const res = await app.inject({
       method: "GET",
       url: "/api/dispatch/tasks",
-      headers: {
-        [XLB_HEADERS.appType]: "admin",
-        [XLB_HEADERS.role]: "operator",
-      },
+      headers: bearerHeaders({ appType: "admin", role: "operator", userId: "operator-hangzhou" }),
     });
 
     expect(res.statusCode).toBe(400);

@@ -44,7 +44,7 @@ export const createGovernanceIntentRequestSchema = z.object({
   actionKind: governanceActionKindSchema,
   targetType: z.string().min(1).max(64).nullable().optional().default(null),
   targetRef: idSchema.nullable().optional().default(null),
-  requestedByAdminId: idSchema,
+  requestedByAdminId: idSchema.optional(),
   requestedReason: z.string().min(1).max(1000),
   evidenceRefs: z.array(z.string().min(1).max(64)).optional().default([]),
   riskFlags: z.array(z.string().min(1).max(100)).optional().default([]),

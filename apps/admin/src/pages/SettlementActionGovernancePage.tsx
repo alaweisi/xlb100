@@ -1,11 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { parseHashParams, buildHash } from "../hashParams";
-import { governancePlannerApi, createApiClient } from "@xlb/api-client";
-import { API_BASE } from "../apiBase";
+import { adminPlannerApi as plannerApi } from "../adminAuth";
 import { Button, StatusTag } from "@xlb/ui";
 
-const client = createApiClient({ baseUrl: API_BASE, headers: { "x-xlb-app-type": "admin", "x-xlb-role": "operator" } });
-const plannerApi = governancePlannerApi.create(client);
 const pageStyle = { display: "grid", gap: 16, maxWidth: 1040 };
 const panelStyle = { background: "#ffffff", boxShadow: "0 10px 28px rgba(25, 18, 37, 0.08)" };
 const hiddenCompatStyle = {

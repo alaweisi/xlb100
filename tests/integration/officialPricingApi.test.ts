@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { buildApp } from "../../backend/src/app.js";
 import { XLB_HEADERS } from "@xlb/types";
+import { bearerHeaders } from "./helpers/authTestHelper.js";
 
 const runDb = process.env.XLB_SKIP_DB_TESTS !== "1";
 
@@ -11,8 +12,7 @@ describe.skipIf(!runDb)("officialPricingApi integration", () => {
       method: "GET",
       url: "/api/pricing/quote?skuId=sku_home_daily_2h",
       headers: {
-        [XLB_HEADERS.appType]: "customer",
-        [XLB_HEADERS.role]: "customer",
+        ...bearerHeaders({ appType: "customer", role: "customer", userId: "customer-demo-001" }),
         [XLB_HEADERS.cityCode]: "hangzhou",
       },
     });
@@ -34,8 +34,7 @@ describe.skipIf(!runDb)("officialPricingApi integration", () => {
       method: "GET",
       url: "/api/pricing/quote?skuId=sku_home_daily_2h",
       headers: {
-        [XLB_HEADERS.appType]: "customer",
-        [XLB_HEADERS.role]: "customer",
+        ...bearerHeaders({ appType: "customer", role: "customer", userId: "customer-demo-001" }),
       },
     });
     expect(response.statusCode).toBe(400);
@@ -48,8 +47,7 @@ describe.skipIf(!runDb)("officialPricingApi integration", () => {
       method: "GET",
       url: "/api/pricing/quote?skuId=sku_home_daily_2h",
       headers: {
-        [XLB_HEADERS.appType]: "customer",
-        [XLB_HEADERS.role]: "customer",
+        ...bearerHeaders({ appType: "customer", role: "customer", userId: "customer-demo-001" }),
         [XLB_HEADERS.cityCode]: "__global__",
       },
     });

@@ -4,13 +4,10 @@ import { getMysqlPool } from "../../../backend/src/dal/mysqlPool.js";
 import { ensureHangzhouWorkerEligible } from "./acceptTestHelper.js";
 import { createCompletedFulfillment, runLedgerOnce, withLedgerTestLock } from "./ledgerTestHelper.js";
 import { assertResponseJson } from "./httpResponseTestHelper";
+import { adminAuthHeaders } from "./authTestHelper.js";
 
-export const settlementHeaders = (cityCode = "hangzhou") => ({
-  "x-xlb-app-type": "admin",
-  "x-xlb-role": "operator",
-  "x-xlb-city-code": cityCode,
-  "x-xlb-user-id": cityCode === "hangzhou" ? "operator-hangzhou" : "operator-shanghai",
-});
+export const settlementHeaders = (cityCode = "hangzhou") =>
+  adminAuthHeaders(cityCode === "hangzhou" ? "operator-hangzhou" : "operator-shanghai", cityCode);
 
 export async function createLedgerAccrual(app: FastifyInstance) {
   return withLedgerTestLock(async () => {
@@ -147,7 +144,7 @@ export async function createPreparedSettlement(app: FastifyInstance) {
 export async function withSettlementTestLock<T>(callback: () => Promise<T>): Promise<T> {
   const connection = await getMysqlPool().getConnection();
   try {
-    const [rows] = await connection.query<(RowDataPacket & { acquired: number })[]>("SELECT GET_LOCK('xlb-phase8b-integration-tests', 30) AS acquired");
+    const [rows] = await connection.query<(RowDataPacket & { acquired: number })[]>("SELECT GET_LOCK('xlb-phase8b-integration-tests', 300) AS acquired");
     if (rows[0]?.acquired !== 1) throw new Error("Could not acquire Phase 8B integration-test lock");
     return await callback();
   } finally {

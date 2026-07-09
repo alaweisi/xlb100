@@ -5,27 +5,13 @@ import {
   createPaidOrderForDispatch,
   operatorHeaders,
 } from "./dispatchTestHelper.js";
+import { workerAuthHeaders } from "./authTestHelper.js";
 
-export const workerHangzhouHeaders = {
-  "x-xlb-app-type": "worker",
-  "x-xlb-role": "worker",
-  "x-xlb-city-code": "hangzhou",
-  "x-xlb-user-id": "worker-demo-hangzhou",
-};
+export const workerHangzhouHeaders = workerAuthHeaders("worker-demo-hangzhou", "hangzhou");
 
-export const workerShanghaiHeaders = {
-  "x-xlb-app-type": "worker",
-  "x-xlb-role": "worker",
-  "x-xlb-city-code": "shanghai",
-  "x-xlb-user-id": "worker-demo-shanghai",
-};
+export const workerShanghaiHeaders = workerAuthHeaders("worker-demo-shanghai", "shanghai");
 
-export const workerHangzhouAltHeaders = {
-  "x-xlb-app-type": "worker",
-  "x-xlb-role": "worker",
-  "x-xlb-city-code": "hangzhou",
-  "x-xlb-user-id": "worker-demo-hangzhou-alt",
-};
+export const workerHangzhouAltHeaders = workerAuthHeaders("worker-demo-hangzhou-alt", "hangzhou");
 
 export async function ensureAltHangzhouWorkerBound(): Promise<void> {
   const pool = getMysqlPool();

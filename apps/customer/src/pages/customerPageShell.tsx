@@ -38,14 +38,22 @@ function storeSession(session: CustomerSession): void {
 }
 
 /**
- * Login (or auto-register) using the mock verification code.
- * TODO: replace MOCK_CODE "1234" with real SMS verification.
+ * Login (or auto-register) using the non-production debug OTP readback.
+ * Real SMS delivery remains a backend TODO after investor approval.
  */
 export async function loginCustomer(phone = "13800000001"): Promise<CustomerSession> {
   const authApi = createAuthApi(
     createApiClient({ baseUrl: "" }),
   );
-  const result = await authApi.customerLogin(phone, "1234");
+  const codeRequest = await authApi.requestCustomerLoginCode(phone);
+  if (!codeRequest.ok) {
+    throw new Error(`Login code request failed: ${codeRequest.error}`);
+  }
+  const debugCode = await authApi.getCustomerDebugCode(phone);
+  if (!debugCode.ok) {
+    throw new Error(`Login debug code unavailable: ${debugCode.error}`);
+  }
+  const result = await authApi.customerLogin(phone, debugCode.code);
   if (!result.ok) {
     throw new Error(`Login failed: ${result.error}`);
   }
@@ -172,16 +180,11 @@ export type CustomerPageApi = ReturnType<typeof createCustomerApiClient>;
 
 export function createCustomerApiClient(cityCode: CityCode, token?: string) {
   const headers: Record<string, string> = {
-    [XLB_HEADERS.appType]: "customer",
-    [XLB_HEADERS.role]: "customer",
     [XLB_HEADERS.cityCode]: cityCode,
   };
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
   }
-  // Always send a userId for header fallback compat with existing tests
-  // The backend will prefer the token identity if both are present.
-  headers[XLB_HEADERS.userId] = "customer-demo-001";
   return customerApi.forClient(
     createApiClient({
       baseUrl: "",

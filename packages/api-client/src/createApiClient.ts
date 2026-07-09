@@ -1,6 +1,6 @@
 export interface ApiClientOptions {
   baseUrl: string;
-  headers?: Record<string, string>;
+  headers?: Record<string, string> | ((path: string, method: string) => Record<string, string>);
 }
 
 export interface ApiClient {
@@ -10,6 +10,10 @@ export interface ApiClient {
 
 export function createApiClient(options: ApiClientOptions): ApiClient {
   const { baseUrl, headers = {} } = options;
+
+  function resolveHeaders(path: string, method: string): Record<string, string> {
+    return typeof headers === "function" ? headers(path, method) : headers;
+  }
 
   async function request<T>(
     method: string,
@@ -21,7 +25,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       method,
       headers: {
         "Content-Type": "application/json",
-        ...headers,
+        ...resolveHeaders(path, method),
       },
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });

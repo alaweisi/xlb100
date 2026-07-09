@@ -12,6 +12,9 @@ export interface EnvConfig {
   redisHost: string;
   redisPort: number;
   jwtSecret: string;
+  authOtpTtlSeconds: number;
+  authOtpMaxAttempts: number;
+  authDebugCodeEnabled: boolean;
 }
 
 function readEnv(key: string, fallback: string): string {
@@ -56,5 +59,11 @@ export function loadEnv(): EnvConfig {
     redisHost: readEnv("REDIS_HOST", "127.0.0.1"),
     redisPort: readEnvInt("REDIS_PORT", 6379),
     jwtSecret: readEnv("JWT_SECRET", "change-me-in-production"),
+    authOtpTtlSeconds: readEnvInt("AUTH_OTP_TTL_SECONDS", 300),
+    authOtpMaxAttempts: readEnvInt("AUTH_OTP_MAX_ATTEMPTS", 5),
+    authDebugCodeEnabled: readEnvBool(
+      "AUTH_DEBUG_CODE_ENABLED",
+      readEnv("NODE_ENV", "development") !== "production",
+    ),
   };
 }

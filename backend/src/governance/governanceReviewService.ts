@@ -52,6 +52,10 @@ class GovernanceReviewService {
     req: SubmitReviewRequest,
   ): Promise<GovernanceReviewRecord> {
     const cityCode = assertCityScopedContext(context);
+    const adminId = context.userId;
+    if (!adminId) {
+      throw new Error("authenticated admin identity required for governance review");
+    }
     // B4 FIX: verify intent belongs to current city before creating review
     await assertGovernanceIntentInCity(this.pool, req.intentId, cityCode);
     const id = generateReviewId();
@@ -61,7 +65,7 @@ class GovernanceReviewService {
         (id, city_code, intent_id, review_status,
          submitted_by_admin_id, review_note, submitted_at, created_at, updated_at)
        VALUES (?, ?, ?, 'pending_review', ?, ?, ?, ?, ?)`,
-      [id, cityCode, req.intentId, req.submittedByAdminId, req.reviewNote ?? null, now, now, now],
+      [id, cityCode, req.intentId, adminId, req.reviewNote ?? null, now, now, now],
     );
     return (await this.getReview(context, id))!;
   }
@@ -100,6 +104,10 @@ class GovernanceReviewService {
     req: ReviewDecisionRequest,
   ): Promise<GovernanceReviewRecord | null> {
     const cityCode = assertCityScopedContext(context);
+    const adminId = context.userId;
+    if (!adminId) {
+      throw new Error("authenticated admin identity required for governance review decision");
+    }
     const { clause, params } = buildCityScopedWhere(cityCode, "city_code");
     const now = new Date();
     const [result] = await this.pool.query(
@@ -107,7 +115,7 @@ class GovernanceReviewService {
        SET review_status = 'approved_for_governance', review_decision = 'approve_governance',
            reviewed_by_admin_id = ?, review_note = ?, reviewed_at = ?, updated_at = ?
        WHERE id = ? AND ${clause} AND review_status = 'pending_review'`,
-      [req.reviewedByAdminId, req.reviewNote ?? null, now, now, reviewId, ...params],
+      [adminId, req.reviewNote ?? null, now, now, reviewId, ...params],
     );
     if ((result as { affectedRows: number }).affectedRows === 0) return null;
     return this.getReview(context, reviewId);
@@ -119,6 +127,10 @@ class GovernanceReviewService {
     req: ReviewDecisionRequest,
   ): Promise<GovernanceReviewRecord | null> {
     const cityCode = assertCityScopedContext(context);
+    const adminId = context.userId;
+    if (!adminId) {
+      throw new Error("authenticated admin identity required for governance review decision");
+    }
     const { clause, params } = buildCityScopedWhere(cityCode, "city_code");
     const now = new Date();
     const [result] = await this.pool.query(
@@ -126,7 +138,7 @@ class GovernanceReviewService {
        SET review_status = 'rejected_for_governance', review_decision = 'reject_governance',
            reviewed_by_admin_id = ?, rejection_reason = ?, review_note = ?, reviewed_at = ?, updated_at = ?
        WHERE id = ? AND ${clause} AND review_status = 'pending_review'`,
-      [req.reviewedByAdminId, req.rejectionReason ?? null, req.reviewNote ?? null, now, now, reviewId, ...params],
+      [adminId, req.rejectionReason ?? null, req.reviewNote ?? null, now, now, reviewId, ...params],
     );
     if ((result as { affectedRows: number }).affectedRows === 0) return null;
     return this.getReview(context, reviewId);
@@ -138,6 +150,10 @@ class GovernanceReviewService {
     req: ReviewDecisionRequest,
   ): Promise<GovernanceReviewRecord | null> {
     const cityCode = assertCityScopedContext(context);
+    const adminId = context.userId;
+    if (!adminId) {
+      throw new Error("authenticated admin identity required for governance review decision");
+    }
     const { clause, params } = buildCityScopedWhere(cityCode, "city_code");
     const now = new Date();
     const [result] = await this.pool.query(
@@ -145,7 +161,7 @@ class GovernanceReviewService {
        SET review_status = 'changes_requested', review_decision = 'request_changes',
            reviewed_by_admin_id = ?, changes_requested_note = ?, review_note = ?, reviewed_at = ?, updated_at = ?
        WHERE id = ? AND ${clause} AND review_status = 'pending_review'`,
-      [req.reviewedByAdminId, req.changesRequestedNote ?? null, req.reviewNote ?? null, now, now, reviewId, ...params],
+      [adminId, req.changesRequestedNote ?? null, req.reviewNote ?? null, now, now, reviewId, ...params],
     );
     if ((result as { affectedRows: number }).affectedRows === 0) return null;
     return this.getReview(context, reviewId);

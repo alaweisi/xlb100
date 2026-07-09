@@ -53,7 +53,7 @@ export interface CreateEvidenceBundleRequest {
   intentId: string;
   reviewId?: string | null;
   statementId?: string | null;
-  createdByAdminId: string;
+  createdByAdminId?: string;
   riskSummary?: string | null;
 }
 

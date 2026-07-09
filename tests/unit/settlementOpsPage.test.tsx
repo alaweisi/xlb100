@@ -7,6 +7,22 @@ import { SettlementOpsPage } from "@xlb/admin-pages/SettlementOpsPage";
 const { mockGet } = vi.hoisted(() => ({ mockGet: vi.fn() }));
 vi.mock("@xlb/api-client", () => ({
   createApiClient: () => ({ get: mockGet }),
+  createAuthApi: () => ({
+    requestAdminLoginCode: () => Promise.resolve({ ok: true }),
+    getAdminDebugCode: () => Promise.resolve({ ok: true, code: "000000" }),
+    adminLogin: () => Promise.resolve({ ok: true, token: "test-admin-token", userId: "operator-hangzhou", role: "operator" }),
+  }),
+  adminApi: { create: () => ({}) },
+  governancePlannerApi: {
+    create: () => ({
+      listSettlementDryRunPlans: () => Promise.resolve({ ok: true, plans: [] }),
+      getSettlementDryRunPlan: () => Promise.resolve({ ok: true }),
+      createSettlementDryRunPlan: () => Promise.resolve({ ok: true }),
+      getSettlementDryRunPlanItems: () => Promise.resolve({ ok: true }),
+      getSettlementDryRunPlanAudit: () => Promise.resolve({ ok: true }),
+      getReadinessPacketDryRunEligibility: () => Promise.resolve({ ok: true }),
+    }),
+  },
   settlementApi: {
     create: () => ({
       listStatementAudit: (q: Record<string, string>) =>

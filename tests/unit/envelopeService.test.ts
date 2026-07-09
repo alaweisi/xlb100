@@ -7,6 +7,7 @@ import {
 } from "../../backend/src/preparation/envelopeService.js";
 import { stableHash } from "@shared/deterministic/stableHash.js";
 import { buildApp } from "../../backend/src/app.js";
+import { adminAuthHeaders } from "../integration/helpers/authTestHelper.js";
 
 // ══════════════════════════════════════════════════════════════════
 // Phase 12 — Envelope Service Unit Tests (vitest)
@@ -143,10 +144,7 @@ const basePlan = {
 };
 
 const adminHeaders = {
-  [XLB_HEADERS.appType]: "admin",
-  [XLB_HEADERS.role]: "operator",
-  [XLB_HEADERS.cityCode]: "hangzhou",
-  [XLB_HEADERS.userId]: "adm_1",
+  ...adminAuthHeaders("adm_1", "hangzhou"),
   [XLB_HEADERS.traceId]: "trc_1",
 };
 
