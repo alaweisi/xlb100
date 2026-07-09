@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { afterEach, describe, it, expect } from "vitest";
 import { buildApp } from "../../backend/src/app.js";
 import { getMysqlPool } from "../../backend/src/dal/mysqlPool.js";
 import type { RowDataPacket } from "mysql2/promise";
@@ -9,8 +9,31 @@ const runDb = process.env.XLB_SKIP_DB_TESTS !== "1";
 
 const workerHeaders = (workerId: string, cityCode = "hangzhou") => workerAuthHeaders(workerId, cityCode);
 
+const generatedWorkerIds = new Set<string>();
+
 function workerId(tag: string): string {
-  return `worker-sim-${tag}-${Date.now().toString(36)}`;
+  const id = `worker-sim-${tag}-${Date.now().toString(36)}`;
+  generatedWorkerIds.add(id);
+  return id;
+}
+
+async function cleanupGeneratedWorkerCandidates(): Promise<void> {
+  if (generatedWorkerIds.size === 0) return;
+  const workerIds = [...generatedWorkerIds];
+  const placeholders = workerIds.map(() => "?").join(", ");
+  await getMysqlPool().query(
+    `DELETE FROM worker_qualifications WHERE worker_id IN (${placeholders})`,
+    workerIds,
+  );
+  await getMysqlPool().query(
+    `DELETE FROM worker_online_status WHERE worker_id IN (${placeholders})`,
+    workerIds,
+  );
+  await getMysqlPool().query(
+    `DELETE FROM worker_city_bindings WHERE worker_id IN (${placeholders})`,
+    workerIds,
+  );
+  generatedWorkerIds.clear();
 }
 
 async function clearSkuEligibility(skuId: string, cityCode = "hangzhou"): Promise<void> {
@@ -153,7 +176,11 @@ async function eventTypes(dispatchTaskId: string): Promise<string[]> {
   return rows.map((row) => row.event_type);
 }
 
-describe.skipIf(!runDb)("dispatchRunOnce integration", { timeout: 60000 }, () => {
+describe.skipIf(!runDb)("dispatchRunOnce integration", { timeout: 120000 }, () => {
+  afterEach(async () => {
+    await cleanupGeneratedWorkerCandidates();
+  });
+
   it("processes pending order.created into dispatch_task", async () => {
     const app = await buildApp();
     const orderId = await createPaidOrderForDispatch(app);

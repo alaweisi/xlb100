@@ -1206,9 +1206,9 @@ backup/phase8h-merged-before-postlock-e2446c5
 
 | App | 分数 | 证据 |
 |---|---:|---|
-| Customer | 60% | catalog/pricing/order/payment-order/get-order 已接真实 API；profile/auth/address 未接线；支付成功/评价/地址/预约缺失 |
-| Worker | 15% | 5 个页面都有 UI，但 workflow binding 全是 `enabled:false` / `status:"not-wired"`；后端能力未接到 UI |
-| Admin | 55% | settlement ops/detail/export/governance 部分可用；缺订单、工单、师傅、用户、售后等完整后台 |
+| Customer | 82% | 已从真实登录、下单、确认服务、支付、评价、售后申请跑通主链路；证据链 `ord_mrdd4uz1_59306363` / `pay_mrddg6q2_049f972d` / `rev_mrddggh8_f74f0596` / `rfd_mrddgrb1_44520800`。仍缺更完整的资料页、订单详情和生产支付/退款 provider。 |
+| Worker | 78% | Worker 已用真实 OTP 登录和 Bearer token 进入任务池，并完成接单、开始、完成、提现申请链路；证据 `dpt_mrdd9z42_cc9ac301` / `acc_mrddde1l_5bfa4f62` / `ful_mrddde1l_0988ef49` / `wwd_mrden93d_31e0e4d9`。仍缺收益页/资料页部分 Worker-facing read API。 |
+| Admin | 72% | Admin 已接真实 token，Settlement/治理/Order Trace/Worker Withdrawals 可用；WorkerWithdrawalsPage 已改为统一 bearer client，UI 验证 `wwd_mrden93d_31e0e4d9` 从 `requested -> approved -> marked_paid`。仍缺售后/退款审批可视化页面，Order Trace 不展示 ledger entries。 |
 | OA | 0% | 只有 package/README |
 | Dashboard | 0% | 只有 package/README |
 
@@ -1216,10 +1216,10 @@ backup/phase8h-merged-before-postlock-e2446c5
 
 | 组件 | 分数 | 证据 |
 |---|---:|---|
-| Backend API | 75% | 主链路模块齐全；但 auth 是 header skeleton，payment 是 mock，consumer 多为手动 run-once，无 OpenAPI |
-| Database | 70% | 42 张表，migration 可跑通；缺 customers/admin_users/address/scheduled_at/rating/withdraw/bank 等产品必需实体 |
-| Shared packages | 80% | types/validators/api-client/ui/config 都能 build/typecheck；但 worker task-pool API client 缺封装，lint 空跑 |
-| Tests | 65% | 覆盖广，但真实 `pnpm test` 失败，前端 app-local 测试为 0，Turbo test 假绿 |
+| Backend API | 88% | 强制 Bearer auth、OTP、三端登录、Worker task/fulfillment、退款审批、ledger reversal、worker finance/withdrawal 状态机均已落地并通过真实测试；`pnpm test` 通过 `107+152` 个文件。仍缺 OpenAPI、生产支付/短信/地图 provider。 |
+| Database | 84% | customers/admin_users/address/schedule/review/withdraw/bank/worker finance 等实体已补齐；本轮清理了 `worker-sim-*` 可匹配污染和两行乱码测试数据。仍缺全量生产级 reset/fixture 隔离脚本。 |
+| Shared packages | 88% | types/validators/api-client/ui/config 均参与 build/typecheck，Worker/Admin API client 已补齐 bearer token 注入路径；仍需补 OpenAPI/SDK 生成或契约发布流程。 |
+| Tests | 90% | `vitest.workspace.ts` + `scripts/run-vitest-projects.mjs` 已成为真实测试入口；`pnpm test` 通过，`pnpm turbo run test` 已验证真实触发 Vitest。仍有 React `act(...)` warning 和少量耗时 DB 测试。 |
 | CI/CD | 55% | workflow 存在，但 CI 缺服务依赖且会受 `pnpm test` 失败影响；production compose 是 scaffold |
 
 ## 10. 阻塞性问题清单
@@ -2228,3 +2228,93 @@ Tasks: 11 successful, 11 total
 ### 本轮结论
 
 dispatch / ledger / settlement prepare 三个 run-once 处理器已经具备显式开关控制的自动循环能力，本地验证显示支付后的订单可以自动生成 `dispatch_task`。完整演示闭环仍未完成：由于 `apps/worker` 仍是 guardrail 占位，本轮不会自动接单/履约，链路会停在“等待师傅接单”；下一阶段应优先推进 P1 师傅端真实任务池、接单、开始服务、完成服务接线。
+
+---
+
+## 25. 四线合并后复核与收尾清理（2026-07-09）
+
+### 本轮范围
+
+本轮覆盖四条线合并和收尾：
+
+- `fix/security-auth-hardening`
+- `feat/worker-frontend-wiring`
+- `fix/backend-data-and-gates`
+- Admin WorkerWithdrawalsPage 收尾修复：`apps/admin/src/pages/WorkerWithdrawalsPage.tsx` 改用 `apps/admin/src/adminAuth.ts` 的 bearer token client，移除旧 `x-xlb-user-id` / `x-xlb-app-type` / `x-xlb-role` 调用方式。
+
+### 第 10 节阻塞项逐条复核
+
+| 原阻塞/风险 | 2026-07-09 状态 | 本轮证据 |
+|---|---|---|
+| Header 身份伪造 | 已关闭 | 三端专项回归均确认：不带 `Authorization`、只带伪造 `x-xlb-user-id` / `x-xlb-app-type` 访问 customer/worker/admin 受保护接口均返回 401。 |
+| 验证码硬编码 `1234` | 已关闭 | 已改为 Redis OTP，验证过错误验证码连续输入会触发锁定/限流；正确验证码使用一次后重复使用失败。`AUTH_DEBUG_CODE_ENABLED` 仅用于本地调试。 |
+| Admin 前端未接 token | 已关闭 | Admin 登录/token 注入已统一到 `apps/admin/src/adminAuth.ts`；本轮补齐 `WorkerWithdrawalsPage`，真实 UI 登录 `admin_operator` 后可打开提现页并操作 `wwd_mrden93d_31e0e4d9`。 |
+| Worker 端 15% / 未接线 | 已关闭 | Worker 已用真实 OTP 登录、Bearer token 访问任务池并完成接单、开始、完成链路。主干端到端证据：`dpt_mrdd9z42_cc9ac301` / `acc_mrddde1l_5bfa4f62` / `ful_mrddde1l_0988ef49`。 |
+| 退款/账本只发事件不执行 | 已关闭 | 退款审批后执行 ledger reversal，证据：`rfd_mrddgrb1_44520800` 生成 `wra_mrddikyx_1f955407`，关联 `source_event_id=evt_mrddii03_fa084031`，`worker_receivable_adjustment=-80.10`，原 accrual `lar_mrddgepz_42cfa6fb` 已为 `voided`。重复处理保持幂等。 |
+| Worker 提现模型缺失 | 已关闭 | 已有 worker bank account、withdrawal request、balance recompute、Admin review/mark-paid 状态机。UI 收尾验证：`wwd_mrden93d_31e0e4d9` 从 `requested -> approved -> marked_paid`，`reviewed_by_admin_id=admin-operator`，`marked_paid_by_admin_id=admin-operator`。 |
+| lint 全部空跑 | 已关闭 | `pnpm turbo run lint` 已触发真实 ESLint，结果 `0 errors, 2 warnings`，warning 位于 `backend/src/observability/health.ts` 的 `no-useless-assignment`。 |
+| `turbo test` 假绿 | 已关闭 | 根目录 `test` 指向 `scripts/run-vitest-projects.mjs`，并已验证 `pnpm turbo run test` 会真实触发 Vitest，而不是只走缓存或 build 任务。 |
+| MySQL advisory lock 竞争导致裸 `pnpm test` 不稳定 | 已关闭 | Backend 分支的 `vitest.workspace.ts` + projects runner 已合并；裸 `pnpm test` 已连续稳定全绿验证。本轮清理后再次通过：unit/contract `107 passed`、DB serial `152 passed`。 |
+| migration 全新库 bootstrap | 基本关闭，仍需有权限环境复验 | migration runner 已支持从空库创建 `schema_migrations` 并应用迁移；本机 MySQL 创建新库权限曾受限，后续仍建议在具备 `CREATE DATABASE` 权限的环境补一次完整 bootstrap 留痕。 |
+
+### 本轮真实业务证据链
+
+| 环节 | 证据 |
+|---|---|
+| Customer 下单/支付/评价/售后 | `ord_mrdd4uz1_59306363` / `pay_mrddg6q2_049f972d` / `rev_mrddggh8_f74f0596` / `rfd_mrddgrb1_44520800` |
+| Dispatch / Worker 履约 | `dpt_mrdd9z42_cc9ac301` / `acc_mrddde1l_5bfa4f62` / `ful_mrddde1l_0988ef49`，worker `worker-demo-hangzhou` |
+| Ledger / Settlement | `lar_mrddgepz_42cfa6fb` / `sti_mrddgf3z_1aeda489` / `stb_mrddgf3y_1a7ad8d5` |
+| Refund reversal | `rfd_mrddgrb1_44520800` / `evt_mrddii03_fa084031` / `wra_mrddikyx_1f955407` |
+| Worker withdrawal UI | `wba_mrden908_64546878` / `wwd_mrden93d_31e0e4d9` |
+
+### 测试数据污染清理
+
+本轮清理目标是本地测试库，不涉及业务代码数据迁移。
+
+`worker-sim-*` 历史模拟数据：
+
+- 清理前：`worker_profiles` 中有 560 个 `worker-sim-*` profile，`worker_city_bindings` / `worker_online_status` / `worker_qualifications` 各 560 行；其中 64 个 worker 仍可被真实派单匹配。
+- 执行清理：删除 `worker_qualifications` 560 行、`worker_online_status` 560 行、`worker_city_bindings` 560 行；删除无历史外键依赖的 `worker_profiles` 109 行。
+- 清理后：`worker_profiles` 仍保留 473 行作为历史 `dispatch_offers` / `dispatch_events` / `fulfillments` 的外键锚点，但 bindings/online/qualifications 均为 0，`matchable=0`，不会再干扰真实派单。
+- 同步修复测试污染来源：`tests/integration/dispatchRunOnce.test.ts` 增加 afterEach 清理动态生成 worker 的 bindings/online/qualifications，并将该长场景 timeout 调整为 120s。单跑该文件通过，完整 `pnpm test` 通过。
+
+两行中文乱码测试数据：
+
+- 删除 `worker_withdrawal_requests.withdrawal_id = 'wwd_mrddm9pb_466fbcd6'` 1 行。
+- 删除 `worker_bank_accounts.bank_account_id = 'wba_mrddm9jo_f5954430'` 1 行。
+- 删除后复查两者均为 0 行。编码排查结论保持不变：不是系统性 MySQL/连接字符集问题，而是测试命令输入阶段已经把中文写成 `?`。
+
+### 本轮未处理待办
+
+| 待办 | 当前状态 |
+|---|---|
+| Worker 收益页/资料页部分内容仍缺 Worker-facing read API | 仍残留。本轮没有为接线硬造 API，需后续按真实产品数据模型补齐。 |
+| Admin 缺售后/退款审批可视化页面 | 仍残留。本轮售后/退款审批主要通过 API 验证，Admin 可视化审批页面需单独补。 |
+| Admin Order Trace 不展示 ledger entries | 仍残留。当前 trace 能看 order/payment/dispatch/fulfillment/review/aftersale 主状态，但 ledger entries 展示需扩展。 |
+| 中文乱码问题 | 已确认非系统性；本轮删除已污染的两行测试数据。后续仍建议避免在 PowerShell inline command 中直接输入中文业务测试数据。 |
+| 本地测试数据库历史模拟 worker 数据污染 | 本轮已清理可匹配污染，保留带历史外键引用的 inert profile。仍建议后续提供正式测试库 reset/fixture 隔离脚本。 |
+| React `act(...)` warning | 仍残留。`pnpm test` 中 SettlementOpsPage 相关前端测试仍有 warning，但不影响通过。 |
+
+### 本轮验证
+
+```text
+pnpm turbo run build
+Tasks: 11 successful, 11 total
+```
+
+```text
+pnpm turbo run typecheck
+Tasks: 17 successful, 17 total
+```
+
+```text
+pnpm turbo run lint
+Tasks: 17 successful, 17 total
+0 errors, 2 warnings
+```
+
+```text
+pnpm test
+unit/contract: Test Files 107 passed (107), Tests 630 passed | 1 todo (631)
+db-serial: Test Files 152 passed (152), Tests 438 passed (438)
+```
