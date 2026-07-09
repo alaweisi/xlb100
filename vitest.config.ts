@@ -34,6 +34,7 @@ export default defineConfig({
       { find: "@xlb/validators", replacement: path.resolve(__dirname, "packages/validators/src/index.ts") },
       { find: "@xlb/config", replacement: path.resolve(__dirname, "packages/config/src/index.ts") },
       { find: "@xlb/api-client", replacement: path.resolve(__dirname, "packages/api-client/src/index.ts") },
+      { find: "@xlb/ui", replacement: path.resolve(__dirname, "packages/ui/src/index.ts") },
       { find: "@xlb/admin-pages", replacement: path.resolve(__dirname, "apps/admin/src/pages") },
       { find: /^@shared\/(.*)$/, replacement: path.resolve(__dirname, "packages/shared/$1") },
       { find: "@shared", replacement: path.resolve(__dirname, "packages/shared") },

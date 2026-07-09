@@ -54,6 +54,29 @@ export interface FulfillmentResponse {
   updatedAt: string;
 }
 
+export interface WorkerCertificationResponse {
+  certificationId: string;
+  workerId: string;
+  cityCode: string;
+  certType: string;
+  certName: string;
+  status: "pending" | "approved" | "rejected" | "expired";
+  submittedAt: string;
+  reviewedAt?: string | null;
+  reviewerId?: string | null;
+  rejectReason?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WorkerEligibilityResponse {
+  workerId: string;
+  cityCode: string;
+  skuId: string;
+  isEligible: boolean;
+  reasons: string[];
+}
+
 export type AcceptTaskResponse = {
   ok: true;
   acceptance: WorkerTaskAcceptanceResponse;
@@ -87,6 +110,21 @@ export type FulfillmentLifecycleResponse = {
 export type WorkerTaskMutationResponse = {
   ok: true;
   task: WorkerTaskPoolItemResponse;
+};
+
+export type SubmitWorkerCertificationInput = {
+  certType: string;
+  certName: string;
+};
+
+export type SubmitWorkerCertificationResponse = {
+  ok: true;
+  certification: WorkerCertificationResponse;
+};
+
+export type WorkerEligibilityApiResponse = {
+  ok: true;
+  eligibility: WorkerEligibilityResponse;
 };
 
 export type CompleteFulfillmentInput = {
@@ -140,6 +178,14 @@ export function createWorkerApi(client: ApiClient) {
       return client.post<FulfillmentLifecycleResponse>(
         `/api/worker/fulfillments/${encodeURIComponent(fulfillmentId)}/complete`,
         input,
+      );
+    },
+    submitCertification(input: SubmitWorkerCertificationInput): Promise<SubmitWorkerCertificationResponse> {
+      return client.post<SubmitWorkerCertificationResponse>("/api/worker/certifications", input);
+    },
+    getEligibility(skuId: string): Promise<WorkerEligibilityApiResponse> {
+      return client.get<WorkerEligibilityApiResponse>(
+        `/api/worker/eligibility?skuId=${encodeURIComponent(skuId)}`,
       );
     },
   };
