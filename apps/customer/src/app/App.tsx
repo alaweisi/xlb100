@@ -24,7 +24,16 @@ export function App() {
   const initialCityCode = useMemo(() => readCustomerCityCode(), []);
   const [cityCode, setCityCode] = useState<CityCode>(initialCityCode);
   const [catalogState, setCatalogState] = useState<CustomerLoadable<CatalogSnapshot>>({ status: "loading" });
-  const [orderIds, setOrderIds] = useState<string[]>(() => readOrderIds());
+  const [orderIds, setOrderIds] = useState<string[]>(() => {
+    const storedOrderIds = readOrderIds();
+    const orderIdFromUrl =
+      typeof window === "undefined"
+        ? ""
+        : new URLSearchParams(window.location.search).get("orderId")?.trim() ?? "";
+    return orderIdFromUrl
+      ? [orderIdFromUrl, ...storedOrderIds.filter((orderId) => orderId !== orderIdFromUrl)]
+      : storedOrderIds;
+  });
   const [session, setSession] = useState<CustomerSession | null>(() => readStoredSession());
   const currentRoute = useMemo(() => detectCustomerRoute(), []);
 

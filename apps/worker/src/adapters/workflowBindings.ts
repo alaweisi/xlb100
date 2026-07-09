@@ -1,4 +1,7 @@
 import type {
+  CityCode,
+  DispatchTaskStatus,
+  FulfillmentStatus,
   WorkflowActionContract,
   WorkflowDisabledReason,
   WorkflowUiBinding,
@@ -8,6 +11,11 @@ export type WorkerWorkflowRoute = "hall" | "tasks" | "wallet" | "profile" | "cer
 
 type CreateWorkerBindingInput = {
   route: WorkerWorkflowRoute;
+  cityCode?: CityCode;
+  workerId?: string;
+  dispatchTaskStatus?: DispatchTaskStatus;
+  fulfillmentStatus?: FulfillmentStatus;
+  busy?: boolean;
 };
 
 const workerThemeTokens = {
@@ -24,41 +32,150 @@ const workerThemeTokens = {
   ],
 } satisfies WorkflowUiBinding["runtimeThemeTokens"];
 
-function action(
+type ActionOptions = {
+  enabled?: boolean;
+  disabledReasonCode?: WorkflowDisabledReason;
+  endpoint?: string;
+  method?: WorkflowActionContract["method"];
+  danger?: boolean;
+  confirmRequired?: boolean;
+  idempotencyRequired?: boolean;
+  auditRequired?: boolean;
+  cityScopeRequired?: boolean;
+};
+
+function createAction(
   actionId: string,
   label: string,
   source: WorkflowActionContract["source"],
+  options: ActionOptions = {},
+): WorkflowActionContract {
+  const enabled = options.enabled ?? true;
+  return {
+    actionId,
+    label,
+    enabled,
+    disabledReasonCode: enabled ? null : options.disabledReasonCode ?? "STATE_NOT_ACTIONABLE",
+    source,
+    danger: options.danger ?? false,
+    confirmRequired: options.confirmRequired ?? false,
+    idempotencyRequired: options.idempotencyRequired ?? options.method === "POST",
+    auditRequired: options.auditRequired ?? false,
+    cityScopeRequired: options.cityScopeRequired ?? true,
+    endpoint: options.endpoint,
+    method: options.method,
+  };
+}
+
+function createNotWiredAction(
+  actionId: string,
+  label: string,
   reasonCode: WorkflowDisabledReason,
   endpoint?: string,
   method?: WorkflowActionContract["method"],
 ): WorkflowActionContract {
-  return {
-    actionId,
-    label,
+  return createAction(actionId, label, "not-wired", {
     enabled: false,
     disabledReasonCode: reasonCode,
-    source,
-    danger: false,
-    confirmRequired: false,
-    idempotencyRequired: method === "POST",
-    auditRequired: false,
-    cityScopeRequired: true,
     endpoint,
     method,
-  };
+  });
+}
+
+function hasWorkerIdentity(input: { workerId?: string; hasWorkerIdentity?: boolean }): boolean {
+  return input.hasWorkerIdentity ?? Boolean(input.workerId);
+}
+
+type WorkerActionState = {
+  dispatchTaskStatus?: DispatchTaskStatus;
+  fulfillmentStatus?: FulfillmentStatus;
+  busy?: boolean;
+  workerId?: string;
+  hasWorkerIdentity?: boolean;
+};
+
+function disabledReasonsFromActions(actions: WorkflowActionContract[]): WorkflowUiBinding["disabledReasons"] {
+  const reasons = new Set<WorkflowDisabledReason>();
+  for (const action of actions) {
+    if (action.disabledReasonCode) {
+      reasons.add(action.disabledReasonCode);
+    }
+  }
+  return [...reasons];
 }
 
 export const workerWorkflowActions = {
   waitForTaskPool: () =>
-    action("worker.taskPool.waitForBackend", "等待真实任务池", "not-wired", "API_NOT_AVAILABLE", "/api/worker/task-pool", "GET"),
-  waitForAccept: () =>
-    action("worker.accept.disabled", "接单未开放", "not-wired", "WORKFLOW_NOT_IMPLEMENTED", "/api/worker/tasks/:dispatchTaskId/accept", "POST"),
-  waitForFulfillment: () =>
-    action("worker.fulfillment.disabled", "履约未接线", "not-wired", "WORKFLOW_NOT_IMPLEMENTED", "/api/worker/fulfillments/:id/start", "POST"),
-  waitForWallet: () => action("worker.wallet.disabled", "收益未接线", "not-wired", "API_NOT_AVAILABLE"),
-  waitForProfile: () => action("worker.profile.disabled", "资料未接线", "not-wired", "API_NOT_AVAILABLE"),
+    createNotWiredAction("worker.taskPool.waitForBackend", "等待真实任务池", "API_NOT_AVAILABLE", "/api/worker/task-pool", "GET"),
+  readTaskPool: () =>
+    createAction("worker.taskPool.reload", "刷新任务池", "backend", {
+      endpoint: "/api/worker/task-pool",
+      method: "GET",
+    }),
+  acceptTask: (state: WorkerActionState = {}) => {
+    const identityReady = hasWorkerIdentity(state);
+    const stateReady = state.dispatchTaskStatus === "queued" || state.dispatchTaskStatus === "offering";
+    const enabled = identityReady && stateReady && !state.busy;
+    const disabledReasonCode = !identityReady
+      ? "IDENTITY_REQUIRED"
+      : !stateReady
+        ? "STATE_NOT_ACTIONABLE"
+        : "EXECUTION_DISABLED";
+
+    return createAction("worker.acceptTask", state.busy ? "接单中" : "接单", "backend", {
+      enabled,
+      disabledReasonCode,
+      endpoint: "/api/worker/tasks/:dispatchTaskId/accept",
+      method: "POST",
+      idempotencyRequired: true,
+      auditRequired: true,
+    });
+  },
+  readFulfillments: () =>
+    createAction("worker.fulfillment.reload", "刷新履约任务", "backend", {
+      endpoint: "/api/worker/fulfillments",
+      method: "GET",
+    }),
+  startFulfillment: (state: WorkerActionState = {}) => {
+    const identityReady = hasWorkerIdentity(state);
+    const stateReady = state.fulfillmentStatus === "accepted";
+    const enabled = identityReady && stateReady && !state.busy;
+    const disabledReasonCode = !identityReady
+      ? "IDENTITY_REQUIRED"
+      : !stateReady
+        ? "STATE_NOT_ACTIONABLE"
+        : "EXECUTION_DISABLED";
+
+    return createAction("worker.fulfillment.start", state.busy ? "开始中" : "开始服务", "backend", {
+      enabled,
+      disabledReasonCode,
+      endpoint: "/api/worker/fulfillments/:fulfillmentId/start",
+      method: "POST",
+      idempotencyRequired: true,
+    });
+  },
+  completeFulfillment: (state: WorkerActionState = {}) => {
+    const identityReady = hasWorkerIdentity(state);
+    const stateReady = state.fulfillmentStatus === "in_progress";
+    const enabled = identityReady && stateReady && !state.busy;
+    const disabledReasonCode = !identityReady
+      ? "IDENTITY_REQUIRED"
+      : !stateReady
+        ? "STATE_NOT_ACTIONABLE"
+        : "EXECUTION_DISABLED";
+
+    return createAction("worker.fulfillment.complete", state.busy ? "完工中" : "完成服务", "backend", {
+      enabled,
+      disabledReasonCode,
+      endpoint: "/api/worker/fulfillments/:fulfillmentId/complete",
+      method: "POST",
+      idempotencyRequired: true,
+    });
+  },
+  waitForWallet: () => createNotWiredAction("worker.wallet.disabled", "收益未接线", "API_NOT_AVAILABLE"),
+  waitForProfile: () => createNotWiredAction("worker.profile.disabled", "资料未接线", "API_NOT_AVAILABLE"),
   waitForCertification: () =>
-    action("worker.certification.disabled", "认证未接线", "not-wired", "API_NOT_AVAILABLE", "/api/worker/certifications", "POST"),
+    createNotWiredAction("worker.certification.disabled", "认证状态未接线", "API_NOT_AVAILABLE", "/api/worker/certifications", "POST"),
 };
 
 function baseBinding(route: WorkerWorkflowRoute): Pick<WorkflowUiBinding, "actor" | "route" | "runtimeThemeTokens"> {
@@ -96,79 +213,88 @@ export function createWorkerWorkflowBinding(input: CreateWorkerBindingInput): Wo
   const common = baseBinding(input.route);
 
   if (input.route === "hall") {
-    const actions = [workerWorkflowActions.waitForTaskPool(), workerWorkflowActions.waitForAccept()];
+    const acceptAction = workerWorkflowActions.acceptTask(input);
+    const actions = [workerWorkflowActions.readTaskPool(), acceptAction];
     return {
       ...common,
-      workflowName: "worker.taskPool.notWired",
+      workflowName: "worker.taskPool",
       backendSource: {
         contractDocs: ["docs/contracts/CONTRACT_WORKER_TASK_POOL.md", "docs/contracts/CONTRACT_WORKER_ACCEPT.md"],
         endpoints: ["GET /api/worker/task-pool", "POST /api/worker/tasks/:dispatchTaskId/accept"],
-        status: "not-wired",
+        status: "wired",
       },
       state: {
-        stateId: "task-pool.not-wired",
-        label: "任务池未接线",
-        source: "not-wired-policy",
+        stateId: acceptAction.enabled ? "task-pool.acceptable" : "task-pool.ready",
+        label: acceptAction.enabled ? "可接单" : "任务池已接线",
+        source: "frontend-derived-from-api",
         workerAnswer: {
-          canAcceptOrder: false,
-          blockedReason: "API_NOT_AVAILABLE",
-          nextStep: "等待真实任务池、城市绑定和资格结果",
+          canAcceptOrder: acceptAction.enabled,
+          serviceCity: input.cityCode,
+          blockedReason: acceptAction.disabledReasonCode ?? undefined,
+          nextStep: acceptAction.enabled ? "调用接单接口" : "等待可接任务或刷新任务池",
           walletWired: false,
         },
       },
       availableActions: actions,
-      disabledReasons: ["API_NOT_AVAILABLE", "WORKFLOW_NOT_IMPLEMENTED"],
+      disabledReasons: disabledReasonsFromActions(actions),
       workerFacingCopy: {
         title: "师傅接单大厅",
-        body: "任务、资格和接单动作必须来自后端 workflow。",
+        body: "任务池和接单动作来自后端 worker workflow。",
       },
-      uiSlots: ["pageHero", "summaryCard", "stateBadge", "guardrail", "notWired", "emptyState", "bottomNav", "themeSurface"],
+      uiSlots: ["pageHero", "summaryCard", "primaryActionDock", "tableActions", "stateBadge", "apiError", "emptyState", "bottomNav", "themeSurface"],
       figmaBinding: {
         kind: "exact",
         frameName: "Worker / GrabHall / Online",
         nodeId: "1:1515",
         localPng: "docs/design/figma/frames/worker/worker_grabhall_online_1-1515.png",
       },
-      packagesUiComponents: ["WorkerStatusCard", "ActionDock", "WorkerAnswerCard", "WorkflowTimeline", "NotWiredState"],
-      notWiredPolicy: notWiredPolicy("API_NOT_AVAILABLE", "真实任务池和接单资格尚未接线。", actions),
+      packagesUiComponents: ["WorkerStatusCard", "ActionDock", "WorkerAnswerCard", "WorkflowTimeline", "Table", "Button"],
     };
   }
 
   if (input.route === "tasks") {
-    const actions = [workerWorkflowActions.waitForFulfillment()];
+    const startAction = workerWorkflowActions.startFulfillment(input);
+    const completeAction = workerWorkflowActions.completeFulfillment(input);
+    const actions = [workerWorkflowActions.readFulfillments(), startAction, completeAction];
     return {
       ...common,
-      workflowName: "worker.fulfillment.tasks.notWired",
+      workflowName: "worker.fulfillment.lifecycle",
       backendSource: {
         contractDocs: ["docs/contracts/CONTRACT_FULFILLMENT_LIFECYCLE.md"],
         endpoints: ["GET /api/worker/fulfillments", "POST /api/worker/fulfillments/:fulfillmentId/start", "POST /api/worker/fulfillments/:fulfillmentId/complete"],
-        status: "not-wired",
+        status: "wired",
       },
       state: {
-        stateId: "fulfillment.not-wired",
-        label: "履约任务未接线",
-        source: "not-wired-policy",
+        stateId: input.fulfillmentStatus ? `fulfillment.${input.fulfillmentStatus}` : "fulfillment.list",
+        label: "履约任务已接线",
+        source: "frontend-derived-from-api",
         workerAnswer: {
           canAcceptOrder: false,
-          blockedReason: "WORKFLOW_NOT_IMPLEMENTED",
-          nextStep: "等待真实履约列表和状态机",
+          serviceCity: input.cityCode,
+          blockedReason: startAction.enabled || completeAction.enabled
+            ? undefined
+            : startAction.disabledReasonCode ?? completeAction.disabledReasonCode ?? undefined,
+          nextStep: startAction.enabled
+            ? "开始服务"
+            : completeAction.enabled
+              ? "完成服务"
+              : "查看履约任务状态",
           walletWired: false,
         },
       },
       availableActions: actions,
-      disabledReasons: ["WORKFLOW_NOT_IMPLEMENTED"],
+      disabledReasons: disabledReasonsFromActions(actions),
       workerFacingCopy: {
         title: "师傅任务",
-        body: "履约状态和动作必须来自后端 workflow。",
+        body: "履约列表、开始服务和完工动作来自后端 fulfillment workflow。",
       },
-      uiSlots: ["workflowTimeline", "stateBadge", "guardrail", "notWired", "emptyState", "apiError", "bottomNav", "themeSurface"],
+      uiSlots: ["workflowTimeline", "stateBadge", "primaryActionDock", "tableActions", "emptyState", "apiError", "bottomNav", "themeSurface"],
       figmaBinding: {
         kind: "partial",
         frameName: "Worker / Tasks / Accepted + TaskDetail / InProgress",
         nodeId: "1:2452 / 1:2543",
       },
-      packagesUiComponents: ["WorkerTaskCard", "ActionDock", "WorkerAnswerCard", "WorkflowTimeline", "NotWiredState"],
-      notWiredPolicy: notWiredPolicy("WORKFLOW_NOT_IMPLEMENTED", "履约列表和动作尚未接线。", actions),
+      packagesUiComponents: ["WorkerTaskCard", "ActionDock", "WorkerAnswerCard", "WorkflowTimeline", "Table", "Button"],
     };
   }
 

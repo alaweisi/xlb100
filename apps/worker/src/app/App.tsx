@@ -14,6 +14,7 @@ import {
   StatusTag,
   Table,
 } from "@xlb/ui";
+import { workerWorkflowActions } from "../adapters/workflowBindings";
 
 const DEFAULT_CITY_CODE = "hangzhou";
 const DEFAULT_WORKER_ID = "worker-demo-hangzhou";
@@ -390,13 +391,17 @@ function HallPage({
                   key: "actions",
                   title: "Action",
                   render: (row) => {
-                    const canAccept = row.status === "queued" || row.status === "offering";
-                    const canSimulate = simulationControlsEnabled && row.status === "offering";
                     const busy = acceptingDispatchTaskId !== null || simulationAction !== null;
+                    const acceptAction = workerWorkflowActions.acceptTask({
+                      dispatchTaskStatus: row.status,
+                      busy,
+                      hasWorkerIdentity: Boolean(cityCode && workerId),
+                    });
+                    const canSimulate = simulationControlsEnabled && row.status === "offering";
                     return (
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                         <Button
-                          disabled={!canAccept || busy}
+                          disabled={!acceptAction.enabled}
                           onClick={() => onAccept(row.dispatchTaskId)}
                           variant="primary"
                         >
@@ -510,8 +515,19 @@ function TaskDetailPage({
   onStart: (fulfillmentId: string) => void;
   onComplete: (fulfillmentId: string) => void;
 }) {
-  const canStart = fulfillment?.status === "accepted";
-  const canComplete = fulfillment?.status === "in_progress";
+  const lifecycleBusy = lifecycleAction !== null;
+  const startAction = workerWorkflowActions.startFulfillment({
+    fulfillmentStatus: fulfillment?.status,
+    busy: lifecycleBusy,
+    hasWorkerIdentity: Boolean(fulfillment?.workerId),
+  });
+  const completeAction = workerWorkflowActions.completeFulfillment({
+    fulfillmentStatus: fulfillment?.status,
+    busy: lifecycleBusy,
+    hasWorkerIdentity: Boolean(fulfillment?.workerId),
+  });
+  const canStart = startAction.enabled;
+  const canComplete = completeAction.enabled;
 
   const rows = fulfillment
     ? [
@@ -570,14 +586,14 @@ function TaskDetailPage({
       <Card title="Actions" actions={<StatusTag tone="success">Lifecycle</StatusTag>} style={workerPanelStyle}>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
           <Button
-            disabled={!canStart || lifecycleAction !== null}
+            disabled={!canStart}
             onClick={() => onStart(fulfillmentId)}
             variant="primary"
           >
             {lifecycleAction === "start" ? "Starting" : "Start service"}
           </Button>
           <Button
-            disabled={!canComplete || lifecycleAction !== null}
+            disabled={!canComplete}
             onClick={() => onComplete(fulfillmentId)}
             variant="primary"
           >
@@ -601,15 +617,50 @@ function PlaceholderPage({ title, children }: { title: string; children: ReactNo
   );
 }
 
-function CertificationPage({ cityCode, workerId }: QueryParams) {
+function CertificationPage({
+  cityCode,
+  workerId,
+  certType,
+  certName,
+  submitting,
+  error,
+  notice,
+  onCertTypeChange,
+  onCertNameChange,
+  onSubmit,
+}: QueryParams & {
+  certType: string;
+  certName: string;
+  submitting: boolean;
+  error: string | null;
+  notice: string | null;
+  onCertTypeChange: (value: string) => void;
+  onCertNameChange: (value: string) => void;
+  onSubmit: () => void;
+}) {
   return (
-    <Card title="Certification Status" actions={<StatusTag tone="muted">Read-only note</StatusTag>} style={workerPanelStyle}>
+    <Card title="Certification Apply" actions={<StatusTag tone={notice ? "success" : "warning"}>Real API</StatusTag>} style={workerPanelStyle}>
       <div style={mutedBoxStyle}>
         <p style={helperText}>
-          Demo worker qualification is supplied by seed data for {workerId} in {cityCode}.
+          Submitting uses POST /api/worker/certifications for {workerId} in {cityCode}.
         </p>
+        <FormField label="certType">
+          <Input value={certType} onChange={(event) => onCertTypeChange(event.target.value)} />
+        </FormField>
+        <FormField label="certName">
+          <Input value={certName} onChange={(event) => onCertNameChange(event.target.value)} />
+        </FormField>
+        <Button
+          disabled={submitting || !certType.trim() || !certName.trim()}
+          onClick={onSubmit}
+          variant="primary"
+        >
+          {submitting ? "Submitting" : "Submit certification"}
+        </Button>
+        {error && <p style={{ ...helperText, color: "#fda29b" }}>{error}</p>}
+        {notice && <p style={helperText}>{notice}</p>}
         <p style={helperText}>
-          This stage does not add certification submission, review, or mutation flows.
+          Certification status/profile read APIs are not available yet, so this page does not invent a local approved state.
         </p>
       </div>
     </Card>
@@ -637,6 +688,11 @@ export function App() {
   const [acceptNotice, setAcceptNotice] = useState<string | null>(null);
   const [lifecycleError, setLifecycleError] = useState<string | null>(null);
   const [lifecycleNotice, setLifecycleNotice] = useState<string | null>(null);
+  const [certType, setCertType] = useState("home_service_basic");
+  const [certName, setCertName] = useState("基础上门服务资格");
+  const [certSubmitting, setCertSubmitting] = useState(false);
+  const [certError, setCertError] = useState<string | null>(null);
+  const [certNotice, setCertNotice] = useState<string | null>(null);
   const simulationControlsEnabled =
     ((import.meta as ImportMeta & { env?: { MODE?: string } }).env?.MODE ?? "development") !== "production";
 
@@ -795,6 +851,25 @@ export function App() {
     [api, refreshFulfillmentState],
   );
 
+  const submitCertification = useCallback(async () => {
+    setCertSubmitting(true);
+    setCertError(null);
+    setCertNotice(null);
+    try {
+      const response = await api.submitCertification({
+        certType: certType.trim(),
+        certName: certName.trim(),
+      });
+      setCertNotice(
+        `Certification ${response.certification.certificationId} submitted with status ${response.certification.status}.`,
+      );
+    } catch (error) {
+      setCertError(error instanceof Error ? error.message : "Failed to submit certification");
+    } finally {
+      setCertSubmitting(false);
+    }
+  }, [api, certName, certType]);
+
   useEffect(() => {
     const onRouteChange = () => setRoute(resolveRoute());
     window.addEventListener("popstate", onRouteChange);
@@ -858,7 +933,18 @@ export function App() {
         Current demo identity comes from headers: {workerId} / {workerCityCode}.
       </PlaceholderPage>
     ) : (
-      <CertificationPage cityCode={workerCityCode} workerId={workerId} />
+      <CertificationPage
+        cityCode={workerCityCode}
+        workerId={workerId}
+        certType={certType}
+        certName={certName}
+        submitting={certSubmitting}
+        error={certError}
+        notice={certNotice}
+        onCertTypeChange={setCertType}
+        onCertNameChange={setCertName}
+        onSubmit={() => void submitCertification()}
+      />
     );
 
   return (
