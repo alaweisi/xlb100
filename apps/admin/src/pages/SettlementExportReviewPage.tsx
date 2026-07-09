@@ -1,10 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
-import { settlementApi, createApiClient } from "@xlb/api-client";
-import { API_BASE } from "../apiBase";
+import { adminSettlementApi as api } from "../adminAuth";
 import { ApiErrorPanel, Button, Card, EmptyState, FormField, Input, LoadingState, ScopeBadge, StatusTag, Table } from "@xlb/ui";
 
-const client = createApiClient({ baseUrl: API_BASE, headers: { "x-xlb-app-type": "admin", "x-xlb-role": "operator" } });
-const api = settlementApi.create(client);
 const hiddenCompatStyle = {
   clip: "rect(0 0 0 0)",
   clipPath: "inset(50%)",

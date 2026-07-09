@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { buildApp } from "../../backend/src/app.js";
 import { XLB_HEADERS } from "@xlb/types";
+import { bearerHeaders } from "../integration/helpers/authTestHelper.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -36,8 +37,7 @@ describe("noDemoCatalogForPhase4", () => {
       method: "GET",
       url: "/api/catalog",
       headers: {
-        [XLB_HEADERS.appType]: "customer",
-        [XLB_HEADERS.role]: "customer",
+        ...bearerHeaders({ appType: "customer", role: "customer", userId: "customer-demo-001" }),
         [XLB_HEADERS.cityCode]: "__global__",
       },
     });

@@ -8,7 +8,7 @@ const preHandler = [createRequestContextMiddleware({ requireCityCode: true }), r
 
 export async function registerGovernanceReadinessRoutes(app: FastifyInstance): Promise<void> {
   app.post("/api/internal/settlement-action-governance/readiness-packets", { preHandler }, async (request: FastifyRequest, reply) => {
-    const ctx = getRequestContext(request); const body = { ...(request.body as Record<string,unknown>??{}), cityCode: ctx.cityCode };
+    const ctx = getRequestContext(request); if (!ctx.userId) return reply.status(401).send({ ok:false,error:"authenticated admin identity required for readiness packet" }); const body = { ...(request.body as Record<string,unknown>??{}), cityCode: ctx.cityCode, createdByAdminId: ctx.userId };
     const p = createReadinessPacketRequestSchema.safeParse(body); if (!p.success) return reply.status(400).send({ ok:false,error:"invalid" });
     try { const packet = await governanceReadinessService.create(ctx, p.data); return { ok:true, packet }; } catch(e) { return reply.status(500).send({ ok:false,error:String(e) }); }
   });

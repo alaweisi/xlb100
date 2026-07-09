@@ -1,16 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { buildApp } from "../../backend/src/app.js";
-import { XLB_HEADERS } from "@xlb/types";
+import { bearerHeaders } from "./helpers/authTestHelper.js";
 import { serviceAddressSchedulePayload } from "./helpers/orderTestPayload";
 
 const runDb = process.env.XLB_SKIP_DB_TESTS !== "1";
 
-const customerHeaders = {
-  [XLB_HEADERS.appType]: "customer",
-  [XLB_HEADERS.role]: "customer",
-  [XLB_HEADERS.cityCode]: "hangzhou",
-  [XLB_HEADERS.userId]: "customer-demo-001",
-};
+const customerHeaders = bearerHeaders({ appType: "customer", role: "customer", userId: "customer-demo-001", cityCode: "hangzhou" });
 
 describe.skipIf(!runDb)("orderCreate integration", { timeout: 15000 }, () => {
   it("creates order with official sku and price snapshot", async () => {
@@ -63,10 +58,7 @@ describe.skipIf(!runDb)("orderCreate integration", { timeout: 15000 }, () => {
     const response = await app.inject({
       method: "POST",
       url: "/api/orders",
-      headers: {
-        [XLB_HEADERS.appType]: "customer",
-        [XLB_HEADERS.role]: "customer",
-      },
+      headers: bearerHeaders({ appType: "customer", role: "customer", userId: "customer-demo-001" }),
       payload: {
         customerId: "customer-demo-001",
         skuId: "sku_home_daily_2h",

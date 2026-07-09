@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { buildApp } from "../../backend/src/app.js";
 import { XLB_HEADERS } from "@xlb/types";
+import { bearerHeaders } from "../integration/helpers/authTestHelper.js";
 
 const runDb = process.env.XLB_SKIP_DB_TESTS !== "1";
 
@@ -11,10 +12,8 @@ describe.skipIf(!runDb)("noCertificationWithoutCity", () => {
       method: "POST",
       url: "/api/worker/certifications",
       headers: {
-        [XLB_HEADERS.appType]: "worker",
-        [XLB_HEADERS.role]: "worker",
+        ...bearerHeaders({ appType: "worker", role: "worker", userId: "worker-demo-hangzhou" }),
         [XLB_HEADERS.cityCode]: "__global__",
-        [XLB_HEADERS.userId]: "worker-demo-hangzhou",
       },
       payload: {
         certType: "home_service_basic",

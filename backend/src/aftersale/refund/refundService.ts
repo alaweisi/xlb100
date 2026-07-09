@@ -125,8 +125,10 @@ export class RefundService {
       throw new RefundValidationError(parsed.error.message);
     }
     const cityCode = assertCityScopedContext(context);
-    const approvedByAdminId =
-      parsed.data.approvedByAdminId ?? context.userId ?? "admin-operator";
+    const approvedByAdminId = context.userId;
+    if (!approvedByAdminId) {
+      throw new RefundValidationError("refund approval requires authenticated admin identity");
+    }
 
     return this.transactionRunner(async (connection) => {
       const refund = await this.repository.findByIdForUpdate(

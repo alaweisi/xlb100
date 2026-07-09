@@ -3,15 +3,11 @@ import { buildApp } from "../../backend/src/app.js";
 import { getMysqlPool } from "../../backend/src/dal/mysqlPool.js";
 import type { RowDataPacket } from "mysql2/promise";
 import { createOrderForDispatch, createPaidOrderForDispatch, operatorHeaders } from "./helpers/dispatchTestHelper.js";
+import { workerAuthHeaders } from "./helpers/authTestHelper.js";
 
 const runDb = process.env.XLB_SKIP_DB_TESTS !== "1";
 
-const workerHeaders = (workerId: string, cityCode = "hangzhou") => ({
-  "x-xlb-app-type": "worker",
-  "x-xlb-role": "worker",
-  "x-xlb-city-code": cityCode,
-  "x-xlb-user-id": workerId,
-});
+const workerHeaders = (workerId: string, cityCode = "hangzhou") => workerAuthHeaders(workerId, cityCode);
 
 function workerId(tag: string): string {
   return `worker-sim-${tag}-${Date.now().toString(36)}`;

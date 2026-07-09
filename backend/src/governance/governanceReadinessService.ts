@@ -12,6 +12,8 @@ const defaultGuard: DryRunGuard = { dryRunMode:"governance_guard_only",execution
 
 class GovernanceReadinessService { private pool=getMysqlPool();
   async create(ctx:RequestContext,req:CreateReadinessPacketRequest):Promise<GovernanceReadinessPacketRecord>{ const c=assertCityScopedContext(ctx);
+    const adminId = ctx.userId;
+    if (!adminId) throw new Error("authenticated admin identity required for readiness packet");
     // B4 FIX: verify intent belongs to current city
     const [ir] = await this.pool.query<RowDataPacket[]>("SELECT city_code FROM settlement_action_governance_intents WHERE id = ?", [req.intentId]);
     if (ir.length === 0) throw new Error(`governance intent ${req.intentId} not found`);
@@ -28,7 +30,7 @@ class GovernanceReadinessService { private pool=getMysqlPool();
     }
     const id=genId(); const n=new Date();
     await this.pool.query(`INSERT INTO settlement_action_governance_readiness_packets(id,city_code,intent_id,review_id,evidence_bundle_id,statement_id,packet_status,readiness_checks_json,blocker_flags_json,risk_flags_json,source_refs_json,dry_run_guard_json,execution_boundary_json,created_by_admin_id,created_at,updated_at) VALUES (?,?,?,?,?,?,'draft','{}','[]','[]','[]',?,?,?,?,?)`,
-      [id,c,req.intentId,req.reviewId??null,req.evidenceBundleId??null,req.statementId??null,JSON.stringify(defaultGuard),JSON.stringify(defaultBoundary),req.createdByAdminId,n,n]);
+      [id,c,req.intentId,req.reviewId??null,req.evidenceBundleId??null,req.statementId??null,JSON.stringify(defaultGuard),JSON.stringify(defaultBoundary),adminId,n,n]);
     return (await this.get(ctx,id))!; }
   async get(ctx:RequestContext,id:string):Promise<GovernanceReadinessPacketRecord|null>{ const c=assertCityScopedContext(ctx); const {clause,params}=buildCityScopedWhere(c,"city_code");
     const [rows]=await this.pool.query<R[]>(`SELECT * FROM settlement_action_governance_readiness_packets WHERE id=? AND ${clause}`,[id,...params]); return rows.length===0?null:map(rows[0]); }

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { buildApp } from "../../backend/src/app.js";
-import { XLB_HEADERS } from "@xlb/types";
+import { bearerHeaders } from "../integration/helpers/authTestHelper.js";
 
 describe("noCatalogWithoutCity", () => {
   it("GET /api/catalog returns 400 without cityCode header", async () => {
@@ -8,10 +8,7 @@ describe("noCatalogWithoutCity", () => {
     const response = await app.inject({
       method: "GET",
       url: "/api/catalog",
-      headers: {
-        [XLB_HEADERS.appType]: "customer",
-        [XLB_HEADERS.role]: "customer",
-      },
+      headers: bearerHeaders({ appType: "customer", role: "customer", userId: "customer-demo-001" }),
     });
     expect(response.statusCode).toBe(400);
     const body = response.json();

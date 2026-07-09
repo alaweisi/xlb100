@@ -54,7 +54,7 @@ export interface GovernanceReviewRecord {
 export interface SubmitReviewRequest {
   cityCode: CityCode;
   intentId: string;
-  submittedByAdminId: string;
+  submittedByAdminId?: string;
   reviewNote?: string | null;
 }
 
@@ -63,7 +63,7 @@ export interface SubmitReviewRequest {
  */
 export interface ReviewDecisionRequest {
   reviewDecision: GovernanceReviewDecision;
-  reviewedByAdminId: string;
+  reviewedByAdminId?: string;
   reviewNote?: string | null;
   rejectionReason?: string | null;
   changesRequestedNote?: string | null;

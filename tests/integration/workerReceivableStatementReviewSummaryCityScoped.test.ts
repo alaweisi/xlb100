@@ -7,6 +7,7 @@ import {
   exportWorkerReceivableStatementOnce,
   generateWorkerReceivableStatements,
   reviewWorkerReceivableStatementOnce,
+  settlementHeaders,
   withSettlementTestLock,
 } from "./helpers/settlementTestHelper.js";
 
@@ -30,12 +31,7 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
           const shanghaiSummary = await app.inject({
             method: "GET",
             url: "/api/internal/settlement/worker-statement-review-summary",
-            headers: {
-              "x-xlb-app-type": "admin",
-              "x-xlb-role": "operator",
-              "x-xlb-city-code": "shanghai",
-              "x-xlb-user-id": "operator-shanghai",
-            },
+            headers: settlementHeaders("shanghai"),
           });
 
           expect(shanghaiSummary.statusCode).toBe(200);
@@ -58,12 +54,7 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
           const hangzhouSummary = await app.inject({
             method: "GET",
             url: "/api/internal/settlement/worker-statement-review-summary",
-            headers: {
-              "x-xlb-app-type": "admin",
-              "x-xlb-role": "operator",
-              "x-xlb-city-code": "hangzhou",
-              "x-xlb-user-id": "operator-hangzhou",
-            },
+            headers: settlementHeaders("hangzhou"),
           });
 
           expect(hangzhouSummary.statusCode).toBe(200);
@@ -89,12 +80,7 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
           const response = await app.inject({
             method: "GET",
             url: "/api/internal/settlement/worker-statement-review-summary",
-            headers: {
-              "x-xlb-app-type": "admin",
-              "x-xlb-role": "operator",
-              "x-xlb-city-code": "shanghai",
-              "x-xlb-user-id": "operator-shanghai",
-            },
+            headers: settlementHeaders("shanghai"),
           });
 
           expect(response.statusCode).toBe(200);
@@ -120,12 +106,7 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
           const response = await app.inject({
             method: "GET",
             url: "/api/internal/settlement/worker-statement-review-summary",
-            headers: {
-              "x-xlb-app-type": "admin",
-              "x-xlb-role": "operator",
-              "x-xlb-city-code": "",
-              "x-xlb-user-id": "operator",
-            },
+            headers: settlementHeaders(""),
           });
 
           expect(response.statusCode).toBe(400);

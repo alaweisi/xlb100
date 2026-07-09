@@ -7,7 +7,7 @@ export type AuthzResult =
   | { ok: true; context: RequestContext }
   | { ok: false; statusCode: 401 | 403; message: string };
 
-/** Phase 1 authorization skeleton — no JWT, header-based only */
+/** Authorization guard after RequestContext has been built from a verified token. */
 export function authorizeRequest(context: RequestContext): AuthzResult {
   const appGuard = assertAppTypeRole(context.appType, context.role);
   if (!appGuard.ok) {

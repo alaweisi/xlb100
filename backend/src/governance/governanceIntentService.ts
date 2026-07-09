@@ -71,6 +71,10 @@ class GovernanceIntentService {
     req: CreateGovernanceIntentRequest,
   ): Promise<GovernanceIntentRecord> {
     const cityCode = assertCityScopedContext(context);
+    const adminId = context.userId;
+    if (!adminId) {
+      throw new Error("authenticated admin identity required for governance intent");
+    }
     const id = generateIntentId();
     const now = new Date();
     const phaseBoundary = {
@@ -91,7 +95,7 @@ class GovernanceIntentService {
       [
         id, cityCode, req.statementId ?? null, req.actionKind,
         req.targetType ?? null, req.targetRef ?? null,
-        req.requestedByAdminId, req.requestedReason,
+        adminId, req.requestedReason,
         JSON.stringify(req.evidenceRefs ?? []),
         JSON.stringify(req.riskFlags ?? []),
         JSON.stringify(phaseBoundary),

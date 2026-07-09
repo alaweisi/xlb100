@@ -1,20 +1,16 @@
 import type { FastifyInstance } from "fastify";
-import { XLB_HEADERS } from "@xlb/types";
 import { assertResponseJson } from "./httpResponseTestHelper";
 import { serviceAddressSchedulePayload } from "./orderTestPayload";
+import { adminAuthHeaders, bearerHeaders } from "./authTestHelper.js";
 
-export const customerHeaders = {
-  [XLB_HEADERS.appType]: "customer",
-  [XLB_HEADERS.role]: "customer",
-  [XLB_HEADERS.cityCode]: "hangzhou",
-  [XLB_HEADERS.userId]: "customer-dispatch-001",
-};
+export const customerHeaders = bearerHeaders({
+  appType: "customer",
+  role: "customer",
+  userId: "customer-dispatch-001",
+  cityCode: "hangzhou",
+});
 
-export const operatorHeaders = {
-  [XLB_HEADERS.appType]: "admin",
-  [XLB_HEADERS.role]: "operator",
-  [XLB_HEADERS.cityCode]: "hangzhou",
-};
+export const operatorHeaders = adminAuthHeaders("operator-hangzhou", "hangzhou");
 
 export async function createOrderForDispatch(
   app: FastifyInstance,

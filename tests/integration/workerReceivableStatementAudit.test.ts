@@ -10,6 +10,7 @@ import {
   generateWorkerReceivableStatements,
   getWorkerReceivableStatementExport,
   reviewWorkerReceivableStatementOnce,
+  settlementHeaders,
   withSettlementTestLock,
 } from "./helpers/settlementTestHelper.js";
 
@@ -27,12 +28,7 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
           const response = await app.inject({
             method: "GET",
             url: "/api/internal/settlement/worker-statement-audit",
-            headers: {
-              "x-xlb-app-type": "admin",
-              "x-xlb-role": "operator",
-              "x-xlb-city-code": "hangzhou",
-              "x-xlb-user-id": "operator-hangzhou",
-            },
+            headers: settlementHeaders("hangzhou"),
           });
           expect(response.statusCode).toBe(200);
           const body = response.json();
@@ -58,12 +54,7 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
           const response = await app.inject({
             method: "GET",
             url: "/api/internal/settlement/worker-statement-audit?workerId=worker-1",
-            headers: {
-              "x-xlb-app-type": "admin",
-              "x-xlb-role": "operator",
-              "x-xlb-city-code": "hangzhou",
-              "x-xlb-user-id": "operator-hangzhou",
-            },
+            headers: settlementHeaders("hangzhou"),
           });
           expect(response.statusCode).toBe(200);
           const body = response.json();
@@ -88,12 +79,7 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
           const response = await app.inject({
             method: "GET",
             url: "/api/internal/settlement/worker-statement-audit?reviewDecision=approved",
-            headers: {
-              "x-xlb-app-type": "admin",
-              "x-xlb-role": "operator",
-              "x-xlb-city-code": "hangzhou",
-              "x-xlb-user-id": "operator-hangzhou",
-            },
+            headers: settlementHeaders("hangzhou"),
           });
           expect(response.statusCode).toBe(200);
           const body = response.json();
@@ -120,12 +106,7 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
           const response = await app.inject({
             method: "GET",
             url: "/api/internal/settlement/worker-statement-audit?hasReview=true",
-            headers: {
-              "x-xlb-app-type": "admin",
-              "x-xlb-role": "operator",
-              "x-xlb-city-code": "hangzhou",
-              "x-xlb-user-id": "operator-hangzhou",
-            },
+            headers: settlementHeaders("hangzhou"),
           });
           expect(response.statusCode).toBe(200);
           const body = response.json();
@@ -148,12 +129,7 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
           const response = await app.inject({
             method: "GET",
             url: "/api/internal/settlement/worker-statement-audit?hasExport=true",
-            headers: {
-              "x-xlb-app-type": "admin",
-              "x-xlb-role": "operator",
-              "x-xlb-city-code": "hangzhou",
-              "x-xlb-user-id": "operator-hangzhou",
-            },
+            headers: settlementHeaders("hangzhou"),
           });
           expect(response.statusCode).toBe(200);
           const body = response.json();
@@ -176,12 +152,7 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
           const response = await app.inject({
             method: "GET",
             url: "/api/internal/settlement/worker-statement-audit?hasReview=false",
-            headers: {
-              "x-xlb-app-type": "admin",
-              "x-xlb-role": "operator",
-              "x-xlb-city-code": "hangzhou",
-              "x-xlb-user-id": "operator-hangzhou",
-            },
+            headers: settlementHeaders("hangzhou"),
           });
           expect(response.statusCode).toBe(200);
           const body = response.json();
@@ -207,12 +178,7 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
           const response = await app.inject({
             method: "GET",
             url: `/api/internal/settlement/worker-statement-audit?statementCreatedFrom=${from}&statementCreatedTo=${to}`,
-            headers: {
-              "x-xlb-app-type": "admin",
-              "x-xlb-role": "operator",
-              "x-xlb-city-code": "hangzhou",
-              "x-xlb-user-id": "operator-hangzhou",
-            },
+            headers: settlementHeaders("hangzhou"),
           });
           expect(response.statusCode).toBe(200);
           const body = response.json();
@@ -233,12 +199,7 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
           const first = await app.inject({
             method: "GET",
             url: "/api/internal/settlement/worker-statement-audit?limit=1",
-            headers: {
-              "x-xlb-app-type": "admin",
-              "x-xlb-role": "operator",
-              "x-xlb-city-code": "hangzhou",
-              "x-xlb-user-id": "operator-hangzhou",
-            },
+            headers: settlementHeaders("hangzhou"),
           });
           expect(first.statusCode).toBe(200);
           const firstBody = first.json();
@@ -248,12 +209,7 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
             const second = await app.inject({
               method: "GET",
               url: `/api/internal/settlement/worker-statement-audit?cursor=${encodeURIComponent(firstBody.nextCursor)}&limit=1`,
-              headers: {
-                "x-xlb-app-type": "admin",
-                "x-xlb-role": "operator",
-                "x-xlb-city-code": "hangzhou",
-                "x-xlb-user-id": "operator-hangzhou",
-              },
+              headers: settlementHeaders("hangzhou"),
             });
             expect(second.statusCode).toBe(200);
             const secondBody = second.json();
@@ -274,12 +230,7 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
           const response = await app.inject({
             method: "GET",
             url: `/api/internal/settlement/worker-statement-audit/${statementId}`,
-            headers: {
-              "x-xlb-app-type": "admin",
-              "x-xlb-role": "operator",
-              "x-xlb-city-code": "hangzhou",
-              "x-xlb-user-id": "operator-hangzhou",
-            },
+            headers: settlementHeaders("hangzhou"),
           });
           expect(response.statusCode).toBe(200);
           const body = response.json();
@@ -302,12 +253,7 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
           const response = await app.inject({
             method: "GET",
             url: "/api/internal/settlement/worker-statement-audit/wrs-nonexistent",
-            headers: {
-              "x-xlb-app-type": "admin",
-              "x-xlb-role": "operator",
-              "x-xlb-city-code": "hangzhou",
-              "x-xlb-user-id": "operator-hangzhou",
-            },
+            headers: settlementHeaders("hangzhou"),
           });
           expect(response.statusCode).toBe(404);
         } finally {
@@ -325,12 +271,7 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
           const response = await app.inject({
             method: "GET",
             url: "/api/internal/settlement/worker-statement-export-audit",
-            headers: {
-              "x-xlb-app-type": "admin",
-              "x-xlb-role": "operator",
-              "x-xlb-city-code": "hangzhou",
-              "x-xlb-user-id": "operator-hangzhou",
-            },
+            headers: settlementHeaders("hangzhou"),
           });
           expect(response.statusCode).toBe(200);
           const body = response.json();
@@ -357,12 +298,7 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
           const response = await app.inject({
             method: "GET",
             url: "/api/internal/settlement/worker-statement-export-audit?workerId=worker-1",
-            headers: {
-              "x-xlb-app-type": "admin",
-              "x-xlb-role": "operator",
-              "x-xlb-city-code": "hangzhou",
-              "x-xlb-user-id": "operator-hangzhou",
-            },
+            headers: settlementHeaders("hangzhou"),
           });
           expect(response.statusCode).toBe(200);
           const body = response.json();
@@ -382,12 +318,7 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
           const response = await app.inject({
             method: "GET",
             url: "/api/internal/settlement/worker-statement-audit",
-            headers: {
-              "x-xlb-app-type": "admin",
-              "x-xlb-role": "operator",
-              "x-xlb-city-code": "",
-              "x-xlb-user-id": "operator",
-            },
+            headers: settlementHeaders(""),
           });
           expect(response.statusCode).toBe(400);
         } finally {
@@ -402,12 +333,7 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
           const response = await app.inject({
             method: "GET",
             url: "/api/internal/settlement/worker-statement-audit?limit=999",
-            headers: {
-              "x-xlb-app-type": "admin",
-              "x-xlb-role": "operator",
-              "x-xlb-city-code": "hangzhou",
-              "x-xlb-user-id": "operator-hangzhou",
-            },
+            headers: settlementHeaders("hangzhou"),
           });
           expect(response.statusCode).toBe(400);
           expect(response.json().error).toBe("invalid audit query parameters");

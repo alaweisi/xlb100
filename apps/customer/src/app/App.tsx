@@ -36,9 +36,13 @@ export function App() {
       try {
         const s = await loginCustomer();
         if (!cancelled) setSession(s);
-      } catch {
-        // If login fails, proceed with header fallback.
-        // The backend returns 401 for routes that require real auth.
+      } catch (error) {
+        if (!cancelled) {
+          setCatalogState({
+            status: "error",
+            error: error instanceof Error ? error.message : "Customer login failed",
+          });
+        }
       }
     })();
     return () => { cancelled = true; };

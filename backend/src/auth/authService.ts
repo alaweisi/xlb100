@@ -1,80 +1,16 @@
-import { createHmac } from "node:crypto";
 import type { RowDataPacket } from "mysql2/promise";
 import { getMysqlPool } from "../dal/mysqlPool.js";
-import { loadEnv } from "@xlb/config";
+import { createToken, verifyToken } from "./tokenAuth.js";
+import {
+  issueLoginOtp,
+  readDebugLoginOtp,
+  verifyLoginOtp,
+  type DebugLoginOtpResult,
+} from "./otpService.js";
 
-// ── MOCK verification code ──
-// TODO: replace with real SMS verification in production
-const MOCK_CODE = "1234";
-
-// ── Simple HMAC JWT ──
-// No external JWT library dependency; keeps the build lean.
-// Production replacement: switch to jose or jsonwebtoken for standard JWT.
-
-interface TokenPayload {
-  sub: string;
-  role: string;
-  appType: string;
-  iat: number;
-  exp: number;
-}
-
-function base64UrlEncode(buf: Buffer): string {
-  return buf.toString("base64").replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
-}
-
-function base64UrlDecode(str: string): string {
-  return Buffer.from(str.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf-8");
-}
-
-function sign(payload: TokenPayload, secret: string): string {
-  const header = base64UrlEncode(Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })));
-  const body = base64UrlEncode(Buffer.from(JSON.stringify(payload)));
-  const signature = base64UrlEncode(
-    createHmac("sha256", secret).update(`${header}.${body}`).digest(),
-  );
-  return `${header}.${body}.${signature}`;
-}
-
-export function verifyToken(token: string): { ok: true; payload: TokenPayload } | { ok: false; error: string } {
-  try {
-    const parts = token.split(".");
-    if (parts.length !== 3) return { ok: false, error: "invalid token format" };
-
-    const [headerB64, bodyB64, sigB64] = parts;
-    const env = loadEnv();
-    const expectedSig = base64UrlEncode(
-      createHmac("sha256", env.jwtSecret).update(`${headerB64}.${bodyB64}`).digest(),
-    );
-
-    if (sigB64 !== expectedSig) return { ok: false, error: "invalid token signature" };
-
-    const payload = JSON.parse(base64UrlDecode(bodyB64)) as TokenPayload;
-
-    if (payload.exp && Date.now() > payload.exp * 1000) {
-      return { ok: false, error: "token expired" };
-    }
-
-    return { ok: true, payload };
-  } catch {
-    return { ok: false, error: "malformed token" };
-  }
-}
-
-export function createToken(sub: string, role: string, appType: string): string {
-  const env = loadEnv();
-  const now = Math.floor(Date.now() / 1000);
-  const payload: TokenPayload = {
-    sub,
-    role,
-    appType,
-    iat: now,
-    exp: now + 86400, // 24 hours
-  };
-  return sign(payload, env.jwtSecret);
-}
-
-// ── Customer login ──
+// Fixed-code login has been removed. Each login now uses a random,
+// one-time Redis OTP with TTL and attempt limits.
+// TODO: real SMS delivery remains investor-approval gated.
 
 async function findOrCreateCustomer(
   phone: string,
@@ -86,7 +22,6 @@ async function findOrCreateCustomer(
   );
   if (rows.length > 0) return rows[0];
 
-  // Auto-register on first login
   const id = `customer-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
   const name = `用户${phone.slice(-4)}`;
   await pool.query(
@@ -95,8 +30,6 @@ async function findOrCreateCustomer(
   );
   return { id, phone, name };
 }
-
-// ── Admin login ──
 
 async function findAdmin(
   username: string,
@@ -109,7 +42,35 @@ async function findAdmin(
   return rows.length > 0 ? rows[0] : null;
 }
 
-// ── Public API ──
+function maskPhone(phone: string): string {
+  return `${phone.slice(0, 3)}****${phone.slice(-4)}`;
+}
+
+async function findWorkerByPhone(
+  phone: string,
+): Promise<{ id: string; phoneMasked: string | null; status: string } | null> {
+  const pool = getMysqlPool();
+  const [rows] = await pool.query<(RowDataPacket & { worker_id: string; phone_masked: string | null; status: string })[]>(
+    "SELECT worker_id, phone_masked, status FROM worker_profiles WHERE phone_masked = ? LIMIT 1",
+    [maskPhone(phone)],
+  );
+  const row = rows[0];
+  return row ? { id: row.worker_id, phoneMasked: row.phone_masked, status: row.status } : null;
+}
+
+function validatePhone(phone: string): { ok: true } | { ok: false; error: string; statusCode: 400 } {
+  if (!phone || !/^\d{11}$/.test(phone)) {
+    return { ok: false, error: "invalid phone number", statusCode: 400 };
+  }
+  return { ok: true };
+}
+
+function validateUsername(username: string): { ok: true } | { ok: false; error: string; statusCode: 400 } {
+  if (!username || username.length < 2) {
+    return { ok: false, error: "invalid username", statusCode: 400 };
+  }
+  return { ok: true };
+}
 
 export interface LoginResult {
   ok: true;
@@ -118,16 +79,97 @@ export interface LoginResult {
   role: string;
 }
 
+export interface LoginCodeRequestResult {
+  ok: true;
+  expiresAt: string;
+  ttlSeconds: number;
+  attemptsLeft: number;
+}
+
+type AuthError = { ok: false; error: string; statusCode: number; attemptsLeft?: number };
+
+export async function requestCustomerLoginCode(
+  phone: string,
+): Promise<LoginCodeRequestResult | AuthError> {
+  const phoneResult = validatePhone(phone);
+  if (!phoneResult.ok) return phoneResult;
+
+  const issued = await issueLoginOtp("customer", phone);
+  if (!issued.ok) return issued;
+  return {
+    ok: true,
+    expiresAt: issued.expiresAt,
+    ttlSeconds: issued.ttlSeconds,
+    attemptsLeft: issued.attemptsLeft,
+  };
+}
+
+export async function requestAdminLoginCode(
+  username: string,
+): Promise<LoginCodeRequestResult | AuthError> {
+  const usernameResult = validateUsername(username);
+  if (!usernameResult.ok) return usernameResult;
+
+  const admin = await findAdmin(username);
+  if (!admin) {
+    return { ok: false, error: "admin not found", statusCode: 404 };
+  }
+
+  const issued = await issueLoginOtp("admin", username);
+  if (!issued.ok) return issued;
+  return {
+    ok: true,
+    expiresAt: issued.expiresAt,
+    ttlSeconds: issued.ttlSeconds,
+    attemptsLeft: issued.attemptsLeft,
+  };
+}
+
+export async function requestWorkerLoginCode(
+  phone: string,
+): Promise<LoginCodeRequestResult | AuthError> {
+  const phoneResult = validatePhone(phone);
+  if (!phoneResult.ok) return phoneResult;
+
+  const worker = await findWorkerByPhone(phone);
+  if (!worker) {
+    return { ok: false, error: "worker not found", statusCode: 404 };
+  }
+  if (worker.status !== "active") {
+    return { ok: false, error: "worker is not active", statusCode: 403 };
+  }
+
+  const issued = await issueLoginOtp("worker", phone);
+  if (!issued.ok) return issued;
+  return {
+    ok: true,
+    expiresAt: issued.expiresAt,
+    ttlSeconds: issued.ttlSeconds,
+    attemptsLeft: issued.attemptsLeft,
+  };
+}
+
+export function debugCustomerLoginCode(phone: string): Promise<DebugLoginOtpResult> {
+  return readDebugLoginOtp("customer", phone);
+}
+
+export function debugAdminLoginCode(username: string): Promise<DebugLoginOtpResult> {
+  return readDebugLoginOtp("admin", username);
+}
+
+export function debugWorkerLoginCode(phone: string): Promise<DebugLoginOtpResult> {
+  return readDebugLoginOtp("worker", phone);
+}
+
 export async function customerLogin(
   phone: string,
   code: string,
-): Promise<LoginResult | { ok: false; error: string; statusCode: number }> {
-  if (!phone || !/^\d{11}$/.test(phone)) {
-    return { ok: false, error: "invalid phone number", statusCode: 400 };
-  }
-  if (code !== MOCK_CODE) {
-    return { ok: false, error: "invalid verification code", statusCode: 401 };
-  }
+): Promise<LoginResult | AuthError> {
+  const phoneResult = validatePhone(phone);
+  if (!phoneResult.ok) return phoneResult;
+
+  const otp = await verifyLoginOtp("customer", phone, code);
+  if (!otp.ok) return otp;
 
   const customer = await findOrCreateCustomer(phone);
   const token = createToken(customer.id, "customer", "customer");
@@ -137,19 +179,42 @@ export async function customerLogin(
 export async function adminLogin(
   username: string,
   code: string,
-): Promise<LoginResult | { ok: false; error: string; statusCode: number }> {
-  if (!username || username.length < 2) {
-    return { ok: false, error: "invalid username", statusCode: 400 };
-  }
-  if (code !== MOCK_CODE) {
-    return { ok: false, error: "invalid verification code", statusCode: 401 };
-  }
+): Promise<LoginResult | AuthError> {
+  const usernameResult = validateUsername(username);
+  if (!usernameResult.ok) return usernameResult;
 
   const admin = await findAdmin(username);
   if (!admin) {
     return { ok: false, error: "admin not found", statusCode: 404 };
   }
 
+  const otp = await verifyLoginOtp("admin", username, code);
+  if (!otp.ok) return otp;
+
   const token = createToken(admin.id, admin.role, "admin");
   return { ok: true, token, userId: admin.id, role: admin.role };
 }
+
+export async function workerLogin(
+  phone: string,
+  code: string,
+): Promise<LoginResult | AuthError> {
+  const phoneResult = validatePhone(phone);
+  if (!phoneResult.ok) return phoneResult;
+
+  const worker = await findWorkerByPhone(phone);
+  if (!worker) {
+    return { ok: false, error: "worker not found", statusCode: 404 };
+  }
+  if (worker.status !== "active") {
+    return { ok: false, error: "worker is not active", statusCode: 403 };
+  }
+
+  const otp = await verifyLoginOtp("worker", phone, code);
+  if (!otp.ok) return otp;
+
+  const token = createToken(worker.id, "worker", "worker");
+  return { ok: true, token, userId: worker.id, role: "worker" };
+}
+
+export { createToken, verifyToken };

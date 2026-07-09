@@ -7,6 +7,12 @@ import { App } from "../../apps/admin/src/app/App";
 const { mockGet } = vi.hoisted(() => ({ mockGet: vi.fn() }));
 vi.mock("@xlb/api-client", () => ({
   createApiClient: () => ({ get: mockGet }),
+  createAuthApi: () => ({
+    requestAdminLoginCode: () => Promise.resolve({ ok: true }),
+    getAdminDebugCode: () => Promise.resolve({ ok: true, code: "000000" }),
+    adminLogin: () => Promise.resolve({ ok: true, token: "test-admin-token", userId: "operator-hangzhou", role: "operator" }),
+  }),
+  adminApi: { create: () => ({}) },
   settlementApi: {
     create: () => ({
       listStatementAudit: (q: Record<string, string>) =>
@@ -121,11 +127,16 @@ describe("Phase 9C Export Review Console", () => {
   beforeEach(() => {
     mockGet.mockReset();
     mockGet.mockResolvedValue({ ok: true, items: [] });
+    window.localStorage.setItem("xlb.admin.token", "test-admin-token");
+    window.localStorage.setItem("xlb.admin.userId", "operator-hangzhou");
+    window.localStorage.setItem("xlb.admin.role", "operator");
+    window.localStorage.setItem("xlb.admin.username", "admin_hz");
     window.location.hash = "";
   });
 
   afterEach(() => {
     cleanup();
+    window.localStorage.clear();
     window.location.hash = "";
   });
 

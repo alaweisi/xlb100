@@ -45,7 +45,7 @@ export const createEvidenceBundleRequestSchema = z.object({
   cityCode: cityCodeSchema, intentId: idSchema,
   reviewId: idSchema.nullable().optional().default(null),
   statementId: idSchema.nullable().optional().default(null),
-  createdByAdminId: idSchema,
+  createdByAdminId: idSchema.optional(),
   riskSummary: z.string().min(1).max(2000).nullable().optional().default(null),
 }).strict();
 

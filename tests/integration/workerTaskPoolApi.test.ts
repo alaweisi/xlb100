@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { buildApp } from "../../backend/src/app.js";
-import { XLB_HEADERS } from "@xlb/types";
 import { getMysqlPool } from "../../backend/src/dal/mysqlPool.js";
 import type { RowDataPacket } from "mysql2/promise";
+import { bearerHeaders, workerAuthHeaders } from "./helpers/authTestHelper.js";
 import {
   createPaidOrderForDispatch,
   operatorHeaders,
@@ -10,12 +10,8 @@ import {
 
 const runDb = process.env.XLB_SKIP_DB_TESTS !== "1";
 
-const workerHangzhouHeaders = {
-  [XLB_HEADERS.appType]: "worker",
-  [XLB_HEADERS.role]: "worker",
-  [XLB_HEADERS.cityCode]: "hangzhou",
-  [XLB_HEADERS.userId]: "worker-demo-hangzhou",
-};
+const workerHangzhouHeaders = workerAuthHeaders("worker-demo-hangzhou", "hangzhou");
+const workerShanghaiHeaders = workerAuthHeaders("worker-demo-hangzhou", "shanghai");
 
 describe.skipIf(!runDb)("workerTaskPoolApi integration", { timeout: 20000 }, () => {
   it("returns hangzhou queued tasks for bound worker", async () => {
@@ -52,10 +48,7 @@ describe.skipIf(!runDb)("workerTaskPoolApi integration", { timeout: 20000 }, () 
     const res = await app.inject({
       method: "GET",
       url: "/api/worker/task-pool",
-      headers: {
-        ...workerHangzhouHeaders,
-        [XLB_HEADERS.cityCode]: "shanghai",
-      },
+      headers: workerShanghaiHeaders,
     });
     expect(res.statusCode).toBe(403);
     await app.close();
@@ -66,11 +59,7 @@ describe.skipIf(!runDb)("workerTaskPoolApi integration", { timeout: 20000 }, () 
     const res = await app.inject({
       method: "GET",
       url: "/api/worker/task-pool",
-      headers: {
-        [XLB_HEADERS.appType]: "worker",
-        [XLB_HEADERS.role]: "worker",
-        [XLB_HEADERS.userId]: "worker-demo-hangzhou",
-      },
+      headers: bearerHeaders({ appType: "worker", role: "worker", userId: "worker-demo-hangzhou" }),
     });
     expect(res.statusCode).toBe(400);
     await app.close();
@@ -81,12 +70,7 @@ describe.skipIf(!runDb)("workerTaskPoolApi integration", { timeout: 20000 }, () 
     const res = await app.inject({
       method: "GET",
       url: "/api/worker/task-pool",
-      headers: {
-        [XLB_HEADERS.appType]: "customer",
-        [XLB_HEADERS.role]: "customer",
-        [XLB_HEADERS.cityCode]: "hangzhou",
-        [XLB_HEADERS.userId]: "worker-demo-hangzhou",
-      },
+      headers: bearerHeaders({ appType: "customer", role: "customer", userId: "worker-demo-hangzhou", cityCode: "hangzhou" }),
     });
     expect(res.statusCode).toBe(403);
     await app.close();

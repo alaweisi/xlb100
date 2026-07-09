@@ -1,13 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { buildApp } from "../../backend/src/app.js";
-import { XLB_HEADERS } from "@xlb/types";
+import { bearerHeaders } from "./helpers/authTestHelper.js";
 
 const runDb = process.env.XLB_SKIP_DB_TESTS !== "1";
-const headers = {
-  [XLB_HEADERS.appType]: "customer",
-  [XLB_HEADERS.role]: "customer",
-  [XLB_HEADERS.cityCode]: "hangzhou",
-};
+const headers = bearerHeaders({ appType: "customer", role: "customer", userId: "customer-demo-001", cityCode: "hangzhou" });
 
 describe.skipIf(!runDb)("cityConfigApi integration", () => {
   it("GET /api/city-config/current returns hangzhou config", async () => {
@@ -29,10 +25,7 @@ describe.skipIf(!runDb)("cityConfigApi integration", () => {
     const response = await app.inject({
       method: "GET",
       url: "/api/city-config/current",
-      headers: {
-        [XLB_HEADERS.appType]: "customer",
-        [XLB_HEADERS.role]: "customer",
-      },
+      headers: bearerHeaders({ appType: "customer", role: "customer", userId: "customer-demo-001" }),
     });
     expect(response.statusCode).toBe(400);
     await app.close();

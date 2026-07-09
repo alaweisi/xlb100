@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { buildApp } from "../../backend/src/app.js";
 import { getMysqlPool } from "../../backend/src/dal/mysqlPool.js";
 import type { RowDataPacket } from "mysql2/promise";
-import { XLB_HEADERS } from "@xlb/types";
+import { bearerHeaders } from "./helpers/authTestHelper.js";
 import {
   createQueuedDispatchTask,
   ensureAltHangzhouWorkerBound,
@@ -107,11 +107,7 @@ describe.skipIf(!runDb)("workerAcceptApi integration", { timeout: 30000 }, () =>
     const res = await app.inject({
       method: "POST",
       url: `/api/worker/tasks/${dispatchTaskId}/accept`,
-      headers: {
-        [XLB_HEADERS.appType]: "worker",
-        [XLB_HEADERS.role]: "worker",
-        [XLB_HEADERS.userId]: "worker-demo-hangzhou",
-      },
+      headers: bearerHeaders({ appType: "worker", role: "worker", userId: "worker-demo-hangzhou" }),
       payload: {},
     });
     expect(res.statusCode).toBe(400);
@@ -125,12 +121,7 @@ describe.skipIf(!runDb)("workerAcceptApi integration", { timeout: 30000 }, () =>
     const res = await app.inject({
       method: "POST",
       url: `/api/worker/tasks/${dispatchTaskId}/accept`,
-      headers: {
-        [XLB_HEADERS.appType]: "customer",
-        [XLB_HEADERS.role]: "customer",
-        [XLB_HEADERS.cityCode]: "hangzhou",
-        [XLB_HEADERS.userId]: "worker-demo-hangzhou",
-      },
+      headers: bearerHeaders({ appType: "customer", role: "customer", userId: "worker-demo-hangzhou", cityCode: "hangzhou" }),
       payload: {},
     });
     expect(res.statusCode).toBe(403);

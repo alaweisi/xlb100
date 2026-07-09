@@ -26,7 +26,7 @@ export const governanceReadinessPacketRecordSchema = z.object({
 
 export const createReadinessPacketRequestSchema = z.object({
   cityCode: cityCodeSchema, intentId: idSchema, reviewId: idSchema.nullable().optional().default(null),
-  evidenceBundleId: idSchema.nullable().optional().default(null), statementId: idSchema.nullable().optional().default(null), createdByAdminId: idSchema,
+  evidenceBundleId: idSchema.nullable().optional().default(null), statementId: idSchema.nullable().optional().default(null), createdByAdminId: idSchema.optional(),
 }).strict();
 
 export const readinessPacketResponseSchema = z.object({ ok: z.literal(true), packet: governanceReadinessPacketRecordSchema }).strict();
