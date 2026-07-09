@@ -118,4 +118,5 @@ export function createAdminHttpClient() {
 
 export const adminSettlementApi = settlementApi.create(createAdminHttpClient());
 export const adminPlannerApi = governancePlannerApi.create(createAdminHttpClient());
-export const adminOrderTraceApi = adminApi.create(createAdminHttpClient());
+export const adminOpsApi = adminApi.create(createAdminHttpClient());
+export const adminOrderTraceApi = adminOpsApi;

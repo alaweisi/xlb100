@@ -1,9 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  adminApi,
-  createApiClient,
-  type WorkerWithdrawalResponse,
-} from "@xlb/api-client";
+import { useCallback, useEffect, useState } from "react";
+import { type WorkerWithdrawalResponse } from "@xlb/api-client";
 import {
   ApiErrorPanel,
   Button,
@@ -16,11 +12,7 @@ import {
   StatusTag,
   Table,
 } from "@xlb/ui";
-import { API_BASE } from "../apiBase";
-
-function adminUserIdForCity(cityCode: string): string {
-  return cityCode === "shanghai" ? "operator-shanghai" : "operator-hangzhou";
-}
+import { adminOpsApi as api } from "../adminAuth";
 
 function statusTone(status: WorkerWithdrawalResponse["status"]): "success" | "warning" | "muted" | "primary" {
   if (status === "marked_paid") return "success";
@@ -40,28 +32,18 @@ export function WorkerWithdrawalsPage({ initialCityCode }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
 
-  const api = useMemo(() => adminApi.create(createApiClient({
-    baseUrl: API_BASE,
-    headers: {
-      "x-xlb-app-type": "admin",
-      "x-xlb-role": "operator",
-      "x-xlb-city-code": cityCode,
-      "x-xlb-user-id": adminUserIdForCity(cityCode),
-    },
-  })), [cityCode]);
-
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await api.listWorkerWithdrawals({ limit: 100 });
+      const response = await api.listWorkerWithdrawals({ cityCode, limit: 100 });
       setWithdrawals(response.withdrawals);
     } catch (err) {
       setError(err instanceof Error ? err.message : "load worker withdrawals failed");
     } finally {
       setLoading(false);
     }
-  }, [api]);
+  }, [cityCode]);
 
   useEffect(() => {
     void load();
