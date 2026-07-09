@@ -15,6 +15,10 @@ import {
   generateLedgerAccrualId,
   generateLedgerEntryId,
 } from "../events/eventIds.js";
+import {
+  workerFinanceRepository,
+  WorkerFinanceRepository,
+} from "../worker/workerFinanceRepository.js";
 import { calculateLedgerAccrual } from "./ledgerCalculator.js";
 import {
   ledgerRepository,
@@ -40,6 +44,7 @@ export class LedgerAccrualService {
   constructor(
     private readonly repository: LedgerRepository = ledgerRepository,
     private readonly outboxRepository: EventOutboxRepository = eventOutboxRepository,
+    private readonly workerFinance: WorkerFinanceRepository = workerFinanceRepository,
     private readonly transactionRunner: TransactionRunner = withTransaction,
   ) {}
 
@@ -154,6 +159,7 @@ export class LedgerAccrualService {
         createdAt,
       };
       await this.repository.insertAccrual(connection, accrual);
+      await this.workerFinance.applyAccrual(connection, accrual);
 
       await recordLedgerAudit({
         connection,

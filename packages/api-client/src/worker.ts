@@ -131,6 +131,66 @@ export type CompleteFulfillmentInput = {
   completionNote?: string;
 };
 
+export interface WorkerReceivableBalanceResponse {
+  cityCode: string;
+  workerId: string;
+  currency: "CNY";
+  accruedAmount: number;
+  adjustedAmount: number;
+  requestedWithdrawalAmount: number;
+  markedPaidAmount: number;
+  availableAmount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WorkerBankAccountResponse {
+  bankAccountId: string;
+  cityCode: string;
+  workerId: string;
+  accountHolder: string;
+  bankName: string;
+  bankBranch: string | null;
+  bankCardMasked: string;
+  bankCardLast4: string;
+  status: "active" | "inactive";
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WorkerWithdrawalResponse {
+  withdrawalId: string;
+  cityCode: string;
+  workerId: string;
+  bankAccountId: string;
+  amount: number;
+  currency: "CNY";
+  status: "requested" | "approved" | "rejected" | "marked_paid" | "cancelled";
+  requestNote: string | null;
+  reviewNote: string | null;
+  markedPaidNote: string | null;
+  requestedAt: string;
+  reviewedAt: string | null;
+  reviewedByAdminId: string | null;
+  markedPaidAt: string | null;
+  markedPaidByAdminId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateWorkerBankAccountBody {
+  accountHolder: string;
+  bankName: string;
+  bankBranch?: string | null;
+  bankCardNumber: string;
+}
+
+export interface CreateWorkerWithdrawalBody {
+  bankAccountId: string;
+  amount: number;
+  requestNote?: string | null;
+}
+
 export function createWorkerApi(client: ApiClient) {
   return {
     getTaskPool(): Promise<WorkerTaskPoolResponse> {
@@ -186,6 +246,42 @@ export function createWorkerApi(client: ApiClient) {
     getEligibility(skuId: string): Promise<WorkerEligibilityApiResponse> {
       return client.get<WorkerEligibilityApiResponse>(
         `/api/worker/eligibility?skuId=${encodeURIComponent(skuId)}`,
+      );
+    },
+    getReceivableBalance(): Promise<{ ok: true; balance: WorkerReceivableBalanceResponse }> {
+      return client.get<{ ok: true; balance: WorkerReceivableBalanceResponse }>(
+        "/api/worker/finance/balance",
+      );
+    },
+    createBankAccount(
+      body: CreateWorkerBankAccountBody,
+    ): Promise<{ ok: true; bankAccount: WorkerBankAccountResponse }> {
+      return client.post<{ ok: true; bankAccount: WorkerBankAccountResponse }>(
+        "/api/worker/bank-accounts",
+        body,
+      );
+    },
+    listBankAccounts(): Promise<{ ok: true; bankAccounts: WorkerBankAccountResponse[] }> {
+      return client.get<{ ok: true; bankAccounts: WorkerBankAccountResponse[] }>(
+        "/api/worker/bank-accounts",
+      );
+    },
+    createWithdrawalRequest(
+      body: CreateWorkerWithdrawalBody,
+    ): Promise<{
+      ok: true;
+      withdrawal: WorkerWithdrawalResponse;
+      balance: WorkerReceivableBalanceResponse;
+    }> {
+      return client.post<{
+        ok: true;
+        withdrawal: WorkerWithdrawalResponse;
+        balance: WorkerReceivableBalanceResponse;
+      }>("/api/worker/withdrawal-requests", body);
+    },
+    listWithdrawalRequests(): Promise<{ ok: true; withdrawals: WorkerWithdrawalResponse[] }> {
+      return client.get<{ ok: true; withdrawals: WorkerWithdrawalResponse[] }>(
+        "/api/worker/withdrawal-requests",
       );
     },
   };

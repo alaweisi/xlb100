@@ -16,7 +16,7 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
   "refund approval to ledger reversal",
   { timeout: 60000 },
   () => {
-    it("emits refund.approved and creates three audited reversal ledger entries", () =>
+    it("emits refund.approved, creates reversal entries, adjusts worker receivable, and stays idempotent", () =>
       withLedgerTestLock(async () => {
         await runMigrations();
         await ensureHangzhouWorkerEligible();
@@ -24,13 +24,29 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
         try {
           const { fulfillmentId, orderId } = await createCompletedFulfillment(app);
           await runLedgerOnce(app);
+          const [preBalances] = await getMysqlPool().query<
+            (RowDataPacket & {
+              accrued_amount: string;
+              adjusted_amount: string;
+              requested_withdrawal_amount: string;
+              marked_paid_amount: string;
+              available_amount: string;
+            })[]
+          >(
+            `SELECT accrued_amount, adjusted_amount, requested_withdrawal_amount,
+                    marked_paid_amount, available_amount
+               FROM worker_receivable_balances
+              WHERE city_code = 'hangzhou'
+                AND worker_id = 'worker-demo-hangzhou'`,
+          );
+          expect(preBalances).toHaveLength(1);
+          const preBalance = preBalances[0]!;
 
           const reviewResponse = await app.inject({
             method: "POST",
             url: `/api/orders/${orderId}/reviews`,
             headers: customerHeaders,
             payload: {
-              workerId: "worker-demo-hangzhou",
               rating: 5,
               comment: "Stage 6 simulated full-flow review",
             },
@@ -111,6 +127,14 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
             [fulfillmentId],
           );
           expect(preReverseEntries).toHaveLength(0);
+          const [preAdjustmentRows] = await getMysqlPool().query<RowDataPacket[]>(
+            `SELECT adjustment_id
+               FROM worker_receivable_adjustments
+              WHERE city_code = 'hangzhou'
+                AND refund_id = ?`,
+            [refund.refundId],
+          );
+          expect(preAdjustmentRows).toHaveLength(0);
 
           const [refundEvents] = await getMysqlPool().query<
             (RowDataPacket & { event_id: string; status: string })[]
@@ -125,14 +149,13 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
           expect(refundEvents).toHaveLength(1);
           expect(refundEvents[0]!.status).toBe("pending");
 
-          const reversalResponse = await app.inject({
-            method: "POST",
-            url: "/api/internal/ledger/reverse",
-            headers: ledgerOperatorHeaders,
-            payload: {},
-          });
+          const reversalResponse = await runLedgerOnce(app);
           expect(reversalResponse.statusCode).toBe(200);
           expect(reversalResponse.json().processed).toBeGreaterThanOrEqual(1);
+
+          const idempotentResponse = await runLedgerOnce(app);
+          expect(idempotentResponse.statusCode).toBe(200);
+          expect(idempotentResponse.json().processed).toBe(0);
 
           const [entries] = await getMysqlPool().query<
             (RowDataPacket & {
@@ -164,6 +187,79 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
             worker: "debit:80.10",
           });
 
+          const [adjustments] = await getMysqlPool().query<
+            (RowDataPacket & {
+              refund_id: string;
+              source_event_id: string;
+              gross_adjustment: string;
+              platform_fee_adjustment: string;
+              worker_receivable_adjustment: string;
+            })[]
+          >(
+            `SELECT refund_id, source_event_id, gross_adjustment,
+                    platform_fee_adjustment, worker_receivable_adjustment
+               FROM worker_receivable_adjustments
+              WHERE city_code = 'hangzhou'
+                AND refund_id = ?`,
+            [refund.refundId],
+          );
+          expect(adjustments).toHaveLength(1);
+          expect(adjustments[0]).toMatchObject({
+            refund_id: refund.refundId,
+            source_event_id: refundEvents[0]!.event_id,
+            gross_adjustment: "-89.00",
+            platform_fee_adjustment: "-8.90",
+            worker_receivable_adjustment: "-80.10",
+          });
+
+          const [balances] = await getMysqlPool().query<
+            (RowDataPacket & {
+              accrued_amount: string;
+              adjusted_amount: string;
+              requested_withdrawal_amount: string;
+              marked_paid_amount: string;
+              available_amount: string;
+            })[]
+          >(
+            `SELECT accrued_amount, adjusted_amount, requested_withdrawal_amount,
+                    marked_paid_amount, available_amount
+               FROM worker_receivable_balances
+              WHERE city_code = 'hangzhou'
+                AND worker_id = 'worker-demo-hangzhou'`,
+          );
+          expect(balances).toHaveLength(1);
+          expect(Number(balances[0]!.accrued_amount)).toBeCloseTo(
+            Number(preBalance.accrued_amount),
+            2,
+          );
+          expect(Number(balances[0]!.adjusted_amount)).toBeCloseTo(
+            Number(preBalance.adjusted_amount) - 80.1,
+            2,
+          );
+          expect(Number(balances[0]!.requested_withdrawal_amount)).toBeCloseTo(
+            Number(preBalance.requested_withdrawal_amount),
+            2,
+          );
+          expect(Number(balances[0]!.marked_paid_amount)).toBeCloseTo(
+            Number(preBalance.marked_paid_amount),
+            2,
+          );
+          expect(Number(balances[0]!.available_amount)).toBeCloseTo(
+            Number(preBalance.available_amount) - 80.1,
+            2,
+          );
+
+          const [accruals] = await getMysqlPool().query<
+            (RowDataPacket & { status: string })[]
+          >(
+            `SELECT status
+               FROM ledger_accruals
+              WHERE city_code = 'hangzhou'
+                AND fulfillment_id = ?`,
+            [fulfillmentId],
+          );
+          expect(accruals[0]!.status).toBe("voided");
+
           const [audits] = await getMysqlPool().query<RowDataPacket[]>(
             `SELECT eo.event_id
                FROM event_outbox eo
@@ -190,6 +286,28 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
           );
           expect(publishedEvents[0]!.status).toBe("published");
           expect(publishedEvents[0]!.published_at).toBeTruthy();
+
+          const [entryCount] = await getMysqlPool().query<
+            (RowDataPacket & { count: number })[]
+          >(
+            `SELECT COUNT(*) AS count
+               FROM ledger_entries
+              WHERE city_code = 'hangzhou'
+                AND source_type = 'refund.approved'
+                AND source_id = ?`,
+            [fulfillmentId],
+          );
+          const [adjustmentCount] = await getMysqlPool().query<
+            (RowDataPacket & { count: number })[]
+          >(
+            `SELECT COUNT(*) AS count
+               FROM worker_receivable_adjustments
+              WHERE city_code = 'hangzhou'
+                AND refund_id = ?`,
+            [refund.refundId],
+          );
+          expect(Number(entryCount[0]!.count)).toBe(3);
+          expect(Number(adjustmentCount[0]!.count)).toBe(1);
         } finally {
           await app.close();
         }

@@ -104,6 +104,19 @@ export type {
   WorkerCityBinding,
   WorkerOnlineStatus,
 } from "./worker.js";
+export type {
+  WorkerReceivableBalance,
+  WorkerReceivableAdjustment,
+  WorkerBankAccount,
+  WorkerBankAccountStatus,
+  CreateWorkerBankAccountRequest,
+  WorkerWithdrawalRequest,
+  WorkerWithdrawalStatus,
+  WorkerWithdrawalReviewDecision,
+  CreateWorkerWithdrawalRequest,
+  ReviewWorkerWithdrawalRequest,
+  MarkWorkerWithdrawalPaidRequest,
+} from "./workerFinance.js";
 export type { WorkerTaskPoolItem } from "./taskPool.js";
 export type {
   WorkerCertification,

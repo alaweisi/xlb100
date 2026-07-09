@@ -55,3 +55,15 @@ export function generateRefundId(): string {
 export function generateOrderReviewId(): string {
   return `rev_${Date.now().toString(36)}_${randomBytes(4).toString("hex")}`;
 }
+
+export function generateWorkerReceivableAdjustmentId(): string {
+  return `wra_${Date.now().toString(36)}_${randomBytes(4).toString("hex")}`;
+}
+
+export function generateWorkerBankAccountId(): string {
+  return `wba_${Date.now().toString(36)}_${randomBytes(4).toString("hex")}`;
+}
+
+export function generateWorkerWithdrawalId(): string {
+  return `wwd_${Date.now().toString(36)}_${randomBytes(4).toString("hex")}`;
+}

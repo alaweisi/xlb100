@@ -6,7 +6,14 @@ import {
   eventOutboxRepository,
   EventOutboxRepository,
 } from "../events/eventOutbox.js";
-import { generateLedgerEntryId } from "../events/eventIds.js";
+import {
+  generateLedgerEntryId,
+  generateWorkerReceivableAdjustmentId,
+} from "../events/eventIds.js";
+import {
+  workerFinanceRepository,
+  WorkerFinanceRepository,
+} from "../worker/workerFinanceRepository.js";
 import { recordLedgerAudit } from "./auditGate.js";
 import {
   ledgerRepository,
@@ -60,6 +67,7 @@ export class LedgerReversalService {
     private readonly reversalRepository: LedgerReversalRepository = ledgerReversalRepository,
     private readonly repository: LedgerRepository = ledgerRepository,
     private readonly outboxRepository: EventOutboxRepository = eventOutboxRepository,
+    private readonly workerFinance: WorkerFinanceRepository = workerFinanceRepository,
     private readonly transactionRunner: TransactionRunner = withTransaction,
   ) {}
 
@@ -101,6 +109,21 @@ export class LedgerReversalService {
       if (Number(payload.amount) !== Number(snapshot.grossAmount.toFixed(2))) {
         throw new LedgerReversalError("refund amount must match accrued gross amount");
       }
+      const workerFinanceAdjustment = {
+        adjustmentId: generateWorkerReceivableAdjustmentId(),
+        cityCode,
+        refundId,
+        sourceEventId: event.eventId,
+        accrualId: snapshot.accrualId,
+        fulfillmentId: snapshot.fulfillmentId,
+        orderId: snapshot.orderId,
+        paymentOrderId: snapshot.paymentOrderId,
+        workerId: snapshot.workerId,
+        customerId: snapshot.customerId,
+        grossAdjustment: -snapshot.grossAmount,
+        platformFeeAdjustment: -snapshot.platformFee,
+        workerReceivableAdjustment: -snapshot.workerReceivable,
+      };
 
       const existing =
         await this.reversalRepository.listExistingReversalEntriesForUpdate(
@@ -109,6 +132,10 @@ export class LedgerReversalService {
           fulfillmentId,
         );
       if (existing.length > 0) {
+        await this.workerFinance.applyRefundAdjustment(
+          connection,
+          workerFinanceAdjustment,
+        );
         await this.outboxRepository.markEventPublished(
           connection,
           event.eventId,
@@ -170,6 +197,10 @@ export class LedgerReversalService {
         });
       }
 
+      await this.workerFinance.applyRefundAdjustment(
+        connection,
+        workerFinanceAdjustment,
+      );
       await this.outboxRepository.markEventPublished(
         connection,
         event.eventId,

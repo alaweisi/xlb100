@@ -14,7 +14,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "lint": "echo \"lint: skipped phase 0\""
+    "lint": "eslint ."
   },
   "dependencies": {
     "@xlb/types": "workspace:*",

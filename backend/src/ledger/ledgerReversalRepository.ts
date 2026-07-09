@@ -100,7 +100,6 @@ export class LedgerReversalRepository extends RepositoryBase {
         WHERE city_code = ?
           AND fulfillment_id = ?
           AND order_id = ?
-          AND status = 'accrued'
         LIMIT 1 FOR UPDATE`,
       [cityCode, fulfillmentId, orderId],
     );

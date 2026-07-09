@@ -1,5 +1,9 @@
 import type { ApiClient } from "./createApiClient.js";
 import { createSettlementApi } from "./settlement.js";
+import type {
+  WorkerReceivableBalanceResponse,
+  WorkerWithdrawalResponse,
+} from "./worker.js";
 
 export interface AdminOrderTrace {
   order: {
@@ -65,6 +69,24 @@ export interface AdminOrderTraceResponse {
   trace: AdminOrderTrace;
 }
 
+export interface ListWorkerWithdrawalsQuery {
+  cityCode?: string;
+  workerId?: string;
+  status?: WorkerWithdrawalResponse["status"];
+  limit?: number;
+}
+
+function buildQuery(query: ListWorkerWithdrawalsQuery): string {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) {
+    if (value !== undefined && value !== "") {
+      params.set(key, String(value));
+    }
+  }
+  const encoded = params.toString();
+  return encoded ? `?${encoded}` : "";
+}
+
 /** Admin API modules; callers provide scoped admin/operator headers. */
 export function createAdminApi(client: ApiClient) {
   return {
@@ -73,6 +95,45 @@ export function createAdminApi(client: ApiClient) {
       return client.get<AdminOrderTraceResponse>(
         `/api/internal/admin/order-traces/${encodeURIComponent(orderId)}`,
       );
+    },
+    listWorkerWithdrawals(
+      query: ListWorkerWithdrawalsQuery = {},
+    ): Promise<{ ok: true; withdrawals: WorkerWithdrawalResponse[] }> {
+      return client.get<{ ok: true; withdrawals: WorkerWithdrawalResponse[] }>(
+        `/api/internal/worker-withdrawals${buildQuery(query)}`,
+      );
+    },
+    reviewWorkerWithdrawal(
+      withdrawalId: string,
+      body: { decision: "approved" | "rejected"; reviewNote?: string | null },
+    ): Promise<{
+      ok: true;
+      withdrawal: WorkerWithdrawalResponse;
+      balance: WorkerReceivableBalanceResponse;
+      idempotent: boolean;
+    }> {
+      return client.post<{
+        ok: true;
+        withdrawal: WorkerWithdrawalResponse;
+        balance: WorkerReceivableBalanceResponse;
+        idempotent: boolean;
+      }>(`/api/internal/worker-withdrawals/${encodeURIComponent(withdrawalId)}/review`, body);
+    },
+    markWorkerWithdrawalPaid(
+      withdrawalId: string,
+      body: { markedPaidNote?: string | null } = {},
+    ): Promise<{
+      ok: true;
+      withdrawal: WorkerWithdrawalResponse;
+      balance: WorkerReceivableBalanceResponse;
+      idempotent: boolean;
+    }> {
+      return client.post<{
+        ok: true;
+        withdrawal: WorkerWithdrawalResponse;
+        balance: WorkerReceivableBalanceResponse;
+        idempotent: boolean;
+      }>(`/api/internal/worker-withdrawals/${encodeURIComponent(withdrawalId)}/mark-paid`, body);
     },
   };
 }

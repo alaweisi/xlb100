@@ -89,7 +89,6 @@ export interface CreateRefundRequestBody {
 
 export interface CreateOrderReviewBody {
   orderId: string;
-  workerId: string;
   rating: number;
   comment: string;
 }

@@ -4,6 +4,7 @@ import { SettlementStatementDetailPage } from "../pages/SettlementStatementDetai
 import { SettlementExportReviewPage } from "../pages/SettlementExportReviewPage";
 import { SettlementActionGovernancePage } from "../pages/SettlementActionGovernancePage";
 import { OrderTracePage } from "../pages/OrderTracePage";
+import { WorkerWithdrawalsPage } from "../pages/WorkerWithdrawalsPage";
 import { buildHash, parseHashParams, parseView } from "../hashParams";
 import {
   clearAdminSession,
@@ -111,11 +112,17 @@ export function App() {
     window.location.hash = buildHash("/order-trace", { cityCode: cityCode || "" });
   }, [cityCode]);
 
+  const navigateToWorkerWithdrawals = useCallback(() => {
+    window.location.hash = buildHash("/worker-withdrawals", { cityCode: cityCode || "" });
+  }, [cityCode]);
+
   const navigateToDashboard = useCallback(() => {
     window.location.hash = "";
   }, []);
 
-  const viewTitle = view.page === "orderTrace"
+  const viewTitle = view.page === "workerWithdrawals"
+    ? "Worker Withdrawals"
+    : view.page === "orderTrace"
     ? "Order Trace"
     : view.page === "governance"
       ? "Settlement Governance"
@@ -152,7 +159,9 @@ export function App() {
     );
   }
 
-  const content = view.page === "orderTrace"
+  const content = view.page === "workerWithdrawals"
+    ? <WorkerWithdrawalsPage initialCityCode={cityCode} />
+    : view.page === "orderTrace"
     ? (
         <OrderTracePage
           initialCityCode={cityCode}
@@ -223,6 +232,13 @@ export function App() {
               href: "#/order-trace",
               onClick: navigateToOrderTrace,
             },
+            {
+              key: "workerWithdrawals",
+              label: "Withdrawals",
+              active: view.page === "workerWithdrawals",
+              href: "#/worker-withdrawals",
+              onClick: navigateToWorkerWithdrawals,
+            },
           ]}
         />
       }
@@ -245,15 +261,15 @@ export function App() {
     >
       <GuardrailCard
         title="Operations Guardrail"
-        actions={<StatusTag tone="warning">no mutations here</StatusTag>}
+        actions={<StatusTag tone="warning">controlled ops</StatusTag>}
         style={{
           borderColor: "#ddd6fe",
           boxShadow: "0 12px 28px rgba(25, 18, 37, 0.08)",
         }}
       >
         <p style={{ color: "#4b5563", fontSize: 13, lineHeight: "20px", margin: 0 }}>
-          This console keeps existing settlement and governance surfaces intact. The order trace view is read-only and does not approve refunds,
-          mutate fulfillment, touch ledger entries, or execute settlement actions.
+          This console keeps existing settlement and governance surfaces intact. Order trace stays read-only; worker withdrawal actions only move
+          internal request records through review and marked-paid states.
         </p>
       </GuardrailCard>
       {content}

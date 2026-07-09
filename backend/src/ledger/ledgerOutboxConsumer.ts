@@ -22,7 +22,7 @@ export class LedgerOutboxConsumer {
 
   async runOnce(
     context: RequestContext,
-  ): Promise<{ processed: number; accruals: LedgerAccrual[] }> {
+  ): Promise<{ processed: number; accruals: LedgerAccrual[]; reversalEntries: LedgerEntry[] }> {
     const cityCode = assertCityScopedContext(context);
     const events = await this.outbox.findPendingFulfillmentCompletedForLedger(
       context,
@@ -32,7 +32,20 @@ export class LedgerOutboxConsumer {
     for (const event of events) {
       accruals.push((await this.accruals.accrue(context, event)).accrual);
     }
-    return { processed: accruals.length, accruals };
+    const reversalEvents = await this.outbox.findPendingEventsByType(
+      context,
+      cityCode,
+      "refund.approved",
+    );
+    const reversalEntries: LedgerEntry[] = [];
+    for (const event of reversalEvents) {
+      reversalEntries.push(...(await this.reversals.reverse(context, event)).entries);
+    }
+    return {
+      processed: accruals.length + reversalEvents.length,
+      accruals,
+      reversalEntries,
+    };
   }
 
   async runReversalsOnce(

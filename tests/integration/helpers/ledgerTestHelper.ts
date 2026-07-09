@@ -42,7 +42,14 @@ export async function withLedgerTestLock<T>(callback: () => Promise<T>): Promise
     if (rows[0]?.acquired !== 1) throw new Error("Could not acquire Phase 8A integration-test lock");
     return await callback();
   } finally {
-    await connection.query("SELECT RELEASE_LOCK('xlb-phase8a-integration-tests')");
-    connection.release();
+    try {
+      await connection.query("SELECT RELEASE_LOCK('xlb-phase8a-integration-tests')");
+    } catch (error) {
+      if (!(error instanceof Error) || !error.message.includes("closed state")) {
+        throw error;
+      }
+    } finally {
+      connection.release();
+    }
   }
 }
