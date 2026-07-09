@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
-import { createApiClient, workerApi } from "@xlb/api-client";
 import type { Fulfillment, WorkerTaskPoolItem } from "@xlb/types";
 import {
   BottomNav,
@@ -15,9 +14,17 @@ import {
   Table,
 } from "@xlb/ui";
 import { workerWorkflowActions } from "../adapters/workflowBindings";
+import {
+  createWorkerApiClient,
+  isUnauthorizedError,
+  loginWorkerWithCode,
+  readWorkerDebugCode,
+  requestWorkerLoginCode,
+  type WorkerSession,
+} from "./workerAuth";
 
 const DEFAULT_CITY_CODE = "hangzhou";
-const DEFAULT_WORKER_ID = "worker-demo-hangzhou";
+const DEFAULT_WORKER_PHONE = "13800000001";
 
 type WorkerRoute =
   | "hall"
@@ -29,7 +36,6 @@ type WorkerRoute =
 
 type QueryParams = {
   cityCode: string;
-  workerId: string;
 };
 
 type ResolvedRoute =
@@ -119,13 +125,7 @@ function readQueryParams(): QueryParams {
   const params = new URLSearchParams(window.location.search);
   return {
     cityCode: params.get("cityCode")?.trim() || DEFAULT_CITY_CODE,
-    workerId: params.get("workerId")?.trim() || DEFAULT_WORKER_ID,
   };
-}
-
-function normalizeApiBase(value: string | undefined): string {
-  const raw = (value || "").trim().replace(/\/+$/, "");
-  return raw.endsWith("/api") ? raw.slice(0, -4) : raw;
 }
 
 function resolveRoute(): ResolvedRoute {
@@ -143,24 +143,6 @@ function resolveRoute(): ResolvedRoute {
   if (rawPath === "/worker/certification") return { route: "certification" };
   if (rawPath === "/worker/profile") return { route: "profile" };
   return { route: "hall" };
-}
-
-function createWorkerClient({ cityCode, workerId }: QueryParams) {
-  const apiBase = normalizeApiBase(
-    (import.meta as ImportMeta & { env?: { VITE_API_BASE?: string } }).env?.VITE_API_BASE,
-  );
-
-  return workerApi.create(
-    createApiClient({
-      baseUrl: apiBase,
-      headers: {
-        "x-xlb-app-type": "worker",
-        "x-xlb-role": "worker",
-        "x-xlb-city-code": cityCode,
-        "x-xlb-user-id": workerId,
-      },
-    }),
-  );
 }
 
 function formatAmount(amount: number): string {
@@ -284,34 +266,129 @@ function AppFrame({ route, children }: { route: WorkerRoute; children: ReactNode
   );
 }
 
-function ContextCard({
+function WorkerLoginPage({
   cityCode,
-  workerId,
   onCityChange,
-  onWorkerChange,
+  onLogin,
+}: {
+  cityCode: string;
+  onCityChange: (value: string) => void;
+  onLogin: (session: WorkerSession) => void;
+}) {
+  const [phone, setPhone] = useState(DEFAULT_WORKER_PHONE);
+  const [code, setCode] = useState("");
+  const [loading, setLoading] = useState<"request" | "debug" | "login" | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const debugCodeEnabledInUi =
+    ((import.meta as ImportMeta & { env?: { MODE?: string } }).env?.MODE ?? "development") !== "production";
+
+  const requestCode = useCallback(async () => {
+    setLoading("request");
+    setError(null);
+    setNotice(null);
+    try {
+      const result = await requestWorkerLoginCode(phone.trim());
+      setNotice(`Code sent. It expires in ${result.ttlSeconds}s.`);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Failed to request login code");
+    } finally {
+      setLoading(null);
+    }
+  }, [phone]);
+
+  const fillDebugCode = useCallback(async () => {
+    setLoading("debug");
+    setError(null);
+    setNotice(null);
+    try {
+      const result = await readWorkerDebugCode(phone.trim());
+      setCode(result.code);
+      setNotice("Debug code filled for local verification.");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Debug code unavailable");
+    } finally {
+      setLoading(null);
+    }
+  }, [phone]);
+
+  const submitLogin = useCallback(async () => {
+    setLoading("login");
+    setError(null);
+    setNotice(null);
+    try {
+      const session = await loginWorkerWithCode(phone.trim(), code.trim());
+      onLogin(session);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Worker login failed");
+    } finally {
+      setLoading(null);
+    }
+  }, [code, onLogin, phone]);
+
+  return (
+    <AppFrame route="hall">
+      <Card title="Worker Login" actions={<StatusTag tone="primary">Bearer</StatusTag>} style={workerPanelStyle}>
+        <div style={{ display: "grid", gap: 10 }}>
+          <p style={helperText}>Use phone OTP login before opening the worker task pool.</p>
+          <FormField label="cityCode">
+            <Input value={cityCode} onChange={(event) => onCityChange(event.target.value || DEFAULT_CITY_CODE)} />
+          </FormField>
+          <FormField label="phone">
+            <Input value={phone} onChange={(event) => setPhone(event.target.value)} />
+          </FormField>
+          <FormField label="code">
+            <Input value={code} onChange={(event) => setCode(event.target.value)} />
+          </FormField>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            <Button onClick={requestCode} disabled={loading !== null || !phone.trim()}>
+              {loading === "request" ? "Sending" : "Send code"}
+            </Button>
+            {debugCodeEnabledInUi && (
+              <Button onClick={fillDebugCode} disabled={loading !== null || !phone.trim()}>
+                {loading === "debug" ? "Reading" : "Fill debug code"}
+              </Button>
+            )}
+            <Button onClick={submitLogin} disabled={loading !== null || !phone.trim() || !code.trim()} variant="primary">
+              {loading === "login" ? "Logging in" : "Login"}
+            </Button>
+          </div>
+          {notice && <p style={helperText}>{notice}</p>}
+          {error && <p style={{ ...helperText, color: "#fda29b" }}>{error}</p>}
+        </div>
+      </Card>
+    </AppFrame>
+  );
+}
+
+function SessionCard({
+  cityCode,
+  session,
+  onCityChange,
+  onLogout,
   onReload,
 }: {
   cityCode: string;
-  workerId: string;
+  session: WorkerSession;
   onCityChange: (value: string) => void;
-  onWorkerChange: (value: string) => void;
+  onLogout: () => void;
   onReload: () => void;
 }) {
   return (
-    <Card title="Demo Identity" actions={<StatusTag tone="muted">Header identity</StatusTag>} style={workerPanelStyle}>
+    <Card title="Worker Session" actions={<StatusTag tone="success">Logged in</StatusTag>} style={workerPanelStyle}>
       <div style={{ display: "grid", gap: 10 }}>
         <p style={helperText}>
-          P1 stage 3 uses worker headers only. Worker login/token remains a known later security task.
+          Authenticated as {session.userId}. Worker requests use Authorization: Bearer.
         </p>
         <FormField label="cityCode">
           <Input value={cityCode} onChange={(event) => onCityChange(event.target.value || DEFAULT_CITY_CODE)} />
         </FormField>
-        <FormField label="x-xlb-user-id">
-          <Input value={workerId} onChange={(event) => onWorkerChange(event.target.value || DEFAULT_WORKER_ID)} />
-        </FormField>
-        <Button onClick={onReload} variant="primary">
-          Reload current view
-        </Button>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          <Button onClick={onReload} variant="primary">
+            Reload current view
+          </Button>
+          <Button onClick={onLogout}>Logout</Button>
+        </div>
       </div>
     </Card>
   );
@@ -629,6 +706,7 @@ function CertificationPage({
   onCertNameChange,
   onSubmit,
 }: QueryParams & {
+  workerId: string;
   certType: string;
   certName: string;
   submitting: boolean;
@@ -671,7 +749,7 @@ export function App() {
   const initialQuery = readQueryParams();
   const [route, setRoute] = useState<ResolvedRoute>(resolveRoute);
   const [workerCityCode, setWorkerCityCode] = useState(initialQuery.cityCode);
-  const [workerId, setWorkerId] = useState(initialQuery.workerId);
+  const [session, setSession] = useState<WorkerSession | null>(null);
   const [taskPool, setTaskPool] = useState<WorkerTaskPoolItem[]>([]);
   const [fulfillments, setFulfillments] = useState<Fulfillment[]>([]);
   const [taskDetail, setTaskDetail] = useState<Fulfillment | null>(null);
@@ -697,40 +775,55 @@ export function App() {
     ((import.meta as ImportMeta & { env?: { MODE?: string } }).env?.MODE ?? "development") !== "production";
 
   const api = useMemo(
-    () => createWorkerClient({ cityCode: workerCityCode, workerId }),
-    [workerCityCode, workerId],
+    () => (session ? createWorkerApiClient(workerCityCode, session) : null),
+    [session, workerCityCode],
+  );
+
+  const handleApiError = useCallback(
+    (error: unknown, fallback: string, setError: (message: string) => void) => {
+      if (isUnauthorizedError(error)) {
+        setSession(null);
+        setError("Session expired. Please login again.");
+        return;
+      }
+      setError(error instanceof Error ? error.message : fallback);
+    },
+    [],
   );
 
   const loadTaskPool = useCallback(async () => {
+    if (!api) return;
     setLoadingHall(true);
     setHallError(null);
     try {
       const response = await api.getTaskPool();
       setTaskPool(response.tasks);
     } catch (error) {
-      setHallError(error instanceof Error ? error.message : "Failed to load task pool");
+      handleApiError(error, "Failed to load task pool", setHallError);
       setTaskPool([]);
     } finally {
       setLoadingHall(false);
     }
-  }, [api]);
+  }, [api, handleApiError]);
 
   const loadFulfillments = useCallback(async () => {
+    if (!api) return;
     setLoadingTasks(true);
     setTasksError(null);
     try {
       const response = await api.getMyFulfillments();
       setFulfillments(response.fulfillments);
     } catch (error) {
-      setTasksError(error instanceof Error ? error.message : "Failed to load fulfillments");
+      handleApiError(error, "Failed to load fulfillments", setTasksError);
       setFulfillments([]);
     } finally {
       setLoadingTasks(false);
     }
-  }, [api]);
+  }, [api, handleApiError]);
 
   const loadTaskDetail = useCallback(
     async (fulfillmentId: string) => {
+      if (!api) return;
       setLoadingDetail(true);
       setDetailError(null);
       setTaskDetail(null);
@@ -738,12 +831,12 @@ export function App() {
         const response = await api.getFulfillment(fulfillmentId);
         setTaskDetail(response.fulfillment);
       } catch (error) {
-        setDetailError(error instanceof Error ? error.message : "Failed to load fulfillment detail");
+        handleApiError(error, "Failed to load fulfillment detail", setDetailError);
       } finally {
         setLoadingDetail(false);
       }
     },
-    [api],
+    [api, handleApiError],
   );
 
   const reloadCurrent = useCallback(() => {
@@ -754,6 +847,7 @@ export function App() {
 
   const acceptTask = useCallback(
     async (dispatchTaskId: string) => {
+      if (!api) return;
       setAcceptingDispatchTaskId(dispatchTaskId);
       setAcceptError(null);
       setAcceptNotice(null);
@@ -764,16 +858,17 @@ export function App() {
         );
         await Promise.all([loadTaskPool(), loadFulfillments()]);
       } catch (error) {
-        setAcceptError(error instanceof Error ? error.message : "Failed to accept task");
+        handleApiError(error, "Failed to accept task", setAcceptError);
       } finally {
         setAcceptingDispatchTaskId(null);
       }
     },
-    [api, loadFulfillments, loadTaskPool],
+    [api, handleApiError, loadFulfillments, loadTaskPool],
   );
 
   const rejectTask = useCallback(
     async (dispatchTaskId: string) => {
+      if (!api) return;
       setSimulationAction({ type: "reject", dispatchTaskId });
       setAcceptError(null);
       setAcceptNotice(null);
@@ -782,16 +877,17 @@ export function App() {
         setAcceptNotice(`Rejected ${dispatchTaskId}; dispatch task is now ${response.task.status}.`);
         await loadTaskPool();
       } catch (error) {
-        setAcceptError(error instanceof Error ? error.message : "Failed to reject task");
+        handleApiError(error, "Failed to reject task", setAcceptError);
       } finally {
         setSimulationAction(null);
       }
     },
-    [api, loadTaskPool],
+    [api, handleApiError, loadTaskPool],
   );
 
   const simulateTaskTimeout = useCallback(
     async (dispatchTaskId: string) => {
+      if (!api) return;
       setSimulationAction({ type: "timeout", dispatchTaskId });
       setAcceptError(null);
       setAcceptNotice(null);
@@ -800,12 +896,12 @@ export function App() {
         setAcceptNotice(`Timed out ${dispatchTaskId}; dispatch task is now ${response.task.status}.`);
         await loadTaskPool();
       } catch (error) {
-        setAcceptError(error instanceof Error ? error.message : "Failed to simulate timeout");
+        handleApiError(error, "Failed to simulate timeout", setAcceptError);
       } finally {
         setSimulationAction(null);
       }
     },
-    [api, loadTaskPool],
+    [api, handleApiError, loadTaskPool],
   );
 
   const refreshFulfillmentState = useCallback(
@@ -817,6 +913,7 @@ export function App() {
 
   const startFulfillment = useCallback(
     async (fulfillmentId: string) => {
+      if (!api) return;
       setLifecycleAction("start");
       setLifecycleError(null);
       setLifecycleNotice(null);
@@ -825,16 +922,17 @@ export function App() {
         setLifecycleNotice(`Fulfillment ${response.fulfillment.fulfillmentId} is now ${response.fulfillment.status}.`);
         await refreshFulfillmentState(fulfillmentId);
       } catch (error) {
-        setLifecycleError(error instanceof Error ? error.message : "Failed to start service");
+        handleApiError(error, "Failed to start service", setLifecycleError);
       } finally {
         setLifecycleAction(null);
       }
     },
-    [api, refreshFulfillmentState],
+    [api, handleApiError, refreshFulfillmentState],
   );
 
   const completeFulfillment = useCallback(
     async (fulfillmentId: string) => {
+      if (!api) return;
       setLifecycleAction("complete");
       setLifecycleError(null);
       setLifecycleNotice(null);
@@ -843,15 +941,16 @@ export function App() {
         setLifecycleNotice(`Fulfillment ${response.fulfillment.fulfillmentId} is now ${response.fulfillment.status}.`);
         await refreshFulfillmentState(fulfillmentId);
       } catch (error) {
-        setLifecycleError(error instanceof Error ? error.message : "Failed to complete service");
+        handleApiError(error, "Failed to complete service", setLifecycleError);
       } finally {
         setLifecycleAction(null);
       }
     },
-    [api, refreshFulfillmentState],
+    [api, handleApiError, refreshFulfillmentState],
   );
 
   const submitCertification = useCallback(async () => {
+    if (!api) return;
     setCertSubmitting(true);
     setCertError(null);
     setCertNotice(null);
@@ -864,11 +963,11 @@ export function App() {
         `Certification ${response.certification.certificationId} submitted with status ${response.certification.status}.`,
       );
     } catch (error) {
-      setCertError(error instanceof Error ? error.message : "Failed to submit certification");
+      handleApiError(error, "Failed to submit certification", setCertError);
     } finally {
       setCertSubmitting(false);
     }
-  }, [api, certName, certType]);
+  }, [api, certName, certType, handleApiError]);
 
   useEffect(() => {
     const onRouteChange = () => setRoute(resolveRoute());
@@ -885,6 +984,44 @@ export function App() {
     setRoute(resolveRoute());
   }, []);
 
+  const clearWorkerData = useCallback(() => {
+    setTaskPool([]);
+    setFulfillments([]);
+    setTaskDetail(null);
+    setHallError(null);
+    setTasksError(null);
+    setDetailError(null);
+    setAcceptError(null);
+    setAcceptNotice(null);
+    setLifecycleError(null);
+    setLifecycleNotice(null);
+    setCertError(null);
+    setCertNotice(null);
+  }, []);
+
+  const handleLogin = useCallback(
+    (nextSession: WorkerSession) => {
+      clearWorkerData();
+      setSession(nextSession);
+    },
+    [clearWorkerData],
+  );
+
+  const handleLogout = useCallback(() => {
+    clearWorkerData();
+    setSession(null);
+  }, [clearWorkerData]);
+
+  if (!session) {
+    return (
+      <WorkerLoginPage
+        cityCode={workerCityCode}
+        onCityChange={setWorkerCityCode}
+        onLogin={handleLogin}
+      />
+    );
+  }
+
   const content =
     route.route === "hall" ? (
       <HallPage
@@ -897,7 +1034,7 @@ export function App() {
         simulationAction={simulationAction}
         simulationControlsEnabled={simulationControlsEnabled}
         cityCode={workerCityCode}
-        workerId={workerId}
+        workerId={session.userId}
         onRefresh={loadTaskPool}
         onAccept={(dispatchTaskId) => void acceptTask(dispatchTaskId)}
         onReject={(dispatchTaskId) => void rejectTask(dispatchTaskId)}
@@ -930,12 +1067,12 @@ export function App() {
       </PlaceholderPage>
     ) : route.route === "profile" ? (
       <PlaceholderPage title="Profile">
-        Current demo identity comes from headers: {workerId} / {workerCityCode}.
+        Current worker session is {session.userId} / {workerCityCode}.
       </PlaceholderPage>
     ) : (
       <CertificationPage
         cityCode={workerCityCode}
-        workerId={workerId}
+        workerId={session.userId}
         certType={certType}
         certName={certName}
         submitting={certSubmitting}
@@ -949,11 +1086,11 @@ export function App() {
 
   return (
     <AppFrame route={route.route}>
-      <ContextCard
+      <SessionCard
         cityCode={workerCityCode}
-        workerId={workerId}
+        session={session}
         onCityChange={setWorkerCityCode}
-        onWorkerChange={setWorkerId}
+        onLogout={handleLogout}
         onReload={reloadCurrent}
       />
       {content}

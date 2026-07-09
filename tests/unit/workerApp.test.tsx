@@ -6,6 +6,9 @@ import { App } from "../../apps/worker/src/app/App";
 
 const mocks = vi.hoisted(() => ({
   createApiClient: vi.fn((options: unknown) => ({ options })),
+  requestWorkerLoginCode: vi.fn(),
+  getWorkerDebugCode: vi.fn(),
+  workerLogin: vi.fn(),
   getTaskPool: vi.fn(),
   acceptTask: vi.fn(),
   rejectTask: vi.fn(),
@@ -20,6 +23,11 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@xlb/api-client", () => ({
   createApiClient: mocks.createApiClient,
+  createAuthApi: () => ({
+    requestWorkerLoginCode: mocks.requestWorkerLoginCode,
+    getWorkerDebugCode: mocks.getWorkerDebugCode,
+    workerLogin: mocks.workerLogin,
+  }),
   workerApi: {
     create: () => ({
       getTaskPool: mocks.getTaskPool,
@@ -35,6 +43,13 @@ vi.mock("@xlb/api-client", () => ({
     }),
   },
 }));
+
+const workerSession = {
+  ok: true,
+  token: "test-worker-token",
+  userId: "worker-demo-hangzhou",
+  role: "worker",
+};
 
 const queuedTask = {
   dispatchTaskId: "dispatch-1",
@@ -82,10 +97,22 @@ function setRoute(path: string) {
   window.history.pushState({}, "", path);
 }
 
+async function renderAndLogin() {
+  render(<App />);
+  fireEvent.change(await screen.findByLabelText("code"), {
+    target: { value: "123456" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Login" }));
+  expect(await screen.findByText(/Authenticated as worker-demo-hangzhou/)).toBeTruthy();
+}
+
 describe("Worker App API wiring", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     setRoute("/worker/");
+    mocks.requestWorkerLoginCode.mockResolvedValue({ ok: true, ttlSeconds: 300, expiresAt: "2026-07-09T01:05:00.000Z", attemptsLeft: 5 });
+    mocks.getWorkerDebugCode.mockResolvedValue({ ok: true, code: "123456", expiresAt: "2026-07-09T01:05:00.000Z", attemptsLeft: 5 });
+    mocks.workerLogin.mockResolvedValue(workerSession);
     mocks.getTaskPool.mockResolvedValue({ ok: true, cityCode: "hangzhou", tasks: [] });
     mocks.getMyFulfillments.mockResolvedValue({ ok: true, cityCode: "hangzhou", fulfillments: [] });
     mocks.getFulfillment.mockResolvedValue({ ok: true, fulfillment: acceptedFulfillment });
@@ -131,30 +158,67 @@ describe("Worker App API wiring", () => {
     cleanup();
   });
 
-  it("renders task pool data from getTaskPool", async () => {
+  it("requests a code, fills the local debug code, and logs in", async () => {
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Send code" }));
+    expect(await screen.findByText("Code sent. It expires in 300s.")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Fill debug code" }));
+    await waitFor(() => {
+      expect(mocks.getWorkerDebugCode).toHaveBeenCalledWith("13800000001");
+    });
+    expect((screen.getByLabelText("code") as HTMLInputElement).value).toBe("123456");
+
+    fireEvent.click(screen.getByRole("button", { name: "Login" }));
+    expect(await screen.findByText(/Authenticated as worker-demo-hangzhou/)).toBeTruthy();
+    expect(mocks.workerLogin).toHaveBeenCalledWith("13800000001", "123456");
+  });
+
+  it("shows an invalid-code login error", async () => {
+    mocks.workerLogin.mockResolvedValueOnce({ ok: false, error: "invalid_code", statusCode: 400, attemptsLeft: 4 });
+    render(<App />);
+
+    fireEvent.change(await screen.findByLabelText("code"), {
+      target: { value: "000000" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Login" }));
+
+    expect(await screen.findByText("invalid_code")).toBeTruthy();
+    expect(screen.queryByText(/Authenticated as worker-demo-hangzhou/)).toBeNull();
+  });
+
+  it("renders task pool data after worker login", async () => {
     mocks.getTaskPool.mockResolvedValueOnce({ ok: true, cityCode: "hangzhou", tasks: [queuedTask] });
 
-    render(<App />);
+    await renderAndLogin();
 
     expect(await screen.findByText("dispatch-1")).toBeTruthy();
     expect(screen.getByText("order-1")).toBeTruthy();
     expect(screen.getByText("sku_home_daily_2h")).toBeTruthy();
     expect(screen.getByText("CNY 128.00")).toBeTruthy();
     expect(mocks.getTaskPool).toHaveBeenCalledTimes(1);
-    expect(mocks.createApiClient).toHaveBeenCalledWith(
+    expect(mocks.createApiClient).toHaveBeenLastCalledWith(
       expect.objectContaining({
         headers: expect.objectContaining({
-          "x-xlb-app-type": "worker",
-          "x-xlb-role": "worker",
           "x-xlb-city-code": "hangzhou",
-          "x-xlb-user-id": "worker-demo-hangzhou",
+          Authorization: "Bearer test-worker-token",
         }),
       }),
     );
   });
 
+  it("returns to login when the token is missing or expired", async () => {
+    mocks.getTaskPool.mockRejectedValueOnce(new Error("API GET /api/worker/task-pool failed: 401"));
+
+    await renderAndLogin();
+
+    expect(await screen.findByText("Worker Login")).toBeTruthy();
+    expect(screen.queryByText(/Authenticated as worker-demo-hangzhou/)).toBeNull();
+  });
+
   it("renders an empty task pool state", async () => {
-    render(<App />);
+    await renderAndLogin();
 
     expect(await screen.findByText("No queued task")).toBeTruthy();
     expect(mocks.getTaskPool).toHaveBeenCalledTimes(1);
@@ -168,7 +232,7 @@ describe("Worker App API wiring", () => {
       fulfillments: [acceptedFulfillment],
     });
 
-    render(<App />);
+    await renderAndLogin();
 
     expect(await screen.findByText("ful-1")).toBeTruthy();
     expect(screen.getByText("accepted")).toBeTruthy();
@@ -178,7 +242,7 @@ describe("Worker App API wiring", () => {
   it("renders an empty fulfillment state", async () => {
     setRoute("/worker/tasks");
 
-    render(<App />);
+    await renderAndLogin();
 
     expect(await screen.findByText("No fulfillment yet")).toBeTruthy();
     expect(mocks.getMyFulfillments).toHaveBeenCalledTimes(1);
@@ -194,7 +258,7 @@ describe("Worker App API wiring", () => {
       fulfillments: [acceptedFulfillment],
     });
 
-    render(<App />);
+    await renderAndLogin();
 
     fireEvent.click(await screen.findByRole("button", { name: "Accept" }));
 
@@ -211,7 +275,7 @@ describe("Worker App API wiring", () => {
     mocks.getTaskPool.mockResolvedValueOnce({ ok: true, cityCode: "hangzhou", tasks: [queuedTask] });
     mocks.acceptTask.mockRejectedValueOnce(new Error("API POST /api/worker/tasks/dispatch-1/accept failed: 409"));
 
-    render(<App />);
+    await renderAndLogin();
 
     fireEvent.click(await screen.findByRole("button", { name: "Accept" }));
 
@@ -226,7 +290,7 @@ describe("Worker App API wiring", () => {
       .mockResolvedValueOnce({ ok: true, fulfillment: inProgressFulfillment })
       .mockResolvedValueOnce({ ok: true, fulfillment: completedFulfillment });
 
-    render(<App />);
+    await renderAndLogin();
 
     fireEvent.click(await screen.findByRole("button", { name: "Start service" }));
     await waitFor(() => {
@@ -247,7 +311,7 @@ describe("Worker App API wiring", () => {
   it("submits certification through the existing worker certification API", async () => {
     setRoute("/worker/certification");
 
-    render(<App />);
+    await renderAndLogin();
 
     fireEvent.change(await screen.findByLabelText("certName"), {
       target: { value: "现场服务基础资格" },

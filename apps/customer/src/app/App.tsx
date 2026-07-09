@@ -41,7 +41,11 @@ export function App() {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      if (readStoredSession()) return; // already have a session
+      const storedSession = readStoredSession();
+      if (storedSession) {
+        if (!cancelled) setSession(storedSession);
+        return;
+      }
       try {
         const s = await loginCustomer();
         if (!cancelled) setSession(s);
@@ -67,6 +71,10 @@ export function App() {
   }, []);
 
   const loadCatalog = useCallback(async () => {
+    if (!session?.token) {
+      setCatalogState({ status: "loading" });
+      return;
+    }
     setCatalogState((previous) =>
       previous.status === "success" && previous.data?.cityCode === cityCode
         ? { status: "loading", data: previous.data }
@@ -81,7 +89,7 @@ export function App() {
         error: error instanceof Error ? error.message : "Unable to load catalog",
       });
     }
-  }, [api, cityCode]);
+  }, [api, cityCode, session?.token]);
 
   useEffect(() => {
     void loadCatalog();
