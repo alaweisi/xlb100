@@ -35,7 +35,6 @@ interface CustomerOrderApi {
   }>;
   createOrderReview(payload: {
     orderId: string;
-    workerId: string;
     rating: number;
     comment: string;
   }): Promise<{
@@ -87,7 +86,6 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
   const [error, setError] = useState<string | null>(null);
   const [refundReasons, setRefundReasons] = useState<Record<string, string>>({});
   const [refundStates, setRefundStates] = useState<Record<string, RefundUiState>>({});
-  const [reviewWorkerIds, setReviewWorkerIds] = useState<Record<string, string>>({});
   const [reviewRatings, setReviewRatings] = useState<Record<string, number>>({});
   const [reviewComments, setReviewComments] = useState<Record<string, string>>({});
   const [reviewStates, setReviewStates] = useState<Record<string, ReviewUiState>>({});
@@ -163,7 +161,6 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
   }
 
   async function submitReview(orderId: string) {
-    const workerId = (reviewWorkerIds[orderId] || "worker-demo-hangzhou").trim();
     const rating = reviewRatings[orderId] || 5;
     const comment = reviewComments[orderId]?.trim() || "Service completed as expected";
     setReviewStates((previous) => ({
@@ -173,7 +170,6 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
     try {
       const result = await api.createOrderReview({
         orderId,
-        workerId,
         rating,
         comment,
       });
@@ -334,20 +330,9 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
                   Service review
                 </strong>
                 <span style={{ color: "#64748b", fontSize: 12, lineHeight: "18px" }}>
-                  Creates only a review record with status=created. Backend accepts it only after worker completion.
+                  Creates only a review record with status=created after worker completion.
                 </span>
-                <div style={{ display: "grid", gap: 8, gridTemplateColumns: "minmax(0, 1fr) 120px" }}>
-                  <Input
-                    disabled={!isReviewRequestAllowed || reviewState.status === "submitting"}
-                    placeholder="worker-demo-hangzhou"
-                    value={reviewWorkerIds[order.orderId] ?? "worker-demo-hangzhou"}
-                    onChange={(event) =>
-                      setReviewWorkerIds((previous) => ({
-                        ...previous,
-                        [order.orderId]: event.target.value,
-                      }))
-                    }
-                  />
+                <div style={{ display: "grid", gap: 8, gridTemplateColumns: "120px" }}>
                   <Input
                     disabled={!isReviewRequestAllowed || reviewState.status === "submitting"}
                     max={5}

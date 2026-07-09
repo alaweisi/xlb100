@@ -17,7 +17,6 @@ export interface OrderReview {
 }
 
 export interface CreateOrderReview {
-  workerId: string;
   rating: number;
   comment: string;
 }

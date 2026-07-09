@@ -4,7 +4,6 @@ import { cityCodeSchema } from "./cityCodeSchema.js";
 export const orderReviewStatusSchema = z.enum(["created"]);
 
 export const createOrderReviewSchema = z.object({
-  workerId: z.string().min(1).max(64),
   rating: z.number().int().min(1).max(5),
   comment: z.string().trim().min(1).max(500),
 }).strict();

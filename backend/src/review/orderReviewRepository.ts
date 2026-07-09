@@ -65,7 +65,6 @@ export class OrderReviewRepository extends RepositoryBase {
     cityCode: CityCode,
     orderId: string,
     customerId: string,
-    workerId: string,
   ): Promise<ReviewableOrderSnapshot | null> {
     const [rows] = await connection.query<
       (RowDataPacket & {
@@ -81,14 +80,13 @@ export class OrderReviewRepository extends RepositoryBase {
          JOIN fulfillments f
            ON f.order_id = o.order_id
           AND f.city_code = o.city_code
-          AND f.worker_id = ?
           AND f.status = 'completed'
         WHERE o.city_code = ?
           AND o.order_id = ?
           AND o.customer_id = ?
           AND o.status = 'paid'
         LIMIT 1 FOR UPDATE`,
-      [workerId, cityCode, orderId, customerId],
+      [cityCode, orderId, customerId],
     );
     const row = rows[0];
     return row

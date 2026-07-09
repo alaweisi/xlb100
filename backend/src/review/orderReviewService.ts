@@ -61,11 +61,10 @@ export class OrderReviewService {
         cityCode,
         orderId,
         context.userId!,
-        parsed.data.workerId,
       );
       if (!snapshot) {
         throw new OrderReviewConflictError(
-          "review requires paid order, matching customer, matching worker, and completed fulfillment",
+          "review requires paid order, matching customer, and completed fulfillment",
         );
       }
 

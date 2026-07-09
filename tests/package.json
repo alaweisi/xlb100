@@ -1,0 +1,9 @@
+{
+  "name": "@xlb/tests",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node ../scripts/run-vitest-projects.mjs"
+  }
+}

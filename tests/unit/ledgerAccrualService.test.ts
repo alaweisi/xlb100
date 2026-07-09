@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { LedgerAccrualService } from "../../backend/src/ledger/ledgerAccrualService.js";
 import type { LedgerRepository } from "../../backend/src/ledger/ledgerRepository.js";
 import type { EventOutboxRepository } from "../../backend/src/events/eventOutbox.js";
+import type { WorkerFinanceRepository } from "../../backend/src/worker/workerFinanceRepository.js";
 
 const context: RequestContext = { traceId: "trace-1", appType: "admin", role: "operator", cityCode: "hangzhou", requestStartedAt: new Date().toISOString() };
 const event: EventOutbox = { eventId: "evt-1", eventType: "fulfillment.completed", aggregateType: "fulfillment", aggregateId: "ful-1", cityCode: "hangzhou", payload: { fulfillmentId: "ful-1" }, status: "pending", createdAt: new Date().toISOString(), publishedAt: null };
@@ -18,8 +19,14 @@ describe("ledgerAccrualService", () => {
       insertAccrual: vi.fn(), insertEntry: vi.fn(),
     };
     const outbox = { insertEvent: vi.fn(), markEventPublished: vi.fn() };
+    const workerFinance = { applyAccrual: vi.fn() };
     const transaction = async <T>(callback: (connection: PoolConnection) => Promise<T>) => callback({} as PoolConnection);
-    const service = new LedgerAccrualService(repo as unknown as LedgerRepository, outbox as unknown as EventOutboxRepository, transaction);
+    const service = new LedgerAccrualService(
+      repo as unknown as LedgerRepository,
+      outbox as unknown as EventOutboxRepository,
+      workerFinance as unknown as WorkerFinanceRepository,
+      transaction,
+    );
 
     const result = await service.accrue(context, event);
     expect(result.accrual).toMatchObject({ grossAmount: 89, platformFee: 8.9, workerReceivable: 80.1, status: "accrued" });
@@ -27,6 +34,7 @@ describe("ledgerAccrualService", () => {
       ["customer", "debit", 89], ["platform", "credit", 8.9], ["worker", "credit", 80.1],
     ]);
     expect(repo.insertEntry).toHaveBeenCalledTimes(3);
+    expect(workerFinance.applyAccrual).toHaveBeenCalledWith(expect.anything(), result.accrual);
     expect(outbox.insertEvent).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
       eventType: "conflict_audit",
       aggregateType: "ledger_accrual",

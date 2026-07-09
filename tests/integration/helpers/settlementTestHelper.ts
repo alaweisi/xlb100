@@ -151,7 +151,14 @@ export async function withSettlementTestLock<T>(callback: () => Promise<T>): Pro
     if (rows[0]?.acquired !== 1) throw new Error("Could not acquire Phase 8B integration-test lock");
     return await callback();
   } finally {
-    await connection.query("SELECT RELEASE_LOCK('xlb-phase8b-integration-tests')");
-    connection.release();
+    try {
+      await connection.query("SELECT RELEASE_LOCK('xlb-phase8b-integration-tests')");
+    } catch (error) {
+      if (!(error instanceof Error) || !error.message.includes("closed state")) {
+        throw error;
+      }
+    } finally {
+      connection.release();
+    }
   }
 }
