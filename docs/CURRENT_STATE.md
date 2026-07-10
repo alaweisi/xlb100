@@ -236,7 +236,8 @@
 - **Formal gates**: `pnpm gate:phase22`, `scripts/check-phase22-migration-verification.ps1`
 - **Reports**: `docs/reports/PHASE22_QUALITY_GATES_REPORT.md`, `docs/reports/PHASE22_TEST_COVERAGE.md`
 - **Verification**: normal suite 289 files / 1,149 tests plus one existing Phase 1 todo; performance 1 file / 2 tests; Playwright 1 spec / 3 tests; typecheck 17/17; build 11/11; preflight passed
-- **State**: development candidate complete; pending hosted CI evidence, independent review, and Lock ceremony
+- **Hosted CI**: Phase 22 Quality Gates run `29090426772` passed after fail-closed probes and all real blocking stages
+- **State**: development candidate complete; pending independent review and Lock ceremony
 
 ## Third-party Inspection
 

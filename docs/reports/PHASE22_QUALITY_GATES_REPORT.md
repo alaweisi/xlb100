@@ -96,13 +96,13 @@ Hosted run `Phase 22 Quality Gates #1` (`29089467224`) also produced a real red 
 `pnpm/action-setup` rejected duplicate pnpm version sources (`version: 9` in the
 workflow and `packageManager: pnpm@9.15.0` in `package.json`) before any quality test
 could run. The workflow now removes the duplicate and trusts `packageManager` as the
-single version source. A hosted green rerun is pending and is not claimed yet.
+single version source; run #2 verified that correction.
 
 Hosted run `Phase 22 Quality Gates #2` (`29089578184`) then passed setup, install,
 Chromium, migration, and seed, but failed when the gate loaded
 `@xlb/shared/deterministic/stableHash.js`: a clean runner had no package `dist` output.
 The workflow now makes workspace build and typecheck explicit prerequisites instead of
-depending on local build artifacts. A hosted green rerun remains pending.
+depending on local build artifacts; run #3 verified that correction.
 
 Hosted run `Phase 22 Quality Gates #3` (`29089724317`) reached the complete gate and
 uploaded the coverage artifact, but GitHub treated intentional child-process failures
@@ -110,24 +110,31 @@ inside the combined step as the step's final failure. The workflow now runs E2E,
 security, and coverage injection as separate `continue-on-error` steps, asserts all
 three step outcomes equal `failure`, and then runs the real green gate without nested
 injection. This preserves visible hosted red probes while allowing the job to pass only
-after the real gates pass. A hosted green rerun remains pending.
+after the real gates pass; run #4 verified the separated probes.
 
 Hosted run `Phase 22 Quality Gates #4` (`29089983748`) confirmed all three injected
 steps were red and continued into the real gate, but the combined real gate returned a
 fourth non-zero exit whose nested stage was not exposed in the anonymous run summary.
 The hosted workflow now executes each real E2E, security, observability, performance,
-coverage, and dependency audit gate as a separate hard-blocking step so the next run is
-both diagnosable and independently enforceable. A hosted green rerun remains pending.
+coverage, and dependency audit gate as a separate hard-blocking step; run #5 isolated
+the remaining E2E environment failure.
 
 Hosted run `Phase 22 Quality Gates #5` (`29090181647`) isolated the first real blocker
 to the E2E step. The Phase 21 Playwright `webServer` commands used Windows-only `cmd /c`
 and `set VAR=...`, so clean Ubuntu runners could not start the backend/apps. Phase 22
 replaces those commands with `cross-env` plus pnpm, preserving the same isolated ports
-on Windows and Linux. A hosted green rerun remains pending.
+on Windows and Linux; run #6 verified the correction.
+
+Hosted run `Phase 22 Quality Gates #6` (`29090426772`) for commit `63fa401` completed
+successfully. It retained the three expected red injection probes, passed the outcome
+assertion, and then passed each hard-blocking real E2E, authorization, observability,
+performance, coverage, and critical dependency audit step. This is the hosted green
+evidence for the fail-closed workflow.
 
 ## Verification
 
 - `pnpm gate:phase22`: PASS.
+- Hosted GitHub Actions: PASS, run `29090426772`.
 - Cross-phase API E2E: 1 file / 1 test passed.
 - A/W/C Playwright smoke: 1 spec / 3 tests passed, zero page/console errors.
 - Authorization matrix: 1 file / 1 test passed.
@@ -165,4 +172,4 @@ removed, merged, skipped, or converted to todo. The retained todo remains
 The five user-owned audit files in the `E:\xlb100` main worktree remain untracked and
 were not read into staging, overwritten, or committed by Phase 22.
 
-Phase 22 is development-candidate complete. It is not LOCKED.
+Phase 22 is development-candidate complete with hosted CI evidence. It is not LOCKED.
