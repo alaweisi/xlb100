@@ -104,6 +104,14 @@ Chromium, migration, and seed, but failed when the gate loaded
 The workflow now makes workspace build and typecheck explicit prerequisites instead of
 depending on local build artifacts. A hosted green rerun remains pending.
 
+Hosted run `Phase 22 Quality Gates #3` (`29089724317`) reached the complete gate and
+uploaded the coverage artifact, but GitHub treated intentional child-process failures
+inside the combined step as the step's final failure. The workflow now runs E2E,
+security, and coverage injection as separate `continue-on-error` steps, asserts all
+three step outcomes equal `failure`, and then runs the real green gate without nested
+injection. This preserves visible hosted red probes while allowing the job to pass only
+after the real gates pass. A hosted green rerun remains pending.
+
 ## Verification
 
 - `pnpm gate:phase22`: PASS.

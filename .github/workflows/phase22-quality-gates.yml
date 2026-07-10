@@ -56,7 +56,31 @@ jobs:
         run: pnpm build
       - name: Typecheck workspace
         run: pnpm typecheck
-      - name: Phase 22 fail-closed and quality gates
+      - name: Inject E2E gate failure
+        id: e2e_probe
+        continue-on-error: true
+        env:
+          XLB_PHASE22_FORCE_FAILURE: e2e
+        run: pnpm test:e2e:phase22
+      - name: Inject security gate failure
+        id: security_probe
+        continue-on-error: true
+        env:
+          XLB_PHASE22_FORCE_FAILURE: security
+        run: pnpm test:security:phase22
+      - name: Inject coverage gate failure
+        id: coverage_probe
+        continue-on-error: true
+        env:
+          XLB_PHASE22_FORCE_FAILURE: coverage
+        run: pnpm test:coverage:phase22
+      - name: Assert injected failures were blocked
+        shell: bash
+        run: |
+          test "${{ steps.e2e_probe.outcome }}" = "failure"
+          test "${{ steps.security_probe.outcome }}" = "failure"
+          test "${{ steps.coverage_probe.outcome }}" = "failure"
+      - name: Phase 22 quality gates
         run: pnpm gate:phase22
       - name: Upload Phase 22 coverage
         if: always()

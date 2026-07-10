@@ -1,7 +1,6 @@
 import { spawn } from "node:child_process";
 
 const stages = [
-  ["fail-closed self-test", "test:ci-fail-closed"],
   ["cross-phase E2E", "test:e2e:phase22"],
   ["authorization matrix", "test:security:phase22"],
   ["observability", "test:observability:phase22"],
