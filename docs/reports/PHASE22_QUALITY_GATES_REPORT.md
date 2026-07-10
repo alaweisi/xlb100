@@ -119,6 +119,12 @@ The hosted workflow now executes each real E2E, security, observability, perform
 coverage, and dependency audit gate as a separate hard-blocking step so the next run is
 both diagnosable and independently enforceable. A hosted green rerun remains pending.
 
+Hosted run `Phase 22 Quality Gates #5` (`29090181647`) isolated the first real blocker
+to the E2E step. The Phase 21 Playwright `webServer` commands used Windows-only `cmd /c`
+and `set VAR=...`, so clean Ubuntu runners could not start the backend/apps. Phase 22
+replaces those commands with `cross-env` plus pnpm, preserving the same isolated ports
+on Windows and Linux. A hosted green rerun remains pending.
+
 ## Verification
 
 - `pnpm gate:phase22`: PASS.
