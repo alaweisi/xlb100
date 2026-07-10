@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { priceRuleSchema, priceQuoteSchema } from "@xlb/validators";
+import {
+  priceFeeItemSchema,
+  priceQuoteBreakdownSchema,
+  priceQuoteSchema,
+  priceRuleSchema,
+} from "@xlb/validators";
 
 describe("pricing contract", () => {
   it("PriceRule requires cityCode and basePrice >= 0", () => {
@@ -53,5 +58,35 @@ describe("pricing contract", () => {
       version: 1,
     });
     expect(result.success).toBe(false);
+  });
+
+  it("accepts Phase 16 transparent fee items and quote breakdown", () => {
+    const feeItem = {
+      feeItemId: "fee_1",
+      cityCode: "hangzhou",
+      priceRuleId: "price_hangzhou_sku_home_daily_2h",
+      skuId: "sku_home_daily_2h",
+      feeCode: "base_service_fee",
+      feeName: "基础服务费",
+      feeType: "base",
+      chargeMethod: "fixed",
+      amount: 89,
+      minAmount: 89,
+      maxAmount: 89,
+      unit: "2小时",
+      isOptional: false,
+      isEnabled: true,
+      sortOrder: 10,
+    };
+    expect(priceFeeItemSchema.safeParse(feeItem).success).toBe(true);
+
+    const breakdown = priceQuoteBreakdownSchema.safeParse({
+      baseAmount: 89,
+      requiredFeeAmount: 0,
+      optionalFeeAmount: 0,
+      totalAmount: 89,
+      feeItems: [feeItem],
+    });
+    expect(breakdown.success).toBe(true);
   });
 });

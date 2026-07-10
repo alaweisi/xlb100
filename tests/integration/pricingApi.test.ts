@@ -18,6 +18,10 @@ describe.skipIf(!runDb)("pricingApi integration", () => {
     expect(body.quote.cityCode).toBe("hangzhou");
     expect(body.quote.skuId).toBe("sku_home_daily_2h");
     expect(body.quote.priceText).toBeDefined();
+    expect(body.quote.breakdown.totalAmount).toBe(89);
+    expect(body.quote.breakdown.feeItems.length).toBeGreaterThan(0);
+    expect(body.quote.skuProfile).toBeTruthy();
+    expect(body.quote.standards.length).toBeGreaterThanOrEqual(3);
     await app.close();
   });
 

@@ -7,16 +7,24 @@ export type {
   ServiceCategory,
   ServiceItem,
   ServiceSku,
+  ServiceSkuProfile,
+  ServiceMode,
+  ServiceStandard,
+  StandardType,
   CatalogSnapshot,
 } from "./catalog.js";
 export type {
+  FeeChargeMethod,
+  FeeItemType,
+  PriceFeeItem,
   PriceRule,
   PriceType,
+  PriceQuoteBreakdown,
   PricingSnapshot,
   PriceQuote,
 } from "./pricing.js";
 export { XLB_HEADERS, type XlbHeaderName } from "./headers.js";
-export type { Order, OrderStatus, ScheduledTimeSlot } from "./order.js";
+export type { Order, OrderPriceSnapshot, OrderStatus, ScheduledTimeSlot } from "./order.js";
 export type {
   PaymentOrder,
   PaymentStatus,
@@ -145,6 +153,38 @@ export type {
   CreateRefundRequest,
   ApproveRefundRequest,
 } from "./refund.js";
+export type {
+  OrderReverseType,
+  OrderReverseStatus,
+  OrderReverseRequest,
+  ComplaintCategory,
+  ComplaintPriority,
+  ComplaintStatus,
+  ComplaintResolutionType,
+  AftersaleComplaint,
+  RepairOrderStatus,
+  AftersaleRepairOrder,
+  LiabilityParty,
+  AftersaleLiabilityDecision,
+  CompensationIntentType,
+  CompensationIntentStatus,
+  AftersaleCompensationIntent,
+  AftersaleActorType,
+  AftersaleTimelineEventType,
+  AftersaleTimelineEvent,
+  AftersaleComplaintDetail,
+  CreateOrderReverseRequest,
+  ReviewOrderReverseRequest,
+  CreateAftersaleComplaintRequest,
+  TriageAftersaleComplaintRequest,
+  ResolveAftersaleComplaintRequest,
+  CreateAftersaleRepairOrderRequest,
+  CompleteAftersaleRepairOrderRequest,
+  DecideAftersaleLiabilityRequest,
+  ProposeAftersaleCompensationRequest,
+  ReviewAftersaleCompensationRequest,
+  AddAftersaleTimelineNoteRequest,
+} from "./aftersale.js";
 export type {
   OrderReviewStatus,
   OrderReview,

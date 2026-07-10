@@ -3,7 +3,7 @@ import { randomBytes } from "node:crypto";
 import type { RequestContext } from "@xlb/types";
 import { assertCityScopedContext } from "../dal/scopedExecutor.js";
 import { getMysqlPool } from "../dal/mysqlPool.js";
-import { stableHash } from "@shared/deterministic/stableHash.js";
+import { stableHash } from "@xlb/shared/deterministic/stableHash.js";
 
 // ── ID generation ────────────────────────────────────────────────────────────
 const genId = (prefix: string): string =>

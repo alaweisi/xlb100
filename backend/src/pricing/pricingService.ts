@@ -3,6 +3,7 @@ import type { RequestContext } from "@xlb/types";
 import { pricingQuoteQuerySchema } from "@xlb/validators";
 import { executeCityScoped } from "../dal/scopedExecutor.js";
 import { pricingRepository, PricingRepository } from "./pricingRepository.js";
+import { buildPriceQuoteBreakdown } from "./pricingRepository.js";
 
 export class PricingNotFoundError extends Error {
   readonly statusCode = 404;
@@ -33,6 +34,12 @@ export class PricingService {
       if (!rule) {
         throw new PricingNotFoundError(cityCode, parsed.data.skuId);
       }
+      const [feeItems, skuProfile, standards] = await Promise.all([
+        this.repository.findFeeItemsByPriceRule(context, cityCode, rule.priceRuleId),
+        this.repository.findSkuProfile(context, cityCode, rule.skuId),
+        this.repository.findServiceStandards(context, cityCode, rule.skuId),
+      ]);
+      const breakdown = buildPriceQuoteBreakdown(rule, feeItems);
 
       return {
         cityCode: rule.cityCode,
@@ -46,6 +53,9 @@ export class PricingService {
         pricingNote: rule.pricingNote,
         priceRuleId: rule.priceRuleId,
         version: rule.version,
+        skuProfile,
+        standards,
+        breakdown,
       };
     });
   }

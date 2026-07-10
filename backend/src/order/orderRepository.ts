@@ -1,6 +1,6 @@
 import type { Pool, PoolConnection, RowDataPacket } from "mysql2/promise";
 import type { CityCode } from "@xlb/types";
-import type { Order, OrderStatus } from "@xlb/types";
+import type { Order, OrderPriceSnapshot, OrderStatus } from "@xlb/types";
 import type { RequestContext } from "@xlb/types";
 import { RepositoryBase } from "../dal/repositoryBase.js";
 import {
@@ -30,6 +30,7 @@ type OrderRow = RowDataPacket & {
   base_price: string;
   currency: string;
   total_amount: string;
+  quote_snapshot: string | Record<string, unknown> | null;
   status: string;
   created_at: Date;
   updated_at: Date;
@@ -48,6 +49,11 @@ type FulfillmentStatusRow = RowDataPacket & {
 };
 
 function mapOrder(row: OrderRow): Order {
+  const quoteSnapshot =
+    typeof row.quote_snapshot === "string"
+      ? (JSON.parse(row.quote_snapshot) as OrderPriceSnapshot)
+      : (row.quote_snapshot as OrderPriceSnapshot | null);
+
   return {
     orderId: row.order_id,
     cityCode: row.city_code as CityCode,
@@ -70,6 +76,7 @@ function mapOrder(row: OrderRow): Order {
     basePrice: Number(row.base_price),
     currency: row.currency,
     totalAmount: Number(row.total_amount),
+    quoteSnapshot,
     status: row.status as OrderStatus,
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),
@@ -98,6 +105,7 @@ export type InsertOrderInput = {
   basePrice: number;
   currency: string;
   totalAmount: number;
+  quoteSnapshot: OrderPriceSnapshot;
   status: OrderStatus;
 };
 
@@ -160,6 +168,13 @@ export class OrderRepository extends RepositoryBase {
         input.status,
       ],
     );
+
+    await connection.query(
+      `INSERT INTO order_price_snapshots
+        (order_id, city_code, quote_snapshot)
+       VALUES (?, ?, ?)`,
+      [input.orderId, input.cityCode, JSON.stringify(input.quoteSnapshot)],
+    );
   }
 
   async findById(
@@ -173,15 +188,21 @@ export class OrderRepository extends RepositoryBase {
       throw new Error("city_code mismatch in order query");
     }
 
-    const where = buildCityScopedWhere(cityCode);
+    const where = buildCityScopedWhere(cityCode, "orders.city_code");
     const [rows] = await this.pool.query<OrderRow[]>(
-      `SELECT order_id, city_code, customer_id, sku_id, sku_name, quantity, unit,
-              address_province, address_city, address_district, detail_address,
-              contact_name, contact_phone, scheduled_at, scheduled_time_slot,
-              price_rule_id, price_text, price_type, base_price, currency, total_amount,
-              status, created_at, updated_at
+      `SELECT orders.order_id, orders.city_code, orders.customer_id, orders.sku_id,
+              orders.sku_name, orders.quantity, orders.unit,
+              orders.address_province, orders.address_city, orders.address_district,
+              orders.detail_address, orders.contact_name, orders.contact_phone,
+              orders.scheduled_at, orders.scheduled_time_slot,
+              orders.price_rule_id, orders.price_text, orders.price_type,
+              orders.base_price, orders.currency, orders.total_amount,
+              ops.quote_snapshot,
+              orders.status, orders.created_at, orders.updated_at
        FROM orders
-       WHERE ${where.clause} AND order_id = ?
+       LEFT JOIN order_price_snapshots ops
+         ON ops.order_id = orders.order_id AND ops.city_code = orders.city_code
+       WHERE ${where.clause} AND orders.order_id = ?
        LIMIT 1`,
       [...where.params, orderId],
     );

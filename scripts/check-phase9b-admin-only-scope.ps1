@@ -13,35 +13,39 @@ $appFile = Join-Path $Root "backend\src\app.ts"
 if (-not (Test-Path $appFile)) {
   Add-Failure "missing backend app file: $appFile"
 }
+$tokenFile = Join-Path $Root "backend\src\auth\tokenAuth.ts"
+if (-not (Test-Path $tokenFile)) {
+  Add-Failure "missing backend token auth file: $tokenFile"
+}
+$tsxCommand = Join-Path $Root "backend\node_modules\.bin\tsx.cmd"
+if (-not (Test-Path $tsxCommand)) {
+  Add-Failure "missing backend tsx command: $tsxCommand"
+}
 
 if ($failures.Count -eq 0) {
   $appUri = ([System.Uri]$appFile).AbsoluteUri
+  $tokenUri = ([System.Uri]$tokenFile).AbsoluteUri
   $runtimeCheck = @'
 const { buildApp } = await import("__APP_URI__");
+const { createToken } = await import("__TOKEN_URI__");
 
 const app = await buildApp();
 
 const operatorHeaders = {
-  "x-xlb-app-type": "admin",
-  "x-xlb-role": "operator",
+  authorization: `Bearer ${createToken("phase9b-gate-operator", "operator", "admin")}`,
   "x-xlb-city-code": "hangzhou",
-  "x-xlb-user-id": "phase9b-gate-operator",
   "x-xlb-trace-id": "phase9b-gate-operator",
 };
 
 const customerHeaders = {
-  "x-xlb-app-type": "customer",
-  "x-xlb-role": "customer",
+  authorization: `Bearer ${createToken("phase9b-gate-customer", "customer", "customer")}`,
   "x-xlb-city-code": "hangzhou",
-  "x-xlb-user-id": "phase9b-gate-customer",
   "x-xlb-trace-id": "phase9b-gate-customer",
 };
 
 const workerHeaders = {
-  "x-xlb-app-type": "worker",
-  "x-xlb-role": "worker",
+  authorization: `Bearer ${createToken("phase9b-gate-worker", "worker", "worker")}`,
   "x-xlb-city-code": "hangzhou",
-  "x-xlb-user-id": "phase9b-gate-worker",
   "x-xlb-trace-id": "phase9b-gate-worker",
 };
 
@@ -106,7 +110,7 @@ if (failures.length > 0) {
   }
   process.exit(1);
 }
-'@ -replace "__APP_URI__", $appUri
+'@ -replace "__APP_URI__", $appUri -replace "__TOKEN_URI__", $tokenUri
 
   $runtimeFile = Join-Path ([System.IO.Path]::GetTempPath()) ("xlb-phase9b-admin-only-scope-" + [System.Guid]::NewGuid().ToString("N") + ".mts")
   Set-Content -LiteralPath $runtimeFile -Value $runtimeCheck -Encoding UTF8
@@ -114,7 +118,7 @@ if (failures.length > 0) {
   $previousErrorActionPreference = $ErrorActionPreference
   $ErrorActionPreference = "Continue"
   try {
-    $runtimeOutput = & pnpm --filter "@xlb/backend" exec tsx $runtimeFile 2>&1
+    $runtimeOutput = & $tsxCommand $runtimeFile 2>&1
     $runtimeExit = $LASTEXITCODE
     if ($runtimeExit -ne 0) {
       Add-Failure "Fastify runtime admin scope check failed"

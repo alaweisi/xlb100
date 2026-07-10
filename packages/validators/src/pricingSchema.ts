@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { cityCodeSchema } from "./cityCodeSchema.js";
+import { serviceSkuProfileSchema, serviceStandardSchema } from "./catalogSchema.js";
 
 export const priceTypeSchema = z.enum([
   "fixed",
@@ -24,6 +25,53 @@ export const priceRuleSchema = z.object({
   version: z.number().int().positive(),
 });
 
+export const feeItemTypeSchema = z.enum([
+  "base",
+  "labor",
+  "material",
+  "floor",
+  "distance",
+  "urgent",
+  "night",
+  "dismantle",
+  "diagnosis",
+  "enterprise_adjustment",
+]);
+
+export const feeChargeMethodSchema = z.enum([
+  "fixed",
+  "per_unit",
+  "range",
+  "onsite_quote",
+  "included",
+]);
+
+export const priceFeeItemSchema = z.object({
+  feeItemId: z.string().min(1).max(64),
+  cityCode: cityCodeSchema,
+  priceRuleId: z.string().min(1).max(64),
+  skuId: z.string().min(1).max(64),
+  feeCode: z.string().min(1).max(64),
+  feeName: z.string().min(1).max(128),
+  feeType: feeItemTypeSchema,
+  chargeMethod: feeChargeMethodSchema,
+  amount: z.number().min(0),
+  minAmount: z.number().min(0).nullable(),
+  maxAmount: z.number().min(0).nullable(),
+  unit: z.string().min(1).max(32).nullable(),
+  isOptional: z.boolean(),
+  isEnabled: z.boolean(),
+  sortOrder: z.number().int(),
+});
+
+export const priceQuoteBreakdownSchema = z.object({
+  baseAmount: z.number().min(0),
+  requiredFeeAmount: z.number().min(0),
+  optionalFeeAmount: z.number().min(0),
+  totalAmount: z.number().min(0),
+  feeItems: priceFeeItemSchema.array(),
+});
+
 export const pricingQuoteQuerySchema = z.object({
   skuId: z.string().min(1).max(64),
 });
@@ -40,8 +88,13 @@ export const priceQuoteSchema = z.object({
   pricingNote: z.string().max(255).nullable(),
   priceRuleId: z.string().min(1).max(64),
   version: z.number().int().positive(),
+  skuProfile: serviceSkuProfileSchema.nullable(),
+  standards: serviceStandardSchema.array(),
+  breakdown: priceQuoteBreakdownSchema,
 });
 
 export type PriceRuleInput = z.infer<typeof priceRuleSchema>;
+export type PriceFeeItemInput = z.infer<typeof priceFeeItemSchema>;
+export type PriceQuoteBreakdownInput = z.infer<typeof priceQuoteBreakdownSchema>;
 export type PricingQuoteQueryInput = z.infer<typeof pricingQuoteQuerySchema>;
 export type PriceQuoteInput = z.infer<typeof priceQuoteSchema>;

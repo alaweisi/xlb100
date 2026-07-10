@@ -5,6 +5,7 @@ import { SettlementExportReviewPage } from "../pages/SettlementExportReviewPage"
 import { SettlementActionGovernancePage } from "../pages/SettlementActionGovernancePage";
 import { OrderTracePage } from "../pages/OrderTracePage";
 import { WorkerWithdrawalsPage } from "../pages/WorkerWithdrawalsPage";
+import { AftersaleOpsPage } from "../pages/AftersaleOpsPage";
 import { buildHash, parseHashParams, parseView } from "../hashParams";
 import {
   clearAdminSession,
@@ -116,12 +117,18 @@ export function App() {
     window.location.hash = buildHash("/worker-withdrawals", { cityCode: cityCode || "" });
   }, [cityCode]);
 
+  const navigateToAftersale = useCallback(() => {
+    window.location.hash = buildHash("/aftersale", { cityCode: cityCode || "" });
+  }, [cityCode]);
+
   const navigateToDashboard = useCallback(() => {
     window.location.hash = "";
   }, []);
 
   const viewTitle = view.page === "workerWithdrawals"
     ? "Worker Withdrawals"
+    : view.page === "aftersale"
+    ? "Aftersale Operations"
     : view.page === "orderTrace"
     ? "Order Trace"
     : view.page === "governance"
@@ -161,6 +168,8 @@ export function App() {
 
   const content = view.page === "workerWithdrawals"
     ? <WorkerWithdrawalsPage initialCityCode={cityCode} />
+    : view.page === "aftersale"
+    ? <AftersaleOpsPage initialCityCode={cityCode} />
     : view.page === "orderTrace"
     ? (
         <OrderTracePage
@@ -239,13 +248,20 @@ export function App() {
               href: "#/worker-withdrawals",
               onClick: navigateToWorkerWithdrawals,
             },
+            {
+              key: "aftersale",
+              label: "Aftersale",
+              active: view.page === "aftersale",
+              href: "#/aftersale",
+              onClick: navigateToAftersale,
+            },
           ]}
         />
       }
       topBar={
         <TopBar
           title={viewTitle}
-          subtitle="Admin / Operations / Read-only"
+          subtitle="Admin / Operations / Controlled workflows"
           actions={
             <>
               {cityCode && <ScopeBadge scope={`city: ${cityCode}`} />}
@@ -268,8 +284,8 @@ export function App() {
         }}
       >
         <p style={{ color: "#4b5563", fontSize: 13, lineHeight: "20px", margin: 0 }}>
-          This console keeps existing settlement and governance surfaces intact. Order trace stays read-only; worker withdrawal actions only move
-          internal request records through review and marked-paid states.
+          This console keeps settlement and governance surfaces intact. Phase 17 aftersale actions are audited state transitions;
+          compensation approval records intent only and never executes a provider refund.
         </p>
       </GuardrailCard>
       {content}

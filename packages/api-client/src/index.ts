@@ -7,6 +7,15 @@ export type {
   WorkerWithdrawalResponse,
 } from "./worker.js";
 export { adminApi } from "./admin.js";
+export type {
+  OrderReverseResponse,
+  AftersaleComplaintResponse,
+  AftersaleComplaintDetailResponse,
+  AftersaleRepairOrderResponse,
+  AftersaleLiabilityDecisionResponse,
+  AftersaleCompensationIntentResponse,
+  AftersaleTimelineEventResponse,
+} from "./aftersale.js";
 export { ledgerApi } from "./ledger.js";
 export { settlementApi, createSettlementApi } from "./settlement.js";
 export { governanceIntentApi, createGovernanceIntentApi } from "./governanceIntent.js";

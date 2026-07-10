@@ -1,4 +1,12 @@
 import type { ApiClient } from "./createApiClient.js";
+import type {
+  AftersaleComplaintDetailResponse,
+  AftersaleComplaintResponse,
+  ComplaintCategoryResponse,
+  ComplaintPriorityResponse,
+  OrderReverseResponse,
+  OrderReverseTypeResponse,
+} from "./aftersale.js";
 
 type CityCode = string;
 type PriceType = "fixed" | "range" | "from" | "estimate_from" | "onsite_quote";
@@ -14,6 +22,80 @@ type PaymentStatus = "pending" | "paid" | "failed" | "closed";
 type PaymentProvider = "mock";
 type RefundRequestStatus = "requested" | "approved";
 type OrderReviewStatus = "created";
+type ServiceMode =
+  | "installation"
+  | "repair"
+  | "cleaning"
+  | "delivery"
+  | "measurement"
+  | "dismantle"
+  | "maintenance"
+  | "inspection";
+type StandardType = "installation" | "repair" | "inspection" | "material" | "safety" | "warranty";
+type FeeItemType =
+  | "base"
+  | "labor"
+  | "material"
+  | "floor"
+  | "distance"
+  | "urgent"
+  | "night"
+  | "dismantle"
+  | "diagnosis"
+  | "enterprise_adjustment";
+type FeeChargeMethod = "fixed" | "per_unit" | "range" | "onsite_quote" | "included";
+
+export interface ServiceSkuProfileResponse {
+  skuId: string;
+  cityCode: CityCode;
+  serviceMode: ServiceMode;
+  brandScope: string | null;
+  modelScope: string | null;
+  skillLevel: "basic" | "advanced" | "specialist";
+  warrantyDays: number;
+  requiresModel: boolean;
+  requiresMeasurement: boolean;
+  supportsEnterprise: boolean;
+  serviceGuaranteeText: string;
+}
+
+export interface ServiceStandardResponse {
+  standardId: string;
+  skuId: string;
+  cityCode: CityCode;
+  standardType: StandardType;
+  title: string;
+  content: string;
+  sortOrder: number;
+  isRequired: boolean;
+  isEnabled: boolean;
+}
+
+export interface PriceFeeItemResponse {
+  feeItemId: string;
+  cityCode: CityCode;
+  priceRuleId: string;
+  skuId: string;
+  feeCode: string;
+  feeName: string;
+  feeType: FeeItemType;
+  chargeMethod: FeeChargeMethod;
+  amount: number;
+  minAmount: number | null;
+  maxAmount: number | null;
+  unit: string | null;
+  isOptional: boolean;
+  isEnabled: boolean;
+  sortOrder: number;
+}
+
+export interface PriceQuoteBreakdownResponse {
+  baseAmount: number;
+  requiredFeeAmount: number;
+  optionalFeeAmount: number;
+  totalAmount: number;
+  feeItems: PriceFeeItemResponse[];
+}
 
 export interface CatalogSnapshotResponse {
   cityCode: CityCode;
@@ -36,6 +118,8 @@ export interface CatalogSnapshotResponse {
         cityCode: CityCode;
         name: string;
         unit: string;
+        profile: ServiceSkuProfileResponse | null;
+        standards: ServiceStandardResponse[];
         sortOrder: number;
         isEnabled: boolean;
       }>;
@@ -55,6 +139,9 @@ export interface PriceQuoteResponse {
   pricingNote: string | null;
   priceRuleId: string;
   version: number;
+  skuProfile: ServiceSkuProfileResponse | null;
+  standards: ServiceStandardResponse[];
+  breakdown: PriceQuoteBreakdownResponse;
 }
 
 export interface CreateOrderBody {
@@ -115,6 +202,19 @@ export interface OrderResponse {
   basePrice: number;
   currency: string;
   totalAmount: number;
+  quoteSnapshot: {
+    priceRuleId: string;
+    skuId: string;
+    quantity: number;
+    currency: string;
+    priceText: string;
+    priceType: PriceType;
+    unitAmount: number;
+    totalAmount: number;
+    breakdown: PriceQuoteBreakdownResponse;
+    skuProfile: ServiceSkuProfileResponse | null;
+    standards: ServiceStandardResponse[];
+  } | null;
   status: OrderStatus;
   createdAt: string;
   updatedAt: string;
@@ -211,6 +311,55 @@ export function createCustomerOrderApi(client: ApiClient) {
         refund: RefundRequestResponse;
         idempotent: boolean;
       }>("/api/aftersale/refunds", body);
+    },
+    createOrderReverseRequest(
+      orderId: string,
+      body: {
+        reverseType: OrderReverseTypeResponse;
+        reason: string;
+        requestedScheduledAt?: string;
+        requestedTimeSlot?: ScheduledTimeSlot;
+        idempotencyKey: string;
+      },
+    ) {
+      return client.post<{ ok: true; reverseRequest: OrderReverseResponse; idempotent: boolean }>(
+        `/api/orders/${encodeURIComponent(orderId)}/reverse-requests`,
+        body,
+      );
+    },
+    listOrderReverseRequests(orderId: string) {
+      return client.get<{ ok: true; reverseRequests: OrderReverseResponse[] }>(
+        `/api/orders/${encodeURIComponent(orderId)}/reverse-requests`,
+      );
+    },
+    createAftersaleComplaint(body: {
+      orderId: string;
+      category: ComplaintCategoryResponse;
+      priority?: ComplaintPriorityResponse;
+      description: string;
+      idempotencyKey: string;
+    }) {
+      return client.post<{ ok: true; complaint: AftersaleComplaintResponse; idempotent: boolean }>(
+        "/api/aftersale/complaints",
+        body,
+      );
+    },
+    listAftersaleComplaints(orderId?: string) {
+      const query = orderId ? `?orderId=${encodeURIComponent(orderId)}` : "";
+      return client.get<{ ok: true; complaints: AftersaleComplaintResponse[] }>(
+        `/api/aftersale/complaints${query}`,
+      );
+    },
+    getAftersaleComplaint(complaintId: string) {
+      return client.get<{ ok: true; detail: AftersaleComplaintDetailResponse }>(
+        `/api/aftersale/complaints/${encodeURIComponent(complaintId)}`,
+      );
+    },
+    addAftersaleComplaintNote(complaintId: string, content: string) {
+      return client.post<{ ok: true }>(
+        `/api/aftersale/complaints/${encodeURIComponent(complaintId)}/notes`,
+        { content },
+      );
     },
     createOrderReview({ orderId, ...body }: CreateOrderReviewBody) {
       return client.post<{

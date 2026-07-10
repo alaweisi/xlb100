@@ -1,6 +1,6 @@
 import type { PoolConnection } from "mysql2/promise";
 import type { CityCode } from "@xlb/types";
-import { stableHash } from "@shared/deterministic/stableHash.js";
+import { stableHash } from "@xlb/shared/deterministic/stableHash.js";
 import { generateEventId } from "../events/eventIds.js";
 import type { EventOutboxRepository } from "../events/eventOutbox.js";
 import type { LedgerSingleWriteFeeType } from "./ledgerRepository.js";

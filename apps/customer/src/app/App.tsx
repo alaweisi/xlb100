@@ -4,6 +4,7 @@ import { CustomerHomePage } from "../pages/CustomerHomePage";
 import { CustomerOrderCreatePage } from "../pages/CustomerOrderCreatePage";
 import type { CustomerOrderCreatePageProps } from "../pages/CustomerOrderCreatePage";
 import { CustomerOrdersPage } from "../pages/CustomerOrdersPage";
+import { CustomerAftersalePage } from "../pages/CustomerAftersalePage";
 import type { CustomerOrdersPageProps } from "../pages/CustomerOrdersPage";
 import { CustomerProfilePage } from "../pages/CustomerProfilePage";
 import { CustomerServicesPage } from "../pages/CustomerServicesPage";
@@ -146,6 +147,10 @@ export function App() {
 
   if (currentRoute === "orders") {
     return <CustomerOrdersPage api={ordersApi} cityCode={cityCode} orderIds={orderIds} />;
+  }
+
+  if (currentRoute === "aftersale") {
+    return <CustomerAftersalePage api={api} orderIds={orderIds} />;
   }
 
   return <CustomerProfilePage cityCode={cityCode} />;

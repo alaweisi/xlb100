@@ -16,7 +16,10 @@
 | `service_categories` | Service category per city | required |
 | `service_items` | Service item per city | required |
 | `service_skus` | SKU per city | required |
+| `service_sku_profiles` | Phase 16 service-product profile per SKU | required |
+| `service_standards` | Phase 16 SKU service standards / warranty rules | required |
 | `price_rules` | Price rule per city + sku | required |
+| `price_fee_items` | Phase 16 transparent fee breakdown per price rule | required |
 
 **Rules:** all Phase 3 config tables require `city_code`. No `__global__`. No nationwide fallback.
 
@@ -27,6 +30,13 @@
 | Table | Purpose | city_code |
 |-------|---------|-----------|
 | `orders` | Customer order with price snapshot | required |
+| `order_price_snapshots` | Phase 16 immutable quote breakdown snapshot per order | required |
+| `order_reverse_requests` | Phase 17 cancel, reschedule, and reassign request audit | required |
+| `aftersale_complaints` | Phase 17 complaint work orders and resolution state | required |
+| `aftersale_repair_orders` | Phase 17 complaint-linked repair/rework tasks | required |
+| `aftersale_liability_decisions` | Phase 17 immutable complaint liability decision | required |
+| `aftersale_compensation_intents` | Phase 17 non-executing compensation/refund intent | required |
+| `aftersale_timeline_events` | Phase 17 unified customer-service audit timeline | required |
 | `payment_orders` | Mock payment order | required |
 | `event_outbox` | Transactional domain events | required |
 

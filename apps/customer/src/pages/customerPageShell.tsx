@@ -69,7 +69,7 @@ export const CITY_STORAGE_KEY = "xlb.customer.cityCode";
 export const ORDER_HISTORY_KEY = "xlb.customer.orderIds";
 export const MOBILE_SHELL_QUERY = "(max-width: 640px), (pointer: coarse)";
 
-export type CustomerRoute = "home" | "services" | "createOrder" | "orders" | "profile";
+export type CustomerRoute = "home" | "services" | "createOrder" | "orders" | "aftersale" | "profile";
 
 export type CustomerLoadable<T> =
   | { status: "pending" | "loading"; data?: T; error?: undefined }
@@ -91,6 +91,7 @@ export const customerRouteConfig: Record<
   services: { label: "服务", href: "/customer/services", title: "服务选择", icon: "⌕" },
   createOrder: { label: "下单", href: "/customer/order/create", title: "确认订单", icon: "+", prominent: true },
   orders: { label: "订单", href: "/customer/orders", title: "订单", icon: "▦" },
+  aftersale: { label: "售后", href: "/customer/aftersale", title: "售后服务", icon: "A" },
   profile: { label: "我的", href: "/customer/profile", title: "我的", icon: "👤" },
 };
 
@@ -99,6 +100,7 @@ export function detectCustomerRoute(pathname = window.location.pathname): Custom
   if (trimmed.endsWith("/customer/services")) return "services";
   if (trimmed.endsWith("/customer/order/create")) return "createOrder";
   if (trimmed.endsWith("/customer/orders")) return "orders";
+  if (trimmed.endsWith("/customer/aftersale")) return "aftersale";
   if (trimmed.endsWith("/customer/profile")) return "profile";
   return "home";
 }

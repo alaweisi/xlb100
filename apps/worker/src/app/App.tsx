@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import type { Fulfillment, WorkerTaskPoolItem } from "@xlb/types";
+import type { AftersaleRepairOrderResponse } from "@xlb/api-client";
 import {
   BottomNav,
   Button,
@@ -30,6 +31,7 @@ type WorkerRoute =
   | "hall"
   | "tasks"
   | "taskDetail"
+  | "repairs"
   | "wallet"
   | "profile"
   | "certification";
@@ -66,6 +68,13 @@ const routeConfig: Record<
     title: "Task Detail",
     subtitle: "Start and complete service",
     icon: "D",
+  },
+  repairs: {
+    label: "Repairs",
+    href: "/worker/repairs",
+    title: "Repair Visits",
+    subtitle: "Aftersale repair lifecycle",
+    icon: "R",
   },
   wallet: {
     label: "Wallet",
@@ -133,6 +142,7 @@ function resolveRoute(): ResolvedRoute {
 
   if (rawPath === "/worker" || rawPath === "/worker/") return { route: "hall" };
   if (rawPath === "/worker/tasks") return { route: "tasks" };
+  if (rawPath === "/worker/repairs") return { route: "repairs" };
 
   const taskDetail = rawPath.match(/^\/worker\/tasks\/([^/?#]+)$/);
   if (taskDetail) {
@@ -182,7 +192,7 @@ function PhoneStatusBar() {
 
 function WorkerPageHeader({ route }: { route: WorkerRoute }) {
   const config = routeConfig[route];
-  const isWorkerApiRoute = route === "hall" || route === "tasks" || route === "taskDetail";
+  const isWorkerApiRoute = route === "hall" || route === "tasks" || route === "taskDetail" || route === "repairs";
 
   return (
     <header style={{ display: "grid", gap: 10, padding: "20px 20px 8px" }}>
@@ -216,7 +226,7 @@ function WorkerPageHeader({ route }: { route: WorkerRoute }) {
 function RouteNav({ activeRoute }: { activeRoute: WorkerRoute }) {
   return (
     <BottomNav
-      items={(["hall", "tasks", "wallet", "profile", "certification"] as WorkerRoute[]).map((key) => ({
+      items={(["hall", "tasks", "repairs", "wallet", "profile", "certification"] as WorkerRoute[]).map((key) => ({
         key,
         label: routeConfig[key].label,
         active: key === activeRoute || (key === "tasks" && activeRoute === "taskDetail"),
@@ -569,6 +579,76 @@ function TasksPage({
   );
 }
 
+function RepairOrdersPage({
+  repairOrders,
+  loading,
+  error,
+  busyId,
+  notes,
+  onRefresh,
+  onNoteChange,
+  onStart,
+  onComplete,
+}: {
+  repairOrders: AftersaleRepairOrderResponse[];
+  loading: boolean;
+  error: string | null;
+  busyId: string | null;
+  notes: Record<string, string>;
+  onRefresh: () => void;
+  onNoteChange: (repairOrderId: string, note: string) => void;
+  onStart: (repairOrderId: string) => void;
+  onComplete: (repairOrderId: string, note: string) => void;
+}) {
+  return (
+    <>
+      {loading && <LoadingState title="Loading repair visits" description="Requesting assigned aftersale repair orders." />}
+      {error && (
+        <Card title="Repair request failed" actions={<StatusTag tone="danger">Error</StatusTag>} style={workerPanelStyle}>
+          <p style={{ ...helperText, color: "#fda29b" }}>{error}</p>
+        </Card>
+      )}
+      <Card title="Assigned Repair Visits" actions={<Button onClick={onRefresh}>Refresh</Button>} style={workerPanelStyle}>
+        {repairOrders.length === 0 && !loading ? (
+          <EmptyState title="No repair visits" description="Assigned complaint repair tasks appear here." />
+        ) : (
+          <Table
+            rows={repairOrders}
+            getRowKey={(item) => item.repairOrderId}
+            columns={[
+              { key: "id", title: "Repair", render: (item) => item.repairOrderId },
+              { key: "order", title: "Order", render: (item) => item.orderId },
+              { key: "reason", title: "Reason", render: (item) => item.reason },
+              { key: "status", title: "Status", render: (item) => <StatusTag tone={statusTone(item.status)}>{item.status}</StatusTag> },
+              {
+                key: "actions",
+                title: "Actions",
+                render: (item) => (
+                  <div style={{ display: "grid", gap: 8, minWidth: 220 }}>
+                    <FormField label="Completion note">
+                      <Input value={notes[item.repairOrderId] ?? ""} onChange={(event) => onNoteChange(item.repairOrderId, event.target.value)} />
+                    </FormField>
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      <Button disabled={item.status !== "assigned" || busyId === item.repairOrderId} onClick={() => onStart(item.repairOrderId)}>Start</Button>
+                      <Button
+                        variant="primary"
+                        disabled={item.status !== "in_progress" || busyId === item.repairOrderId || !(notes[item.repairOrderId] ?? "").trim()}
+                        onClick={() => onComplete(item.repairOrderId, (notes[item.repairOrderId] ?? "").trim())}
+                      >
+                        Complete
+                      </Button>
+                    </div>
+                  </div>
+                ),
+              },
+            ]}
+          />
+        )}
+      </Card>
+    </>
+  );
+}
+
 function TaskDetailPage({
   fulfillment,
   loading,
@@ -752,20 +832,25 @@ export function App() {
   const [session, setSession] = useState<WorkerSession | null>(null);
   const [taskPool, setTaskPool] = useState<WorkerTaskPoolItem[]>([]);
   const [fulfillments, setFulfillments] = useState<Fulfillment[]>([]);
+  const [repairOrders, setRepairOrders] = useState<AftersaleRepairOrderResponse[]>([]);
+  const [repairNotes, setRepairNotes] = useState<Record<string, string>>({});
   const [taskDetail, setTaskDetail] = useState<Fulfillment | null>(null);
   const [loadingHall, setLoadingHall] = useState(false);
   const [loadingTasks, setLoadingTasks] = useState(false);
+  const [loadingRepairs, setLoadingRepairs] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [acceptingDispatchTaskId, setAcceptingDispatchTaskId] = useState<string | null>(null);
   const [simulationAction, setSimulationAction] = useState<{ type: "reject" | "timeout"; dispatchTaskId: string } | null>(null);
   const [lifecycleAction, setLifecycleAction] = useState<"start" | "complete" | null>(null);
   const [hallError, setHallError] = useState<string | null>(null);
   const [tasksError, setTasksError] = useState<string | null>(null);
+  const [repairsError, setRepairsError] = useState<string | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [acceptError, setAcceptError] = useState<string | null>(null);
   const [acceptNotice, setAcceptNotice] = useState<string | null>(null);
   const [lifecycleError, setLifecycleError] = useState<string | null>(null);
   const [lifecycleNotice, setLifecycleNotice] = useState<string | null>(null);
+  const [repairBusyId, setRepairBusyId] = useState<string | null>(null);
   const [certType, setCertType] = useState("home_service_basic");
   const [certName, setCertName] = useState("基础上门服务资格");
   const [certSubmitting, setCertSubmitting] = useState(false);
@@ -821,6 +906,21 @@ export function App() {
     }
   }, [api, handleApiError]);
 
+  const loadRepairOrders = useCallback(async () => {
+    if (!api) return;
+    setLoadingRepairs(true);
+    setRepairsError(null);
+    try {
+      const response = await api.listAftersaleRepairOrders();
+      setRepairOrders(response.repairOrders);
+    } catch (error) {
+      handleApiError(error, "Failed to load repair visits", setRepairsError);
+      setRepairOrders([]);
+    } finally {
+      setLoadingRepairs(false);
+    }
+  }, [api, handleApiError]);
+
   const loadTaskDetail = useCallback(
     async (fulfillmentId: string) => {
       if (!api) return;
@@ -843,7 +943,8 @@ export function App() {
     if (route.route === "hall") void loadTaskPool();
     if (route.route === "tasks") void loadFulfillments();
     if (route.route === "taskDetail") void loadTaskDetail(route.fulfillmentId);
-  }, [loadFulfillments, loadTaskDetail, loadTaskPool, route]);
+    if (route.route === "repairs") void loadRepairOrders();
+  }, [loadFulfillments, loadRepairOrders, loadTaskDetail, loadTaskPool, route]);
 
   const acceptTask = useCallback(
     async (dispatchTaskId: string) => {
@@ -949,6 +1050,24 @@ export function App() {
     [api, handleApiError, refreshFulfillmentState],
   );
 
+  const mutateRepairOrder = useCallback(
+    async (repairOrderId: string, action: "start" | "complete", note = "") => {
+      if (!api) return;
+      setRepairBusyId(repairOrderId);
+      setRepairsError(null);
+      try {
+        if (action === "start") await api.startAftersaleRepairOrder(repairOrderId);
+        else await api.completeAftersaleRepairOrder(repairOrderId, note);
+        await loadRepairOrders();
+      } catch (error) {
+        handleApiError(error, "Failed to update repair visit", setRepairsError);
+      } finally {
+        setRepairBusyId(null);
+      }
+    },
+    [api, handleApiError, loadRepairOrders],
+  );
+
   const submitCertification = useCallback(async () => {
     if (!api) return;
     setCertSubmitting(true);
@@ -987,14 +1106,18 @@ export function App() {
   const clearWorkerData = useCallback(() => {
     setTaskPool([]);
     setFulfillments([]);
+    setRepairOrders([]);
+    setRepairNotes({});
     setTaskDetail(null);
     setHallError(null);
     setTasksError(null);
+    setRepairsError(null);
     setDetailError(null);
     setAcceptError(null);
     setAcceptNotice(null);
     setLifecycleError(null);
     setLifecycleNotice(null);
+    setRepairBusyId(null);
     setCertError(null);
     setCertNotice(null);
   }, []);
@@ -1060,6 +1183,18 @@ export function App() {
         onBack={() => navigate("/worker/tasks")}
         onStart={(fulfillmentId) => void startFulfillment(fulfillmentId)}
         onComplete={(fulfillmentId) => void completeFulfillment(fulfillmentId)}
+      />
+    ) : route.route === "repairs" ? (
+      <RepairOrdersPage
+        repairOrders={repairOrders}
+        loading={loadingRepairs}
+        error={repairsError}
+        busyId={repairBusyId}
+        notes={repairNotes}
+        onRefresh={() => void loadRepairOrders()}
+        onNoteChange={(repairOrderId, note) => setRepairNotes((previous) => ({ ...previous, [repairOrderId]: note }))}
+        onStart={(repairOrderId) => void mutateRepairOrder(repairOrderId, "start")}
+        onComplete={(repairOrderId, note) => void mutateRepairOrder(repairOrderId, "complete", note)}
       />
     ) : route.route === "wallet" ? (
       <PlaceholderPage title="Wallet">

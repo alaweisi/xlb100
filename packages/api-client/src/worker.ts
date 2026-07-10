@@ -1,5 +1,6 @@
 /** Phase 7A/7B worker accept + fulfillment lifecycle API */
 import type { ApiClient } from "./createApiClient.js";
+import type { AftersaleRepairOrderResponse } from "./aftersale.js";
 
 export interface WorkerTaskPoolItemResponse {
   dispatchTaskId: string;
@@ -283,6 +284,15 @@ export function createWorkerApi(client: ApiClient) {
       return client.get<{ ok: true; withdrawals: WorkerWithdrawalResponse[] }>(
         "/api/worker/withdrawal-requests",
       );
+    },
+    listAftersaleRepairOrders(): Promise<{ ok: true; repairOrders: AftersaleRepairOrderResponse[] }> {
+      return client.get<{ ok: true; repairOrders: AftersaleRepairOrderResponse[] }>("/api/worker/aftersale/repair-orders");
+    },
+    startAftersaleRepairOrder(repairOrderId: string): Promise<{ ok: true; repairOrder: AftersaleRepairOrderResponse }> {
+      return client.post<{ ok: true; repairOrder: AftersaleRepairOrderResponse }>(`/api/worker/aftersale/repair-orders/${encodeURIComponent(repairOrderId)}/start`,{});
+    },
+    completeAftersaleRepairOrder(repairOrderId: string, serviceNote: string): Promise<{ ok: true; repairOrder: AftersaleRepairOrderResponse }> {
+      return client.post<{ ok: true; repairOrder: AftersaleRepairOrderResponse }>(`/api/worker/aftersale/repair-orders/${encodeURIComponent(repairOrderId)}/complete`,{serviceNote});
     },
   };
 }

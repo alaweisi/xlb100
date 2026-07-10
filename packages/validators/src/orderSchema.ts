@@ -1,6 +1,7 @@
 import { z } from "zod";
+import { serviceSkuProfileSchema, serviceStandardSchema } from "./catalogSchema.js";
 import { cityCodeSchema } from "./cityCodeSchema.js";
-import { priceTypeSchema } from "./pricingSchema.js";
+import { priceQuoteBreakdownSchema, priceTypeSchema } from "./pricingSchema.js";
 
 export const orderStatusSchema = z.enum([
   "draft",
@@ -49,6 +50,19 @@ export const orderSchema = z.object({
   basePrice: z.number().min(0),
   currency: z.literal("CNY"),
   totalAmount: z.number().min(0),
+  quoteSnapshot: z.object({
+    priceRuleId: z.string().min(1).max(64),
+    skuId: z.string().min(1).max(64),
+    quantity: z.number().int().min(1),
+    currency: z.literal("CNY"),
+    priceText: z.string().min(1).max(255),
+    priceType: priceTypeSchema,
+    unitAmount: z.number().min(0),
+    totalAmount: z.number().min(0),
+    breakdown: priceQuoteBreakdownSchema,
+    skuProfile: serviceSkuProfileSchema.nullable(),
+    standards: serviceStandardSchema.array(),
+  }).nullable().optional(),
   status: orderStatusSchema,
   createdAt: z.string().min(1),
   updatedAt: z.string().min(1),
