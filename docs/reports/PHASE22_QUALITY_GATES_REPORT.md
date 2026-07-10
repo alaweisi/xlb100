@@ -178,6 +178,42 @@ The performance project adds one separate file / two tests. No prior assertion w
 removed, merged, skipped, or converted to todo. The retained todo remains
 `tests/contract/api.contract.test.ts:4` from Phase 1.
 
+## Lock Preflight Verification
+
+The pre-merge Lock verification on 2026-07-10 completed with these results:
+
+- build: 11/11 tasks passed;
+- typecheck: 17/17 tasks passed;
+- full normal regression: 289 files / 1,149 tests passed, with the one traced
+  Phase 1 todo retained;
+- architecture preflight: passed through all historical gates, self-tests, ledger
+  replay/immutability, and the Phase 21/22 boundary gates;
+- Phase 22 API E2E: 1/1 passed; A/W/C Playwright: 3/3 passed;
+- authorization matrix: 1/1 passed; observability: 2/2 passed;
+- concurrency/performance: 2/2 passed;
+- coverage: statements 100%, branches 95.83%, functions 100%, lines 100%;
+- critical dependency audit: zero known vulnerabilities;
+- migration `042` replay: `SKIP`, marker/table/FK each exactly once, zero orphan
+  ownership rows, and real geo/storage/webhook provider executions all zero.
+
+The first Lock preflight exposed incidental historical-gate maintenance outside the
+Phase 22 business scope. Phase 9A-9E scanners used substring patterns that treated
+`callback` as a provider call and boundary-report words as execution instructions, and
+their exact report/migration allowlists ended at Phase 21. Phase 11/12 scope gates also
+treated the authorized Phase 22 root manifest change and locked enterprise repository
+as Phase 11/12 work. The maintenance keeps the original prohibited domains intact and
+adds only:
+
+- word boundaries for the existing forbidden execution terms;
+- the Phase 22 report and migration `042` to exact allowlists;
+- the enterprise module's exact write-table pattern (`customers`, `business_*`, and
+  `enterprise_bill_snapshots`);
+- a conditional root-manifest exception only when the Phase 22 boundary gate exists;
+- violation details for the Phase 9B forbidden-zone gate.
+
+All affected gate self-tests and the complete architecture preflight passed after the
+maintenance. No Phase 16-21 migration, tag, or runtime business behavior was changed.
+
 ## User Asset Protection
 
 The five user-owned audit files in the `E:\xlb100` main worktree remain untracked and
