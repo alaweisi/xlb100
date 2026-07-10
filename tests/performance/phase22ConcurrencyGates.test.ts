@@ -14,7 +14,6 @@ const keyHeaders = (key: string) => ({ "x-xlb-api-key": key });
 
 describe.skipIf(!runDb)("Phase 22 concurrency and performance gates", { timeout: 120_000 }, () => {
   it("keeps one acceptance under a 40-request two-worker offer race", async () => {
-    if (process.env.XLB_PHASE22_FORCE_FAILURE === "performance") throw new Error("intentional Phase 22 performance gate failure");
     const app = await buildApp();
     const pool = getMysqlPool();
     try {

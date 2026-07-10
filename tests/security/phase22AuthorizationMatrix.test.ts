@@ -16,7 +16,6 @@ const keyHeaders = (key: string) => ({ "x-xlb-api-key": key });
 
 describe.skipIf(!runDb)("Phase 22 systematic authorization attack matrix", { timeout: 90_000 }, () => {
   it("rejects cross-customer, cross-role, cross-city, and cross-enterprise probes", async () => {
-    if (process.env.XLB_PHASE22_FORCE_FAILURE === "security") throw new Error("intentional Phase 22 security gate failure");
     await ensureHangzhouWorkerEligible();
     const app = await buildApp();
     try {

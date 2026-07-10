@@ -24,7 +24,6 @@ async function snapshot(orderId: string): Promise<unknown> {
 
 describe.skipIf(!runDb)("Phase 22 cross-phase end-to-end data flow", { timeout: 90_000 }, () => {
   it("preserves quote and evidence snapshots across dispatch, fulfillment, complaint, and applicable enterprise webhook delivery", async () => {
-    if (process.env.XLB_PHASE22_FORCE_FAILURE === "e2e") throw new Error("intentional Phase 22 E2E gate failure");
     await ensureHangzhouWorkerEligible();
     const app = await buildApp();
     const pool = getMysqlPool();

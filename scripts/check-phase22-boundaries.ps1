@@ -13,7 +13,19 @@ foreach ($path in $required) {
 }
 
 $workflow = Get-Content (Join-Path $Root ".github/workflows/phase22-quality-gates.yml") -Raw
-if ($workflow -notmatch "pnpm gate:phase22") { throw "Phase 22 workflow does not invoke the blocking gate" }
+$blockingCommands = @(
+  "pnpm test:e2e:phase22",
+  "pnpm test:security:phase22",
+  "pnpm test:observability:phase22",
+  "pnpm test:performance:phase22",
+  "pnpm test:coverage:phase22",
+  "pnpm audit:critical"
+)
+foreach ($command in $blockingCommands) {
+  if ($workflow -notmatch [regex]::Escape($command)) { throw "Phase 22 workflow is missing blocking command: $command" }
+}
+if ($workflow -match "continue-on-error") { throw "Phase 22 workflow must not permit quality-gate failures" }
+if ($workflow -match "XLB_PHASE22_FORCE_FAILURE") { throw "Phase 22 delivery workflow must not contain failure injection" }
 $providerFiles = @(
   "backend/src/dispatch/geoProvider.ts",
   "backend/src/providers/objectStorage/objectStorageProvider.ts"

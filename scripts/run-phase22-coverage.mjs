@@ -4,9 +4,6 @@ import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const vitest = path.join(root, "node_modules", "vitest", "vitest.mjs");
-const forcedFailure = process.env.XLB_PHASE22_FORCE_FAILURE === "coverage";
-const threshold = forcedFailure ? 101 : 80;
-const branchThreshold = forcedFailure ? 101 : 75;
 const args = [
   vitest,
   "run",
@@ -21,10 +18,10 @@ const args = [
   "--coverage.reporter", "json-summary",
   "--coverage.reporter", "html",
   "--coverage.reportsDirectory", "coverage/phase22",
-  "--coverage.thresholds.lines", String(threshold),
-  "--coverage.thresholds.functions", String(threshold),
-  "--coverage.thresholds.statements", String(threshold),
-  "--coverage.thresholds.branches", String(branchThreshold),
+  "--coverage.thresholds.lines", "80",
+  "--coverage.thresholds.functions", "80",
+  "--coverage.thresholds.statements", "80",
+  "--coverage.thresholds.branches", "75",
 ];
 
 const child = spawn(process.execPath, args, { cwd: root, env: process.env, stdio: "inherit" });
