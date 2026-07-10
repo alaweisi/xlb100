@@ -226,3 +226,23 @@ Only comment in `eventHandlers.ts` — **no actual import or call**. No `dispatc
 **Ready to merge main and tag `xlb-phase4-order-payment-outbox`.**
 
 Phase 5 (dispatch consuming `order.paid` from outbox) is explicitly out of scope for this lock.
+
+---
+
+## Historical Security Traceability Note (added during Phase 21 review)
+
+The Phase 4 implementation at commit `0b14488` introduced `GET /api/orders/:orderId`
+with city-scoped lookup, but it did not enforce customer ownership after loading the
+order. The Phase 14 authentication retrofit at commit `8f896b7` bound order creation
+to the authenticated `context.userId`, while the read path retained the original
+city-only behavior. Consequently, two authenticated customers in the same city could
+read each other's order when an order ID was known.
+
+Phase 21 closes this historical Phase 4 read-authorization gap in commit `fbd7faf` by
+requiring `order.customerId === context.userId` for customer-app reads and returning
+403 through the existing `OrderOwnershipError`. The regression test is
+`tests/integration/phase21CustomerOperations.test.ts` (`prevents one customer from
+reading another customer's order`): Customer B receives 403 for Customer A's order,
+Customer A receives 200, and the persisted `orders.customer_id` remains Customer A.
+This note is traceability metadata only; the locked Phase 4 tag and migration remain
+unchanged.

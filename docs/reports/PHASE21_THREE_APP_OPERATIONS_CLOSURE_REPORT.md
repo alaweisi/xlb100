@@ -14,10 +14,28 @@ Base: Phase 20 locked main `b9229c253419e4745df395f6cbb8ac2faf14fd39`
 - Existing order timeline, reverse request, complaint, evidence view, and customer confirmation pages remain bound to Phase 17/18 APIs.
 - Customer order reads now reject access to another customer's order with 403.
 
+### Historical Cross-Customer Order Read Closure
+
+- Source stage: Phase 4 commit `0b14488` introduced `GET /api/orders/:orderId` with
+  city isolation but no customer ownership predicate.
+- Intermediate history: Phase 14 authentication commit `8f896b7` prevented forged
+  `customerId` values during order creation, but retained the Phase 4 city-only read
+  path. The defect therefore predates Phase 21 and was not introduced by its UI work.
+- Phase 21 correction: `OrderService.getOrder` now checks customer-app reads against
+  `order.customerId === context.userId` and raises the existing
+  `OrderOwnershipError` (HTTP 403) on mismatch. Admin/worker internal flows retain
+  their existing role and route guards.
+- Regression evidence: `tests/integration/phase21CustomerOperations.test.ts`, test
+  `prevents one customer from reading another customer's order`, creates an order as
+  Customer A, proves Customer B receives 403, proves Customer A receives 200, and
+  verifies the database row remains owned by Customer A.
+- Historical report trace: the Phase 4 Lock report now contains a matching
+  traceability note. No locked Phase 4 code, tag, or migration was rewritten.
+
 ### Worker
 
-- Wallet now loads the real receivable balance, bank accounts, and withdrawal-request records.
-- Bank-account and withdrawal-request buttons persist through existing worker finance APIs; no provider funds movement is claimed.
+- Wallet now loads the persisted receivable balance, bank accounts, and withdrawal-request records.
+- Bank-account and withdrawal-request buttons persist through existing worker finance APIs. A request reserves available receivable balance, and later review / `marked_paid` values are internal bookkeeping states only; they do not assert that a bank, payment channel, or payout provider transferred funds.
 - Profile/availability now reads and writes the Phase 20 private worker-location API with radius and sharing controls.
 - Existing task accept, fulfillment start/complete, evidence upload, repair cooperation, and certification submit paths remain API-backed.
 
@@ -93,7 +111,10 @@ Formal gate: `scripts/check-phase21-migration-verification.ps1`.
 ## Boundaries
 
 - No real payment/refund/payout/settlement execution.
-- No provider-driven withdrawal execution; worker requests are auditable records only.
+- No provider-driven withdrawal execution. Request, review, balance reservation, and
+  operator `marked_paid` are auditable internal records only; `marked_paid` is not
+  provider settlement evidence and does not call a bank, payment channel, or payout
+  API.
 - No real Amap, map tiles, or external geo provider call.
 - No real OSS/S3/COS call.
 - Phase 22 observability, performance, security expansion, and formal full-stack E2E are not entered.
@@ -110,7 +131,10 @@ The Phase 9A-9E exact allowlists were extended only for the approved Phase 21 mi
 
 ## User Asset Protection
 
-The five user-owned audit artifacts in the `E:\xlb100` main worktree remain untracked, untouched, and excluded from this branch and all Phase 21 staging:
+The five user-owned audit artifacts in the `E:\xlb100` main worktree remain untracked,
+untouched, and excluded from this branch and all Phase 21 staging. Verification used
+`git -C E:\xlb100 status --short` (all five remain `??`) and `git -C E:\xlb100
+ls-files -- <five paths>` (no tracked result):
 
 - `docs/architecture-reaudit-2026-07-09.md`
 - `docs/reports/ARCH_BENCHMARK_WSF_LUBAN_ZMN_2026-07-09.md`
