@@ -25,7 +25,7 @@
 | Phase 18 | LOCKED | xlb-phase18-fulfillment-evidence-oss-envelope | Fulfillment evidence + local/mock object storage envelope + customer confirmation |
 | Phase 19 | LOCKED | xlb-phase19-enterprise-openapi-webhook | B-side enterprise clients + API key OpenAPI + webhook delivery |
 | Phase 20 | LOCKED | xlb-phase20-lbs-lite-dispatch | LBS-lite local/mock geo + private worker location + dispatch ranking/reassignment |
-| Phase 21 | DEVELOPMENT CANDIDATE COMPLETE | - | Customer / worker / admin operations UI closure |
+| Phase 21 | LOCKED | xlb-phase21-three-app-operations-closure | Customer / worker / admin operations UI closure |
 
 ## Phase 10 — Settlement Action Governance (LOCKED)
 
@@ -201,9 +201,14 @@
 - **Lock state**: LOCKED after feature commit, `--no-ff` merge, tag, post-merge verification, and lock metadata update
 - **Phase boundary**: Phase 21 has not been entered
 
-## Phase 21 - A/W/C Operations UI Closure (DEVELOPMENT CANDIDATE COMPLETE)
+## Phase 21 - A/W/C Operations UI Closure (LOCKED)
 
 - **Entered**: 2026-07-10
+- **Status**: LOCKED on 2026-07-10
+- **Tag**: `xlb-phase21-three-app-operations-closure`
+- **Tag target / main merge**: `7b7caeef453b9a039433c40bd6d1371494554c45`
+- **Feature commit**: `fbd7faf6cadf33a7ae567a8c9824560bb722f35c`
+- **Audit trace commit**: `98137f1`
 - **Branch/base**: `codex/phase21-three-app-operations-closure` from Phase 20 locked main `b9229c253419e4745df395f6cbb8ac2faf14fd39`
 - **Scope**: close daily operational workflows across customer, worker, and admin apps using existing Phase 16-20 contracts, APIs, persistence, and state transitions
 - **Customer target**: address book, order timeline and reverse actions, complaint flow, and fulfillment-evidence confirmation
@@ -216,7 +221,8 @@
 - **Formal gate**: `scripts/check-phase21-migration-verification.ps1`
 - **Reports**: `docs/reports/PHASE21_THREE_APP_OPERATIONS_CLOSURE_REPORT.md`, `docs/reports/PHASE21_TEST_COVERAGE.md`
 - **Verification**: focused Vitest 8 files / 23 tests; Playwright 1 spec / 3 tests; full suite 286 files / 1,145 tests plus 1 existing Phase 1 todo; typecheck 17/17; build 11/11; preflight passed
-- **Candidate state**: development complete; pending independent review and Lock ceremony
+- **Lock verification**: post-merge full suite, architecture preflight, migration replay, provider boundary, focused tests, and three-app Playwright smoke all passed on `main`
+- **Lock state**: LOCKED after feature/audit commits, `--no-ff` merge, tag, post-merge verification, and this metadata update
 
 ## Third-party Inspection
 

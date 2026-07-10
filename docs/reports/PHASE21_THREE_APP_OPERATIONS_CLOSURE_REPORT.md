@@ -1,7 +1,7 @@
 # Phase 21 Three-App Operations Closure Report
 
 Date: 2026-07-10
-Status: DEVELOPMENT CANDIDATE COMPLETE / PENDING INDEPENDENT REVIEW AND LOCK
+Status: LOCKED
 Branch: `codex/phase21-three-app-operations-closure`
 Base: Phase 20 locked main `b9229c253419e4745df395f6cbb8ac2faf14fd39`
 
@@ -142,4 +142,21 @@ ls-files -- <five paths>` (no tracked result):
 - `docs/reports/FRESH_BENCHMARK_XLB_2026-07-10.pdf`
 - `docs/reports/FULL_BENCHMARK_XLB_VS_COMPETITORS_2026-07-10.md`
 
-Phase 21 is development-candidate complete. It is not LOCKED, and Phase 22 has not been entered.
+## Lock Conclusion
+
+- Merged to `main`: yes, with `--no-ff` merge commit
+  `7b7caeef453b9a039433c40bd6d1371494554c45`.
+- Tag: `xlb-phase21-three-app-operations-closure`, targeting the merge commit.
+- Feature evidence: `fbd7faf`; audit trace evidence: `98137f1`.
+- Post-merge typecheck: PASS, 17/17 tasks.
+- Post-merge build: PASS, 11/11 tasks.
+- Post-merge full regression: PASS, 286 files / 1,145 tests plus the documented
+  existing Phase 1 todo. Historical Phase 9 React `act(...)` warnings remain
+  non-blocking and introduced no failed assertion.
+- Post-merge architecture preflight: PASS.
+- Post-merge Phase 21 formal gate: PASS, migrations `040/041` replayed as `SKIP`,
+  schema markers each equal 1, real geo provider executions equal 0, focused Vitest
+  8 files / 23 tests, and Playwright 1 spec / 3 tests.
+- User-owned audit assets remained untracked and were not staged or committed.
+
+Phase 21 is LOCKED. Phase 22 was not entered during this Lock ceremony.
