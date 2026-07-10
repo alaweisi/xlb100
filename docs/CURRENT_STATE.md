@@ -25,6 +25,7 @@
 | Phase 18 | LOCKED | xlb-phase18-fulfillment-evidence-oss-envelope | Fulfillment evidence + local/mock object storage envelope + customer confirmation |
 | Phase 19 | LOCKED | xlb-phase19-enterprise-openapi-webhook | B-side enterprise clients + API key OpenAPI + webhook delivery |
 | Phase 20 | LOCKED | xlb-phase20-lbs-lite-dispatch | LBS-lite local/mock geo + private worker location + dispatch ranking/reassignment |
+| Phase 21 | IN PROGRESS | - | Customer / worker / admin operations UI closure |
 
 ## Phase 10 — Settlement Action Governance (LOCKED)
 
@@ -199,6 +200,18 @@
 - **Migration verification**: replay emitted `SKIP 039_phase20_lbs_lite_dispatch`; schema marker count equals exactly 1
 - **Lock state**: LOCKED after feature commit, `--no-ff` merge, tag, post-merge verification, and lock metadata update
 - **Phase boundary**: Phase 21 has not been entered
+
+## Phase 21 - A/W/C Operations UI Closure (IN PROGRESS)
+
+- **Entered**: 2026-07-10
+- **Branch/base**: `codex/phase21-three-app-operations-closure` from Phase 20 locked main `b9229c253419e4745df395f6cbb8ac2faf14fd39`
+- **Scope**: close daily operational workflows across customer, worker, and admin apps using existing Phase 16-20 contracts, APIs, persistence, and state transitions
+- **Customer target**: address book, order timeline and reverse actions, complaint flow, and fulfillment-evidence confirmation
+- **Worker target**: availability and settings, private location reporting, arrival and evidence upload, task detail, repair cooperation, earnings and withdrawal detail
+- **Admin target**: order pool, dispatch intervention, worker certification/level/penalty, SKU/pricing operations, complaint/repair console, enterprise management, and reporting
+- **Fixed DoD**: no UI-only success; every mutation is contract/API backed; explicit city/tenant/role rejection tests; create actions cover idempotency/concurrency; A/W/C browser or Playwright evidence; test-count and todo reconciliation; user-owned audit assets remain untouched
+- **Boundary**: no real payment/refund/payout/settlement execution; no real Amap/map provider; no real OSS; provider envelopes remain truthful local/mock; no Phase 22 observability/performance gate implementation
+- **Phase boundary**: Phase 22 has not been entered
 
 ## Third-party Inspection
 
