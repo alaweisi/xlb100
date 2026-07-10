@@ -1,7 +1,7 @@
 # Phase 18 Fulfillment Evidence Foundation Report
 
 Date: 2026-07-10
-Status: DEVELOPMENT COMPLETE / READY FOR LOCK VERIFICATION
+Status: LOCKED
 Branch: `codex/phase18-fulfillment-evidence-oss-envelope`
 
 ## Objective
@@ -66,7 +66,7 @@ The current branch was served on isolated local ports with backend `3018`, custo
 - Admin authenticated as the operator role, loaded a real order trace, and rendered fulfillment evidence and pending confirmation state.
 - Browser console error count was zero.
 
-The Phase 18 development candidate has completed all of those checks. Status remains non-LOCKED until commit/merge/tag and the separate Phase Lock procedure are authorized and completed.
+The Phase 18 development candidate completed all required checks and was subsequently merged and tagged.
 
 ## Pre-Merge Lock Verification
 
@@ -87,3 +87,15 @@ Verification on `codex/phase18-fulfillment-evidence-oss-envelope`:
 | A/W/C browser verification | PASS, zero console errors |
 
 Phase 19 was not entered during this verification.
+
+## Lock Conclusion
+
+- Merged: yes, with `--no-ff`
+- Feature commit: `8331be3`
+- Main merge commit: `6afd770e2af7fcf1998a4fdc1c25dc683b2caf6c`
+- Tag: `xlb-phase18-fulfillment-evidence-oss-envelope`
+- Tag target: `6afd770e2af7fcf1998a4fdc1c25dc683b2caf6c`
+- Branch and post-merge tests: 270 files / 1,106 passed; 1 existing Phase 1 todo
+- Build, typecheck, architecture preflight, infrastructure, migration/seed replay, Phase 18 gate, and A/W/C browser verification: passed before and after merge
+- External storage execution, public evidence URLs, and global-city evidence rows: zero
+- Phase 19: not entered and no Phase 19 branch created

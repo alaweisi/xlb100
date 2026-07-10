@@ -22,7 +22,7 @@
 | Phase 14 | IN PROGRESS | - | Readiness diagnostics (64/100) |
 | Phase 16 | COMPLETE | - | Competitive gap closure: SKU / pricing / fee items / installation standards |
 | Phase 17 | LOCKED | xlb-phase17-order-reverse-aftersale | Order reverse flow + aftersale complaints |
-| Phase 18 | IN PROGRESS | - | Fulfillment evidence + local/mock object storage envelope + customer confirmation |
+| Phase 18 | LOCKED | xlb-phase18-fulfillment-evidence-oss-envelope | Fulfillment evidence + local/mock object storage envelope + customer confirmation |
 
 ## Phase 10 — Settlement Action Governance (LOCKED)
 
@@ -106,18 +106,21 @@
   - no real map / Amap integration
 - **Next phase**: Phase 18 has not been entered in this Lock task
 
-## Phase 18 - Fulfillment Evidence + Object Storage Envelope (IN PROGRESS)
+## Phase 18 - Fulfillment Evidence + Object Storage Envelope (LOCKED)
 
 - **Scope**: media assets, fulfillment evidence, local/mock object storage envelope, complaint binding, authenticated content read, and customer confirmation/dispute
-- **Status**: development opened on `codex/phase18-fulfillment-evidence-oss-envelope` after Phase 17 Lock acceptance
+- **Status**: LOCKED on 2026-07-10
+- **Tag**: `xlb-phase18-fulfillment-evidence-oss-envelope`
+- **Tag target / main merge commit**: `6afd770e2af7fcf1998a4fdc1c25dc683b2caf6c`
+- **Feature commit**: `8331be3`
 - **Acceptance focus**:
   - provider is explicitly `local` or `mock`; no real OSS success state
   - evidence is city-scoped and bound to order/fulfillment with optional Phase 17 complaint linkage
   - upload size, declared MIME, binary signature, empty-file, and filename safety gates
   - customer confirmation is a real state transition; disputes require a complaint linkage
 - **Implementation evidence**:
-    - append-only migration `035` adds three city-scoped tables with database provider and privacy checks
-    - append-only migration `036` adds composite city-reference foreign keys and explicit rejection tests
+  - append-only migration `035` adds three city-scoped tables with database provider and privacy checks
+  - append-only migration `036` adds composite city-reference foreign keys and explicit rejection tests
   - worker upload/list, customer confirm/dispute, admin trace, and authenticated private-content APIs are implemented
   - A/W/C pages consume the Phase 18 APIs through `@xlb/api-client`
   - local filesystem bytes and in-memory mock bytes are both exercised by tests
@@ -131,7 +134,14 @@
   - full suite passed: 270 files / 1,106 tests; 1 existing todo
   - architecture preflight passed
   - A/W/C browser verification passed on isolated local ports with zero console errors
-  - **Lock state**: development candidate is ready for commit/merge/tag verification; Phase 18 is not yet LOCKED
+- **Lock verification**:
+  - feature branch and post-merge build passed: 11/11 tasks
+  - feature branch and post-merge typecheck passed: 17/17 tasks
+  - feature branch and post-merge full tests passed: 270 files / 1,106 tests; 1 existing Phase 1 todo
+  - feature branch and post-merge architecture preflight passed
+  - Phase 18 migration verification gate passed before and after merge: 6 files / 25 tests
+  - migrations `035` and `036`, seven composite city foreign keys, and A/W/C browser verification passed
+- **Lock state**: LOCKED; Phase 19 has not been entered or branched
   - **Existing todo**: `tests/contract/api.contract.test.ts:4` (`Phase 1: customer API contract`), predates Phase 18
 - **Boundary**:
   - no Alibaba OSS, S3, COS, or other external object-storage call
