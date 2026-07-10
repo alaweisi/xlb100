@@ -58,6 +58,9 @@ export async function registerOrderModule(app: FastifyInstance): Promise<void> {
         if (error instanceof OrderNotFoundError) {
           return reply.status(404).send({ ok: false, error: error.message });
         }
+        if (error instanceof OrderOwnershipError) {
+          return reply.status(403).send({ ok: false, error: error.message });
+        }
         throw error;
       }
     },

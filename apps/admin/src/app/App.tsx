@@ -8,6 +8,7 @@ import { WorkerWithdrawalsPage } from "../pages/WorkerWithdrawalsPage";
 import { AftersaleOpsPage } from "../pages/AftersaleOpsPage";
 import { EnterpriseOpsPage } from "../pages/EnterpriseOpsPage";
 import { DispatchBoardPage } from "../pages/DispatchBoardPage";
+import { PlatformOperationsPage } from "../pages/PlatformOperationsPage";
 import { buildHash, parseHashParams, parseView } from "../hashParams";
 import {
   clearAdminSession,
@@ -124,6 +125,7 @@ export function App() {
   }, [cityCode]);
   const navigateToEnterprise = useCallback(() => { window.location.hash=buildHash("/enterprise",{cityCode:cityCode||""}); },[cityCode]);
   const navigateToDispatch = useCallback(() => {window.location.hash=buildHash("/dispatch",{cityCode:cityCode||""});},[cityCode]);
+  const navigateToPlatformOperations = useCallback(() => {window.location.hash=buildHash("/platform-operations",{cityCode:cityCode||""});},[cityCode]);
 
   const navigateToDashboard = useCallback(() => {
     window.location.hash = "";
@@ -131,6 +133,8 @@ export function App() {
 
   const viewTitle = view.page === "workerWithdrawals"
     ? "Worker Withdrawals"
+    : view.page === "platformOperations"
+    ? "Platform Operations"
     : view.page === "enterprise"
     ? "Enterprise Platform"
     : view.page === "dispatch"
@@ -176,6 +180,8 @@ export function App() {
 
   const content = view.page === "workerWithdrawals"
     ? <WorkerWithdrawalsPage initialCityCode={cityCode} />
+    : view.page === "platformOperations"
+    ? <PlatformOperationsPage initialCityCode={cityCode}/>
     : view.page === "enterprise"
     ? <EnterpriseOpsPage initialCityCode={cityCode}/>
     : view.page === "dispatch"
@@ -269,6 +275,7 @@ export function App() {
             },
             { key:"enterprise",label:"Enterprise",active:view.page==="enterprise",href:"#/enterprise",onClick:navigateToEnterprise },
             { key:"dispatch",label:"Dispatch",active:view.page==="dispatch",href:"#/dispatch",onClick:navigateToDispatch },
+            { key:"platformOperations",label:"Orders / SKU / Workers",active:view.page==="platformOperations",href:"#/platform-operations",onClick:navigateToPlatformOperations },
           ]}
         />
       }

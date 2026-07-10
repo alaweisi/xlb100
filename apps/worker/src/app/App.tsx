@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
-import type { Fulfillment, FulfillmentEvidenceType, WorkerTaskPoolItem } from "@xlb/types";
-import type { AftersaleRepairOrderResponse, FulfillmentEvidenceAggregateResponse } from "@xlb/api-client";
+import type { Fulfillment, FulfillmentEvidenceType, WorkerLocation, WorkerTaskPoolItem } from "@xlb/types";
+import type {
+  AftersaleRepairOrderResponse,
+  FulfillmentEvidenceAggregateResponse,
+  WorkerBankAccountResponse,
+  WorkerReceivableBalanceResponse,
+  WorkerWithdrawalResponse,
+} from "@xlb/api-client";
 import {
   BottomNav,
   Button,
@@ -82,7 +88,7 @@ const routeConfig: Record<
     label: "Wallet",
     href: "/worker/wallet",
     title: "Wallet",
-    subtitle: "Income API is not wired",
+    subtitle: "Receivable balance and withdrawal requests",
     icon: "W",
   },
   profile: {
@@ -194,7 +200,7 @@ function PhoneStatusBar() {
 
 function WorkerPageHeader({ route }: { route: WorkerRoute }) {
   const config = routeConfig[route];
-  const isWorkerApiRoute = route === "hall" || route === "tasks" || route === "taskDetail" || route === "repairs";
+  const isWorkerApiRoute = true;
 
   return (
     <header style={{ display: "grid", gap: 10, padding: "20px 20px 8px" }}>
@@ -218,7 +224,7 @@ function WorkerPageHeader({ route }: { route: WorkerRoute }) {
           </h1>
         </div>
         <StatusTag tone={isWorkerApiRoute ? "success" : "warning"}>
-          {isWorkerApiRoute ? "Real API" : "Not wired"}
+          {isWorkerApiRoute ? "Real API" : "Unavailable"}
         </StatusTag>
       </div>
     </header>
@@ -822,12 +828,91 @@ function TaskDetailPage({
   );
 }
 
-function PlaceholderPage({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <Card title={title} actions={<StatusTag tone="warning">Not wired</StatusTag>} style={workerPanelStyle}>
-      <p style={helperText}>{children}</p>
+function WalletPage({
+  balance, bankAccounts, withdrawals, busy, error, accountHolder, bankName, bankCardNumber,
+  withdrawalAmount, selectedBankAccountId, onReload, onAccountHolderChange, onBankNameChange,
+  onBankCardNumberChange, onWithdrawalAmountChange, onSelectedBankAccountChange, onAddBankAccount, onRequestWithdrawal,
+}: {
+  balance: WorkerReceivableBalanceResponse | null;
+  bankAccounts: WorkerBankAccountResponse[];
+  withdrawals: WorkerWithdrawalResponse[];
+  busy: boolean;
+  error: string | null;
+  accountHolder: string;
+  bankName: string;
+  bankCardNumber: string;
+  withdrawalAmount: string;
+  selectedBankAccountId: string;
+  onReload: () => void;
+  onAccountHolderChange: (value: string) => void;
+  onBankNameChange: (value: string) => void;
+  onBankCardNumberChange: (value: string) => void;
+  onWithdrawalAmountChange: (value: string) => void;
+  onSelectedBankAccountChange: (value: string) => void;
+  onAddBankAccount: () => void;
+  onRequestWithdrawal: () => void;
+}) {
+  return <>
+    <Card title="Receivable Wallet" actions={<StatusTag tone="success">Real API</StatusTag>} style={workerPanelStyle}>
+      <div style={{ ...mutedBoxStyle, gridTemplateColumns: "repeat(2,minmax(0,1fr))" }}>
+        <div><p style={helperText}>Available</p><strong>{formatAmount(balance?.availableAmount ?? 0)}</strong></div>
+        <div><p style={helperText}>Accrued</p><strong>{formatAmount(balance?.accruedAmount ?? 0)}</strong></div>
+        <div><p style={helperText}>Requested</p><strong>{formatAmount(balance?.requestedWithdrawalAmount ?? 0)}</strong></div>
+        <div><p style={helperText}>Marked paid</p><strong>{formatAmount(balance?.markedPaidAmount ?? 0)}</strong></div>
+      </div>
+      <div style={{ marginTop: 10 }}><Button onClick={onReload} disabled={busy}>Refresh wallet</Button></div>
     </Card>
-  );
+    <Card title="Bank Account" actions={<StatusTag tone="primary">{bankAccounts.length}</StatusTag>} style={workerPanelStyle}>
+      <div style={{ display: "grid", gap: 10 }}>
+        {bankAccounts.map(account => <div key={account.bankAccountId} style={mutedBoxStyle}>
+          <strong>{account.bankName} · {account.bankCardMasked}</strong><span style={helperText}>{account.accountHolder}</span>
+        </div>)}
+        <FormField label="Account holder"><Input value={accountHolder} onChange={event => onAccountHolderChange(event.target.value)} /></FormField>
+        <FormField label="Bank"><Input value={bankName} onChange={event => onBankNameChange(event.target.value)} /></FormField>
+        <FormField label="Card number"><Input value={bankCardNumber} onChange={event => onBankCardNumberChange(event.target.value)} /></FormField>
+        <Button variant="primary" disabled={busy || !accountHolder.trim() || !bankName.trim() || bankCardNumber.length < 12} onClick={onAddBankAccount}>Add bank account</Button>
+      </div>
+    </Card>
+    <Card title="Withdrawal Request" actions={<StatusTag tone="warning">No provider payout</StatusTag>} style={workerPanelStyle}>
+      <div style={{ display: "grid", gap: 10 }}>
+        <FormField label="Bank account"><Select value={selectedBankAccountId} onChange={event => onSelectedBankAccountChange(event.target.value)}><option value="">Select account</option>{bankAccounts.map(account => <option key={account.bankAccountId} value={account.bankAccountId}>{account.bankName} · {account.bankCardLast4}</option>)}</Select></FormField>
+        <FormField label="Amount"><Input type="number" value={withdrawalAmount} onChange={event => onWithdrawalAmountChange(event.target.value)} /></FormField>
+        <Button variant="primary" disabled={busy || !selectedBankAccountId || Number(withdrawalAmount) <= 0} onClick={onRequestWithdrawal}>Submit request</Button>
+        {withdrawals.length === 0 ? <EmptyState title="No withdrawal request" /> : <Table rows={withdrawals} getRowKey={row => row.withdrawalId} columns={[
+          { key: "id", title: "Request", render: row => row.withdrawalId },
+          { key: "amount", title: "Amount", render: row => formatAmount(row.amount) },
+          { key: "status", title: "Status", render: row => <StatusTag tone={row.status === "rejected" ? "danger" : row.status === "marked_paid" ? "success" : "warning"}>{row.status}</StatusTag> },
+        ]} />}
+      </div>
+      {error && <p style={{ ...helperText, color: "#fda29b", marginTop: 10 }}>{error}</p>}
+    </Card>
+  </>;
+}
+
+function WorkerLocationPage({ location, busy, error, latitude, longitude, radius, sharing,
+  onLatitudeChange, onLongitudeChange, onRadiusChange, onSharingChange, onSave, onReload,
+}: {
+  location: WorkerLocation | null; busy: boolean; error: string | null;
+  latitude: string; longitude: string; radius: string; sharing: boolean;
+  onLatitudeChange: (value: string) => void; onLongitudeChange: (value: string) => void;
+  onRadiusChange: (value: string) => void; onSharingChange: (value: boolean) => void;
+  onSave: () => void; onReload: () => void;
+}) {
+  return <Card title="Location & Availability" actions={<StatusTag tone="success">Private exact</StatusTag>} style={workerPanelStyle}>
+    <div style={{ display: "grid", gap: 10 }}>
+      {location && <div style={mutedBoxStyle}>
+        <strong>{location.freshness}</strong>
+        <span style={helperText}>{location.latitude}, {location.longitude} · expires {location.expiresAt}</span>
+      </div>}
+      <FormField label="Latitude"><Input type="number" value={latitude} onChange={event => onLatitudeChange(event.target.value)} /></FormField>
+      <FormField label="Longitude"><Input type="number" value={longitude} onChange={event => onLongitudeChange(event.target.value)} /></FormField>
+      <FormField label="Service radius (km)"><Input type="number" value={radius} onChange={event => onRadiusChange(event.target.value)} /></FormField>
+      <label style={{ alignItems: "center", display: "flex", gap: 8, fontSize: 14 }}><input type="checkbox" checked={sharing} onChange={event => onSharingChange(event.target.checked)} /> Available for LBS-lite matching</label>
+      <div style={{ display: "flex", gap: 8 }}><Button variant="primary" disabled={busy || !Number.isFinite(Number(latitude)) || !Number.isFinite(Number(longitude))} onClick={onSave}>Report current location</Button><Button disabled={busy} onClick={onReload}>Refresh</Button></div>
+      <p style={helperText}>Exact coordinates are returned only to this authenticated worker. Admin sees distance, ETA and freshness.</p>
+      {error && <p style={{ ...helperText, color: "#fda29b" }}>{error}</p>}
+    </div>
+  </Card>;
 }
 
 function CertificationPage({
@@ -889,6 +974,23 @@ export function App() {
   const [taskPool, setTaskPool] = useState<WorkerTaskPoolItem[]>([]);
   const [fulfillments, setFulfillments] = useState<Fulfillment[]>([]);
   const [repairOrders, setRepairOrders] = useState<AftersaleRepairOrderResponse[]>([]);
+  const [walletBalance, setWalletBalance] = useState<WorkerReceivableBalanceResponse | null>(null);
+  const [bankAccounts, setBankAccounts] = useState<WorkerBankAccountResponse[]>([]);
+  const [withdrawals, setWithdrawals] = useState<WorkerWithdrawalResponse[]>([]);
+  const [walletBusy, setWalletBusy] = useState(false);
+  const [walletError, setWalletError] = useState<string | null>(null);
+  const [accountHolder, setAccountHolder] = useState("");
+  const [bankName, setBankName] = useState("");
+  const [bankCardNumber, setBankCardNumber] = useState("");
+  const [selectedBankAccountId, setSelectedBankAccountId] = useState("");
+  const [withdrawalAmount, setWithdrawalAmount] = useState("");
+  const [workerLocation, setWorkerLocation] = useState<WorkerLocation | null>(null);
+  const [locationBusy, setLocationBusy] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [latitude, setLatitude] = useState("30.274100");
+  const [longitude, setLongitude] = useState("120.155100");
+  const [serviceRadius, setServiceRadius] = useState("10");
+  const [locationSharing, setLocationSharing] = useState(true);
   const [repairNotes, setRepairNotes] = useState<Record<string, string>>({});
   const [taskDetail, setTaskDetail] = useState<Fulfillment | null>(null);
   const [taskEvidence, setTaskEvidence] = useState<FulfillmentEvidenceAggregateResponse | null>(null);
@@ -981,6 +1083,35 @@ export function App() {
     }
   }, [api, handleApiError]);
 
+  const loadWallet = useCallback(async () => {
+    if (!api) return;
+    setWalletBusy(true); setWalletError(null);
+    try {
+      const [balanceResult, accountsResult, withdrawalsResult] = await Promise.all([
+        api.getReceivableBalance(), api.listBankAccounts(), api.listWithdrawalRequests(),
+      ]);
+      setWalletBalance(balanceResult.balance);
+      setBankAccounts(accountsResult.bankAccounts);
+      setWithdrawals(withdrawalsResult.withdrawals);
+      setSelectedBankAccountId(previous => previous || accountsResult.bankAccounts[0]?.bankAccountId || "");
+    } catch (error) {
+      handleApiError(error, "Failed to load wallet", setWalletError);
+    } finally { setWalletBusy(false); }
+  }, [api, handleApiError]);
+
+  const loadLocation = useCallback(async () => {
+    if (!api) return;
+    setLocationBusy(true); setLocationError(null);
+    try {
+      const response = await api.getLocation();
+      setWorkerLocation(response.location);
+      if (response.location) {
+        setLatitude(String(response.location.latitude)); setLongitude(String(response.location.longitude));
+      }
+    } catch (error) { handleApiError(error, "Failed to load worker location", setLocationError); }
+    finally { setLocationBusy(false); }
+  }, [api, handleApiError]);
+
   const loadTaskDetail = useCallback(
     async (fulfillmentId: string) => {
       if (!api) return;
@@ -1022,7 +1153,9 @@ export function App() {
     if (route.route === "tasks") void loadFulfillments();
     if (route.route === "taskDetail") void Promise.all([loadTaskDetail(route.fulfillmentId), loadTaskEvidence(route.fulfillmentId)]);
     if (route.route === "repairs") void loadRepairOrders();
-  }, [loadFulfillments, loadRepairOrders, loadTaskDetail, loadTaskEvidence, loadTaskPool, route]);
+    if (route.route === "wallet") void loadWallet();
+    if (route.route === "profile") void loadLocation();
+  }, [loadFulfillments, loadLocation, loadRepairOrders, loadTaskDetail, loadTaskEvidence, loadTaskPool, loadWallet, route]);
 
   const acceptTask = useCallback(
     async (dispatchTaskId: string) => {
@@ -1183,6 +1316,42 @@ export function App() {
     }
   }, [api, certName, certType, handleApiError]);
 
+  const addBankAccount = useCallback(async () => {
+    if (!api) return;
+    setWalletBusy(true); setWalletError(null);
+    try {
+      const response = await api.createBankAccount({ accountHolder: accountHolder.trim(), bankName: bankName.trim(), bankCardNumber: bankCardNumber.trim() });
+      setSelectedBankAccountId(response.bankAccount.bankAccountId);
+      setBankCardNumber("");
+      await loadWallet();
+    } catch (error) { handleApiError(error, "Failed to add bank account", setWalletError); }
+    finally { setWalletBusy(false); }
+  }, [accountHolder, api, bankCardNumber, bankName, handleApiError, loadWallet]);
+
+  const requestWithdrawal = useCallback(async () => {
+    if (!api) return;
+    setWalletBusy(true); setWalletError(null);
+    try {
+      await api.createWithdrawalRequest({ bankAccountId: selectedBankAccountId, amount: Number(withdrawalAmount), requestNote: "Submitted from worker operations app" });
+      setWithdrawalAmount("");
+      await loadWallet();
+    } catch (error) { handleApiError(error, "Failed to submit withdrawal request", setWalletError); }
+    finally { setWalletBusy(false); }
+  }, [api, handleApiError, loadWallet, selectedBankAccountId, withdrawalAmount]);
+
+  const saveLocation = useCallback(async () => {
+    if (!api) return;
+    setLocationBusy(true); setLocationError(null);
+    try {
+      const response = await api.upsertLocation({
+        latitude: Number(latitude), longitude: Number(longitude), accuracyMeters: 20,
+        capturedAt: new Date().toISOString(), serviceRadiusKm: Number(serviceRadius), locationSharingEnabled: locationSharing,
+      });
+      setWorkerLocation(response.location);
+    } catch (error) { handleApiError(error, "Failed to report location", setLocationError); }
+    finally { setLocationBusy(false); }
+  }, [api, handleApiError, latitude, locationSharing, longitude, serviceRadius]);
+
   useEffect(() => {
     const onRouteChange = () => setRoute(resolveRoute());
     window.addEventListener("popstate", onRouteChange);
@@ -1202,6 +1371,12 @@ export function App() {
     setTaskPool([]);
     setFulfillments([]);
     setRepairOrders([]);
+    setWalletBalance(null);
+    setBankAccounts([]);
+    setWithdrawals([]);
+    setWalletError(null);
+    setWorkerLocation(null);
+    setLocationError(null);
     setRepairNotes({});
     setTaskDetail(null);
     setTaskEvidence(null);
@@ -1301,13 +1476,15 @@ export function App() {
         onComplete={(repairOrderId, note) => void mutateRepairOrder(repairOrderId, "complete", note)}
       />
     ) : route.route === "wallet" ? (
-      <PlaceholderPage title="Wallet">
-        Income, statement, and payout surfaces are outside this stage. No wallet write action is added.
-      </PlaceholderPage>
+      <WalletPage balance={walletBalance} bankAccounts={bankAccounts} withdrawals={withdrawals} busy={walletBusy} error={walletError}
+        accountHolder={accountHolder} bankName={bankName} bankCardNumber={bankCardNumber} withdrawalAmount={withdrawalAmount}
+        selectedBankAccountId={selectedBankAccountId} onReload={() => void loadWallet()} onAccountHolderChange={setAccountHolder}
+        onBankNameChange={setBankName} onBankCardNumberChange={setBankCardNumber} onWithdrawalAmountChange={setWithdrawalAmount}
+        onSelectedBankAccountChange={setSelectedBankAccountId} onAddBankAccount={() => void addBankAccount()} onRequestWithdrawal={() => void requestWithdrawal()} />
     ) : route.route === "profile" ? (
-      <PlaceholderPage title="Profile">
-        Current worker session is {session.userId} / {workerCityCode}.
-      </PlaceholderPage>
+      <WorkerLocationPage location={workerLocation} busy={locationBusy} error={locationError} latitude={latitude} longitude={longitude}
+        radius={serviceRadius} sharing={locationSharing} onLatitudeChange={setLatitude} onLongitudeChange={setLongitude}
+        onRadiusChange={setServiceRadius} onSharingChange={setLocationSharing} onSave={() => void saveLocation()} onReload={() => void loadLocation()} />
     ) : (
       <CertificationPage
         cityCode={workerCityCode}

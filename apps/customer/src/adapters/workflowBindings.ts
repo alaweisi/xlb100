@@ -71,14 +71,6 @@ function createAction(
   };
 }
 
-function createNotWiredAction(actionId: string, label: string, reasonCode: WorkflowDisabledReason): WorkflowActionContract {
-  return createAction(actionId, label, "not-wired", {
-    enabled: false,
-    disabledReasonCode: reasonCode,
-    cityScopeRequired: true,
-  });
-}
-
 export const customerWorkflowActions = {
   retryCatalog: () => createAction("customer.catalog.retry", "Retry catalog", "api-derived", {
     endpoint: "/api/catalog",
@@ -118,9 +110,10 @@ export const customerWorkflowActions = {
       endpoint: "/api/orders/:orderId",
       method: "GET",
     }),
-  profileUnavailable: () => createNotWiredAction("customer.profile.unavailable", "Profile not wired", "API_NOT_AVAILABLE"),
-  addressUnavailable: () => createNotWiredAction("customer.address.unavailable", "Address not wired", "API_NOT_AVAILABLE"),
-  authUnavailable: () => createNotWiredAction("customer.auth.unavailable", "Auth not wired", "API_NOT_AVAILABLE"),
+  loadProfile: () => createAction("customer.profile.load", "Load profile", "api-derived", { endpoint: "/api/customer/profile", method: "GET" }),
+  saveProfile: () => createAction("customer.profile.save", "Save profile", "backend", { endpoint: "/api/customer/profile", method: "POST" }),
+  listAddresses: () => createAction("customer.address.list", "Load addresses", "api-derived", { endpoint: "/api/customer/addresses", method: "GET" }),
+  saveAddress: () => createAction("customer.address.save", "Save address", "backend", { endpoint: "/api/customer/addresses", method: "POST" }),
 };
 
 function getWorkflowRuntimeTokens() {
@@ -375,42 +368,40 @@ function buildOrdersBinding(input: CustomerBindingInput): WorkflowUiBinding {
 }
 
 function buildProfileBinding(): WorkflowUiBinding {
-  const actions = [customerWorkflowActions.profileUnavailable(), customerWorkflowActions.addressUnavailable(), customerWorkflowActions.authUnavailable()];
+  const actions = [customerWorkflowActions.loadProfile(), customerWorkflowActions.saveProfile(), customerWorkflowActions.listAddresses(), customerWorkflowActions.saveAddress()];
   const base = createBaseBinding("profile");
   return withRouteMeta(base, {
-    workflowName: "customer.profile.notWired",
+    workflowName: "customer.profile.operations",
     backendSource: {
-      contractDocs: ["docs/contracts/CONTRACT_WORKFLOW_UI_BINDING.md"],
-      endpoints: [],
-      status: "not-wired",
+      contractDocs: ["docs/contracts/CONTRACT_PHASE21_OPERATIONS.md"],
+      endpoints: ["GET /api/customer/profile", "POST /api/customer/profile", "GET /api/customer/addresses", "POST /api/customer/addresses"],
+      status: "wired",
     },
     state: {
       ...base.state,
-      stateId: "profile.not-wired",
-      label: "Profile API not wired",
-      source: "not-wired-policy",
+      stateId: "profile.operations.ready",
+      label: "Profile and address operations ready",
+      source: "api-contract",
       customerAnswer: {
-        currentStep: "Profile, address and authentication are not available in current build",
-        nextAvailableStep: "Connect profile/auth/address APIs",
-        blockedReason: "API_NOT_AVAILABLE",
-        recoveryPath: "Keep UAT panel data for traceability only",
+        currentStep: "Profile and city-scoped service addresses are persisted",
+        nextAvailableStep: "Maintain account and service address details",
+        recoveryPath: "Retry the authenticated customer API",
       },
     },
     availableActions: actions,
-    disabledReasons: ["API_NOT_AVAILABLE", "IDENTITY_REQUIRED"],
+    disabledReasons: [],
     customerFacingCopy: {
       ...base.customerFacingCopy,
       title: "Profile",
-      body: "Profile features are not yet wired in this stage.",
-      primaryCta: "Keep in UAT",
+      body: "Manage the authenticated account and city-scoped service addresses.",
+      primaryCta: "Save changes",
     },
-    uiSlots: ["notWired", "summaryCard", "bottomNav", "themeSurface"],
+    uiSlots: ["summaryCard", "primaryActionDock", "bottomNav", "themeSurface"],
     figmaBinding: {
-      kind: "partial",
-      frameName: "Customer / Profile / Not Wired",
+      kind: "derived",
+      frameName: "Customer / Profile / Operations",
     },
-    packagesUiComponents: ["Card", "NotWiredState", "CustomerAnswerCard", "ActionDock"],
-    notWiredPolicy: makeNotWiredPolicy("API_NOT_AVAILABLE", actions),
+    packagesUiComponents: ["Card", "FormField", "Input", "ActionDock"],
   });
 }
 

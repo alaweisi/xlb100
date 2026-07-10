@@ -16,6 +16,7 @@ import type {
 } from "./aftersale.js";
 import type { OrderFulfillmentEvidenceResponse } from "./evidence.js";
 import { createEnterpriseAdminApi } from "./enterprise.js";
+import type { AdminOrderSummary, AdminSkuOperationsRow, WorkerCertification } from "@xlb/types";
 
 export interface AdminOrderTrace {
   order: {
@@ -122,6 +123,12 @@ export function createAdminApi(client: ApiClient) {
   return {
     settlement: createSettlementApi(client),
     enterprise: createEnterpriseAdminApi(client),
+    listOperationsOrders(): Promise<{ok:true;orders:AdminOrderSummary[]}>{return client.get("/api/internal/operations/orders");},
+    listOperationsSkus(): Promise<{ok:true;skus:AdminSkuOperationsRow[]}>{return client.get("/api/internal/operations/skus");},
+    setOperationsSkuEnabled(skuId:string,enabled:boolean):Promise<{ok:true;sku:{skuId:string;isEnabled:boolean}}>{return client.post(`/api/internal/operations/skus/${encodeURIComponent(skuId)}/status`,{enabled});},
+    listWorkerCertifications(status?:WorkerCertification["status"]):Promise<{ok:true;certifications:WorkerCertification[]}>{return client.get(`/api/admin/certifications${status?`?status=${encodeURIComponent(status)}`:""}`);},
+    approveWorkerCertification(certificationId:string):Promise<{ok:true;certification:WorkerCertification}>{return client.post(`/api/admin/certifications/${encodeURIComponent(certificationId)}/approve`,{});},
+    rejectWorkerCertification(certificationId:string,reason:string):Promise<{ok:true;certification:WorkerCertification}>{return client.post(`/api/admin/certifications/${encodeURIComponent(certificationId)}/reject`,{reason});},
     listDispatchBoard():Promise<{ok:true;rows:DispatchBoardRow[]}>{return client.get("/api/internal/dispatch/board");},
     runDispatchMatch(dispatchTaskId?:string){return client.post<{ok:true;processed:number}>("/api/internal/dispatch/match-once",dispatchTaskId?{dispatchTaskId}:{});},
     runDispatchTimeout(){return client.post<{ok:true;processed:number}>("/api/internal/dispatch/timeout-once",{timeoutMinutes:15});},

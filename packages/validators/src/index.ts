@@ -413,3 +413,9 @@ export {
   type ActiveCampaignResponseInput,
   type CampaignInput,
 } from "./campaignSchema.js";
+export {
+  updateCustomerProfileSchema,
+  saveCustomerAddressSchema,
+  type UpdateCustomerProfileInput,
+  type SaveCustomerAddressInput,
+} from "./customerOperationsSchema.js";

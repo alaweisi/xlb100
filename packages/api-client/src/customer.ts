@@ -12,6 +12,12 @@ import type {
   DecideFulfillmentConfirmationResponse,
   OrderFulfillmentEvidenceResponse,
 } from "./evidence.js";
+import type {
+  CustomerAddress,
+  CustomerProfile,
+  SaveCustomerAddressRequest,
+  UpdateCustomerProfileRequest,
+} from "@xlb/types";
 
 type CityCode = string;
 type PriceType = "fixed" | "range" | "from" | "estimate_from" | "onsite_quote";
@@ -277,6 +283,30 @@ export interface OrderReviewResponse {
 
 export function createCustomerOrderApi(client: ApiClient) {
   return {
+    getProfile() {
+      return client.get<{ ok: true; profile: CustomerProfile }>("/api/customer/profile");
+    },
+    updateProfile(body: UpdateCustomerProfileRequest) {
+      return client.post<{ ok: true; profile: CustomerProfile }>("/api/customer/profile", body);
+    },
+    listAddresses() {
+      return client.get<{ ok: true; addresses: CustomerAddress[] }>("/api/customer/addresses");
+    },
+    createAddress(body: SaveCustomerAddressRequest) {
+      return client.post<{ ok: true; address: CustomerAddress }>("/api/customer/addresses", body);
+    },
+    updateAddress(addressId: string, body: SaveCustomerAddressRequest) {
+      return client.post<{ ok: true; address: CustomerAddress }>(
+        `/api/customer/addresses/${encodeURIComponent(addressId)}`,
+        body,
+      );
+    },
+    deleteAddress(addressId: string) {
+      return client.post<{ ok: true; addressId: string; deleted: true }>(
+        `/api/customer/addresses/${encodeURIComponent(addressId)}/delete`,
+        {},
+      );
+    },
     getCatalog() {
       return client.get<{ ok: true; catalog: CatalogSnapshotResponse }>("/api/catalog");
     },

@@ -19,6 +19,13 @@ const mocks = vi.hoisted(() => ({
   completeFulfillment: vi.fn(),
   submitCertification: vi.fn(),
   getEligibility: vi.fn(),
+  getReceivableBalance: vi.fn(),
+  createBankAccount: vi.fn(),
+  listBankAccounts: vi.fn(),
+  createWithdrawalRequest: vi.fn(),
+  listWithdrawalRequests: vi.fn(),
+  getLocation: vi.fn(),
+  upsertLocation: vi.fn(),
 }));
 
 vi.mock("@xlb/api-client", () => ({
@@ -40,6 +47,13 @@ vi.mock("@xlb/api-client", () => ({
       completeFulfillment: mocks.completeFulfillment,
       submitCertification: mocks.submitCertification,
       getEligibility: mocks.getEligibility,
+      getReceivableBalance: mocks.getReceivableBalance,
+      createBankAccount: mocks.createBankAccount,
+      listBankAccounts: mocks.listBankAccounts,
+      createWithdrawalRequest: mocks.createWithdrawalRequest,
+      listWithdrawalRequests: mocks.listWithdrawalRequests,
+      getLocation: mocks.getLocation,
+      upsertLocation: mocks.upsertLocation,
     }),
   },
 }));
@@ -152,6 +166,13 @@ describe("Worker App API wiring", () => {
         updatedAt: "2026-07-09T01:04:00.000Z",
       },
     });
+    mocks.getReceivableBalance.mockResolvedValue({ok:true,balance:{cityCode:"hangzhou",workerId:"worker-demo-hangzhou",currency:"CNY",accruedAmount:500,adjustedAmount:0,requestedWithdrawalAmount:100,markedPaidAmount:50,availableAmount:350,createdAt:"2026-07-10T00:00:00.000Z",updatedAt:"2026-07-10T00:00:00.000Z"}});
+    mocks.listBankAccounts.mockResolvedValue({ok:true,bankAccounts:[{bankAccountId:"bank-1",cityCode:"hangzhou",workerId:"worker-demo-hangzhou",accountHolder:"Worker",bankName:"XLB Bank",bankBranch:null,bankCardMasked:"**** 1234",bankCardLast4:"1234",status:"active",createdAt:"2026-07-10T00:00:00.000Z",updatedAt:"2026-07-10T00:00:00.000Z"}]});
+    mocks.listWithdrawalRequests.mockResolvedValue({ok:true,withdrawals:[]});
+    mocks.createBankAccount.mockResolvedValue({ok:true,bankAccount:{bankAccountId:"bank-2",bankCardLast4:"5678"}});
+    mocks.createWithdrawalRequest.mockResolvedValue({ok:true,withdrawal:{withdrawalId:"wd-1"},balance:{availableAmount:250}});
+    mocks.getLocation.mockResolvedValue({ok:true,location:{locationId:"loc-1",workerId:"worker-demo-hangzhou",cityCode:"hangzhou",latitude:30.2741,longitude:120.1551,accuracyMeters:20,capturedAt:"2026-07-10T00:00:00.000Z",expiresAt:"2026-07-10T00:10:00.000Z",source:"worker_device",privacyLevel:"private_exact",freshness:"fresh"}});
+    mocks.upsertLocation.mockImplementation(async(body)=>({ok:true,location:{locationId:"loc-1",workerId:"worker-demo-hangzhou",cityCode:"hangzhou",...body,expiresAt:"2026-07-10T00:10:00.000Z",source:"worker_device",privacyLevel:"private_exact",freshness:"fresh"}}));
   });
 
   afterEach(() => {
@@ -325,5 +346,20 @@ describe("Worker App API wiring", () => {
       });
     });
     expect(await screen.findByText(/Certification cert-1 submitted with status pending/)).toBeTruthy();
+  });
+
+  it("loads the real wallet and submits a withdrawal request",async()=>{
+    setRoute("/worker/wallet");await renderAndLogin();
+    expect(await screen.findByText("CNY 350.00")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Amount"),{target:{value:"100"}});
+    fireEvent.click(screen.getByRole("button",{name:"Submit request"}));
+    await waitFor(()=>expect(mocks.createWithdrawalRequest).toHaveBeenCalledWith(expect.objectContaining({bankAccountId:"bank-1",amount:100})));
+  });
+
+  it("loads and reports a private worker location",async()=>{
+    setRoute("/worker/profile");await renderAndLogin();
+    expect(await screen.findByText(/30.2741, 120.1551/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button",{name:"Report current location"}));
+    await waitFor(()=>expect(mocks.upsertLocation).toHaveBeenCalledWith(expect.objectContaining({latitude:30.2741,longitude:120.1551,serviceRadiusKm:10,locationSharingEnabled:true})));
   });
 });

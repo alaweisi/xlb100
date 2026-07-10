@@ -196,6 +196,9 @@ export class OrderService {
       if (!order) {
         throw new OrderNotFoundError(orderId);
       }
+      if (context.appType === "customer" && context.role === "customer" && order.customerId !== context.userId) {
+        throw new OrderOwnershipError(orderId);
+      }
       return order;
     });
   }
