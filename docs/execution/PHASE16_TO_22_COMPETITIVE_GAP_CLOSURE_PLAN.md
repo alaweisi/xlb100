@@ -27,7 +27,8 @@ Execution state on 2026-07-10:
 - Phase 16: COMPLETE after `scripts/check-phase16-migration-verification.ps1` passed.
 - Phase 17: LOCKED at `xlb-phase17-order-reverse-aftersale` (`f8895d0`).
 - Phase 18: LOCKED at `xlb-phase18-fulfillment-evidence-oss-envelope` (`6afd770`).
-- Phase 19-22: planned.
+- Phase 19: IN PROGRESS on `codex/phase19-enterprise-openapi-webhook`.
+- Phase 20-22: planned.
 
 ## 1. Non-Negotiable Boundaries
 
@@ -451,7 +452,26 @@ Tests:
 - Any customer/worker/admin action needs at least one E2E or browser smoke by Phase 21.
 - Provider envelopes need signature/idempotency/failure tests even when provider is mock/local.
 
-## 7. Strategic Shortboard Summary
+## 7. Phase 20-22 Fixed Definition Of Done
+
+Every Phase 20-22 report must answer every item below before independent review:
+
+| Category | Required evidence |
+| --- | --- |
+| Business closure | The planned workflow runs end to end through real contracts, APIs, persistence, and state transitions; tables or UI alone do not qualify. |
+| Boundary confirmation | Restate every external or deferred capability not executed, including payment, refund, settlement, Amap/map, OSS, and real assignment as applicable. |
+| Tenant isolation | Every city, enterprise, worker, customer, and admin scope has a repeatable unauthorized request plus a rejection assertion; zero leaked rows alone is insufficient. |
+| Idempotency/concurrency | Every create or delivery action has duplicate and, where relevant, concurrent submission evidence proving no duplicate business record. |
+| Test accounting | Report test files/cases by scenario, the delta from the locked prior phase, and whether any old assertion was removed, merged, skipped, or converted to todo. |
+| Todo provenance | Every todo/skip names its source phase, location, reason, and whether the current phase introduced it. |
+| Migration discipline | Migrations are append-only and the gate verifies each version exists exactly once. |
+| Provider truthfulness | Mock/local envelopes cannot claim external success; the gate records real external provider execution count, expected to remain zero when external integration is out of scope. |
+| Lock discipline | Feature commit, `--no-ff` merge, tag, lock metadata/CURRENT_STATE commit, and immediate main/tag push all complete before the next phase branch. |
+| User asset protection | Untracked user-owned audit/analysis artifacts are listed and confirmed untouched and uncommitted. |
+
+Phase 20 and Phase 21 must use explicit automated multi-city and multi-tenant rejection tests. Phase 20 `GeoProviderEnvelope` must default to local/mock and prove external map calls equal zero. Historical technical-debt cleanup performed incidentally must be labeled out of scope in the phase report.
+
+## 8. Strategic Shortboard Summary
 
 The current XLB shortboard is not ledger or settlement. Those are comparatively strong.
 

@@ -26,6 +26,7 @@ export type {
   OrderFulfillmentEvidenceResponse,
   DecideFulfillmentConfirmationResponse,
 } from "./evidence.js";
+export { createEnterpriseAdminApi, createEnterpriseOpenApi } from "./enterprise.js";
 export { ledgerApi } from "./ledger.js";
 export { settlementApi, createSettlementApi } from "./settlement.js";
 export { governanceIntentApi, createGovernanceIntentApi } from "./governanceIntent.js";
