@@ -27,7 +27,7 @@ Execution state on 2026-07-10:
 - Phase 16: COMPLETE after `scripts/check-phase16-migration-verification.ps1` passed.
 - Phase 17: LOCKED at `xlb-phase17-order-reverse-aftersale` (`f8895d0`).
 - Phase 18: LOCKED at `xlb-phase18-fulfillment-evidence-oss-envelope` (`6afd770`).
-- Phase 19: IN PROGRESS on `codex/phase19-enterprise-openapi-webhook`.
+- Phase 19: LOCKED at tag `xlb-phase19-enterprise-openapi-webhook`.
 - Phase 20-22: planned.
 
 ## 1. Non-Negotiable Boundaries

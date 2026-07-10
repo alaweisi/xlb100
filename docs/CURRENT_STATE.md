@@ -23,7 +23,7 @@
 | Phase 16 | COMPLETE | - | Competitive gap closure: SKU / pricing / fee items / installation standards |
 | Phase 17 | LOCKED | xlb-phase17-order-reverse-aftersale | Order reverse flow + aftersale complaints |
 | Phase 18 | LOCKED | xlb-phase18-fulfillment-evidence-oss-envelope | Fulfillment evidence + local/mock object storage envelope + customer confirmation |
-| Phase 19 | IN PROGRESS | - | B-side enterprise clients + API key OpenAPI + webhook delivery |
+| Phase 19 | LOCKED | xlb-phase19-enterprise-openapi-webhook | B-side enterprise clients + API key OpenAPI + webhook delivery |
 
 ## Phase 10 — Settlement Action Governance (LOCKED)
 
@@ -150,9 +150,12 @@
   - no payment, refund, ledger, settlement, payout, or dispatch mutation
   - existing `fulfillment.completed` behavior remains compatible
 
-## Phase 19 - B-Side Enterprise + OpenAPI/Webhook (IN PROGRESS)
+## Phase 19 - B-Side Enterprise + OpenAPI/Webhook (LOCKED)
 
-- **Branch**: `codex/phase19-enterprise-openapi-webhook`
+- **Tag**: `xlb-phase19-enterprise-openapi-webhook`
+- **Tag target / main merge**: `6b14b20459edbcfabbea30a69befa5d800013f54`
+- **Feature commit**: `2bc9a33`
+- **Feature branch**: `codex/phase19-enterprise-openapi-webhook`
 - **Base**: locked `main` metadata commit `16fc315`; Phase 18 tag remains immutable
 - **Scope**: enterprise client/contact onboarding, API credentials, agreement pricing, external-order idempotency, webhook subscriptions/deliveries, bill snapshots, OpenAPI document, and admin operations
 - **Boundary**:
@@ -176,7 +179,7 @@
   - build passed: 11/11 tasks
   - architecture preflight passed
   - admin enterprise browser smoke passed with live data and zero console errors
-- **Candidate state**: development complete; pending independent review, merge, tag, and lock metadata
+- **Lock state**: LOCKED after feature commit, `--no-ff` merge, tag, post-merge verification, and lock metadata update
 - **Phase boundary**: Phase 20 has not been entered
 
 ## Third-party Inspection
