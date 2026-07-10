@@ -1,7 +1,7 @@
 # Phase 20 LBS-lite Dispatch Foundation Report
 
 Date: 2026-07-10
-Status: DEVELOPMENT CANDIDATE COMPLETE / PENDING REVIEW AND LOCK
+Status: LOCKED
 Branch: `codex/phase20-lbs-lite-dispatch`
 
 ## Business Closure
@@ -61,6 +61,15 @@ Before feature commit and merge, the `E:\xlb100` main worktree contained exactly
 - `docs/reports/FRESH_BENCHMARK_XLB_2026-07-10.pdf`
 - `docs/reports/FULL_BENCHMARK_XLB_VS_COMPETITORS_2026-07-10.md`
 
-The Phase 20 worktree contains no copy or modification of those files.
+The Phase 20 worktree contains no copy or modification of those files. The main worktree still contains exactly these five untracked files after merge and post-merge verification.
 
-Phase 20 is development-candidate complete but is not LOCKED. Phase 21 has not been entered.
+## Lock Conclusion
+
+- Feature commit: `01b9da852e967a68424022737216d2194af3eb86`.
+- Main merge commit and tag target: `8481577d947b34ebbadfa63050af97f01bd692a0`.
+- Tag: `xlb-phase20-lbs-lite-dispatch`.
+- Post-merge typecheck, build, architecture preflight, full regression, migration gate, provider boundary checks, and admin browser smoke: PASS.
+- Migration replay: `SKIP 039_phase20_lbs_lite_dispatch`; marker count: exactly `1`.
+- User-owned audit assets: untouched and uncommitted.
+
+Phase 20 is LOCKED. Phase 21 was not entered during the Phase 20 Lock ceremony.
