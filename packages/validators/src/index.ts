@@ -107,6 +107,18 @@ export {
   type ReviewAftersaleCompensationRequestInput,
 } from "./aftersaleSchema.js";
 export {
+  objectStorageProviderKindSchema,
+  objectStorageProviderStatusSchema,
+  fulfillmentEvidenceTypeSchema,
+  evidenceContentTypeSchema,
+  objectStorageProviderEnvelopeSchema,
+  createFulfillmentEvidenceMetadataSchema,
+  decideFulfillmentConfirmationRequestSchema,
+  mediaAssetSchema,
+  fulfillmentEvidenceSchema,
+  customerConfirmationStatusSchema,
+} from "./evidenceSchema.js";
+export {
   orderReviewStatusSchema,
   createOrderReviewSchema,
   orderReviewSchema,

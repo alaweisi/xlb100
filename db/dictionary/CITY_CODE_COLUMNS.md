@@ -13,7 +13,7 @@ Phase 1 city foundation. All city-scoped business tables (Phase 2+) **must** inc
 | `cities` | PK `city_code` | Global registry; uses `is_open` (not `status`) |
 | `admin_city_scopes` | FK `city_code` | Admin RLS scope |
 
-## Phase 16 SKU / pricing tables with city_code
+## Phase 16-18 competitive gap tables with city_code
 
 | Table | city_code column | Notes |
 |-------|------------------|-------|
@@ -27,6 +27,9 @@ Phase 1 city foundation. All city-scoped business tables (Phase 2+) **must** inc
 | `aftersale_liability_decisions` | required FK + non-global check | One decision per complaint |
 | `aftersale_compensation_intents` | required FK + non-global check | Provider execution remains not_executed |
 | `aftersale_timeline_events` | required FK + non-global check | Append-only workflow timeline |
+| `media_assets` | required FK + non-global check | Private local/mock storage metadata |
+| `fulfillment_evidence` | required FK + non-global check | Fulfillment/order/complaint evidence binding |
+| `fulfillment_customer_confirmations` | required FK + non-global check | Customer-owned confirmation/dispute state |
 
 ## Phase 5A tables with city_code
 

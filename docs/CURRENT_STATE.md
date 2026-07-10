@@ -22,6 +22,7 @@
 | Phase 14 | IN PROGRESS | - | Readiness diagnostics (64/100) |
 | Phase 16 | COMPLETE | - | Competitive gap closure: SKU / pricing / fee items / installation standards |
 | Phase 17 | LOCKED | xlb-phase17-order-reverse-aftersale | Order reverse flow + aftersale complaints |
+| Phase 18 | IN PROGRESS | - | Fulfillment evidence + local/mock object storage envelope + customer confirmation |
 
 ## Phase 10 — Settlement Action Governance (LOCKED)
 
@@ -104,6 +105,39 @@
   - no dispatch assignment mutation; reassignment is an audited intent only
   - no real map / Amap integration
 - **Next phase**: Phase 18 has not been entered in this Lock task
+
+## Phase 18 - Fulfillment Evidence + Object Storage Envelope (IN PROGRESS)
+
+- **Scope**: media assets, fulfillment evidence, local/mock object storage envelope, complaint binding, authenticated content read, and customer confirmation/dispute
+- **Status**: development opened on `codex/phase18-fulfillment-evidence-oss-envelope` after Phase 17 Lock acceptance
+- **Acceptance focus**:
+  - provider is explicitly `local` or `mock`; no real OSS success state
+  - evidence is city-scoped and bound to order/fulfillment with optional Phase 17 complaint linkage
+  - upload size, declared MIME, binary signature, empty-file, and filename safety gates
+  - customer confirmation is a real state transition; disputes require a complaint linkage
+- **Implementation evidence**:
+    - append-only migration `035` adds three city-scoped tables with database provider and privacy checks
+    - append-only migration `036` adds composite city-reference foreign keys and explicit rejection tests
+  - worker upload/list, customer confirm/dispute, admin trace, and authenticated private-content APIs are implemented
+  - A/W/C pages consume the Phase 18 APIs through `@xlb/api-client`
+  - local filesystem bytes and in-memory mock bytes are both exercised by tests
+  - formal gate: `scripts/check-phase18-migration-verification.ps1`
+- **Reference report**: `docs/reports/PHASE18_FULFILLMENT_EVIDENCE_FOUNDATION_REPORT.md`
+- **Test coverage**: `docs/reports/PHASE18_TEST_COVERAGE.md`
+- **Development verification on 2026-07-10**:
+  - migration gate passed after city hardening: 6 files / 25 tests
+  - typecheck passed: 17/17 tasks
+  - build passed: 11/11 tasks
+  - full suite passed: 270 files / 1,106 tests; 1 existing todo
+  - architecture preflight passed
+  - A/W/C browser verification passed on isolated local ports with zero console errors
+  - **Lock state**: development candidate is ready for commit/merge/tag verification; Phase 18 is not yet LOCKED
+  - **Existing todo**: `tests/contract/api.contract.test.ts:4` (`Phase 1: customer API contract`), predates Phase 18
+- **Boundary**:
+  - no Alibaba OSS, S3, COS, or other external object-storage call
+  - no public object URL and no fake provider success
+  - no payment, refund, ledger, settlement, payout, or dispatch mutation
+  - existing `fulfillment.completed` behavior remains compatible
 
 ## Third-party Inspection
 

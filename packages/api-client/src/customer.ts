@@ -7,6 +7,11 @@ import type {
   OrderReverseResponse,
   OrderReverseTypeResponse,
 } from "./aftersale.js";
+import type {
+  DecideFulfillmentConfirmationInput,
+  DecideFulfillmentConfirmationResponse,
+  OrderFulfillmentEvidenceResponse,
+} from "./evidence.js";
 
 type CityCode = string;
 type PriceType = "fixed" | "range" | "from" | "estimate_from" | "onsite_quote";
@@ -359,6 +364,20 @@ export function createCustomerOrderApi(client: ApiClient) {
       return client.post<{ ok: true }>(
         `/api/aftersale/complaints/${encodeURIComponent(complaintId)}/notes`,
         { content },
+      );
+    },
+    getOrderFulfillmentEvidence(orderId: string): Promise<OrderFulfillmentEvidenceResponse> {
+      return client.get<OrderFulfillmentEvidenceResponse>(
+        `/api/customer/orders/${encodeURIComponent(orderId)}/fulfillment-evidence`,
+      );
+    },
+    decideFulfillmentConfirmation(
+      fulfillmentId: string,
+      body: DecideFulfillmentConfirmationInput,
+    ): Promise<DecideFulfillmentConfirmationResponse> {
+      return client.post<DecideFulfillmentConfirmationResponse>(
+        `/api/customer/fulfillments/${encodeURIComponent(fulfillmentId)}/customer-confirmation`,
+        body,
       );
     },
     createOrderReview({ orderId, ...body }: CreateOrderReviewBody) {

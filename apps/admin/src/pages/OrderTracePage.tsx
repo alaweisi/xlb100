@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { adminOrderTraceApi } from "../adminAuth";
+import type { FulfillmentEvidenceAggregateResponse } from "@xlb/api-client";
 import { buildHash, parseHashParams } from "../hashParams";
 import {
   ApiErrorPanel,
@@ -47,6 +48,7 @@ export function OrderTracePage({ initialCityCode, initialOrderId }: Props) {
   const [cityCode, setCityCode] = useState(initialCityCode || params.get("cityCode") || "hangzhou");
   const [orderId, setOrderId] = useState(initialOrderId || params.get("orderId") || "");
   const [trace, setTrace] = useState<OrderTrace | null>(null);
+  const [evidence, setEvidence] = useState<FulfillmentEvidenceAggregateResponse[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -66,10 +68,15 @@ export function OrderTracePage({ initialCityCode, initialOrderId }: Props) {
         cityCode: nextCityCode,
         orderId: nextOrderId,
       });
-      const response = await adminOrderTraceApi.getOrderTrace(nextOrderId);
+      const [response,evidenceResponse] = await Promise.all([
+        adminOrderTraceApi.getOrderTrace(nextOrderId),
+        adminOrderTraceApi.getOrderFulfillmentEvidence(nextOrderId),
+      ]);
       setTrace(response.trace);
+      setEvidence(evidenceResponse.aggregates);
     } catch (e) {
       setTrace(null);
+      setEvidence([]);
       setError(String(e));
     } finally {
       setLoading(false);
@@ -218,6 +225,21 @@ export function OrderTracePage({ initialCityCode, initialOrderId }: Props) {
                 { key: "note", title: "Note", render: (row) => row.note },
               ]}
             />
+          </Card>
+
+          <Card title="Fulfillment Evidence" actions={<StatusTag tone="primary">Private local/mock</StatusTag>}>
+            {evidence.length===0?<EmptyState title="No fulfillment evidence" />:evidence.map((aggregate)=>(
+              <div key={aggregate.fulfillmentId} style={{ display:"grid",gap:10,borderTop:"1px solid #e4e7ec",paddingTop:12,marginTop:12 }}>
+                <div><strong>{aggregate.fulfillmentId}</strong> {statusTag(aggregate.confirmation?.status ?? "pending")}</div>
+                {aggregate.evidence.length===0?<EmptyState title="No evidence nodes" />:<Table rows={aggregate.evidence} getRowKey={(item)=>item.evidenceId} columns={[
+                  {key:"type",title:"Node",render:(item)=>item.evidenceType},
+                  {key:"complaint",title:"Complaint",render:(item)=>item.complaintId||"-"},
+                  {key:"provider",title:"Provider status",render:(item)=>item.mediaAsset.storage.providerStatus},
+                  {key:"external",title:"External",render:(item)=>String(item.mediaAsset.storage.externalProviderExecuted)},
+                  {key:"hash",title:"SHA-256",render:(item)=>item.mediaAsset.checksumSha256.slice(0,16)},
+                ]}/>}
+              </div>
+            ))}
           </Card>
 
           <Card title="Dispatch timeline">

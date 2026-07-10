@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
-import type { Fulfillment, WorkerTaskPoolItem } from "@xlb/types";
-import type { AftersaleRepairOrderResponse } from "@xlb/api-client";
+import type { Fulfillment, FulfillmentEvidenceType, WorkerTaskPoolItem } from "@xlb/types";
+import type { AftersaleRepairOrderResponse, FulfillmentEvidenceAggregateResponse } from "@xlb/api-client";
 import {
   BottomNav,
   Button,
@@ -11,8 +11,10 @@ import {
   Input,
   LoadingState,
   MobileShell,
+  Select,
   StatusTag,
   Table,
+  Textarea,
 } from "@xlb/ui";
 import { workerWorkflowActions } from "../adapters/workflowBindings";
 import {
@@ -657,9 +659,15 @@ function TaskDetailPage({
   lifecycleError,
   lifecycleNotice,
   lifecycleAction,
+  evidenceAggregate,
+  evidenceLoading,
+  evidenceError,
+  evidenceBusy,
   onBack,
   onStart,
   onComplete,
+  onRefreshEvidence,
+  onUploadEvidence,
 }: {
   fulfillment: Fulfillment | null;
   loading: boolean;
@@ -668,10 +676,20 @@ function TaskDetailPage({
   lifecycleError: string | null;
   lifecycleNotice: string | null;
   lifecycleAction: "start" | "complete" | null;
+  evidenceAggregate: FulfillmentEvidenceAggregateResponse | null;
+  evidenceLoading: boolean;
+  evidenceError: string | null;
+  evidenceBusy: boolean;
   onBack: () => void;
   onStart: (fulfillmentId: string) => void;
   onComplete: (fulfillmentId: string) => void;
+  onRefreshEvidence: (fulfillmentId: string) => void;
+  onUploadEvidence: (fulfillmentId: string, file: File, metadata: { evidenceType: FulfillmentEvidenceType; complaintId?: string; note?: string }) => void;
 }) {
+  const [evidenceType, setEvidenceType] = useState<FulfillmentEvidenceType>("before_service");
+  const [evidenceFile, setEvidenceFile] = useState<File | null>(null);
+  const [evidenceComplaintId, setEvidenceComplaintId] = useState("");
+  const [evidenceNote, setEvidenceNote] = useState("");
   const lifecycleBusy = lifecycleAction !== null;
   const startAction = workerWorkflowActions.startFulfillment({
     fulfillmentStatus: fulfillment?.status,
@@ -740,6 +758,44 @@ function TaskDetailPage({
         </Card>
       )}
 
+      <Card title="Fulfillment Evidence" actions={<StatusTag tone="primary">Local / Mock only</StatusTag>} style={workerPanelStyle}>
+        <div style={{ display: "grid", gap: 10 }}>
+          <FormField label="Evidence node">
+            <Select value={evidenceType} onChange={(event) => setEvidenceType(event.target.value as FulfillmentEvidenceType)}>
+              <option value="arrival">Arrival</option><option value="before_service">Before service</option>
+              <option value="diagnosis">Diagnosis</option><option value="material">Material</option>
+              <option value="after_service">After service</option><option value="completion">Completion</option>
+            </Select>
+          </FormField>
+          <FormField label="Image (JPEG / PNG / WebP, max 5 MiB)">
+            <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => setEvidenceFile(event.target.files?.[0] ?? null)} />
+          </FormField>
+          <FormField label="Complaint ID (optional)"><Input value={evidenceComplaintId} onChange={(event) => setEvidenceComplaintId(event.target.value)} /></FormField>
+          <FormField label="Evidence note"><Textarea value={evidenceNote} onChange={(event) => setEvidenceNote(event.target.value)} /></FormField>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            <Button variant="primary" disabled={!evidenceFile || evidenceBusy} onClick={() => evidenceFile && onUploadEvidence(fulfillmentId,evidenceFile,{
+              evidenceType,complaintId:evidenceComplaintId.trim()||undefined,note:evidenceNote.trim()||undefined,
+            })}>{evidenceBusy ? "Uploading" : "Store evidence"}</Button>
+            <Button disabled={evidenceLoading} onClick={() => onRefreshEvidence(fulfillmentId)}>Refresh evidence</Button>
+          </div>
+          <p style={helperText}>Storage is private. Provider state is stored_local or stored_mock; externalProviderExecuted is always false.</p>
+        </div>
+      </Card>
+
+      {evidenceError && <Card title="Evidence action failed" actions={<StatusTag tone="danger">Error</StatusTag>} style={workerPanelStyle}><p style={helperText}>{evidenceError}</p></Card>}
+      {evidenceLoading && <LoadingState title="Loading evidence" description="Reading private evidence metadata." />}
+      {!evidenceLoading && evidenceAggregate && (
+        <Card title="Evidence Timeline" actions={<StatusTag tone={evidenceAggregate.confirmation?.status === "confirmed" ? "success" : "warning"}>{evidenceAggregate.confirmation?.status ?? "not completed"}</StatusTag>} style={workerPanelStyle}>
+          {evidenceAggregate.evidence.length===0?<EmptyState title="No evidence uploaded" />:<Table rows={evidenceAggregate.evidence} getRowKey={(item)=>item.evidenceId} columns={[
+            {key:"type",title:"Node",render:(item)=>item.evidenceType},
+            {key:"file",title:"File",render:(item)=>item.mediaAsset.originalFileName},
+            {key:"provider",title:"Provider",render:(item)=><StatusTag tone="primary">{item.mediaAsset.storage.providerStatus}</StatusTag>},
+            {key:"hash",title:"SHA-256",render:(item)=>item.mediaAsset.checksumSha256.slice(0,12)},
+            {key:"scan",title:"Security",render:(item)=>item.mediaAsset.securityScanStatus},
+          ]}/>}
+        </Card>
+      )}
+
       <Card title="Actions" actions={<StatusTag tone="success">Lifecycle</StatusTag>} style={workerPanelStyle}>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
           <Button
@@ -759,7 +815,7 @@ function TaskDetailPage({
           <Button onClick={onBack}>Back to list</Button>
         </div>
         <p style={{ ...helperText, color: "#ffd37d", marginTop: 10 }}>
-          Boundary: only start and complete fulfillment actions are enabled in P1 stage 3.
+          Phase 18 keeps lifecycle actions and evidence writes separate; customer confirmation is customer-owned.
         </p>
       </Card>
     </>
@@ -835,10 +891,12 @@ export function App() {
   const [repairOrders, setRepairOrders] = useState<AftersaleRepairOrderResponse[]>([]);
   const [repairNotes, setRepairNotes] = useState<Record<string, string>>({});
   const [taskDetail, setTaskDetail] = useState<Fulfillment | null>(null);
+  const [taskEvidence, setTaskEvidence] = useState<FulfillmentEvidenceAggregateResponse | null>(null);
   const [loadingHall, setLoadingHall] = useState(false);
   const [loadingTasks, setLoadingTasks] = useState(false);
   const [loadingRepairs, setLoadingRepairs] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
+  const [loadingEvidence, setLoadingEvidence] = useState(false);
   const [acceptingDispatchTaskId, setAcceptingDispatchTaskId] = useState<string | null>(null);
   const [simulationAction, setSimulationAction] = useState<{ type: "reject" | "timeout"; dispatchTaskId: string } | null>(null);
   const [lifecycleAction, setLifecycleAction] = useState<"start" | "complete" | null>(null);
@@ -846,6 +904,8 @@ export function App() {
   const [tasksError, setTasksError] = useState<string | null>(null);
   const [repairsError, setRepairsError] = useState<string | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
+  const [evidenceError, setEvidenceError] = useState<string | null>(null);
+  const [evidenceBusy, setEvidenceBusy] = useState(false);
   const [acceptError, setAcceptError] = useState<string | null>(null);
   const [acceptNotice, setAcceptNotice] = useState<string | null>(null);
   const [lifecycleError, setLifecycleError] = useState<string | null>(null);
@@ -939,12 +999,30 @@ export function App() {
     [api, handleApiError],
   );
 
+  const loadTaskEvidence = useCallback(
+    async (fulfillmentId: string) => {
+      if (!api) return;
+      setLoadingEvidence(true);
+      setEvidenceError(null);
+      try {
+        const response = await api.getFulfillmentEvidence(fulfillmentId);
+        setTaskEvidence(response.aggregate);
+      } catch (error) {
+        handleApiError(error, "Failed to load fulfillment evidence", setEvidenceError);
+        setTaskEvidence(null);
+      } finally {
+        setLoadingEvidence(false);
+      }
+    },
+    [api, handleApiError],
+  );
+
   const reloadCurrent = useCallback(() => {
     if (route.route === "hall") void loadTaskPool();
     if (route.route === "tasks") void loadFulfillments();
-    if (route.route === "taskDetail") void loadTaskDetail(route.fulfillmentId);
+    if (route.route === "taskDetail") void Promise.all([loadTaskDetail(route.fulfillmentId), loadTaskEvidence(route.fulfillmentId)]);
     if (route.route === "repairs") void loadRepairOrders();
-  }, [loadFulfillments, loadRepairOrders, loadTaskDetail, loadTaskPool, route]);
+  }, [loadFulfillments, loadRepairOrders, loadTaskDetail, loadTaskEvidence, loadTaskPool, route]);
 
   const acceptTask = useCallback(
     async (dispatchTaskId: string) => {
@@ -1007,9 +1085,9 @@ export function App() {
 
   const refreshFulfillmentState = useCallback(
     async (fulfillmentId: string) => {
-      await Promise.all([loadTaskPool(), loadFulfillments(), loadTaskDetail(fulfillmentId)]);
+      await Promise.all([loadTaskPool(), loadFulfillments(), loadTaskDetail(fulfillmentId), loadTaskEvidence(fulfillmentId)]);
     },
-    [loadFulfillments, loadTaskDetail, loadTaskPool],
+    [loadFulfillments, loadTaskDetail, loadTaskEvidence, loadTaskPool],
   );
 
   const startFulfillment = useCallback(
@@ -1048,6 +1126,23 @@ export function App() {
       }
     },
     [api, handleApiError, refreshFulfillmentState],
+  );
+
+  const uploadFulfillmentEvidence = useCallback(
+    async (fulfillmentId: string, file: File, metadata: { evidenceType: FulfillmentEvidenceType; complaintId?: string; note?: string }) => {
+      if (!api) return;
+      setEvidenceBusy(true);
+      setEvidenceError(null);
+      try {
+        await api.uploadFulfillmentEvidence(fulfillmentId, file, metadata);
+        await loadTaskEvidence(fulfillmentId);
+      } catch (error) {
+        handleApiError(error, "Failed to store fulfillment evidence", setEvidenceError);
+      } finally {
+        setEvidenceBusy(false);
+      }
+    },
+    [api, handleApiError, loadTaskEvidence],
   );
 
   const mutateRepairOrder = useCallback(
@@ -1109,10 +1204,13 @@ export function App() {
     setRepairOrders([]);
     setRepairNotes({});
     setTaskDetail(null);
+    setTaskEvidence(null);
     setHallError(null);
     setTasksError(null);
     setRepairsError(null);
     setDetailError(null);
+    setEvidenceError(null);
+    setEvidenceBusy(false);
     setAcceptError(null);
     setAcceptNotice(null);
     setLifecycleError(null);
@@ -1180,9 +1278,15 @@ export function App() {
         lifecycleError={lifecycleError}
         lifecycleNotice={lifecycleNotice}
         lifecycleAction={lifecycleAction}
+        evidenceAggregate={taskEvidence}
+        evidenceLoading={loadingEvidence}
+        evidenceError={evidenceError}
+        evidenceBusy={evidenceBusy}
         onBack={() => navigate("/worker/tasks")}
         onStart={(fulfillmentId) => void startFulfillment(fulfillmentId)}
         onComplete={(fulfillmentId) => void completeFulfillment(fulfillmentId)}
+        onRefreshEvidence={(fulfillmentId) => void loadTaskEvidence(fulfillmentId)}
+        onUploadEvidence={(fulfillmentId,file,metadata) => void uploadFulfillmentEvidence(fulfillmentId,file,metadata)}
       />
     ) : route.route === "repairs" ? (
       <RepairOrdersPage

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
   AftersaleComplaintResponse,
+  FulfillmentEvidenceAggregateResponse,
   OrderReverseResponse,
 } from "@xlb/api-client";
 import {
@@ -36,6 +37,12 @@ export interface CustomerAftersalePageProps {
       idempotencyKey: string;
     }): Promise<{ complaint: AftersaleComplaintResponse }>;
     listAftersaleComplaints(orderId?: string): Promise<{ complaints: AftersaleComplaintResponse[] }>;
+    getOrderFulfillmentEvidence(orderId: string): Promise<{ aggregates: FulfillmentEvidenceAggregateResponse[] }>;
+    decideFulfillmentConfirmation(fulfillmentId: string, body: {
+      decision: "confirmed" | "disputed";
+      note?: string;
+      complaintId?: string;
+    }): Promise<{ confirmation: { status: string } }>;
   };
 }
 
@@ -54,6 +61,9 @@ export function CustomerAftersalePage({ api, orderIds }: CustomerAftersalePagePr
   const [description, setDescription] = useState("");
   const [reverseRequests, setReverseRequests] = useState<OrderReverseResponse[]>([]);
   const [complaints, setComplaints] = useState<AftersaleComplaintResponse[]>([]);
+  const [evidenceAggregates, setEvidenceAggregates] = useState<FulfillmentEvidenceAggregateResponse[]>([]);
+  const [confirmationNote, setConfirmationNote] = useState("");
+  const [disputeComplaintId, setDisputeComplaintId] = useState("");
   const [busy, setBusy] = useState<"reverse" | "complaint" | "load" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -63,12 +73,14 @@ export function CustomerAftersalePage({ api, orderIds }: CustomerAftersalePagePr
     setBusy("load");
     setError(null);
     try {
-      const [reverse, complaint] = await Promise.all([
+      const [reverse, complaint, evidence] = await Promise.all([
         api.listOrderReverseRequests(orderId),
         api.listAftersaleComplaints(orderId),
+        api.getOrderFulfillmentEvidence(orderId),
       ]);
       setReverseRequests(reverse.reverseRequests);
       setComplaints(complaint.complaints);
+      setEvidenceAggregates(evidence.aggregates);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load aftersale records");
     } finally {
@@ -117,6 +129,22 @@ export function CustomerAftersalePage({ api, orderIds }: CustomerAftersalePagePr
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to submit complaint");
+    } finally { setBusy(null); }
+  }
+
+  async function decideConfirmation(fulfillmentId: string, decision: "confirmed" | "disputed") {
+    setBusy("load"); setError(null); setNotice(null);
+    try {
+      const response = await api.decideFulfillmentConfirmation(fulfillmentId, {
+        decision,
+        note: confirmationNote.trim() || undefined,
+        complaintId: decision === "disputed" ? disputeComplaintId || undefined : undefined,
+      });
+      setNotice(`Customer confirmation is ${response.confirmation.status}.`);
+      setConfirmationNote("");
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to update customer confirmation");
     } finally { setBusy(null); }
   }
 
@@ -181,6 +209,35 @@ export function CustomerAftersalePage({ api, orderIds }: CustomerAftersalePagePr
             { key:"category",title:"类型",render:(item)=>item.category },
             { key:"status",title:"状态",render:(item)=><StatusTag tone={item.status === "closed" ? "success" : "warning"}>{item.status}</StatusTag> },
           ]} />}
+        </Card>
+        <Card title="Service Evidence" actions={<StatusTag tone="primary">Private local/mock storage</StatusTag>}>
+          <div style={{ display: "grid", gap: 12 }}>
+            <FormField label="Confirmation note"><Textarea value={confirmationNote} onChange={(event) => setConfirmationNote(event.target.value)} /></FormField>
+            <FormField label="Complaint for dispute">
+              <Select value={disputeComplaintId} onChange={(event) => setDisputeComplaintId(event.target.value)}>
+                <option value="">Select an existing complaint</option>
+                {complaints.map((item)=><option key={item.complaintId} value={item.complaintId}>{item.complaintId}</option>)}
+              </Select>
+            </FormField>
+            {evidenceAggregates.length===0?<EmptyState title="No fulfillment evidence yet" />:evidenceAggregates.map((aggregate)=>(
+              <div key={aggregate.fulfillmentId} style={{ display: "grid", gap: 10, borderTop: "1px solid #e4e7ec", paddingTop: 12 }}>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                  <strong>{aggregate.fulfillmentId}</strong>
+                  <StatusTag tone={aggregate.confirmation?.status === "confirmed" ? "success" : aggregate.confirmation?.status === "disputed" ? "danger" : "warning"}>{aggregate.confirmation?.status ?? "awaiting worker completion"}</StatusTag>
+                </div>
+                {aggregate.evidence.length===0?<EmptyState title="No evidence nodes" />:<Table rows={aggregate.evidence} getRowKey={(item)=>item.evidenceId} columns={[
+                  {key:"node",title:"Node",render:(item)=>item.evidenceType},
+                  {key:"file",title:"File",render:(item)=>item.mediaAsset.originalFileName},
+                  {key:"provider",title:"Storage",render:(item)=>item.mediaAsset.storage.providerStatus},
+                  {key:"scan",title:"Scan",render:(item)=>item.mediaAsset.securityScanStatus},
+                ]}/>}
+                {aggregate.confirmation?.status === "pending" && <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <Button variant="primary" disabled={busy!==null} onClick={()=>void decideConfirmation(aggregate.fulfillmentId,"confirmed")}>Confirm evidence</Button>
+                  <Button disabled={busy!==null||!disputeComplaintId||confirmationNote.trim().length<2} onClick={()=>void decideConfirmation(aggregate.fulfillmentId,"disputed")}>Dispute with complaint</Button>
+                </div>}
+              </div>
+            ))}
+          </div>
         </Card>
       </div>
     </CustomerRouteShell>

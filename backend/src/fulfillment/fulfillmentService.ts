@@ -14,7 +14,7 @@ import {
   dispatchRepository,
   DispatchRepository,
 } from "../dispatch/dispatchRepository.js";
-import { generateEventId } from "../events/eventIds.js";
+import { generateEventId, generateFulfillmentConfirmationId } from "../events/eventIds.js";
 import {
   buildFulfillmentCompletedPayload,
   buildFulfillmentStartedPayload,
@@ -24,6 +24,10 @@ import {
   FulfillmentRepository,
 } from "./fulfillmentRepository.js";
 import { assertFulfillmentTransition } from "./fulfillmentStateMachine.js";
+import {
+  fulfillmentEvidenceRepository,
+  type FulfillmentEvidenceRepository,
+} from "./evidence/fulfillmentEvidenceRepository.js";
 
 export class FulfillmentNotFoundError extends Error {
   readonly statusCode = 404;
@@ -59,6 +63,7 @@ export class FulfillmentService {
     private readonly transactionRunner: TransactionRunner = withTransaction,
     private readonly now: () => Date = () => new Date(),
     private readonly dispatchStatusRepository?: DispatchRepository,
+    private readonly evidenceRepository?: FulfillmentEvidenceRepository,
   ) {}
 
   async startFulfillment(
@@ -148,6 +153,7 @@ export class FulfillmentService {
         throw new FulfillmentNotFoundError(fulfillmentId);
       }
       if (fulfillment.status === "completed") {
+        await this.ensureCustomerConfirmation(connection, fulfillment, cityCode);
         return { fulfillment, idempotent: true };
       }
 
@@ -196,6 +202,7 @@ export class FulfillmentService {
           reason: "worker fulfillment completed",
         });
       }
+      await this.ensureCustomerConfirmation(connection, fulfillment, cityCode);
 
       return {
         fulfillment: {
@@ -257,6 +264,35 @@ export class FulfillmentService {
     }
     return { cityCode, workerId: context.userId };
   }
+
+  private async ensureCustomerConfirmation(
+    connection: PoolConnection,
+    fulfillment: Fulfillment,
+    cityCode: CityCode,
+  ): Promise<void> {
+    if (!this.evidenceRepository) return;
+    const result = await this.evidenceRepository.ensurePendingConfirmation(connection, {
+      confirmationId: generateFulfillmentConfirmationId(),
+      cityCode,
+      fulfillmentId: fulfillment.fulfillmentId,
+      orderId: fulfillment.orderId,
+    });
+    if (result.created) {
+      await this.outboxRepository.insertEvent(connection, {
+        eventId: generateEventId(),
+        eventType: "fulfillment.customer_confirmation.pending",
+        aggregateType: "fulfillment_confirmation",
+        aggregateId: result.confirmationId,
+        cityCode,
+        payload: {
+          confirmationId: result.confirmationId,
+          fulfillmentId: fulfillment.fulfillmentId,
+          orderId: fulfillment.orderId,
+          externalProviderExecuted: false,
+        },
+      });
+    }
+  }
 }
 
 export const fulfillmentService = new FulfillmentService(
@@ -265,4 +301,5 @@ export const fulfillmentService = new FulfillmentService(
   withTransaction,
   () => new Date(),
   dispatchRepository,
+  fulfillmentEvidenceRepository,
 );

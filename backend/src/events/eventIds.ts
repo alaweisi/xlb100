@@ -36,6 +36,18 @@ export function generateFulfillmentId(): string {
   return `ful_${Date.now().toString(36)}_${randomBytes(4).toString("hex")}`;
 }
 
+export function generateMediaAssetId(): string {
+  return `med_${Date.now().toString(36)}_${randomBytes(4).toString("hex")}`;
+}
+
+export function generateFulfillmentEvidenceId(): string {
+  return `fev_${Date.now().toString(36)}_${randomBytes(4).toString("hex")}`;
+}
+
+export function generateFulfillmentConfirmationId(): string {
+  return `fcn_${Date.now().toString(36)}_${randomBytes(4).toString("hex")}`;
+}
+
 export function generateLedgerAccountId(): string {
   return `lac_${Date.now().toString(36)}_${randomBytes(4).toString("hex")}`;
 }

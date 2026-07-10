@@ -137,6 +137,8 @@ Verification on 2026-07-10:
 
 The preflight run initially exposed five historical Phase 9 runtime scripts that still used removed identity headers and a package-scoped `tsx` invocation that was unavailable in this workspace. The scripts now generate real Bearer tokens with the production token helper and execute the repository-local backend `tsx` command. Two UI gates were also changed from translated display-text matching to behavior-level callback and cursor checks. No backend authorization or business rule was relaxed.
 
+These Phase 9B-9E runtime/preflight corrections were incidental technical-debt cleanup discovered during Lock verification. They were not Phase 17 deliverables and must not be counted as part of the Phase 17 order-reverse or aftersale scope.
+
 The branch includes the previously uncommitted Phase 16 pricing/standard foundation because Phase 17 was developed on top of that verified dependency. Both migrations remain append-only and the Phase 17 tag will therefore identify the first mainline commit containing the complete Phase 16 dependency plus Phase 17 aftersale foundation.
 
 ## 9. Lock Conclusion

@@ -11,3 +11,5 @@ Contracts are implemented through shared types, shared validators, backend guard
 - `CONTRACT_ORDER.md` - order creation and order-level boundaries
 - `CONTRACT_ORDER_REVERSE.md` - Phase 17 cancellation, reschedule, and reassignment intent
 - `CONTRACT_AFTERSALE_COMPLAINTS.md` - Phase 17 complaints, repair, liability, compensation intent, and timeline
+- `CONTRACT_OBJECT_STORAGE_PROVIDER.md` - Phase 18 private local/mock storage envelope and upload safety
+- `CONTRACT_FULFILLMENT_EVIDENCE.md` - Phase 18 evidence binding and customer confirmation
