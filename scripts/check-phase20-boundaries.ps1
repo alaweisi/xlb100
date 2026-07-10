@@ -1,0 +1,5 @@
+$ErrorActionPreference="Stop";$Root=Split-Path -Parent $PSScriptRoot;$violations=@();$provider=Get-Content -Raw (Join-Path $Root "backend\src\dispatch\geoProvider.ts")
+foreach($pattern in @('fetch\(','axios','https?://','amap','高德')){if($provider-match$pattern){$violations+="geo provider matched forbidden external pattern: $pattern"}}
+foreach($required in @('provider: "local_mock"','externalProviderExecuted: false','haversine_local_v1')){if(-not$provider.Contains($required)){$violations+="geo provider missing: $required"}}
+$migration=Get-Content -Raw (Join-Path $Root "db\migrations\039_phase20_lbs_lite_dispatch.sql");foreach($required in @('worker_locations','worker_dispatch_preferences','FOREIGN KEY (worker_id, city_code)','FOREIGN KEY (city_code, dispatch_task_id)',"privacy_level = 'private_exact'")){if(-not$migration.Contains($required)){$violations+="migration 039 missing: $required"}}
+if($violations.Count){$violations|%{Write-Host $_};exit 1};Write-Host "check-phase20-boundaries: passed"

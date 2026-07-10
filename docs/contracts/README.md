@@ -2,6 +2,8 @@
 
 Contracts are implemented through shared types, shared validators, backend guards, API clients, and verification tests.
 
+- Phase 20 LBS-lite dispatch - `CONTRACT_PHASE20_LBS_LITE_DISPATCH.md`
+
 - RequestContext - Phase 1
 - CityCode - Phase 1
 - Payment metadata - Phase 3

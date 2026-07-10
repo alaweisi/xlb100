@@ -294,13 +294,12 @@ export class WorkerAcceptService {
         }
       });
     } catch (error) {
-      if (error instanceof TaskAlreadyAcceptedError) {
-        const raced = await this.acceptRepo.findByDispatchTaskId(
-          dispatchTaskId,
-          cityCode,
-        );
-        if (raced) {
-          return this.buildIdempotentResult(raced, workerId, cityCode);
+      const concurrentDatabaseConflict=typeof error==="object"&&error!==null&&"code" in error&&["ER_LOCK_DEADLOCK","ER_DUP_ENTRY"].includes(String((error as {code:string}).code));
+      if (error instanceof TaskAlreadyAcceptedError || concurrentDatabaseConflict) {
+        for(let attempt=0;attempt<10;attempt++){
+          const raced = await this.acceptRepo.findByDispatchTaskId(dispatchTaskId,cityCode);
+          if (raced) return this.buildIdempotentResult(raced,workerId,cityCode);
+          await new Promise(resolve=>setTimeout(resolve,20));
         }
       }
       throw error;

@@ -7,6 +7,7 @@ import { OrderTracePage } from "../pages/OrderTracePage";
 import { WorkerWithdrawalsPage } from "../pages/WorkerWithdrawalsPage";
 import { AftersaleOpsPage } from "../pages/AftersaleOpsPage";
 import { EnterpriseOpsPage } from "../pages/EnterpriseOpsPage";
+import { DispatchBoardPage } from "../pages/DispatchBoardPage";
 import { buildHash, parseHashParams, parseView } from "../hashParams";
 import {
   clearAdminSession,
@@ -122,6 +123,7 @@ export function App() {
     window.location.hash = buildHash("/aftersale", { cityCode: cityCode || "" });
   }, [cityCode]);
   const navigateToEnterprise = useCallback(() => { window.location.hash=buildHash("/enterprise",{cityCode:cityCode||""}); },[cityCode]);
+  const navigateToDispatch = useCallback(() => {window.location.hash=buildHash("/dispatch",{cityCode:cityCode||""});},[cityCode]);
 
   const navigateToDashboard = useCallback(() => {
     window.location.hash = "";
@@ -131,6 +133,8 @@ export function App() {
     ? "Worker Withdrawals"
     : view.page === "enterprise"
     ? "Enterprise Platform"
+    : view.page === "dispatch"
+    ? "LBS-lite Dispatch"
     : view.page === "aftersale"
     ? "Aftersale Operations"
     : view.page === "orderTrace"
@@ -174,6 +178,8 @@ export function App() {
     ? <WorkerWithdrawalsPage initialCityCode={cityCode} />
     : view.page === "enterprise"
     ? <EnterpriseOpsPage initialCityCode={cityCode}/>
+    : view.page === "dispatch"
+    ? <DispatchBoardPage initialCityCode={cityCode}/>
     : view.page === "aftersale"
     ? <AftersaleOpsPage initialCityCode={cityCode} />
     : view.page === "orderTrace"
@@ -262,6 +268,7 @@ export function App() {
               onClick: navigateToAftersale,
             },
             { key:"enterprise",label:"Enterprise",active:view.page==="enterprise",href:"#/enterprise",onClick:navigateToEnterprise },
+            { key:"dispatch",label:"Dispatch",active:view.page==="dispatch",href:"#/dispatch",onClick:navigateToDispatch },
           ]}
         />
       }

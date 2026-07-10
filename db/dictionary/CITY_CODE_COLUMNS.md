@@ -69,6 +69,13 @@ Phase 1 city foundation. All city-scoped business tables (Phase 2+) **must** inc
 
 ## Phase 19 enterprise tables with city_code
 
+## Phase 20 dispatch tables with city_code
+
+| Table | city_code column | Notes |
+| --- | --- | --- |
+| `worker_dispatch_preferences` | composite PK/FK | Worker must be bound to the same city |
+| `worker_locations` | required composite FK + non-global check | Exact private location expires after ten minutes |
+
 | Table | city_code column | Notes |
 |-------|------------------|-------|
 | `business_clients` | required FK + non-global check | Enterprise tenant root |

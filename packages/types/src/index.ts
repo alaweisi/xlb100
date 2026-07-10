@@ -105,6 +105,9 @@ export type {
   DispatchTask,
   DispatchTaskStatus,
   DispatchStreamMessage,
+  GeoPoint,
+  GeoProviderEnvelope,
+  WorkerLocation,
 } from "./dispatch.js";
 export type {
   WorkerProfile,

@@ -63,9 +63,21 @@ export const dispatchOfferSchema = z.object({
   workerId: z.string().min(1).max(64),
   status: dispatchOfferStatusSchema,
   distanceKm: z.number().min(0).nullable(),
+  etaMinutes: z.number().int().min(0).nullable().optional(),
+  rankScore: z.number().nullable().optional(),
+  expiresAt: z.string().nullable().optional(),
   offeredAt: z.string().min(1),
   respondedAt: z.string().min(1).nullable(),
 });
+
+export const upsertWorkerLocationSchema = z.object({
+  latitude: z.number().min(-90).max(90),
+  longitude: z.number().min(-180).max(180),
+  accuracyMeters: z.number().min(0).max(5000),
+  capturedAt: z.string().datetime(),
+  serviceRadiusKm: z.number().min(1).max(50),
+  locationSharingEnabled: z.boolean(),
+}).strict();
 
 export const dispatchEventSchema = z.object({
   dispatchEventId: z.string().min(1).max(64),

@@ -177,6 +177,15 @@ Migration `036` adds composite city/order/fulfillment/complaint/media foreign ke
 
 ## Phase 19 enterprise platform
 
+## Phase 20 LBS-lite dispatch
+
+| Table | Purpose | Boundary |
+| --- | --- | --- |
+| `worker_dispatch_preferences` | city-scoped radius, sharing, rating and penalty hooks | no public exact location |
+| `worker_locations` | latest private exact worker location with ten-minute expiry | no map provider execution |
+
+Migration `039` stores local/mock geo snapshots on dispatch tasks/offers and replaces task/offer/event references with city-composite foreign keys.
+
 | Table | Purpose | Execution boundary |
 |-------|---------|--------------------|
 | `business_clients` | Enterprise tenant, status, billing mode, synthetic order owner | onboarding only |
