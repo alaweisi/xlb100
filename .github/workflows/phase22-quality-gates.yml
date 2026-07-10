@@ -1,0 +1,77 @@
+name: Phase 22 Quality Gates
+
+on:
+  push:
+    branches: [main, master, codex/phase22-e2e-security-performance-gates]
+  pull_request:
+
+jobs:
+  phase22:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8
+        env:
+          MYSQL_ROOT_PASSWORD: xlb_root_password
+          MYSQL_DATABASE: xlb_local
+          MYSQL_USER: xlb
+          MYSQL_PASSWORD: xlb_local_password
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uxlb -pxlb_local_password"
+          --health-interval=10s --health-timeout=5s --health-retries=8 --health-start-period=30s
+      redis:
+        image: redis:7
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd="redis-cli ping" --health-interval=10s --health-timeout=5s --health-retries=5
+    env:
+      NODE_ENV: test
+      MYSQL_HOST: 127.0.0.1
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: xlb_local
+      MYSQL_USER: xlb
+      MYSQL_PASSWORD: xlb_local_password
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: 6379
+      JWT_SECRET: phase22-ci-secret
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Migrate database
+        working-directory: backend
+        run: pnpm exec tsx src/dal/migrateCli.ts
+      - name: Seed database
+        working-directory: backend
+        run: pnpm exec tsx src/dal/seedCli.ts
+      - name: Build workspace
+        run: pnpm build
+      - name: Typecheck workspace
+        run: pnpm typecheck
+      - name: Cross-phase E2E gate
+        run: pnpm test:e2e:phase22
+      - name: Authorization security gate
+        run: pnpm test:security:phase22
+      - name: Observability gate
+        run: pnpm test:observability:phase22
+      - name: Concurrency performance gate
+        run: pnpm test:performance:phase22
+      - name: Coverage threshold gate
+        run: pnpm test:coverage:phase22
+      - name: Critical dependency audit
+        run: pnpm audit:critical
+      - name: Upload Phase 22 coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase22-coverage
+          path: coverage/phase22
+          if-no-files-found: warn

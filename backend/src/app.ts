@@ -31,9 +31,30 @@ import { registerOrderReviewRoutes } from "./review/orderReviewRoutes.js";
 import { registerEnterpriseRoutes } from "./enterprise/enterpriseRoutes.js";
 import { registerCustomerOperationsRoutes } from "./customer/customerOperationsRoutes.js";
 import { registerAdminOperationsRoutes } from "./adminOperations/adminOperationsRoutes.js";
+import { recordHttpRequest, renderPrometheusMetrics } from "./observability/metrics.js";
+import { createRateLimitGuard, type RateLimitOptions } from "./security/rateLimit.js";
 
-export async function buildApp(): Promise<FastifyInstance> {
+export type BuildAppOptions = {
+  rateLimit?: RateLimitOptions;
+};
+
+export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyInstance> {
   const app = Fastify({ logger: process.env.NODE_ENV === "test" ? false : true });
+
+  app.addHook("onRequest", createRateLimitGuard(options.rateLimit));
+  app.addHook("onResponse", async (request, reply) => {
+    const route = request.routeOptions.url ?? request.url.split("?", 1)[0] ?? "unknown";
+    recordHttpRequest({ method: request.method, route, statusCode: reply.statusCode, durationMs: reply.elapsedTime });
+    request.log.info({
+      traceId: request.xlbContext?.traceId ?? request.id,
+      cityCode: request.xlbContext?.cityCode,
+      appType: request.xlbContext?.appType,
+      method: request.method,
+      route,
+      statusCode: reply.statusCode,
+      durationMs: Number(reply.elapsedTime.toFixed(3)),
+    }, "request completed");
+  });
 
   app.get("/health", async () => ({
     status: "ok",
@@ -57,6 +78,10 @@ export async function buildApp(): Promise<FastifyInstance> {
       return reply.status(503).send(health);
     }
     return { ...health, phase: "8C" };
+  });
+
+  app.get("/metrics", async (_request, reply) => {
+    return reply.type("text/plain; version=0.0.4; charset=utf-8").send(renderPrometheusMetrics());
   });
 
   app.get(

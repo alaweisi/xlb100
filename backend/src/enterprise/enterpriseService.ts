@@ -10,6 +10,7 @@ import { orderService } from "../order/orderService.js";
 import { enterpriseRepository } from "./enterpriseRepository.js";
 import { canonicalWebhookPayload, decryptEnterpriseSecret, encryptEnterpriseSecret, sha256, signWebhook } from "./enterpriseCrypto.js";
 import { assertSafeHttpsWebhookUrl, createWebhookProvider } from "./webhookProvider.js";
+import { recordWebhookRun } from "../observability/metrics.js";
 
 const id=(prefix:string)=>`${prefix}_${randomUUID().replaceAll("-","").slice(0,24)}`;
 const secret=()=>randomBytes(32).toString("base64url");
@@ -64,7 +65,7 @@ export class EnterpriseService {
       const agreement=await enterpriseRepository.findCurrentAgreement(context.cityCode,context.businessClientId,parsed.data.skuId);
       const order=await orderService.createOrder(customerContext(context),parsed.data,agreement?{unitAmount:agreement.unitPrice,priceText:`Enterprise agreement CNY ${agreement.unitPrice.toFixed(2)}`} : undefined);
       const mapping={business_order_id:id("bord"),business_client_id:context.businessClientId,city_code:context.cityCode,external_order_id:parsed.data.externalOrderId,idempotency_key:parsed.data.idempotencyKey,request_hash:requestHash,order_id:order.orderId,agreement_price_id:agreement?.agreementPriceId??null,pricing_source:agreement?"agreement" as const:"public" as const,created_at:new Date()};
-      await enterpriseRepository.insertBusinessOrder({businessOrderId:mapping.business_order_id,clientId:context.businessClientId,cityCode:context.cityCode,externalOrderId:mapping.external_order_id,idempotencyKey:mapping.idempotency_key,requestHash,orderId:order.orderId,agreementId:mapping.agreement_price_id,pricingSource:mapping.pricing_source,snapshot:parsed.data});
+      await withTransaction(connection=>enterpriseRepository.insertBusinessOrder(connection,{businessOrderId:mapping.business_order_id,clientId:context.businessClientId,cityCode:context.cityCode,externalOrderId:mapping.external_order_id,idempotencyKey:mapping.idempotency_key,requestHash,orderId:order.orderId,agreementId:mapping.agreement_price_id,pricingSource:mapping.pricing_source,snapshot:parsed.data}));
       return {businessOrder:this.composeOrder(mapping,order),idempotent:false};
     });
   }
@@ -87,15 +88,20 @@ export class EnterpriseService {
   async updateSubscriptionStatus(context:RequestContext,clientId:string,subscriptionId:string,body:unknown){const cityCode=requireAdmin(context);const parsed=updateBusinessWebhookSubscriptionStatusSchema.safeParse(body);if(!parsed.success)throw new EnterpriseError(parsed.error.message);if(!await enterpriseRepository.updateSubscriptionStatus(cityCode,clientId,subscriptionId,parsed.data.status))throw new EnterpriseError("subscription not found",404);return {subscriptionId,status:parsed.data.status};}
 
   async runWebhookDeliveries(context:RequestContext){
-    const cityCode=requireAdmin(context);const candidates=await enterpriseRepository.findWebhookCandidates(cityCode);
-    for(const candidate of candidates){const payload={id:candidate.event_id,type:candidate.event_type,occurredAt:candidate.created_at.toISOString(),businessClientId:candidate.business_client_id,data:typeof candidate.payload_json==="string"?JSON.parse(candidate.payload_json):candidate.payload_json};const serialized=canonical(payload);const signature=signWebhook(decryptEnterpriseSecret(candidate.signing_secret_ciphertext),payload.occurredAt,serialized);await withTransaction(connection=>enterpriseRepository.insertDelivery(connection,{deliveryId:id("bdlv"),subscriptionId:candidate.subscription_id,clientId:candidate.business_client_id,cityCode,eventId:candidate.event_id,eventType:candidate.event_type,payload,payloadHash:sha256(serialized),signature}));}
-    const due=await enterpriseRepository.listDueDeliveries(cityCode);let delivered=0,retry=0;
-    for(const row of due){const payload=canonical(typeof row.payload_json==="string"?JSON.parse(row.payload_json):row.payload_json);const occurredAt=(JSON.parse(payload) as {occurredAt:string}).occurredAt;let envelope:WebhookProviderEnvelope;
-      try{envelope=await createWebhookProvider(row.callback_url).deliver({callbackUrl:row.callback_url,deliveryId:row.delivery_id,eventType:row.event_type,payload,signature:row.signature,timestamp:occurredAt});}
-      catch(error){envelope={provider:row.callback_url.startsWith("https://")?"https":"mock",providerStatus:row.callback_url.startsWith("https://")?"failed_https":"failed_mock",externalProviderExecuted:false,httpStatus:null,responseBody:error instanceof Error?error.message:"delivery failed",attemptedAt:new Date().toISOString()};}
-      const success=envelope.providerStatus==="delivered_mock"||envelope.providerStatus==="delivered_https";await enterpriseRepository.finishDelivery({cityCode,deliveryId:row.delivery_id,success,envelope,error:success?null:envelope.responseBody});success?delivered++:retry++;
-    }
-    return {candidates:candidates.length,attempted:due.length,delivered,retry};
+    const cityCode=requireAdmin(context);
+    const result=await enterpriseRepository.withWebhookRunLock(cityCode,async()=>{
+      const candidates=await enterpriseRepository.findWebhookCandidates(cityCode);
+      for(const candidate of candidates){const payload={id:candidate.event_id,type:candidate.event_type,occurredAt:candidate.created_at.toISOString(),businessClientId:candidate.business_client_id,data:typeof candidate.payload_json==="string"?JSON.parse(candidate.payload_json):candidate.payload_json};const serialized=canonical(payload);const signature=signWebhook(decryptEnterpriseSecret(candidate.signing_secret_ciphertext),payload.occurredAt,serialized);await withTransaction(connection=>enterpriseRepository.insertDelivery(connection,{deliveryId:id("bdlv"),subscriptionId:candidate.subscription_id,clientId:candidate.business_client_id,cityCode,eventId:candidate.event_id,eventType:candidate.event_type,payload,payloadHash:sha256(serialized),signature}));}
+      const due=await enterpriseRepository.listDueDeliveries(cityCode);let delivered=0,retry=0;
+      for(const row of due){const payload=canonical(typeof row.payload_json==="string"?JSON.parse(row.payload_json):row.payload_json);const occurredAt=(JSON.parse(payload) as {occurredAt:string}).occurredAt;let envelope:WebhookProviderEnvelope;
+        try{envelope=await createWebhookProvider(row.callback_url).deliver({callbackUrl:row.callback_url,deliveryId:row.delivery_id,eventType:row.event_type,payload,signature:row.signature,timestamp:occurredAt});}
+        catch(error){envelope={provider:row.callback_url.startsWith("https://")?"https":"mock",providerStatus:row.callback_url.startsWith("https://")?"failed_https":"failed_mock",externalProviderExecuted:false,httpStatus:null,responseBody:error instanceof Error?error.message:"delivery failed",attemptedAt:new Date().toISOString()};}
+        const success=envelope.providerStatus==="delivered_mock"||envelope.providerStatus==="delivered_https";await enterpriseRepository.finishDelivery({cityCode,deliveryId:row.delivery_id,success,envelope,error:success?null:envelope.responseBody});success?delivered++:retry++;
+      }
+      return {candidates:candidates.length,attempted:due.length,delivered,retry};
+    });
+    if(!result){recordWebhookRun({delivered:0,retry:0,busy:true});return {candidates:0,attempted:0,delivered:0,retry:0,busy:true};}
+    recordWebhookRun(result);return result;
   }
   async listDeliveries(context:RequestContext,clientId:string){return enterpriseRepository.listDeliveries(requireAdmin(context),clientId);}
   async retryDelivery(context:RequestContext,clientId:string,deliveryId:string){const ok=await enterpriseRepository.forceRetry(requireAdmin(context),clientId,deliveryId);if(!ok)throw new EnterpriseError("retryable delivery not found",409);return {deliveryId,status:"retry_wait" as const};}

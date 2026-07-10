@@ -51,17 +51,28 @@ export class EnterpriseRepository extends RepositoryBase {
   async listAgreements(cityCode:CityCode,clientId:string){const [rows]=await this.pool.query<AgreementRow[]>(`SELECT * FROM business_agreement_prices WHERE city_code=? AND business_client_id=? ORDER BY sku_id`,[cityCode,clientId]);return rows.map(mapAgreement);}
 
   async withClientLock<T>(cityCode:CityCode,clientId:string,callback:()=>Promise<T>):Promise<T>{
-    const connection=await this.pool.getConnection();const key=`xlb:p19:${cityCode}:${clientId}`;
-    try{const [rows]=await connection.query<(RowDataPacket&{locked:number})[]>(`SELECT GET_LOCK(?,10) locked`,[key]);if(rows[0]?.locked!==1)throw new Error("enterprise client lock timeout");return await callback();}
-    finally{try{await connection.query(`SELECT RELEASE_LOCK(?)`,[key]);}finally{connection.release();}}
+    const result=await this.withNamedLock(`xlb:p19:${cityCode}:${clientId}`,10,callback);
+    if(result===null)throw new Error("enterprise client lock timeout");
+    return result;
+  }
+
+  async withWebhookRunLock<T>(cityCode:CityCode,callback:()=>Promise<T>):Promise<T|null>{
+    return this.withNamedLock(`xlb:p22:webhook:${cityCode}`,0,callback);
+  }
+
+  private async withNamedLock<T>(key:string,timeoutSeconds:number,callback:()=>Promise<T>):Promise<T|null>{
+    const connection=await this.pool.getConnection();let acquired=false;
+    try{const [rows]=await connection.query<(RowDataPacket&{locked:number})[]>(`SELECT GET_LOCK(?,?) locked`,[key,timeoutSeconds]);acquired=rows[0]?.locked===1;if(!acquired)return null;return await callback();}
+    finally{try{if(acquired)await connection.query(`SELECT RELEASE_LOCK(?)`,[key]);}finally{connection.release();}}
   }
   async findOrderMapping(cityCode:CityCode,clientId:string,externalId?:string,idempotencyKey?:string){
     const clauses=["city_code=?","business_client_id=?"];const params:unknown[]=[cityCode,clientId];
     if(externalId){clauses.push("external_order_id=?");params.push(externalId);}if(idempotencyKey){clauses.push("idempotency_key=?");params.push(idempotencyKey);}
     const [rows]=await this.pool.query<BusinessOrderRow[]>(`SELECT * FROM business_orders WHERE ${clauses.join(" AND ")} LIMIT 1`,params);return rows[0]??null;
   }
-  async insertBusinessOrder(input:{businessOrderId:string;clientId:string;cityCode:CityCode;externalOrderId:string;idempotencyKey:string;requestHash:string;orderId:string;agreementId:string|null;pricingSource:"public"|"agreement";snapshot:unknown}){
-    await this.pool.query(`INSERT INTO business_orders(business_order_id,business_client_id,city_code,external_order_id,idempotency_key,request_hash,order_id,agreement_price_id,pricing_source,request_snapshot_json) VALUES(?,?,?,?,?,?,?,?,?,?)`,[input.businessOrderId,input.clientId,input.cityCode,input.externalOrderId,input.idempotencyKey,input.requestHash,input.orderId,input.agreementId,input.pricingSource,JSON.stringify(input.snapshot)]);
+  async insertBusinessOrder(connection:PoolConnection,input:{businessOrderId:string;clientId:string;cityCode:CityCode;externalOrderId:string;idempotencyKey:string;requestHash:string;orderId:string;agreementId:string|null;pricingSource:"public"|"agreement";snapshot:unknown}){
+    await connection.query(`INSERT INTO business_order_tenant_ownership(city_code,business_client_id,order_id) VALUES(?,?,?)`,[input.cityCode,input.clientId,input.orderId]);
+    await connection.query(`INSERT INTO business_orders(business_order_id,business_client_id,city_code,external_order_id,idempotency_key,request_hash,order_id,agreement_price_id,pricing_source,request_snapshot_json) VALUES(?,?,?,?,?,?,?,?,?,?)`,[input.businessOrderId,input.clientId,input.cityCode,input.externalOrderId,input.idempotencyKey,input.requestHash,input.orderId,input.agreementId,input.pricingSource,JSON.stringify(input.snapshot)]);
   }
   async listOrderMappings(cityCode:CityCode,clientId:string){const [rows]=await this.pool.query<BusinessOrderRow[]>(`SELECT * FROM business_orders WHERE city_code=? AND business_client_id=? ORDER BY created_at DESC LIMIT 100`,[cityCode,clientId]);return rows;}
 

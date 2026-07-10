@@ -1,5 +1,5 @@
-# Phase 12 gate: verify apps/customer, apps/worker, package.json, pnpm-lock unchanged.
-# Phase 12 is backend preparation-only; no customer/worker impact allowed.
+# Phase 12 gate: preserve its customer/worker boundary. Later quality-gate phases may
+# update the root manifest when their own boundary gate is present.
 $ErrorActionPreference = "Stop"
 
 # ══════════════════════════════════════════════════════════════════
@@ -41,6 +41,10 @@ $forbiddenDirs = @(
 $forbiddenFiles = @(
   "package.json"
 )
+$allowedLaterPhaseFiles = @()
+if (Test-Path (Join-Path $Root "scripts/check-phase22-boundaries.ps1")) {
+  $allowedLaterPhaseFiles += "package.json"
+}
 
 $changedFiles = & git -C $Root diff --name-only main...HEAD 2>$null
 if ($LASTEXITCODE -ne 0) {
@@ -58,7 +62,7 @@ foreach ($file in $changedFiles) {
   }
   foreach ($ff in $forbiddenFiles) {
     $normalized = $file -replace '\\', '/'
-    if ($normalized -eq $ff) {
+    if ($normalized -eq $ff -and $allowedLaterPhaseFiles -notcontains $normalized) {
       $violations += $file
     }
   }

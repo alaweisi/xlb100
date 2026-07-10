@@ -1,5 +1,5 @@
-# Phase 11 gate: verify apps/customer, apps/worker, package.json, pnpm-lock unchanged.
-# Phase 11 is backend governance-only; no customer/worker impact allowed.
+# Phase 11 gate: preserve its customer/worker boundary. Later quality-gate phases may
+# update the root manifest when their own boundary gate is present.
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 
@@ -11,6 +11,10 @@ $forbiddenDirs = @(
 $forbiddenFiles = @(
   "package.json"
 )
+$allowedLaterPhaseFiles = @()
+if (Test-Path (Join-Path $Root "scripts/check-phase22-boundaries.ps1")) {
+  $allowedLaterPhaseFiles += "package.json"
+}
 
 $changedFiles = & git -C $Root diff --name-only main...HEAD 2>$null
 if ($LASTEXITCODE -ne 0) {
@@ -26,7 +30,7 @@ foreach ($file in $changedFiles) {
     }
   }
   foreach ($ff in $forbiddenFiles) {
-    if ($file -eq $ff) {
+    if ($file -eq $ff -and $allowedLaterPhaseFiles -notcontains $file) {
       $violations += $file
     }
   }

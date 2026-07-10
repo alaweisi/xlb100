@@ -1,0 +1,31 @@
+groups:
+  - name: xlb-phase22
+    rules:
+      - alert: XlbHighHttpErrorRate
+        expr: sum(rate(xlb_http_requests_total{status=~"5.."}[5m])) / clamp_min(sum(rate(xlb_http_requests_total[5m])), 1) > 0.02
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: XLB HTTP 5xx ratio exceeds 2 percent
+      - alert: XlbSustainedRateLimitRejections
+        expr: increase(xlb_rate_limit_rejections_total[5m]) > 100
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: XLB API edge is rejecting sustained request bursts
+      - alert: XlbWebhookRetryStorm
+        expr: increase(xlb_webhook_delivery_attempts_total{outcome="retry"}[10m]) > 50
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: XLB webhook retries exceed the Phase 22 storm threshold
+      - alert: XlbWebhookRunContention
+        expr: increase(xlb_webhook_run_busy_total[5m]) > 20
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Concurrent webhook runners are repeatedly contending for the city lock

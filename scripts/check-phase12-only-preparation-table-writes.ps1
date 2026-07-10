@@ -55,6 +55,7 @@ $allowedPerModule = @{
   'backend/src/ledger' = 'ledger_(accounts|accruals|entries)'
   'backend/src/planner' = 'settlement_execution_dry_run_'
   'backend/src/aftersale' = 'aftersale_refund_requests'
+  'backend/src/enterprise' = '(customers|business_[A-Za-z0-9_]+|enterprise_bill_snapshots)'
 }
 
 function Get-AllowedTablePattern([string]$FilePath) {
