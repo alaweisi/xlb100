@@ -206,3 +206,7 @@ Migration `040` creates the customer/city foreign keys and rejects `__global__`.
 | `enterprise_bill_snapshots` | Immutable period/order amount snapshot | no invoice/payment/payout execution |
 
 Migration `038` hardens enterprise isolation with composite `(city_code, business_client_id, ...)` foreign keys from business orders to agreement prices and from webhook deliveries to subscriptions. A valid same-city identifier from another enterprise tenant is therefore rejected by MySQL rather than relying only on repository filters.
+
+## Phase 22 quality gates
+
+Migration `042` adds `business_order_tenant_ownership` and a composite foreign key from `business_orders(city_code, business_client_id, order_id)`. The canonical order can belong to only one enterprise tenant, and direct tenant rebinding is rejected without requiring database trigger privileges.

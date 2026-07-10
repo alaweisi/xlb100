@@ -77,4 +77,13 @@ export default defineWorkspace([
     },
     resolve: { alias },
   },
+  {
+    test: {
+      name: "performance-serial",
+      include: ["tests/performance/**/*.test.ts"],
+      testTimeout: 120000,
+      ...dbSerial,
+    },
+    resolve: { alias },
+  },
 ]);

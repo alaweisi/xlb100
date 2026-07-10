@@ -514,3 +514,5 @@ Write-Host "XLB ledger immutability proof preflight passed."
 Invoke-PreflightGate "check-phase21-boundaries.ps1"
 Write-Host "XLB Phase 21 three-app operations boundary preflight passed."
 
+Invoke-PreflightGate "check-phase22-boundaries.ps1"
+Write-Host "XLB Phase 22 quality gate boundary preflight passed."
