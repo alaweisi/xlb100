@@ -24,7 +24,6 @@ async function snapshot(orderId: string): Promise<unknown> {
 
 describe.skipIf(!runDb)("Phase 22 cross-phase end-to-end data flow", { timeout: 90_000 }, () => {
   it("preserves quote and evidence snapshots across dispatch, fulfillment, complaint, and applicable enterprise webhook delivery", async () => {
-    throw new Error("intentional hosted red-light proof: Phase 22 E2E must block CI");
     await ensureHangzhouWorkerEligible();
     const app = await buildApp();
     const pool = getMysqlPool();
