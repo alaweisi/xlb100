@@ -26,6 +26,7 @@
 | Phase 19 | LOCKED | xlb-phase19-enterprise-openapi-webhook | B-side enterprise clients + API key OpenAPI + webhook delivery |
 | Phase 20 | LOCKED | xlb-phase20-lbs-lite-dispatch | LBS-lite local/mock geo + private worker location + dispatch ranking/reassignment |
 | Phase 21 | LOCKED | xlb-phase21-three-app-operations-closure | Customer / worker / admin operations UI closure |
+| Phase 22 | IN PROGRESS | - | E2E / observability / security / performance gates |
 
 ## Phase 10 — Settlement Action Governance (LOCKED)
 
@@ -223,6 +224,15 @@
 - **Verification**: focused Vitest 8 files / 23 tests; Playwright 1 spec / 3 tests; full suite 286 files / 1,145 tests plus 1 existing Phase 1 todo; typecheck 17/17; build 11/11; preflight passed
 - **Lock verification**: post-merge full suite, architecture preflight, migration replay, provider boundary, focused tests, and three-app Playwright smoke all passed on `main`
 - **Lock state**: LOCKED after feature/audit commits, `--no-ff` merge, tag, post-merge verification, and this metadata update
+
+## Phase 22 - E2E / Observability / Security / Performance Gates (IN PROGRESS)
+
+- **Entered**: 2026-07-10
+- **Branch/base**: `codex/phase22-e2e-security-performance-gates` from Phase 21 locked main `88eaa61b94688cbb7fe402420575646af4a86418`
+- **Scope**: repeatable cross-app and enterprise E2E, structured logs/metrics/trace correlation, API-edge security gates, dependency scanning, and deterministic performance benchmarks
+- **Acceptance focus**: CI-failing E2E/security/performance thresholds; explicit multi-city/tenant/role rejection; provider-envelope truthfulness; test-count/todo reconciliation; staging-readiness evidence regeneration
+- **Boundary**: no real payment/refund/payout/withdrawal provider execution; no real Amap/map provider; no real OSS; no mutation of locked Phase 16-21 migrations or tags
+- **State**: phase branch created from locked `main`; implementation has not yet been committed
 
 ## Third-party Inspection
 

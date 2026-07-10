@@ -1,7 +1,7 @@
 # XLB Phase 16-22 Competitive Gap Closure Plan
 
 Date: 2026-07-10
-Status: active; Phase 16 complete, Phases 17-21 locked, Phase 22 planned
+Status: active; Phase 16 complete, Phases 17-21 locked, Phase 22 in progress
 Basis: `docs/CURRENT_STATE.md`, `docs/reports/PHASE15_*`, `docs/reports/PHASE16_V18_PROJECT_HEALTHCHECK.md`, third-party benchmark report `FRESH_BENCHMARK_XLB_2026-07-10.md`, and public competitor capability scan.
 
 ## 0. Planning Position
@@ -30,7 +30,7 @@ Execution state on 2026-07-10:
 - Phase 19: LOCKED at tag `xlb-phase19-enterprise-openapi-webhook`.
 - Phase 20: LOCKED at tag `xlb-phase20-lbs-lite-dispatch` (`8481577`).
 - Phase 21: LOCKED as `xlb-phase21-three-app-operations-closure`; post-merge full and formal gates passed.
-- Phase 22: planned; not entered.
+- Phase 22: IN PROGRESS on `codex/phase22-e2e-security-performance-gates`, based on locked Phase 21 main `88eaa61`.
 
 ## 1. Non-Negotiable Boundaries
 
