@@ -174,3 +174,18 @@ Does not mutate queue, payables, batches, items, ledger entries, or upstream dom
 | `fulfillment_customer_confirmations` | Customer confirmation/dispute with evidence snapshot | required |
 
 Migration `036` adds composite city/order/fulfillment/complaint/media foreign keys so valid IDs from another city cannot be combined into a Phase 18 record.
+
+## Phase 19 enterprise platform
+
+| Table | Purpose | Execution boundary |
+|-------|---------|--------------------|
+| `business_clients` | Enterprise tenant, status, billing mode, synthetic order owner | onboarding only |
+| `business_client_contacts` | Enterprise contacts | no login impersonation |
+| `business_api_credentials` | Hashed API keys and least-privilege scopes | plaintext key never stored |
+| `business_agreement_prices` | Time-bounded client/SKU unit price | order quote override only |
+| `business_orders` | External id/idempotency mapping to canonical XLB order | reuses OrderService |
+| `business_webhook_subscriptions` | Event allowlist, encrypted signing secret, callback | no unscoped callbacks |
+| `business_webhook_deliveries` | Signed payload, attempts, provider envelope, retry/dead letter | no fake HTTPS success |
+| `enterprise_bill_snapshots` | Immutable period/order amount snapshot | no invoice/payment/payout execution |
+
+Migration `038` hardens enterprise isolation with composite `(city_code, business_client_id, ...)` foreign keys from business orders to agreement prices and from webhook deliveries to subscriptions. A valid same-city identifier from another enterprise tenant is therefore rejected by MySQL rather than relying only on repository filters.

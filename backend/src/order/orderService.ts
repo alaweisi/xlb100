@@ -68,7 +68,11 @@ export class OrderService {
     private readonly outboxRepo: EventOutboxRepository = eventOutboxRepository,
   ) {}
 
-  async createOrder(context: RequestContext, input: CreateOrderInput): Promise<Order> {
+  async createOrder(
+    context: RequestContext,
+    input: CreateOrderInput,
+    pricingOverride?: { unitAmount: number; priceText: string },
+  ): Promise<Order> {
     const parsed = createOrderSchema.safeParse(input);
     if (!parsed.success) {
       throw new OrderValidationError(parsed.error.message);
@@ -108,7 +112,14 @@ export class OrderService {
         this.pricingRepo.findSkuProfile(context, cityCode, priceRule.skuId),
         this.pricingRepo.findServiceStandards(context, cityCode, priceRule.skuId),
       ]);
-      const breakdown = buildPriceQuoteBreakdown(priceRule, feeItems);
+      const publicBreakdown = buildPriceQuoteBreakdown(priceRule, feeItems);
+      if (pricingOverride && (!Number.isFinite(pricingOverride.unitAmount) || pricingOverride.unitAmount <= 0)) {
+        throw new OrderValidationError("pricing override must be a positive finite amount");
+      }
+      const breakdown = pricingOverride
+        ? { ...publicBreakdown, baseAmount: pricingOverride.unitAmount, requiredFeeAmount: 0, optionalFeeAmount: 0,
+            totalAmount: pricingOverride.unitAmount, feeItems: [] }
+        : publicBreakdown;
 
       const orderId = generateOrderId();
       const totalAmount = Number((breakdown.totalAmount * parsed.data.quantity).toFixed(2));
@@ -117,7 +128,7 @@ export class OrderService {
         skuId: sku.skuId,
         quantity: parsed.data.quantity,
         currency: priceRule.currency,
-        priceText: priceRule.priceText,
+        priceText: pricingOverride?.priceText ?? priceRule.priceText,
         priceType: priceRule.priceType,
         unitAmount: breakdown.totalAmount,
         totalAmount,
@@ -145,9 +156,9 @@ export class OrderService {
           quantity: parsed.data.quantity,
           unit: sku.unit,
           priceRuleId: priceRule.priceRuleId,
-          priceText: priceRule.priceText,
+          priceText: pricingOverride?.priceText ?? priceRule.priceText,
           priceType: priceRule.priceType,
-          basePrice: priceRule.basePrice,
+          basePrice: pricingOverride?.unitAmount ?? priceRule.basePrice,
           currency: priceRule.currency,
           totalAmount,
           quoteSnapshot,

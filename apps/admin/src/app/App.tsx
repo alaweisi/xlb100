@@ -6,6 +6,7 @@ import { SettlementActionGovernancePage } from "../pages/SettlementActionGoverna
 import { OrderTracePage } from "../pages/OrderTracePage";
 import { WorkerWithdrawalsPage } from "../pages/WorkerWithdrawalsPage";
 import { AftersaleOpsPage } from "../pages/AftersaleOpsPage";
+import { EnterpriseOpsPage } from "../pages/EnterpriseOpsPage";
 import { buildHash, parseHashParams, parseView } from "../hashParams";
 import {
   clearAdminSession,
@@ -120,6 +121,7 @@ export function App() {
   const navigateToAftersale = useCallback(() => {
     window.location.hash = buildHash("/aftersale", { cityCode: cityCode || "" });
   }, [cityCode]);
+  const navigateToEnterprise = useCallback(() => { window.location.hash=buildHash("/enterprise",{cityCode:cityCode||""}); },[cityCode]);
 
   const navigateToDashboard = useCallback(() => {
     window.location.hash = "";
@@ -127,6 +129,8 @@ export function App() {
 
   const viewTitle = view.page === "workerWithdrawals"
     ? "Worker Withdrawals"
+    : view.page === "enterprise"
+    ? "Enterprise Platform"
     : view.page === "aftersale"
     ? "Aftersale Operations"
     : view.page === "orderTrace"
@@ -168,6 +172,8 @@ export function App() {
 
   const content = view.page === "workerWithdrawals"
     ? <WorkerWithdrawalsPage initialCityCode={cityCode} />
+    : view.page === "enterprise"
+    ? <EnterpriseOpsPage initialCityCode={cityCode}/>
     : view.page === "aftersale"
     ? <AftersaleOpsPage initialCityCode={cityCode} />
     : view.page === "orderTrace"
@@ -255,6 +261,7 @@ export function App() {
               href: "#/aftersale",
               onClick: navigateToAftersale,
             },
+            { key:"enterprise",label:"Enterprise",active:view.page==="enterprise",href:"#/enterprise",onClick:navigateToEnterprise },
           ]}
         />
       }

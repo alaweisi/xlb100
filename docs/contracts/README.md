@@ -13,3 +13,5 @@ Contracts are implemented through shared types, shared validators, backend guard
 - `CONTRACT_AFTERSALE_COMPLAINTS.md` - Phase 17 complaints, repair, liability, compensation intent, and timeline
 - `CONTRACT_OBJECT_STORAGE_PROVIDER.md` - Phase 18 private local/mock storage envelope and upload safety
 - `CONTRACT_FULFILLMENT_EVIDENCE.md` - Phase 18 evidence binding and customer confirmation
+- `CONTRACT_ENTERPRISE_OPENAPI.md` - Phase 19 API key identity, enterprise order, agreement pricing, and idempotency
+- `CONTRACT_ENTERPRISE_WEBHOOK.md` - Phase 19 signed webhook delivery, provider truthfulness, and retry

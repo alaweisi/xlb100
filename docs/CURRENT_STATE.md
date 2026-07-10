@@ -23,6 +23,7 @@
 | Phase 16 | COMPLETE | - | Competitive gap closure: SKU / pricing / fee items / installation standards |
 | Phase 17 | LOCKED | xlb-phase17-order-reverse-aftersale | Order reverse flow + aftersale complaints |
 | Phase 18 | LOCKED | xlb-phase18-fulfillment-evidence-oss-envelope | Fulfillment evidence + local/mock object storage envelope + customer confirmation |
+| Phase 19 | IN PROGRESS | - | B-side enterprise clients + API key OpenAPI + webhook delivery |
 
 ## Phase 10 — Settlement Action Governance (LOCKED)
 
@@ -148,6 +149,35 @@
   - no public object URL and no fake provider success
   - no payment, refund, ledger, settlement, payout, or dispatch mutation
   - existing `fulfillment.completed` behavior remains compatible
+
+## Phase 19 - B-Side Enterprise + OpenAPI/Webhook (IN PROGRESS)
+
+- **Branch**: `codex/phase19-enterprise-openapi-webhook`
+- **Base**: locked `main` metadata commit `16fc315`; Phase 18 tag remains immutable
+- **Scope**: enterprise client/contact onboarding, API credentials, agreement pricing, external-order idempotency, webhook subscriptions/deliveries, bill snapshots, OpenAPI document, and admin operations
+- **Boundary**:
+  - no payment, refund, payout, withdrawal, or settlement execution
+  - no Phase 20 dispatch matcher, worker location, ETA, or Amap integration
+  - API keys are city/client scoped and never stored in plaintext
+  - webhook mock results remain explicitly mock; HTTPS delivery is opt-in and audited
+- **Implementation evidence**:
+  - append-only migration `037` adds eight enterprise tables; append-only migration `038` hardens same-enterprise agreement and webhook references
+  - enterprise order API reuses canonical `OrderService`, official SKU validation, quote snapshots, and outbox
+  - API keys are hashed, scoped, revocable, expirable, and separate from three-app Bearer auth
+  - webhook subscriptions, HMAC signing, mock/HTTPS provider envelopes, retry/dead-letter, and delivery logs are implemented
+  - agreement pricing, monthly bill snapshots, checked-in OpenAPI 3.1, and admin enterprise operations are implemented
+- **Formal gate**: `scripts/check-phase19-migration-verification.ps1`
+- **Reference report**: `docs/reports/PHASE19_ENTERPRISE_OPENAPI_WEBHOOK_FOUNDATION_REPORT.md`
+- **Test coverage**: `docs/reports/PHASE19_TEST_COVERAGE.md`
+- **Development verification**:
+  - Phase 19 gate passed: 5 files / 17 tests
+  - full suite passed: 275 files / 1,123 tests; 1 existing Phase 1 todo retained
+  - typecheck passed: 17/17 tasks
+  - build passed: 11/11 tasks
+  - architecture preflight passed
+  - admin enterprise browser smoke passed with live data and zero console errors
+- **Candidate state**: development complete; pending independent review, merge, tag, and lock metadata
+- **Phase boundary**: Phase 20 has not been entered
 
 ## Third-party Inspection
 

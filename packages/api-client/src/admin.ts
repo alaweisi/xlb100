@@ -15,6 +15,7 @@ import type {
   OrderReverseResponse,
 } from "./aftersale.js";
 import type { OrderFulfillmentEvidenceResponse } from "./evidence.js";
+import { createEnterpriseAdminApi } from "./enterprise.js";
 
 export interface AdminOrderTrace {
   order: {
@@ -118,6 +119,7 @@ function buildQuery<T extends object>(query: T): string {
 export function createAdminApi(client: ApiClient) {
   return {
     settlement: createSettlementApi(client),
+    enterprise: createEnterpriseAdminApi(client),
     getOrderTrace(orderId: string): Promise<AdminOrderTraceResponse> {
       return client.get<AdminOrderTraceResponse>(
         `/api/internal/admin/order-traces/${encodeURIComponent(orderId)}`,

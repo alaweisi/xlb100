@@ -28,6 +28,7 @@ import { registerAftersaleModule } from "./aftersale/aftersaleModule.js";
 import { registerAuthRoutes } from "./auth/authRoutes.js";
 import { registerOrderTraceRoutes } from "./order/orderTraceRoutes.js";
 import { registerOrderReviewRoutes } from "./review/orderReviewRoutes.js";
+import { registerEnterpriseRoutes } from "./enterprise/enterpriseRoutes.js";
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({ logger: process.env.NODE_ENV === "test" ? false : true });
@@ -114,6 +115,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await registerPreparationRoutes(app);
   await registerAftersaleModule(app);
   await registerOrderTraceRoutes(app);
+  await registerEnterpriseRoutes(app);
 
   return app;
 }

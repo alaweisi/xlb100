@@ -66,3 +66,18 @@ Phase 1 city foundation. All city-scoped business tables (Phase 2+) **must** inc
 1. No default nationwide `city_code`
 2. Admin queries must filter by scoped `city_code`
 3. Canonical form: lowercase `[a-z0-9_-]+`
+
+## Phase 19 enterprise tables with city_code
+
+| Table | city_code column | Notes |
+|-------|------------------|-------|
+| `business_clients` | required FK + non-global check | Enterprise tenant root |
+| `business_client_contacts` | required composite FK | Contact belongs to the same client and city |
+| `business_api_credentials` | required composite FK | API key resolves city and client server-side |
+| `business_agreement_prices` | required composite FKs | Agreement belongs to same client and official city SKU |
+| `business_orders` | required composite FKs | External order maps to same-city XLB order |
+| `business_webhook_subscriptions` | required composite FK | Callback belongs to one city/client |
+| `business_webhook_deliveries` | required composite FKs | Subscription, client, and outbox event share city |
+| `enterprise_bill_snapshots` | required composite FK | Monthly snapshot belongs to one city/client |
+
+Migration `038` makes the client dimension part of the agreement/order and subscription/delivery foreign keys, preventing same-city cross-enterprise references.

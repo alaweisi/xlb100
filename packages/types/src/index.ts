@@ -200,6 +200,26 @@ export {
   type CreateFulfillmentEvidenceMetadata,
   type DecideFulfillmentConfirmationRequest,
 } from "./evidence.js";
+export {
+  BUSINESS_WEBHOOK_EVENT_TYPES,
+} from "./enterprise.js";
+export type {
+  BusinessClientStatus,
+  BusinessBillingMode,
+  BusinessClient,
+  BusinessClientContact,
+  BusinessApiScope,
+  BusinessApiCredential,
+  BusinessAgreementPrice,
+  BusinessOrder,
+  CreateBusinessOrderRequest,
+  BusinessWebhookEventType,
+  BusinessWebhookSubscription,
+  WebhookProviderEnvelope,
+  BusinessWebhookDelivery,
+  EnterpriseBillSnapshot,
+  BusinessApiContext,
+} from "./enterprise.js";
 export type {
   OrderReviewStatus,
   OrderReview,
