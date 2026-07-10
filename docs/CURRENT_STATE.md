@@ -21,7 +21,7 @@
 | Phase 13 | COMPLETE | - | Final ledger replay / immutability proof CI gates |
 | Phase 14 | IN PROGRESS | - | Readiness diagnostics (64/100) |
 | Phase 16 | COMPLETE | - | Competitive gap closure: SKU / pricing / fee items / installation standards |
-| Phase 17 | IN PROGRESS | - | Order reverse flow + aftersale complaints |
+| Phase 17 | LOCKED | xlb-phase17-order-reverse-aftersale | Order reverse flow + aftersale complaints |
 
 ## Phase 10 — Settlement Action Governance (LOCKED)
 
@@ -75,10 +75,13 @@
   - no dispatch assignment mutation
   - no ledger / settlement / payout / refund execution
 
-## Phase 17 - Order Reverse Flow + Aftersale Complaints (IN PROGRESS)
+## Phase 17 - Order Reverse Flow + Aftersale Complaints (LOCKED)
 
 - **Scope**: cancellation, reschedule, reassignment, complaint, repair, liability, compensation intent, and customer-service intervention timeline
-- **Status**: implemented locally; migration verification gate passed on 2026-07-10; pending formal phase closure
+- **Status**: LOCKED on 2026-07-10
+- **Tag**: `xlb-phase17-order-reverse-aftersale`
+- **Tag target / main merge commit**: `f8895d0`
+- **Feature commit**: `3bf540b`
 - **Reference report**: `docs/reports/PHASE17_ORDER_REVERSE_AFTERSALE_FOUNDATION_REPORT.md`
 - **Test coverage**: `docs/reports/PHASE17_TEST_COVERAGE.md`
 - **Migration gate**: `scripts/check-phase17-migration-verification.ps1`
@@ -89,11 +92,18 @@
   - worker assigned-repair lifecycle
   - 5 Phase 17 test files / 11 tests passed
   - A/W/C local browser smoke passed against the current workspace backend
+- **Lock verification**:
+  - branch and post-merge build passed: 11/11 tasks
+  - branch and post-merge typecheck passed: 17/17 tasks
+  - branch and post-merge full tests passed: 264 files / 1,081 tests; 1 existing todo
+  - branch and post-merge architecture preflight passed
+  - Phase 17 migration verification gate passed before and after merge
 - **Boundary**:
   - no real payment or refund provider execution
   - no direct ledger / settlement / payout mutation
   - no dispatch assignment mutation; reassignment is an audited intent only
   - no real map / Amap integration
+- **Next phase**: Phase 18 has not been entered in this Lock task
 
 ## Third-party Inspection
 

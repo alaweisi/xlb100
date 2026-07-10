@@ -1,7 +1,7 @@
 # Phase 17 Order Reverse And Aftersale Foundation Report
 
 Date: 2026-07-10
-Status: LOCK CANDIDATE; implementation and pre-merge verification passed
+Status: LOCKED
 Scope: order reverse, complaint, repair, liability, compensation intent, and customer-service timeline
 
 ## 1. Objective
@@ -113,7 +113,7 @@ Local browser smoke used the current workspace backend on port 3017:
 - Phase 20 owns real dispatch assignment/reassignment behind the LBS-lite model.
 - Phase 21 owns broader operations UI closure and workflow ergonomics.
 - Phase 22 owns durable Playwright E2E, observability, security, and performance gates.
-- Phase 17 remains `IN PROGRESS` in `CURRENT_STATE.md` until the verified branch is merged and tagged.
+- Phase 17 is locked. Phase 18 was not entered during this Lock task.
 
 ## 8. Pre-Merge Lock Verification
 
@@ -138,3 +138,19 @@ Verification on 2026-07-10:
 The preflight run initially exposed five historical Phase 9 runtime scripts that still used removed identity headers and a package-scoped `tsx` invocation that was unavailable in this workspace. The scripts now generate real Bearer tokens with the production token helper and execute the repository-local backend `tsx` command. Two UI gates were also changed from translated display-text matching to behavior-level callback and cursor checks. No backend authorization or business rule was relaxed.
 
 The branch includes the previously uncommitted Phase 16 pricing/standard foundation because Phase 17 was developed on top of that verified dependency. Both migrations remain append-only and the Phase 17 tag will therefore identify the first mainline commit containing the complete Phase 16 dependency plus Phase 17 aftersale foundation.
+
+## 9. Lock Conclusion
+
+- Merged: yes, with `--no-ff`
+- Feature commit: `3bf540b`
+- Main merge commit: `f8895d0`
+- Tag: `xlb-phase17-order-reverse-aftersale`
+- Tag target: `f8895d0`
+- Branch full tests: 264 files, 1,081 passed, 1 existing todo
+- Main post-merge full tests: 264 files, 1,081 passed, 1 existing todo
+- Build and typecheck: passed before and after merge
+- Architecture preflight: passed before and after merge
+- Phase 17 migration gate: passed before and after merge
+- Live verification: customer, admin, and worker browser smoke passed
+- External execution: no payment, provider refund, ledger, settlement, payout, dispatch assignment, or Amap execution
+- Next phase: Phase 18 not entered in this Lock task
