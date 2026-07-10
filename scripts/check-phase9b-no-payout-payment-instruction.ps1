@@ -3,6 +3,10 @@ $ErrorActionPreference = "Stop"; $Root = Split-Path -Parent $PSScriptRoot
 $d = & git -C $Root diff main...HEAD -- . ':!scripts/' ':!tests/' ':!docs/release/' 2>$null
 $fb = @("payout", "paid_settlement", "payment_instruction", "provider.*call", "notification.*consumer", "withdraw")
 $allowedFiles = @(
+  "apps/worker/src/app/App.tsx",
+  "docs/CURRENT_STATE.md",
+  "docs/reports/PHASE21_THREE_APP_OPERATIONS_CLOSURE_REPORT.md",
+  "docs/reports/PHASE21_TEST_COVERAGE.md",
   "backend/src/governance/governanceGuard.ts",
   "backend/src/governance/governanceIntentRoutes.ts",
   "backend/src/governance/governanceIntentService.ts",

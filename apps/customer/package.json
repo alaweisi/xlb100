@@ -11,6 +11,7 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@xlb/api-client": "workspace:*",
     "@xlb/types": "workspace:*",
     "@xlb/ui": "workspace:*",
     "react": "^18.3.1",

@@ -1,4 +1,4 @@
-import type { WorkerCertification } from "@xlb/types";
+import type { WorkerCertification, WorkerCertificationStatus } from "@xlb/types";
 import type { RequestContext } from "@xlb/types";
 import { rejectWorkerCertificationSchema } from "@xlb/validators";
 import { assertAdminCanAccessCity } from "../../dal/adminQueryGuard.js";
@@ -29,6 +29,13 @@ export class WorkerCertificationReviewService {
   constructor(
     private readonly repository: WorkerCertificationRepository = workerCertificationRepository,
   ) {}
+
+  async list(context: RequestContext, status?: WorkerCertificationStatus): Promise<WorkerCertification[]> {
+    this.assertAdminReviewContext(context);
+    const cityCode = assertCityScopedContext(context);
+    await assertAdminCanAccessCity(context, cityCode);
+    return this.repository.listByCity(cityCode, status);
+  }
 
   async approve(
     context: RequestContext,

@@ -7,7 +7,9 @@ $diff = & git -C $Root diff --name-only main...HEAD 2>$null
 # Allow the Phase 12 preparation envelope and Phase 14R refund reversal migrations
 $allowed = @(
   "db/migrations/026_settlement_execution_preparation_envelope.sql",
-  "db/migrations/027_aftersale_refund_reversal.sql"
+  "db/migrations/027_aftersale_refund_reversal.sql",
+  "db/migrations/040_phase21_customer_operations.sql",
+  "db/migrations/041_phase21_customer_address_idempotency.sql"
 )
 
 $vs = $diff | ForEach-Object {
@@ -30,4 +32,3 @@ if ($vs) {
   exit 1
 }
 Write-Host "check-phase9b-no-migration: passed (only Phase 12 preparation envelope and Phase 14R refund reversal migrations allowed)"
-

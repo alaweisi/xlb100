@@ -8,6 +8,7 @@
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "test": "node scripts/run-vitest-projects.mjs",
+    "test:e2e:phase21": "playwright test tests/e2e/phase21-three-app-smoke.spec.ts",
     "test:watch": "vitest --workspace vitest.workspace.ts",
     "lint": "turbo run lint",
     "preflight": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/preflight-architecture.ps1"
@@ -16,6 +17,7 @@
     "@eslint/js": "^10.0.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
+    "@playwright/test": "^1.53.0",
     "@types/node": "^22.10.0",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",

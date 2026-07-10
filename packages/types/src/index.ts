@@ -230,6 +230,13 @@ export type {
 } from "./review.js";
 export type { ModulePlaceholder } from "./module.js";
 export type {
+  CustomerProfile,
+  CustomerAddress,
+  UpdateCustomerProfileRequest,
+  SaveCustomerAddressRequest,
+} from "./customerOperations.js";
+export type { AdminOrderSummary, AdminSkuOperationsRow } from "./adminOperations.js";
+export type {
   GovernanceActionKind,
   GovernanceActionStatus,
   PhaseBoundary,

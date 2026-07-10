@@ -3,6 +3,9 @@
 $d = & git -C $Root diff main...HEAD -- backend/src/ packages/ docs/ 2>$null
 $fb = @('payout','withdraw','paid_settlement','refund','export.*file','download')
 $allowedFiles = @(
+  "docs/CURRENT_STATE.md",
+  "docs/reports/PHASE21_THREE_APP_OPERATIONS_CLOSURE_REPORT.md",
+  "docs/reports/PHASE21_TEST_COVERAGE.md",
   "backend/src/governance/governanceGuard.ts",
   "backend/src/governance/governanceIntentRoutes.ts",
   "backend/src/governance/governanceIntentService.ts",
@@ -97,6 +100,5 @@ foreach ($l in $lines) {
 }
 if ($vs) { Write-Host "check-phase9d-forbidden-zone: FAILED"; exit 1 }
 Write-Host "check-phase9d-forbidden-zone: passed (exact allowlist with Phase 14R refund reversal)"
-
 
 

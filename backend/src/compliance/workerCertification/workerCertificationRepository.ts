@@ -116,6 +116,19 @@ export class WorkerCertificationRepository extends RepositoryBase {
     );
     return rows.map(mapCertificationRow);
   }
+
+  async listByCity(cityCode: CityCode, status?: WorkerCertificationStatus): Promise<WorkerCertification[]> {
+    const [rows] = await this.pool.query<CertificationRow[]>(
+      `SELECT certification_id, worker_id, city_code, cert_type, cert_name, status,
+              submitted_at, reviewed_at, reviewer_id, reject_reason, created_at, updated_at
+       FROM worker_certifications
+       WHERE city_code = ? AND (? IS NULL OR status = ?)
+       ORDER BY submitted_at DESC, certification_id
+       LIMIT 200`,
+      [cityCode, status ?? null, status ?? null],
+    );
+    return rows.map(mapCertificationRow);
+  }
 }
 
 export const workerCertificationRepository = new WorkerCertificationRepository();

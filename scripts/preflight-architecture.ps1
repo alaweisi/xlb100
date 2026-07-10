@@ -511,5 +511,6 @@ Invoke-PreflightGate "check-ledger-replay.ps1"
 Write-Host "XLB ledger replay verification preflight passed."
 Invoke-PreflightGate "check-ledger-immutability.ps1"
 Write-Host "XLB ledger immutability proof preflight passed."
-
+Invoke-PreflightGate "check-phase21-boundaries.ps1"
+Write-Host "XLB Phase 21 three-app operations boundary preflight passed."
 

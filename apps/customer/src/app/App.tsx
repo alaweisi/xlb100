@@ -126,6 +126,10 @@ export function App() {
     createOrderReview: (payload) => api.createOrderReview(payload),
   };
 
+  if (!session) {
+    return <main aria-busy="true" style={{ display: "grid", minHeight: "100vh", placeItems: "center" }}>Authenticating customer</main>;
+  }
+
   if (currentRoute === "home") {
     return <CustomerHomePage cityCode={cityCode} catalogState={catalogState} onRetryCatalog={handleRetryCatalog} />;
   }
@@ -153,5 +157,5 @@ export function App() {
     return <CustomerAftersalePage api={api} orderIds={orderIds} />;
   }
 
-  return <CustomerProfilePage cityCode={cityCode} />;
+  return <CustomerProfilePage api={api} cityCode={cityCode} />;
 }

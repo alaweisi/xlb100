@@ -27,6 +27,21 @@ import {
 export async function registerWorkerCertificationModule(
   app: FastifyInstance,
 ): Promise<void> {
+  app.get(
+    "/api/admin/certifications",
+    { preHandler: createRequestContextMiddleware({ requireCityCode: true }) },
+    async (request, reply) => {
+      const context = getRequestContext(request);
+      const status = (request.query as { status?: "pending" | "approved" | "rejected" | "expired" }).status;
+      try {
+        return { ok: true, certifications: await workerCertificationReviewService.list(context, status) };
+      } catch (error) {
+        if (error instanceof CertificationReviewForbiddenError) return reply.status(403).send({ ok: false, error: error.message });
+        if (error instanceof Error && (error as { statusCode?: number }).statusCode === 403) return reply.status(403).send({ ok: false, error: error.message });
+        throw error;
+      }
+    },
+  );
   app.post(
     "/api/worker/certifications",
     { preHandler: createRequestContextMiddleware({ requireCityCode: true }) },

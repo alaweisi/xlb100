@@ -186,6 +186,14 @@ Migration `036` adds composite city/order/fulfillment/complaint/media foreign ke
 
 Migration `039` stores local/mock geo snapshots on dispatch tasks/offers and replaces task/offer/event references with city-composite foreign keys.
 
+## Phase 21 three-app operations
+
+| Table | Purpose | Boundary |
+| --- | --- | --- |
+| `customer_addresses` | authenticated customer service-address book | city/customer scoped; retry-safe create; no map lookup |
+
+Migration `040` creates the customer/city foreign keys and rejects `__global__`. Migration `041` adds unique `(customer_id, city_code, idempotency_key)` retry protection.
+
 | Table | Purpose | Execution boundary |
 |-------|---------|--------------------|
 | `business_clients` | Enterprise tenant, status, billing mode, synthetic order owner | onboarding only |

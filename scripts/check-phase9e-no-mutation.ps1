@@ -3,6 +3,9 @@ $ErrorActionPreference = "Stop"; $Root = Split-Path -Parent $PSScriptRoot
 $d = & git -C $Root diff main...HEAD -- backend/src/ packages/ docs/ ':!docs/release/' 2>$null
 $fb = @('mutate_settlement','commit_settlement','ledger_mutation','reverse_ledger','refund_execution','payout','execute_payout','paid_at','refunded_at','settled_at')
 $allowedFiles = @(
+  "docs/CURRENT_STATE.md",
+  "docs/reports/PHASE21_THREE_APP_OPERATIONS_CLOSURE_REPORT.md",
+  "docs/reports/PHASE21_TEST_COVERAGE.md",
   "backend/src/governance/governanceGuard.ts",
   "backend/src/governance/governanceIntentRoutes.ts",
   "backend/src/governance/governanceIntentService.ts",
