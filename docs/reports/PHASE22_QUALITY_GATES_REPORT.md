@@ -98,6 +98,12 @@ workflow and `packageManager: pnpm@9.15.0` in `package.json`) before any quality
 could run. The workflow now removes the duplicate and trusts `packageManager` as the
 single version source. A hosted green rerun is pending and is not claimed yet.
 
+Hosted run `Phase 22 Quality Gates #2` (`29089578184`) then passed setup, install,
+Chromium, migration, and seed, but failed when the gate loaded
+`@xlb/shared/deterministic/stableHash.js`: a clean runner had no package `dist` output.
+The workflow now makes workspace build and typecheck explicit prerequisites instead of
+depending on local build artifacts. A hosted green rerun remains pending.
+
 ## Verification
 
 - `pnpm gate:phase22`: PASS.

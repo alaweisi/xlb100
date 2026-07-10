@@ -52,6 +52,10 @@ jobs:
       - name: Seed database
         working-directory: backend
         run: pnpm exec tsx src/dal/seedCli.ts
+      - name: Build workspace
+        run: pnpm build
+      - name: Typecheck workspace
+        run: pnpm typecheck
       - name: Phase 22 fail-closed and quality gates
         run: pnpm gate:phase22
       - name: Upload Phase 22 coverage
