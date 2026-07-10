@@ -3,7 +3,7 @@ import type { RowDataPacket, Pool, PoolConnection } from "mysql2/promise";
 import type { RequestContext } from "@xlb/types";
 import { assertCityScopedContext, buildCityScopedWhere } from "../dal/scopedExecutor.js";
 import { getMysqlPool } from "../dal/mysqlPool.js";
-import { stableHash } from "@shared/deterministic/stableHash.js";
+import { stableHash } from "@xlb/shared/deterministic/stableHash.js";
 
 // ── HttpError — business errors with status codes ────────────────────────────────
 export class PreparationError extends Error {

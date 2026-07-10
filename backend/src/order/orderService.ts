@@ -5,6 +5,7 @@ import { createOrderSchema } from "@xlb/validators";
 import { executeCityScoped } from "../dal/scopedExecutor.js";
 import { withTransaction } from "../dal/transaction.js";
 import { pricingRepository, PricingRepository } from "../pricing/pricingRepository.js";
+import { buildPriceQuoteBreakdown } from "../pricing/pricingRepository.js";
 import { eventOutboxRepository, EventOutboxRepository } from "../events/eventOutbox.js";
 import { buildOrderCreatedPayload } from "../events/orderPaidEvent.js";
 import { generateEventId, generateOrderId } from "../events/eventIds.js";
@@ -102,9 +103,28 @@ export class OrderService {
           `Price rule not found for city_code=${cityCode} skuId=${parsed.data.skuId}`,
         );
       }
+      const [feeItems, skuProfile, standards] = await Promise.all([
+        this.pricingRepo.findFeeItemsByPriceRule(context, cityCode, priceRule.priceRuleId),
+        this.pricingRepo.findSkuProfile(context, cityCode, priceRule.skuId),
+        this.pricingRepo.findServiceStandards(context, cityCode, priceRule.skuId),
+      ]);
+      const breakdown = buildPriceQuoteBreakdown(priceRule, feeItems);
 
       const orderId = generateOrderId();
-      const totalAmount = Number((priceRule.basePrice * parsed.data.quantity).toFixed(2));
+      const totalAmount = Number((breakdown.totalAmount * parsed.data.quantity).toFixed(2));
+      const quoteSnapshot = {
+        priceRuleId: priceRule.priceRuleId,
+        skuId: sku.skuId,
+        quantity: parsed.data.quantity,
+        currency: priceRule.currency,
+        priceText: priceRule.priceText,
+        priceType: priceRule.priceType,
+        unitAmount: breakdown.totalAmount,
+        totalAmount,
+        breakdown,
+        skuProfile,
+        standards,
+      };
       const now = new Date().toISOString();
 
       await withTransaction(async (connection) => {
@@ -130,6 +150,7 @@ export class OrderService {
           basePrice: priceRule.basePrice,
           currency: priceRule.currency,
           totalAmount,
+          quoteSnapshot,
           status: "pending_dispatch",
         });
 

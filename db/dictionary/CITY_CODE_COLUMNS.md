@@ -13,6 +13,21 @@ Phase 1 city foundation. All city-scoped business tables (Phase 2+) **must** inc
 | `cities` | PK `city_code` | Global registry; uses `is_open` (not `status`) |
 | `admin_city_scopes` | FK `city_code` | Admin RLS scope |
 
+## Phase 16 SKU / pricing tables with city_code
+
+| Table | city_code column | Notes |
+|-------|------------------|-------|
+| `service_sku_profiles` | required FK part | Service-product profile per city SKU |
+| `service_standards` | required FK + non-global check | SKU standards and warranty rules |
+| `price_fee_items` | required FK + non-global check | Transparent fee items per price rule |
+| `order_price_snapshots` | required FK + non-global check | Immutable quote breakdown snapshot |
+| `order_reverse_requests` | required FK + non-global check | Customer reverse request and admin review |
+| `aftersale_complaints` | required FK + non-global check | Customer ownership and admin scope required |
+| `aftersale_repair_orders` | required FK + non-global check | Worker access remains worker-id scoped |
+| `aftersale_liability_decisions` | required FK + non-global check | One decision per complaint |
+| `aftersale_compensation_intents` | required FK + non-global check | Provider execution remains not_executed |
+| `aftersale_timeline_events` | required FK + non-global check | Append-only workflow timeline |
+
 ## Phase 5A tables with city_code
 
 | Table | city_code column | Notes |

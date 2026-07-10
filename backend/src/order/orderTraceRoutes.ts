@@ -57,6 +57,21 @@ type DispatchTimelineRow = RowDataPacket & {
   created_at: Date;
 };
 
+type ReverseTraceRow = RowDataPacket & {
+  reverse_request_id: string; reverse_type: string; status: string; reason: string;
+  requested_scheduled_at: Date | null; requested_time_slot: string | null;
+  review_note: string | null; created_at: Date; applied_at: Date | null;
+};
+type ComplaintTraceRow = RowDataPacket & {
+  complaint_id: string; category: string; priority: string; status: string;
+  description: string; resolution_type: string | null; resolution_note: string | null;
+  submitted_at: Date; resolved_at: Date | null; closed_at: Date | null;
+};
+type AftersaleTimelineTraceRow = RowDataPacket & {
+  timeline_event_id: string; event_type: string; actor_type: string;
+  actor_id: string | null; content: string; created_at: Date;
+};
+
 function iso(value: NullableDate | undefined): string | null {
   return value ? value.toISOString() : null;
 }
@@ -176,6 +191,31 @@ export async function registerOrderTraceRoutes(app: FastifyInstance): Promise<vo
             createdAt: event.created_at.toISOString(),
           }))
         : [];
+      const [reverseResult, complaintResult, aftersaleTimelineResult] = await Promise.all([
+        getMysqlPool().query<ReverseTraceRow[]>(
+          `SELECT reverse_request_id, reverse_type, status, reason, requested_scheduled_at,
+                  requested_time_slot, review_note, created_at, applied_at
+             FROM order_reverse_requests
+            WHERE city_code=? AND order_id=?
+            ORDER BY created_at ASC`,
+          [cityCode, orderId],
+        ),
+        getMysqlPool().query<ComplaintTraceRow[]>(
+          `SELECT complaint_id, category, priority, status, description, resolution_type,
+                  resolution_note, submitted_at, resolved_at, closed_at
+             FROM aftersale_complaints
+            WHERE city_code=? AND order_id=?
+            ORDER BY submitted_at ASC`,
+          [cityCode, orderId],
+        ),
+        getMysqlPool().query<AftersaleTimelineTraceRow[]>(
+          `SELECT timeline_event_id, event_type, actor_type, actor_id, content, created_at
+             FROM aftersale_timeline_events
+            WHERE city_code=? AND order_id=?
+            ORDER BY created_at ASC, timeline_event_id ASC`,
+          [cityCode, orderId],
+        ),
+      ]);
 
       return {
         ok: true,
@@ -240,6 +280,39 @@ export async function registerOrderTraceRoutes(app: FastifyInstance): Promise<vo
                 approvedAt: iso(row.approved_at),
               }
             : null,
+          phase17Aftersale: {
+            reverseRequests: reverseResult[0].map((item) => ({
+              reverseRequestId: item.reverse_request_id,
+              reverseType: item.reverse_type,
+              status: item.status,
+              reason: item.reason,
+              requestedScheduledAt: iso(item.requested_scheduled_at),
+              requestedTimeSlot: item.requested_time_slot,
+              reviewNote: item.review_note,
+              createdAt: item.created_at.toISOString(),
+              appliedAt: iso(item.applied_at),
+            })),
+            complaints: complaintResult[0].map((item) => ({
+              complaintId: item.complaint_id,
+              category: item.category,
+              priority: item.priority,
+              status: item.status,
+              description: item.description,
+              resolutionType: item.resolution_type,
+              resolutionNote: item.resolution_note,
+              submittedAt: item.submitted_at.toISOString(),
+              resolvedAt: iso(item.resolved_at),
+              closedAt: iso(item.closed_at),
+            })),
+            timeline: aftersaleTimelineResult[0].map((item) => ({
+              timelineEventId: item.timeline_event_id,
+              eventType: item.event_type,
+              actorType: item.actor_type,
+              actorId: item.actor_id,
+              content: item.content,
+              createdAt: item.created_at.toISOString(),
+            })),
+          },
         },
       };
     },

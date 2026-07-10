@@ -23,6 +23,11 @@ describe.skipIf(!runDb)("pricingService", () => {
     expect(quote.basePrice).toBe(89);
     expect(quote.priceText).toBe("¥89/2小时");
     expect(quote.priceType).toBe("fixed");
+    expect(quote.breakdown.baseAmount).toBe(89);
+    expect(quote.breakdown.totalAmount).toBe(89);
+    expect(quote.breakdown.feeItems.some((item) => item.feeCode === "base_service_fee")).toBe(true);
+    expect(quote.skuProfile?.supportsEnterprise).toBe(true);
+    expect(quote.standards.length).toBeGreaterThanOrEqual(3);
   });
 
   it("shanghai has independent price rule with same value", async () => {

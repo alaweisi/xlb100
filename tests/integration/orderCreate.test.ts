@@ -21,7 +21,7 @@ describe.skipIf(!runDb)("orderCreate integration", { timeout: 15000 }, () => {
         ...serviceAddressSchedulePayload,
       },
     });
-    expect(response.statusCode).toBe(200);
+    expect(response.statusCode, response.body).toBe(200);
     const body = response.json();
     expect(body.ok).toBe(true);
     expect(body.order.cityCode).toBe("hangzhou");
@@ -30,6 +30,9 @@ describe.skipIf(!runDb)("orderCreate integration", { timeout: 15000 }, () => {
     expect(body.order.priceText).toBe("¥89/2小时");
     expect(body.order.priceRuleId).toBe("price_hangzhou_sku_home_daily_2h");
     expect(body.order.totalAmount).toBe(89);
+    expect(body.order.quoteSnapshot.priceRuleId).toBe("price_hangzhou_sku_home_daily_2h");
+    expect(body.order.quoteSnapshot.breakdown.totalAmount).toBe(89);
+    expect(body.order.quoteSnapshot.breakdown.feeItems.length).toBeGreaterThan(0);
     expect(body.order.addressDistrict).toBe("西湖区");
     expect(body.order.detailAddress).toBe("喜乐帮演示小区 3 栋 502");
     expect(body.order.scheduledTimeSlot).toBe("morning");

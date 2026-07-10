@@ -52,6 +52,30 @@ export function generateRefundId(): string {
   return `rfd_${Date.now().toString(36)}_${randomBytes(4).toString("hex")}`;
 }
 
+export function generateOrderReverseRequestId(): string {
+  return `orv_${Date.now().toString(36)}_${randomBytes(4).toString("hex")}`;
+}
+
+export function generateAftersaleComplaintId(): string {
+  return `cmp_${Date.now().toString(36)}_${randomBytes(4).toString("hex")}`;
+}
+
+export function generateAftersaleRepairOrderId(): string {
+  return `rpr_${Date.now().toString(36)}_${randomBytes(4).toString("hex")}`;
+}
+
+export function generateAftersaleLiabilityDecisionId(): string {
+  return `lib_${Date.now().toString(36)}_${randomBytes(4).toString("hex")}`;
+}
+
+export function generateAftersaleCompensationIntentId(): string {
+  return `cpi_${Date.now().toString(36)}_${randomBytes(4).toString("hex")}`;
+}
+
+export function generateAftersaleTimelineEventId(): string {
+  return `atl_${Date.now().toString(36)}_${randomBytes(4).toString("hex")}`;
+}
+
 export function generateOrderReviewId(): string {
   return `rev_${Date.now().toString(36)}_${randomBytes(4).toString("hex")}`;
 }

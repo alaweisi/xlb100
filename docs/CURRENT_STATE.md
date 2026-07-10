@@ -20,6 +20,8 @@
 | Phase 12 | COMPLETE | - | Settlement execution preparation control envelope |
 | Phase 13 | COMPLETE | - | Final ledger replay / immutability proof CI gates |
 | Phase 14 | IN PROGRESS | - | Readiness diagnostics (64/100) |
+| Phase 16 | COMPLETE | - | Competitive gap closure: SKU / pricing / fee items / installation standards |
+| Phase 17 | IN PROGRESS | - | Order reverse flow + aftersale complaints |
 
 ## Phase 10 — Settlement Action Governance (LOCKED)
 
@@ -59,6 +61,39 @@
 - **Status**: IN PROGRESS
 - **Current recommendation**: NOT READY for staging
 - **Reference report**: `docs/release/PHASE14_READINESS_REPORT.md`
+
+## Phase 16 - SKU / Pricing / Fee Items / Installation Standards (COMPLETE)
+
+- **Scope**: SKU service-product profiles, service standards, transparent fee items, quote breakdowns, order quote snapshots
+- **Status**: COMPLETE; migration verification gate passed on 2026-07-10
+- **Reference report**: `docs/reports/PHASE16_SKU_PRICING_STANDARDS_FOUNDATION_REPORT.md`
+- **Migration gate**: `scripts/check-phase16-migration-verification.ps1`
+- **Gate evidence**: `docs/reports/PHASE16_MIGRATION_VERIFICATION_GATE.md`
+- **Boundary**:
+  - no real payment provider integration
+  - no real map / Amap integration
+  - no dispatch assignment mutation
+  - no ledger / settlement / payout / refund execution
+
+## Phase 17 - Order Reverse Flow + Aftersale Complaints (IN PROGRESS)
+
+- **Scope**: cancellation, reschedule, reassignment, complaint, repair, liability, compensation intent, and customer-service intervention timeline
+- **Status**: implemented locally; migration verification gate passed on 2026-07-10; pending formal phase closure
+- **Reference report**: `docs/reports/PHASE17_ORDER_REVERSE_AFTERSALE_FOUNDATION_REPORT.md`
+- **Test coverage**: `docs/reports/PHASE17_TEST_COVERAGE.md`
+- **Migration gate**: `scripts/check-phase17-migration-verification.ps1`
+- **Implementation evidence**:
+  - six city-scoped Phase 17 tables in append-only migration `034`
+  - customer reverse and complaint workspace
+  - admin reverse/complaint/repair/liability/compensation console
+  - worker assigned-repair lifecycle
+  - 5 Phase 17 test files / 11 tests passed
+  - A/W/C local browser smoke passed against the current workspace backend
+- **Boundary**:
+  - no real payment or refund provider execution
+  - no direct ledger / settlement / payout mutation
+  - no dispatch assignment mutation; reassignment is an audited intent only
+  - no real map / Amap integration
 
 ## Third-party Inspection
 

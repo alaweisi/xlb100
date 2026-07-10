@@ -2,7 +2,7 @@ import type {
   WorkerReceivableStatementExportFormat,
   WorkerReceivableStatementExportPayloadVersion,
 } from "@xlb/types";
-import { stableHash } from "@shared/deterministic/stableHash.js";
+import { stableHash } from "@xlb/shared/deterministic/stableHash.js";
 
 export function computeWorkerReceivableStatementExportContentHash(input: {
   statementId: string;

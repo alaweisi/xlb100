@@ -30,4 +30,18 @@ foreach ($file in $files) {
   docker compose --env-file $EnvFile -f $ComposeFile exec -T mysql rm -f ${containerPath} 2>$null | Out-Null
 }
 
+# Migration 033 also contains the idempotent Phase 16 data backfill. Re-run it
+# after catalog and pricing seeds so a clean staging database receives the same
+# SKU profiles, standards, and fee items as an upgraded database.
+$phase16Migration = Join-Path $Root "db\migrations\033_phase16_sku_pricing_standards.sql"
+if (Test-Path -LiteralPath $phase16Migration) {
+  Write-Host "POST-SEED 033_phase16_sku_pricing_standards"
+  $containerPath = "/tmp/xlb_post_seed_033_phase16_sku_pricing_standards.sql"
+  docker cp $phase16Migration "${mysqlContainer}:${containerPath}" | Out-Null
+  if ($LASTEXITCODE -ne 0) { exit 1 }
+  docker compose --env-file $EnvFile -f $ComposeFile exec -e "MYSQL_PWD=$mysqlPassword" -T mysql mysql "-u$mysqlUser" --default-character-set=utf8mb4 $mysqlDatabase -e "source ${containerPath}" 2>$null
+  if ($LASTEXITCODE -ne 0) { exit 1 }
+  docker compose --env-file $EnvFile -f $ComposeFile exec -T mysql rm -f ${containerPath} 2>$null | Out-Null
+}
+
 Write-Host "seed-staging: passed"

@@ -1,5 +1,6 @@
 import type { CityCode } from "./city.js";
-import type { PriceType } from "./pricing.js";
+import type { ServiceSkuProfile, ServiceStandard } from "./catalog.js";
+import type { PriceQuoteBreakdown, PriceType } from "./pricing.js";
 
 export type OrderStatus =
   | "draft"
@@ -32,7 +33,22 @@ export interface Order {
   basePrice: number;
   currency: string;
   totalAmount: number;
+  quoteSnapshot: OrderPriceSnapshot | null;
   status: OrderStatus;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface OrderPriceSnapshot {
+  priceRuleId: string;
+  skuId: string;
+  quantity: number;
+  currency: string;
+  priceText: string;
+  priceType: PriceType;
+  unitAmount: number;
+  totalAmount: number;
+  breakdown: PriceQuoteBreakdown;
+  skuProfile: ServiceSkuProfile | null;
+  standards: ServiceStandard[];
 }

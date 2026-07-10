@@ -1,6 +1,6 @@
 import type { Pool, RowDataPacket } from "mysql2/promise";
 import type { CityCode, EventOutbox, RequestContext } from "@xlb/types";
-import { stableHash } from "@shared/deterministic/stableHash.js";
+import { stableHash } from "@xlb/shared/deterministic/stableHash.js";
 import { getMysqlPool } from "../../dal/mysqlPool.js";
 import { assertCityScopedContext } from "../../dal/scopedExecutor.js";
 import type {

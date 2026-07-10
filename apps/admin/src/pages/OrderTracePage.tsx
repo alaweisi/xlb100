@@ -138,6 +138,24 @@ export function OrderTracePage({ initialCityCode, initialOrderId }: Props) {
           amount: formatMoney(trace.aftersale?.amount, trace.aftersale?.currency),
           note: trace.aftersale?.reason || "-",
         },
+        {
+          key: "reverse",
+          stage: "Order Reverse",
+          id: trace.phase17Aftersale.reverseRequests.at(-1)?.reverseRequestId || "-",
+          actor: trace.order.customerId,
+          status: trace.phase17Aftersale.reverseRequests.at(-1)?.status || null,
+          amount: "-",
+          note: trace.phase17Aftersale.reverseRequests.at(-1)?.reason || "-",
+        },
+        {
+          key: "complaint",
+          stage: "Complaint",
+          id: trace.phase17Aftersale.complaints.at(-1)?.complaintId || "-",
+          actor: trace.order.customerId,
+          status: trace.phase17Aftersale.complaints.at(-1)?.status || null,
+          amount: "-",
+          note: trace.phase17Aftersale.complaints.at(-1)?.resolutionNote || trace.phase17Aftersale.complaints.at(-1)?.description || "-",
+        },
       ]
     : [];
 
