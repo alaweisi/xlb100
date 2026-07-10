@@ -90,8 +90,13 @@ failures and observed non-zero exits:
 | Coverage | thresholds raised to 101% | exit 1 with four threshold errors |
 
 The self-test itself passes only when all three child commands fail. This proves the
-repository-level command is fail-closed. Hosted GitHub Actions green evidence is
-pending this candidate commit being pushed; it is not claimed by this report yet.
+repository-level command is fail-closed.
+
+Hosted run `Phase 22 Quality Gates #1` (`29089467224`) also produced a real red result:
+`pnpm/action-setup` rejected duplicate pnpm version sources (`version: 9` in the
+workflow and `packageManager: pnpm@9.15.0` in `package.json`) before any quality test
+could run. The workflow now removes the duplicate and trusts `packageManager` as the
+single version source. A hosted green rerun is pending and is not claimed yet.
 
 ## Verification
 
