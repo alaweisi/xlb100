@@ -185,6 +185,21 @@ export type {
   ReviewAftersaleCompensationRequest,
   AddAftersaleTimelineNoteRequest,
 } from "./aftersale.js";
+export {
+  FULFILLMENT_EVIDENCE_MAX_BYTES,
+  type ObjectStorageProviderKind,
+  type ObjectStorageProviderStatus,
+  type ObjectStorageProviderEnvelope,
+  type FulfillmentEvidenceType,
+  type MediaSecurityScanStatus,
+  type MediaAsset,
+  type FulfillmentEvidence,
+  type CustomerConfirmationStatus,
+  type FulfillmentCustomerConfirmation,
+  type FulfillmentEvidenceAggregate,
+  type CreateFulfillmentEvidenceMetadata,
+  type DecideFulfillmentConfirmationRequest,
+} from "./evidence.js";
 export type {
   OrderReviewStatus,
   OrderReview,

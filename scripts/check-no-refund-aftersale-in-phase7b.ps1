@@ -2,7 +2,8 @@
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 $Files = @(
-  Get-ChildItem (Join-Path $Root "backend\src\fulfillment") -Filter "*.ts" -Recurse
+  # Phase 18 evidence is checked by check-phase18-boundaries.ps1.
+  Get-ChildItem (Join-Path $Root "backend\src\fulfillment") -Filter "*.ts" -File
   Get-Item (Join-Path $Root "backend\src\events\fulfillmentEvents.ts")
 )
 $Hits = $Files | Select-String -Pattern "refund|aftersale|reversal"

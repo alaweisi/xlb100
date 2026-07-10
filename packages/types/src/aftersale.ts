@@ -142,7 +142,8 @@ export type AftersaleTimelineEventType =
   | "compensation.proposed"
   | "compensation.approved"
   | "compensation.rejected"
-  | "customer_service.note";
+  | "customer_service.note"
+  | "fulfillment.customer_disputed";
 
 export interface AftersaleTimelineEvent {
   timelineEventId: string;

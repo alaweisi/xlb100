@@ -16,6 +16,16 @@ export type {
   AftersaleCompensationIntentResponse,
   AftersaleTimelineEventResponse,
 } from "./aftersale.js";
+export type {
+  FulfillmentEvidenceResponse,
+  FulfillmentEvidenceAggregateResponse,
+  FulfillmentCustomerConfirmationResponse,
+  DecideFulfillmentConfirmationInput,
+  UploadFulfillmentEvidenceResponse,
+  WorkerFulfillmentEvidenceResponse,
+  OrderFulfillmentEvidenceResponse,
+  DecideFulfillmentConfirmationResponse,
+} from "./evidence.js";
 export { ledgerApi } from "./ledger.js";
 export { settlementApi, createSettlementApi } from "./settlement.js";
 export { governanceIntentApi, createGovernanceIntentApi } from "./governanceIntent.js";

@@ -2,9 +2,9 @@
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 
-$paths = @(
-  (Join-Path $Root "backend\src\fulfillment"),
-  (Join-Path $Root "backend\src\worker\workerAcceptService.ts")
+$files = @(
+  Get-ChildItem (Join-Path $Root "backend\src\fulfillment") -Filter "*.ts" -File
+  Get-Item (Join-Path $Root "backend\src\worker\workerAcceptService.ts")
 )
 
 $forbidden = @(
@@ -17,20 +17,12 @@ $forbidden = @(
 )
 
 $hits = @()
-foreach ($dir in $paths) {
-  if (-not (Test-Path $dir)) { continue }
-  if (Test-Path $dir -PathType Leaf) {
-    $files = @(Get-Item $dir)
-  } else {
-    $files = Get-ChildItem -Path $dir -Filter "*.ts" -Recurse -ErrorAction SilentlyContinue
-  }
-  foreach ($file in $files) {
-    if ($file.Name -eq "README.md") { continue }
-    $content = Get-Content $file.FullName -Raw
-    foreach ($pattern in $forbidden) {
-      if ($content -match [regex]::Escape($pattern)) {
-        $hits += "$($file.FullName): $pattern"
-      }
+# Phase 18 evidence is an independent submodule with its own stricter boundary gate.
+foreach ($file in $files) {
+  $content = Get-Content $file.FullName -Raw
+  foreach ($pattern in $forbidden) {
+    if ($content -match [regex]::Escape($pattern)) {
+      $hits += "$($file.FullName): $pattern"
     }
   }
 }

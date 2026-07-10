@@ -14,6 +14,7 @@ import type {
   ComplaintStatusResponse,
   OrderReverseResponse,
 } from "./aftersale.js";
+import type { OrderFulfillmentEvidenceResponse } from "./evidence.js";
 
 export interface AdminOrderTrace {
   order: {
@@ -174,6 +175,11 @@ export function createAdminApi(client: ApiClient) {
     },
     reviewAftersaleCompensation(compensationIntentId: string, body: { decision: "approved" | "rejected"; approvedAmount?: number; decisionNote?: string }) {
       return client.post<{ ok: true; compensationIntent: AftersaleCompensationIntentResponse; idempotent: boolean }>(`/api/internal/aftersale/compensation-intents/${encodeURIComponent(compensationIntentId)}/review`,body);
+    },
+    getOrderFulfillmentEvidence(orderId: string): Promise<OrderFulfillmentEvidenceResponse> {
+      return client.get<OrderFulfillmentEvidenceResponse>(
+        `/api/internal/orders/${encodeURIComponent(orderId)}/fulfillment-evidence`,
+      );
     },
     listWorkerWithdrawals(
       query: ListWorkerWithdrawalsQuery = {},

@@ -28,6 +28,7 @@ export const aftersaleTimelineEventTypeSchema = z.enum([
   "complaint.submitted", "complaint.triaged", "complaint.status_changed", "complaint.resolved", "complaint.closed",
   "repair.created", "repair.started", "repair.completed", "liability.decided",
   "compensation.proposed", "compensation.approved", "compensation.rejected", "customer_service.note",
+  "fulfillment.customer_disputed",
 ]);
 
 export const createOrderReverseRequestSchema = z.object({

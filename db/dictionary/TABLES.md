@@ -37,10 +37,17 @@
 | `aftersale_liability_decisions` | Phase 17 immutable complaint liability decision | required |
 | `aftersale_compensation_intents` | Phase 17 non-executing compensation/refund intent | required |
 | `aftersale_timeline_events` | Phase 17 unified customer-service audit timeline | required |
+| `media_assets` | Phase 18 private local/mock object metadata; no external provider execution | required |
+| `fulfillment_evidence` | Phase 18 worker evidence bound to fulfillment/order and optional complaint | required |
+| `fulfillment_customer_confirmations` | Phase 18 customer confirmation/dispute with evidence snapshot | required |
 | `payment_orders` | Mock payment order | required |
 | `event_outbox` | Transactional domain events | required |
 
 **Rules:** orders bind official SKU + price_rules snapshot. Payment success writes outbox only — no dispatch in Phase 4.
+
+**Phase 18 evidence rules:** media bytes stay outside business tables. Metadata records
+only `local` or `mock` storage, keeps `public_url` null, and fixes
+`external_provider_executed = 0`. Customer disputes must bind a Phase 17 complaint.
 
 ## Phase 5A tables (dispatch / city stream)
 
@@ -157,3 +164,13 @@ items, ledger entries, or upstream domain state.
 movement. Input must be `settlement_payable_queue.status = queued`. One statement
 per `(queue_id, worker_id)`. Emits `worker.receivable.statement.created` outbox only.
 Does not mutate queue, payables, batches, items, ledger entries, or upstream domain state.
+
+## Phase 18 fulfillment evidence
+
+| Table | Purpose | city_code |
+|-------|---------|-----------|
+| `media_assets` | Private local/mock media metadata and provider envelope | required |
+| `fulfillment_evidence` | Evidence nodes bound to order, fulfillment, media, and optional complaint | required |
+| `fulfillment_customer_confirmations` | Customer confirmation/dispute with evidence snapshot | required |
+
+Migration `036` adds composite city/order/fulfillment/complaint/media foreign keys so valid IDs from another city cannot be combined into a Phase 18 record.

@@ -1,6 +1,8 @@
 /** Phase 7A/7B worker accept + fulfillment lifecycle API */
 import type { ApiClient } from "./createApiClient.js";
 import type { AftersaleRepairOrderResponse } from "./aftersale.js";
+import type { UploadFulfillmentEvidenceResponse, WorkerFulfillmentEvidenceResponse } from "./evidence.js";
+import type { FulfillmentEvidenceType } from "@xlb/types";
 
 export interface WorkerTaskPoolItemResponse {
   dispatchTaskId: string;
@@ -239,6 +241,25 @@ export function createWorkerApi(client: ApiClient) {
       return client.post<FulfillmentLifecycleResponse>(
         `/api/worker/fulfillments/${encodeURIComponent(fulfillmentId)}/complete`,
         input,
+      );
+    },
+    getFulfillmentEvidence(fulfillmentId: string): Promise<WorkerFulfillmentEvidenceResponse> {
+      return client.get<WorkerFulfillmentEvidenceResponse>(
+        `/api/worker/fulfillments/${encodeURIComponent(fulfillmentId)}/evidence`,
+      );
+    },
+    uploadFulfillmentEvidence(
+      fulfillmentId: string,
+      file: File,
+      metadata: { evidenceType: FulfillmentEvidenceType; complaintId?: string; note?: string },
+    ): Promise<UploadFulfillmentEvidenceResponse> {
+      const query = new URLSearchParams({ evidenceType: metadata.evidenceType });
+      if (metadata.complaintId) query.set("complaintId", metadata.complaintId);
+      if (metadata.note) query.set("note", metadata.note);
+      return client.postBinary<UploadFulfillmentEvidenceResponse>(
+        `/api/worker/fulfillments/${encodeURIComponent(fulfillmentId)}/evidence?${query.toString()}`,
+        file,
+        { contentType: file.type, fileName: file.name },
       );
     },
     submitCertification(input: SubmitWorkerCertificationInput): Promise<SubmitWorkerCertificationResponse> {
