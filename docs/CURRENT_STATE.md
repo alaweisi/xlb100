@@ -26,7 +26,7 @@
 | Phase 19 | LOCKED | xlb-phase19-enterprise-openapi-webhook | B-side enterprise clients + API key OpenAPI + webhook delivery |
 | Phase 20 | LOCKED | xlb-phase20-lbs-lite-dispatch | LBS-lite local/mock geo + private worker location + dispatch ranking/reassignment |
 | Phase 21 | LOCKED | xlb-phase21-three-app-operations-closure | Customer / worker / admin operations UI closure |
-| Phase 22 | DEVELOPMENT CANDIDATE COMPLETE | - | E2E / observability / security / performance gates |
+| Phase 22 | LOCKED | xlb-phase22-e2e-security-performance-gates | E2E / observability / security / performance gates |
 
 ## Phase 10 — Settlement Action Governance (LOCKED)
 
@@ -225,9 +225,13 @@
 - **Lock verification**: post-merge full suite, architecture preflight, migration replay, provider boundary, focused tests, and three-app Playwright smoke all passed on `main`
 - **Lock state**: LOCKED after feature/audit commits, `--no-ff` merge, tag, post-merge verification, and this metadata update
 
-## Phase 22 - E2E / Observability / Security / Performance Gates (DEVELOPMENT CANDIDATE COMPLETE)
+## Phase 22 - E2E / Observability / Security / Performance Gates (LOCKED)
 
 - **Entered**: 2026-07-10
+- **Locked**: 2026-07-10
+- **Tag**: `xlb-phase22-e2e-security-performance-gates`
+- **Tag target / main merge**: `e8dd34ebbaacba5acd232c49b0bcf1b944df624d`
+- **Feature head**: `14d040dafd63336ae287e16cc76525fa53a79ae5`
 - **Branch/base**: `codex/phase22-e2e-security-performance-gates` from Phase 21 locked main `88eaa61b94688cbb7fe402420575646af4a86418`
 - **Scope**: repeatable cross-app and enterprise E2E, structured logs/metrics/trace correlation, API-edge security gates, dependency scanning, and deterministic performance benchmarks
 - **Acceptance focus**: CI-failing E2E/security/performance thresholds; explicit multi-city/tenant/role rejection; provider-envelope truthfulness; test-count/todo reconciliation; staging-readiness evidence regeneration
@@ -236,8 +240,9 @@
 - **Formal gates**: `pnpm gate:phase22`, `scripts/check-phase22-migration-verification.ps1`
 - **Reports**: `docs/reports/PHASE22_QUALITY_GATES_REPORT.md`, `docs/reports/PHASE22_TEST_COVERAGE.md`
 - **Verification**: normal suite 289 files / 1,149 tests plus one existing Phase 1 todo; performance 1 file / 2 tests; Playwright 1 spec / 3 tests; typecheck 17/17; build 11/11; preflight passed
-- **Hosted CI**: clean delivery run `29091638119` passed with zero error annotations; independent hard-blocking E2E proof run `29091495547` failed as expected and was reverted
-- **State**: development candidate complete; pending independent review and Lock ceremony
+- **Hosted CI**: final feature run `29094663660` passed all six hard-blocking stages with zero error annotations; independent hard-blocking E2E proof run `29091495547` failed as expected and was reverted
+- **Post-merge verification**: build 11/11; typecheck 17/17; full regression 289 files / 1,149 tests plus one traced Phase 1 todo; preflight, Phase 22 gate, Playwright 3/3, coverage, dependency audit, and migration gate all passed on `main`
+- **State**: LOCKED after feature commits, `--no-ff` merge, tag, post-merge verification, and Lock metadata update
 
 ## Third-party Inspection
 
