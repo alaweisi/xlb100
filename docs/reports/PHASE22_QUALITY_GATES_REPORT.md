@@ -8,8 +8,8 @@ Base: Phase 21 locked main `88eaa61b94688cbb7fe402420575646af4a86418`
 ## Business Closure
 
 Phase 22 turns the Phase 16-21 implementation into one blocking quality gate rather
-than adding another isolated business module. `pnpm gate:phase22` runs fail-closed
-probes, cross-phase E2E, browser smoke, authorization attacks, observability tests,
+than adding another isolated business module. `pnpm gate:phase22` runs cross-phase
+E2E, browser smoke, authorization attacks, observability tests,
 concurrency/performance gates, coverage thresholds, and critical dependency audit.
 
 ## Cross-Phase E2E
@@ -77,64 +77,75 @@ without consuming pool connections waiting for the lock.
 - alert rules are checked in at `infra/observability/phase22-alert-rules.yml`.
 - operator guidance is in `docs/operations/PHASE22_OBSERVABILITY_RUNBOOK.md`.
 
-## CI Fail-Closed Evidence
+## CI Evidence Clarification
 
-`.github/workflows/phase22-quality-gates.yml` invokes the same `pnpm gate:phase22`
-command used locally. `scripts/check-phase22-ci-fail-closed.mjs` injected three real
-failures and observed non-zero exits:
+### Run #7 exit-code ownership
 
-| Probe | Injected failure | Observed result |
+[Phase 22 Quality Gates run #7](https://github.com/alaweisi/xlb100/actions/runs/29090627551)
+was top-level `Success`, but it is **not** valid final-delivery or fail-closed evidence.
+Its three `Process completed with exit code 1` results belonged to these steps:
+
+| Step | Command | Workflow behavior |
 | --- | --- | --- |
-| E2E | test throws before chain setup | exit 1; Playwright step not reached |
-| Security | authorization matrix throws | exit 1 |
-| Coverage | thresholds raised to 101% | exit 1 with four threshold errors |
+| `Inject E2E gate failure` | `pnpm test:e2e:phase22` | `continue-on-error: true` |
+| `Inject security gate failure` | `pnpm test:security:phase22` | `continue-on-error: true` |
+| `Inject coverage gate failure` | `pnpm test:coverage:phase22` | `continue-on-error: true` |
 
-The self-test itself passes only when all three child commands fail. This proves the
-repository-level command is fail-closed.
+The original design intentionally exposed command failures, asserted that each probe's
+outcome was `failure`, and then allowed the real gates to run. That design demonstrated
+that the commands returned non-zero, but the `continue-on-error` policy also meant the
+same run could not prove that GitHub Actions would block delivery. It additionally left
+error annotations on a green run. Runs #6 and #7 are therefore retained only as
+historical workflow-development records and are explicitly withdrawn as acceptance
+evidence.
 
-Hosted run `Phase 22 Quality Gates #1` (`29089467224`) also produced a real red result:
-`pnpm/action-setup` rejected duplicate pnpm version sources (`version: 9` in the
-workflow and `packageManager: pnpm@9.15.0` in `package.json`) before any quality test
-could run. The workflow now removes the duplicate and trusts `packageManager` as the
-single version source; run #2 verified that correction.
+The final delivery workflow contains no `continue-on-error`, failure-injection steps,
+or `XLB_PHASE22_FORCE_FAILURE` hooks. `scripts/check-phase22-boundaries.ps1` now rejects
+those constructs and verifies every real E2E, authorization, observability,
+performance, coverage, and dependency-audit command is present as a hard-blocking
+step.
 
-Hosted run `Phase 22 Quality Gates #2` (`29089578184`) then passed setup, install,
-Chromium, migration, and seed, but failed when the gate loaded
-`@xlb/shared/deterministic/stableHash.js`: a clean runner had no package `dist` output.
-The workflow now makes workspace build and typecheck explicit prerequisites instead of
-depending on local build artifacts; run #3 verified that correction.
+### Independent red-light proof
 
-Hosted run `Phase 22 Quality Gates #3` (`29089724317`) reached the complete gate and
-uploaded the coverage artifact, but GitHub treated intentional child-process failures
-inside the combined step as the step's final failure. The workflow now runs E2E,
-security, and coverage injection as separate `continue-on-error` steps, asserts all
-three step outcomes equal `failure`, and then runs the real green gate without nested
-injection. This preserves visible hosted red probes while allowing the job to pass only
-after the real gates pass; run #4 verified the separated probes.
+[Phase 22 Quality Gates run #9](https://github.com/alaweisi/xlb100/actions/runs/29091495547)
+is the dedicated fail-closed proof. Temporary commit `b1596d2` added one unconditional
+throw to `tests/integration/phase22CrossPhaseE2E.test.ts`. The hard-blocking
+`Cross-phase E2E gate` exited `1`, the job and workflow both finished as `Failure`, and
+later quality-gate steps did not convert that failure to success. No
+`continue-on-error` or equivalent exception was present.
 
-Hosted run `Phase 22 Quality Gates #4` (`29089983748`) confirmed all three injected
-steps were red and continued into the real gate, but the combined real gate returned a
-fourth non-zero exit whose nested stage was not exposed in the anonymous run summary.
-The hosted workflow now executes each real E2E, security, observability, performance,
-coverage, and dependency audit gate as a separate hard-blocking step; run #5 isolated
-the remaining E2E environment failure.
+The proof-only commit was immediately reverted by `903e185`. The final branch contains
+neither the unconditional throw nor any dormant environment-controlled failure hook.
+The red run is independent historical evidence; it is not the deliverable state and
+must not be merged to `main` as an active test failure.
 
-Hosted run `Phase 22 Quality Gates #5` (`29090181647`) isolated the first real blocker
-to the E2E step. The Phase 21 Playwright `webServer` commands used Windows-only `cmd /c`
-and `set VAR=...`, so clean Ubuntu runners could not start the backend/apps. Phase 22
-replaces those commands with `cross-env` plus pnpm, preserving the same isolated ports
-on Windows and Linux; run #6 verified the correction.
+### Clean final-delivery proof
 
-Hosted run `Phase 22 Quality Gates #6` (`29090426772`) for commit `63fa401` completed
-successfully. It retained the three expected red injection probes, passed the outcome
-assertion, and then passed each hard-blocking real E2E, authorization, observability,
-performance, coverage, and critical dependency audit step. This is the hosted green
-evidence for the fail-closed workflow.
+[Phase 22 Quality Gates run #10](https://github.com/alaweisi/xlb100/actions/runs/29091638119)
+ran against restored commit `903e185` and completed as `Success`. Its
+`Cross-phase E2E gate` and `Authorization security gate` steps both show `success`, and
+the run has **zero error annotations**. GitHub displays one platform warning that
+Actions using the Node.js 20 runtime are being forced to Node.js 24; this warning is not
+a test, build, security, or coverage failure and does not contradict the successful run
+status.
+
+The two acceptance-critical files pass in their final, non-injected state on both
+sides:
+
+| Test file | Local result | Hosted CI result |
+| --- | --- | --- |
+| `tests/integration/phase22CrossPhaseE2E.test.ts` | 1 file / 1 test PASS | run #10 `Cross-phase E2E gate`: SUCCESS |
+| `tests/security/phase22AuthorizationMatrix.test.ts` | 1 file / 1 test PASS | run #10 `Authorization security gate`: SUCCESS |
+
+Run #8 (`29091096477`) was the first clean green run after removing all injected probes.
+Run #9 then proved the hard failure path, and run #10 proved the exact restored delivery
+state. These separate red and green runs replace the contradictory run #7 evidence.
 
 ## Verification
 
 - `pnpm gate:phase22`: PASS.
-- Hosted GitHub Actions: PASS, run `29090426772`.
+- Hosted GitHub Actions final delivery: PASS, run `29091638119`, zero error annotations.
+- Hosted GitHub Actions fail-closed proof: FAILURE as expected, run `29091495547`.
 - Cross-phase API E2E: 1 file / 1 test passed.
 - A/W/C Playwright smoke: 1 spec / 3 tests passed, zero page/console errors.
 - Authorization matrix: 1 file / 1 test passed.
