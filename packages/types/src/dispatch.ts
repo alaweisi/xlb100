@@ -59,8 +59,37 @@ export interface DispatchOffer {
   workerId: string;
   status: DispatchOfferStatus;
   distanceKm: number | null;
+  etaMinutes?: number | null;
+  rankScore?: number | null;
+  expiresAt?: string | null;
+  geoProviderEnvelope?: GeoProviderEnvelope | null;
   offeredAt: string;
   respondedAt: string | null;
+}
+
+export interface GeoPoint { latitude: number; longitude: number; }
+export interface GeoProviderEnvelope {
+  provider: "local_mock";
+  providerStatus: "calculated_mock";
+  externalProviderExecuted: false;
+  distanceKm: number;
+  etaMinutes: number;
+  calculatedAt: string;
+  algorithm: "haversine_local_v1";
+}
+export interface WorkerLocation {
+  locationId: string;
+  workerId: string;
+  cityCode: CityCode;
+  latitude: number;
+  longitude: number;
+  accuracyMeters: number;
+  capturedAt: string;
+  expiresAt: string;
+  privacyLevel: "private_exact";
+  serviceRadiusKm: number;
+  locationSharingEnabled: boolean;
+  freshness: "fresh" | "stale";
 }
 
 export interface DispatchEvent {

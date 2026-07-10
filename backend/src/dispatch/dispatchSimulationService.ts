@@ -14,6 +14,7 @@ import {
   dispatchRepository,
   DispatchRepository,
 } from "./dispatchRepository.js";
+import { workerLocationService, WorkerLocationService } from "./workerLocationService.js";
 
 const OFFER_BATCH_SIZE = 3;
 const DEFAULT_TIMEOUT_MINUTES = 15;
@@ -37,6 +38,7 @@ export type DispatchSimulationRunResult = {
 export class DispatchSimulationService {
   constructor(
     private readonly repository: DispatchRepository = dispatchRepository,
+    private readonly locations: WorkerLocationService = workerLocationService,
   ) {}
 
   async matchOpenTasksOnce(
@@ -245,13 +247,7 @@ export class DispatchSimulationService {
       cityCode,
       task.dispatchTaskId,
     );
-    const candidates = await this.repository.findCandidateWorkers(
-      context,
-      cityCode,
-      task.skuId,
-      previousWorkerIds,
-      OFFER_BATCH_SIZE,
-    );
+    const candidates = await this.locations.rankCandidates(context,task,previousWorkerIds,OFFER_BATCH_SIZE);
 
     if (candidates.length === 0) {
       await withTransaction(async (connection) => {
@@ -288,6 +284,9 @@ export class DispatchSimulationService {
           cityCode,
           workerId: candidate.workerId,
           distanceKm: candidate.distanceKm,
+          etaMinutes: candidate.etaMinutes,
+          rankScore: candidate.rankScore,
+          geoProviderEnvelope: candidate.envelope,
         });
         await this.repository.insertEvent(connection, {
           dispatchEventId: generateEventId(),

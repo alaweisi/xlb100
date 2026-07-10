@@ -145,6 +145,7 @@ export {
   dispatchTaskSchema,
   dispatchTaskStatusSchema,
   dispatchStreamMessageSchema,
+  upsertWorkerLocationSchema,
   type DispatchEventInput,
   type DispatchOfferInput,
   type DispatchTaskInput,

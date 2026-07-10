@@ -7,6 +7,7 @@ export type {
   WorkerWithdrawalResponse,
 } from "./worker.js";
 export { adminApi } from "./admin.js";
+export type { DispatchBoardRow } from "./admin.js";
 export type {
   OrderReverseResponse,
   AftersaleComplaintResponse,

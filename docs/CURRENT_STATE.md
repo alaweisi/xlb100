@@ -24,6 +24,7 @@
 | Phase 17 | LOCKED | xlb-phase17-order-reverse-aftersale | Order reverse flow + aftersale complaints |
 | Phase 18 | LOCKED | xlb-phase18-fulfillment-evidence-oss-envelope | Fulfillment evidence + local/mock object storage envelope + customer confirmation |
 | Phase 19 | LOCKED | xlb-phase19-enterprise-openapi-webhook | B-side enterprise clients + API key OpenAPI + webhook delivery |
+| Phase 20 | IN PROGRESS | - | LBS-lite local/mock geo + private worker location + dispatch ranking/reassignment |
 
 ## Phase 10 — Settlement Action Governance (LOCKED)
 
@@ -181,6 +182,18 @@
   - admin enterprise browser smoke passed with live data and zero console errors
 - **Lock state**: LOCKED after feature commit, `--no-ff` merge, tag, post-merge verification, and lock metadata update
 - **Phase boundary**: Phase 20 has not been entered
+
+## Phase 20 - LBS-lite Dispatch (IN PROGRESS)
+
+- **Branch/base**: `codex/phase20-lbs-lite-dispatch` from locked main `3909d11`
+- **Scope**: private worker location, service radius, local/mock geo envelope, deterministic candidate ranking, offer ETA/expiry, timeout/reassignment, operator dispatch board
+- **Boundary**: no Amap/real map API or tiles; no payment/refund/settlement/OSS; exact coordinates remain worker-private
+- **Migration**: append-only `039_phase20_lbs_lite_dispatch.sql`
+- **Formal gate**: `scripts/check-phase20-migration-verification.ps1`
+- **Reports**: `docs/reports/PHASE20_LBS_LITE_DISPATCH_FOUNDATION_REPORT.md`, `docs/reports/PHASE20_TEST_COVERAGE.md`
+- **Development verification**: Phase 20 gate 4 files / 10 tests; full suite 279 files / 1,133 tests plus 1 existing Phase 1 todo; typecheck 17/17; build 11/11; preflight and admin browser smoke passed
+- **Candidate state**: development complete; pending independent review and Lock ceremony
+- **Phase boundary**: Phase 21 has not been entered
 
 ## Third-party Inspection
 

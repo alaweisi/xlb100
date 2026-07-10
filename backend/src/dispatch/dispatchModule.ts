@@ -12,6 +12,7 @@ import {
   dispatchSimulationService,
   DispatchSimulationError,
 } from "./dispatchSimulationService.js";
+import { workerLocationService, WorkerLocationError } from "./workerLocationService.js";
 
 function authorizeDispatchOperator(context: ReturnType<typeof getRequestContext>) {
   const authz = authorizeRequest(context);
@@ -31,6 +32,7 @@ function authorizeDispatchOperator(context: ReturnType<typeof getRequestContext>
 }
 
 export async function registerDispatchModule(app: FastifyInstance): Promise<void> {
+  app.get("/api/internal/dispatch/board",{preHandler:createRequestContextMiddleware({requireCityCode:true})},async(request,reply)=>{try{return {ok:true,rows:await workerLocationService.adminBoard(getRequestContext(request))};}catch(error){if(error instanceof WorkerLocationError)return reply.status(error.statusCode).send({ok:false,error:error.message});throw error;}});
   app.post(
     "/api/internal/dispatch/run-once",
     { preHandler: createRequestContextMiddleware({ requireCityCode: true }) },

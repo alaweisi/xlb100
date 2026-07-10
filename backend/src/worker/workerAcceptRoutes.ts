@@ -9,6 +9,7 @@ import {
   DispatchSimulationError,
 } from "../dispatch/dispatchSimulationService.js";
 import { workerService } from "./workerService.js";
+import { workerLocationService, WorkerLocationError } from "../dispatch/workerLocationService.js";
 import {
   workerAcceptService,
   AcceptValidationError,
@@ -23,6 +24,8 @@ import {
 export async function registerWorkerAcceptRoutes(
   app: FastifyInstance,
 ): Promise<void> {
+  app.post("/api/worker/location",{preHandler:createRequestContextMiddleware({requireCityCode:true})},async(request,reply)=>{try{return {ok:true,location:await workerLocationService.upsert(getRequestContext(request),request.body)};}catch(error){if(error instanceof WorkerLocationError)return reply.status(error.statusCode).send({ok:false,error:error.message});throw error;}});
+  app.get("/api/worker/location",{preHandler:createRequestContextMiddleware({requireCityCode:true})},async(request,reply)=>{try{return {ok:true,location:await workerLocationService.getOwn(getRequestContext(request))};}catch(error){if(error instanceof WorkerLocationError)return reply.status(error.statusCode).send({ok:false,error:error.message});throw error;}});
   app.post(
     "/api/worker/tasks/:dispatchTaskId/accept",
     { preHandler: createRequestContextMiddleware({ requireCityCode: true }) },

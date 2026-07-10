@@ -92,6 +92,8 @@ export interface AdminOrderTrace {
   };
 }
 
+export interface DispatchBoardRow {dispatchTaskId:string;orderId:string;skuId:string;status:string;attemptCount:number;lastReason:string|null;offer:null|{offerId:string;workerId:string;status:string;distanceKm:number|null;etaMinutes:number|null;rankScore:number|null;expiresAt:string|null;locationFreshness:string|null;externalProviderExecuted:boolean};}
+
 export interface AdminOrderTraceResponse {
   ok: boolean;
   trace: AdminOrderTrace;
@@ -120,6 +122,9 @@ export function createAdminApi(client: ApiClient) {
   return {
     settlement: createSettlementApi(client),
     enterprise: createEnterpriseAdminApi(client),
+    listDispatchBoard():Promise<{ok:true;rows:DispatchBoardRow[]}>{return client.get("/api/internal/dispatch/board");},
+    runDispatchMatch(dispatchTaskId?:string){return client.post<{ok:true;processed:number}>("/api/internal/dispatch/match-once",dispatchTaskId?{dispatchTaskId}:{});},
+    runDispatchTimeout(){return client.post<{ok:true;processed:number}>("/api/internal/dispatch/timeout-once",{timeoutMinutes:15});},
     getOrderTrace(orderId: string): Promise<AdminOrderTraceResponse> {
       return client.get<AdminOrderTraceResponse>(
         `/api/internal/admin/order-traces/${encodeURIComponent(orderId)}`,

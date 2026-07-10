@@ -21,6 +21,8 @@ async function cleanupGeneratedWorkerCandidates(): Promise<void> {
   if (generatedWorkerIds.size === 0) return;
   const workerIds = [...generatedWorkerIds];
   const placeholders = workerIds.map(() => "?").join(", ");
+  await getMysqlPool().query(`DELETE FROM worker_locations WHERE worker_id IN (${placeholders})`,workerIds);
+  await getMysqlPool().query(`DELETE FROM worker_dispatch_preferences WHERE worker_id IN (${placeholders})`,workerIds);
   await getMysqlPool().query(
     `DELETE FROM worker_qualifications WHERE worker_id IN (${placeholders})`,
     workerIds,
@@ -29,10 +31,7 @@ async function cleanupGeneratedWorkerCandidates(): Promise<void> {
     `DELETE FROM worker_online_status WHERE worker_id IN (${placeholders})`,
     workerIds,
   );
-  await getMysqlPool().query(
-    `DELETE FROM worker_city_bindings WHERE worker_id IN (${placeholders})`,
-    workerIds,
-  );
+  await getMysqlPool().query(`UPDATE worker_city_bindings SET is_enabled=0 WHERE worker_id IN (${placeholders})`,workerIds);
   generatedWorkerIds.clear();
 }
 
@@ -91,6 +90,9 @@ async function ensureCandidateWorker(input: {
      ON DUPLICATE KEY UPDATE is_eligible = VALUES(is_eligible)`,
     [input.workerId, cityCode, input.skuId],
   );
+  const center=cityCode==="shanghai"?{latitude:31.2304,longitude:121.4737}:{latitude:30.2741,longitude:120.1551};
+  await getMysqlPool().query(`INSERT INTO worker_dispatch_preferences(worker_id,city_code,service_radius_km,location_sharing_enabled) VALUES(?,?,50,1) ON DUPLICATE KEY UPDATE service_radius_km=50,location_sharing_enabled=1`,[input.workerId,cityCode]);
+  await getMysqlPool().query(`INSERT INTO worker_locations(location_id,worker_id,city_code,latitude,longitude,accuracy_meters,captured_at,expires_at) VALUES(?,?,?,?,?,10,CURRENT_TIMESTAMP(3),DATE_ADD(CURRENT_TIMESTAMP(3),INTERVAL 10 MINUTE)) ON DUPLICATE KEY UPDATE latitude=VALUES(latitude),longitude=VALUES(longitude),captured_at=VALUES(captured_at),expires_at=VALUES(expires_at)`,[`wloc_${input.workerId}`,input.workerId,cityCode,center.latitude+input.distanceKm/111,center.longitude]);
 }
 
 async function createQueuedTaskForSku(

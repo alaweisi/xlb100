@@ -39,6 +39,10 @@ type DispatchOfferRow = RowDataPacket & {
   worker_id: string;
   status: string;
   distance_km: string | null;
+  eta_minutes: number | null;
+  rank_score: string | null;
+  expires_at: Date | null;
+  geo_provider_envelope_json: string | object | null;
   offered_at: Date;
   responded_at: Date | null;
 };
@@ -109,6 +113,10 @@ function mapDispatchOfferRow(row: DispatchOfferRow): DispatchOffer {
     workerId: row.worker_id,
     status: row.status as DispatchOfferStatus,
     distanceKm: row.distance_km === null ? null : Number(row.distance_km),
+    etaMinutes: row.eta_minutes,
+    rankScore: row.rank_score === null ? null : Number(row.rank_score),
+    expiresAt: row.expires_at?.toISOString() ?? null,
+    geoProviderEnvelope: row.geo_provider_envelope_json ? (typeof row.geo_provider_envelope_json === "string" ? JSON.parse(row.geo_provider_envelope_json) : row.geo_provider_envelope_json) as DispatchOffer["geoProviderEnvelope"] : null,
     offeredAt: row.offered_at.toISOString(),
     respondedAt: row.responded_at?.toISOString() ?? null,
   };
@@ -143,6 +151,9 @@ export type InsertDispatchOfferInput = {
   cityCode: CityCode;
   workerId: string;
   distanceKm: number | null;
+  etaMinutes?: number | null;
+  rankScore?: number | null;
+  geoProviderEnvelope?: object | null;
 };
 
 export type InsertDispatchEventInput = {
@@ -225,8 +236,8 @@ export class DispatchRepository extends RepositoryBase {
   ): Promise<void> {
     await connection.query(
       `INSERT INTO dispatch_offers
-        (offer_id, dispatch_task_id, city_code, worker_id, status, distance_km)
-       VALUES (?, ?, ?, ?, 'offering', ?)
+        (offer_id, dispatch_task_id, city_code, worker_id, status, distance_km, eta_minutes, rank_score, expires_at, geo_provider_envelope_json)
+       VALUES (?, ?, ?, ?, 'offering', ?, ?, ?, DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 15 MINUTE), ?)
        ON DUPLICATE KEY UPDATE offer_id = offer_id`,
       [
         input.offerId,
@@ -234,6 +245,9 @@ export class DispatchRepository extends RepositoryBase {
         input.cityCode,
         input.workerId,
         input.distanceKm,
+        input.etaMinutes ?? null,
+        input.rankScore ?? null,
+        input.geoProviderEnvelope ? JSON.stringify(input.geoProviderEnvelope) : null,
       ],
     );
   }
@@ -593,7 +607,7 @@ export class DispatchRepository extends RepositoryBase {
 
     const [rows] = await this.pool.query<DispatchOfferRow[]>(
       `SELECT offer_id, dispatch_task_id, city_code, worker_id, status,
-              distance_km, offered_at, responded_at
+              distance_km, eta_minutes, rank_score, expires_at, geo_provider_envelope_json, offered_at, responded_at
        FROM dispatch_offers
        WHERE city_code = ? AND dispatch_task_id = ?
        ORDER BY offered_at ASC, distance_km ASC, worker_id ASC`,
@@ -625,7 +639,7 @@ export class DispatchRepository extends RepositoryBase {
 
     const [rows] = await this.pool.query<DispatchOfferRow[]>(
       `SELECT offer_id, dispatch_task_id, city_code, worker_id, status,
-              distance_km, offered_at, responded_at
+              distance_km, eta_minutes, rank_score, expires_at, geo_provider_envelope_json, offered_at, responded_at
        FROM dispatch_offers
        WHERE city_code = ? AND dispatch_task_id = ? AND worker_id = ?
        LIMIT 1`,
@@ -657,7 +671,7 @@ export class DispatchRepository extends RepositoryBase {
 
     const [rows] = await this.pool.query<DispatchOfferRow[]>(
       `SELECT offer_id, dispatch_task_id, city_code, worker_id, status,
-              distance_km, offered_at, responded_at
+              distance_km, eta_minutes, rank_score, expires_at, geo_provider_envelope_json, offered_at, responded_at
        FROM dispatch_offers
        WHERE city_code = ?
          AND status = 'offering'
