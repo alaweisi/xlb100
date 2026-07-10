@@ -112,6 +112,13 @@ three step outcomes equal `failure`, and then runs the real green gate without n
 injection. This preserves visible hosted red probes while allowing the job to pass only
 after the real gates pass. A hosted green rerun remains pending.
 
+Hosted run `Phase 22 Quality Gates #4` (`29089983748`) confirmed all three injected
+steps were red and continued into the real gate, but the combined real gate returned a
+fourth non-zero exit whose nested stage was not exposed in the anonymous run summary.
+The hosted workflow now executes each real E2E, security, observability, performance,
+coverage, and dependency audit gate as a separate hard-blocking step so the next run is
+both diagnosable and independently enforceable. A hosted green rerun remains pending.
+
 ## Verification
 
 - `pnpm gate:phase22`: PASS.

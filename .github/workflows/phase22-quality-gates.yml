@@ -80,8 +80,18 @@ jobs:
           test "${{ steps.e2e_probe.outcome }}" = "failure"
           test "${{ steps.security_probe.outcome }}" = "failure"
           test "${{ steps.coverage_probe.outcome }}" = "failure"
-      - name: Phase 22 quality gates
-        run: pnpm gate:phase22
+      - name: Cross-phase E2E gate
+        run: pnpm test:e2e:phase22
+      - name: Authorization security gate
+        run: pnpm test:security:phase22
+      - name: Observability gate
+        run: pnpm test:observability:phase22
+      - name: Concurrency performance gate
+        run: pnpm test:performance:phase22
+      - name: Coverage threshold gate
+        run: pnpm test:coverage:phase22
+      - name: Critical dependency audit
+        run: pnpm audit:critical
       - name: Upload Phase 22 coverage
         if: always()
         uses: actions/upload-artifact@v4
