@@ -28,13 +28,16 @@
 | Phase 21 | LOCKED | xlb-phase21-three-app-operations-closure | Customer / worker / admin operations UI closure |
 | Phase 22 | LOCKED | xlb-phase22-e2e-security-performance-gates | E2E / observability / security / performance gates |
 | Phase 23A | LOCKED | xlb-phase23a-auth-data-safety-hardening | Authentication and data safety hardening |
-| Phase 23B | LOCK CANDIDATE | — | Event outbox and API client reliability |
+| Phase 23B | LOCKED | xlb-phase23b-event-api-reliability | Event outbox and API client reliability |
 
-## Phase 23B — Event And API Reliability (LOCK CANDIDATE)
+## Phase 23B — Event And API Reliability (LOCKED)
 
 - **Entered**: 2026-07-11
 - **Branch**: `codex/phase23b-event-api-reliability`
 - **Base**: locked Phase 23A main metadata commit `c2088ec`
+- **Feature commit**: `b5bf08b`
+- **Merged main**: `3efbfd6adde055df6f41c2824609eb8a980ddf38`
+- **Tag**: `xlb-phase23b-event-api-reliability`
 - **Required migration**: `044_phase23b_event_outbox_reliability.sql`
 - **Scope**:
   - atomic Outbox claim with processing state and city/type isolation
@@ -56,7 +59,7 @@
   - forced typecheck and build passed: 22 / 22 combined tasks
   - architecture preflight passed through the Phase 23B boundary gate
 - **Report**: `docs/reports/PHASE23B_EVENT_API_RELIABILITY_REPORT.md`
-- **Current state**: implementation verified on the feature branch; independent Lock ceremony pending
+- **Lock state**: LOCKED after feature verification, `--no-ff` main merge, migration/seed replay, post-merge full verification, and tag creation; Phase 23C must branch from this locked main state
 
 ## Phase 23A — Authentication and Data Safety Hardening (LOCKED)
 

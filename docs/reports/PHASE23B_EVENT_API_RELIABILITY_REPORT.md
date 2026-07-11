@@ -5,7 +5,10 @@
 - Entered: 2026-07-11
 - Branch: `codex/phase23b-event-api-reliability`
 - Base: locked Phase 23A main metadata commit `c2088ec`
-- State: IMPLEMENTED / LOCK CANDIDATE
+- State: LOCKED
+- Feature commit: `b5bf08b`
+- Main merge commit: `3efbfd6adde055df6f41c2824609eb8a980ddf38`
+- Tag: `xlb-phase23b-event-api-reliability`
 - Required migration: `044_phase23b_event_outbox_reliability.sql`
 
 ## Scope
@@ -148,20 +151,14 @@ delivery coordination and client-side transport validation only.
 - Existing non-failing React `act(...)` warnings are outside this backend/API
   reliability scope
 
-## Lock Candidate Conclusion
+## Lock Conclusion
 
-Phase 23B implementation and its independent migration, tests, CI workflow,
-boundary gate, and report are complete. The branch is eligible for the Phase
-23B Lock ceremony:
+Phase 23B is independently LOCKED. The verified feature commit was merged to
+`main` with `--no-ff`; local MySQL and Redis were healthy; migration `044` and
+the local seeds replayed successfully; the Phase 23B gate, forced typecheck and
+build, full 169-file / 484-test regression, and architecture preflight all
+passed again on merge commit `3efbfd6`. The lightweight tag
+`xlb-phase23b-event-api-reliability` points to that verified merge commit.
 
-1. Commit the verified feature candidate.
-2. Re-run the branch gates and full regression from the committed head.
-3. Merge to `main` with `--no-ff`.
-4. Re-run migration/seed, Phase 23B gate, typecheck, build, full tests, and
-   architecture preflight on the merge commit.
-5. Tag the verified merge as `xlb-phase23b-event-api-reliability`.
-6. Update `docs/CURRENT_STATE.md` and this report with final merge/tag evidence.
-
-Until those steps complete, Phase 23B is a Lock candidate and is not reported
-as LOCKED. Phase 23C must start only from the independently locked Phase 23B
-main state.
+Phase 23C may start only from the locked Phase 23B main state. The provider and
+business-semantic boundaries recorded above remain mandatory.
