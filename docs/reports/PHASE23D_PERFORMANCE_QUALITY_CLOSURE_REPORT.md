@@ -2,9 +2,11 @@
 
 ## Status
 
-**IMPLEMENTED / LOCK CANDIDATE**
+**LOCKED**
 
-Merge commit and tag are reserved for the final independent Lock ceremony.
+- Feature commit: `3d16ec1`
+- Main merge commit: `a01f98d7b1260a6bd0006866b0e07b387ff2e7e5`
+- Tag: `xlb-phase23d-performance-quality-closure`
 
 ## Delivered scope
 
@@ -65,5 +67,18 @@ Local focused evidence on 2026-07-11:
 - [x] Full regression passes
 - [x] Architecture preflight passes
 - [x] Local browser E2E passes without console/page errors
-- [ ] Feature branch merged with `--no-ff`
-- [ ] Phase 23D tag and final `CURRENT_STATE.md` metadata created
+- [x] Feature branch merged with `--no-ff`
+- [x] Phase 23D tag and final `CURRENT_STATE.md` metadata created
+
+## Lock conclusion
+
+Phase 23D is independently LOCKED. After the `--no-ff` merge, migration and
+seed replay, the complete Phase 23D gate, forced typecheck/build, full 172-file
+/ 490-test regression, architecture preflight, authenticated lifecycle E2E,
+three-app Playwright smoke, five real `EXPLAIN ANALYZE` plans, and concurrency
+thresholds all passed again on merge commit `a01f98d`. The tag above points to
+that verified merge commit.
+
+The original boundaries remain unchanged: no real payment provider, Amap/map,
+or real object storage; no locked migration mutation; and no change to order,
+ledger, settlement, payout, or refund semantics.

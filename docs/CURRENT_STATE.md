@@ -30,13 +30,16 @@
 | Phase 23A | LOCKED | xlb-phase23a-auth-data-safety-hardening | Authentication and data safety hardening |
 | Phase 23B | LOCKED | xlb-phase23b-event-api-reliability | Event outbox and API client reliability |
 | Phase 23C | LOCKED | xlb-phase23c-three-app-frontend-engineering | Three-app frontend engineering |
-| Phase 23D | LOCK CANDIDATE | — | Performance and quality closure |
+| Phase 23D | LOCKED | xlb-phase23d-performance-quality-closure | Performance and quality closure |
 
-## Phase 23D — Performance and Quality Closure (LOCK CANDIDATE)
+## Phase 23D — Performance and Quality Closure (LOCKED)
 
 - **Entered**: 2026-07-11
 - **Branch**: `codex/phase23d-performance-quality-closure-v2`
 - **Base**: locked Phase 23C main metadata commit `e6860b6`
+- **Feature commit**: `3d16ec1`
+- **Merged main**: `a01f98d7b1260a6bd0006866b0e07b387ff2e7e5`
+- **Tag**: `xlb-phase23d-performance-quality-closure`
 - **Required migration**: `046_phase23d_query_path_indexes.sql`
 - **Scope**:
   - bounded metrics label cardinality
@@ -56,7 +59,7 @@
   - architecture preflight passed through Phase 23D
   - CityConfig CAS produced exactly 1 success / 23 conflicts with p95 91.3 ms against a 1000 ms budget
 - **Report**: `docs/reports/PHASE23D_PERFORMANCE_QUALITY_CLOSURE_REPORT.md`
-- **Current state**: implementation verified on the feature branch; independent Lock ceremony pending
+- **Lock state**: LOCKED after feature verification, `--no-ff` main merge, migration/seed replay, post-merge full verification, browser/E2E/performance verification, and tag creation
 
 ## Phase 23C — Three-app Frontend Engineering (LOCKED)
 
