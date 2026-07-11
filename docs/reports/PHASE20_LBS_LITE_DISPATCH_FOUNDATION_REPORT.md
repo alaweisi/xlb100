@@ -53,7 +53,7 @@ This proves both that the version marker is unique and that a normal migration r
 
 ## User Asset Protection
 
-Before feature commit and merge, the `E:\xlb100` main worktree contained exactly five user-owned untracked audit artifacts. They remain untouched and are excluded from Phase 20 staging and commits:
+Before feature commit and merge, the `G:\xlb100` main worktree contained exactly five user-owned untracked audit artifacts. They remain untouched and are excluded from Phase 20 staging and commits:
 
 - `docs/architecture-reaudit-2026-07-09.md`
 - `docs/reports/ARCH_BENCHMARK_WSF_LUBAN_ZMN_2026-07-09.md`

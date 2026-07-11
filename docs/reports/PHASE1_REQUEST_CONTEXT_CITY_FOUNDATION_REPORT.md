@@ -1,7 +1,7 @@
 # PHASE1_REQUEST_CONTEXT_CITY_FOUNDATION_REPORT
 
 **项目：** 喜乐帮 / XLB  
-**路径：** `E:\xlb100`  
+**路径：** `G:\xlb100`  
 **分支：** `phase1-request-context-city-foundation`  
 **阶段：** Phase 1 — RequestContext + City Foundation  
 **日期：** 2026-07-03  

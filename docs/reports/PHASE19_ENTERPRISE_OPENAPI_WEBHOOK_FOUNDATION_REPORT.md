@@ -85,7 +85,7 @@ Verified lifecycle identifiers: client `bcl_dd559dd6bf78444993a1c280`, business 
 
 ## User Asset Protection
 
-The five user-owned untracked audit/analysis artifacts in the `E:\xlb100` main worktree were listed before Lock work and remain untouched and excluded from the Phase 19 feature commit:
+The five user-owned untracked audit/analysis artifacts in the `G:\xlb100` main worktree were listed before Lock work and remain untouched and excluded from the Phase 19 feature commit:
 
 - `docs/architecture-reaudit-2026-07-09.md`
 - `docs/reports/ARCH_BENCHMARK_WSF_LUBAN_ZMN_2026-07-09.md`

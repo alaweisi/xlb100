@@ -216,7 +216,7 @@ maintenance. No Phase 16-21 migration, tag, or runtime business behavior was cha
 
 ## User Asset Protection
 
-The five user-owned audit files in the `E:\xlb100` main worktree remain untracked and
+The five user-owned audit files in the `G:\xlb100` main worktree remain untracked and
 were not read into staging, overwritten, or committed by Phase 22.
 
 ## Lock Conclusion
@@ -237,6 +237,6 @@ were not read into staging, overwritten, or committed by Phase 22.
   post-merge verification then passed. No source correction was required.
 - Provider boundary: real geo, object-storage, and webhook provider executions all
   remained zero.
-- User assets: the five audit files in `E:\xlb100` remain untracked and untouched.
+- User assets: the five audit files in `G:\xlb100` remain untracked and untouched.
 - Final state: Phase 22 is LOCKED. Phase 16-22 competitive gap closure is complete;
   no subsequent phase has been entered.

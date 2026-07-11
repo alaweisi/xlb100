@@ -1,7 +1,7 @@
 # Phase 10A Readiness Scan Report
 
 Generated: 2026-07-05
-Repository: E:\xlb100
+Repository: G:\xlb100
 Branch: phase10a-settlement-action-governance-foundation
 
 ## A. Baseline Evidence

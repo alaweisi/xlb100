@@ -131,15 +131,15 @@ Result:
 
 Command:
 
-- `node .agents\skills\impeccable\scripts\context.mjs --target E:\xlb100\apps\customer\src\app\App.tsx`
+- `node .agents\skills\impeccable\scripts\context.mjs --target G:\xlb100\apps\customer\src\app\App.tsx`
 
 Result:
 
 - `NO_PRODUCT_MD`
 - It resolved:
-  - target path: `E:\xlb100\apps\customer\src\app\App.tsx`
-  - project root: `E:\xlb100\apps\customer`
-  - repo root: `E:\xlb100`
+  - target path: `G:\xlb100\apps\customer\src\app\App.tsx`
+  - project root: `G:\xlb100\apps\customer`
+  - repo root: `G:\xlb100`
   - no `PRODUCT.md`
   - no `DESIGN.md`
 

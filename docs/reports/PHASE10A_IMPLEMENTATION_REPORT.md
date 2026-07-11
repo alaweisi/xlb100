@@ -1,7 +1,7 @@
 # Phase 10A Implementation Report
 
 Generated: 2026-07-05
-Repository: E:\xlb100
+Repository: G:\xlb100
 
 ## A. Baseline Evidence
 
@@ -112,7 +112,7 @@ All changes are within admin frontend shell + docs + tests — zero forbidden zo
 
 ## G. THIRD-PARTY INSPECTION ENTRY — PHASE 10A
 
-**Project:** E:\xlb100
+**Project:** G:\xlb100
 
 **Phase:** Phase 10A — Settlement Action Governance Foundation
 

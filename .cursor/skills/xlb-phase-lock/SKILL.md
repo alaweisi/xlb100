@@ -23,7 +23,7 @@ Lock = freeze a Phase on `main` with tag. **Not** normal development.
 ### 1. Engineering
 
 ```powershell
-cd E:\xlb100
+cd G:\xlb100
 npx pnpm build
 npx pnpm typecheck
 npx pnpm test

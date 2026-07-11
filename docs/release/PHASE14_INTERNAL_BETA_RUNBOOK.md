@@ -8,7 +8,7 @@ RC2 is approved for staging internal beta only. It is not approved for productio
 
 ## Startup commands
 
-Run from `E:\xlb100`.
+Run from `G:\xlb100`.
 
 ```powershell
 docker compose --env-file .env.staging.example -f deploy/compose/docker-compose.staging.yml up -d --build

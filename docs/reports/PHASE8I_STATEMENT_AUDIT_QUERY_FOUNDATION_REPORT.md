@@ -1,7 +1,7 @@
 # PHASE8I_STATEMENT_AUDIT_QUERY_FOUNDATION_REPORT
 
 **项目：** 喜乐帮 / XLB  
-**路径：** `E:\xlb100`  
+**路径：** `G:\xlb100`  
 **阶段：** Phase 8I — Statement Audit Query Foundation  
 **报告日期：** 2026-07-04  
 

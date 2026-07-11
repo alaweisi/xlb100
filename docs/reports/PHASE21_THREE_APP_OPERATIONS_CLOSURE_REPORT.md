@@ -131,9 +131,9 @@ The Phase 9A-9E exact allowlists were extended only for the approved Phase 21 mi
 
 ## User Asset Protection
 
-The five user-owned audit artifacts in the `E:\xlb100` main worktree remain untracked,
+The five user-owned audit artifacts in the `G:\xlb100` main worktree remain untracked,
 untouched, and excluded from this branch and all Phase 21 staging. Verification used
-`git -C E:\xlb100 status --short` (all five remain `??`) and `git -C E:\xlb100
+`git -C G:\xlb100 status --short` (all five remain `??`) and `git -C G:\xlb100
 ls-files -- <five paths>` (no tracked result):
 
 - `docs/architecture-reaudit-2026-07-09.md`

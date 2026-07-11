@@ -1,7 +1,7 @@
 # PHASE8H_WORKER_RECEIVABLE_STATEMENT_EXPORT_PACKAGE_FOUNDATION_REPORT
 
 **项目：** 喜乐帮 / XLB  
-**路径：** `E:\xlb100`  
+**路径：** `G:\xlb100`  
 **阶段：** Phase 8H — Worker Receivable Statement Export Package Foundation  
 **报告日期：** 2026-07-04  
 

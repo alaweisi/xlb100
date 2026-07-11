@@ -18,7 +18,7 @@ This drill proves that the current staging database can be backed up and restore
 | Field | Value |
 | --- | --- |
 | Owner | DBA / SRE owner for `PROD-OPS-004` |
-| Operator | Codex on `E:\xlb100` |
+| Operator | Codex on `G:\xlb100` |
 | Drill timestamp UTC | `2026-07-06T02:13:09Z` |
 | Drill timestamp local | `2026-07-06T10:13:09+08:00` |
 | Source database | `xlb_staging` in `xlb-mysql-staging` |

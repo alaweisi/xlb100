@@ -22,7 +22,7 @@ description: >-
 
 1. **Shell snapshot**
    ```powershell
-   cd E:\xlb100
+   cd G:\xlb100
    git status
    git branch --show-current
    git log --oneline -10

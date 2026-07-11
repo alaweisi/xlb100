@@ -316,7 +316,7 @@ Verification:
 - Full serial Vitest: `255 passed`, `1049 passed | 1 todo`.
 
 日期：2026-07-08  
-检查范围：`E:\xlb100` monorepo 全量目录、文档、三端 App、后端、数据库、测试、CI/CD、Git 状态。  
+检查范围：`G:\xlb100` monorepo 全量目录、文档、三端 App、后端、数据库、测试、CI/CD、Git 状态。  
 检查原则：只检查和记录，不修改业务代码。本报告替换了原先同名未跟踪报告文件，原因是原文件中文编码乱码且部分结论需要按本次命令重新核实。
 
 ## 0. 总体结论

@@ -1,7 +1,7 @@
 # Phase 10C Readiness Scan Report
 
 Generated: 2026-07-05
-Repository: E:\xlb100
+Repository: G:\xlb100
 Branch: phase10-settlement-action-governance-release-train
 
 ## A. Baseline Evidence

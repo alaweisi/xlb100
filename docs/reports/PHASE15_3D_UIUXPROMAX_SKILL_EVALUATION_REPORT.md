@@ -80,7 +80,7 @@ C:\Users\kong\.codex\skills\ui-ux-pro-max\scripts\__pycache__\core.cpython-313.p
 C:\Users\kong\.codex\skills\ui-ux-pro-max\scripts\__pycache__\design_system.cpython-313.pyc
 ```
 
-No third-party skill files were created inside `E:\xlb100`; `.gitignore` did not need to change.
+No third-party skill files were created inside `G:\xlb100`; `.gitignore` did not need to change.
 
 ## Runtime Requirements
 

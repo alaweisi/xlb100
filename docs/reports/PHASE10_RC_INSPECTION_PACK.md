@@ -1,6 +1,6 @@
 # Phase 10 RC Third-Party Inspection Pack
 
-**Project**: E:\xlb100
+**Project**: G:\xlb100
 **Branch**: phase10-settlement-action-governance-release-train
 **Stable base**: main@3e90f2b1bbfb4c7d7a08371e902fe8b3f8cbaa86
 **Functional RC HEAD**: cb0ae5969f65e5ec9ab99dc5d6a7f63f469f2716
@@ -27,7 +27,7 @@ Verify Phase 10A-10F completed governance-only settlement action governance, wit
 ## Required Checks
 
 ```powershell
-cd E:\xlb100
+cd G:\xlb100
 
 # 1. Worktree clean
 git status --short

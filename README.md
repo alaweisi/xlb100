@@ -2,7 +2,7 @@
 
 三端 App（Customer · Worker · Admin）+ 后端 + 共享包 Monorepo。
 
-**本地路径：** `E:\xlb100`  
+**本地路径：** `G:\xlb100`  
 **当前阶段：** Phase 3 已封版 · Phase 3A 正式类目导入协议已建立
 
 Phase 0–3 工程与 CityConfig/Catalog/Pricing 地基已完成。正式 16 大类导入见 `docs/catalog/`。

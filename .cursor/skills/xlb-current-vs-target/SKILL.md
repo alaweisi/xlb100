@@ -15,7 +15,7 @@ description: >-
 
 | Source | Role | Trust for "does it exist?" |
 |--------|------|----------------------------|
-| `E:\xlb100` git tree | **Current** | Yes |
+| `G:\xlb100` git tree | **Current** | Yes |
 | `docs/CURRENT_STATE.md` | **Current summary** | Yes |
 | `docs/reports/PHASE*_*.md` | **Locked / in-progress scope** | Yes |
 | `xlb100工程目录结构表.txt` (Downloads) | **SDJ99 target blueprint** | **No** — naming, paths, and modules differ |

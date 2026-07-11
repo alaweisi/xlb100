@@ -64,10 +64,10 @@ These commands are validation evidence for the repository state only. They do no
 
 | Command | Status | Evidence |
 | --- | --- | --- |
-| `npx pnpm typecheck` | PASS | Run from `E:\xlb100` on 2026-07-06; 16/16 turbo tasks successful. |
-| `npx pnpm test -- --bail=1 --reporter=verbose` | PASS | Run from `E:\xlb100` on 2026-07-06; 255 test files passed, 1048 tests passed, 1 todo. |
-| `npx pnpm preflight` | PASS | Run from `E:\xlb100` on 2026-07-06; architecture, phase gates, replay, and immutability checks passed. |
-| `scripts\smoke-staging.ps1` | PASS | Run from `E:\xlb100` on 2026-07-06; backend health, DB health, customer, worker, and admin checks passed. |
+| `npx pnpm typecheck` | PASS | Run from `G:\xlb100` on 2026-07-06; 16/16 turbo tasks successful. |
+| `npx pnpm test -- --bail=1 --reporter=verbose` | PASS | Run from `G:\xlb100` on 2026-07-06; 255 test files passed, 1048 tests passed, 1 todo. |
+| `npx pnpm preflight` | PASS | Run from `G:\xlb100` on 2026-07-06; architecture, phase gates, replay, and immutability checks passed. |
+| `scripts\smoke-staging.ps1` | PASS | Run from `G:\xlb100` on 2026-07-06; backend health, DB health, customer, worker, and admin checks passed. |
 
 ## Remaining Blockers
 

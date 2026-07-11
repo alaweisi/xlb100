@@ -1,7 +1,7 @@
 # PHASE0_ENGINEERING_FOUNDATION_REPORT
 
 **项目：** 喜乐帮 / XLB  
-**路径：** `E:\xlb100`  
+**路径：** `G:\xlb100`  
 **阶段：** Phase 0 — Engineering Foundation & Monorepo Skeleton  
 **封版任务：** Phase 0-Lock — Engineering Foundation Freeze  
 **封版日期：** 2026-07-03  
