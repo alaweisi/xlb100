@@ -69,9 +69,9 @@ describe("Phase 9B — Drilldown / Detail Foundation", () => {
 
   // ── Unit: Hash Route ──
   describe("unit — hash route", () => {
-    it("renders dashboard when hash is empty", () => {
+    it("renders dashboard when hash is empty", async () => {
       render(<App />);
-      expect(screen.getByText("Settlement Operations Console")).toBeTruthy();
+      expect(await screen.findByText("Settlement Operations Console")).toBeTruthy();
     });
 
     it("renders detail page when hash contains statementId", async () => {

@@ -20,6 +20,9 @@
     "test:outbox:phase23b": "vitest run --workspace vitest.workspace.ts --project unit-contract tests/unit/outboxDeliveryPolicy.test.ts && vitest run --workspace vitest.workspace.ts --project db-serial tests/integration/outboxClaimConcurrency.test.ts tests/integration/dispatchRunOnce.test.ts tests/integration/ledgerRunOnce.test.ts",
     "test:migration:phase23b": "node scripts/run-phase23b-migration-gate.mjs",
     "gate:phase23b": "node scripts/run-phase23b-gates.mjs",
+    "test:frontend:phase23c": "vitest run --workspace vitest.workspace.ts --project unit-contract tests/unit/appErrorBoundary.test.tsx tests/unit/workerFeatureReducers.test.ts tests/unit/workerApp.test.tsx && vitest run --workspace vitest.workspace.ts --project db-serial tests/security/phase23cFrontendBoundaryGates.test.ts",
+    "test:migration:phase23c": "node scripts/run-phase23c-migration-gate.mjs",
+    "gate:phase23c": "node scripts/run-phase23c-gates.mjs",
     "test:watch": "vitest --workspace vitest.workspace.ts",
     "lint": "turbo run lint",
     "preflight": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/preflight-architecture.ps1"

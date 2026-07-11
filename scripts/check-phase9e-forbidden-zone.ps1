@@ -9,6 +9,7 @@ $allowedFiles = @(
   "docs/reports/PHASE22_QUALITY_GATES_REPORT.md",
   "docs/reports/PHASE23A_AUTH_DATA_SAFETY_HARDENING_REPORT.md",
   "docs/reports/PHASE23B_EVENT_API_RELIABILITY_REPORT.md",
+  "docs/reports/PHASE23C_THREE_APP_FRONTEND_ENGINEERING_REPORT.md",
   "backend/src/governance/governanceGuard.ts",
   "backend/src/governance/governanceIntentRoutes.ts",
   "backend/src/governance/governanceIntentService.ts",

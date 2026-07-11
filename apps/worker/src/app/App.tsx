@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import type { Fulfillment, FulfillmentEvidenceType, WorkerLocation, WorkerTaskPoolItem } from "@xlb/types";
 import type {
@@ -12,29 +12,31 @@ import {
   BottomNav,
   Button,
   Card,
-  EmptyState,
   FormField,
   Input,
   LoadingState,
   MobileShell,
-  Select,
   StatusTag,
-  Table,
-  Textarea,
 } from "@xlb/ui";
-import { workerWorkflowActions } from "../adapters/workflowBindings";
 import {
   createWorkerApiClient,
   isUnauthorizedError,
-  loginWorkerWithCode,
-  readWorkerDebugCode,
-  requestWorkerLoginCode,
   type WorkerSession,
 } from "./workerAuth";
 
-const DEFAULT_CITY_CODE = "hangzhou";
-const DEFAULT_WORKER_PHONE = "13800000001";
+import { helperText, workerPanelStyle } from "../pages/pageShared";
+import { useWorkerAuthStore } from "../features/auth/store";
 
+const WorkerLoginPage = lazy(() => import("../pages/AuthPages").then((module) => ({ default: module.WorkerLoginPage })));
+const HallPage = lazy(() => import("../pages/TaskPages").then((module) => ({ default: module.HallPage })));
+const TasksPage = lazy(() => import("../pages/TaskPages").then((module) => ({ default: module.TasksPage })));
+const RepairOrdersPage = lazy(() => import("../pages/FulfillmentPages").then((module) => ({ default: module.RepairOrdersPage })));
+const TaskDetailPage = lazy(() => import("../pages/FulfillmentPages").then((module) => ({ default: module.TaskDetailPage })));
+const WalletPage = lazy(() => import("../pages/FinancePages").then((module) => ({ default: module.WalletPage })));
+const WorkerLocationPage = lazy(() => import("../pages/ProfilePages").then((module) => ({ default: module.WorkerLocationPage })));
+const CertificationPage = lazy(() => import("../pages/ProfilePages").then((module) => ({ default: module.CertificationPage })));
+
+const DEFAULT_CITY_CODE = "hangzhou";
 type WorkerRoute =
   | "hall"
   | "tasks"
@@ -114,30 +116,6 @@ const shellStyle = {
   minHeight: "100vh",
 } as CSSProperties;
 
-const workerPanelStyle: CSSProperties = {
-  background: "rgba(47, 75, 110, 0.86)",
-  borderColor: "rgba(138, 174, 210, 0.24)",
-  borderRadius: 8,
-  boxShadow: "none",
-  color: "#f8fbff",
-};
-
-const helperText: CSSProperties = {
-  color: "#b7c9dc",
-  fontSize: 13,
-  lineHeight: "20px",
-  margin: 0,
-};
-
-const mutedBoxStyle: CSSProperties = {
-  background: "rgba(255, 255, 255, 0.08)",
-  border: "1px solid rgba(138, 174, 210, 0.18)",
-  borderRadius: 8,
-  display: "grid",
-  gap: 8,
-  padding: 12,
-};
-
 function readQueryParams(): QueryParams {
   const params = new URLSearchParams(window.location.search);
   return {
@@ -161,22 +139,6 @@ function resolveRoute(): ResolvedRoute {
   if (rawPath === "/worker/certification") return { route: "certification" };
   if (rawPath === "/worker/profile") return { route: "profile" };
   return { route: "hall" };
-}
-
-function formatAmount(amount: number): string {
-  return `CNY ${amount.toFixed(2)}`;
-}
-
-function statusTone(status: string): "primary" | "success" | "warning" | "danger" | "muted" {
-  if (status === "completed") return "success";
-  if (status === "in_progress") return "primary";
-  if (status === "accepted" || status === "queued" || status === "offering" || status === "reassigning") return "warning";
-  if (status === "cancelled" || status === "failed" || status === "no_match" || status === "manual_review") return "danger";
-  return "muted";
-}
-
-function formatNullable(value: string | null | undefined): string {
-  return value || "-";
 }
 
 function PhoneStatusBar() {
@@ -284,101 +246,6 @@ function AppFrame({ route, children }: { route: WorkerRoute; children: ReactNode
   );
 }
 
-function WorkerLoginPage({
-  cityCode,
-  onCityChange,
-  onLogin,
-}: {
-  cityCode: string;
-  onCityChange: (value: string) => void;
-  onLogin: (session: WorkerSession) => void;
-}) {
-  const [phone, setPhone] = useState(DEFAULT_WORKER_PHONE);
-  const [code, setCode] = useState("");
-  const [loading, setLoading] = useState<"request" | "debug" | "login" | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const debugCodeEnabledInUi =
-    ((import.meta as ImportMeta & { env?: { MODE?: string } }).env?.MODE ?? "development") !== "production";
-
-  const requestCode = useCallback(async () => {
-    setLoading("request");
-    setError(null);
-    setNotice(null);
-    try {
-      const result = await requestWorkerLoginCode(phone.trim());
-      setNotice(`Code sent. It expires in ${result.ttlSeconds}s.`);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Failed to request login code");
-    } finally {
-      setLoading(null);
-    }
-  }, [phone]);
-
-  const fillDebugCode = useCallback(async () => {
-    setLoading("debug");
-    setError(null);
-    setNotice(null);
-    try {
-      const result = await readWorkerDebugCode(phone.trim());
-      setCode(result.code);
-      setNotice("Debug code filled for local verification.");
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Debug code unavailable");
-    } finally {
-      setLoading(null);
-    }
-  }, [phone]);
-
-  const submitLogin = useCallback(async () => {
-    setLoading("login");
-    setError(null);
-    setNotice(null);
-    try {
-      const session = await loginWorkerWithCode(phone.trim(), code.trim());
-      onLogin(session);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Worker login failed");
-    } finally {
-      setLoading(null);
-    }
-  }, [code, onLogin, phone]);
-
-  return (
-    <AppFrame route="hall">
-      <Card title="Worker Login" actions={<StatusTag tone="primary">Bearer</StatusTag>} style={workerPanelStyle}>
-        <div style={{ display: "grid", gap: 10 }}>
-          <p style={helperText}>Use phone OTP login before opening the worker task pool.</p>
-          <FormField label="cityCode">
-            <Input value={cityCode} onChange={(event) => onCityChange(event.target.value || DEFAULT_CITY_CODE)} />
-          </FormField>
-          <FormField label="phone">
-            <Input value={phone} onChange={(event) => setPhone(event.target.value)} />
-          </FormField>
-          <FormField label="code">
-            <Input value={code} onChange={(event) => setCode(event.target.value)} />
-          </FormField>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-            <Button onClick={requestCode} disabled={loading !== null || !phone.trim()}>
-              {loading === "request" ? "Sending" : "Send code"}
-            </Button>
-            {debugCodeEnabledInUi && (
-              <Button onClick={fillDebugCode} disabled={loading !== null || !phone.trim()}>
-                {loading === "debug" ? "Reading" : "Fill debug code"}
-              </Button>
-            )}
-            <Button onClick={submitLogin} disabled={loading !== null || !phone.trim() || !code.trim()} variant="primary">
-              {loading === "login" ? "Logging in" : "Login"}
-            </Button>
-          </div>
-          {notice && <p style={helperText}>{notice}</p>}
-          {error && <p style={{ ...helperText, color: "#fda29b" }}>{error}</p>}
-        </div>
-      </Card>
-    </AppFrame>
-  );
-}
-
 function SessionCard({
   cityCode,
   session,
@@ -412,565 +279,11 @@ function SessionCard({
   );
 }
 
-function HallPage({
-  tasks,
-  loading,
-  error,
-  acceptError,
-  acceptNotice,
-  acceptingDispatchTaskId,
-  simulationAction,
-  simulationControlsEnabled,
-  cityCode,
-  workerId,
-  onRefresh,
-  onAccept,
-  onReject,
-  onSimulateTimeout,
-}: {
-  tasks: WorkerTaskPoolItem[];
-  loading: boolean;
-  error: string | null;
-  acceptError: string | null;
-  acceptNotice: string | null;
-  acceptingDispatchTaskId: string | null;
-  simulationAction: { type: "reject" | "timeout"; dispatchTaskId: string } | null;
-  simulationControlsEnabled: boolean;
-  cityCode: string;
-  workerId: string;
-  onRefresh: () => void;
-  onAccept: (dispatchTaskId: string) => void;
-  onReject: (dispatchTaskId: string) => void;
-  onSimulateTimeout: (dispatchTaskId: string) => void;
-}) {
-  return (
-    <>
-      <Card title="Task Pool Status" actions={<StatusTag tone="success">{tasks.length} available</StatusTag>} style={workerPanelStyle}>
-        <p style={helperText}>
-          city={cityCode}, worker={workerId}. Source: GET /api/worker/task-pool.
-        </p>
-      </Card>
-
-      {loading && <LoadingState title="Loading task pool" description="Requesting real worker task pool data." />}
-      {error && (
-        <Card title="Load failed" actions={<StatusTag tone="danger">Error</StatusTag>} style={workerPanelStyle}>
-          <p style={{ ...helperText, color: "#fda29b" }}>{error}</p>
-        </Card>
-      )}
-      {acceptError && (
-        <Card title="Accept failed" actions={<StatusTag tone="danger">Error</StatusTag>} style={workerPanelStyle}>
-          <p style={{ ...helperText, color: "#fda29b" }}>{acceptError}</p>
-        </Card>
-      )}
-      {acceptNotice && (
-        <Card title="Accept completed" actions={<StatusTag tone="success">Accepted</StatusTag>} style={workerPanelStyle}>
-          <p style={helperText}>{acceptNotice}</p>
-        </Card>
-      )}
-
-      {!loading && !error && (
-        <Card title="Available Tasks" actions={<Button onClick={onRefresh}>Refresh</Button>} style={workerPanelStyle}>
-          {tasks.length === 0 ? (
-            <EmptyState title="No queued task" description="Create and pay an order, then let auto-run create a queued dispatch_task." />
-          ) : (
-            <Table
-              rows={tasks}
-              getRowKey={(row) => row.dispatchTaskId}
-              columns={[
-                { key: "dispatchTaskId", title: "Task ID", render: (row) => row.dispatchTaskId },
-                { key: "orderId", title: "Order ID", render: (row) => row.orderId },
-                { key: "skuId", title: "SKU", render: (row) => row.skuId },
-                { key: "amount", title: "Amount", render: (row) => formatAmount(row.amount) },
-                { key: "status", title: "Status", render: (row) => <StatusTag tone={statusTone(row.status)}>{row.status}</StatusTag> },
-                {
-                  key: "actions",
-                  title: "Action",
-                  render: (row) => {
-                    const busy = acceptingDispatchTaskId !== null || simulationAction !== null;
-                    const acceptAction = workerWorkflowActions.acceptTask({
-                      dispatchTaskStatus: row.status,
-                      busy,
-                      hasWorkerIdentity: Boolean(cityCode && workerId),
-                    });
-                    const canSimulate = simulationControlsEnabled && row.status === "offering";
-                    return (
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                        <Button
-                          disabled={!acceptAction.enabled}
-                          onClick={() => onAccept(row.dispatchTaskId)}
-                          variant="primary"
-                        >
-                          {acceptingDispatchTaskId === row.dispatchTaskId ? "Accepting" : "Accept"}
-                        </Button>
-                        {simulationControlsEnabled && (
-                          <>
-                            <Button
-                              disabled={!canSimulate || busy}
-                              onClick={() => onReject(row.dispatchTaskId)}
-                            >
-                              {simulationAction?.type === "reject" && simulationAction.dispatchTaskId === row.dispatchTaskId
-                                ? "Rejecting"
-                                : "Reject"}
-                            </Button>
-                            <Button
-                              disabled={!canSimulate || busy}
-                              onClick={() => onSimulateTimeout(row.dispatchTaskId)}
-                            >
-                              {simulationAction?.type === "timeout" && simulationAction.dispatchTaskId === row.dispatchTaskId
-                                ? "Timing out"
-                                : "Timeout"}
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    );
-                  },
-                },
-              ]}
-            />
-          )}
-          <p style={{ ...helperText, color: "#ffd37d", marginTop: 10 }}>
-            Boundary: Accept is real. Reject and timeout are test-only dispatch simulation controls.
-          </p>
-        </Card>
-      )}
-    </>
-  );
-}
-
-function TasksPage({
-  fulfillments,
-  loading,
-  error,
-  onRefresh,
-  onOpenDetail,
-}: {
-  fulfillments: Fulfillment[];
-  loading: boolean;
-  error: string | null;
-  onRefresh: () => void;
-  onOpenDetail: (id: string) => void;
-}) {
-  return (
-    <>
-      <Card title="Fulfillment Status" actions={<StatusTag tone="success">{fulfillments.length} total</StatusTag>} style={workerPanelStyle}>
-        <p style={helperText}>Source: GET /api/worker/fulfillments. Open a task to start or complete service.</p>
-      </Card>
-
-      {loading && <LoadingState title="Loading fulfillments" description="Requesting real fulfillment list data." />}
-      {error && (
-        <Card title="Load failed" actions={<StatusTag tone="danger">Error</StatusTag>} style={workerPanelStyle}>
-          <p style={{ ...helperText, color: "#fda29b" }}>{error}</p>
-        </Card>
-      )}
-
-      {!loading && !error && (
-        <Card title="My Fulfillments" actions={<Button onClick={onRefresh}>Refresh</Button>} style={workerPanelStyle}>
-          {fulfillments.length === 0 ? (
-            <EmptyState title="No fulfillment yet" description="After a later accept action, accepted/in_progress/completed tasks appear here." />
-          ) : (
-            <Table
-              rows={fulfillments}
-              getRowKey={(row) => row.fulfillmentId}
-              columns={[
-                { key: "fulfillmentId", title: "Fulfillment ID", render: (row) => row.fulfillmentId },
-                { key: "orderId", title: "Order ID", render: (row) => row.orderId },
-                { key: "skuId", title: "SKU", render: (row) => row.skuId },
-                { key: "status", title: "Status", render: (row) => <StatusTag tone={statusTone(row.status)}>{row.status}</StatusTag> },
-                { key: "detail", title: "Detail", render: (row) => <Button onClick={() => onOpenDetail(row.fulfillmentId)}>Open</Button> },
-              ]}
-            />
-          )}
-        </Card>
-      )}
-    </>
-  );
-}
-
-function RepairOrdersPage({
-  repairOrders,
-  loading,
-  error,
-  busyId,
-  notes,
-  onRefresh,
-  onNoteChange,
-  onStart,
-  onComplete,
-}: {
-  repairOrders: AftersaleRepairOrderResponse[];
-  loading: boolean;
-  error: string | null;
-  busyId: string | null;
-  notes: Record<string, string>;
-  onRefresh: () => void;
-  onNoteChange: (repairOrderId: string, note: string) => void;
-  onStart: (repairOrderId: string) => void;
-  onComplete: (repairOrderId: string, note: string) => void;
-}) {
-  return (
-    <>
-      {loading && <LoadingState title="Loading repair visits" description="Requesting assigned aftersale repair orders." />}
-      {error && (
-        <Card title="Repair request failed" actions={<StatusTag tone="danger">Error</StatusTag>} style={workerPanelStyle}>
-          <p style={{ ...helperText, color: "#fda29b" }}>{error}</p>
-        </Card>
-      )}
-      <Card title="Assigned Repair Visits" actions={<Button onClick={onRefresh}>Refresh</Button>} style={workerPanelStyle}>
-        {repairOrders.length === 0 && !loading ? (
-          <EmptyState title="No repair visits" description="Assigned complaint repair tasks appear here." />
-        ) : (
-          <Table
-            rows={repairOrders}
-            getRowKey={(item) => item.repairOrderId}
-            columns={[
-              { key: "id", title: "Repair", render: (item) => item.repairOrderId },
-              { key: "order", title: "Order", render: (item) => item.orderId },
-              { key: "reason", title: "Reason", render: (item) => item.reason },
-              { key: "status", title: "Status", render: (item) => <StatusTag tone={statusTone(item.status)}>{item.status}</StatusTag> },
-              {
-                key: "actions",
-                title: "Actions",
-                render: (item) => (
-                  <div style={{ display: "grid", gap: 8, minWidth: 220 }}>
-                    <FormField label="Completion note">
-                      <Input value={notes[item.repairOrderId] ?? ""} onChange={(event) => onNoteChange(item.repairOrderId, event.target.value)} />
-                    </FormField>
-                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                      <Button disabled={item.status !== "assigned" || busyId === item.repairOrderId} onClick={() => onStart(item.repairOrderId)}>Start</Button>
-                      <Button
-                        variant="primary"
-                        disabled={item.status !== "in_progress" || busyId === item.repairOrderId || !(notes[item.repairOrderId] ?? "").trim()}
-                        onClick={() => onComplete(item.repairOrderId, (notes[item.repairOrderId] ?? "").trim())}
-                      >
-                        Complete
-                      </Button>
-                    </div>
-                  </div>
-                ),
-              },
-            ]}
-          />
-        )}
-      </Card>
-    </>
-  );
-}
-
-function TaskDetailPage({
-  fulfillment,
-  loading,
-  error,
-  fulfillmentId,
-  lifecycleError,
-  lifecycleNotice,
-  lifecycleAction,
-  evidenceAggregate,
-  evidenceLoading,
-  evidenceError,
-  evidenceBusy,
-  onBack,
-  onStart,
-  onComplete,
-  onRefreshEvidence,
-  onUploadEvidence,
-}: {
-  fulfillment: Fulfillment | null;
-  loading: boolean;
-  error: string | null;
-  fulfillmentId: string;
-  lifecycleError: string | null;
-  lifecycleNotice: string | null;
-  lifecycleAction: "start" | "complete" | null;
-  evidenceAggregate: FulfillmentEvidenceAggregateResponse | null;
-  evidenceLoading: boolean;
-  evidenceError: string | null;
-  evidenceBusy: boolean;
-  onBack: () => void;
-  onStart: (fulfillmentId: string) => void;
-  onComplete: (fulfillmentId: string) => void;
-  onRefreshEvidence: (fulfillmentId: string) => void;
-  onUploadEvidence: (fulfillmentId: string, file: File, metadata: { evidenceType: FulfillmentEvidenceType; complaintId?: string; note?: string }) => void;
-}) {
-  const [evidenceType, setEvidenceType] = useState<FulfillmentEvidenceType>("before_service");
-  const [evidenceFile, setEvidenceFile] = useState<File | null>(null);
-  const [evidenceComplaintId, setEvidenceComplaintId] = useState("");
-  const [evidenceNote, setEvidenceNote] = useState("");
-  const lifecycleBusy = lifecycleAction !== null;
-  const startAction = workerWorkflowActions.startFulfillment({
-    fulfillmentStatus: fulfillment?.status,
-    busy: lifecycleBusy,
-    hasWorkerIdentity: Boolean(fulfillment?.workerId),
-  });
-  const completeAction = workerWorkflowActions.completeFulfillment({
-    fulfillmentStatus: fulfillment?.status,
-    busy: lifecycleBusy,
-    hasWorkerIdentity: Boolean(fulfillment?.workerId),
-  });
-  const canStart = startAction.enabled;
-  const canComplete = completeAction.enabled;
-
-  const rows = fulfillment
-    ? [
-        ["fulfillmentId", fulfillment.fulfillmentId],
-        ["acceptanceId", fulfillment.acceptanceId],
-        ["dispatchTaskId", fulfillment.dispatchTaskId],
-        ["orderId", fulfillment.orderId],
-        ["cityCode", fulfillment.cityCode],
-        ["workerId", fulfillment.workerId],
-        ["skuId", fulfillment.skuId],
-        ["status", fulfillment.status],
-        ["startedAt", formatNullable(fulfillment.startedAt)],
-        ["completedAt", formatNullable(fulfillment.completedAt)],
-        ["completionNote", formatNullable(fulfillment.completionNote)],
-        ["createdAt", fulfillment.createdAt],
-        ["updatedAt", fulfillment.updatedAt],
-      ]
-    : [];
-
-  return (
-    <>
-      <Card title="Fulfillment Detail" actions={<StatusTag tone="success">Real API</StatusTag>} style={workerPanelStyle}>
-        <p style={helperText}>Source: GET /api/worker/fulfillments/{fulfillmentId}</p>
-      </Card>
-
-      {loading && <LoadingState title="Loading detail" description="Requesting real fulfillment detail data." />}
-      {error && (
-        <Card title="Load failed" actions={<StatusTag tone="danger">Error</StatusTag>} style={workerPanelStyle}>
-          <p style={{ ...helperText, color: "#fda29b" }}>{error}</p>
-        </Card>
-      )}
-      {lifecycleError && (
-        <Card title="Action failed" actions={<StatusTag tone="danger">Error</StatusTag>} style={workerPanelStyle}>
-          <p style={{ ...helperText, color: "#fda29b" }}>{lifecycleError}</p>
-        </Card>
-      )}
-      {lifecycleNotice && (
-        <Card title="Action completed" actions={<StatusTag tone="success">Updated</StatusTag>} style={workerPanelStyle}>
-          <p style={helperText}>{lifecycleNotice}</p>
-        </Card>
-      )}
-
-      {!loading && !error && fulfillment && (
-        <Card title="Field Snapshot" style={workerPanelStyle}>
-          <Table
-            rows={rows}
-            getRowKey={(row) => row[0]}
-            columns={[
-              { key: "field", title: "Field", render: (row) => row[0] },
-              { key: "value", title: "Value", render: (row) => row[1] },
-            ]}
-          />
-        </Card>
-      )}
-
-      <Card title="Fulfillment Evidence" actions={<StatusTag tone="primary">Local / Mock only</StatusTag>} style={workerPanelStyle}>
-        <div style={{ display: "grid", gap: 10 }}>
-          <FormField label="Evidence node">
-            <Select value={evidenceType} onChange={(event) => setEvidenceType(event.target.value as FulfillmentEvidenceType)}>
-              <option value="arrival">Arrival</option><option value="before_service">Before service</option>
-              <option value="diagnosis">Diagnosis</option><option value="material">Material</option>
-              <option value="after_service">After service</option><option value="completion">Completion</option>
-            </Select>
-          </FormField>
-          <FormField label="Image (JPEG / PNG / WebP, max 5 MiB)">
-            <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => setEvidenceFile(event.target.files?.[0] ?? null)} />
-          </FormField>
-          <FormField label="Complaint ID (optional)"><Input value={evidenceComplaintId} onChange={(event) => setEvidenceComplaintId(event.target.value)} /></FormField>
-          <FormField label="Evidence note"><Textarea value={evidenceNote} onChange={(event) => setEvidenceNote(event.target.value)} /></FormField>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-            <Button variant="primary" disabled={!evidenceFile || evidenceBusy} onClick={() => evidenceFile && onUploadEvidence(fulfillmentId,evidenceFile,{
-              evidenceType,complaintId:evidenceComplaintId.trim()||undefined,note:evidenceNote.trim()||undefined,
-            })}>{evidenceBusy ? "Uploading" : "Store evidence"}</Button>
-            <Button disabled={evidenceLoading} onClick={() => onRefreshEvidence(fulfillmentId)}>Refresh evidence</Button>
-          </div>
-          <p style={helperText}>Storage is private. Provider state is stored_local or stored_mock; externalProviderExecuted is always false.</p>
-        </div>
-      </Card>
-
-      {evidenceError && <Card title="Evidence action failed" actions={<StatusTag tone="danger">Error</StatusTag>} style={workerPanelStyle}><p style={helperText}>{evidenceError}</p></Card>}
-      {evidenceLoading && <LoadingState title="Loading evidence" description="Reading private evidence metadata." />}
-      {!evidenceLoading && evidenceAggregate && (
-        <Card title="Evidence Timeline" actions={<StatusTag tone={evidenceAggregate.confirmation?.status === "confirmed" ? "success" : "warning"}>{evidenceAggregate.confirmation?.status ?? "not completed"}</StatusTag>} style={workerPanelStyle}>
-          {evidenceAggregate.evidence.length===0?<EmptyState title="No evidence uploaded" />:<Table rows={evidenceAggregate.evidence} getRowKey={(item)=>item.evidenceId} columns={[
-            {key:"type",title:"Node",render:(item)=>item.evidenceType},
-            {key:"file",title:"File",render:(item)=>item.mediaAsset.originalFileName},
-            {key:"provider",title:"Provider",render:(item)=><StatusTag tone="primary">{item.mediaAsset.storage.providerStatus}</StatusTag>},
-            {key:"hash",title:"SHA-256",render:(item)=>item.mediaAsset.checksumSha256.slice(0,12)},
-            {key:"scan",title:"Security",render:(item)=>item.mediaAsset.securityScanStatus},
-          ]}/>}
-        </Card>
-      )}
-
-      <Card title="Actions" actions={<StatusTag tone="success">Lifecycle</StatusTag>} style={workerPanelStyle}>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-          <Button
-            disabled={!canStart}
-            onClick={() => onStart(fulfillmentId)}
-            variant="primary"
-          >
-            {lifecycleAction === "start" ? "Starting" : "Start service"}
-          </Button>
-          <Button
-            disabled={!canComplete}
-            onClick={() => onComplete(fulfillmentId)}
-            variant="primary"
-          >
-            {lifecycleAction === "complete" ? "Completing" : "Complete service"}
-          </Button>
-          <Button onClick={onBack}>Back to list</Button>
-        </div>
-        <p style={{ ...helperText, color: "#ffd37d", marginTop: 10 }}>
-          Phase 18 keeps lifecycle actions and evidence writes separate; customer confirmation is customer-owned.
-        </p>
-      </Card>
-    </>
-  );
-}
-
-function WalletPage({
-  balance, bankAccounts, withdrawals, busy, error, accountHolder, bankName, bankCardNumber,
-  withdrawalAmount, selectedBankAccountId, onReload, onAccountHolderChange, onBankNameChange,
-  onBankCardNumberChange, onWithdrawalAmountChange, onSelectedBankAccountChange, onAddBankAccount, onRequestWithdrawal,
-}: {
-  balance: WorkerReceivableBalanceResponse | null;
-  bankAccounts: WorkerBankAccountResponse[];
-  withdrawals: WorkerWithdrawalResponse[];
-  busy: boolean;
-  error: string | null;
-  accountHolder: string;
-  bankName: string;
-  bankCardNumber: string;
-  withdrawalAmount: string;
-  selectedBankAccountId: string;
-  onReload: () => void;
-  onAccountHolderChange: (value: string) => void;
-  onBankNameChange: (value: string) => void;
-  onBankCardNumberChange: (value: string) => void;
-  onWithdrawalAmountChange: (value: string) => void;
-  onSelectedBankAccountChange: (value: string) => void;
-  onAddBankAccount: () => void;
-  onRequestWithdrawal: () => void;
-}) {
-  return <>
-    <Card title="Receivable Wallet" actions={<StatusTag tone="success">Real API</StatusTag>} style={workerPanelStyle}>
-      <div style={{ ...mutedBoxStyle, gridTemplateColumns: "repeat(2,minmax(0,1fr))" }}>
-        <div><p style={helperText}>Available</p><strong>{formatAmount(balance?.availableAmount ?? 0)}</strong></div>
-        <div><p style={helperText}>Accrued</p><strong>{formatAmount(balance?.accruedAmount ?? 0)}</strong></div>
-        <div><p style={helperText}>Requested</p><strong>{formatAmount(balance?.requestedWithdrawalAmount ?? 0)}</strong></div>
-        <div><p style={helperText}>Marked paid</p><strong>{formatAmount(balance?.markedPaidAmount ?? 0)}</strong></div>
-      </div>
-      <div style={{ marginTop: 10 }}><Button onClick={onReload} disabled={busy}>Refresh wallet</Button></div>
-    </Card>
-    <Card title="Bank Account" actions={<StatusTag tone="primary">{bankAccounts.length}</StatusTag>} style={workerPanelStyle}>
-      <div style={{ display: "grid", gap: 10 }}>
-        {bankAccounts.map(account => <div key={account.bankAccountId} style={mutedBoxStyle}>
-          <strong>{account.bankName} · {account.bankCardMasked}</strong><span style={helperText}>{account.accountHolder}</span>
-        </div>)}
-        <FormField label="Account holder"><Input value={accountHolder} onChange={event => onAccountHolderChange(event.target.value)} /></FormField>
-        <FormField label="Bank"><Input value={bankName} onChange={event => onBankNameChange(event.target.value)} /></FormField>
-        <FormField label="Card number"><Input value={bankCardNumber} onChange={event => onBankCardNumberChange(event.target.value)} /></FormField>
-        <Button variant="primary" disabled={busy || !accountHolder.trim() || !bankName.trim() || bankCardNumber.length < 12} onClick={onAddBankAccount}>Add bank account</Button>
-      </div>
-    </Card>
-    <Card title="Withdrawal Request" actions={<StatusTag tone="warning">No provider payout</StatusTag>} style={workerPanelStyle}>
-      <div style={{ display: "grid", gap: 10 }}>
-        <FormField label="Bank account"><Select value={selectedBankAccountId} onChange={event => onSelectedBankAccountChange(event.target.value)}><option value="">Select account</option>{bankAccounts.map(account => <option key={account.bankAccountId} value={account.bankAccountId}>{account.bankName} · {account.bankCardLast4}</option>)}</Select></FormField>
-        <FormField label="Amount"><Input type="number" value={withdrawalAmount} onChange={event => onWithdrawalAmountChange(event.target.value)} /></FormField>
-        <Button variant="primary" disabled={busy || !selectedBankAccountId || Number(withdrawalAmount) <= 0} onClick={onRequestWithdrawal}>Submit request</Button>
-        {withdrawals.length === 0 ? <EmptyState title="No withdrawal request" /> : <Table rows={withdrawals} getRowKey={row => row.withdrawalId} columns={[
-          { key: "id", title: "Request", render: row => row.withdrawalId },
-          { key: "amount", title: "Amount", render: row => formatAmount(row.amount) },
-          { key: "status", title: "Status", render: row => <StatusTag tone={row.status === "rejected" ? "danger" : row.status === "marked_paid" ? "success" : "warning"}>{row.status}</StatusTag> },
-        ]} />}
-      </div>
-      {error && <p style={{ ...helperText, color: "#fda29b", marginTop: 10 }}>{error}</p>}
-    </Card>
-  </>;
-}
-
-function WorkerLocationPage({ location, busy, error, latitude, longitude, radius, sharing,
-  onLatitudeChange, onLongitudeChange, onRadiusChange, onSharingChange, onSave, onReload,
-}: {
-  location: WorkerLocation | null; busy: boolean; error: string | null;
-  latitude: string; longitude: string; radius: string; sharing: boolean;
-  onLatitudeChange: (value: string) => void; onLongitudeChange: (value: string) => void;
-  onRadiusChange: (value: string) => void; onSharingChange: (value: boolean) => void;
-  onSave: () => void; onReload: () => void;
-}) {
-  return <Card title="Location & Availability" actions={<StatusTag tone="success">Private exact</StatusTag>} style={workerPanelStyle}>
-    <div style={{ display: "grid", gap: 10 }}>
-      {location && <div style={mutedBoxStyle}>
-        <strong>{location.freshness}</strong>
-        <span style={helperText}>{location.latitude}, {location.longitude} · expires {location.expiresAt}</span>
-      </div>}
-      <FormField label="Latitude"><Input type="number" value={latitude} onChange={event => onLatitudeChange(event.target.value)} /></FormField>
-      <FormField label="Longitude"><Input type="number" value={longitude} onChange={event => onLongitudeChange(event.target.value)} /></FormField>
-      <FormField label="Service radius (km)"><Input type="number" value={radius} onChange={event => onRadiusChange(event.target.value)} /></FormField>
-      <label style={{ alignItems: "center", display: "flex", gap: 8, fontSize: 14 }}><input type="checkbox" checked={sharing} onChange={event => onSharingChange(event.target.checked)} /> Available for LBS-lite matching</label>
-      <div style={{ display: "flex", gap: 8 }}><Button variant="primary" disabled={busy || !Number.isFinite(Number(latitude)) || !Number.isFinite(Number(longitude))} onClick={onSave}>Report current location</Button><Button disabled={busy} onClick={onReload}>Refresh</Button></div>
-      <p style={helperText}>Exact coordinates are returned only to this authenticated worker. Admin sees distance, ETA and freshness.</p>
-      {error && <p style={{ ...helperText, color: "#fda29b" }}>{error}</p>}
-    </div>
-  </Card>;
-}
-
-function CertificationPage({
-  cityCode,
-  workerId,
-  certType,
-  certName,
-  submitting,
-  error,
-  notice,
-  onCertTypeChange,
-  onCertNameChange,
-  onSubmit,
-}: QueryParams & {
-  workerId: string;
-  certType: string;
-  certName: string;
-  submitting: boolean;
-  error: string | null;
-  notice: string | null;
-  onCertTypeChange: (value: string) => void;
-  onCertNameChange: (value: string) => void;
-  onSubmit: () => void;
-}) {
-  return (
-    <Card title="Certification Apply" actions={<StatusTag tone={notice ? "success" : "warning"}>Real API</StatusTag>} style={workerPanelStyle}>
-      <div style={mutedBoxStyle}>
-        <p style={helperText}>
-          Submitting uses POST /api/worker/certifications for {workerId} in {cityCode}.
-        </p>
-        <FormField label="certType">
-          <Input value={certType} onChange={(event) => onCertTypeChange(event.target.value)} />
-        </FormField>
-        <FormField label="certName">
-          <Input value={certName} onChange={(event) => onCertNameChange(event.target.value)} />
-        </FormField>
-        <Button
-          disabled={submitting || !certType.trim() || !certName.trim()}
-          onClick={onSubmit}
-          variant="primary"
-        >
-          {submitting ? "Submitting" : "Submit certification"}
-        </Button>
-        {error && <p style={{ ...helperText, color: "#fda29b" }}>{error}</p>}
-        {notice && <p style={helperText}>{notice}</p>}
-        <p style={helperText}>
-          Certification status/profile read APIs are not available yet, so this page does not invent a local approved state.
-        </p>
-      </div>
-    </Card>
-  );
-}
-
 export function App() {
   const initialQuery = readQueryParams();
   const [route, setRoute] = useState<ResolvedRoute>(resolveRoute);
-  const [workerCityCode, setWorkerCityCode] = useState(initialQuery.cityCode);
-  const [session, setSession] = useState<WorkerSession | null>(null);
+  const { cityCode: workerCityCode, session, setCityCode: setWorkerCityCode, setSession } =
+    useWorkerAuthStore(initialQuery.cityCode);
   const [taskPool, setTaskPool] = useState<WorkerTaskPoolItem[]>([]);
   const [fulfillments, setFulfillments] = useState<Fulfillment[]>([]);
   const [repairOrders, setRepairOrders] = useState<AftersaleRepairOrderResponse[]>([]);
@@ -1037,7 +350,6 @@ export function App() {
     },
     [],
   );
-
   const loadTaskPool = useCallback(async () => {
     if (!api) return;
     setLoadingHall(true);
@@ -1277,7 +589,6 @@ export function App() {
     },
     [api, handleApiError, loadTaskEvidence],
   );
-
   const mutateRepairOrder = useCallback(
     async (repairOrderId: string, action: "start" | "complete", note = "") => {
       if (!api) return;
@@ -1357,7 +668,6 @@ export function App() {
     window.addEventListener("popstate", onRouteChange);
     return () => window.removeEventListener("popstate", onRouteChange);
   }, []);
-
   useEffect(() => {
     reloadCurrent();
   }, [reloadCurrent]);
@@ -1410,11 +720,11 @@ export function App() {
 
   if (!session) {
     return (
-      <WorkerLoginPage
-        cityCode={workerCityCode}
-        onCityChange={setWorkerCityCode}
-        onLogin={handleLogin}
-      />
+      <AppFrame route="hall">
+        <Suspense fallback={<LoadingState title="Loading worker login" />}>
+          <WorkerLoginPage cityCode={workerCityCode} onCityChange={setWorkerCityCode} onLogin={handleLogin} />
+        </Suspense>
+      </AppFrame>
     );
   }
 
@@ -1509,7 +819,7 @@ export function App() {
         onLogout={handleLogout}
         onReload={reloadCurrent}
       />
-      {content}
+      <Suspense fallback={<LoadingState title="Loading worker page" />}>{content}</Suspense>
     </AppFrame>
   );
 }

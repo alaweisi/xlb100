@@ -1,14 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
-import { SettlementOpsPage } from "../pages/SettlementOpsPage";
-import { SettlementStatementDetailPage } from "../pages/SettlementStatementDetailPage";
-import { SettlementExportReviewPage } from "../pages/SettlementExportReviewPage";
-import { SettlementActionGovernancePage } from "../pages/SettlementActionGovernancePage";
-import { OrderTracePage } from "../pages/OrderTracePage";
-import { WorkerWithdrawalsPage } from "../pages/WorkerWithdrawalsPage";
-import { AftersaleOpsPage } from "../pages/AftersaleOpsPage";
-import { EnterpriseOpsPage } from "../pages/EnterpriseOpsPage";
-import { DispatchBoardPage } from "../pages/DispatchBoardPage";
-import { PlatformOperationsPage } from "../pages/PlatformOperationsPage";
+import { lazy, useCallback, useEffect, useState } from "react";
 import { buildHash, parseHashParams, parseView } from "../hashParams";
 import {
   clearAdminSession,
@@ -19,6 +9,17 @@ import {
   type AdminSession,
 } from "../adminAuth";
 import { AdminShell, Button, FormField, GuardrailCard, Input, ScopeBadge, SideNav, StatusTag, TopBar } from "@xlb/ui";
+
+const SettlementOpsPage = lazy(() => import("../pages/SettlementOpsPage").then((module) => ({ default: module.SettlementOpsPage })));
+const SettlementStatementDetailPage = lazy(() => import("../pages/SettlementStatementDetailPage").then((module) => ({ default: module.SettlementStatementDetailPage })));
+const SettlementExportReviewPage = lazy(() => import("../pages/SettlementExportReviewPage").then((module) => ({ default: module.SettlementExportReviewPage })));
+const SettlementActionGovernancePage = lazy(() => import("../pages/SettlementActionGovernancePage").then((module) => ({ default: module.SettlementActionGovernancePage })));
+const OrderTracePage = lazy(() => import("../pages/OrderTracePage").then((module) => ({ default: module.OrderTracePage })));
+const WorkerWithdrawalsPage = lazy(() => import("../pages/WorkerWithdrawalsPage").then((module) => ({ default: module.WorkerWithdrawalsPage })));
+const AftersaleOpsPage = lazy(() => import("../pages/AftersaleOpsPage").then((module) => ({ default: module.AftersaleOpsPage })));
+const EnterpriseOpsPage = lazy(() => import("../pages/EnterpriseOpsPage").then((module) => ({ default: module.EnterpriseOpsPage })));
+const DispatchBoardPage = lazy(() => import("../pages/DispatchBoardPage").then((module) => ({ default: module.DispatchBoardPage })));
+const PlatformOperationsPage = lazy(() => import("../pages/PlatformOperationsPage").then((module) => ({ default: module.PlatformOperationsPage })));
 
 export function App() {
   const [view, setView] = useState(parseView);

@@ -11,6 +11,12 @@ import type {
 
 import { tokens } from "../tokens/index.js";
 
+export {
+  AppErrorBoundary,
+  type AppErrorBoundaryFallbackProps,
+  type AppErrorBoundaryProps,
+} from "./AppErrorBoundary.js";
+
 export type Tone = "default" | "primary" | "success" | "warning" | "danger" | "muted";
 export type RoleTone = "customer" | "worker" | "admin" | "neutral";
 export type UiWorkflowActor = "customer" | "worker" | "admin";

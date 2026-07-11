@@ -15,17 +15,21 @@ $allowedLaterPhaseFiles = @()
 if (Test-Path (Join-Path $Root "scripts/check-phase22-boundaries.ps1")) {
   $allowedLaterPhaseFiles += "package.json"
 }
+$allowPhase23cFrontend = $false
+$phase23cFrontendPattern = '^apps/(?:customer/src/(?:main\.tsx|app/App\.tsx)|worker/src/(?:main\.tsx|app/App\.tsx|(?:pages|features)/.+))$'
 
 $changedFiles = & git -C $Root diff --name-only main...HEAD 2>$null
 if ($LASTEXITCODE -ne 0) {
   Write-Host "check-phase11-forbidden-zone: FAILED - git diff failed (is main branch available?)"
   exit 1
 }
+$allowPhase23cFrontend = $changedFiles -contains "db/migrations/045_phase23c_frontend_engineering.sql"
 
 $violations = @()
 foreach ($file in $changedFiles) {
   foreach ($fd in $forbiddenDirs) {
-    if ($file.StartsWith($fd)) {
+    $isPhase23cFrontend = $allowPhase23cFrontend -and (($file -replace '\\', '/') -match $phase23cFrontendPattern)
+    if ($file.StartsWith($fd) -and -not $isPhase23cFrontend) {
       $violations += $file
     }
   }

@@ -1,9 +1,14 @@
-import { StrictMode } from "react";
+import { StrictMode, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./app/App";
+import { AppErrorBoundary } from "@xlb/ui";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <App />
+    <AppErrorBoundary>
+      <Suspense fallback={<main aria-busy="true">正在加载页面…</main>}>
+        <App />
+      </Suspense>
+    </AppErrorBoundary>
   </StrictMode>,
 );

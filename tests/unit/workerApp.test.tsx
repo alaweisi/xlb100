@@ -26,6 +26,11 @@ const mocks = vi.hoisted(() => ({
   listWithdrawalRequests: vi.fn(),
   getLocation: vi.fn(),
   upsertLocation: vi.fn(),
+  listAftersaleRepairOrders: vi.fn(),
+  startAftersaleRepairOrder: vi.fn(),
+  completeAftersaleRepairOrder: vi.fn(),
+  getFulfillmentEvidence: vi.fn(),
+  uploadFulfillmentEvidence: vi.fn(),
 }));
 
 vi.mock("@xlb/api-client", () => ({
@@ -54,6 +59,11 @@ vi.mock("@xlb/api-client", () => ({
       listWithdrawalRequests: mocks.listWithdrawalRequests,
       getLocation: mocks.getLocation,
       upsertLocation: mocks.upsertLocation,
+      listAftersaleRepairOrders: mocks.listAftersaleRepairOrders,
+      startAftersaleRepairOrder: mocks.startAftersaleRepairOrder,
+      completeAftersaleRepairOrder: mocks.completeAftersaleRepairOrder,
+      getFulfillmentEvidence: mocks.getFulfillmentEvidence,
+      uploadFulfillmentEvidence: mocks.uploadFulfillmentEvidence,
     }),
   },
 }));
@@ -173,6 +183,11 @@ describe("Worker App API wiring", () => {
     mocks.createWithdrawalRequest.mockResolvedValue({ok:true,withdrawal:{withdrawalId:"wd-1"},balance:{availableAmount:250}});
     mocks.getLocation.mockResolvedValue({ok:true,location:{locationId:"loc-1",workerId:"worker-demo-hangzhou",cityCode:"hangzhou",latitude:30.2741,longitude:120.1551,accuracyMeters:20,capturedAt:"2026-07-10T00:00:00.000Z",expiresAt:"2026-07-10T00:10:00.000Z",source:"worker_device",privacyLevel:"private_exact",freshness:"fresh"}});
     mocks.upsertLocation.mockImplementation(async(body)=>({ok:true,location:{locationId:"loc-1",workerId:"worker-demo-hangzhou",cityCode:"hangzhou",...body,expiresAt:"2026-07-10T00:10:00.000Z",source:"worker_device",privacyLevel:"private_exact",freshness:"fresh"}}));
+    mocks.listAftersaleRepairOrders.mockResolvedValue({ ok: true, repairOrders: [] });
+    mocks.startAftersaleRepairOrder.mockResolvedValue({ ok: true });
+    mocks.completeAftersaleRepairOrder.mockResolvedValue({ ok: true });
+    mocks.getFulfillmentEvidence.mockResolvedValue({ ok: true, evidence: [], confirmation: null });
+    mocks.uploadFulfillmentEvidence.mockResolvedValue({ ok: true });
   });
 
   afterEach(() => {
@@ -361,5 +376,53 @@ describe("Worker App API wiring", () => {
     expect(await screen.findByText(/30.2741, 120.1551/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button",{name:"Report current location"}));
     await waitFor(()=>expect(mocks.upsertLocation).toHaveBeenCalledWith(expect.objectContaining({latitude:30.2741,longitude:120.1551,serviceRadiusKm:10,locationSharingEnabled:true})));
+  });
+
+  it.each([
+    ["Reject", mocks.rejectTask, { ok: true, task: { ...queuedTask, status: "reassigning" } }, /Rejected dispatch-1/],
+    ["Timeout", mocks.simulateTaskTimeout, { ok: true, task: { ...queuedTask, status: "reassigning" } }, /Timed out dispatch-1/],
+  ])("runs the %s simulation control", async (button, mutation, response, notice) => {
+    mocks.getTaskPool.mockResolvedValue({ ok: true, cityCode: "hangzhou", tasks: [{ ...queuedTask, status: "offering" }] });
+    mutation.mockResolvedValueOnce(response);
+    await renderAndLogin();
+    fireEvent.click(await screen.findByRole("button", { name: button }));
+    await waitFor(() => expect(mutation).toHaveBeenCalledWith("dispatch-1"));
+    expect(await screen.findByText(notice)).toBeTruthy();
+  });
+
+  it("starts an assigned repair visit", async () => {
+    setRoute("/worker/repairs");
+    mocks.listAftersaleRepairOrders.mockResolvedValue({ ok: true, repairOrders: [{
+      repairOrderId: "repair-1", orderId: "order-1", reason: "rework", status: "assigned",
+    }] });
+    await renderAndLogin();
+    fireEvent.click(await screen.findByRole("button", { name: "Start" }));
+    await waitFor(() => expect(mocks.startAftersaleRepairOrder).toHaveBeenCalledWith("repair-1"));
+  });
+
+  it("uploads fulfillment evidence with the selected metadata", async () => {
+    setRoute("/worker/tasks/ful-1");
+    await renderAndLogin();
+    const file = new File(["image"], "arrival.jpg", { type: "image/jpeg" });
+    fireEvent.change(await screen.findByLabelText(/Image/), { target: { files: [file] } });
+    fireEvent.change(screen.getByLabelText("Evidence note"), { target: { value: "front door" } });
+    fireEvent.click(screen.getByRole("button", { name: "Store evidence" }));
+    await waitFor(() => expect(mocks.uploadFulfillmentEvidence).toHaveBeenCalledWith("ful-1", file, {
+      evidenceType: "before_service", note: "front door",
+    }));
+  });
+
+  it("adds a bank account and logs out without retaining the session", async () => {
+    setRoute("/worker/wallet");
+    await renderAndLogin();
+    fireEvent.change(await screen.findByLabelText("Account holder"), { target: { value: "Worker" } });
+    fireEvent.change(screen.getByLabelText("Bank"), { target: { value: "XLB Bank" } });
+    fireEvent.change(screen.getByLabelText("Card number"), { target: { value: "6222021234567890" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add bank account" }));
+    await waitFor(() => expect(mocks.createBankAccount).toHaveBeenCalledWith({
+      accountHolder: "Worker", bankName: "XLB Bank", bankCardNumber: "6222021234567890",
+    }));
+    fireEvent.click(screen.getByRole("button", { name: "Logout" }));
+    expect(await screen.findByText("Worker Login")).toBeTruthy();
   });
 });
