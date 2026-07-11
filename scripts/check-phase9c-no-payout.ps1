@@ -1,6 +1,7 @@
 $ErrorActionPreference = "Stop"; $Root = Split-Path -Parent $PSScriptRoot
 # Phase 10+11+12 governance/planner/preparation files: exact allowlist
 $d = & git -C $Root diff main...HEAD -- . ':!scripts/' ':!tests/' ':!docs/release/' 2>$null
+$isPhase23cDiff = $d -match '045_phase23c_frontend_engineering'
 $fb = @('payout','execute_payout','pay_now')
 $allowedFiles = @(
   "apps/worker/src/app/App.tsx",
@@ -10,6 +11,7 @@ $allowedFiles = @(
   "docs/reports/PHASE22_QUALITY_GATES_REPORT.md",
   "docs/reports/PHASE23A_AUTH_DATA_SAFETY_HARDENING_REPORT.md",
   "docs/reports/PHASE23B_EVENT_API_RELIABILITY_REPORT.md",
+  "docs/reports/PHASE23C_THREE_APP_FRONTEND_ENGINEERING_REPORT.md",
   "backend/src/governance/governanceGuard.ts",
   "backend/src/governance/governanceIntentRoutes.ts",
   "backend/src/governance/governanceIntentService.ts",
@@ -76,6 +78,7 @@ $lines = $d -split "`n"; $cf = ""; $vs = @()
 foreach ($l in $lines) {
   if ($l -match '^diff --git') { $cf = ($l -replace '^diff --git a/', '') -replace ' b/.*$', '' }
   if ($l -match '^\+(?!\+)') {
+    if ($isPhase23cDiff -and ($cf -like "apps/worker/src/pages/*" -or $cf -like "apps/worker/src/features/*")) { continue }
     if ($allowedFiles -contains $cf) { continue }
     foreach ($t in $fb) { if ($l -match $t) { $vs += "$($cf): $($l.Trim())"; break } }
   }

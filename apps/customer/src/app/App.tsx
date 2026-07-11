@@ -1,13 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { lazy, useCallback, useEffect, useMemo, useState } from "react";
 import type { CatalogSnapshot, CityCode } from "@xlb/types";
-import { CustomerHomePage } from "../pages/CustomerHomePage";
-import { CustomerOrderCreatePage } from "../pages/CustomerOrderCreatePage";
 import type { CustomerOrderCreatePageProps } from "../pages/CustomerOrderCreatePage";
-import { CustomerOrdersPage } from "../pages/CustomerOrdersPage";
-import { CustomerAftersalePage } from "../pages/CustomerAftersalePage";
 import type { CustomerOrdersPageProps } from "../pages/CustomerOrdersPage";
-import { CustomerProfilePage } from "../pages/CustomerProfilePage";
-import { CustomerServicesPage } from "../pages/CustomerServicesPage";
 import {
   appendOrderId,
   createCustomerApiClient,
@@ -20,6 +14,13 @@ import {
   type CustomerSession,
   writeCustomerCityCode,
 } from "../pages/customerPageShell";
+
+const CustomerHomePage = lazy(() => import("../pages/CustomerHomePage").then((module) => ({ default: module.CustomerHomePage })));
+const CustomerOrderCreatePage = lazy(() => import("../pages/CustomerOrderCreatePage").then((module) => ({ default: module.CustomerOrderCreatePage })));
+const CustomerOrdersPage = lazy(() => import("../pages/CustomerOrdersPage").then((module) => ({ default: module.CustomerOrdersPage })));
+const CustomerAftersalePage = lazy(() => import("../pages/CustomerAftersalePage").then((module) => ({ default: module.CustomerAftersalePage })));
+const CustomerProfilePage = lazy(() => import("../pages/CustomerProfilePage").then((module) => ({ default: module.CustomerProfilePage })));
+const CustomerServicesPage = lazy(() => import("../pages/CustomerServicesPage").then((module) => ({ default: module.CustomerServicesPage })));
 
 export function App() {
   const initialCityCode = useMemo(() => readCustomerCityCode(), []);

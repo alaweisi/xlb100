@@ -29,6 +29,34 @@
 | Phase 22 | LOCKED | xlb-phase22-e2e-security-performance-gates | E2E / observability / security / performance gates |
 | Phase 23A | LOCKED | xlb-phase23a-auth-data-safety-hardening | Authentication and data safety hardening |
 | Phase 23B | LOCKED | xlb-phase23b-event-api-reliability | Event outbox and API client reliability |
+| Phase 23C | LOCK CANDIDATE | — | Three-app frontend engineering |
+
+## Phase 23C — Three-app Frontend Engineering (LOCK CANDIDATE)
+
+- **Entered**: 2026-07-11
+- **Branch**: `codex/phase23c-three-app-frontend-engineering`
+- **Base**: locked Phase 23B main metadata commit `f9e68c2`
+- **Required migration**: `045_phase23c_frontend_engineering.sql` (append-only phase marker)
+- **Scope**:
+  - Customer, Worker, and Admin Error Boundaries
+  - Worker App domain split across authentication, tasks, fulfillment, and finance
+  - page components under `pages/` with gradual reducer/store migration
+  - page-level lazy loading while preserving current interactions and API behavior
+  - independent component, boundary, migration, build, browser, and regression evidence
+- **Boundary**:
+  - no real payment, Amap/map, or object-storage provider
+  - no backend business-semantic change
+  - no mutation of locked migrations `000`–`044` or existing tags
+  - no Phase 23D performance/index implementation during Phase 23C
+- **Lock requirement**: independent tests, report, `--no-ff` main merge, post-merge verification, and tag before Phase 23D
+- **Verification**:
+  - `pnpm gate:phase23c` passed, including 23 focused tests, 3 security gates, migration 045 replay, and critical audit
+  - forced typecheck/build passed: 22 / 22 combined tasks with independent page chunks in all three apps
+  - full regression passed: 170 files / 487 tests
+  - architecture preflight passed through Phase 23C
+  - three-app Playwright browser verification passed: 3 / 3
+- **Report**: `docs/reports/PHASE23C_THREE_APP_FRONTEND_ENGINEERING_REPORT.md`
+- **Current state**: implementation verified on the feature branch; independent Lock ceremony pending
 
 ## Phase 23B — Event And API Reliability (LOCKED)
 
