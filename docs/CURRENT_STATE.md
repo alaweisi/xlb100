@@ -29,13 +29,16 @@
 | Phase 22 | LOCKED | xlb-phase22-e2e-security-performance-gates | E2E / observability / security / performance gates |
 | Phase 23A | LOCKED | xlb-phase23a-auth-data-safety-hardening | Authentication and data safety hardening |
 | Phase 23B | LOCKED | xlb-phase23b-event-api-reliability | Event outbox and API client reliability |
-| Phase 23C | LOCK CANDIDATE | — | Three-app frontend engineering |
+| Phase 23C | LOCKED | xlb-phase23c-three-app-frontend-engineering | Three-app frontend engineering |
 
-## Phase 23C — Three-app Frontend Engineering (LOCK CANDIDATE)
+## Phase 23C — Three-app Frontend Engineering (LOCKED)
 
 - **Entered**: 2026-07-11
 - **Branch**: `codex/phase23c-three-app-frontend-engineering`
 - **Base**: locked Phase 23B main metadata commit `f9e68c2`
+- **Feature commit**: `9cfd7af`
+- **Merged main**: `123a3335164e0b6276c19dd126e94fcdc0134add`
+- **Tag**: `xlb-phase23c-three-app-frontend-engineering`
 - **Required migration**: `045_phase23c_frontend_engineering.sql` (append-only phase marker)
 - **Scope**:
   - Customer, Worker, and Admin Error Boundaries
@@ -56,7 +59,7 @@
   - architecture preflight passed through Phase 23C
   - three-app Playwright browser verification passed: 3 / 3
 - **Report**: `docs/reports/PHASE23C_THREE_APP_FRONTEND_ENGINEERING_REPORT.md`
-- **Current state**: implementation verified on the feature branch; independent Lock ceremony pending
+- **Lock state**: LOCKED after feature verification, `--no-ff` main merge, migration/seed replay, post-merge full verification, three-app browser verification, and tag creation; Phase 23D must branch from this locked main state
 
 ## Phase 23B — Event And API Reliability (LOCKED)
 

@@ -2,9 +2,11 @@
 
 ## Status
 
-**IMPLEMENTED / LOCK CANDIDATE**
+**LOCKED**
 
-This report records implementation scope. Final Lock commit, merge/tag identifiers, complete regression counts, and hosted-CI evidence are intentionally left for the main Agent to add after final verification.
+- Feature commit: `9cfd7af`
+- Main merge commit: `123a3335164e0b6276c19dd126e94fcdc0134add`
+- Tag: `xlb-phase23c-three-app-frontend-engineering`
 
 ## Scope delivered
 
@@ -58,5 +60,13 @@ Local integration evidence on 2026-07-11:
 - [x] Preflight passes with Phase 23C boundary gate
 - [x] Migration 045 applies and replays to exactly one marker
 - [x] Three-app browser verification passes
-- [ ] Feature branch merged with `--no-ff`
-- [ ] Phase 23C tag created and `CURRENT_STATE.md` finalized
+- [x] Feature branch merged with `--no-ff`
+- [x] Phase 23C tag created and `CURRENT_STATE.md` finalized
+
+## Lock conclusion
+
+Phase 23C is independently LOCKED. After the `--no-ff` merge, migration and
+seed replay, the Phase 23C gate, forced typecheck/build, full 170-file / 487-test
+regression, architecture preflight, and three-app Playwright verification all
+passed again on merge commit `123a333`. The tag above points to that verified
+merge commit. No real provider or backend business-semantic boundary changed.
