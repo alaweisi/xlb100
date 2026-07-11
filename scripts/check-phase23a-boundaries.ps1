@@ -22,11 +22,11 @@ try {
   Write-Host "PASS locked migrations 000-042 are unchanged"
 
   $migrationFiles = @(Get-ChildItem (Join-Path $Root "db/migrations") -File -Filter "*.sql" | Sort-Object Name)
-  $phase23Migrations = @($migrationFiles | Where-Object { $_.Name -match '^04[3-9]_' -or $_.Name -match '^(?:0[5-9][0-9]|[1-9][0-9]{2,})_' })
-  if ($phase23Migrations.Count -ne 1 -or $phase23Migrations[0].Name -notmatch '^043_') {
-    throw "Phase 23A must introduce exactly one append-only 043 migration; found: $($phase23Migrations.Name -join ', ')"
+  $phase23aMigrations = @($migrationFiles | Where-Object { $_.Name -match '^043_' })
+  if ($phase23aMigrations.Count -ne 1 -or $phase23aMigrations[0].Name -ne '043_phase23a_worker_phone_identity_hash.sql') {
+    throw "Phase 23A must own exactly its append-only 043 migration; found: $($phase23aMigrations.Name -join ', ')"
   }
-  $migration = Get-Content $phase23Migrations[0].FullName -Raw
+  $migration = Get-Content $phase23aMigrations[0].FullName -Raw
   Require-Match "043 worker phone hash table target" $migration '(?is)ALTER\s+TABLE\s+worker_profiles'
   Require-Match "043 worker phone hash column" $migration '(?is)phone_hash'
   Require-Match "043 worker phone hash uniqueness" $migration '(?is)(UNIQUE|CREATE\s+UNIQUE\s+INDEX)'
