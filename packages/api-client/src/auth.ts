@@ -1,4 +1,5 @@
 import type { ApiClient } from "./createApiClient.js";
+import { validateLoginCodeResponse, validateLoginResponse } from "./responseValidators.js";
 
 // ── Response types ──
 
@@ -35,15 +36,10 @@ export interface DebugLoginCodeResponse {
 export function createAuthApi(client: ApiClient) {
   return {
     requestCustomerLoginCode(phone: string) {
-      return client.post<LoginCodeResponse | LoginError>("/api/auth/customer/code", {
-        phone,
-      });
+      return client.post<LoginCodeResponse | LoginError>("/api/auth/customer/code", { phone }, { validate: validateLoginCodeResponse });
     },
     customerLogin(phone: string, code: string) {
-      return client.post<LoginResponse | LoginError>("/api/auth/customer/login", {
-        phone,
-        code,
-      });
+      return client.post<LoginResponse | LoginError>("/api/auth/customer/login", { phone, code }, { validate: validateLoginResponse });
     },
     getCustomerDebugCode(phone: string) {
       return client.get<DebugLoginCodeResponse | LoginError>(
@@ -51,15 +47,10 @@ export function createAuthApi(client: ApiClient) {
       );
     },
     requestAdminLoginCode(username: string) {
-      return client.post<LoginCodeResponse | LoginError>("/api/auth/admin/code", {
-        username,
-      });
+      return client.post<LoginCodeResponse | LoginError>("/api/auth/admin/code", { username }, { validate: validateLoginCodeResponse });
     },
     adminLogin(username: string, code: string) {
-      return client.post<LoginResponse | LoginError>("/api/auth/admin/login", {
-        username,
-        code,
-      });
+      return client.post<LoginResponse | LoginError>("/api/auth/admin/login", { username, code }, { validate: validateLoginResponse });
     },
     getAdminDebugCode(username: string) {
       return client.get<DebugLoginCodeResponse | LoginError>(
@@ -67,15 +58,10 @@ export function createAuthApi(client: ApiClient) {
       );
     },
     requestWorkerLoginCode(phone: string) {
-      return client.post<LoginCodeResponse | LoginError>("/api/auth/worker/code", {
-        phone,
-      });
+      return client.post<LoginCodeResponse | LoginError>("/api/auth/worker/code", { phone }, { validate: validateLoginCodeResponse });
     },
     workerLogin(phone: string, code: string) {
-      return client.post<LoginResponse | LoginError>("/api/auth/worker/login", {
-        phone,
-        code,
-      });
+      return client.post<LoginResponse | LoginError>("/api/auth/worker/login", { phone, code }, { validate: validateLoginResponse });
     },
     getWorkerDebugCode(phone: string) {
       return client.get<DebugLoginCodeResponse | LoginError>(

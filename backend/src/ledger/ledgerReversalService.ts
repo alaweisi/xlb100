@@ -5,6 +5,7 @@ import { withTransaction } from "../dal/transaction.js";
 import {
   eventOutboxRepository,
   EventOutboxRepository,
+  type OutboxClaim,
 } from "../events/eventOutbox.js";
 import {
   generateLedgerEntryId,
@@ -71,6 +72,19 @@ export class LedgerReversalService {
     private readonly transactionRunner: TransactionRunner = withTransaction,
   ) {}
 
+  private async acknowledge(connection: PoolConnection, event: EventOutbox): Promise<void> {
+    if (event.status === "processing") {
+      if (!event.leaseOwner || !event.leaseToken || !event.leaseExpiresAt || event.attemptCount === undefined || event.maxAttempts === undefined) {
+        throw new LedgerReversalError("processing outbox event is missing lease metadata");
+      }
+      if (!(await this.outboxRepository.acknowledgeClaim(connection, event as OutboxClaim))) {
+        throw new LedgerReversalError("outbox claim was lost before reversal acknowledgement");
+      }
+      return;
+    }
+    await this.outboxRepository.markEventPublished(connection, event.eventId, event.cityCode);
+  }
+
   async reverse(
     context: RequestContext,
     event: EventOutbox,
@@ -136,11 +150,7 @@ export class LedgerReversalService {
           connection,
           workerFinanceAdjustment,
         );
-        await this.outboxRepository.markEventPublished(
-          connection,
-          event.eventId,
-          cityCode,
-        );
+        await this.acknowledge(connection, event);
         return { refundId, entries: existing, idempotent: true };
       }
 
@@ -201,11 +211,7 @@ export class LedgerReversalService {
         connection,
         workerFinanceAdjustment,
       );
-      await this.outboxRepository.markEventPublished(
-        connection,
-        event.eventId,
-        cityCode,
-      );
+      await this.acknowledge(connection, event);
       return { refundId, entries, idempotent: false };
     });
   }

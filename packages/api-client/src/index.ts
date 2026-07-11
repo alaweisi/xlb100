@@ -1,4 +1,13 @@
-export { createApiClient, type ApiClient, type ApiClientOptions } from "./createApiClient.js";
+export {
+  ApiClientError,
+  createApiClient,
+  type ApiClient,
+  type ApiClientErrorKind,
+  type ApiClientOptions,
+  type ApiRequestOptions,
+  type ResponseValidator,
+  type RetryMode,
+} from "./createApiClient.js";
 export { customerApi } from "./customer.js";
 export { workerApi } from "./worker.js";
 export type {

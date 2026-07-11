@@ -4,6 +4,13 @@ import type { AftersaleRepairOrderResponse } from "./aftersale.js";
 import type { UploadFulfillmentEvidenceResponse, WorkerFulfillmentEvidenceResponse } from "./evidence.js";
 import type { FulfillmentEvidenceType } from "@xlb/types";
 import type { WorkerLocation } from "@xlb/types";
+import {
+  validateAcceptTaskResponse,
+  validateFulfillmentDetailResponse,
+  validateFulfillmentLifecycleResponse,
+  validateFulfillmentListResponse,
+  validateWorkerTaskPoolResponse,
+} from "./responseValidators.js";
 
 export interface WorkerTaskPoolItemResponse {
   dispatchTaskId: string;
@@ -200,12 +207,13 @@ export function createWorkerApi(client: ApiClient) {
     upsertLocation(body:{latitude:number;longitude:number;accuracyMeters:number;capturedAt:string;serviceRadiusKm:number;locationSharingEnabled:boolean}):Promise<{ok:true;location:WorkerLocation}>{return client.post("/api/worker/location",body);},
     getLocation():Promise<{ok:true;location:WorkerLocation|null}>{return client.get("/api/worker/location");},
     getTaskPool(): Promise<WorkerTaskPoolResponse> {
-      return client.get<WorkerTaskPoolResponse>("/api/worker/task-pool");
+      return client.get<WorkerTaskPoolResponse>("/api/worker/task-pool", { validate: validateWorkerTaskPoolResponse });
     },
     acceptTask(dispatchTaskId: string): Promise<AcceptTaskResponse> {
       return client.post<AcceptTaskResponse>(
         `/api/worker/tasks/${encodeURIComponent(dispatchTaskId)}/accept`,
         {},
+        { validate: validateAcceptTaskResponse },
       );
     },
     rejectTask(
@@ -224,17 +232,19 @@ export function createWorkerApi(client: ApiClient) {
       );
     },
     getMyFulfillments(): Promise<FulfillmentListResponse> {
-      return client.get<FulfillmentListResponse>("/api/worker/fulfillments");
+      return client.get<FulfillmentListResponse>("/api/worker/fulfillments", { validate: validateFulfillmentListResponse });
     },
     getFulfillment(fulfillmentId: string): Promise<FulfillmentDetailResponse> {
       return client.get<FulfillmentDetailResponse>(
         `/api/worker/fulfillments/${encodeURIComponent(fulfillmentId)}`,
+        { validate: validateFulfillmentDetailResponse },
       );
     },
     startFulfillment(fulfillmentId: string): Promise<FulfillmentLifecycleResponse> {
       return client.post<FulfillmentLifecycleResponse>(
         `/api/worker/fulfillments/${encodeURIComponent(fulfillmentId)}/start`,
         {},
+        { validate: validateFulfillmentLifecycleResponse },
       );
     },
     completeFulfillment(
@@ -244,6 +254,7 @@ export function createWorkerApi(client: ApiClient) {
       return client.post<FulfillmentLifecycleResponse>(
         `/api/worker/fulfillments/${encodeURIComponent(fulfillmentId)}/complete`,
         input,
+        { validate: validateFulfillmentLifecycleResponse },
       );
     },
     getFulfillmentEvidence(fulfillmentId: string): Promise<WorkerFulfillmentEvidenceResponse> {

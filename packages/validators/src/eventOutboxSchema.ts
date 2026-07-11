@@ -1,7 +1,13 @@
 import { z } from "zod";
 import { cityCodeSchema } from "./cityCodeSchema.js";
 
-export const outboxEventStatusSchema = z.enum(["pending", "published", "failed"]);
+export const outboxEventStatusSchema = z.enum([
+  "pending",
+  "processing",
+  "retry_wait",
+  "published",
+  "dead_letter",
+]);
 
 export const outboxEventTypeSchema = z.enum([
   "order.created",
@@ -45,6 +51,18 @@ export const eventOutboxSchema = z.object({
   status: outboxEventStatusSchema,
   createdAt: z.string().min(1),
   publishedAt: z.string().nullable(),
+  processingStartedAt: z.string().nullable().optional(),
+  leaseOwner: z.string().nullable().optional(),
+  leaseToken: z.string().nullable().optional(),
+  leaseExpiresAt: z.string().nullable().optional(),
+  attemptCount: z.number().int().nonnegative().optional(),
+  maxAttempts: z.number().int().positive().optional(),
+  availableAt: z.string().min(1).optional(),
+  lastErrorCode: z.string().nullable().optional(),
+  lastErrorMessage: z.string().nullable().optional(),
+  lastFailedAt: z.string().nullable().optional(),
+  deadLetteredAt: z.string().nullable().optional(),
+  updatedAt: z.string().min(1).optional(),
 });
 
 export const orderPaidEventPayloadSchema = z.object({

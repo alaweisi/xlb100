@@ -519,3 +519,6 @@ Write-Host "XLB Phase 22 quality gate boundary preflight passed."
 
 Invoke-PreflightGate "check-phase23a-boundaries.ps1"
 Write-Host "XLB Phase 23A authentication and data safety boundary preflight passed."
+
+Invoke-PreflightGate "check-phase23b-boundaries.ps1"
+Write-Host "XLB Phase 23B event and API reliability preflight passed."

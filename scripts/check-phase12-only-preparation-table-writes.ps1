@@ -53,6 +53,7 @@ $allowedDefaultPattern = 'settlement_execution_preparation_'
 $allowedPerModule = @{
   'backend/src/auth' = 'customers'
   'backend/src/cityConfig' = 'city_configs'
+  'backend/src/events' = 'event_outbox'
   'backend/src/governance' = 'settlement_action_governance_'
   'backend/src/ledger' = 'ledger_(accounts|accruals|entries)'
   'backend/src/planner' = 'settlement_execution_dry_run_'
