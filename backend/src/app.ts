@@ -44,7 +44,12 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   app.addHook("onRequest", createRateLimitGuard(options.rateLimit));
   app.addHook("onResponse", async (request, reply) => {
     const route = request.routeOptions.url ?? request.url.split("?", 1)[0] ?? "unknown";
-    recordHttpRequest({ method: request.method, route, statusCode: reply.statusCode, durationMs: reply.elapsedTime });
+    recordHttpRequest({
+      method: request.method,
+      routeTemplate: request.routeOptions.url,
+      statusCode: reply.statusCode,
+      durationMs: reply.elapsedTime,
+    });
     request.log.info({
       traceId: request.xlbContext?.traceId ?? request.id,
       cityCode: request.xlbContext?.cityCode,

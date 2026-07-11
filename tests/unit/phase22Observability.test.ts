@@ -20,7 +20,7 @@ describe("Phase 22 observability and API-edge rate limit", () => {
       const metrics = await app.inject({ method: "GET", url: "/metrics" });
       expect(metrics.statusCode).toBe(200);
       expect(metrics.headers["content-type"]).toContain("text/plain");
-      expect(metrics.body).toContain('xlb_http_requests_total{method="GET",route="/api/debug/context",status="200"} 1');
+      expect(metrics.body).toContain('xlb_http_requests_total{method="GET",route="/api/debug/context",status="2xx"} 1');
       expect(metrics.body).toContain("xlb_http_request_duration_ms_sum");
     } finally {
       await app.close();

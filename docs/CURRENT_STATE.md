@@ -30,6 +30,33 @@
 | Phase 23A | LOCKED | xlb-phase23a-auth-data-safety-hardening | Authentication and data safety hardening |
 | Phase 23B | LOCKED | xlb-phase23b-event-api-reliability | Event outbox and API client reliability |
 | Phase 23C | LOCKED | xlb-phase23c-three-app-frontend-engineering | Three-app frontend engineering |
+| Phase 23D | LOCK CANDIDATE | — | Performance and quality closure |
+
+## Phase 23D — Performance and Quality Closure (LOCK CANDIDATE)
+
+- **Entered**: 2026-07-11
+- **Branch**: `codex/phase23d-performance-quality-closure-v2`
+- **Base**: locked Phase 23C main metadata commit `e6860b6`
+- **Required migration**: `046_phase23d_query_path_indexes.sql`
+- **Scope**:
+  - bounded metrics label cardinality
+  - Outbox and Payment indexes verified with real `EXPLAIN ANALYZE`
+  - expanded Worker component and authentication/order/accept/fulfillment E2E coverage
+  - performance and concurrency regression thresholds in CI
+  - complete build, typecheck, test, preflight, and browser verification
+- **Boundary**:
+  - no real payment, Amap/map, or object-storage provider
+  - no mutation of locked migrations `000`–`045` or existing tags
+  - no change to existing order, ledger, settlement, payout, or refund semantics
+- **Lock requirement**: independent migration, tests, report, `--no-ff` main merge, post-merge full verification, and tag
+- **Verification**:
+  - `pnpm gate:phase23d` passed, including Worker contracts, authenticated lifecycle, Playwright 3/3, five `EXPLAIN ANALYZE` plans, migration replay, and performance/concurrency thresholds
+  - forced typecheck/build passed: 22 / 22 combined tasks
+  - full regression passed: 172 files / 490 tests
+  - architecture preflight passed through Phase 23D
+  - CityConfig CAS produced exactly 1 success / 23 conflicts with p95 91.3 ms against a 1000 ms budget
+- **Report**: `docs/reports/PHASE23D_PERFORMANCE_QUALITY_CLOSURE_REPORT.md`
+- **Current state**: implementation verified on the feature branch; independent Lock ceremony pending
 
 ## Phase 23C — Three-app Frontend Engineering (LOCKED)
 

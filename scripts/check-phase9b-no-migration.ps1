@@ -13,7 +13,8 @@ $allowed = @(
   "db/migrations/042_phase22_enterprise_order_tenant_immutability.sql",
   "db/migrations/043_phase23a_worker_phone_identity_hash.sql",
   "db/migrations/044_phase23b_event_outbox_reliability.sql",
-  "db/migrations/045_phase23c_frontend_engineering.sql"
+  "db/migrations/045_phase23c_frontend_engineering.sql",
+  "db/migrations/046_phase23d_query_path_indexes.sql"
 )
 
 $vs = $diff | ForEach-Object {

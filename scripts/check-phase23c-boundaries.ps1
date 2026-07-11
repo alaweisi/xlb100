@@ -1,6 +1,7 @@
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 $BaseRef = "xlb-phase23b-event-api-reliability"
+$LockedRef = "xlb-phase23c-three-app-frontend-engineering"
 
 function Require-Path([string]$Path) {
   if (-not (Test-Path (Join-Path $Root $Path))) { throw "missing Phase 23C artifact: $Path" }
@@ -10,10 +11,13 @@ function Require-Match([string]$Label, [string]$Content, [string]$Pattern) {
   Write-Host "PASS $Label"
 }
 function Changed-Files([string[]]$Paths) {
-  $tracked = @(& git diff --name-only $BaseRef -- @Paths)
+  $tracked = @(& git diff --name-only $BaseRef $PhaseTarget -- @Paths)
   if ($LASTEXITCODE -ne 0) { throw "unable to inspect Phase 23C diff for: $($Paths -join ', ')" }
-  $untracked = @(& git ls-files --others --exclude-standard -- @Paths)
-  if ($LASTEXITCODE -ne 0) { throw "unable to inspect untracked Phase 23C files" }
+  $untracked = @()
+  if ($PhaseTarget -eq "HEAD") {
+    $untracked = @(& git ls-files --others --exclude-standard -- @Paths)
+    if ($LASTEXITCODE -ne 0) { throw "unable to inspect untracked Phase 23C files" }
+  }
   return @($tracked + $untracked | Sort-Object -Unique)
 }
 
@@ -21,6 +25,8 @@ Push-Location $Root
 try {
   & git rev-parse --verify "$BaseRef^{commit}" *> $null
   if ($LASTEXITCODE -ne 0) { throw "missing locked Phase 23B baseline tag: $BaseRef" }
+  & git rev-parse --verify "$LockedRef^{commit}" *> $null
+  $PhaseTarget = if ($LASTEXITCODE -eq 0) { $LockedRef } else { "HEAD" }
 
   $locked = @(Changed-Files @("db/migrations") | Where-Object {
     $_ -match '^db/migrations/(?:0(?:0[0-9]|1[0-9]|2[0-9]|3[0-9]|4[0-4]))_'
