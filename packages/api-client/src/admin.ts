@@ -16,7 +16,13 @@ import type {
 } from "./aftersale.js";
 import type { OrderFulfillmentEvidenceResponse } from "./evidence.js";
 import { createEnterpriseAdminApi } from "./enterprise.js";
-import type { AdminOrderSummary, AdminSkuOperationsRow, WorkerCertification } from "@xlb/types";
+import type {
+  AdminOrderSummary,
+  AdminSkuOperationsRow,
+  CityConfigSnapshot,
+  UpdateCityConfigRequest,
+  WorkerCertification,
+} from "@xlb/types";
 
 export interface AdminOrderTrace {
   order: {
@@ -130,6 +136,9 @@ export function createAdminApi(client: ApiClient) {
     approveWorkerCertification(certificationId:string):Promise<{ok:true;certification:WorkerCertification}>{return client.post(`/api/admin/certifications/${encodeURIComponent(certificationId)}/approve`,{});},
     rejectWorkerCertification(certificationId:string,reason:string):Promise<{ok:true;certification:WorkerCertification}>{return client.post(`/api/admin/certifications/${encodeURIComponent(certificationId)}/reject`,{reason});},
     listDispatchBoard():Promise<{ok:true;rows:DispatchBoardRow[]}>{return client.get("/api/internal/dispatch/board");},
+    updateCityConfig(body: UpdateCityConfigRequest): Promise<{ ok: true; config: CityConfigSnapshot }> {
+      return client.post("/api/admin/city-config/update", body);
+    },
     runDispatchMatch(dispatchTaskId?:string){return client.post<{ok:true;processed:number}>("/api/internal/dispatch/match-once",dispatchTaskId?{dispatchTaskId}:{});},
     runDispatchTimeout(){return client.post<{ok:true;processed:number}>("/api/internal/dispatch/timeout-once",{timeoutMinutes:15});},
     getOrderTrace(orderId: string): Promise<AdminOrderTraceResponse> {

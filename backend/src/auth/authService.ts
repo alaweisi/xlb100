@@ -7,6 +7,7 @@ import {
   verifyLoginOtp,
   type DebugLoginOtpResult,
 } from "./otpService.js";
+import { hashPhoneIdentity, validateMainlandPhone } from "./phoneIdentity.js";
 
 // Fixed-code login has been removed. Each login now uses a random,
 // one-time Redis OTP with TTL and attempt limits.
@@ -42,24 +43,21 @@ async function findAdmin(
   return rows.length > 0 ? rows[0] : null;
 }
 
-function maskPhone(phone: string): string {
-  return `${phone.slice(0, 3)}****${phone.slice(-4)}`;
-}
-
 async function findWorkerByPhone(
   phone: string,
 ): Promise<{ id: string; phoneMasked: string | null; status: string } | null> {
   const pool = getMysqlPool();
+  const phoneHash = hashPhoneIdentity(phone);
   const [rows] = await pool.query<(RowDataPacket & { worker_id: string; phone_masked: string | null; status: string })[]>(
-    "SELECT worker_id, phone_masked, status FROM worker_profiles WHERE phone_masked = ? LIMIT 1",
-    [maskPhone(phone)],
+    "SELECT worker_id, phone_masked, status FROM worker_profiles WHERE phone_hash = ? LIMIT 1",
+    [phoneHash],
   );
   const row = rows[0];
   return row ? { id: row.worker_id, phoneMasked: row.phone_masked, status: row.status } : null;
 }
 
 function validatePhone(phone: string): { ok: true } | { ok: false; error: string; statusCode: 400 } {
-  if (!phone || !/^\d{11}$/.test(phone)) {
+  if (!validateMainlandPhone(phone)) {
     return { ok: false, error: "invalid phone number", statusCode: 400 };
   }
   return { ok: true };

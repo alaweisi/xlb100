@@ -2,7 +2,11 @@ export type { AppType } from "./app.js";
 export type { Role } from "./rbac.js";
 export type { CityCode, KnownCityCode } from "./city.js";
 export type { RequestContext } from "./requestContext.js";
-export type { CityConfigSnapshot } from "./cityConfig.js";
+export type {
+  CityConfigSnapshot,
+  CityConfigUpdate,
+  UpdateCityConfigRequest,
+} from "./cityConfig.js";
 export type {
   ServiceCategory,
   ServiceItem,

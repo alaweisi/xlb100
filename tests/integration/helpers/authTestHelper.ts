@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { XLB_HEADERS } from "@xlb/types";
 import { getMysqlPool } from "../../../backend/src/dal/mysqlPool.js";
 import { createToken } from "../../../backend/src/auth/tokenAuth.js";
+import { hashPhoneIdentity } from "../../../backend/src/auth/phoneIdentity.js";
 import { assertResponseJson } from "./httpResponseTestHelper.js";
 
 export type TestHeaders = Record<string, string>;
@@ -52,10 +53,10 @@ function maskPhone(phone: string): string {
 async function ensureWorker(userId: string, phone: string, cityCode: string): Promise<void> {
   const pool = getMysqlPool();
   await pool.query(
-    `INSERT INTO worker_profiles (worker_id, display_name, phone_masked, status)
-     VALUES (?, ?, ?, 'active')
-     ON DUPLICATE KEY UPDATE display_name = VALUES(display_name), phone_masked = VALUES(phone_masked), status = VALUES(status)`,
-    [userId, `Test ${userId}`, maskPhone(phone)],
+    `INSERT INTO worker_profiles (worker_id, display_name, phone_masked, phone_hash, status)
+     VALUES (?, ?, ?, ?, 'active')
+     ON DUPLICATE KEY UPDATE display_name = VALUES(display_name), phone_masked = VALUES(phone_masked), phone_hash = VALUES(phone_hash), status = VALUES(status)`,
+    [userId, `Test ${userId}`, maskPhone(phone), hashPhoneIdentity(phone)],
   );
   await pool.query(
     `INSERT INTO worker_city_bindings (worker_id, city_code, is_enabled)

@@ -38,6 +38,7 @@ $allowedFiles = @(
   "docs/reports/PHASE12_REWORK_PLAN.md",
   "docs/reports/PHASE12_REWORK_V2_PLAN.md",
   "docs/reports/PHASE22_QUALITY_GATES_REPORT.md",
+  "docs/reports/PHASE23A_AUTH_DATA_SAFETY_HARDENING_REPORT.md",
   "packages/api-client/src/governanceEvidence.ts",
   "packages/api-client/src/governanceIntent.ts",
   "packages/api-client/src/governancePlanner.ts",
@@ -101,4 +102,3 @@ foreach ($l in $lines) {
 }
 if ($vs) { Write-Host "check-phase9c-forbidden-zone: FAILED"; exit 1 }
 Write-Host "check-phase9c-forbidden-zone: passed (exact allowlist with Phase 14R refund reversal)"
-

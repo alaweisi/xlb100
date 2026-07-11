@@ -42,15 +42,17 @@ describe.skipIf(!runDb)("cityConfigService", () => {
   it("admin without city_scope cannot write config", async () => {
     await expect(
       cityConfigService.updateConfig(adminContext("unknown-admin", "hangzhou"), {
+        expectedVersion: 1,
         isOpen: false,
       }),
     ).rejects.toThrow(/scope/);
   });
 
   it("admin with hangzhou scope can write config", async () => {
+    const current = await cityConfigService.getCurrentConfig(customerContext("hangzhou"));
     const updated = await cityConfigService.updateConfig(
       adminContext("admin-hangzhou", "hangzhou"),
-      { timezone: "Asia/Shanghai" },
+      { expectedVersion: current.version, timezone: "Asia/Shanghai" },
     );
     expect(updated.cityCode).toBe("hangzhou");
     expect(updated.timezone).toBe("Asia/Shanghai");
@@ -58,7 +60,10 @@ describe.skipIf(!runDb)("cityConfigService", () => {
 
   it("customer cannot write config", async () => {
     await expect(
-      cityConfigService.updateConfig(customerContext("hangzhou"), { isOpen: false }),
+      cityConfigService.updateConfig(customerContext("hangzhou"), {
+        expectedVersion: 1,
+        isOpen: false,
+      }),
     ).rejects.toThrow(CityConfigWriteForbiddenError);
   });
 });

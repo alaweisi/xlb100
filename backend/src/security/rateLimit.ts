@@ -13,8 +13,19 @@ export type RateLimitOptions = {
   now?: () => number;
 };
 
+const otpCodeRoutes = new Set([
+  "/api/auth/customer/code",
+  "/api/auth/admin/code",
+  "/api/auth/worker/code",
+]);
+
 const defaultRules: RateLimitRule[] = [
-  { id: "otp", matches: path => path === "/api/auth/otp/request", limit: 10, windowMs: 60_000 },
+  {
+    id: "otp",
+    matches: path => otpCodeRoutes.has(path),
+    limit: 10,
+    windowMs: 60_000,
+  },
   { id: "openapi", matches: path => path.startsWith("/openapi/"), limit: 120, windowMs: 60_000 },
   { id: "evidence", matches: path => path.includes("/evidence"), limit: 30, windowMs: 60_000 },
 ];

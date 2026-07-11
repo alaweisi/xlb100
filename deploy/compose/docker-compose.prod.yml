@@ -23,6 +23,7 @@ services:
       REDIS_HOST: ${REDIS_HOST:?REDIS_HOST is required}
       REDIS_PORT: ${REDIS_PORT:?REDIS_PORT is required}
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      AUTH_PHONE_HASH_SECRET: ${AUTH_PHONE_HASH_SECRET:?AUTH_PHONE_HASH_SECRET is required}
     expose:
       - "${BACKEND_PORT:-3000}"
     healthcheck:
