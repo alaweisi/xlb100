@@ -67,6 +67,7 @@ services:
       dockerfile: infra/docker/Dockerfile.frontend
       args:
         APP_NAME: customer
+        APP_BASE: /customer/
     container_name: xlb-customer-staging
     restart: unless-stopped
     depends_on:
@@ -82,6 +83,7 @@ services:
       dockerfile: infra/docker/Dockerfile.frontend
       args:
         APP_NAME: worker
+        APP_BASE: /worker/
     container_name: xlb-worker-staging
     restart: unless-stopped
     depends_on:
@@ -97,6 +99,7 @@ services:
       dockerfile: infra/docker/Dockerfile.frontend
       args:
         APP_NAME: admin
+        APP_BASE: /admin/
     container_name: xlb-admin-staging
     restart: unless-stopped
     depends_on:
