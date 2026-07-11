@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildApp } from "../../backend/src/app.js";
 import { loginWorkerHeaders } from "./helpers/authTestHelper.js";
+import { getMysqlPool } from "../../backend/src/dal/mysqlPool.js";
 
 const runDb = process.env.XLB_SKIP_DB_TESTS !== "1";
 let phoneSeq = 0;
@@ -108,6 +109,35 @@ describe.skipIf(!runDb)("auth OTP integration", { timeout: 20000 }, () => {
         userId: "worker-auth-otp",
       });
     } finally {
+      await app.close();
+    }
+  });
+
+  it("does not authenticate a legacy worker from a masked-only phone identity", async () => {
+    const app = await buildApp();
+    const pool = getMysqlPool();
+    const phoneValue = "13877771234";
+    const id = "worker-phone-masked-only";
+    try {
+      await pool.query(
+        `INSERT INTO worker_profiles (worker_id, display_name, phone_masked, phone_hash, status)
+         VALUES (?, 'Masked Only', '138****1234', NULL, 'active')
+         ON DUPLICATE KEY UPDATE phone_masked = VALUES(phone_masked), phone_hash = NULL, status = 'active'`,
+        [id],
+      );
+
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/auth/worker/code",
+        payload: { phone: phoneValue },
+      });
+      expect(response.statusCode).toBe(404);
+      expect(response.json()).toMatchObject({
+        ok: false,
+        error: "worker not found",
+      });
+    } finally {
+      await pool.query("DELETE FROM worker_profiles WHERE worker_id = ?", [id]);
       await app.close();
     }
   });

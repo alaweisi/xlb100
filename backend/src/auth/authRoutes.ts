@@ -1,4 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { loadEnv } from "@xlb/config";
+import { maskPhone } from "./phoneIdentity.js";
 import {
   adminLogin,
   customerLogin,
@@ -22,13 +24,15 @@ function sendError(reply: FastifyReply, result: { statusCode: number }) {
 }
 
 export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
+  const env = loadEnv();
+  const registerDebugRoutes = env.nodeEnv !== "production" && env.authDebugCodeEnabled;
   app.post(
     "/api/auth/customer/code",
     async (request: FastifyRequest, reply: FastifyReply) => {
       const body = (request.body ?? {}) as LoginBody;
       const result = await requestCustomerLoginCode(body.phone ?? "");
       if (!result.ok) return sendError(reply, result);
-      app.log.info({ phone: body.phone, expiresAt: result.expiresAt }, "customer login OTP issued");
+      app.log.info({ phoneMasked: maskPhone(body.phone ?? ""), expiresAt: result.expiresAt }, "customer login OTP issued");
       return result;
     },
   );
@@ -43,15 +47,17 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
     },
   );
 
-  app.get(
-    "/api/auth/customer/debug-code",
-    async (request: FastifyRequest, reply: FastifyReply) => {
-      const query = (request.query ?? {}) as { phone?: string };
-      const result = await debugCustomerLoginCode(query.phone ?? "");
-      if (!result.ok) return sendError(reply, result);
-      return result;
-    },
-  );
+  if (registerDebugRoutes) {
+    app.get(
+      "/api/auth/customer/debug-code",
+      async (request: FastifyRequest, reply: FastifyReply) => {
+        const query = (request.query ?? {}) as { phone?: string };
+        const result = await debugCustomerLoginCode(query.phone ?? "");
+        if (!result.ok) return sendError(reply, result);
+        return result;
+      },
+    );
+  }
 
   app.post(
     "/api/auth/admin/code",
@@ -74,15 +80,17 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
     },
   );
 
-  app.get(
-    "/api/auth/admin/debug-code",
-    async (request: FastifyRequest, reply: FastifyReply) => {
-      const query = (request.query ?? {}) as { username?: string };
-      const result = await debugAdminLoginCode(query.username ?? "");
-      if (!result.ok) return sendError(reply, result);
-      return result;
-    },
-  );
+  if (registerDebugRoutes) {
+    app.get(
+      "/api/auth/admin/debug-code",
+      async (request: FastifyRequest, reply: FastifyReply) => {
+        const query = (request.query ?? {}) as { username?: string };
+        const result = await debugAdminLoginCode(query.username ?? "");
+        if (!result.ok) return sendError(reply, result);
+        return result;
+      },
+    );
+  }
 
   app.post(
     "/api/auth/worker/code",
@@ -90,7 +98,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       const body = (request.body ?? {}) as LoginBody;
       const result = await requestWorkerLoginCode(body.phone ?? "");
       if (!result.ok) return sendError(reply, result);
-      app.log.info({ phone: body.phone, expiresAt: result.expiresAt }, "worker login OTP issued");
+      app.log.info({ phoneMasked: maskPhone(body.phone ?? ""), expiresAt: result.expiresAt }, "worker login OTP issued");
       return result;
     },
   );
@@ -105,13 +113,15 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
     },
   );
 
-  app.get(
-    "/api/auth/worker/debug-code",
-    async (request: FastifyRequest, reply: FastifyReply) => {
-      const query = (request.query ?? {}) as { phone?: string };
-      const result = await debugWorkerLoginCode(query.phone ?? "");
-      if (!result.ok) return sendError(reply, result);
-      return result;
-    },
-  );
+  if (registerDebugRoutes) {
+    app.get(
+      "/api/auth/worker/debug-code",
+      async (request: FastifyRequest, reply: FastifyReply) => {
+        const query = (request.query ?? {}) as { phone?: string };
+        const result = await debugWorkerLoginCode(query.phone ?? "");
+        if (!result.ok) return sendError(reply, result);
+        return result;
+      },
+    );
+  }
 }

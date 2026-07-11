@@ -12,9 +12,42 @@ export interface EnvConfig {
   redisHost: string;
   redisPort: number;
   jwtSecret: string;
+  authPhoneHashSecret: string;
   authOtpTtlSeconds: number;
   authOtpMaxAttempts: number;
   authDebugCodeEnabled: boolean;
+}
+
+const LOCAL_JWT_SECRET = "change-me-in-production";
+const LOCAL_MYSQL_PASSWORD = "xlb_local_password";
+const LOCAL_PHONE_HASH_SECRET = "xlb-local-phone-hash-secret-change-before-production";
+
+const WEAK_SECRET_VALUES = new Set([
+  "change-me",
+  "change-me-in-production",
+  "changeme",
+  "password",
+  "replace_with_secret_manager_value",
+  "secret",
+  "xlb_local_password",
+  LOCAL_PHONE_HASH_SECRET,
+]);
+
+function assertProductionSecret(name: string, value: string, minimumLength: number): void {
+  const normalized = value.trim().toLowerCase();
+  if (value.trim().length < minimumLength || WEAK_SECRET_VALUES.has(normalized)) {
+    throw new Error(
+      `${name} must be an explicit, non-default secret of at least ${minimumLength} characters in production`,
+    );
+  }
+}
+
+function validateProductionEnv(config: EnvConfig): void {
+  if (config.nodeEnv !== "production") return;
+
+  assertProductionSecret("JWT_SECRET", config.jwtSecret, 32);
+  assertProductionSecret("MYSQL_PASSWORD", config.mysqlPassword, 16);
+  assertProductionSecret("AUTH_PHONE_HASH_SECRET", config.authPhoneHashSecret, 32);
 }
 
 function readEnv(key: string, fallback: string): string {
@@ -45,8 +78,9 @@ function readEnvList(key: string, fallback: string[]): string[] {
 
 /** Load env with defaults aligned to deploy/compose/docker-compose.local.yml */
 export function loadEnv(): EnvConfig {
-  return {
-    nodeEnv: readEnv("NODE_ENV", "development"),
+  const nodeEnv = readEnv("NODE_ENV", "development");
+  const config: EnvConfig = {
+    nodeEnv,
     backendPort: readEnvInt("BACKEND_PORT", 3000),
     autoRunEnabled: readEnvBool("AUTO_RUN_ENABLED", false),
     autoRunIntervalMs: readEnvInt("AUTO_RUN_INTERVAL_MS", 8000),
@@ -55,15 +89,19 @@ export function loadEnv(): EnvConfig {
     mysqlPort: readEnvInt("MYSQL_PORT", 3306),
     mysqlDatabase: readEnv("MYSQL_DATABASE", "xlb_local"),
     mysqlUser: readEnv("MYSQL_USER", "xlb"),
-    mysqlPassword: readEnv("MYSQL_PASSWORD", "xlb_local_password"),
+    mysqlPassword: readEnv("MYSQL_PASSWORD", LOCAL_MYSQL_PASSWORD),
     redisHost: readEnv("REDIS_HOST", "127.0.0.1"),
     redisPort: readEnvInt("REDIS_PORT", 6379),
-    jwtSecret: readEnv("JWT_SECRET", "change-me-in-production"),
+    jwtSecret: readEnv("JWT_SECRET", LOCAL_JWT_SECRET),
+    authPhoneHashSecret: readEnv("AUTH_PHONE_HASH_SECRET", LOCAL_PHONE_HASH_SECRET),
     authOtpTtlSeconds: readEnvInt("AUTH_OTP_TTL_SECONDS", 300),
     authOtpMaxAttempts: readEnvInt("AUTH_OTP_MAX_ATTEMPTS", 5),
     authDebugCodeEnabled: readEnvBool(
       "AUTH_DEBUG_CODE_ENABLED",
-      readEnv("NODE_ENV", "development") !== "production",
+      nodeEnv !== "production",
     ),
   };
+
+  validateProductionEnv(config);
+  return config;
 }

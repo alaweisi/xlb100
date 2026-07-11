@@ -13,11 +13,19 @@ export const cityConfigSnapshotSchema = z.object({
 
 export const cityConfigUpdateSchema = z.object({
   cityCode: cityCodeSchema,
+  expectedVersion: z.number().int().positive(),
   isOpen: z.boolean().optional(),
   timezone: z.string().min(1).max(64).optional(),
   serviceEnabled: z.boolean().optional(),
   pricingEnabled: z.boolean().optional(),
-});
+}).refine(
+  (input) =>
+    input.isOpen !== undefined ||
+    input.timezone !== undefined ||
+    input.serviceEnabled !== undefined ||
+    input.pricingEnabled !== undefined,
+  { message: "At least one city config field must be provided" },
+);
 
 export type CityConfigSnapshotInput = z.infer<typeof cityConfigSnapshotSchema>;
 export type CityConfigUpdateInput = z.infer<typeof cityConfigUpdateSchema>;

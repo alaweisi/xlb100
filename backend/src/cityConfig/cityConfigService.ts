@@ -1,4 +1,4 @@
-import type { CityConfigSnapshot } from "@xlb/types";
+import type { CityConfigSnapshot, CityConfigUpdate } from "@xlb/types";
 import type { RequestContext } from "@xlb/types";
 import { assertAdminCanAccessCity } from "../dal/adminQueryGuard.js";
 import { executeCityScoped } from "../dal/scopedExecutor.js";
@@ -7,11 +7,6 @@ import {
   cityConfigRepository,
   CityConfigRepository,
 } from "./cityConfigRepository.js";
-import {
-  getCachedCityConfig,
-  invalidateCityConfigCache,
-  setCachedCityConfig,
-} from "./cityConfigCache.js";
 import { buildCityConfigSnapshot, isCityOpen } from "./cityConfigSnapshot.js";
 
 export class CityConfigNotFoundError extends Error {
@@ -23,6 +18,22 @@ export class CityConfigNotFoundError extends Error {
   }
 }
 
+export class CityConfigVersionConflictError extends Error {
+  readonly statusCode = 409;
+  readonly code = "CITY_CONFIG_VERSION_CONFLICT";
+
+  constructor(
+    readonly cityCode: string,
+    readonly expectedVersion: number,
+    readonly currentVersion: number,
+  ) {
+    super(
+      `City config version conflict for city_code ${cityCode}: expected version ${expectedVersion}, current version ${currentVersion}`,
+    );
+    this.name = "CityConfigVersionConflictError";
+  }
+}
+
 export class CityConfigService {
   constructor(
     private readonly repository: CityConfigRepository = cityConfigRepository,
@@ -30,17 +41,16 @@ export class CityConfigService {
 
   async getCurrentConfig(context: RequestContext): Promise<CityConfigSnapshot> {
     return executeCityScoped(context, async (cityCode) => {
-      const cached = getCachedCityConfig(cityCode);
-      if (cached) return cached;
-
       const config = await this.repository.findByCityCode(context, cityCode);
       if (!config) {
         throw new CityConfigNotFoundError(cityCode);
       }
 
-      const snapshot = buildCityConfigSnapshot(config);
-      setCachedCityConfig(snapshot);
-      return snapshot;
+      // City availability and pricing switches are correctness-critical. A
+      // process-local TTL cache cannot be invalidated by another backend
+      // instance, so authoritative reads stay on MySQL until a shared,
+      // version-aware cache is introduced.
+      return buildCityConfigSnapshot(config);
     });
   }
 
@@ -52,12 +62,7 @@ export class CityConfigService {
   /** Admin write — requires city_scope via AdminQueryGuard */
   async updateConfig(
     context: RequestContext,
-    patch: {
-      isOpen?: boolean;
-      timezone?: string;
-      serviceEnabled?: boolean;
-      pricingEnabled?: boolean;
-    },
+    patch: CityConfigUpdate,
   ): Promise<CityConfigSnapshot> {
     if (!isAdminScopedRole(context.role)) {
       throw new CityConfigWriteForbiddenError("Admin role required");
@@ -73,10 +78,17 @@ export class CityConfigService {
 
     const updated = await this.repository.updateConfig(context, patch);
     if (!updated) {
-      throw new CityConfigNotFoundError(context.cityCode);
+      const current = await this.repository.findByCityCode(context, context.cityCode);
+      if (!current) {
+        throw new CityConfigNotFoundError(context.cityCode);
+      }
+      throw new CityConfigVersionConflictError(
+        context.cityCode,
+        patch.expectedVersion,
+        current.version,
+      );
     }
 
-    invalidateCityConfigCache(context.cityCode);
     return updated;
   }
 }

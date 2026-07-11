@@ -1,6 +1,6 @@
-import type { Pool, RowDataPacket } from "mysql2/promise";
+import type { Pool, ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import type { CityCode } from "@xlb/types";
-import type { CityConfigSnapshot } from "@xlb/types";
+import type { CityConfigSnapshot, CityConfigUpdate } from "@xlb/types";
 import type { RequestContext } from "@xlb/types";
 import { RepositoryBase } from "../dal/repositoryBase.js";
 import {
@@ -57,43 +57,62 @@ export class CityConfigRepository extends RepositoryBase {
 
   async updateConfig(
     context: RequestContext,
-    patch: {
-      isOpen?: boolean;
-      timezone?: string;
-      serviceEnabled?: boolean;
-      pricingEnabled?: boolean;
-    },
+    patch: CityConfigUpdate,
   ): Promise<CityConfigSnapshot | null> {
     return executeCityScoped(context, async (cityCode) => {
-      const sets: string[] = ["version = version + 1"];
-      const params: unknown[] = [];
+      const connection = await this.pool.getConnection();
+      try {
+        await connection.beginTransaction();
+        const sets: string[] = ["version = version + 1"];
+        const params: unknown[] = [];
 
-      if (patch.isOpen !== undefined) {
-        sets.push("is_open = ?");
-        params.push(patch.isOpen ? 1 : 0);
-      }
-      if (patch.timezone !== undefined) {
-        sets.push("timezone = ?");
-        params.push(patch.timezone);
-      }
-      if (patch.serviceEnabled !== undefined) {
-        sets.push("service_enabled = ?");
-        params.push(patch.serviceEnabled ? 1 : 0);
-      }
-      if (patch.pricingEnabled !== undefined) {
-        sets.push("pricing_enabled = ?");
-        params.push(patch.pricingEnabled ? 1 : 0);
-      }
+        if (patch.isOpen !== undefined) {
+          sets.push("is_open = ?");
+          params.push(patch.isOpen ? 1 : 0);
+        }
+        if (patch.timezone !== undefined) {
+          sets.push("timezone = ?");
+          params.push(patch.timezone);
+        }
+        if (patch.serviceEnabled !== undefined) {
+          sets.push("service_enabled = ?");
+          params.push(patch.serviceEnabled ? 1 : 0);
+        }
+        if (patch.pricingEnabled !== undefined) {
+          sets.push("pricing_enabled = ?");
+          params.push(patch.pricingEnabled ? 1 : 0);
+        }
 
-      const where = buildCityScopedWhere(cityCode);
-      params.push(...where.params);
+        const where = buildCityScopedWhere(cityCode);
+        params.push(...where.params);
+        params.push(patch.expectedVersion);
 
-      await this.pool.query(
-        `UPDATE city_configs SET ${sets.join(", ")} WHERE ${where.clause}`,
-        params,
-      );
+        const [result] = await connection.query<ResultSetHeader>(
+          `UPDATE city_configs
+              SET ${sets.join(", ")}
+            WHERE ${where.clause} AND version = ?`,
+          params,
+        );
 
-      return this.findByCityCode(context, cityCode);
+        if (result.affectedRows === 0) {
+          await connection.commit();
+          return null;
+        }
+
+        const [rows] = await connection.query<CityConfigRow[]>(
+          `SELECT city_code, version, is_open, timezone, service_enabled, pricing_enabled, updated_at
+             FROM city_configs
+            WHERE ${where.clause}`,
+          where.params,
+        );
+        await connection.commit();
+        return rows[0] ? mapRow(rows[0]) : null;
+      } catch (error) {
+        await connection.rollback();
+        throw error;
+      } finally {
+        connection.release();
+      }
     });
   }
 }

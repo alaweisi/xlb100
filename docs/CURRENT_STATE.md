@@ -27,6 +27,33 @@
 | Phase 20 | LOCKED | xlb-phase20-lbs-lite-dispatch | LBS-lite local/mock geo + private worker location + dispatch ranking/reassignment |
 | Phase 21 | LOCKED | xlb-phase21-three-app-operations-closure | Customer / worker / admin operations UI closure |
 | Phase 22 | LOCKED | xlb-phase22-e2e-security-performance-gates | E2E / observability / security / performance gates |
+| Phase 23A | IMPLEMENTED / AWAITING LOCK | — | Authentication and data safety hardening |
+
+## Phase 23A — Authentication and Data Safety Hardening (IMPLEMENTED / AWAITING LOCK)
+
+- **Entered**: 2026-07-11
+- **Branch**: `codex/phase23a-auth-data-safety-hardening`
+- **Base**: local `main` at `58242be` after Phase 22 Lock and G-drive workspace migration
+- **Scope**:
+  - exact worker-phone identity lookup using a non-reversible hash
+  - production-safe OTP debug-route registration and real-route rate limiting
+  - CityConfig optimistic concurrency control
+  - production configuration fail-closed validation
+  - migrations, contracts, security tests, concurrency tests, and Phase gate evidence
+- **Boundary**:
+  - no real payment provider integration
+  - no Amap or other real map provider integration
+  - no real OSS/object-storage provider integration
+  - no mutation of locked migrations or tags
+  - no change to existing order, payment, dispatch, ledger, settlement, payout, or refund semantics
+- **Verification**:
+  - no-cache typecheck: 17/17 tasks passed
+  - no-cache build: 11/11 tasks passed
+  - full test command passed; database/security project reported 167 files / 476 tests
+  - architecture preflight passed, including the Phase 23A boundary gate
+  - migration 043 partial-DDL replay verification passed
+- **Report**: `docs/reports/PHASE23A_AUTH_DATA_SAFETY_HARDENING_REPORT.md`
+- **Lock state**: not locked and not tagged; deployment prerequisites in the report remain mandatory
 
 ## Phase 10 — Settlement Action Governance (LOCKED)
 
