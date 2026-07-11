@@ -10,6 +10,7 @@ import { withTransaction } from "../dal/transaction.js";
 import {
   eventOutboxRepository,
   EventOutboxRepository,
+  type OutboxClaim,
 } from "../events/eventOutbox.js";
 import {
   generateLedgerAccrualId,
@@ -48,6 +49,19 @@ export class LedgerAccrualService {
     private readonly transactionRunner: TransactionRunner = withTransaction,
   ) {}
 
+  private async acknowledge(connection: PoolConnection, event: EventOutbox): Promise<void> {
+    if (event.status === "processing") {
+      if (!event.leaseOwner || !event.leaseToken || !event.leaseExpiresAt || event.attemptCount === undefined || event.maxAttempts === undefined) {
+        throw new LedgerAccrualError("processing outbox event is missing lease metadata");
+      }
+      if (!(await this.outboxRepository.acknowledgeClaim(connection, event as OutboxClaim))) {
+        throw new LedgerAccrualError("outbox claim was lost before ledger acknowledgement");
+      }
+      return;
+    }
+    await this.outboxRepository.markEventPublished(connection, event.eventId, event.cityCode);
+  }
+
   async accrue(
     context: RequestContext,
     event: EventOutbox,
@@ -76,11 +90,7 @@ export class LedgerAccrualService {
         event.eventId,
       );
       if (existing) {
-        await this.outboxRepository.markEventPublished(
-          connection,
-          event.eventId,
-          cityCode,
-        );
+        await this.acknowledge(connection, event);
         return { accrual: existing, entries: [], idempotent: true };
       }
 
@@ -110,11 +120,7 @@ export class LedgerAccrualService {
             key,
           );
         if (existingForOrderFee) {
-          await this.outboxRepository.markEventPublished(
-            connection,
-            event.eventId,
-            cityCode,
-          );
+          await this.acknowledge(connection, event);
           return {
             accrual: existingForOrderFee,
             entries: [],
@@ -287,11 +293,7 @@ export class LedgerAccrualService {
           }],
         });
       }
-      await this.outboxRepository.markEventPublished(
-        connection,
-        event.eventId,
-        cityCode,
-      );
+      await this.acknowledge(connection, event);
       return { accrual, entries, idempotent: false };
     });
   }

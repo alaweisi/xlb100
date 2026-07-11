@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+import type { PoolConnection } from "mysql2/promise";
 import type { CityCode, DispatchTask, EventOutbox, RequestContext } from "@xlb/types";
 import { orderCreatedEventPayloadSchema } from "@xlb/validators";
 import { withTransaction } from "../dal/transaction.js";
@@ -5,6 +7,7 @@ import { executeCityScoped, assertCityScopedContext } from "../dal/scopedExecuto
 import {
   eventOutboxRepository,
   EventOutboxRepository,
+  type OutboxClaim,
 } from "../events/eventOutbox.js";
 import { generateDispatchTaskId, generateEventId } from "../events/eventIds.js";
 import { getDispatchStreamName } from "../streams/cityStreamNames.js";
@@ -40,6 +43,19 @@ export class DispatchService {
     private readonly publisher: DispatchStreamPublisher = dispatchStreamPublisher,
   ) {}
 
+  private async acknowledgeEvent(connection: PoolConnection, event: EventOutbox): Promise<void> {
+    if (event.status === "processing") {
+      if (!event.leaseOwner || !event.leaseToken || !event.leaseExpiresAt || event.attemptCount === undefined || event.maxAttempts === undefined) {
+        throw new Error("processing outbox event is missing lease metadata");
+      }
+      if (!(await this.outbox.acknowledgeClaim(connection, event as OutboxClaim))) {
+        throw new Error("outbox claim was lost before dispatch acknowledgement");
+      }
+      return;
+    }
+    await this.outbox.markEventPublished(connection, event.eventId, event.cityCode);
+  }
+
   async processOrderCreatedEvent(
     context: RequestContext,
     event: EventOutbox,
@@ -61,12 +77,27 @@ export class DispatchService {
       event.eventId,
     );
     if (existing) {
-      if (existing.status === "queued" && event.status === "pending") {
+      if (existing.status !== "pending" && existing.status !== "failed") {
         await withTransaction(async (connection) => {
-          await this.outbox.markEventPublished(connection, event.eventId, cityCode);
+          await this.acknowledgeEvent(connection, event);
         });
+        return existing;
       }
-      return existing;
+      if (existing.status === "failed" || existing.status === "pending") {
+        const streamEntryId = await this.publisher.publish(existing);
+        await withTransaction(async (connection) => {
+          await this.tasks.updateTaskQueued(connection, existing.dispatchTaskId, cityCode, streamEntryId);
+          await this.tasks.insertEvent(connection, {
+            dispatchEventId: generateEventId(),
+            dispatchTaskId: existing.dispatchTaskId,
+            cityCode,
+            eventType: "TASK_QUEUED",
+            reason: "outbox retry recovered failed dispatch publish",
+          });
+          await this.acknowledgeEvent(connection, event);
+        });
+        return (await this.tasks.findBySourceEventId(context, cityCode, event.eventId))!;
+      }
     }
 
     const payload = orderCreatedEventPayloadSchema.parse(event.payload);
@@ -76,9 +107,9 @@ export class DispatchService {
 
     const existingByOrder = await this.tasks.findByOrderId(context, cityCode, payload.orderId);
     if (existingByOrder) {
-      if (event.status === "pending") {
+      if (event.status === "pending" || event.status === "processing") {
         await withTransaction(async (connection) => {
-          await this.outbox.markEventPublished(connection, event.eventId, cityCode);
+          await this.acknowledgeEvent(connection, event);
         });
       }
       return existingByOrder;
@@ -106,9 +137,9 @@ export class DispatchService {
           (await this.tasks.findBySourceEventId(context, cityCode, event.eventId)) ??
           (await this.tasks.findByOrderId(context, cityCode, payload.orderId));
         if (raced) {
-          if (event.status === "pending") {
+          if (event.status === "pending" || event.status === "processing") {
             await withTransaction(async (connection) => {
-              await this.outbox.markEventPublished(connection, event.eventId, cityCode);
+              await this.acknowledgeEvent(connection, event);
             });
           }
           return raced;
@@ -125,9 +156,9 @@ export class DispatchService {
         event.eventId,
       ))!;
       if (pendingTask.status === "queued" && pendingTask.streamEntryId) {
-        if (event.status === "pending") {
+        if (event.status === "pending" || event.status === "processing") {
           await withTransaction(async (connection) => {
-            await this.outbox.markEventPublished(connection, event.eventId, cityCode);
+            await this.acknowledgeEvent(connection, event);
           });
         }
         return pendingTask;
@@ -136,7 +167,6 @@ export class DispatchService {
     } catch (error) {
       await withTransaction(async (connection) => {
         await this.tasks.updateTaskFailed(connection, dispatchTaskId, cityCode);
-        await this.outbox.markEventFailed(connection, event.eventId, cityCode);
       });
       throw error;
     }
@@ -155,7 +185,7 @@ export class DispatchService {
         eventType: "TASK_QUEUED",
         reason: "order created dispatch task",
       });
-      await this.outbox.markEventPublished(connection, event.eventId, cityCode);
+      await this.acknowledgeEvent(connection, event);
     });
 
     const result = await this.tasks.findBySourceEventId(
@@ -174,12 +204,21 @@ export class DispatchService {
     cityCode?: CityCode,
   ): Promise<{ processed: number; tasks: DispatchTask[] }> {
     const resolvedCity = cityCode ?? assertCityScopedContext(context);
-    const events = await this.outbox.findPendingOrderCreatedForDispatch(context, resolvedCity);
+    const events = await this.outbox.claimOrderCreatedForDispatch(
+      context,
+      resolvedCity,
+      `dispatch:${randomUUID()}`,
+    );
 
     const tasks: DispatchTask[] = [];
     for (const event of events) {
-      const task = await this.processOrderCreatedEvent(context, event);
-      tasks.push(task);
+      try {
+        if (!(await this.outbox.renewClaim(event))) continue;
+        const task = await this.processOrderCreatedEvent(context, event);
+        tasks.push(task);
+      } catch (error) {
+        await this.outbox.failClaim(event, error);
+      }
     }
 
     return { processed: tasks.length, tasks };

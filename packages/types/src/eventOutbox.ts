@@ -1,6 +1,11 @@
 import type { CityCode } from "./city.js";
 
-export type OutboxEventStatus = "pending" | "published" | "failed";
+export type OutboxEventStatus =
+  | "pending"
+  | "processing"
+  | "retry_wait"
+  | "published"
+  | "dead_letter";
 
 export type OutboxEventType =
   | "order.created"
@@ -43,6 +48,18 @@ export interface EventOutbox {
   status: OutboxEventStatus;
   createdAt: string;
   publishedAt: string | null;
+  processingStartedAt?: string | null;
+  leaseOwner?: string | null;
+  leaseToken?: string | null;
+  leaseExpiresAt?: string | null;
+  attemptCount?: number;
+  maxAttempts?: number;
+  availableAt?: string;
+  lastErrorCode?: string | null;
+  lastErrorMessage?: string | null;
+  lastFailedAt?: string | null;
+  deadLetteredAt?: string | null;
+  updatedAt?: string;
 }
 
 export interface OrderPaidEventPayload {

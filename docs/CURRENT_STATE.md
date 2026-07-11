@@ -28,6 +28,35 @@
 | Phase 21 | LOCKED | xlb-phase21-three-app-operations-closure | Customer / worker / admin operations UI closure |
 | Phase 22 | LOCKED | xlb-phase22-e2e-security-performance-gates | E2E / observability / security / performance gates |
 | Phase 23A | LOCKED | xlb-phase23a-auth-data-safety-hardening | Authentication and data safety hardening |
+| Phase 23B | LOCK CANDIDATE | — | Event outbox and API client reliability |
+
+## Phase 23B — Event And API Reliability (LOCK CANDIDATE)
+
+- **Entered**: 2026-07-11
+- **Branch**: `codex/phase23b-event-api-reliability`
+- **Base**: locked Phase 23A main metadata commit `c2088ec`
+- **Required migration**: `044_phase23b_event_outbox_reliability.sql`
+- **Scope**:
+  - atomic Outbox claim with processing state and city/type isolation
+  - lease owner/token CAS, renewal, expiry recovery, bounded retries and dead letter
+  - multi-consumer concurrency and crash-recovery evidence
+  - API Client timeout/cancellation and structured error model
+  - runtime validation for critical API responses
+  - retries only for safe requests or explicitly idempotent operations
+- **Boundary**:
+  - at-least-once delivery; no false exactly-once claim
+  - no real payment, map/Amap, or object-storage provider
+  - no order, payment, fulfillment, ledger, settlement, or refund semantic change
+  - no mutation of locked migrations 000–043 or existing tags
+  - Phase 23C/23D implementation is not entered during Phase 23B
+- **Lock requirement**: independent tests, report, `--no-ff` main merge, post-merge verification, and tag before Phase 23C
+- **Verification**:
+  - `pnpm gate:phase23b` passed, including migration replay and 8-consumer / 64-event atomic claim evidence
+  - full regression passed: 169 files / 484 tests
+  - forced typecheck and build passed: 22 / 22 combined tasks
+  - architecture preflight passed through the Phase 23B boundary gate
+- **Report**: `docs/reports/PHASE23B_EVENT_API_RELIABILITY_REPORT.md`
+- **Current state**: implementation verified on the feature branch; independent Lock ceremony pending
 
 ## Phase 23A — Authentication and Data Safety Hardening (LOCKED)
 

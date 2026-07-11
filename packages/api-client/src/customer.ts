@@ -18,6 +18,7 @@ import type {
   SaveCustomerAddressRequest,
   UpdateCustomerProfileRequest,
 } from "@xlb/types";
+import { validateOrderResponse, validatePaymentMutationResponse, validatePaymentOrderResponse } from "./responseValidators.js";
 
 type CityCode = string;
 type PriceType = "fixed" | "range" | "from" | "estimate_from" | "onsite_quote";
@@ -315,21 +316,23 @@ export function createCustomerOrderApi(client: ApiClient) {
       return client.get<{ ok: true; quote: PriceQuoteResponse }>(`/api/pricing/quote?${query}`);
     },
     createOrder(body: CreateOrderBody) {
-      return client.post<{ ok: true; order: OrderResponse }>("/api/orders", body);
+      return client.post<{ ok: true; order: OrderResponse }>("/api/orders", body, { validate: validateOrderResponse });
     },
     getOrder(orderId: string) {
-      return client.get<{ ok: true; order: OrderResponse }>(`/api/orders/${orderId}`);
+      return client.get<{ ok: true; order: OrderResponse }>(`/api/orders/${orderId}`, { validate: validateOrderResponse });
     },
     confirmService(orderId: string) {
       return client.post<{ ok: true; order: OrderResponse }>(
         `/api/orders/${encodeURIComponent(orderId)}/confirm-service`,
         {},
+        { validate: validateOrderResponse },
       );
     },
     createPaymentOrder(body: CreatePaymentOrderBody) {
       return client.post<{ ok: true; paymentOrder: PaymentOrderResponse }>(
         "/api/payments/orders",
         body,
+        { validate: validatePaymentOrderResponse },
       );
     },
     mockPaySuccess(body: MockPaySuccessBody) {
@@ -338,7 +341,7 @@ export function createCustomerOrderApi(client: ApiClient) {
         paymentOrder: PaymentOrderResponse;
         orderId: string;
         idempotent: boolean;
-      }>("/api/payments/mock-webhook", body);
+      }>("/api/payments/mock-webhook", body, { validate: validatePaymentMutationResponse });
     },
     createRefundRequest(body: CreateRefundRequestBody) {
       return client.post<{

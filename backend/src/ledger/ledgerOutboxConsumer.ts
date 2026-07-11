@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { LedgerAccrual, LedgerEntry, RequestContext } from "@xlb/types";
 import { assertCityScopedContext } from "../dal/scopedExecutor.js";
 import {
@@ -24,25 +25,39 @@ export class LedgerOutboxConsumer {
     context: RequestContext,
   ): Promise<{ processed: number; accruals: LedgerAccrual[]; reversalEntries: LedgerEntry[] }> {
     const cityCode = assertCityScopedContext(context);
-    const events = await this.outbox.findPendingFulfillmentCompletedForLedger(
+    const events = await this.outbox.claimFulfillmentCompletedForLedger(
       context,
       cityCode,
+      `ledger-accrual:${randomUUID()}`,
     );
     const accruals: LedgerAccrual[] = [];
     for (const event of events) {
-      accruals.push((await this.accruals.accrue(context, event)).accrual);
+      try {
+        if (!(await this.outbox.renewClaim(event))) continue;
+        accruals.push((await this.accruals.accrue(context, event)).accrual);
+      } catch (error) {
+        await this.outbox.failClaim(event, error);
+      }
     }
-    const reversalEvents = await this.outbox.findPendingEventsByType(
+    const reversalEvents = await this.outbox.claimEventsByType(
       context,
       cityCode,
       "refund.approved",
+      `ledger-reversal:${randomUUID()}`,
     );
     const reversalEntries: LedgerEntry[] = [];
+    let successfulReversalCount = 0;
     for (const event of reversalEvents) {
-      reversalEntries.push(...(await this.reversals.reverse(context, event)).entries);
+      try {
+        if (!(await this.outbox.renewClaim(event))) continue;
+        reversalEntries.push(...(await this.reversals.reverse(context, event)).entries);
+        successfulReversalCount += 1;
+      } catch (error) {
+        await this.outbox.failClaim(event, error);
+      }
     }
     return {
-      processed: accruals.length + reversalEvents.length,
+      processed: accruals.length + successfulReversalCount,
       accruals,
       reversalEntries,
     };
@@ -52,16 +67,24 @@ export class LedgerOutboxConsumer {
     context: RequestContext,
   ): Promise<{ processed: number; entries: LedgerEntry[] }> {
     const cityCode = assertCityScopedContext(context);
-    const events = await this.outbox.findPendingEventsByType(
+    const events = await this.outbox.claimEventsByType(
       context,
       cityCode,
       "refund.approved",
+      `ledger-reversal:${randomUUID()}`,
     );
     const entries: LedgerEntry[] = [];
+    let successfulCount = 0;
     for (const event of events) {
-      entries.push(...(await this.reversals.reverse(context, event)).entries);
+      try {
+        if (!(await this.outbox.renewClaim(event))) continue;
+        entries.push(...(await this.reversals.reverse(context, event)).entries);
+        successfulCount += 1;
+      } catch (error) {
+        await this.outbox.failClaim(event, error);
+      }
     }
-    return { processed: events.length, entries };
+    return { processed: successfulCount, entries };
   }
 }
 
