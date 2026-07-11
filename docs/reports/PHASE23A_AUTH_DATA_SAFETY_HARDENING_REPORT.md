@@ -5,7 +5,7 @@
 - Entered: 2026-07-11
 - Branch: `codex/phase23a-auth-data-safety-hardening`
 - Base: `58242be`
-- State: IMPLEMENTED / AWAITING LOCK
+- State: LOCK CANDIDATE VERIFIED
 
 ## Scope
 
@@ -87,3 +87,20 @@
   as part of this hardening phase.
 
 Phase 23A is implemented but is intentionally not marked locked and has no tag.
+
+## Lock Candidate Verification — 2026-07-11
+
+- Feature head: `96d24ee`
+- Local MySQL and Redis: healthy
+- Migration runner: 043 present and idempotently skipped
+- Seed runner: passed
+- Focused Phase 23A suite: passed
+- Forced typecheck: 17/17 tasks passed
+- Forced build: 11/11 tasks passed
+- Full normal regression: passed with exit code 0
+- Architecture preflight: passed through the Phase 23A boundary gate
+- Locked migrations 000–042: unchanged
+- Provider boundary: no real payment, Amap, or object-storage integration
+- User-owned untracked audit files: preserved and excluded
+
+The feature branch is eligible for the Phase 23A `--no-ff` merge ceremony.
