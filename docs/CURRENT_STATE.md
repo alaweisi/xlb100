@@ -27,13 +27,15 @@
 | Phase 20 | LOCKED | xlb-phase20-lbs-lite-dispatch | LBS-lite local/mock geo + private worker location + dispatch ranking/reassignment |
 | Phase 21 | LOCKED | xlb-phase21-three-app-operations-closure | Customer / worker / admin operations UI closure |
 | Phase 22 | LOCKED | xlb-phase22-e2e-security-performance-gates | E2E / observability / security / performance gates |
-| Phase 23A | IMPLEMENTED / AWAITING LOCK | — | Authentication and data safety hardening |
+| Phase 23A | LOCKED | xlb-phase23a-auth-data-safety-hardening | Authentication and data safety hardening |
 
-## Phase 23A — Authentication and Data Safety Hardening (IMPLEMENTED / AWAITING LOCK)
+## Phase 23A — Authentication and Data Safety Hardening (LOCKED)
 
 - **Entered**: 2026-07-11
 - **Branch**: `codex/phase23a-auth-data-safety-hardening`
 - **Base**: local `main` at `58242be` after Phase 22 Lock and G-drive workspace migration
+- **Merged main**: `02c89e6827e1ce384214d4424a458b00affb5dd2`
+- **Tag**: `xlb-phase23a-auth-data-safety-hardening`
 - **Scope**:
   - exact worker-phone identity lookup using a non-reversible hash
   - production-safe OTP debug-route registration and real-route rate limiting
@@ -53,7 +55,7 @@
   - architecture preflight passed, including the Phase 23A boundary gate
   - migration 043 partial-DDL replay verification passed
 - **Report**: `docs/reports/PHASE23A_AUTH_DATA_SAFETY_HARDENING_REPORT.md`
-- **Lock state**: not locked and not tagged; deployment prerequisites in the report remain mandatory
+- **Lock state**: LOCKED after feature verification, `--no-ff` main merge, post-merge full verification, and tag creation; deployment prerequisites in the report remain mandatory
 
 ## Phase 10 — Settlement Action Governance (LOCKED)
 

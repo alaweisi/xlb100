@@ -5,7 +5,7 @@
 - Entered: 2026-07-11
 - Branch: `codex/phase23a-auth-data-safety-hardening`
 - Base: `58242be`
-- State: LOCK CANDIDATE VERIFIED
+- State: LOCKED
 
 ## Scope
 
@@ -86,7 +86,7 @@
 - Existing React `act(...)` warnings remain non-failing and were not introduced
   as part of this hardening phase.
 
-Phase 23A is implemented but is intentionally not marked locked and has no tag.
+Phase 23A implementation was verified before the Lock ceremony.
 
 ## Lock Candidate Verification — 2026-07-11
 
@@ -104,3 +104,17 @@ Phase 23A is implemented but is intentionally not marked locked and has no tag.
 - User-owned untracked audit files: preserved and excluded
 
 The feature branch is eligible for the Phase 23A `--no-ff` merge ceremony.
+
+## Lock Conclusion
+
+- Merged: yes, with `--no-ff`
+- Main merge commit: `02c89e6827e1ce384214d4424a458b00affb5dd2`
+- Tag: `xlb-phase23a-auth-data-safety-hardening`
+- Post-merge typecheck: 17/17 tasks passed
+- Post-merge build: 11/11 tasks passed
+- Post-merge full regression: passed with exit code 0
+- Post-merge architecture preflight: passed through the Phase 23A gate
+- Migration/seed: passed; migration 043 remained unique and replay-safe
+- Real provider executions: zero
+- User-owned untracked audit files: preserved and excluded
+- Final state: LOCKED; Phase 23B was not entered during the ceremony
