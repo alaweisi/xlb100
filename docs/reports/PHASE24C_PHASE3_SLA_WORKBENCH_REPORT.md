@@ -5,6 +5,7 @@
 - Phase: Phase 24C Phase 3
 - Status: IMPLEMENTATION VERIFIED — awaiting human acceptance — NOT LOCKED
 - Branch: `codex/phase24c-phase3-sla-workbench`
+- Implementation commit: `6b85d98`
 - Accepted baseline: Phase 24C Phase 2 commits `efa3542`, `5bc0647`
 - Lock/tag: none; this report does not authorize an automatic Lock or Phase 24D construction
 

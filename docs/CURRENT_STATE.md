@@ -46,6 +46,7 @@
 - **Phase 1 acceptance**: approved by human on 2026-07-12; implementation commits `ddd2715`, `ff815f1`
 - **Phase 2 acceptance**: approved by human on 2026-07-12; implementation commits `efa3542`, `5bc0647`
 - **Phase 3 branch**: `codex/phase24c-phase3-sla-workbench`
+- **Phase 3 implementation commit**: `6b85d98`
 - **Current scope**: append-only migration 050; SLA breach detection and one-step escalation; public-pool CAS claim; mine/skill-group/all workbench queues; SLA remaining-time visualization
 - **Discoveries**:
   - existing recurring jobs are demo-oriented process-local auto-run; SLA must add Support-owned DB claim/CAS while reusing the run-once lifecycle
