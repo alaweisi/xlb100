@@ -95,3 +95,21 @@ Migration `038` makes the client dimension part of the agreement/order and subsc
 |-------|------------------|-------|
 | `support_tickets` | required FK + non-global check | Requester ownership and all domain links are city-scoped; no nationwide fallback |
 | `support_ticket_events` | required composite FK | Append-only events must reference a ticket in the same city |
+
+## Phase 24C Phase 1 support routing tables with city_code
+
+| Table | city_code column | Notes |
+|-------|------------------|-------|
+| `support_agents` | required FK + non-global check | Profile identity must also have an explicit `(admin_user_id, city_code)` Admin scope |
+| `support_skill_groups` | required FK + non-global check | Skill-group configuration belongs to exactly one real city |
+| `support_agent_skill_groups` | required composite FKs | Agent profile and skill group must both belong to the membership city |
+
+## Phase 24C Phase 2 support SLA tables with city_code
+
+| Table | city_code column | Notes |
+|-------|------------------|-------|
+| `support_sla_policies` | required FK + non-global check | Append-only revisions; exact type/priority then city other/normal fallback |
+
+Migration `050` keeps SLA breach markers on the already city-scoped
+`support_tickets` row and uses city-leading scan indexes. Its event CHECK
+expansion does not change the composite same-city ticket-event foreign key.

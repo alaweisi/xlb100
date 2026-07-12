@@ -222,3 +222,30 @@ Migration `047` adds only the ticket MVP. Support may validate and link same-cit
 Worker, Enterprise, and Phase 17 Complaint facts, but it does not mutate those domains.
 `assigned_agent_id` and `assigned_skill_group_id` remain nullable identifiers in 24B;
 their agent/group tables and foreign keys belong to Phase 24C.
+
+## Phase 24C Phase 1 support agent and skill-group tables
+
+| Table | Purpose | city_code |
+|-------|---------|-----------|
+| `support_agents` | Support business profile bound to an existing Admin/Operator identity | required FK + explicit Admin city-scope FK + non-global check |
+| `support_skill_groups` | City-owned skill-group configuration and matching metadata | required FK + non-global check |
+| `support_agent_skill_groups` | Soft-active many-to-many membership between same-city profiles and groups | required same-city composite FKs |
+
+Migration `048` does not create a parallel login identity. Ticket
+`assigned_agent_id` remains an `admin_users.id`; `support_agents.agent_id` is
+only the Support-domain profile key.
+
+## Phase 24C Phase 2 support SLA policy tables
+
+| Table | Purpose | city_code |
+|-------|---------|-----------|
+| `support_sla_policies` | Append-only effective-window SLA policy revisions selected by ticket type and priority | required FK + non-global check |
+
+Migration `049` also adds nullable `support_tickets.routing_language` for the
+canonical lowercase language used by deterministic routing. Policies are
+city-only; existing ticket SLA due timestamps remain immutable snapshots.
+
+Migration `050` adds nullable first-response and resolution breach markers to
+`support_tickets`, dedicated city/status SLA scan indexes, and expands the
+append-only `support_ticket_events.event_type` CHECK with `claimed` and
+`sla_breached`. It creates no new identity, scheduler, or business table.

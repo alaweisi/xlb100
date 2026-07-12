@@ -66,6 +66,13 @@ describe("Phase 24B support ticket API", { timeout: 60_000 }, () => {
     let current = created.json().ticket as Ticket;
     const ticketId = current.ticketId;
 
+    // Phase 24C Phase 2 routes every new ticket when configuration exists.
+    // This locked Phase 24B lifecycle case explicitly models a historical NULL-group ticket.
+    await getMysqlPool().query(
+      "UPDATE support_tickets SET assigned_skill_group_id=NULL WHERE city_code='hangzhou' AND ticket_id=?",
+      [ticketId],
+    );
+
     const commentBody = { content: "Requester supplied more detail", idempotencyKey: `p24b-${nonce}-requester-comment` };
     const comment = await app.inject({ method: "POST", url: `/api/support/tickets/${ticketId}/events`, headers: customer, payload: commentBody });
     expect(comment.statusCode, comment.body).toBe(200);

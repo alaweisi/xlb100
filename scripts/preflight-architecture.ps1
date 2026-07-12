@@ -531,3 +531,31 @@ Write-Host "XLB Phase 23D performance and quality closure preflight passed."
 
 Invoke-PreflightGate "check-phase24b-boundaries.ps1"
 Write-Host "XLB Phase 24B support ticket MVP preflight passed."
+
+Invoke-PreflightGate "check-phase24c-phase1-boundaries.ps1"
+Write-Host "XLB Phase 24C Phase 1 agent and skill-group boundary preflight passed."
+
+Invoke-PreflightGate "check-phase24c-phase2-boundaries.ps1"
+Write-Host "XLB Phase 24C Phase 2 routing and SLA boundary preflight passed."
+
+Invoke-PreflightGate "check-phase24c-phase3-boundaries.ps1"
+Write-Host "XLB Phase 24C Phase 3 SLA breach and agent workbench boundary preflight passed."
+
+if (Test-Path (Join-Path $PSScriptRoot "..\db\migrations\051_phase24d_support_realtime_conversations.sql")) {
+  Invoke-PreflightGate "check-phase24d-boundaries.ps1"
+  Write-Host "XLB Phase 24D support realtime boundary preflight passed."
+}
+if (Test-Path (Join-Path $PSScriptRoot "..\db\migrations\052_phase24e_support_bot_knowledge_base.sql")) {
+  Invoke-PreflightGate "check-phase24e-boundaries.ps1"
+  Write-Host "XLB Phase 24E Bot and knowledge-base boundary preflight passed."
+}
+if (Test-Path (Join-Path $PSScriptRoot "..\db\migrations\053_phase24f_support_quality.sql")) {
+  Invoke-PreflightGate "check-phase24f-boundaries.ps1"
+  Write-Host "XLB Phase 24F support quality boundary preflight passed."
+}
+if ((Test-Path (Join-Path $PSScriptRoot "..\db\migrations\051_phase24d_support_realtime_conversations.sql")) -and
+    (Test-Path (Join-Path $PSScriptRoot "..\db\migrations\052_phase24e_support_bot_knowledge_base.sql")) -and
+    (Test-Path (Join-Path $PSScriptRoot "..\db\migrations\053_phase24f_support_quality.sql"))) {
+  Invoke-PreflightGate "check-phase24-completion-boundaries.ps1"
+  Write-Host "XLB Phase 24 combined completion boundary preflight passed."
+}

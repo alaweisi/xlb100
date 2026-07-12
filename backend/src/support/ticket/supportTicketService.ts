@@ -1,6 +1,7 @@
 import type { PoolConnection } from "mysql2/promise";
 import type {
   AddSupportTicketCommentRequest, AdminAddSupportTicketCommentRequest, AssignSupportTicketRequest,
+  ClaimSupportTicketRequest,
   CityCode, CloseSupportTicketRequest, CreateSupportTicketRequest, EscalateSupportTicketRequest,
   OutboxEventType, ReopenSupportTicketRequest, RequestContext, ResolveSupportTicketRequest,
   SupportTicket, SupportTicketActorType, SupportTicketDetail, SupportTicketEvent,
@@ -9,7 +10,7 @@ import type {
 } from "@xlb/types";
 import {
   addSupportTicketCommentRequestSchema, adminAddSupportTicketCommentRequestSchema,
-  assignSupportTicketRequestSchema, closeSupportTicketRequestSchema,
+  assignSupportTicketRequestSchema, claimSupportTicketRequestSchema, closeSupportTicketRequestSchema,
   createSupportTicketRequestSchema, escalateSupportTicketRequestSchema,
   reopenSupportTicketRequestSchema, resolveSupportTicketRequestSchema,
   supportTicketListFiltersSchema,
@@ -18,13 +19,24 @@ import { withTransaction } from "../../dal/transaction.js";
 import { assertCityScopedContext } from "../../dal/scopedExecutor.js";
 import { eventOutboxRepository, type EventOutboxRepository } from "../../events/eventOutbox.js";
 import { generateEventId } from "../../events/eventIds.js";
+import { supportRoutingService, type SupportRoutingService } from "../routing/supportRoutingService.js";
+import { supportSlaPolicyRepository, type SupportSlaPolicyRepository } from "../routing/supportSlaPolicyRepository.js";
 import { supportDomainReferenceReader, type SupportDomainReferenceReader } from "./supportDomainReferenceReader.js";
 import { generateSupportTicketEventId, generateSupportTicketId } from "./supportTicketIds.js";
-import { supportTicketRepository, type SupportTicketRepository, type TicketCursor } from "./supportTicketRepository.js";
+import { supportTicketRepository, type SupportTicketRepository, type TicketCursor, type TicketSlaCursor } from "./supportTicketRepository.js";
+import { supportSlaBreachService, type SupportSlaBreachService } from "./supportSlaBreachService.js";
 import { assertSupportTicketTransition } from "./supportTicketStateMachine.js";
 
 type TransactionRunner = <T>(fn: (connection: PoolConnection) => Promise<T>) => Promise<T>;
 type RequesterIdentity = { source: "customer" | "worker"; requesterId: string };
+type EmergencySlaSignal = (value: { cityCode: CityCode; type: string; priority: string }) => void;
+
+const emitEmergencySlaSignal: EmergencySlaSignal = (value) => {
+  if (process.env.NODE_ENV === "test") return;
+  process.emitWarning(JSON.stringify({ event: "support.sla.emergency_fallback", ...value }), {
+    code: "XLB_SUPPORT_SLA_EMERGENCY_FALLBACK",
+  });
+};
 
 export class SupportTicketValidationError extends Error {}
 export class SupportTicketForbiddenError extends Error {}
@@ -83,7 +95,8 @@ function sameCreate(existing: SupportTicket, input: CreateSupportTicketRequest, 
     && existing.subject === input.subject && existing.description === input.description
     && existing.relatedOrderId === (input.relatedOrderId ?? null)
     && existing.relatedWorkerId === relatedWorkerId
-    && existing.linkedAftersaleComplaintId === (input.linkedAftersaleComplaintId ?? null);
+    && existing.linkedAftersaleComplaintId === (input.linkedAftersaleComplaintId ?? null)
+    && existing.routingLanguage === (input.preferredLanguage?.toLowerCase() ?? null);
 }
 
 function encodeCursor(ticket: SupportTicket): string {
@@ -102,12 +115,47 @@ function decodeCursor(cursor: string | undefined): TicketCursor | null {
   }
 }
 
+const priorityRank = (priority: SupportTicket["priority"]): number =>
+  ({ low: 1, normal: 2, high: 3, urgent: 4, critical: 5 })[priority];
+
+function effectiveDueAt(ticket: SupportTicket): string | null {
+  return ticket.firstRespondedAt === null
+    ? ticket.slaFirstResponseDueAt ?? ticket.slaResolutionDueAt
+    : ticket.slaResolutionDueAt;
+}
+
+function encodeSlaCursor(ticket: SupportTicket, binding: string): string {
+  return Buffer.from(JSON.stringify({ v: 1, binding, effectiveDueAt: effectiveDueAt(ticket),
+    priorityRank: priorityRank(ticket.priority), createdAt: ticket.createdAt, ticketId: ticket.ticketId }), "utf8")
+    .toString("base64url");
+}
+
+function decodeSlaCursor(cursor: string | undefined, binding: string): TicketSlaCursor | null {
+  if (!cursor) return null;
+  try {
+    const value = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8")) as Record<string, unknown>;
+    if (value.v !== 1 || value.binding !== binding
+      || (value.effectiveDueAt !== null && (typeof value.effectiveDueAt !== "string" || Number.isNaN(Date.parse(value.effectiveDueAt))))
+      || typeof value.priorityRank !== "number" || value.priorityRank < 1 || value.priorityRank > 5
+      || typeof value.createdAt !== "string" || Number.isNaN(Date.parse(value.createdAt))
+      || typeof value.ticketId !== "string" || !value.ticketId || value.ticketId.length > 64) throw new Error();
+    return { effectiveDueAt: value.effectiveDueAt as string | null, priorityRank: value.priorityRank,
+      createdAt: value.createdAt, ticketId: value.ticketId };
+  } catch {
+    throw new SupportTicketValidationError("invalid or mismatched support workbench cursor");
+  }
+}
+
 export class SupportTicketService {
   constructor(
     private readonly repository: SupportTicketRepository = supportTicketRepository,
     private readonly referenceReader: SupportDomainReferenceReader = supportDomainReferenceReader,
     private readonly outbox: EventOutboxRepository = eventOutboxRepository,
     private readonly transactionRunner: TransactionRunner = withTransaction,
+    private readonly routing: SupportRoutingService = supportRoutingService,
+    private readonly slaPolicies: SupportSlaPolicyRepository = supportSlaPolicyRepository,
+    private readonly emergencySlaSignal: EmergencySlaSignal = emitEmergencySlaSignal,
+    private readonly slaBreaches: SupportSlaBreachService = supportSlaBreachService,
   ) {}
 
   private async validateReferences(connection: PoolConnection, input: {
@@ -218,17 +266,47 @@ export class SupportTicketService {
         return { ticket: existing };
       }
       await this.validateReferences(connection, { cityCode, identity, request: input, relatedWorkerId });
+      const routingLanguage = input.preferredLanguage?.toLowerCase() ?? null;
+      const routing = await this.routing.selectSkillGroup(connection, {
+        cityCode, type: input.type, preferredLanguage: routingLanguage,
+      });
+      const databaseNow = await this.slaPolicies.databaseNow(connection);
+      const exactPolicy = await this.slaPolicies.findEffective(connection, {
+        cityCode, type: input.type, priority: input.priority, at: databaseNow,
+      });
+      const policy = exactPolicy ?? await this.slaPolicies.findEffective(connection, {
+        cityCode, type: "other", priority: "normal", at: databaseNow,
+      });
+      if (!policy) this.emergencySlaSignal({ cityCode, type: input.type, priority: input.priority });
+      const firstResponseMinutes = policy?.firstResponseMinutes ?? 240;
+      const resolutionMinutes = policy?.resolutionMinutes ?? 2_880;
+      const slaFirstResponseDueAt = new Date(databaseNow.getTime() + firstResponseMinutes * 60_000);
+      const slaResolutionDueAt = new Date(databaseNow.getTime() + resolutionMinutes * 60_000);
       const ticketId = generateSupportTicketId();
       await this.repository.insertTicket(connection, {
         ticketId, cityCode, source: identity.source, requesterId: identity.requesterId,
         type: input.type, priority: input.priority, subject: input.subject, description: input.description,
         relatedOrderId: input.relatedOrderId ?? null, relatedWorkerId,
-        linkedAftersaleComplaintId: input.linkedAftersaleComplaintId ?? null, idempotencyKey: input.idempotencyKey,
+        linkedAftersaleComplaintId: input.linkedAftersaleComplaintId ?? null,
+        assignedSkillGroupId: routing.skillGroupId, routingLanguage,
+        slaFirstResponseDueAt, slaResolutionDueAt, slaCalculatedAt: databaseNow,
+        idempotencyKey: input.idempotencyKey,
       });
       const ticket = (await this.repository.findForUpdate(connection, cityCode, ticketId))!;
       await this.insertEvent(connection, {
         cityCode, ticketId, eventType: "created", context, visibility: "all", content: input.description,
-        payload: { status: "open", version: ticket.version }, idempotencyKey: input.idempotencyKey,
+        payload: {
+          status: "open", version: ticket.version,
+          routingLanguage, assignedSkillGroupId: routing.skillGroupId,
+          routingMatchKind: routing.matchKind,
+          slaPolicyId: policy?.policyId ?? null,
+          slaPolicySeriesId: policy?.policySeriesId ?? null,
+          slaPolicyRevision: policy?.revision ?? null,
+          slaPolicyMatchKind: exactPolicy ? "exact" : policy ? "city_fallback" : "emergency_fallback",
+          slaFirstResponseMinutes: firstResponseMinutes,
+          slaResolutionMinutes: resolutionMinutes,
+          slaCalculatedAt: databaseNow.toISOString(),
+        }, idempotencyKey: input.idempotencyKey,
       });
       await this.insertOutbox(connection, ticket, "support.ticket.created", context);
       return { ticket };
@@ -265,8 +343,26 @@ export class SupportTicketService {
     const cityCode = requireCity(context);
     const filters = parseBody<SupportTicketListFilters>(supportTicketListFiltersSchema, query);
     const limit = filters.limit ?? 20;
-    const tickets = await this.repository.listTickets(context, cityCode, filters, limit, decodeCursor(filters.cursor));
-    return { tickets, nextCursor: tickets.length === limit ? encodeCursor(tickets[tickets.length - 1]!) : null };
+    if (!filters.view && !filters.sort) {
+      const tickets = await this.repository.listTickets(context, cityCode, filters, limit, decodeCursor(filters.cursor));
+      return { tickets, nextCursor: tickets.length === limit ? encodeCursor(tickets[tickets.length - 1]!) : null };
+    }
+    const view = filters.view ?? "all";
+    if (filters.sort !== "sla_due") throw new SupportTicketValidationError("workbench view requires sla_due sort");
+    const actorUserId = requireUser(context);
+    if (view !== "all") {
+      const actor = await this.transactionRunner((connection) =>
+        this.referenceReader.loadCurrentSupportActor(connection, cityCode, actorUserId));
+      if (!actor) throw new SupportTicketForbiddenError("an active Support profile is required for this workbench view");
+    }
+    const binding = JSON.stringify({ cityCode, view, sort: filters.sort, source: filters.source ?? null,
+      type: filters.type ?? null, priority: filters.priority ?? null, status: filters.status ?? null,
+      requesterId: filters.requesterId ?? null, relatedOrderId: filters.relatedOrderId ?? null,
+      assignedAgentId: filters.assignedAgentId ?? null });
+    const tickets = await this.repository.listWorkbenchTickets(context, cityCode, filters, limit,
+      decodeSlaCursor(filters.cursor, binding), actorUserId, view);
+    return { tickets, nextCursor: tickets.length === limit
+      ? encodeSlaCursor(tickets[tickets.length - 1]!, binding) : null };
   }
 
   async getRequester(context: RequestContext, ticketId: string): Promise<SupportTicketDetail> {
@@ -326,7 +422,13 @@ export class SupportTicketService {
         return { ok: true, ticket, event: existing, idempotent: true };
       }
       if (ticket.status === "closed") throw new SupportTicketConflictError("closed tickets do not accept comments");
-      if (ticket.firstRespondedAt === null) {
+      const requesterVisible = input.visibility === "requester" || input.visibility === "all";
+      if (requesterVisible && !await this.referenceReader.loadCurrentSupportActor(connection, cityCode, requireUser(context))) {
+        throw new SupportTicketForbiddenError("requester-visible responses require an active Support profile and current city role");
+      }
+      if (requesterVisible && ticket.firstRespondedAt === null) {
+        ticket = (await this.slaBreaches.catchUpInTransaction(connection, { cityCode, ticketId,
+          includeFirstResponse: true, includeResolution: false }))!;
         if (!await this.repository.markFirstResponse(connection, { cityCode, ticketId, expectedVersion: ticket.version })) {
           throw new SupportTicketConflictError("support ticket version conflict");
         }
@@ -390,8 +492,12 @@ export class SupportTicketService {
       }
       const targetStatus = ticket.status === "open" ? "processing" : ticket.status;
       if (ticket.status === "open") assertSupportTicketTransition(ticket.status, targetStatus);
-      if (!await this.referenceReader.isAssignableAgent(connection, cityCode, input.assignedAgentId)) {
-        throw new SupportTicketForbiddenError("assigned agent is not an admin/operator scoped to this city");
+      if (!await this.referenceReader.isAssignableAgent(
+        connection, cityCode, input.assignedAgentId, ticket.assignedSkillGroupId,
+      )) {
+        throw new SupportTicketForbiddenError(ticket.assignedSkillGroupId
+          ? "assigned agent must have an active Support profile in the ticket skill group"
+          : "assigned agent is not a current admin/operator with explicit scope for this city");
       }
       const from = ticket.status;
       if (!await this.repository.updateAssignmentCas(connection, {
@@ -405,6 +511,41 @@ export class SupportTicketService {
           from, to: ticket.status, version: ticket.version },
         idempotencyKey: input.idempotencyKey,
       });
+      await this.insertOutbox(connection, ticket, "support.ticket.assigned", context);
+      return { ok: true, ticket, event, idempotent: false };
+    });
+  }
+
+  async claim(context: RequestContext, ticketId: string, body: unknown): Promise<SupportTicketMutationResponse> {
+    requireAdminWrite(context);
+    const cityCode = requireCity(context);
+    const actorUserId = requireUser(context);
+    const input = parseBody<ClaimSupportTicketRequest>(claimSupportTicketRequestSchema, body);
+    return this.transactionRunner(async (connection) => {
+      let ticket = await this.repository.findForUpdate(connection, cityCode, ticketId);
+      if (!ticket) throw new SupportTicketNotFoundError("support ticket was not found");
+      const existing = await this.repository.findEventByIdempotencyForUpdate(connection, cityCode, ticketId, input.idempotencyKey);
+      if (existing) {
+        this.assertCanonicalReplay(existing, { eventType: "claimed",
+          payload: { assignedAgentId: actorUserId, expectedVersion: input.expectedVersion } });
+        return { ok: true, ticket, event: existing, idempotent: true };
+      }
+      if (ticket.version !== input.expectedVersion) throw new SupportTicketConflictError("support ticket version conflict");
+      const actor = await this.referenceReader.loadCurrentSupportActor(connection, cityCode, actorUserId);
+      if (!actor || actor.workStatus !== "online") {
+        throw new SupportTicketForbiddenError("claim requires an active online Support profile with current city role");
+      }
+      if (!ticket.assignedSkillGroupId) throw new SupportTicketConflictError("ungrouped tickets require supervisor assignment");
+      const from = ticket.status;
+      if (!await this.repository.claimTicketCas(connection, { cityCode, ticketId,
+        adminUserId: actorUserId, expectedVersion: input.expectedVersion })) {
+        throw new SupportTicketConflictError("support ticket was already claimed or claimant is not an active group member");
+      }
+      ticket = (await this.repository.findForUpdate(connection, cityCode, ticketId))!;
+      const event = await this.insertEvent(connection, { cityCode, ticketId, eventType: "claimed", context,
+        visibility: "internal", content: null, payload: { assignedAgentId: actorUserId,
+          expectedVersion: input.expectedVersion, from, to: ticket.status, version: ticket.version },
+        idempotencyKey: input.idempotencyKey });
       await this.insertOutbox(connection, ticket, "support.ticket.assigned", context);
       return { ok: true, ticket, event, idempotent: false };
     });
@@ -439,8 +580,12 @@ export class SupportTicketService {
           throw new SupportTicketConflictError("linked aftersale complaint must be resolved before the ticket");
         }
       }
+      if (input.status === "resolved" || input.status === "closed") {
+        ticket = (await this.slaBreaches.catchUpInTransaction(connection, { cityCode, ticketId,
+          includeFirstResponse: ticket.firstRespondedAt === null, includeResolution: true }))!;
+      }
       if (!await this.repository.updateStatusCas(connection, {
-        cityCode, ticketId, status: input.status, expectedVersion: input.expectedVersion,
+        cityCode, ticketId, status: input.status, expectedVersion: ticket.version,
         resolutionCode: input.resolutionCode,
       })) throw new SupportTicketConflictError("support ticket version conflict");
       ticket = (await this.repository.findForUpdate(connection, cityCode, ticketId))!;

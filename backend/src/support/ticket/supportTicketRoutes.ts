@@ -84,6 +84,12 @@ export async function registerSupportTicketRoutes(app: FastifyInstance): Promise
     try { return await supportTicketService.commentAdmin(context, (request.params as { ticketId: string }).ticketId, request.body); }
     catch (error) { return mapError(error, reply); }
   });
+  app.post("/api/internal/support/tickets/:ticketId/claim", { preHandler }, async (request, reply) => {
+    const context = authorize(request, reply); if (!context) return;
+    try { return await supportTicketService.claim(context,
+      (request.params as { ticketId: string }).ticketId, request.body); }
+    catch (error) { return mapError(error, reply); }
+  });
 
   for (const action of ["assign", "escalate", "resolve", "close"] as const) {
     app.post(`/api/internal/support/tickets/:ticketId/${action}`, { preHandler }, async (request, reply) => {

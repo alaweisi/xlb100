@@ -4,6 +4,7 @@ $ScriptName = Split-Path -Leaf $PSCommandPath
 $PhaseName = $ScriptName -replace '^check-', '' -replace '-forbidden-zone\.ps1$', ''
 $forbiddenPatterns = @('\bpayout\b','\bpaid_settlement\b','\bwithdraw\b','\brefund\b','\baftersale\b','\bnotification\b','\bpayment_instruction\b')
 $allowedFiles = @(
+  'backend/src/support/bot/sensitiveSupportGuard.ts',
   "backend/src/governance/governanceGuard.ts",
   "backend/src/governance/governanceIntentRoutes.ts",
   "backend/src/governance/governanceIntentService.ts",

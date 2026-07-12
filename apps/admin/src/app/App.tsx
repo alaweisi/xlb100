@@ -21,6 +21,7 @@ const EnterpriseOpsPage = lazy(() => import("../pages/EnterpriseOpsPage").then((
 const DispatchBoardPage = lazy(() => import("../pages/DispatchBoardPage").then((module) => ({ default: module.DispatchBoardPage })));
 const PlatformOperationsPage = lazy(() => import("../pages/PlatformOperationsPage").then((module) => ({ default: module.PlatformOperationsPage })));
 const SupportTicketsPage = lazy(() => import("../pages/SupportTicketsPage").then((module) => ({ default: module.SupportTicketsPage })));
+const SupportQualityPage=lazy(()=>import("../pages/SupportQualityPage").then(module=>({default:module.SupportQualityPage})));
 
 export function App() {
   const [view, setView] = useState(parseView);
@@ -129,6 +130,7 @@ export function App() {
   const navigateToDispatch = useCallback(() => {window.location.hash=buildHash("/dispatch",{cityCode:cityCode||""});},[cityCode]);
   const navigateToPlatformOperations = useCallback(() => {window.location.hash=buildHash("/platform-operations",{cityCode:cityCode||""});},[cityCode]);
   const navigateToSupport = useCallback(() => { window.location.hash = buildHash("/support", { cityCode: cityCode || "" }); }, [cityCode]);
+  const navigateToSupportQuality=useCallback(()=>{window.location.hash=buildHash("/support-quality",{cityCode:cityCode||""})},[cityCode]);
 
   const navigateToDashboard = useCallback(() => {
     window.location.hash = "";
@@ -137,7 +139,9 @@ export function App() {
   const viewTitle = view.page === "workerWithdrawals"
     ? "Worker Withdrawals"
     : view.page === "support"
-    ? "Support Tickets"
+    ? "Support Agent Workbench"
+    : view.page === "supportQuality"
+    ? "Support Quality"
     : view.page === "platformOperations"
     ? "Platform Operations"
     : view.page === "enterprise"
@@ -187,6 +191,8 @@ export function App() {
     ? <WorkerWithdrawalsPage initialCityCode={cityCode} />
     : view.page === "support"
     ? <SupportTicketsPage initialCityCode={cityCode} />
+    : view.page === "supportQuality"
+    ? <SupportQualityPage initialCityCode={cityCode}/>
     : view.page === "platformOperations"
     ? <PlatformOperationsPage initialCityCode={cityCode}/>
     : view.page === "enterprise"
@@ -283,7 +289,8 @@ export function App() {
             { key:"enterprise",label:"Enterprise",active:view.page==="enterprise",href:"#/enterprise",onClick:navigateToEnterprise },
             { key:"dispatch",label:"Dispatch",active:view.page==="dispatch",href:"#/dispatch",onClick:navigateToDispatch },
             { key:"platformOperations",label:"Orders / SKU / Workers",active:view.page==="platformOperations",href:"#/platform-operations",onClick:navigateToPlatformOperations },
-            { key: "support", label: "Support Tickets", active: view.page === "support", href: "#/support", onClick: navigateToSupport },
+            { key: "support", label: "Support Workbench", active: view.page === "support", href: "#/support", onClick: navigateToSupport },
+            {key:"supportQuality",label:"Support Quality",active:view.page==="supportQuality",href:"#/support-quality",onClick:navigateToSupportQuality},
           ]}
         />
       }

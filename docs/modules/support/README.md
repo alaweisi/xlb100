@@ -1,14 +1,59 @@
 # Support / 客服系统
 
+## Phase 24 completion architecture
+
+The Support domain is delivered incrementally without absorbing the protected
+business semantics owned by Phase 17 or other domains:
+
+| Phase | Module | Durable source / boundary |
+|---|---|---|
+| 24B | `ticket` | MySQL tickets/events; Support status only |
+| 24C | `agentWorkbench`, `routing` | Admin-bound agents, skills, SLA snapshots and breach facts |
+| 24D | `conversation` | MySQL messages and sequence; Redis is non-durable fanout/presence |
+| 24E | `knowledgeBase`, `bot` | Immutable approved KB versions; deterministic/mock NLU only |
+| 24F | `quality` | CSAT and immutable rubric/review snapshots; no Worker score mutation |
+
+Shared contracts remain in `@xlb/types` and `@xlb/validators`; all application
+access goes through `@xlb/api-client`. Every resource is real-city scoped and
+uses RequestContext, role/ownership guards, bounded pagination, idempotency and
+CAS where applicable. Support must not directly write order, payment, dispatch,
+aftersale, ledger or settlement tables.
+
+The combined completion command is `pnpm gate:phase24`. It fails closed unless
+the independent 24C3/24D/24E/24F gates, migrations 051–053, typecheck, build and
+critical dependency audit all pass. This command is verification only; it does
+not perform Lock, tagging or Phase-number governance.
+
+## Phase 24C Phase 3 delivery
+
+Phase 3 activates the two SLA breach markers through append-only migration
+`050`, performs bounded database-claimed first-response and resolution breach
+scans, raises priority one step per breach kind, and emits both an internal
+`sla_breached` ticket event and `support.sla.breached` Outbox fact. The existing
+auto-run lifecycle invokes the Support run-once step; database row locking and
+CAS provide multi-instance mutation safety.
+
+The Admin workbench provides `mine`, `skill_group`, and scoped `all` views with
+versioned SLA cursors, real pagination, SLA remaining-time states, and an
+exactly-one public-pool claim. Requester-visible Admin/Operator comments establish
+first response only for an active Support profile; internal notes do not. Phase
+24C is not locked until explicit acceptance. Conversation/WebSocket, bot/
+knowledge-base, and quality/CSAT remain reserved for 24D, 24E, and 24F.
+
 ## 当前状态
 
-Phase 24A 设计已获人工批准；Phase 24B 工单 MVP 已完成施工、验证并 Lock，tag 为 `xlb-phase24b-support-ticket-mvp`。实时会话、路由/SLA、机器人、知识库、质检和 CSAT 仍未进入范围，不能据此声称这些能力已经上线。
+Phase 24A 设计已获人工批准；Phase 24B 工单 MVP 已完成施工、验证并 Lock，tag 为 `xlb-phase24b-support-ticket-mvp`。Phase 24C Phase 0 设计与 Phase 1 坐席/技能组工程已获验收；Phase 2 自动路由、城市 SLA 策略修订、新工单时限快照和 Admin 配置页已完成施工，当前等待人工验收，Phase 24C 尚未 Lock。实时会话、机器人、知识库、质检和 CSAT 仍未进入范围，不能据此声称这些能力已经上线。
 
 设计事实源：
 
 - `docs/architecture/support-system-design.md`
 - `docs/diagrams/support-system-architecture.md`
 - `docs/reports/PHASE24_SUPPORT_SYSTEM_DESIGN_REPORT.md`
+- `docs/architecture/support-routing-sla-design.md`
+- `docs/reports/PHASE24C_ROUTING_SLA_DESIGN_REPORT.md`
+- `docs/contracts/CONTRACT_SUPPORT_ROUTING.md`
+- `docs/reports/PHASE24C_PHASE1_AGENT_SKILL_GROUP_REPORT.md`
+- `docs/reports/PHASE24C_PHASE2_ROUTING_SLA_REPORT.md`
 
 ## 目标子模块
 
@@ -38,4 +83,8 @@ Phase 24 会逐步**纳管** Phase 17 的客服入口、坐席工作台、通用
 
 ## 实施节奏
 
-Phase 24A 仅设计；Phase 24B 工单 MVP 已 Lock。Phase 24C 路由/SLA 尚未进入；后续依次为 24D 实时 IM、24E 机器人/知识库、24F 质检/满意度。每一阶段必须独立迁移、契约、测试、Gate、报告与人工验收。
+Phase 24A 仅设计；Phase 24B 工单 MVP 已 Lock。Phase 24C Phase 0 设计与 Phase 1 已验收：迁移 `048` 交付 `support_agents`、`support_skill_groups`、`support_agent_skill_groups`，以及 Admin 管理 API、Operator 自身读取和工单分配归属校验。无技能组历史工单仍按 24B 兼容规则自由分配，但目标必须具有当前同城 Admin/Operator 身份。
+
+Phase 2 通过迁移 `049` 新增城市级 append-only SLA 策略修订及 `routing_language`；新工单按城市、类型和可选语言确定技能组，并从精确策略、城市兜底或明确的应急值生成不可变 SLA 时限快照。策略维护使用数据库当前 Admin 权限、城市锁、幂等指纹和版本 CAS，历史工单不回填、不重算。
+
+Phase 2 验收前不进入 Phase 3。SLA 超时任务、公海领取和完整工作台属于 Phase 3；后续依次为 24D 实时 IM、24E 机器人/知识库、24F 质检/满意度。每一阶段必须独立迁移、契约、测试、Gate、报告与人工验收。

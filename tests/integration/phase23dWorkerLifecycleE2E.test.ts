@@ -66,6 +66,13 @@ describe.skipIf(!runDb)("Phase 23D authenticated Worker lifecycle E2E", { timeou
       }
       expect(dispatchTaskId).not.toBe("");
 
+      // Keep this assertion deterministic when a reused integration database
+      // contains queued fixtures with clocks advanced beyond the current run.
+      await pool.query(
+        "UPDATE dispatch_tasks SET created_at = '2037-12-31 23:59:59.999999' WHERE city_code='hangzhou' AND dispatch_task_id=?",
+        [dispatchTaskId],
+      );
+
       const poolResponse = await app.inject({ method: "GET", url: "/api/worker/task-pool", headers: workerHeaders });
       expect(poolResponse.statusCode, poolResponse.body).toBe(200);
       expect(poolResponse.json().tasks).toEqual(expect.arrayContaining([

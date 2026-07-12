@@ -4,13 +4,18 @@ $d = & git -C $Root diff main...HEAD -- . ':!scripts/' ':!tests/' ':!docs/releas
 $isPhase23cDiff = $d -match '045_phase23c_frontend_engineering'
 $fb = @('payout','execute_payout','pay_now')
 $allowedFiles = @(
+  "docs/architecture/support-quality-design.md",
+  "docs/reports/PHASE24_COMPLETION_REPORT.md",
   "apps/admin/src/pages/SupportTicketsPage.tsx",
   "apps/worker/src/pages/WorkerSupportPage.tsx",
   "docs/architecture/support-system-design.md",
+  "docs/architecture/support-routing-sla-design.md",
   "docs/contracts/CONTRACT_SUPPORT_TICKETS.md",
   "docs/diagrams/support-system-architecture.md",
   "docs/modules/support/README.md",
   "docs/reports/PHASE24B_SUPPORT_TICKET_MVP_REPORT.md",
+  "docs/reports/PHASE24C_ROUTING_SLA_DESIGN_REPORT.md",
+  "docs/reports/PHASE24C_PHASE1_AGENT_SKILL_GROUP_REPORT.md",
   "packages/api-client/src/support.ts",
   "packages/types/src/support.ts",
   "packages/validators/src/supportSchema.ts",

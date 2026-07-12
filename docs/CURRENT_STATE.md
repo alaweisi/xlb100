@@ -31,8 +31,59 @@
 | Phase 23B | LOCKED | xlb-phase23b-event-api-reliability | Event outbox and API client reliability |
 | Phase 23C | LOCKED | xlb-phase23c-three-app-frontend-engineering | Three-app frontend engineering |
 | Phase 23D | LOCKED | xlb-phase23d-performance-quality-closure | Performance and quality closure |
-| Phase 24A | APPROVED | — | Customer support system discovery and design; incremental Phase 17 intake approved |
+| Phase 24A | LOCKED | xlb-phase24-customer-support-closure | Customer support system discovery and design; incremental Phase 17 intake approved |
 | Phase 24B | LOCKED | xlb-phase24b-support-ticket-mvp | City-scoped support ticket MVP across Customer, Worker, and Admin |
+| Phase 24C | LOCKED | xlb-phase24-customer-support-closure | SLA breach detection, public-pool claim, and Admin agent workbench |
+| Phase 24D | LOCKED | xlb-phase24-customer-support-closure | Realtime conversation, durable messaging, reconnect recovery, and presence |
+| Phase 24E | LOCKED | xlb-phase24-customer-support-closure | Knowledge base and deterministic/mock bot orchestration |
+| Phase 24F | LOCKED | xlb-phase24-customer-support-closure | CSAT, quality review, and support operations metrics |
+
+## Phase 24 Combined Completion Authorization
+
+- **Authorized**: 2026-07-12 by explicit human instruction to complete all remaining Phase 24 work before one final acceptance
+- **Construction branch**: `codex/phase24-completion`
+- **Execution policy**: 24C, 24D, 24E, and 24F retain independent migrations, contracts, tests, gates, reports, and rollback boundaries; intermediate human acceptance pauses are waived
+- **Finalization policy**: no final Phase 24 Lock/tag until 24F delivery and the combined Phase 24 completion gate have passed
+- **Governance boundary**: Phase 0–23 are not reorganized; Phase 24A–24F numbering remains unchanged; migration `024` is a permanent historical gap; Phase 25 is not created
+- **Joint acceptance state**: accepted by explicit human instruction on 2026-07-12; Phase 24A–24F are closed under the annotated tag `xlb-phase24-customer-support-closure`.
+
+### Phase 24D–24F construction verification
+
+- **Phase 24D**: aggregate gate passed; contract 3/3; three-app UI bindings 3/3; realtime integration/concurrency/security 4/4; migration 051 replay passed; workspace typecheck 17/17; build 11/11; critical audit passed.
+- **Phase 24E**: aggregate gate passed; boundary/contract/UI/integration/security and migration 052 replay passed; workspace typecheck 17/17; build 11/11; critical audit passed.
+- **Phase 24F**: aggregate gate passed; contract 3/3, integration/concurrency/security 3/3, requester/Admin UI 2/2; migration 053 double replay/schema/index gate passed; Customer/Worker/Admin and backend typechecks passed; protected-domain write scan passed.
+- **Lock truth**: Phase 24A–24F share the unified closure tag `xlb-phase24-customer-support-closure`; Phase 24B retains its earlier component tag as historical evidence.
+- **Joint verification**: `gate:phase24` passed; migration 051–053 replay passed; full regression passed 184 files / 518 tests; typecheck 17/17; build 11/11; critical dependency audit clean; architecture preflight passed through the combined Phase 24 boundary.
+
+## Phase 24C — Routing / SLA / Agent Workbench (LOCKED)
+
+- **Entered**: 2026-07-12
+- **Design branch**: `codex/phase24c-routing-sla-design`
+- **Phase 1 branch**: `codex/phase24c-phase1-agent-skill-groups`
+- **Phase 2 branch**: `codex/phase24c-phase2-routing-sla`
+- **Base**: locked Phase 24B metadata commit `6ac201a`; tag `xlb-phase24b-support-ticket-mvp`
+- **Phase 0 approval**: approved by human on 2026-07-12; design commit `35bae96`
+- **Phase 1 acceptance**: approved by human on 2026-07-12; implementation commits `ddd2715`, `ff815f1`
+- **Phase 2 acceptance**: approved by human on 2026-07-12; implementation commits `efa3542`, `5bc0647`
+- **Phase 3 branch**: `codex/phase24c-phase3-sla-workbench`
+- **Phase 3 implementation commit**: `6b85d98`
+- **Current scope**: append-only migration 050; SLA breach detection and one-step escalation; public-pool CAS claim; mine/skill-group/all workbench queues; SLA remaining-time visualization
+- **Discoveries**:
+  - existing recurring jobs are demo-oriented process-local auto-run; SLA must add Support-owned DB claim/CAS while reusing the run-once lifecycle
+  - Support agents bind existing `admin_users` plus explicit real-city `admin_city_scopes`; no parallel identity system
+  - locked `assignedAgentId` remains an Admin user ID
+  - existing NULL skill-group/SLA fields and historical first-response facts are not bulk rewritten
+- **Boundary**: no WebSocket/conversation (24D), bot/knowledge base (24E), quality/CSAT (24F), OA, or protected-domain mutation during Phase 3
+- **Design report**: `docs/reports/PHASE24C_ROUTING_SLA_DESIGN_REPORT.md`
+- **Phase 1 report**: `docs/reports/PHASE24C_PHASE1_AGENT_SKILL_GROUP_REPORT.md`
+- **Verification**: contract 5/5; integration 3/3; security 1/1; migration 048 schema/re-execution; typecheck 17/17; build 11/11; full regression 176 files/498 tests; full architecture preflight passed
+- **Phase 2 report**: `docs/reports/PHASE24C_PHASE2_ROUTING_SLA_REPORT.md`
+- **Phase 2 verification**: contract 4/4; integration 3/3; Admin UI 3/3; security 1/1; migration 049 schema/re-execution; typecheck 17/17; build 11/11; full regression 178 files/502 tests; complete architecture preflight passed; critical audit clean
+- **Phase 2 status**: accepted; Phase 3 entered by explicit human approval
+- **Phase 3 report**: `docs/reports/PHASE24C_PHASE3_SLA_WORKBENCH_REPORT.md`
+- **Phase 3 verification**: aggregate gate passed; contract/unit 5/5; integration 2/2; Admin UI 3/3; security 1/1; migration 050 schema/re-execution; typecheck 17/17; build 11/11; full regression 180 files / 505 tests; complete architecture preflight passed; critical audit clean
+- **Status note**: Phase 1–3 accepted and locked by the unified Phase 24 closure tag.
+- **Exit requirement**: Phase 3 migration/contract/integration/UI/security gates and explicit human acceptance before Phase 24C Lock consideration
 
 ## Phase 24B — Support Ticket MVP (LOCKED)
 
@@ -60,9 +111,9 @@
   - no payment, dispatch, worker-finance, ledger, settlement, payout, refund-provider, WebSocket, bot, knowledge-base, SLA-routing, or CSAT implementation
   - no mutation of migrations `000`–`046`, locked tags, or existing domain state machines
 - **Lock verification**: branch and post-merge build 11/11, typecheck 17/17, full regression 174 files / 494 tests, Phase 24B aggregate gate, migration/seed, persisted three-app browser flow, and architecture preflight all passed
-- **Lock state**: LOCKED; Phase 24C has not been entered
+- **Lock state**: LOCKED; Phase 24C subsequently entered Phase 0 design only
 
-## Phase 24A — Customer Support System Discovery And Design (APPROVED)
+## Phase 24A — Customer Support System Discovery And Design (LOCKED)
 
 - **Entered**: 2026-07-12
 - **Branch**: `codex/phase24-support-system-design`
@@ -80,7 +131,7 @@
 - **Design**: `docs/architecture/support-system-design.md`
 - **Report**: `docs/reports/PHASE24_SUPPORT_SYSTEM_DESIGN_REPORT.md`
 - **Approval**: approved on 2026-07-12 with incremental intake: Support owns customer-service orchestration while Phase 17 retains aftersale business truth
-- **Exit state**: approved for Phase 24B implementation; no Phase 24A tag was created
+- **Exit state**: accepted and covered by the unified Phase 24 closure tag
 
 ## Phase 23D — Performance and Quality Closure (LOCKED)
 

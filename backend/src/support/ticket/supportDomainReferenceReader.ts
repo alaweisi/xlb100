@@ -6,6 +6,24 @@ import type { CityCode } from "@xlb/types";
  * This reader validates locked-domain facts and never imports or mutates their repositories.
  */
 export class SupportDomainReferenceReader {
+  async loadCurrentSupportActor(
+    connection: PoolConnection,
+    cityCode: CityCode,
+    adminUserId: string,
+  ): Promise<{ role: "admin" | "operator"; agentId: string; workStatus: string } | null> {
+    const [rows] = await connection.query<(RowDataPacket & {
+      role: "admin" | "operator"; agent_id: string; work_status: string;
+    })[]>(
+      `SELECT au.role,sa.agent_id,sa.work_status FROM admin_users au
+       INNER JOIN admin_city_scopes acs ON acs.admin_user_id=au.id AND acs.city_code=?
+       INNER JOIN support_agents sa ON sa.city_code=acs.city_code AND sa.admin_user_id=au.id
+         AND sa.lifecycle_status='active'
+       WHERE au.id=? AND au.role IN ('admin','operator') LIMIT 1`,
+      [cityCode, adminUserId],
+    );
+    return rows[0] ? { role: rows[0].role, agentId: rows[0].agent_id, workStatus: rows[0].work_status } : null;
+  }
+
   async loadOwnedOrder(connection: PoolConnection, input: {
     cityCode: CityCode;
     orderId: string;
@@ -70,15 +88,23 @@ export class SupportDomainReferenceReader {
     connection: PoolConnection,
     cityCode: CityCode,
     adminUserId: string,
+    assignedSkillGroupId: string | null = null,
   ): Promise<boolean> {
+    const membershipJoin = assignedSkillGroupId
+      ? `INNER JOIN support_agents sa
+           ON sa.city_code=acs.city_code AND sa.admin_user_id=au.id AND sa.lifecycle_status='active'
+         INNER JOIN support_agent_skill_groups sag
+           ON sag.city_code=sa.city_code AND sag.agent_id=sa.agent_id AND sag.skill_group_id=? AND sag.is_active=1`
+      : "";
     const [rows] = await connection.query<RowDataPacket[]>(
       `SELECT au.id FROM admin_users au
-       LEFT JOIN admin_city_scopes acs
+       INNER JOIN admin_city_scopes acs
          ON acs.admin_user_id=au.id AND acs.city_code=?
-       WHERE au.id=? AND (
-         au.role='admin' OR (au.role='operator' AND acs.admin_user_id IS NOT NULL)
-       ) LIMIT 1`,
-      [cityCode, adminUserId],
+       ${membershipJoin}
+       WHERE au.id=? AND au.role IN ('admin','operator') LIMIT 1`,
+      assignedSkillGroupId
+        ? [cityCode, assignedSkillGroupId, adminUserId]
+        : [cityCode, adminUserId],
     );
     return Boolean(rows[0]);
   }
