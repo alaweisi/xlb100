@@ -208,6 +208,7 @@ export function CustomerAftersalePage({ api, orderIds }: CustomerAftersalePagePr
             { key:"id",title:"客诉单",render:(item)=>item.complaintId },
             { key:"category",title:"类型",render:(item)=>item.category },
             { key:"status",title:"状态",render:(item)=><StatusTag tone={item.status === "closed" ? "success" : "warning"}>{item.status}</StatusTag> },
+            { key:"support",title:"客服工单",render:(item)=><a href={`/customer/support?orderId=${encodeURIComponent(item.orderId)}&complaintId=${encodeURIComponent(item.complaintId)}`}>转入客服跟进</a> },
           ]} />}
         </Card>
         <Card title="Service Evidence" actions={<StatusTag tone="primary">Private local/mock storage</StatusTag>}>

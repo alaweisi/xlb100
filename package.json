@@ -31,6 +31,12 @@
     "test:performance:phase23d": "vitest run --workspace vitest.workspace.ts --project performance-serial tests/performance/phase22ConcurrencyGates.test.ts tests/performance/phase23dMetricsPerformance.test.ts tests/performance/phase23dLatencyConcurrencyGates.test.ts",
     "test:migration:phase23d": "node scripts/run-phase23d-migration-gate.mjs",
     "gate:phase23d": "node scripts/run-phase23d-gates.mjs",
+    "test:support:phase24b": "vitest run --workspace vitest.workspace.ts --project unit-contract tests/unit/supportTicketStateMachine.test.ts tests/contract/supportTicket.contract.test.ts tests/unit/phase24bSupportPages.test.tsx",
+    "test:integration:phase24b": "vitest run --workspace vitest.workspace.ts --project db-serial tests/integration/phase24bSupportTicket.test.ts",
+    "test:security:phase24b": "vitest run --workspace vitest.workspace.ts --project db-serial tests/security/phase24bBoundaries.test.ts",
+    "test:migration:phase24b": "node scripts/run-phase24b-migration-gate.mjs",
+    "test:e2e:phase24b": "playwright test tests/e2e/phase24b-support-ticket.spec.ts",
+    "gate:phase24b": "node scripts/run-phase24b-gates.mjs",
     "test:watch": "vitest --workspace vitest.workspace.ts",
     "lint": "turbo run lint",
     "preflight": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/preflight-architecture.ps1"

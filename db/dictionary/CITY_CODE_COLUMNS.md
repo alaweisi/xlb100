@@ -88,3 +88,10 @@ Phase 1 city foundation. All city-scoped business tables (Phase 2+) **must** inc
 | `enterprise_bill_snapshots` | required composite FK | Monthly snapshot belongs to one city/client |
 
 Migration `038` makes the client dimension part of the agreement/order and subscription/delivery foreign keys, preventing same-city cross-enterprise references.
+
+## Phase 24B support tables with city_code
+
+| Table | city_code column | Notes |
+|-------|------------------|-------|
+| `support_tickets` | required FK + non-global check | Requester ownership and all domain links are city-scoped; no nationwide fallback |
+| `support_ticket_events` | required composite FK | Append-only events must reference a ticket in the same city |

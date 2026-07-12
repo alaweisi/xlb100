@@ -16,6 +16,14 @@ export type {
   WorkerWithdrawalResponse,
 } from "./worker.js";
 export { adminApi } from "./admin.js";
+export {
+  createRequesterSupportApi,
+  createAdminSupportApi,
+  validateSupportTicketResponse,
+  validateSupportTicketDetailResponse,
+  validateSupportTicketListResponse,
+  validateSupportTicketMutationResponse,
+} from "./support.js";
 export type { DispatchBoardRow } from "./admin.js";
 export type {
   OrderReverseResponse,

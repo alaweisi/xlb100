@@ -1,5 +1,6 @@
 /** Phase 7A/7B worker accept + fulfillment lifecycle API */
 import type { ApiClient } from "./createApiClient.js";
+import { createRequesterSupportApi } from "./support.js";
 import type { AftersaleRepairOrderResponse } from "./aftersale.js";
 import type { UploadFulfillmentEvidenceResponse, WorkerFulfillmentEvidenceResponse } from "./evidence.js";
 import type { FulfillmentEvidenceType } from "@xlb/types";
@@ -204,6 +205,7 @@ export interface CreateWorkerWithdrawalBody {
 
 export function createWorkerApi(client: ApiClient) {
   return {
+    ...createRequesterSupportApi(client),
     upsertLocation(body:{latitude:number;longitude:number;accuracyMeters:number;capturedAt:string;serviceRadiusKm:number;locationSharingEnabled:boolean}):Promise<{ok:true;location:WorkerLocation}>{return client.post("/api/worker/location",body);},
     getLocation():Promise<{ok:true;location:WorkerLocation|null}>{return client.get("/api/worker/location");},
     getTaskPool(): Promise<WorkerTaskPoolResponse> {

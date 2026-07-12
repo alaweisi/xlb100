@@ -1,4 +1,5 @@
 import type { ApiClient } from "./createApiClient.js";
+import { createAdminSupportApi } from "./support.js";
 import { createSettlementApi } from "./settlement.js";
 import type {
   WorkerReceivableBalanceResponse,
@@ -127,6 +128,7 @@ function buildQuery<T extends object>(query: T): string {
 /** Admin API modules; callers provide scoped admin/operator headers. */
 export function createAdminApi(client: ApiClient) {
   return {
+    ...createAdminSupportApi(client),
     settlement: createSettlementApi(client),
     enterprise: createEnterpriseAdminApi(client),
     listOperationsOrders(): Promise<{ok:true;orders:AdminOrderSummary[]}>{return client.get("/api/internal/operations/orders");},

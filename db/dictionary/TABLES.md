@@ -210,3 +210,15 @@ Migration `038` hardens enterprise isolation with composite `(city_code, busines
 ## Phase 22 quality gates
 
 Migration `042` adds `business_order_tenant_ownership` and a composite foreign key from `business_orders(city_code, business_client_id, order_id)`. The canonical order can belong to only one enterprise tenant, and direct tenant rebinding is rejected without requiring database trigger privileges.
+
+## Phase 24B customer support ticket MVP
+
+| Table | Purpose | city_code |
+|-------|---------|-----------|
+| `support_tickets` | Independent requester-owned support tickets with CAS state and optional read-only domain links | required FK + non-global check |
+| `support_ticket_events` | Append-only ticket mutation and comment audit timeline | required composite FK |
+
+Migration `047` adds only the ticket MVP. Support may validate and link same-city Order,
+Worker, Enterprise, and Phase 17 Complaint facts, but it does not mutate those domains.
+`assigned_agent_id` and `assigned_skill_group_id` remain nullable identifiers in 24B;
+their agent/group tables and foreign keys belong to Phase 24C.
