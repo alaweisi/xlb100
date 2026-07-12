@@ -32,16 +32,20 @@
 | Phase 23C | LOCKED | xlb-phase23c-three-app-frontend-engineering | Three-app frontend engineering |
 | Phase 23D | LOCKED | xlb-phase23d-performance-quality-closure | Performance and quality closure |
 | Phase 24A | APPROVED | — | Customer support system discovery and design; incremental Phase 17 intake approved |
-| Phase 24B | COMPLETE / AWAITING ACCEPTANCE | — | City-scoped support ticket MVP across Customer, Worker, and Admin |
+| Phase 24B | LOCKED | xlb-phase24b-support-ticket-mvp | City-scoped support ticket MVP across Customer, Worker, and Admin |
 
-## Phase 24B — Support Ticket MVP (COMPLETE / AWAITING ACCEPTANCE)
+## Phase 24B — Support Ticket MVP (LOCKED)
 
 - **Entered**: 2026-07-12
 - **Branch**: `codex/phase24b-support-ticket-mvp`
 - **Base**: Phase 24A design branch from `main` at `04f1c43`; Phase 24A changes remain uncommitted in this worktree
 - **Approval**: human approval received for the incremental Phase 17 intake design
 - **Required migration**: `047_phase24b_support_ticket_mvp.sql` (append-only)
-- **Completion**: implementation and verification completed on 2026-07-12; not merged, tagged, or locked
+- **Feature commit**: `3740d84`
+- **Feature branch head**: `343232d`
+- **Merged main**: `e37a798f30c8d77a55e8c3af24e9c12c17f86fb6`
+- **Tag**: `xlb-phase24b-support-ticket-mvp`
+- **Completion**: LOCKED on 2026-07-12 after human approval, `--no-ff` merge, post-merge verification, and tag creation
 - **Scope**:
   - city-scoped support tickets and append-only ticket events
   - authenticated Customer/Worker create, own-list, detail, comment, and reopen flows
@@ -55,8 +59,8 @@
   - linked complaints are validated and referenced; Support never mutates `aftersale_*` tables directly
   - no payment, dispatch, worker-finance, ledger, settlement, payout, refund-provider, WebSocket, bot, knowledge-base, SLA-routing, or CSAT implementation
   - no mutation of migrations `000`–`046`, locked tags, or existing domain state machines
-- **Verification**: Phase 24B aggregate gate passed; full unit/contract regression 136 files / 759 tests; full database/security regression 174 files / 494 tests; architecture preflight passed
-- **Exit requirement**: explicit human acceptance and Lock decision; Phase 24C may not begin before that decision
+- **Lock verification**: branch and post-merge build 11/11, typecheck 17/17, full regression 174 files / 494 tests, Phase 24B aggregate gate, migration/seed, persisted three-app browser flow, and architecture preflight all passed
+- **Lock state**: LOCKED; Phase 24C has not been entered
 
 ## Phase 24A — Customer Support System Discovery And Design (APPROVED)
 

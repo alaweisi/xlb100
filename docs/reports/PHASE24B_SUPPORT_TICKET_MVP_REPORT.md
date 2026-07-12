@@ -4,7 +4,7 @@
 
 - Branch: `codex/phase24b-support-ticket-mvp`
 - Base: `main` at `04f1c43`, carrying the approved Phase 24A design documents
-- Status: **IMPLEMENTATION COMPLETE — AWAITING HUMAN ACCEPTANCE — NOT LOCKED**
+- Status: **LOCKED**
 - Migration: `047_phase24b_support_ticket_mvp.sql`
 - Phase 17 relationship: incremental intake only; Aftersale remains the business source of truth
 
@@ -123,9 +123,17 @@ expanding this phase into unrelated historical cleanup.
   migration 047. Their original forbidden terms and money-movement boundaries
   remain active.
 
-## Lock readiness
+## Lock conclusion
 
-Phase 24B implementation, human acceptance, and feature-branch Lock verification
-are complete. The remaining Lock ceremony is the `--no-ff` main merge,
-post-merge verification, Lock metadata commit, and tag creation. Phase 24C has
-not been entered.
+- Merged: yes, with `--no-ff`.
+- Main merge commit: `e37a798f30c8d77a55e8c3af24e9c12c17f86fb6`.
+- Tag: `xlb-phase24b-support-ticket-mvp` at the verified merge commit.
+- Post-merge build/typecheck: 11/11 and 17/17 tasks passed.
+- Post-merge tests: 174/174 files and 494/494 tests passed.
+- Post-merge Phase 24B gate: passed, including migration replay, integration,
+  Playwright browser flow, critical dependency audit, build, and typecheck.
+- Post-merge migration and seed: passed; migration 047 was idempotently skipped
+  by the normal runner and successfully replayed by its dedicated gate.
+- Post-merge architecture preflight: passed through Phase 24B.
+- Lock state: **LOCKED**.
+- Next phase: Phase 24C has not been entered.
