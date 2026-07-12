@@ -1,0 +1,49 @@
+name: Phase 24C Phase 1 Agent Skill Group Gates
+
+on:
+  push:
+    branches: [main, master, codex/phase24c-phase1-agent-skill-groups]
+  pull_request:
+
+jobs:
+  phase24c1:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8
+        env:
+          MYSQL_ROOT_PASSWORD: xlb_root_password
+          MYSQL_DATABASE: xlb_local
+          MYSQL_USER: xlb
+          MYSQL_PASSWORD: xlb_local_password
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uxlb -pxlb_local_password"
+          --health-interval=10s --health-timeout=5s --health-retries=8 --health-start-period=30s
+      redis:
+        image: redis:7
+        ports: ["6379:6379"]
+    env:
+      NODE_ENV: test
+      MYSQL_HOST: 127.0.0.1
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: xlb_local
+      MYSQL_USER: xlb
+      MYSQL_PASSWORD: xlb_local_password
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: 6379
+      JWT_SECRET: phase24c1-ci-secret
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: pnpm/action-setup@v4
+        with: { version: 9 }
+      - uses: actions/setup-node@v4
+        with: { node-version: "20", cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: Migrate and seed
+        run: pnpm --filter @xlb/backend exec tsx src/dal/migrateCli.ts && pnpm --filter @xlb/backend exec tsx src/dal/seedCli.ts
+      - name: Phase 24C Phase 1 hard-blocking gate
+        run: pnpm gate:phase24c1
+      - name: Architecture preflight
+        run: pwsh -NoProfile -File scripts/preflight-architecture.ps1

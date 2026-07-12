@@ -4,9 +4,10 @@
 
 - Branch: `codex/phase24c-routing-sla-design`
 - Base: locked Phase 24B metadata commit `6ac201a`
-- Status: **PHASE 0 DESIGN COMPLETE — AWAITING HUMAN APPROVAL**
+- Status: **PHASE 0 DESIGN APPROVED**
 - Runtime changes: none
 - Migration changes: none
+- Human approval: received on 2026-07-12; Phase 1 entered on branch `codex/phase24c-phase1-agent-skill-groups`
 
 ## Parallel discovery
 

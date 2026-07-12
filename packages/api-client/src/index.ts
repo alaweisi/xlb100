@@ -23,6 +23,13 @@ export {
   validateSupportTicketDetailResponse,
   validateSupportTicketListResponse,
   validateSupportTicketMutationResponse,
+  validateSupportAgentResponse,
+  validateSupportAgentListResponse,
+  validateSupportSkillGroupResponse,
+  validateSupportSkillGroupListResponse,
+  validateSupportAgentSkillGroupResponse,
+  validateSupportAgentSkillGroupListResponse,
+  validateRemoveSupportAgentSkillGroupResponse,
 } from "./support.js";
 export type { DispatchBoardRow } from "./admin.js";
 export type {

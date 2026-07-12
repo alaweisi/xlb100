@@ -27,6 +27,8 @@ export interface ApiClientOptions {
 export interface ApiClient {
   get<T>(path: string, options?: ApiRequestOptions<T>): Promise<T>;
   post<T>(path: string, body?: unknown, options?: ApiRequestOptions<T>): Promise<T>;
+  patch<T>(path: string, body?: unknown, options?: ApiRequestOptions<T>): Promise<T>;
+  delete<T>(path: string, body?: unknown, options?: ApiRequestOptions<T>): Promise<T>;
   postBinary<T>(
     path: string,
     body: Blob,
@@ -254,6 +256,10 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       request<T>("GET", path, undefined, { "Content-Type": "application/json" }, requestOptions),
     post: <T>(path: string, body?: unknown, requestOptions?: ApiRequestOptions<T>) =>
       request<T>("POST", path, body !== undefined ? JSON.stringify(body) : undefined, { "Content-Type": "application/json" }, requestOptions),
+    patch: <T>(path: string, body?: unknown, requestOptions?: ApiRequestOptions<T>) =>
+      request<T>("PATCH", path, body !== undefined ? JSON.stringify(body) : undefined, { "Content-Type": "application/json" }, requestOptions),
+    delete: <T>(path: string, body?: unknown, requestOptions?: ApiRequestOptions<T>) =>
+      request<T>("DELETE", path, body !== undefined ? JSON.stringify(body) : undefined, { "Content-Type": "application/json" }, requestOptions),
     postBinary: <T>(path: string, body: Blob, binaryOptions: { contentType: string; fileName: string }, requestOptions?: ApiRequestOptions<T>) =>
       request<T>("POST", path, body, {
         "Content-Type": binaryOptions.contentType,

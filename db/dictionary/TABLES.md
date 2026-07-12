@@ -222,3 +222,15 @@ Migration `047` adds only the ticket MVP. Support may validate and link same-cit
 Worker, Enterprise, and Phase 17 Complaint facts, but it does not mutate those domains.
 `assigned_agent_id` and `assigned_skill_group_id` remain nullable identifiers in 24B;
 their agent/group tables and foreign keys belong to Phase 24C.
+
+## Phase 24C Phase 1 support agent and skill-group tables
+
+| Table | Purpose | city_code |
+|-------|---------|-----------|
+| `support_agents` | Support business profile bound to an existing Admin/Operator identity | required FK + explicit Admin city-scope FK + non-global check |
+| `support_skill_groups` | City-owned skill-group configuration and matching metadata | required FK + non-global check |
+| `support_agent_skill_groups` | Soft-active many-to-many membership between same-city profiles and groups | required same-city composite FKs |
+
+Migration `048` does not create a parallel login identity. Ticket
+`assigned_agent_id` remains an `admin_users.id`; `support_agents.agent_id` is
+only the Support-domain profile key.

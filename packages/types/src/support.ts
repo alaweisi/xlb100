@@ -186,3 +186,155 @@ export interface SupportTicketOutboxEventPayload {
   version: number;
   occurredAt: string;
 }
+
+export type SupportAgentLifecycleStatus = "active" | "suspended";
+export type SupportAgentWorkStatus = "offline" | "online" | "busy";
+
+export interface SupportAgent {
+  agentId: string;
+  cityCode: CityCode;
+  adminUserId: string;
+  displayName: string;
+  lifecycleStatus: SupportAgentLifecycleStatus;
+  workStatus: SupportAgentWorkStatus;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SupportSkillGroup {
+  skillGroupId: string;
+  cityCode: CityCode;
+  name: string;
+  matchedTypes: SupportTicketType[];
+  matchedLanguages: string[];
+  priorityWeight: number;
+  isDefault: boolean;
+  isActive: boolean;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SupportAgentSkillGroupMembership {
+  cityCode: CityCode;
+  agentId: string;
+  skillGroupId: string;
+  proficiency: number;
+  isPrimary: boolean;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateSupportAgentRequest {
+  adminUserId: string;
+  displayName: string;
+  lifecycleStatus?: SupportAgentLifecycleStatus;
+  workStatus?: SupportAgentWorkStatus;
+  idempotencyKey: string;
+}
+
+export interface UpdateSupportAgentRequest {
+  displayName?: string;
+  lifecycleStatus?: SupportAgentLifecycleStatus;
+  workStatus?: SupportAgentWorkStatus;
+  expectedVersion: number;
+  idempotencyKey: string;
+}
+
+/** DELETE is a versioned soft delete that sets lifecycleStatus=suspended. */
+export interface DeleteSupportAgentRequest {
+  expectedVersion: number;
+  idempotencyKey: string;
+}
+
+export interface SupportAgentListFilters {
+  lifecycleStatus?: SupportAgentLifecycleStatus;
+  workStatus?: SupportAgentWorkStatus;
+  adminUserId?: string;
+  cursor?: string;
+  limit?: number;
+}
+
+export interface CreateSupportSkillGroupRequest {
+  name: string;
+  matchedTypes: SupportTicketType[];
+  matchedLanguages: string[];
+  priorityWeight?: number;
+  isDefault?: boolean;
+  isActive?: boolean;
+  idempotencyKey: string;
+}
+
+export interface UpdateSupportSkillGroupRequest {
+  name?: string;
+  matchedTypes?: SupportTicketType[];
+  matchedLanguages?: string[];
+  priorityWeight?: number;
+  isDefault?: boolean;
+  isActive?: boolean;
+  expectedVersion: number;
+  idempotencyKey: string;
+}
+
+/** DELETE is a versioned soft delete that sets isActive=false. */
+export interface DeleteSupportSkillGroupRequest {
+  expectedVersion: number;
+  idempotencyKey: string;
+}
+
+export interface SupportSkillGroupListFilters {
+  isActive?: boolean;
+  isDefault?: boolean;
+  cursor?: string;
+  limit?: number;
+}
+
+export interface AddSupportAgentSkillGroupRequest {
+  skillGroupId: string;
+  proficiency?: number;
+  isPrimary?: boolean;
+  expectedAgentVersion: number;
+  idempotencyKey: string;
+}
+
+export interface RemoveSupportAgentSkillGroupRequest {
+  expectedAgentVersion: number;
+  idempotencyKey: string;
+}
+
+export interface SupportAgentResponse {
+  ok: true;
+  agent: SupportAgent;
+}
+
+export interface SupportAgentListResponse {
+  ok: true;
+  agents: SupportAgent[];
+  nextCursor: string | null;
+}
+
+export interface SupportSkillGroupResponse {
+  ok: true;
+  skillGroup: SupportSkillGroup;
+}
+
+export interface SupportSkillGroupListResponse {
+  ok: true;
+  skillGroups: SupportSkillGroup[];
+  nextCursor: string | null;
+}
+
+export interface SupportAgentSkillGroupResponse extends SupportAgentResponse {
+  membership: SupportAgentSkillGroupMembership;
+}
+
+export interface SupportAgentSkillGroupListResponse {
+  ok: true;
+  memberships: SupportAgentSkillGroupMembership[];
+}
+
+export interface RemoveSupportAgentSkillGroupResponse extends SupportAgentResponse {
+  removedSkillGroupId: string;
+}

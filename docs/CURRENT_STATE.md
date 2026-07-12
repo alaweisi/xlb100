@@ -33,22 +33,27 @@
 | Phase 23D | LOCKED | xlb-phase23d-performance-quality-closure | Performance and quality closure |
 | Phase 24A | APPROVED | — | Customer support system discovery and design; incremental Phase 17 intake approved |
 | Phase 24B | LOCKED | xlb-phase24b-support-ticket-mvp | City-scoped support ticket MVP across Customer, Worker, and Admin |
-| Phase 24C | PHASE 0 DESIGN / AWAITING APPROVAL | — | Support routing, SLA, skill groups, and agent workbench design only |
+| Phase 24C | PHASE 1 IN PROGRESS | — | Agent profiles, skill groups, membership, and assignment validation |
 
-## Phase 24C — Routing / SLA / Agent Workbench (PHASE 0 DESIGN)
+## Phase 24C — Routing / SLA / Agent Workbench (PHASE 1 IN PROGRESS)
 
 - **Entered**: 2026-07-12
-- **Branch**: `codex/phase24c-routing-sla-design`
+- **Design branch**: `codex/phase24c-routing-sla-design`
+- **Phase 1 branch**: `codex/phase24c-phase1-agent-skill-groups`
 - **Base**: locked Phase 24B metadata commit `6ac201a`; tag `xlb-phase24b-support-ticket-mvp`
-- **Current scope**: repository discovery and `docs/architecture/support-routing-sla-design.md` only
+- **Phase 0 approval**: approved by human on 2026-07-12; design commit `35bae96`
+- **Current scope**: append-only migration 048; agent/skill-group/membership contracts and Admin APIs; skill-aware assignment validation
 - **Discoveries**:
   - existing recurring jobs are demo-oriented process-local auto-run; SLA must add Support-owned DB claim/CAS while reusing the run-once lifecycle
   - Support agents bind existing `admin_users` plus explicit real-city `admin_city_scopes`; no parallel identity system
   - locked `assignedAgentId` remains an Admin user ID
   - existing NULL skill-group/SLA fields and historical first-response facts are not bulk rewritten
-- **Boundary**: no migration 048, runtime service, API, UI, WebSocket, bot, knowledge base, quality, CSAT, OA, or protected-domain mutation during Phase 0
+- **Boundary**: no automatic routing, SLA policy/due-time writes, SLA job, claim queue, new UI, WebSocket, bot, knowledge base, quality, CSAT, OA, or protected-domain mutation during Phase 1
 - **Design report**: `docs/reports/PHASE24C_ROUTING_SLA_DESIGN_REPORT.md`
-- **Exit requirement**: explicit human approval of the design decisions before Phase 24C Phase 1
+- **Phase 1 report**: `docs/reports/PHASE24C_PHASE1_AGENT_SKILL_GROUP_REPORT.md`
+- **Verification**: contract 5/5; integration 3/3; security 1/1; migration 048 schema/re-execution; typecheck 17/17; build 11/11; full regression 176 files/498 tests; full architecture preflight passed
+- **Status note**: Phase 1 implementation verified and awaiting explicit human acceptance; not locked; Phase 2 not entered
+- **Exit requirement**: Phase 1 migration/contract/integration/security gates and explicit human acceptance before Phase 2
 
 ## Phase 24B — Support Ticket MVP (LOCKED)
 

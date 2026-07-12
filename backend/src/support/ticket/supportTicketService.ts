@@ -390,8 +390,12 @@ export class SupportTicketService {
       }
       const targetStatus = ticket.status === "open" ? "processing" : ticket.status;
       if (ticket.status === "open") assertSupportTicketTransition(ticket.status, targetStatus);
-      if (!await this.referenceReader.isAssignableAgent(connection, cityCode, input.assignedAgentId)) {
-        throw new SupportTicketForbiddenError("assigned agent is not an admin/operator scoped to this city");
+      if (!await this.referenceReader.isAssignableAgent(
+        connection, cityCode, input.assignedAgentId, ticket.assignedSkillGroupId,
+      )) {
+        throw new SupportTicketForbiddenError(ticket.assignedSkillGroupId
+          ? "assigned agent must have an active Support profile in the ticket skill group"
+          : "assigned agent is not a current admin/operator with explicit scope for this city");
       }
       const from = ticket.status;
       if (!await this.repository.updateAssignmentCas(connection, {

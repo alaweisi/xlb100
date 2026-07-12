@@ -37,6 +37,11 @@
     "test:migration:phase24b": "node scripts/run-phase24b-migration-gate.mjs",
     "test:e2e:phase24b": "playwright test tests/e2e/phase24b-support-ticket.spec.ts",
     "gate:phase24b": "node scripts/run-phase24b-gates.mjs",
+    "test:contract:phase24c1": "vitest run --workspace vitest.workspace.ts --project unit-contract tests/contract/phase24cAgentSkill.contract.test.ts",
+    "test:integration:phase24c1": "vitest run --workspace vitest.workspace.ts --project db-serial tests/integration/phase24cAgentSkillGroups.test.ts",
+    "test:security:phase24c1": "vitest run --workspace vitest.workspace.ts --project db-serial tests/security/phase24cPhase1Boundaries.test.ts",
+    "test:migration:phase24c1": "node scripts/run-phase24c-phase1-migration-gate.mjs",
+    "gate:phase24c1": "node scripts/run-phase24c-phase1-gates.mjs",
     "test:watch": "vitest --workspace vitest.workspace.ts",
     "lint": "turbo run lint",
     "preflight": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/preflight-architecture.ps1"

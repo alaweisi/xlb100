@@ -182,7 +182,175 @@ export const supportTicketOutboxEventPayloadSchema = z.object({
   occurredAt: timestampSchema,
 }).strict();
 
+export const supportAgentLifecycleStatusSchema = z.enum(["active", "suspended"]);
+export const supportAgentWorkStatusSchema = z.enum(["offline", "online", "busy"]);
+
+const supportLanguageTagSchema = z.string().trim().min(2).max(35)
+  .regex(/^[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*$/, "invalid language tag");
+const supportMatchedTypesSchema = z.array(supportTicketTypeSchema).min(1).max(7)
+  .refine((values) => new Set(values).size === values.length, "matchedTypes must not contain duplicates");
+const supportMatchedLanguagesSchema = z.array(supportLanguageTagSchema).max(16)
+  .refine((values) => new Set(values.map((value) => value.toLowerCase())).size === values.length,
+    "matchedLanguages must not contain case-insensitive duplicates");
+const positiveVersionSchema = z.number().int().positive();
+
+export const supportAgentSchema = z.object({
+  agentId: idSchema,
+  cityCode: cityCodeSchema,
+  adminUserId: idSchema,
+  displayName: z.string().trim().min(1).max(128),
+  lifecycleStatus: supportAgentLifecycleStatusSchema,
+  workStatus: supportAgentWorkStatusSchema,
+  version: positiveVersionSchema,
+  createdAt: timestampSchema,
+  updatedAt: timestampSchema,
+}).strict();
+
+export const supportSkillGroupSchema = z.object({
+  skillGroupId: idSchema,
+  cityCode: cityCodeSchema,
+  name: z.string().trim().min(1).max(128),
+  matchedTypes: supportMatchedTypesSchema,
+  matchedLanguages: supportMatchedLanguagesSchema,
+  priorityWeight: z.number().int().min(-1000).max(1000),
+  isDefault: z.boolean(),
+  isActive: z.boolean(),
+  version: positiveVersionSchema,
+  createdAt: timestampSchema,
+  updatedAt: timestampSchema,
+}).strict().superRefine((group, context) => {
+  if (group.isDefault && group.matchedLanguages.length > 0) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["matchedLanguages"], message: "default groups must be language neutral" });
+  }
+});
+
+export const supportAgentSkillGroupMembershipSchema = z.object({
+  cityCode: cityCodeSchema,
+  agentId: idSchema,
+  skillGroupId: idSchema,
+  proficiency: z.number().int().min(0).max(100),
+  isPrimary: z.boolean(),
+  isActive: z.boolean(),
+  createdAt: timestampSchema,
+  updatedAt: timestampSchema,
+}).strict();
+
+export const createSupportAgentRequestSchema = z.object({
+  adminUserId: idSchema,
+  displayName: z.string().trim().min(1).max(128),
+  lifecycleStatus: supportAgentLifecycleStatusSchema.optional(),
+  workStatus: supportAgentWorkStatusSchema.optional(),
+  idempotencyKey: idempotencyKeySchema,
+}).strict();
+
+export const updateSupportAgentRequestSchema = z.object({
+  displayName: z.string().trim().min(1).max(128).optional(),
+  lifecycleStatus: supportAgentLifecycleStatusSchema.optional(),
+  workStatus: supportAgentWorkStatusSchema.optional(),
+  expectedVersion: positiveVersionSchema,
+  idempotencyKey: idempotencyKeySchema,
+}).strict().refine(
+  (value) => value.displayName !== undefined || value.lifecycleStatus !== undefined || value.workStatus !== undefined,
+  "at least one agent field must be updated",
+);
+
+export const deleteSupportAgentRequestSchema = z.object({
+  expectedVersion: positiveVersionSchema,
+  idempotencyKey: idempotencyKeySchema,
+}).strict();
+
+export const supportAgentListFiltersSchema = z.object({
+  lifecycleStatus: supportAgentLifecycleStatusSchema.optional(),
+  workStatus: supportAgentWorkStatusSchema.optional(),
+  adminUserId: idSchema.optional(),
+  cursor: z.string().trim().min(1).max(512).optional(),
+  limit: z.number().int().min(1).max(100).optional(),
+}).strict();
+
+export const createSupportSkillGroupRequestSchema = z.object({
+  name: z.string().trim().min(1).max(128),
+  matchedTypes: supportMatchedTypesSchema,
+  matchedLanguages: supportMatchedLanguagesSchema,
+  priorityWeight: z.number().int().min(-1000).max(1000).optional(),
+  isDefault: z.boolean().optional(),
+  isActive: z.boolean().optional(),
+  idempotencyKey: idempotencyKeySchema,
+}).strict().superRefine((group, context) => {
+  if (group.isDefault === true && group.matchedLanguages.length > 0) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["matchedLanguages"], message: "default groups must be language neutral" });
+  }
+});
+
+export const updateSupportSkillGroupRequestSchema = z.object({
+  name: z.string().trim().min(1).max(128).optional(),
+  matchedTypes: supportMatchedTypesSchema.optional(),
+  matchedLanguages: supportMatchedLanguagesSchema.optional(),
+  priorityWeight: z.number().int().min(-1000).max(1000).optional(),
+  isDefault: z.boolean().optional(),
+  isActive: z.boolean().optional(),
+  expectedVersion: positiveVersionSchema,
+  idempotencyKey: idempotencyKeySchema,
+}).strict().superRefine((group, context) => {
+  if (group.isDefault === true && group.matchedLanguages !== undefined && group.matchedLanguages.length > 0) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["matchedLanguages"], message: "default groups must be language neutral" });
+  }
+  if ([group.name, group.matchedTypes, group.matchedLanguages, group.priorityWeight,
+    group.isDefault, group.isActive].every((value) => value === undefined)) {
+    context.addIssue({ code: z.ZodIssueCode.custom, message: "at least one skill-group field must be updated" });
+  }
+});
+
+export const deleteSupportSkillGroupRequestSchema = deleteSupportAgentRequestSchema;
+
+export const supportSkillGroupListFiltersSchema = z.object({
+  isActive: z.boolean().optional(),
+  isDefault: z.boolean().optional(),
+  cursor: z.string().trim().min(1).max(512).optional(),
+  limit: z.number().int().min(1).max(100).optional(),
+}).strict();
+
+export const addSupportAgentSkillGroupRequestSchema = z.object({
+  skillGroupId: idSchema,
+  proficiency: z.number().int().min(0).max(100).optional(),
+  isPrimary: z.boolean().optional(),
+  expectedAgentVersion: positiveVersionSchema,
+  idempotencyKey: idempotencyKeySchema,
+}).strict();
+
+export const removeSupportAgentSkillGroupRequestSchema = z.object({
+  expectedAgentVersion: positiveVersionSchema,
+  idempotencyKey: idempotencyKeySchema,
+}).strict();
+
+export const supportAgentResponseSchema = z.object({ ok: z.literal(true), agent: supportAgentSchema }).strict();
+export const supportAgentListResponseSchema = z.object({
+  ok: z.literal(true), agents: z.array(supportAgentSchema).max(100), nextCursor: z.string().max(512).nullable(),
+}).strict();
+export const supportSkillGroupResponseSchema = z.object({
+  ok: z.literal(true), skillGroup: supportSkillGroupSchema,
+}).strict();
+export const supportSkillGroupListResponseSchema = z.object({
+  ok: z.literal(true), skillGroups: z.array(supportSkillGroupSchema).max(100), nextCursor: z.string().max(512).nullable(),
+}).strict();
+export const supportAgentSkillGroupResponseSchema = supportAgentResponseSchema.extend({
+  membership: supportAgentSkillGroupMembershipSchema,
+}).strict();
+export const supportAgentSkillGroupListResponseSchema = z.object({
+  ok: z.literal(true),
+  memberships: z.array(supportAgentSkillGroupMembershipSchema).max(1_000),
+}).strict();
+export const removeSupportAgentSkillGroupResponseSchema = supportAgentResponseSchema.extend({
+  removedSkillGroupId: idSchema,
+}).strict();
+
 export type SupportTicketInput = z.infer<typeof supportTicketSchema>;
 export type SupportTicketEventInput = z.infer<typeof supportTicketEventSchema>;
 export type CreateSupportTicketRequestInput = z.infer<typeof createSupportTicketRequestSchema>;
 export type SupportTicketListFiltersInput = z.infer<typeof supportTicketListFiltersSchema>;
+export type SupportAgentInput = z.infer<typeof supportAgentSchema>;
+export type SupportSkillGroupInput = z.infer<typeof supportSkillGroupSchema>;
+export type SupportAgentSkillGroupMembershipInput = z.infer<typeof supportAgentSkillGroupMembershipSchema>;
+export type CreateSupportAgentRequestInput = z.infer<typeof createSupportAgentRequestSchema>;
+export type UpdateSupportAgentRequestInput = z.infer<typeof updateSupportAgentRequestSchema>;
+export type CreateSupportSkillGroupRequestInput = z.infer<typeof createSupportSkillGroupRequestSchema>;
+export type UpdateSupportSkillGroupRequestInput = z.infer<typeof updateSupportSkillGroupRequestSchema>;

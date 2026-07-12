@@ -4,6 +4,13 @@ import type {
   ReopenSupportTicketRequest, ResolveSupportTicketRequest, SupportTicket, SupportTicketDetailResponse,
   SupportTicketEvent, SupportTicketListFilters, SupportTicketListResponse,
   SupportTicketMutationResponse, SupportTicketResponse,
+  AddSupportAgentSkillGroupRequest, CreateSupportAgentRequest, CreateSupportSkillGroupRequest,
+  DeleteSupportAgentRequest, DeleteSupportSkillGroupRequest, RemoveSupportAgentSkillGroupRequest,
+  RemoveSupportAgentSkillGroupResponse, SupportAgent, SupportAgentListFilters,
+  SupportAgentListResponse, SupportAgentResponse, SupportAgentSkillGroupMembership,
+  SupportAgentSkillGroupListResponse, SupportAgentSkillGroupResponse, SupportSkillGroup, SupportSkillGroupListFilters,
+  SupportSkillGroupListResponse, SupportSkillGroupResponse, UpdateSupportAgentRequest,
+  UpdateSupportSkillGroupRequest,
 } from "@xlb/types";
 import type { ApiClient } from "./createApiClient.js";
 
@@ -15,6 +22,8 @@ const STATUSES = ["open", "processing", "waiting_requester", "escalated", "resol
 const EVENT_TYPES = ["created", "commented", "assigned", "status_changed", "escalated", "resolved", "reopened", "closed"] as const;
 const ACTOR_TYPES = ["customer", "worker", "admin", "operator", "system", "bot"] as const;
 const VISIBILITIES = ["requester", "internal", "all"] as const;
+const AGENT_LIFECYCLE_STATUSES = ["active", "suspended"] as const;
+const AGENT_WORK_STATUSES = ["offline", "online", "busy"] as const;
 
 function object(value: unknown, label: string): JsonObject { if (typeof value !== "object" || value === null || Array.isArray(value)) throw new TypeError(`${label} must be an object`); return value as JsonObject; }
 function string(value: unknown, label: string): string { if (typeof value !== "string" || value.length === 0) throw new TypeError(`${label} must be a non-empty string`); return value; }
@@ -40,12 +49,52 @@ function event(value: unknown): SupportTicketEvent {
   oneOf(item.visibility, VISIBILITIES, "support ticket event.visibility"); nullableString(item.content, "support ticket event.content"); object(item.payload, "support ticket event.payload"); string(item.createdAt, "support ticket event.createdAt"); return value as SupportTicketEvent;
 }
 
+function agent(value: unknown): SupportAgent {
+  const item = object(value, "support agent");
+  string(item.agentId, "support agent.agentId"); string(item.cityCode, "support agent.cityCode");
+  string(item.adminUserId, "support agent.adminUserId"); string(item.displayName, "support agent.displayName");
+  oneOf(item.lifecycleStatus, AGENT_LIFECYCLE_STATUSES, "support agent.lifecycleStatus");
+  oneOf(item.workStatus, AGENT_WORK_STATUSES, "support agent.workStatus");
+  integer(item.version, "support agent.version"); string(item.createdAt, "support agent.createdAt");
+  string(item.updatedAt, "support agent.updatedAt"); return value as SupportAgent;
+}
+
+function skillGroup(value: unknown): SupportSkillGroup {
+  const item = object(value, "support skill group");
+  string(item.skillGroupId, "support skill group.skillGroupId"); string(item.cityCode, "support skill group.cityCode");
+  string(item.name, "support skill group.name");
+  if (!Array.isArray(item.matchedTypes)) throw new TypeError("support skill group.matchedTypes must be an array");
+  item.matchedTypes.forEach((type) => oneOf(type, TYPES, "support skill group.matchedTypes item"));
+  if (!Array.isArray(item.matchedLanguages)) throw new TypeError("support skill group.matchedLanguages must be an array");
+  item.matchedLanguages.forEach((language) => string(language, "support skill group.matchedLanguages item"));
+  if (typeof item.priorityWeight !== "number" || !Number.isSafeInteger(item.priorityWeight)) throw new TypeError("support skill group.priorityWeight must be an integer");
+  boolean(item.isDefault, "support skill group.isDefault"); boolean(item.isActive, "support skill group.isActive");
+  integer(item.version, "support skill group.version"); string(item.createdAt, "support skill group.createdAt");
+  string(item.updatedAt, "support skill group.updatedAt"); return value as SupportSkillGroup;
+}
+
+function membership(value: unknown): SupportAgentSkillGroupMembership {
+  const item = object(value, "support agent skill-group membership");
+  string(item.cityCode, "membership.cityCode"); string(item.agentId, "membership.agentId");
+  string(item.skillGroupId, "membership.skillGroupId"); integer(item.proficiency, "membership.proficiency");
+  boolean(item.isPrimary, "membership.isPrimary"); boolean(item.isActive, "membership.isActive");
+  string(item.createdAt, "membership.createdAt"); string(item.updatedAt, "membership.updatedAt");
+  return value as SupportAgentSkillGroupMembership;
+}
+
 export function validateSupportTicketResponse(value: unknown): SupportTicketResponse { const result = ok(value, "support ticket response"); ticket(result.ticket); return value as SupportTicketResponse; }
 export function validateSupportTicketDetailResponse(value: unknown): SupportTicketDetailResponse { const result = ok(value, "support ticket detail response"); const detail = object(result.detail, "support ticket detail"); ticket(detail.ticket); if (!Array.isArray(detail.events)) throw new TypeError("support ticket detail.events must be an array"); detail.events.forEach(event); return value as SupportTicketDetailResponse; }
 export function validateSupportTicketListResponse(value: unknown): SupportTicketListResponse { const result = ok(value, "support ticket list response"); if (!Array.isArray(result.tickets)) throw new TypeError("support ticket list response.tickets must be an array"); result.tickets.forEach(ticket); nullableString(result.nextCursor, "support ticket list response.nextCursor"); return value as SupportTicketListResponse; }
 export function validateSupportTicketMutationResponse(value: unknown): SupportTicketMutationResponse { const result = ok(value, "support ticket mutation response"); ticket(result.ticket); event(result.event); boolean(result.idempotent, "support ticket mutation response.idempotent"); return value as SupportTicketMutationResponse; }
+export function validateSupportAgentResponse(value: unknown): SupportAgentResponse { const result = ok(value, "support agent response"); agent(result.agent); return value as SupportAgentResponse; }
+export function validateSupportAgentListResponse(value: unknown): SupportAgentListResponse { const result = ok(value, "support agent list response"); if (!Array.isArray(result.agents)) throw new TypeError("support agent list response.agents must be an array"); result.agents.forEach(agent); nullableString(result.nextCursor, "support agent list response.nextCursor"); return value as SupportAgentListResponse; }
+export function validateSupportSkillGroupResponse(value: unknown): SupportSkillGroupResponse { const result = ok(value, "support skill-group response"); skillGroup(result.skillGroup); return value as SupportSkillGroupResponse; }
+export function validateSupportSkillGroupListResponse(value: unknown): SupportSkillGroupListResponse { const result = ok(value, "support skill-group list response"); if (!Array.isArray(result.skillGroups)) throw new TypeError("support skill-group list response.skillGroups must be an array"); result.skillGroups.forEach(skillGroup); nullableString(result.nextCursor, "support skill-group list response.nextCursor"); return value as SupportSkillGroupListResponse; }
+export function validateSupportAgentSkillGroupResponse(value: unknown): SupportAgentSkillGroupResponse { const result = ok(value, "support agent skill-group response"); agent(result.agent); membership(result.membership); return value as SupportAgentSkillGroupResponse; }
+export function validateSupportAgentSkillGroupListResponse(value: unknown): SupportAgentSkillGroupListResponse { const result = ok(value, "support agent skill-group list response"); if (!Array.isArray(result.memberships)) throw new TypeError("support agent skill-group list response.memberships must be an array"); result.memberships.forEach(membership); return value as SupportAgentSkillGroupListResponse; }
+export function validateRemoveSupportAgentSkillGroupResponse(value: unknown): RemoveSupportAgentSkillGroupResponse { const result = ok(value, "remove support agent skill-group response"); agent(result.agent); string(result.removedSkillGroupId, "remove support agent skill-group response.removedSkillGroupId"); return value as RemoveSupportAgentSkillGroupResponse; }
 
-function queryString(filters: SupportTicketListFilters): string { const query = new URLSearchParams(); for (const [key, value] of Object.entries(filters)) if (value !== undefined && value !== "") query.set(key, String(value)); const encoded = query.toString(); return encoded ? `?${encoded}` : ""; }
+function queryString(filters: object): string { const query = new URLSearchParams(); for (const [key, value] of Object.entries(filters)) if (value !== undefined && value !== "") query.set(key, String(value)); const encoded = query.toString(); return encoded ? `?${encoded}` : ""; }
 const ticketPath = (base: string, ticketId: string) => `${base}/${encodeURIComponent(ticketId)}`;
 const idempotent = { retry: "idempotent" as const };
 
@@ -62,6 +111,8 @@ export function createRequesterSupportApi(client: ApiClient) {
 
 export function createAdminSupportApi(client: ApiClient) {
   const base = "/api/internal/support/tickets";
+  const agentsBase = "/api/internal/support/agents";
+  const groupsBase = "/api/internal/support/skill-groups";
   return {
     listSupportTickets(filters: SupportTicketListFilters = {}): Promise<SupportTicketListResponse> { return client.get(`${base}${queryString(filters)}`, { validate: validateSupportTicketListResponse }); },
     getSupportTicket(ticketId: string): Promise<SupportTicketDetailResponse> { return client.get(ticketPath(base, ticketId), { validate: validateSupportTicketDetailResponse }); },
@@ -70,5 +121,18 @@ export function createAdminSupportApi(client: ApiClient) {
     escalateSupportTicket(ticketId: string, body: EscalateSupportTicketRequest): Promise<SupportTicketMutationResponse> { return client.post(`${ticketPath(base, ticketId)}/escalate`, body, { ...idempotent, validate: validateSupportTicketMutationResponse }); },
     resolveSupportTicket(ticketId: string, body: ResolveSupportTicketRequest): Promise<SupportTicketMutationResponse> { return client.post(`${ticketPath(base, ticketId)}/resolve`, body, { ...idempotent, validate: validateSupportTicketMutationResponse }); },
     closeSupportTicket(ticketId: string, body: CloseSupportTicketRequest): Promise<SupportTicketMutationResponse> { return client.post(`${ticketPath(base, ticketId)}/close`, body, { ...idempotent, validate: validateSupportTicketMutationResponse }); },
+    listSupportAgents(filters: SupportAgentListFilters = {}): Promise<SupportAgentListResponse> { return client.get(`${agentsBase}${queryString(filters)}`, { validate: validateSupportAgentListResponse }); },
+    getSupportAgent(agentId: string): Promise<SupportAgentResponse> { return client.get(ticketPath(agentsBase, agentId), { validate: validateSupportAgentResponse }); },
+    createSupportAgent(body: CreateSupportAgentRequest): Promise<SupportAgentResponse> { return client.post(agentsBase, body, { ...idempotent, validate: validateSupportAgentResponse }); },
+    updateSupportAgent(agentId: string, body: UpdateSupportAgentRequest): Promise<SupportAgentResponse> { return client.patch(ticketPath(agentsBase, agentId), body, { ...idempotent, validate: validateSupportAgentResponse }); },
+    deleteSupportAgent(agentId: string, body: DeleteSupportAgentRequest): Promise<SupportAgentResponse> { return client.delete(ticketPath(agentsBase, agentId), body, { ...idempotent, validate: validateSupportAgentResponse }); },
+    listAgentSkillGroups(agentId: string): Promise<SupportAgentSkillGroupListResponse> { return client.get(`${ticketPath(agentsBase, agentId)}/skill-groups`, { validate: validateSupportAgentSkillGroupListResponse }); },
+    addSupportAgentSkillGroup(agentId: string, body: AddSupportAgentSkillGroupRequest): Promise<SupportAgentSkillGroupResponse> { return client.post(`${ticketPath(agentsBase, agentId)}/skill-groups`, body, { ...idempotent, validate: validateSupportAgentSkillGroupResponse }); },
+    removeSupportAgentSkillGroup(agentId: string, skillGroupId: string, body: RemoveSupportAgentSkillGroupRequest): Promise<RemoveSupportAgentSkillGroupResponse> { return client.delete(`${ticketPath(agentsBase, agentId)}/skill-groups/${encodeURIComponent(skillGroupId)}`, body, { ...idempotent, validate: validateRemoveSupportAgentSkillGroupResponse }); },
+    listSupportSkillGroups(filters: SupportSkillGroupListFilters = {}): Promise<SupportSkillGroupListResponse> { return client.get(`${groupsBase}${queryString(filters)}`, { validate: validateSupportSkillGroupListResponse }); },
+    getSupportSkillGroup(skillGroupId: string): Promise<SupportSkillGroupResponse> { return client.get(ticketPath(groupsBase, skillGroupId), { validate: validateSupportSkillGroupResponse }); },
+    createSupportSkillGroup(body: CreateSupportSkillGroupRequest): Promise<SupportSkillGroupResponse> { return client.post(groupsBase, body, { ...idempotent, validate: validateSupportSkillGroupResponse }); },
+    updateSupportSkillGroup(skillGroupId: string, body: UpdateSupportSkillGroupRequest): Promise<SupportSkillGroupResponse> { return client.patch(ticketPath(groupsBase, skillGroupId), body, { ...idempotent, validate: validateSupportSkillGroupResponse }); },
+    deleteSupportSkillGroup(skillGroupId: string, body: DeleteSupportSkillGroupRequest): Promise<SupportSkillGroupResponse> { return client.delete(ticketPath(groupsBase, skillGroupId), body, { ...idempotent, validate: validateSupportSkillGroupResponse }); },
   };
 }
