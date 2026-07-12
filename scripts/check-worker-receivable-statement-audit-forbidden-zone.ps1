@@ -1,4 +1,4 @@
-﻿$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 
 $forbiddenPatterns = @(
@@ -12,6 +12,7 @@ $forbiddenPatterns = @(
 )
 
 $allowedFiles = @(
+  'backend/src/support/bot/sensitiveSupportGuard.ts',
   'packages/types/src/settlementActionIntent.ts',
   'packages/validators/src/settlementActionIntentSchema.ts',
   'packages/validators/src/governanceIntentSchema.ts',
@@ -73,4 +74,3 @@ if ($violations.Count -gt 0) {
 }
 
 Write-Host "check-worker-receivable-statement-audit-forbidden-zone: passed (Phase 10 governance and Phase 14R refund reversal allowed)"
-

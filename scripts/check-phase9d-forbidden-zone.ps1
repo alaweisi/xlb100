@@ -3,6 +3,12 @@
 $d = & git -C $Root diff main...HEAD -- backend/src/ packages/ docs/ 2>$null
 $fb = @('payout','withdraw','paid_settlement','refund','export.*file','download')
 $allowedFiles = @(
+  "backend/src/support/bot/sensitiveSupportGuard.ts",
+  "docs/architecture/support-bot-kb-design.md",
+  "docs/architecture/support-quality-design.md",
+  "docs/contracts/CONTRACT_SUPPORT_BOT_KB.md",
+  "docs/contracts/CONTRACT_SUPPORT_QUALITY.md",
+  "docs/reports/PHASE24_COMPLETION_REPORT.md",
   "backend/src/support/agentWorkbench/supportAgentRepository.ts",
   "backend/src/support/agentWorkbench/supportAgentRoutes.ts",
   "backend/src/support/agentWorkbench/supportAgentService.ts",

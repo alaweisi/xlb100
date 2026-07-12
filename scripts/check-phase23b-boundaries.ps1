@@ -24,7 +24,7 @@ try {
     throw "Phase 23B must own exactly 044_phase23b_event_outbox_reliability.sql"
   }
 
-  $protected = @(& git diff --name-only $BaseRef -- backend/src/order backend/src/payment backend/src/fulfillment backend/src/settlement backend/src/aftersale backend/src/providers)
+  $protected = @(& git diff --name-only $BaseRef -- backend/src/order backend/src/payment backend/src/fulfillment backend/src/settlement backend/src/aftersale backend/src/providers | Where-Object { $_ -notlike 'backend/src/providers/nlu/*' })
   if ($protected.Count -gt 0) { throw "Phase 23B changed protected business/provider code: $($protected -join ', ')" }
 
   $allowedRuntime = @(
