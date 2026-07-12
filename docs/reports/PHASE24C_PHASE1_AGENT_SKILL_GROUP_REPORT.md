@@ -53,8 +53,10 @@ Migrations 000–047 and the Phase 24B tag remain immutable.
   their barrel exports, and API client PATCH/DELETE transport support.
 - Tests and gates: Phase 24C1 contract/integration/security tests, migration and
   aggregate gate scripts, CI workflow, package scripts, and architecture preflight
-  integration. Historical Phase 9A–9E exact document allowlists were extended
-  only for the approved Phase 24C boundary/report documents.
+  integration. Historical Phase 9A–9E exact allowlists now register migration
+  048, the Phase 24C boundary/report documents, and the Support-owned Phase 1
+  repository paths; the Phase 12 per-module write policy now recognizes only
+  the three new `support_*` tables in addition to the locked ticket tables.
 - Documentation: `CONTRACT_SUPPORT_ROUTING.md`, Support module README,
   database dictionaries, this report, Phase 0 approval report, and
   `CURRENT_STATE.md`.
