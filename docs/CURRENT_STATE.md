@@ -33,6 +33,22 @@
 | Phase 23D | LOCKED | xlb-phase23d-performance-quality-closure | Performance and quality closure |
 | Phase 24A | APPROVED | — | Customer support system discovery and design; incremental Phase 17 intake approved |
 | Phase 24B | LOCKED | xlb-phase24b-support-ticket-mvp | City-scoped support ticket MVP across Customer, Worker, and Admin |
+| Phase 24C | PHASE 0 DESIGN / AWAITING APPROVAL | — | Support routing, SLA, skill groups, and agent workbench design only |
+
+## Phase 24C — Routing / SLA / Agent Workbench (PHASE 0 DESIGN)
+
+- **Entered**: 2026-07-12
+- **Branch**: `codex/phase24c-routing-sla-design`
+- **Base**: locked Phase 24B metadata commit `6ac201a`; tag `xlb-phase24b-support-ticket-mvp`
+- **Current scope**: repository discovery and `docs/architecture/support-routing-sla-design.md` only
+- **Discoveries**:
+  - existing recurring jobs are demo-oriented process-local auto-run; SLA must add Support-owned DB claim/CAS while reusing the run-once lifecycle
+  - Support agents bind existing `admin_users` plus explicit real-city `admin_city_scopes`; no parallel identity system
+  - locked `assignedAgentId` remains an Admin user ID
+  - existing NULL skill-group/SLA fields and historical first-response facts are not bulk rewritten
+- **Boundary**: no migration 048, runtime service, API, UI, WebSocket, bot, knowledge base, quality, CSAT, OA, or protected-domain mutation during Phase 0
+- **Design report**: `docs/reports/PHASE24C_ROUTING_SLA_DESIGN_REPORT.md`
+- **Exit requirement**: explicit human approval of the design decisions before Phase 24C Phase 1
 
 ## Phase 24B — Support Ticket MVP (LOCKED)
 
@@ -60,7 +76,7 @@
   - no payment, dispatch, worker-finance, ledger, settlement, payout, refund-provider, WebSocket, bot, knowledge-base, SLA-routing, or CSAT implementation
   - no mutation of migrations `000`–`046`, locked tags, or existing domain state machines
 - **Lock verification**: branch and post-merge build 11/11, typecheck 17/17, full regression 174 files / 494 tests, Phase 24B aggregate gate, migration/seed, persisted three-app browser flow, and architecture preflight all passed
-- **Lock state**: LOCKED; Phase 24C has not been entered
+- **Lock state**: LOCKED; Phase 24C subsequently entered Phase 0 design only
 
 ## Phase 24A — Customer Support System Discovery And Design (APPROVED)
 

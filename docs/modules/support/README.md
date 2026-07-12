@@ -2,13 +2,15 @@
 
 ## 当前状态
 
-Phase 24A 设计已获人工批准；Phase 24B 工单 MVP 已完成施工、验证并 Lock，tag 为 `xlb-phase24b-support-ticket-mvp`。实时会话、路由/SLA、机器人、知识库、质检和 CSAT 仍未进入范围，不能据此声称这些能力已经上线。
+Phase 24A 设计已获人工批准；Phase 24B 工单 MVP 已完成施工、验证并 Lock，tag 为 `xlb-phase24b-support-ticket-mvp`。Phase 24C 当前仅完成路由/SLA/坐席工作台的 Phase 0 探测与设计，等待人工确认，尚无迁移或运行时代码。实时会话、机器人、知识库、质检和 CSAT 仍未进入范围，不能据此声称这些能力已经上线。
 
 设计事实源：
 
 - `docs/architecture/support-system-design.md`
 - `docs/diagrams/support-system-architecture.md`
 - `docs/reports/PHASE24_SUPPORT_SYSTEM_DESIGN_REPORT.md`
+- `docs/architecture/support-routing-sla-design.md`
+- `docs/reports/PHASE24C_ROUTING_SLA_DESIGN_REPORT.md`
 
 ## 目标子模块
 
@@ -38,4 +40,4 @@ Phase 24 会逐步**纳管** Phase 17 的客服入口、坐席工作台、通用
 
 ## 实施节奏
 
-Phase 24A 仅设计；Phase 24B 工单 MVP 已 Lock。Phase 24C 路由/SLA 尚未进入；后续依次为 24D 实时 IM、24E 机器人/知识库、24F 质检/满意度。每一阶段必须独立迁移、契约、测试、Gate、报告与人工验收。
+Phase 24A 仅设计；Phase 24B 工单 MVP 已 Lock。Phase 24C Phase 0 设计已完成并停在人工确认点；确认后才可进入坐席/技能组、自动路由/SLA、超时任务/完整工作台三个施工分片。后续依次为 24D 实时 IM、24E 机器人/知识库、24F 质检/满意度。每一阶段必须独立迁移、契约、测试、Gate、报告与人工验收。
