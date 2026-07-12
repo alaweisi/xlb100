@@ -1,4 +1,5 @@
 import Fastify from "fastify";
+import websocket from "@fastify/websocket";
 import type { FastifyInstance } from "fastify";
 import { XLB_HEADERS } from "@xlb/types";
 import {
@@ -41,6 +42,7 @@ export type BuildAppOptions = {
 
 export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyInstance> {
   const app = Fastify({ logger: process.env.NODE_ENV === "test" ? false : true });
+  await app.register(websocket, { options: { maxPayload: 65_536, perMessageDeflate: false } });
 
   app.addHook("onRequest", createRateLimitGuard(options.rateLimit));
   app.addHook("onResponse", async (request, reply) => {

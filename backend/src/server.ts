@@ -1,6 +1,7 @@
 import { loadEnv } from "@xlb/config";
 import { buildApp } from "./app.js";
 import { startAutoRunJobs, type AutoRunHandle } from "./jobs/autoRun.js";
+import { closeRedisClient } from "./dal/redisClient.js";
 
 async function main() {
   const env = loadEnv();
@@ -15,6 +16,7 @@ async function main() {
     autoRun?.stop();
     try {
       await app.close();
+      await closeRedisClient();
       app.log.info({ signal }, "backend shutdown completed");
       process.exit(0);
     } catch (err) {

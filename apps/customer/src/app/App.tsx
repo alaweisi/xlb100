@@ -167,6 +167,11 @@ export function App() {
       getTicket: (ticketId) => api.getSupportTicket(ticketId),
       addComment: (ticketId, input) => api.addSupportTicketComment(ticketId, input),
       reopenTicket: (ticketId, input) => api.reopenSupportTicket(ticketId, input),
+      submitCsat: (ticketId,input) => api.submitSupportTicketCsat(ticketId,input),
+      createConversation: (input) => api.createSupportConversation(input),
+      listConversations: () => api.listSupportConversations(),
+      getConversation: (conversationId) => api.getSupportConversation(conversationId),
+      sendConversationMessage: (conversationId, input) => api.sendSupportMessage(conversationId, input),
     };
     return <CustomerSupportPage api={supportApi} />;
   }

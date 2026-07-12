@@ -33,9 +33,29 @@
 | Phase 23D | LOCKED | xlb-phase23d-performance-quality-closure | Performance and quality closure |
 | Phase 24A | APPROVED | — | Customer support system discovery and design; incremental Phase 17 intake approved |
 | Phase 24B | LOCKED | xlb-phase24b-support-ticket-mvp | City-scoped support ticket MVP across Customer, Worker, and Admin |
-| Phase 24C | PHASE 3 IN PROGRESS | — | SLA breach detection, public-pool claim, and Admin agent workbench |
+| Phase 24C | IMPLEMENTATION VERIFIED — AWAITING JOINT ACCEPTANCE | — | SLA breach detection, public-pool claim, and Admin agent workbench |
+| Phase 24D | IMPLEMENTATION VERIFIED — AWAITING JOINT ACCEPTANCE | — | Realtime conversation, durable messaging, reconnect recovery, and presence |
+| Phase 24E | IMPLEMENTATION VERIFIED — AWAITING JOINT ACCEPTANCE | — | Knowledge base and deterministic/mock bot orchestration |
+| Phase 24F | IMPLEMENTATION VERIFIED — AWAITING JOINT ACCEPTANCE | — | CSAT, quality review, and support operations metrics |
 
-## Phase 24C — Routing / SLA / Agent Workbench (PHASE 3 IN PROGRESS)
+## Phase 24 Combined Completion Authorization
+
+- **Authorized**: 2026-07-12 by explicit human instruction to complete all remaining Phase 24 work before one final acceptance
+- **Construction branch**: `codex/phase24-completion`
+- **Execution policy**: 24C, 24D, 24E, and 24F retain independent migrations, contracts, tests, gates, reports, and rollback boundaries; intermediate human acceptance pauses are waived
+- **Finalization policy**: no final Phase 24 Lock/tag until 24F delivery and the combined Phase 24 completion gate have passed
+- **Governance boundary**: Phase 0–23 are not reorganized; Phase 24A–24F numbering remains unchanged; migration `024` is a permanent historical gap; Phase 25 is not created
+- **Joint acceptance state**: Phase 24C–24F implementations and their independent aggregate gates are verified. They remain deliberately untagged and not locked until the combined Phase 24 completion gate and explicit human acceptance finish.
+
+### Phase 24D–24F construction verification
+
+- **Phase 24D**: aggregate gate passed; contract 3/3; three-app UI bindings 3/3; realtime integration/concurrency/security 4/4; migration 051 replay passed; workspace typecheck 17/17; build 11/11; critical audit passed.
+- **Phase 24E**: aggregate gate passed; boundary/contract/UI/integration/security and migration 052 replay passed; workspace typecheck 17/17; build 11/11; critical audit passed.
+- **Phase 24F**: aggregate gate passed; contract 3/3, integration/concurrency/security 3/3, requester/Admin UI 2/2; migration 053 double replay/schema/index gate passed; Customer/Worker/Admin and backend typechecks passed; protected-domain write scan passed.
+- **Lock truth**: no Phase 24C, 24D, 24E or 24F Lock tag exists at this point. Final commit/tag/clean-worktree evidence is pending joint human acceptance and the Lock workflow.
+- **Joint verification**: `gate:phase24` passed; migration 051–053 replay passed; full regression passed 184 files / 518 tests; typecheck 17/17; build 11/11; critical dependency audit clean; architecture preflight passed through the combined Phase 24 boundary.
+
+## Phase 24C — Routing / SLA / Agent Workbench (IMPLEMENTATION VERIFIED — AWAITING JOINT ACCEPTANCE)
 
 - **Entered**: 2026-07-12
 - **Design branch**: `codex/phase24c-routing-sla-design`
@@ -62,7 +82,7 @@
 - **Phase 2 status**: accepted; Phase 3 entered by explicit human approval
 - **Phase 3 report**: `docs/reports/PHASE24C_PHASE3_SLA_WORKBENCH_REPORT.md`
 - **Phase 3 verification**: aggregate gate passed; contract/unit 5/5; integration 2/2; Admin UI 3/3; security 1/1; migration 050 schema/re-execution; typecheck 17/17; build 11/11; full regression 180 files / 505 tests; complete architecture preflight passed; critical audit clean
-- **Status note**: Phase 1 and Phase 2 accepted; Phase 24C Phase 3 implementation is verified, awaiting explicit human acceptance, and remains not locked
+- **Status note**: Phase 1 and Phase 2 accepted; Phase 24C Phase 3 implementation is verified and carried into the authorized joint Phase 24 acceptance. It remains not locked and untagged.
 - **Exit requirement**: Phase 3 migration/contract/integration/UI/security gates and explicit human acceptance before Phase 24C Lock consideration
 
 ## Phase 24B — Support Ticket MVP (LOCKED)

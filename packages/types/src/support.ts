@@ -82,6 +82,81 @@ export interface SupportTicket {
   updatedAt: string;
 }
 
+export type SupportConversationSource = "customer" | "worker" | "enterprise";
+export type SupportConversationStatus = "queueing" | "active" | "transferred" | "closed";
+export type SupportConversationParticipantType = "customer" | "worker" | "agent";
+export type SupportMessageSenderType = SupportConversationParticipantType | "system";
+export type SupportMessageType = "text" | "image" | "system";
+
+export interface SupportConversation {
+  conversationId: string;
+  cityCode: CityCode;
+  source: SupportConversationSource;
+  requesterId: string;
+  businessClientId: string | null;
+  status: SupportConversationStatus;
+  assignedAgentId: string | null;
+  linkedTicketId: string | null;
+  lastServerSeq: number;
+  version: number;
+  startedAt: string;
+  acceptedAt: string | null;
+  transferredAt: string | null;
+  closedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SupportMessage {
+  messageId: string;
+  cityCode: CityCode;
+  conversationId: string;
+  senderType: SupportMessageSenderType;
+  senderId: string | null;
+  clientMessageId: string;
+  serverSeq: number;
+  messageType: SupportMessageType;
+  textContent: string | null;
+  mediaAssetId: string | null;
+  createdAt: string;
+}
+
+export interface CreateSupportConversationRequest { linkedTicketId?: string; idempotencyKey: string; }
+export interface SendSupportMessageRequest {
+  clientMessageId: string;
+  messageType: "text" | "image";
+  textContent?: string;
+  mediaAssetId?: string;
+  idempotencyKey: string;
+}
+export interface MarkSupportConversationReadRequest { lastReadServerSeq: number; expectedVersion: number; idempotencyKey: string; }
+export interface AcceptSupportConversationRequest { expectedVersion: number; idempotencyKey: string; }
+export interface TransferSupportConversationRequest { assignedAgentId: string; expectedVersion: number; idempotencyKey: string; }
+export interface CloseSupportConversationRequest { reason?: string; expectedVersion: number; idempotencyKey: string; }
+export interface SupportConversationListFilters { status?: SupportConversationStatus; view?: "mine" | "queue" | "all"; cursor?: string; limit?: number; }
+export interface SupportMessageListFilters { afterSeq?: number; limit?: number; }
+export interface SupportConversationResponse { ok: true; conversation: SupportConversation; }
+export interface SupportConversationListResponse { ok: true; conversations: SupportConversation[]; nextCursor: string | null; }
+export interface SupportConversationDetailResponse { ok: true; conversation: SupportConversation; messages: SupportMessage[]; }
+export interface SupportMessageResponse { ok: true; message: SupportMessage; idempotent: boolean; }
+export interface SupportMessageListResponse { ok: true; messages: SupportMessage[]; nextAfterSeq: number | null; hasMore: boolean; }
+export interface SupportRealtimeTicketResponse { ok: true; ticket: string; expiresAt: string; }
+
+export type SupportRealtimeClientFrame =
+  | { type: "subscribe"; protocolVersion: 1; requestId: string; conversationId: string; afterSeq: number }
+  | { type: "send_message"; protocolVersion: 1; requestId: string; conversationId: string; clientMessageId: string; messageType: "text" | "image"; textContent?: string; mediaAssetId?: string }
+  | { type: "mark_read"; protocolVersion: 1; requestId: string; conversationId: string; lastReadServerSeq: number }
+  | { type: "ping"; protocolVersion: 1; requestId: string };
+
+export type SupportRealtimeServerFrame =
+  | { type: "ready"; protocolVersion: 1; connectionId: string; serverTime: string }
+  | { type: "catchup"; protocolVersion: 1; requestId: string; conversationId: string; messages: SupportMessage[]; hasMore: boolean }
+  | { type: "message_created"; protocolVersion: 1; conversationId: string; message: SupportMessage }
+  | { type: "conversation_updated"; protocolVersion: 1; conversation: SupportConversation }
+  | { type: "message_ack"; protocolVersion: 1; requestId: string; message: SupportMessage; idempotent: boolean }
+  | { type: "error"; protocolVersion: 1; requestId?: string; code: string; message: string }
+  | { type: "pong"; protocolVersion: 1; requestId: string; serverTime: string };
+
 export interface SupportTicketEvent {
   ticketEventId: string;
   cityCode: CityCode;
@@ -428,3 +503,54 @@ export interface SupportSlaPolicyListResponse {
   policies: SupportSlaPolicy[];
   nextCursor: string | null;
 }
+
+export type SupportQualityTargetType = "ticket" | "conversation";
+export interface SubmitSupportCsatRequest { score: 1|2|3|4|5; comment?: string; idempotencyKey: string; }
+export interface SupportCsat { csatId:string;cityCode:string;targetType:SupportQualityTargetType;targetId:string;score:number;comment:string|null; }
+export interface SupportCsatResponse { ok:true;csat:SupportCsat; }
+export interface SupportRubricCriterion { key:string;weight:number;maxScore:number;label?:string; }
+export interface CreateSupportQualityRubricRequest { name:string;criteria:SupportRubricCriterion[]; }
+export interface SupportQualityRubric { rubricId:string;rubricVersionId:string;name:string;criteria:SupportRubricCriterion[];contentHash:string; }
+export interface SupportQualityRubricResponse { ok:true;rubric:SupportQualityRubric; }
+export interface CreateSupportQualityReviewRequest { targetType:SupportQualityTargetType;targetId:string;rubricVersionId:string;criterionScores:Record<string,number>;finding?:string;idempotencyKey:string; }
+export interface SupportQualityReview { qualityReviewId:string;overallScore:number;rubricSnapshot:SupportRubricCriterion[];rubricContentHash:string; }
+export interface SupportQualityReviewResponse { ok:true;review:SupportQualityReview; }
+export interface SupportQualityDashboard { response_count:number|string;average_score:number|string;score_1:number|string;score_2:number|string;score_3:number|string;score_4:number|string;score_5:number|string;review_count:number|string;average_review_score:number|string; }
+export interface SupportQualityDashboardResponse { ok:true;dashboard:SupportQualityDashboard; }
+
+export type SupportKbArticleStatus = "draft" | "published" | "archived";
+export type SupportKbReviewStatus = "draft" | "pending_review" | "approved" | "rejected";
+export type SupportKbReviewAction = "submitted" | "approved" | "rejected" | "published" | "archived";
+export interface SupportKbArticle {
+  articleId: string; cityCode: CityCode; slug: string; language: string;
+  lifecycleStatus: SupportKbArticleStatus; currentDraftVersionId: string | null;
+  publishedVersionId: string | null; version: number; createdByAdminId: string;
+}
+export interface SupportKbArticleVersion {
+  articleVersionId: string; cityCode: CityCode; articleId: string; revision: number;
+  title: string; summary: string | null; bodyMarkdown: string; keywords: string[]; intentTags: string[];
+  reviewStatus: SupportKbReviewStatus; createdByAdminId: string; contentSha256: string;
+}
+export interface CreateSupportKbArticleRequest {
+  slug: string; language: string; categoryId?: string; skuId?: string; title: string; summary?: string;
+  bodyMarkdown: string; keywords: string[]; intentTags: string[]; idempotencyKey: string;
+}
+export interface CreateSupportKbRevisionRequest {
+  expectedVersion: number; title: string; summary?: string; bodyMarkdown: string;
+  keywords: string[]; intentTags: string[]; idempotencyKey: string;
+}
+export interface ReviewSupportKbRevisionRequest { note?: string; idempotencyKey: string; }
+export interface PublishSupportKbRevisionRequest { versionId: string; expectedVersion: number; idempotencyKey: string; }
+export interface SupportKbMutationResponse { ok: true; article: SupportKbArticle; version: SupportKbArticleVersion; idempotent?: boolean; }
+
+export type SupportBotProvider = "deterministic" | "mock";
+export type SupportBotProviderStatus = "matched_local" | "no_match_local" | "forced_mock";
+export type SupportBotDecision = "reply" | "hand_off" | "no_match";
+export interface SupportBotRun {
+  botRunId: string; cityCode: CityCode; conversationId: string; triggerMessageId: string;
+  provider: SupportBotProvider; providerStatus: SupportBotProviderStatus; externalProviderExecuted: false;
+  providerRuleVersion: string; intent: string | null; confidenceBasisPoints: number;
+  sensitiveClassification: string | null; decision: SupportBotDecision; reasonCodes: string[];
+  matchedArticleVersionIds: string[]; responseMessageId: string | null;
+}
+export interface SupportBotRunResponse { ok: true; run: SupportBotRun; }

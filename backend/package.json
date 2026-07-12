@@ -11,15 +11,18 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@fastify/websocket": "^11.3.0",
     "@xlb/config": "workspace:*",
     "@xlb/shared": "workspace:*",
     "@xlb/types": "workspace:*",
     "@xlb/validators": "workspace:*",
     "fastify": "^5.2.0",
     "ioredis": "^5.4.2",
-    "mysql2": "^3.12.0"
+    "mysql2": "^3.12.0",
+    "ws": "^8.18.0"
   },
   "devDependencies": {
+    "@types/ws": "^8.18.1",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2"
   }

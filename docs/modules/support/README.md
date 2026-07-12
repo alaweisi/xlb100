@@ -1,5 +1,29 @@
 # Support / 客服系统
 
+## Phase 24 completion architecture
+
+The Support domain is delivered incrementally without absorbing the protected
+business semantics owned by Phase 17 or other domains:
+
+| Phase | Module | Durable source / boundary |
+|---|---|---|
+| 24B | `ticket` | MySQL tickets/events; Support status only |
+| 24C | `agentWorkbench`, `routing` | Admin-bound agents, skills, SLA snapshots and breach facts |
+| 24D | `conversation` | MySQL messages and sequence; Redis is non-durable fanout/presence |
+| 24E | `knowledgeBase`, `bot` | Immutable approved KB versions; deterministic/mock NLU only |
+| 24F | `quality` | CSAT and immutable rubric/review snapshots; no Worker score mutation |
+
+Shared contracts remain in `@xlb/types` and `@xlb/validators`; all application
+access goes through `@xlb/api-client`. Every resource is real-city scoped and
+uses RequestContext, role/ownership guards, bounded pagination, idempotency and
+CAS where applicable. Support must not directly write order, payment, dispatch,
+aftersale, ledger or settlement tables.
+
+The combined completion command is `pnpm gate:phase24`. It fails closed unless
+the independent 24C3/24D/24E/24F gates, migrations 051–053, typecheck, build and
+critical dependency audit all pass. This command is verification only; it does
+not perform Lock, tagging or Phase-number governance.
+
 ## Phase 24C Phase 3 delivery
 
 Phase 3 activates the two SLA breach markers through append-only migration

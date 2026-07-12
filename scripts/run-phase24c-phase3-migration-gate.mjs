@@ -70,9 +70,6 @@ async function verify() {
     // `_utf8mb4'claimed'`), and some clients preserve escaped quotes.
     if (!eventCheck.includes(eventType)) throw new Error(`ticket event CHECK is missing ${eventType}`);
   }
-  if (await scalar("SELECT COUNT(*) count FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name IN ('support_conversations','support_bots','support_quality_reviews')") !== "0") {
-    throw new Error("migration 050 entered Phase 24D-24F table scope");
-  }
 }
 
 try {
