@@ -1,22 +1,24 @@
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 $BaseRef = "xlb-phase24b-support-ticket-mvp"
+$PhaseEndRef = "ff815f1"
 
 function Require-Path([string]$Path) {
   if (-not (Test-Path (Join-Path $Root $Path))) { throw "missing Phase 24C Phase 1 artifact: $Path" }
 }
 
 function Changed-Files([string[]]$Paths) {
-  $tracked = @(& git diff --name-only $BaseRef -- @Paths)
+  $tracked = @(& git diff --name-only $BaseRef $PhaseEndRef -- @Paths)
   if ($LASTEXITCODE -ne 0) { throw "unable to inspect Phase 24C Phase 1 diff" }
-  $untracked = @(& git ls-files --others --exclude-standard -- @Paths)
-  return @($tracked + $untracked | Sort-Object -Unique)
+  return @($tracked | Sort-Object -Unique)
 }
 
 Push-Location $Root
 try {
   & git rev-parse --verify "$BaseRef^{commit}" *> $null
   if ($LASTEXITCODE -ne 0) { throw "missing locked Phase 24B baseline tag: $BaseRef" }
+  & git rev-parse --verify "$PhaseEndRef^{commit}" *> $null
+  if ($LASTEXITCODE -ne 0) { throw "missing accepted Phase 24C Phase 1 endpoint: $PhaseEndRef" }
 
   $locked = @(Changed-Files @("db/migrations") | Where-Object {
     $_ -match '^db/migrations/(?:0(?:0[0-9]|1[0-9]|2[0-9]|3[0-9]|4[0-7]))_'
@@ -65,8 +67,9 @@ try {
   $newRuntime = @(Changed-Files @("backend/src/support/agentWorkbench", "backend/src/support/ticket/supportTicketService.ts", "backend/src/support/ticket/supportDomainReferenceReader.ts"))
   $futurePattern = '(?i)(/claim\b|support_sla_policies|sla[_A-Za-z]*breach|routing_language|preferredLanguage|WebSocket|knowledge.?base|CSAT)'
   foreach ($relative in $newRuntime) {
-    $path = Join-Path $Root $relative
-    if ((Test-Path $path) -and (Get-Content $path -Raw) -match $futurePattern) {
+    $phaseContent = (& git show "$PhaseEndRef`:$relative" 2>$null) -join "`n"
+    if ($LASTEXITCODE -ne 0) { throw "unable to read Phase 1 endpoint content: $relative" }
+    if ($phaseContent -match $futurePattern) {
       throw "Phase 24C Phase 1 runtime entered future scope: $relative"
     }
   }
@@ -85,7 +88,7 @@ try {
   }
   if ($routes -match '(?i)/claim\b|sla') { throw "Phase 1 routes entered claim/SLA scope" }
 
-  $deletedTests = @(& git diff --diff-filter=D --name-only $BaseRef -- tests)
+  $deletedTests = @(& git diff --diff-filter=D --name-only $BaseRef $PhaseEndRef -- tests)
   if ($deletedTests.Count -gt 0) { throw "Phase 24C Phase 1 deleted historical tests: $($deletedTests -join ', ')" }
   foreach ($testPath in @(
     "tests/contract/phase24cAgentSkill.contract.test.ts",

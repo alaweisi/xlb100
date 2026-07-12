@@ -3,6 +3,7 @@ import type { AdminAddSupportTicketCommentRequest, AssignSupportTicketRequest, C
 import { ApiErrorPanel, Button, Card, EmptyState, FormField, Input, LoadingState, ScopeBadge, Select, StatusTag, Table, Textarea } from "@xlb/ui";
 import { adminOpsApi as api } from "../adminAuth";
 import { initialAdminSupportUiState, adminSupportUiReducer } from "../features/support/reducer";
+import { SupportRoutingConfigPage } from "./SupportRoutingConfigPage";
 
 const requestKey = (prefix: string) => `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 const tone = (status: SupportTicketStatus) => status === "resolved" || status === "closed" ? "success" : status === "escalated" ? "danger" : status === "processing" ? "primary" : "warning";
@@ -17,6 +18,7 @@ export function SupportTicketsPage({ initialCityCode }: { initialCityCode?: stri
   const [assignedAgentId, setAssignedAgentId] = useState(""); const [comment, setComment] = useState("");
   const [commentVisibility, setCommentVisibility] = useState<AdminAddSupportTicketCommentRequest["visibility"]>("all");
   const [reason, setReason] = useState(""); const [resolutionCode, setResolutionCode] = useState("answered"); const [resolutionNote, setResolutionNote] = useState("");
+  const [showConfiguration, setShowConfiguration] = useState(false);
   const filters = useMemo<SupportTicketListFilters>(() => ({ status: status || undefined, priority: priority || undefined, source: source || undefined, type: type || undefined, limit: 100 }), [priority, source, status, type]);
   const load = useCallback(async () => { dispatch({ type: "started", operation: "list" }); try { window.history.replaceState({}, "", `#/support?cityCode=${encodeURIComponent(cityCode)}`); const result = await api.listSupportTickets(filters); setTickets(result.tickets); dispatch({ type: "succeeded" }); } catch (error) { dispatch({ type: "failed", message: error instanceof Error ? error.message : "Unable to load support queue" }); } }, [cityCode, filters]);
   const open = useCallback(async (ticketId: string) => { dispatch({ type: "started", operation: `detail:${ticketId}` }); try { const result = await api.getSupportTicket(ticketId); setDetail(result.detail); setAssignedAgentId(result.detail.ticket.assignedAgentId || ""); dispatch({ type: "succeeded" }); } catch (error) { dispatch({ type: "failed", message: error instanceof Error ? error.message : "Unable to load ticket detail" }); } }, []);
@@ -24,6 +26,8 @@ export function SupportTicketsPage({ initialCityCode }: { initialCityCode?: stri
   async function mutate(label: string, action: (ticketId: string, version: number) => Promise<SupportTicketMutationResponse>) { if (!detail) return; const id = detail.ticket.ticketId; dispatch({ type: "started", operation: label }); try { await action(id, detail.ticket.version); const [list, selected] = await Promise.all([api.listSupportTickets(filters), api.getSupportTicket(id)]); setTickets(list.tickets); setDetail(selected.detail); dispatch({ type: "succeeded", message: `${label} completed` }); } catch (error) { dispatch({ type: "failed", message: error instanceof Error ? error.message : `${label} failed` }); } }
   const busy = ui.busy !== null;
   return <div style={{ display: "grid", gap: 16 }}>
+    <Card title="Support routing and SLA"><Button onClick={() => setShowConfiguration(value => !value)}>{showConfiguration ? "Close routing configuration" : "Open routing configuration"}</Button></Card>
+    {showConfiguration && <SupportRoutingConfigPage cityCode={cityCode} />}
     <Card title="Support Ticket Queue" actions={<ScopeBadge scope={`city: ${cityCode}`} />}><div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))", gap: 10 }}>
       <FormField label="City"><Input value={cityCode} onChange={event => setCityCode(event.target.value)} /></FormField>
       <FormField label="Status"><Select value={status} onChange={event => setStatus(event.target.value as SupportTicketStatus | "")}><option value="">All</option><option value="open">Open</option><option value="processing">Processing</option><option value="waiting_requester">Waiting requester</option><option value="escalated">Escalated</option><option value="resolved">Resolved</option><option value="closed">Closed</option></Select></FormField>

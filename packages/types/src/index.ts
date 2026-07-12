@@ -360,4 +360,11 @@ export type {
   SupportAgentSkillGroupResponse,
   SupportAgentSkillGroupListResponse,
   RemoveSupportAgentSkillGroupResponse,
+  SupportSlaPolicy,
+  CreateSupportSlaPolicyRequest,
+  ReviseSupportSlaPolicyRequest,
+  UpdateSupportSlaPolicyRequest,
+  SupportSlaPolicyListFilters,
+  SupportSlaPolicyResponse,
+  SupportSlaPolicyListResponse,
 } from "./support.js";

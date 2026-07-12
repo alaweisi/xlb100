@@ -534,3 +534,6 @@ Write-Host "XLB Phase 24B support ticket MVP preflight passed."
 
 Invoke-PreflightGate "check-phase24c-phase1-boundaries.ps1"
 Write-Host "XLB Phase 24C Phase 1 agent and skill-group boundary preflight passed."
+
+Invoke-PreflightGate "check-phase24c-phase2-boundaries.ps1"
+Write-Host "XLB Phase 24C Phase 2 routing and SLA boundary preflight passed."

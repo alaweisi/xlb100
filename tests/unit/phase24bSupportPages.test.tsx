@@ -21,7 +21,7 @@ const ticket = (overrides: Partial<SupportTicket> = {}): SupportTicket => ({
   type: "order_question", priority: "normal", status: "open",
   subject: "Where is my order", description: "Please check my order status",
   relatedOrderId: null, relatedWorkerId: null, linkedAftersaleComplaintId: null,
-  assignedAgentId: null, assignedSkillGroupId: null,
+  assignedAgentId: null, assignedSkillGroupId: null, routingLanguage: null,
   slaFirstResponseDueAt: null, slaResolutionDueAt: null, firstRespondedAt: null,
   resolvedAt: null, closedAt: null, resolutionCode: null, version: 0,
   createdAt: at, updatedAt: at, ...overrides,

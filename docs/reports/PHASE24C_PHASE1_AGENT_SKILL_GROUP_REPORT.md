@@ -4,7 +4,7 @@
 
 - Branch: `codex/phase24c-phase1-agent-skill-groups`
 - Base: approved Phase 24C Phase 0 design commit `35bae96`
-- Status: **IMPLEMENTATION VERIFIED — AWAITING HUMAN ACCEPTANCE — NOT LOCKED**
+- Status: **ACCEPTED BY HUMAN — NOT LOCKED**
 - Migration: `048_phase24c_support_agents_skill_groups.sql`
 
 ## Scope
@@ -63,8 +63,9 @@ Migrations 000–047 and the Phase 24B tag remain immutable.
 
 ## Acceptance note
 
-The implementation is ready for human acceptance. It is intentionally not
-tagged or locked, and Phase 2 automatic routing/SLA work has not started.
+Human acceptance was received on 2026-07-12. Phase 24C remains intentionally
+untagged and unlocked; Phase 2 automatic routing/SLA work entered on its own
+feature branch after that approval.
 
 ## Exit condition
 

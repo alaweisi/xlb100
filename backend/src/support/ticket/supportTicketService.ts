@@ -18,6 +18,8 @@ import { withTransaction } from "../../dal/transaction.js";
 import { assertCityScopedContext } from "../../dal/scopedExecutor.js";
 import { eventOutboxRepository, type EventOutboxRepository } from "../../events/eventOutbox.js";
 import { generateEventId } from "../../events/eventIds.js";
+import { supportRoutingService, type SupportRoutingService } from "../routing/supportRoutingService.js";
+import { supportSlaPolicyRepository, type SupportSlaPolicyRepository } from "../routing/supportSlaPolicyRepository.js";
 import { supportDomainReferenceReader, type SupportDomainReferenceReader } from "./supportDomainReferenceReader.js";
 import { generateSupportTicketEventId, generateSupportTicketId } from "./supportTicketIds.js";
 import { supportTicketRepository, type SupportTicketRepository, type TicketCursor } from "./supportTicketRepository.js";
@@ -25,6 +27,14 @@ import { assertSupportTicketTransition } from "./supportTicketStateMachine.js";
 
 type TransactionRunner = <T>(fn: (connection: PoolConnection) => Promise<T>) => Promise<T>;
 type RequesterIdentity = { source: "customer" | "worker"; requesterId: string };
+type EmergencySlaSignal = (value: { cityCode: CityCode; type: string; priority: string }) => void;
+
+const emitEmergencySlaSignal: EmergencySlaSignal = (value) => {
+  if (process.env.NODE_ENV === "test") return;
+  process.emitWarning(JSON.stringify({ event: "support.sla.emergency_fallback", ...value }), {
+    code: "XLB_SUPPORT_SLA_EMERGENCY_FALLBACK",
+  });
+};
 
 export class SupportTicketValidationError extends Error {}
 export class SupportTicketForbiddenError extends Error {}
@@ -83,7 +93,8 @@ function sameCreate(existing: SupportTicket, input: CreateSupportTicketRequest, 
     && existing.subject === input.subject && existing.description === input.description
     && existing.relatedOrderId === (input.relatedOrderId ?? null)
     && existing.relatedWorkerId === relatedWorkerId
-    && existing.linkedAftersaleComplaintId === (input.linkedAftersaleComplaintId ?? null);
+    && existing.linkedAftersaleComplaintId === (input.linkedAftersaleComplaintId ?? null)
+    && existing.routingLanguage === (input.preferredLanguage?.toLowerCase() ?? null);
 }
 
 function encodeCursor(ticket: SupportTicket): string {
@@ -108,6 +119,9 @@ export class SupportTicketService {
     private readonly referenceReader: SupportDomainReferenceReader = supportDomainReferenceReader,
     private readonly outbox: EventOutboxRepository = eventOutboxRepository,
     private readonly transactionRunner: TransactionRunner = withTransaction,
+    private readonly routing: SupportRoutingService = supportRoutingService,
+    private readonly slaPolicies: SupportSlaPolicyRepository = supportSlaPolicyRepository,
+    private readonly emergencySlaSignal: EmergencySlaSignal = emitEmergencySlaSignal,
   ) {}
 
   private async validateReferences(connection: PoolConnection, input: {
@@ -218,17 +232,47 @@ export class SupportTicketService {
         return { ticket: existing };
       }
       await this.validateReferences(connection, { cityCode, identity, request: input, relatedWorkerId });
+      const routingLanguage = input.preferredLanguage?.toLowerCase() ?? null;
+      const routing = await this.routing.selectSkillGroup(connection, {
+        cityCode, type: input.type, preferredLanguage: routingLanguage,
+      });
+      const databaseNow = await this.slaPolicies.databaseNow(connection);
+      const exactPolicy = await this.slaPolicies.findEffective(connection, {
+        cityCode, type: input.type, priority: input.priority, at: databaseNow,
+      });
+      const policy = exactPolicy ?? await this.slaPolicies.findEffective(connection, {
+        cityCode, type: "other", priority: "normal", at: databaseNow,
+      });
+      if (!policy) this.emergencySlaSignal({ cityCode, type: input.type, priority: input.priority });
+      const firstResponseMinutes = policy?.firstResponseMinutes ?? 240;
+      const resolutionMinutes = policy?.resolutionMinutes ?? 2_880;
+      const slaFirstResponseDueAt = new Date(databaseNow.getTime() + firstResponseMinutes * 60_000);
+      const slaResolutionDueAt = new Date(databaseNow.getTime() + resolutionMinutes * 60_000);
       const ticketId = generateSupportTicketId();
       await this.repository.insertTicket(connection, {
         ticketId, cityCode, source: identity.source, requesterId: identity.requesterId,
         type: input.type, priority: input.priority, subject: input.subject, description: input.description,
         relatedOrderId: input.relatedOrderId ?? null, relatedWorkerId,
-        linkedAftersaleComplaintId: input.linkedAftersaleComplaintId ?? null, idempotencyKey: input.idempotencyKey,
+        linkedAftersaleComplaintId: input.linkedAftersaleComplaintId ?? null,
+        assignedSkillGroupId: routing.skillGroupId, routingLanguage,
+        slaFirstResponseDueAt, slaResolutionDueAt, slaCalculatedAt: databaseNow,
+        idempotencyKey: input.idempotencyKey,
       });
       const ticket = (await this.repository.findForUpdate(connection, cityCode, ticketId))!;
       await this.insertEvent(connection, {
         cityCode, ticketId, eventType: "created", context, visibility: "all", content: input.description,
-        payload: { status: "open", version: ticket.version }, idempotencyKey: input.idempotencyKey,
+        payload: {
+          status: "open", version: ticket.version,
+          routingLanguage, assignedSkillGroupId: routing.skillGroupId,
+          routingMatchKind: routing.matchKind,
+          slaPolicyId: policy?.policyId ?? null,
+          slaPolicySeriesId: policy?.policySeriesId ?? null,
+          slaPolicyRevision: policy?.revision ?? null,
+          slaPolicyMatchKind: exactPolicy ? "exact" : policy ? "city_fallback" : "emergency_fallback",
+          slaFirstResponseMinutes: firstResponseMinutes,
+          slaResolutionMinutes: resolutionMinutes,
+          slaCalculatedAt: databaseNow.toISOString(),
+        }, idempotencyKey: input.idempotencyKey,
       });
       await this.insertOutbox(connection, ticket, "support.ticket.created", context);
       return { ticket };

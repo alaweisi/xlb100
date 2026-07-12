@@ -43,6 +43,8 @@ export const supportTicketSchema = z.object({
   linkedAftersaleComplaintId: idSchema.nullable(),
   assignedAgentId: idSchema.nullable(),
   assignedSkillGroupId: idSchema.nullable(),
+  routingLanguage: z.string().trim().min(2).max(32)
+    .regex(/^[a-z]{2,8}(?:-[a-z0-9]{1,8})*$/).nullable(),
   slaFirstResponseDueAt: timestampSchema.nullable(),
   slaResolutionDueAt: timestampSchema.nullable(),
   firstRespondedAt: timestampSchema.nullable(),
@@ -101,6 +103,9 @@ export const createSupportTicketRequestSchema = z.object({
   relatedOrderId: idSchema.optional(),
   relatedWorkerId: idSchema.optional(),
   linkedAftersaleComplaintId: idSchema.optional(),
+  preferredLanguage: z.string().trim().min(2).max(32)
+    .regex(/^[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*$/)
+    .transform((language) => language.toLowerCase()).optional(),
   idempotencyKey: idempotencyKeySchema,
 }).strict().superRefine((request, context) => {
   if (request.linkedAftersaleComplaintId !== undefined && request.relatedOrderId === undefined) {
@@ -343,11 +348,103 @@ export const removeSupportAgentSkillGroupResponseSchema = supportAgentResponseSc
   removedSkillGroupId: idSchema,
 }).strict();
 
+export const supportSlaPolicySchema = z.object({
+  policyId: idSchema,
+  policySeriesId: idSchema,
+  revision: z.number().int().positive(),
+  supersedesPolicyId: idSchema.nullable(),
+  cityCode: cityCodeSchema,
+  type: supportTicketTypeSchema,
+  priority: supportTicketPrioritySchema,
+  firstResponseMinutes: z.number().int().min(1).max(525_600),
+  resolutionMinutes: z.number().int().min(1).max(525_600),
+  effectiveFrom: timestampSchema,
+  effectiveTo: timestampSchema.nullable(),
+  isActive: z.boolean(),
+  version: z.number().int().positive(),
+  createdAt: timestampSchema,
+  updatedAt: timestampSchema,
+}).strict().superRefine((policy, context) => {
+  if (policy.resolutionMinutes < policy.firstResponseMinutes) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["resolutionMinutes"], message: "resolutionMinutes cannot be shorter than firstResponseMinutes" });
+  }
+  if (policy.effectiveTo !== null && Date.parse(policy.effectiveTo) <= Date.parse(policy.effectiveFrom)) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["effectiveTo"], message: "effectiveTo must be after effectiveFrom" });
+  }
+  if ((policy.revision === 1) !== (policy.supersedesPolicyId === null)) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["supersedesPolicyId"], message: "only the first revision may omit supersedesPolicyId" });
+  }
+});
+
+export const createSupportSlaPolicyRequestSchema = z.object({
+  type: supportTicketTypeSchema,
+  priority: supportTicketPrioritySchema,
+  firstResponseMinutes: z.number().int().min(1).max(525_600),
+  resolutionMinutes: z.number().int().min(1).max(525_600),
+  effectiveFrom: timestampSchema.optional(),
+  effectiveTo: timestampSchema.optional(),
+  isActive: z.boolean().optional(),
+  idempotencyKey: idempotencyKeySchema,
+}).strict().superRefine((policy, context) => {
+  if (policy.resolutionMinutes < policy.firstResponseMinutes) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["resolutionMinutes"], message: "resolutionMinutes cannot be shorter than firstResponseMinutes" });
+  }
+  if (policy.effectiveFrom !== undefined && policy.effectiveTo !== undefined && Date.parse(policy.effectiveTo) <= Date.parse(policy.effectiveFrom)) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["effectiveTo"], message: "effectiveTo must be after effectiveFrom" });
+  }
+  if (policy.type === "other" && policy.priority === "normal"
+    && policy.isActive !== false && policy.effectiveTo !== undefined) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["effectiveTo"],
+      message: "an active fallback SLA policy cannot have a finite effectiveTo",
+    });
+  }
+});
+
+export const reviseSupportSlaPolicyRequestSchema = z.object({
+  firstResponseMinutes: z.number().int().min(1).max(525_600).optional(),
+  resolutionMinutes: z.number().int().min(1).max(525_600).optional(),
+  effectiveFrom: timestampSchema.optional(),
+  effectiveTo: timestampSchema.nullable().optional(),
+  isActive: z.boolean().optional(),
+  expectedVersion: z.number().int().positive(),
+  idempotencyKey: idempotencyKeySchema,
+}).strict().refine((request) => ["firstResponseMinutes", "resolutionMinutes", "effectiveFrom", "effectiveTo", "isActive"].some((field) => Object.prototype.hasOwnProperty.call(request, field)), {
+  message: "at least one policy field is required",
+});
+
+export const updateSupportSlaPolicyRequestSchema = reviseSupportSlaPolicyRequestSchema;
+
+export const supportSlaPolicyListFiltersSchema = z.object({
+  type: supportTicketTypeSchema.optional(),
+  priority: supportTicketPrioritySchema.optional(),
+  isActive: z.boolean().optional(),
+  effectiveAt: timestampSchema.optional(),
+  cursor: z.string().trim().min(1).max(512).optional(),
+  limit: z.number().int().min(1).max(100).optional(),
+}).strict();
+
+export const supportSlaPolicyResponseSchema = z.object({
+  ok: z.literal(true),
+  policy: supportSlaPolicySchema,
+}).strict();
+
+export const supportSlaPolicyListResponseSchema = z.object({
+  ok: z.literal(true),
+  policies: z.array(supportSlaPolicySchema).max(100),
+  nextCursor: z.string().nullable(),
+}).strict();
+
 export type SupportTicketInput = z.infer<typeof supportTicketSchema>;
 export type SupportTicketEventInput = z.infer<typeof supportTicketEventSchema>;
 export type CreateSupportTicketRequestInput = z.infer<typeof createSupportTicketRequestSchema>;
 export type SupportTicketListFiltersInput = z.infer<typeof supportTicketListFiltersSchema>;
 export type SupportAgentInput = z.infer<typeof supportAgentSchema>;
+export type SupportSlaPolicyInput = z.infer<typeof supportSlaPolicySchema>;
+export type CreateSupportSlaPolicyRequestInput = z.infer<typeof createSupportSlaPolicyRequestSchema>;
+export type ReviseSupportSlaPolicyRequestInput = z.infer<typeof reviseSupportSlaPolicyRequestSchema>;
+export type UpdateSupportSlaPolicyRequestInput = ReviseSupportSlaPolicyRequestInput;
 export type SupportSkillGroupInput = z.infer<typeof supportSkillGroupSchema>;
 export type SupportAgentSkillGroupMembershipInput = z.infer<typeof supportAgentSkillGroupMembershipSchema>;
 export type CreateSupportAgentRequestInput = z.infer<typeof createSupportAgentRequestSchema>;

@@ -234,3 +234,13 @@ their agent/group tables and foreign keys belong to Phase 24C.
 Migration `048` does not create a parallel login identity. Ticket
 `assigned_agent_id` remains an `admin_users.id`; `support_agents.agent_id` is
 only the Support-domain profile key.
+
+## Phase 24C Phase 2 support SLA policy tables
+
+| Table | Purpose | city_code |
+|-------|---------|-----------|
+| `support_sla_policies` | Append-only effective-window SLA policy revisions selected by ticket type and priority | required FK + non-global check |
+
+Migration `049` also adds nullable `support_tickets.routing_language` for the
+canonical lowercase language used by deterministic routing. Policies are
+city-only; existing ticket SLA due timestamps remain immutable snapshots.

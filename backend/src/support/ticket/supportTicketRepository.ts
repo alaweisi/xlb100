@@ -32,6 +32,7 @@ type TicketRow = RowDataPacket & {
   linked_aftersale_complaint_id: string | null;
   assigned_agent_id: string | null;
   assigned_skill_group_id: string | null;
+  routing_language: string | null;
   sla_first_response_due_at: Date | null;
   sla_resolution_due_at: Date | null;
   first_responded_at: Date | null;
@@ -58,7 +59,7 @@ type EventRow = RowDataPacket & {
 
 const TICKET_COLUMNS = `ticket_id,city_code,source,requester_id,business_client_id,type,priority,
   status,subject,description,related_order_id,related_worker_id,linked_aftersale_complaint_id,
-  assigned_agent_id,assigned_skill_group_id,sla_first_response_due_at,sla_resolution_due_at,
+  assigned_agent_id,assigned_skill_group_id,routing_language,sla_first_response_due_at,sla_resolution_due_at,
   first_responded_at,resolved_at,closed_at,resolution_code,version,created_at,updated_at`;
 const EVENT_COLUMNS = `ticket_event_id,city_code,ticket_id,event_type,actor_type,actor_id,visibility,
   content,payload_json,created_at`;
@@ -80,6 +81,7 @@ function mapTicket(row: TicketRow): SupportTicket {
     linkedAftersaleComplaintId: row.linked_aftersale_complaint_id,
     assignedAgentId: row.assigned_agent_id,
     assignedSkillGroupId: row.assigned_skill_group_id,
+    routingLanguage: row.routing_language,
     slaFirstResponseDueAt: row.sla_first_response_due_at?.toISOString() ?? null,
     slaResolutionDueAt: row.sla_resolution_due_at?.toISOString() ?? null,
     firstRespondedAt: row.first_responded_at?.toISOString() ?? null,
@@ -157,16 +159,24 @@ export class SupportTicketRepository extends RepositoryBase {
     relatedOrderId: string | null;
     relatedWorkerId: string | null;
     linkedAftersaleComplaintId: string | null;
+    assignedSkillGroupId: string | null;
+    routingLanguage: string | null;
+    slaFirstResponseDueAt: Date;
+    slaResolutionDueAt: Date;
+    slaCalculatedAt: Date;
     idempotencyKey: string;
   }): Promise<void> {
     await connection.query(
       `INSERT INTO support_tickets
         (ticket_id,city_code,source,requester_id,type,priority,status,subject,description,
-         related_order_id,related_worker_id,linked_aftersale_complaint_id,idempotency_key)
-       VALUES (?,?,?,?,?,?,'open',?,?,?,?,?,?)`,
+         related_order_id,related_worker_id,linked_aftersale_complaint_id,assigned_skill_group_id,
+         routing_language,sla_first_response_due_at,sla_resolution_due_at,created_at,updated_at,idempotency_key)
+       VALUES (?,?,?,?,?,?,'open',?,?,?,?,?,?,?,?,?,?,?,?)`,
       [input.ticketId, input.cityCode, input.source, input.requesterId, input.type, input.priority,
         input.subject, input.description, input.relatedOrderId, input.relatedWorkerId,
-        input.linkedAftersaleComplaintId, input.idempotencyKey],
+        input.linkedAftersaleComplaintId, input.assignedSkillGroupId, input.routingLanguage,
+        input.slaFirstResponseDueAt, input.slaResolutionDueAt, input.slaCalculatedAt,
+        input.slaCalculatedAt, input.idempotencyKey],
     );
   }
 

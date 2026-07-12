@@ -1,10 +1,11 @@
-# CONTRACT_SUPPORT_ROUTING.md — Phase 24C Phase 1
+# CONTRACT_SUPPORT_ROUTING.md — Phase 24C
 
 ## Scope
 
 This contract activates city-scoped Support agent profiles, skill groups, and
-agent membership. It does not define SLA policies, automatic routing, jobs,
-realtime presence, conversation, bot, knowledge-base, quality, or CSAT behavior.
+agent membership. Phase 2 additionally activates automatic routing and SLA
+policy configuration. It does not define SLA breach jobs, realtime presence,
+conversation, bot, knowledge-base, quality, or CSAT behavior.
 
 `admin_users` remains the only login identity. `support_agents` is a business
 profile and never creates a parallel account, password, token, or role.
@@ -174,3 +175,74 @@ the profile/membership requirement, but the target must still have current
 Migration 048 deliberately adds no FK from historical ticket assignments to
 agent profiles. Existing non-null `assigned_agent_id` values therefore remain
 valid Admin user IDs without reinterpretation or forced backfill.
+
+## Phase 2 automatic routing
+
+`CreateSupportTicketRequest` accepts optional `preferredLanguage`, a canonical
+2–32 character BCP-47-like tag. The validator trims it and persists lowercase
+as nullable `support_tickets.routing_language`; responses expose it as
+`routingLanguage`. It is routing metadata, never identity or an authorization
+header, and participates in create-idempotency fingerprinting. Existing Phase
+24B tickets remain NULL and are not backfilled.
+
+Routing is selected transactionally inside the verified ticket city: exact
+type plus exact language; otherwise the same type with no language; otherwise
+the city's active language-neutral default; otherwise NULL. When no preference
+is supplied, only language-neutral candidates are eligible. Ties use
+`priorityWeight DESC`, then `skillGroupId ASC`. Ticket creation does not fail
+when staffing configuration has no eligible group. Idempotent replay returns
+the original routing/SLA snapshot instead of re-running current configuration.
+
+## Phase 2 SLA policy resource
+
+Policies are strictly scoped to a real city; `__global__` is rejected. Selection
+uses exact `(type,priority)`, then the city's `(other,normal)` fallback. If both
+are absent, creation uses the explicit emergency fallback of 240 first-response
+minutes and 2,880 resolution minutes and emits an operational error signal.
+SLA is 24×7 elapsed time.
+
+`SupportSlaPolicy` contains `policyId`, `policySeriesId`, positive `revision`,
+nullable `supersedesPolicyId`, `cityCode`, locked ticket `type` and `priority`,
+positive `firstResponseMinutes`, `resolutionMinutes`, `effectiveFrom`, nullable
+`effectiveTo`, `isActive`, positive `version`, `createdAt`, and `updatedAt`.
+Resolution time cannot be shorter than first-response time. Effective end, when
+present, must be after effective start.
+
+Admin APIs are:
+
+- `GET /api/internal/support/sla-policies`
+- `GET /api/internal/support/sla-policies/:policyId`
+- `POST /api/internal/support/sla-policies`
+- `PATCH /api/internal/support/sla-policies/:policyId`
+
+Reads require current city authorization and are available to Admin/Operator;
+writes require a fresh database `admin` role. There is no physical DELETE.
+Disabling is a PATCH with `isActive=false` that creates a new revision. The last
+effective `(other,normal)` fallback cannot be disabled.
+
+An active `(other,normal)` fallback revision must have `effectiveTo=null`; it
+cannot be configured to expire into an uncovered interval. Changing fallback
+timing uses an append-only active revision: the service atomically closes the
+superseded revision at the new revision's `effectiveFrom` and inserts the next
+active, open-ended revision. A fallback may become inactive only when the
+transaction proves another active fallback covers the transition point.
+
+Create accepts `{ type, priority, firstResponseMinutes, resolutionMinutes,
+effectiveFrom?, effectiveTo?, isActive?, idempotencyKey }`. PATCH accepts the
+mutable timing/window/active fields plus positive `expectedVersion` and
+`idempotencyKey`; at least one mutable field is required. PATCH closes the
+selected active revision and inserts the next revision with the same series and
+`supersedesPolicyId`; historical timing values are never overwritten.
+Overlapping active windows for one city/type/priority are rejected.
+
+Creation idempotency keys are city unique. Revision mutation keys are unique
+within `(cityCode,policySeriesId)`. Same key and canonical fingerprint replays
+the original result; different payload is 409. A stale version is 409 with no
+new revision. List filters are `type`, `priority`, `isActive`, `effectiveAt`,
+opaque `cursor`, and `limit` 1–100. Responses are `{ ok:true, policy }` and
+`{ ok:true, policies, nextCursor }`.
+
+Ticket due timestamps are calculated once from the database transaction time
+and stored in the existing Phase 24B columns. The created event payload records
+the selected policy and timing snapshot. Later policy revisions never modify an
+existing ticket's group, routing language, or SLA due timestamps.

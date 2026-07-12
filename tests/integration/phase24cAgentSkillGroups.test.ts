@@ -166,6 +166,10 @@ describe("Phase 24C Phase 1 agent profiles and skill groups", { timeout: 60_000 
     expect(assigned.json().ticket.assignedAgentId).toBe(ids.hzMember);
 
     const ungrouped = await createTicket("ungrouped");
+    await getMysqlPool().query(
+      "UPDATE support_tickets SET assigned_skill_group_id=NULL WHERE city_code='hangzhou' AND ticket_id=?",
+      [ungrouped.ticketId],
+    );
     const free = await app.inject({ method: "POST", url: `/api/internal/support/tickets/${ungrouped.ticketId}/assign`, headers: headers.admin,
       payload: { assignedAgentId: ids.hzFree, expectedVersion: ungrouped.version, idempotencyKey: `p24c-assign-free-${nonce}` } });
     expect(free.statusCode, free.body).toBe(200);

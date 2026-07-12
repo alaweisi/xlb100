@@ -49,11 +49,16 @@ runtime schemas are exported from `@xlb/validators`.
 All JSON request schemas are strict: unknown properties are rejected.
 
 - Create: `{ type, priority, subject, description, relatedOrderId?,
-  relatedWorkerId?, linkedAftersaleComplaintId?, idempotencyKey }`.
+  relatedWorkerId?, linkedAftersaleComplaintId?, preferredLanguage?,
+  idempotencyKey }`.
   `subject` is 1–160 characters, `description` is 1–10,000 characters, and
   `idempotencyKey` is 8–128 characters. For a Worker `withdrawal_issue`, the
   service derives `relatedWorkerId` from the verified context even when the
   optional field is omitted.
+  `preferredLanguage` is optional 2–32 character BCP-47-like routing metadata.
+  It is trimmed and canonicalized to lowercase `routingLanguage`, persists on
+  the ticket, and participates in create-idempotency comparison. It is not an
+  identity or authorization input.
 - Requester comment: `{ content, idempotencyKey }`. Visibility is assigned by
   the service and cannot be supplied by a requester.
 - Admin comment: `{ content, visibility, idempotencyKey }`.
@@ -112,6 +117,11 @@ Admin/operator routes:
 `SupportTicketDetailResponse` is `{ ok: true, detail: { ticket, events } }`.
 `SupportTicketMutationResponse` is
 `{ ok: true, ticket, event, idempotent }`.
+
+From Phase 24C Phase 2, ticket responses expose nullable `routingLanguage`.
+New-ticket creation snapshots automatic skill-group routing and SLA due times.
+Policy changes never recalculate an existing ticket, and Phase 24B historical
+NULL routing/SLA values are not backfilled.
 
 Lists use a bounded `limit` of 1–100 and an opaque cursor. Admin filters may
 include `source`, `type`, `priority`, `status`, `requesterId`,

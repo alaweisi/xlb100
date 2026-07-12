@@ -62,6 +62,7 @@ export interface SupportTicket {
   linkedAftersaleComplaintId: string | null;
   assignedAgentId: string | null;
   assignedSkillGroupId: string | null;
+  routingLanguage: string | null;
   slaFirstResponseDueAt: string | null;
   slaResolutionDueAt: string | null;
   firstRespondedAt: string | null;
@@ -99,6 +100,8 @@ export interface CreateSupportTicketRequest {
   relatedOrderId?: string;
   relatedWorkerId?: string;
   linkedAftersaleComplaintId?: string;
+  /** Optional canonical BCP-47-like routing preference; it is not identity metadata. */
+  preferredLanguage?: string;
   idempotencyKey: string;
 }
 
@@ -337,4 +340,66 @@ export interface SupportAgentSkillGroupListResponse {
 
 export interface RemoveSupportAgentSkillGroupResponse extends SupportAgentResponse {
   removedSkillGroupId: string;
+}
+
+export interface SupportSlaPolicy {
+  policyId: string;
+  policySeriesId: string;
+  revision: number;
+  supersedesPolicyId: string | null;
+  cityCode: CityCode;
+  type: SupportTicketType;
+  priority: SupportTicketPriority;
+  firstResponseMinutes: number;
+  resolutionMinutes: number;
+  effectiveFrom: string;
+  effectiveTo: string | null;
+  isActive: boolean;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateSupportSlaPolicyRequest {
+  type: SupportTicketType;
+  priority: SupportTicketPriority;
+  firstResponseMinutes: number;
+  resolutionMinutes: number;
+  effectiveFrom?: string;
+  effectiveTo?: string;
+  isActive?: boolean;
+  idempotencyKey: string;
+}
+
+/** Creates an append-only revision; the referenced revision is never overwritten. */
+export interface ReviseSupportSlaPolicyRequest {
+  firstResponseMinutes?: number;
+  resolutionMinutes?: number;
+  effectiveFrom?: string;
+  effectiveTo?: string | null;
+  isActive?: boolean;
+  expectedVersion: number;
+  idempotencyKey: string;
+}
+
+export type UpdateSupportSlaPolicyRequest = ReviseSupportSlaPolicyRequest;
+
+export interface SupportSlaPolicyListFilters {
+  type?: SupportTicketType;
+  priority?: SupportTicketPriority;
+  isActive?: boolean;
+  effectiveAt?: string;
+  cursor?: string;
+  limit?: number;
+}
+
+export interface SupportSlaPolicyResponse {
+  ok: true;
+  policy: SupportSlaPolicy;
+}
+
+export interface SupportSlaPolicyListResponse {
+  ok: true;
+  policies: SupportSlaPolicy[];
+  nextCursor: string | null;
 }

@@ -30,6 +30,8 @@ export {
   validateSupportAgentSkillGroupResponse,
   validateSupportAgentSkillGroupListResponse,
   validateRemoveSupportAgentSkillGroupResponse,
+  validateSupportSlaPolicyResponse,
+  validateSupportSlaPolicyListResponse,
 } from "./support.js";
 export type { DispatchBoardRow } from "./admin.js";
 export type {
