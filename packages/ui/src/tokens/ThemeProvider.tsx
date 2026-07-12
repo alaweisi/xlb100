@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
-import { resolveThemeTokens } from "./themeRegistry.js";
+import { mergeThemeTokens, resolveTheme } from "./themeRegistry.js";
+import { baseTokens } from "./base/defaultTokens.js";
 import type { ThemeProviderProps, ThemeTokenPrimitive, ThemeTokens } from "./tokenTypes.js";
 
 function toCssVariableName(path: string[]): string {
@@ -27,7 +28,7 @@ function collectCssVariables(
 }
 
 export function createThemeStyle(tokens: ThemeTokens): CSSProperties {
-  return collectCssVariables(tokens) as CSSProperties;
+  return collectCssVariables(mergeThemeTokens(baseTokens, tokens)) as CSSProperties;
 }
 
 export function ThemeProvider({
@@ -35,13 +36,19 @@ export function ThemeProvider({
   className,
   themeId = "default",
   resolvedTokens,
+  resolvedThemeId,
   style,
 }: ThemeProviderProps) {
-  const tokens = resolvedTokens ?? resolveThemeTokens(themeId);
+  const resolution = resolveTheme(themeId);
+  const effectiveThemeId = resolvedTokens
+    ? (resolvedThemeId ?? resolution.resolvedThemeId)
+    : resolution.resolvedThemeId;
+  const tokens = resolvedTokens ?? resolution.tokens;
   return (
     <div
       className={className}
-      data-theme-id={themeId}
+      data-theme-id={effectiveThemeId}
+      data-theme-requested-id={themeId === effectiveThemeId ? undefined : themeId}
       style={{ ...createThemeStyle(tokens), ...style }}
     >
       {children}

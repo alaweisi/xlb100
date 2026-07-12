@@ -18,19 +18,15 @@ import {
   CustomerLoadable,
   setRouteSearchParams,
   useRouteSearchParams,
-  useSearchParamSku,
 } from "./customerPageShell";
 import { cityDisplayLabel, getCatalogSkuDisplayLabel, getCatalogSkus } from "../adapters/catalogAdapters";
 import { createCustomerUiBinding } from "../adapters/workflowAdapter";
-import { UatDebugPanel } from "./customerPageShell";
 
 type CatalogCategoryTab = {
   key: string;
   label: string;
 };
 
-const catalogSourceEndpoint = "GET /api/catalog";
-const SEARCH_MODE = "client-filter";
 
 export function CustomerServicesPage({
   cityCode,
@@ -44,7 +40,6 @@ export function CustomerServicesPage({
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategoryId, setActiveCategoryId] = useState<string>("all");
   const routeSearchQuery = useRouteSearchParams("q");
-  const selectedSkuIdFromRoute = useSearchParamSku();
   const binding = createCustomerUiBinding({ route: "services", cityCode });
 
   const actionById = useMemo(() => {
@@ -81,11 +76,6 @@ export function CustomerServicesPage({
       return matchCategory && (query ? matchText.includes(query) : true);
     });
   }, [activeCategoryId, allSkus, searchQuery]);
-
-  const selectedSku = useMemo(() => {
-    if (!selectedSkuIdFromRoute) return null;
-    return allSkus.find((sku) => sku.skuId === selectedSkuIdFromRoute) ?? null;
-  }, [allSkus, selectedSkuIdFromRoute]);
 
   const catalogQueryParams = (nextQuery: string) => {
     const trimmed = nextQuery.trim();
@@ -190,21 +180,6 @@ export function CustomerServicesPage({
         />
       )}
 
-      <UatDebugPanel
-        binding={binding}
-        facts={[
-          { label: "city_code", value: cityCode },
-          { label: "searchQuery", value: searchQuery },
-          { label: "matchedSkuCount", value: filteredSkus.length },
-          { label: "searchMode", value: SEARCH_MODE },
-          { label: "catalog source endpoint", value: catalogSourceEndpoint },
-          { label: "selectedSkuId", value: selectedSkuIdFromRoute ?? null },
-          { label: "selectedSkuName", value: selectedSku?.name ?? null },
-          { label: "workflow state", value: binding.state },
-          { label: "availableActions", value: binding.availableActions },
-          { label: "disabledReason", value: binding.disabledReasons },
-        ]}
-      />
     </CustomerServicesTemplate>
   );
 }

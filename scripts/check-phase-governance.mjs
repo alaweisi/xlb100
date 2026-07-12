@@ -16,6 +16,7 @@ const allowedStatuses = new Set([
   "INTEGRATED_UNLOCKED",
   "SUPERSEDED",
   "RESERVED",
+  "IN_PROGRESS",
 ]);
 
 function fail(message) {
@@ -39,12 +40,12 @@ if (!existsSync(registryPath)) {
   const ids = new Set();
   const tags = new Set(git(["tag", "-l", "xlb-phase*"]).split(/\r?\n/).filter(Boolean));
 
-  if (registry.nextFormalPhase !== "Phase 25") {
-    fail(`expected nextFormalPhase to be Phase 25, got ${registry.nextFormalPhase}`);
+  if (registry.nextFormalPhase !== "Phase 26") {
+    fail(`expected nextFormalPhase to be Phase 26 after Phase 25 entry, got ${registry.nextFormalPhase}`);
   }
 
-  if (registry.lastLockedPhase !== "Phase 24F") {
-    fail(`expected lastLockedPhase to be Phase 24F, got ${registry.lastLockedPhase}`);
+  if (registry.lastLockedPhase !== "Phase 25") {
+    fail(`expected lastLockedPhase to be Phase 25, got ${registry.lastLockedPhase}`);
   }
 
   if (!registry.rules?.doNotReuseMigration024) {
@@ -75,7 +76,7 @@ if (!existsSync(registryPath)) {
     }
   }
 
-  for (const required of ["Phase 9F", "Phase 12", "Phase 13", "Phase 14", "Phase 15", "Phase 16", "Phase 24F"]) {
+  for (const required of ["Phase 9F", "Phase 12", "Phase 13", "Phase 14", "Phase 15", "Phase 16", "Phase 24F", "Phase 25"]) {
     if (!ids.has(required)) {
       fail(`registry missing required historical entry ${required}`);
     }
@@ -89,6 +90,11 @@ if (!existsSync(registryPath)) {
   const phase15 = phases.find(phase => phase.id === "Phase 15");
   if (phase15?.status !== "INTEGRATED_UNLOCKED") {
     fail("Phase 15 must remain INTEGRATED_UNLOCKED");
+  }
+
+  const phase25 = phases.find(phase => phase.id === "Phase 25");
+  if (phase25?.status !== "LOCKED" || phase25?.tag !== "xlb-phase25-ui-standardization-v1.0") {
+    fail("Phase 25 must be LOCKED with its canonical UI standardization tag");
   }
 }
 
@@ -104,8 +110,8 @@ if (existsSync(currentStatePath)) {
   if (!currentState.includes("xlb-phase24-customer-support-closure")) {
     fail("CURRENT_STATE.md must reference the Phase 24 closure tag");
   }
-  if (/Phase 25\s*\|\s*(LOCKED|IN PROGRESS|COMPLETE)/i.test(currentState)) {
-    fail("Phase 25 must not be entered by the Phase 24 governance closeout");
+  if (!/Phase 25\s*\|\s*LOCKED\s*\|\s*xlb-phase25-ui-standardization-v1\.0/i.test(currentState)) {
+    fail("CURRENT_STATE.md must record the locked Phase 25 canonical tag");
   }
 }
 
@@ -121,4 +127,4 @@ if (process.exitCode) {
   process.exit(process.exitCode);
 }
 
-process.stdout.write("[phase-governance] PASS Phase registry, historical gaps, migration 024, and Phase 24 closure tag verified\n");
+process.stdout.write("[phase-governance] PASS Phase 25 Lock, registry, historical gaps, migration 024, and Phase 24 closure tag verified\n");

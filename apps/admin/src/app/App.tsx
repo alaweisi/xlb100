@@ -162,7 +162,7 @@ export function App() {
 
   if (!session) {
     return (
-      <div style={{ alignItems: "center", background: "#f6f3fb", display: "grid", minHeight: "100vh", padding: 24 }}>
+      <div style={{ alignItems: "center", background: "var(--xlb-surface-muted)", display: "grid", minHeight: "100vh", padding: 24 }}>
         <div style={{ margin: "0 auto", maxWidth: 440, width: "100%" }}>
           <GuardrailCard
             title="XLB Admin Login"
@@ -242,7 +242,7 @@ export function App() {
       sideNav={
         <SideNav
           title="XLB Admin"
-          style={{ background: "#191225" }}
+          style={{ background: "var(--xlb-role-admin-page)" }}
           items={[
             {
               key: "settlement",
@@ -308,7 +308,7 @@ export function App() {
           }
         />
       }
-      style={{ background: "#f6f3fb" }}
+      style={{ background: "var(--xlb-surface-muted)" }}
       contentStyle={{ display: "grid", gap: 16 }}
     >
       <GuardrailCard

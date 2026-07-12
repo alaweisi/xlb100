@@ -1,7 +1,7 @@
-import { type CSSProperties, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { createApiClient, customerApi } from "../../../../packages/api-client/src/index.js";
 import { createAuthApi } from "../../../../packages/api-client/src/auth.js";
-import type { CatalogSnapshot, CityCode, WorkflowUiBinding } from "@xlb/types";
+import type { CatalogSnapshot, CityCode } from "@xlb/types";
 import { XLB_HEADERS } from "@xlb/types";
 import { BottomNav, MobileShell } from "@xlb/ui";
 
@@ -281,62 +281,6 @@ export function CustomerRouteShell({ currentRoute, topBar, children, fixedBottom
   );
 }
 
-export function renderFact(value: unknown): string {
-  if (value === null || value === undefined || value === "") return "暂无";
-  if (typeof value === "string") return value;
-  if (Array.isArray(value)) return value.length === 0 ? "[]" : JSON.stringify(value, null, 2);
-  return JSON.stringify(value, null, 2);
-}
-
-type UatFact = { label: string; value: unknown };
-
-export function UatDebugPanel({
-  binding,
-  facts,
-  title = "UAT Debug",
-}: {
-  binding?: WorkflowUiBinding;
-  facts: UatFact[];
-  title?: string;
-}) {
-  return (
-    <details style={{ background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 12, padding: "10px 12px" }}>
-      <summary style={{ cursor: "pointer", fontWeight: 700 }}>{title}</summary>
-      <div style={{ display: "grid", gap: 10, marginTop: 8 }}>
-        {binding && (
-          <div style={{ display: "grid", gap: 2 }}>
-            <strong>{binding.workflowName}</strong>
-            <span style={{ color: "#64748b", fontSize: 12 }}>{binding.route}</span>
-          </div>
-        )}
-        {facts.map((fact) => (
-          <div key={fact.label} style={{ display: "grid", gap: 2 }}>
-            <span style={{ color: "#8a735b", fontWeight: 700, fontSize: 12 }}>{fact.label}</span>
-            <pre
-              style={{
-                background: "rgba(43, 33, 24, 0.05)",
-                borderRadius: 8,
-                color: "#2b2118",
-                fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
-                fontSize: 11,
-                lineHeight: "16px",
-                margin: 0,
-                maxHeight: 220,
-                overflow: "auto",
-                padding: 8,
-                whiteSpace: "pre-wrap",
-                wordBreak: "break-word",
-              }}
-            >
-              {renderFact(fact.value)}
-            </pre>
-          </div>
-        ))}
-      </div>
-    </details>
-  );
-}
-
 export function useSearchParamSku(): string | null {
   return useRouteSearchParams("skuId");
 }
@@ -360,22 +304,3 @@ export function useRouteSearchParams(key: string): string | null {
   }, [key]);
   return value;
 }
-
-export const customerPageStyles: Record<string, CSSProperties> = {
-  quietText: { color: "#64748b", fontSize: 13, lineHeight: "20px", margin: 0 },
-  sectionGrid: { display: "grid", gap: 14 },
-  panelCard: {
-    background: "rgba(255, 255, 255, 0.86)",
-    borderColor: "#ead8bd",
-    borderRadius: 24,
-    boxShadow: "0 8px 22px rgba(43, 33, 24, 0.08)",
-    padding: 18,
-  },
-  flatCard: {
-    background: "rgba(255, 250, 240, 0.72)",
-    borderColor: "#ead8bd",
-    borderRadius: 24,
-    boxShadow: "none",
-    padding: 18,
-  },
-};

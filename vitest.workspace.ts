@@ -54,8 +54,11 @@ export default defineWorkspace([
         MYSQL_MAX_IDLE: "1",
         MYSQL_IDLE_TIMEOUT_MS: "1000",
       },
-      maxWorkers: 2,
       maxConcurrency: 2,
+      // App tests mutate the jsdom window URL; parallel files race on shared
+      // route state and produce non-deterministic cross-page assertions.
+      fileParallelism: false,
+      maxWorkers: 1,
       testTimeout: 15000,
       include: [
         "tests/unit/**/*.test.ts",

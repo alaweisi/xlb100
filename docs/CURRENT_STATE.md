@@ -37,6 +37,49 @@
 | Phase 24D | LOCKED | xlb-phase24-customer-support-closure | Realtime conversation, durable messaging, reconnect recovery, and presence |
 | Phase 24E | LOCKED | xlb-phase24-customer-support-closure | Knowledge base and deterministic/mock bot orchestration |
 | Phase 24F | LOCKED | xlb-phase24-customer-support-closure | CSAT, quality review, and support operations metrics |
+| Phase 25 | LOCKED | xlb-phase25-ui-standardization-v1.0 | Five-system UI standardization: Customer, Worker, Admin, OA, and realtime Dashboard |
+
+## Phase 25 — Five-System UI Standardization (LOCKED)
+
+- **Entered**: 2026-07-12 by explicit human instruction.
+- **Branch**: `codex/phase25-ui-standardization`.
+- **Base**: locked Phase 24 main metadata commit `fb055b1`; Phase 24 closure tag remains immutable.
+- **Lock status**: LOCKED on 2026-07-13. Canonical tag: `xlb-phase25-ui-standardization-v1.0`.
+- **Gate 1A authorization**: establish the canonical token source, typed L0–L7 taxonomy, protected semantic tokens, Campaign override allowlist, generated-artifact consistency, hardcode inventory/gate, and focused tests. Page reconstruction and Gate 1B+ remain unauthorized.
+- **Gate 1A verification**: implementation complete and accepted; focused 24/24, typecheck 17/17, build 11/11, architecture preflight passed. Full regression passed 184/185 files and 520/521 tests; the sole Phase 23C boundary timeout passed 3/3 on immediate isolated rerun.
+- **Gate 1A acceptance**: accepted by explicit human instruction on 2026-07-12.
+- **Gate 1B authorization**: implement source-grounded Customer liquid-glass material recipe, Worker/Admin Figma role recipes, OA/Dashboard readiness-only recipes, responsive/safe-area/density/typography rules, and no-backdrop/forced-colors/reduced-motion/low-power fallbacks. App integration, pages, Campaign bridge and Gate 1C+ remain unauthorized.
+- **Gate 1B verification**: implementation complete and accepted; focused 21/21, typecheck 17/17, build 11/11, unit/contract regression 154 files / 837 tests with one retained todo, and full architecture preflight passed.
+- **Gate 1B acceptance**: accepted by explicit human instruction on 2026-07-12 to continue Phase 25 after Codex review.
+- **Phase 25 Gate 1B**: accepted and retained as completed gate evidence; its role/material recipes remain immutable input to Gate 1C.
+- **Gate 1C authorization**: implement only the strict runtime envelope resolver, capability layering, default fallback, scope/revision race controls and an app-agnostic bridge. No app root integration, route/page construction, API-client/backend implementation, Campaign publication, or asset-slot work.
+- **Gate 1C verification**: implementation complete and awaiting human acceptance; focused 8/8, Gate 1A/1B regression passed, Phase 25 design gate passed, workspace typecheck 17/17 passed, and diff hygiene passed. Full architecture preflight remains blocked only by the pre-existing Phase 9D local MySQL runtime dependency (`127.0.0.1:3306` refused connection).
+- **Global construction authorization**: the human explicitly authorized full Phase 25 construction on 2026-07-12. The normal per-Gate human-acceptance pauses are waived; all nine main Gates may proceed in parallel where dependencies permit, with one final unified completion acceptance. All Phase 25 hard boundaries and OA/Dashboard no-fake-runtime rules remain mandatory.
+- **Gate 8 unified acceptance**: construction, aggregate gates, full test, authenticated three-app browser evidence, and architecture preflight are complete. Lock verification passed: Phase25 closure gate, typecheck, build, 342 test files / 1,373 tests (plus 1 existing todo), preflight, and diff hygiene; see `docs/reports/PHASE25_GATE8_UNIFIED_ACCEPTANCE_REPORT.md`.
+- **Customer visual authority**: user-supplied Apple-style liquid-glass service-card PNG. Figma supplies Customer workflow/page-state references but does not override the supplied Customer visual language.
+- **Worker/Admin authority**: Figma file `WrIq7mTPz9zB5EJkftS3sY`, rooted at node `1:2`, plus the checked-in snapshots under `docs/design/figma/`.
+- **System set**: Customer App, Worker App, Admin App, OA collaboration system, and realtime Dashboard wallboard.
+- **OA/Dashboard current fact**: both are Phase 0 placeholders with no `src`, frontend runtime, dedicated API client, or approved standalone Figma frames; construction is gated by product/design/API readiness and may not use fake workflow or fake realtime data.
+- **Scope**:
+  - standardize tokens, role themes, primitives, patterns, shells, templates, route adapters, and visual QA;
+  - redesign all Customer routes around the supplied liquid-glass visual system and real API workflows;
+  - reproduce Worker and Admin screens from Figma while preserving current business contracts and permissions;
+  - define and, after readiness approval, construct OA collaboration and realtime Dashboard frontend systems;
+  - add deterministic visual, accessibility, responsive, build, typecheck, realtime freshness, and browser gates.
+  - establish Design Token-driven Runtime Theming as mandatory five-system infrastructure, with role/mode/campaign layering, validated runtime overrides, safe fallback, revision/rollback, asset slots, and workflow-semantic isolation.
+- **Boundary**:
+  - no backend business-semantic change, database migration, provider integration, payment/refund/payout execution, map provider, or object-storage provider;
+  - no fake catalog, order, worker, earnings, settlement, support, or admin-success data;
+  - no mutation of locked migrations `000`–`053`, locked tags, or Phase 24 state machines;
+  - no page construction before its source, workflow binding, state matrix, component mapping, and screenshot acceptance contract are approved.
+- **Design control**: `docs/architecture/25_XLB_FIVE_SYSTEM_UI_STANDARDIZATION.md`.
+- **Runtime theming standard**: `docs/design/ui/phase25/PHASE25_DESIGN_TOKEN_RUNTIME_THEMING_STANDARD.md`.
+- **Campaign/theme evolution**: `docs/design/ui/phase25/PHASE25_CAMPAIGN_THEME_EVOLUTION.md`.
+- **Execution control**: `docs/execution/PHASE25_UI_STANDARDIZATION_EXECUTION_CONTROL.md`.
+- **Gate 1A report**: `docs/reports/PHASE25_GATE1A_TOKEN_CONTRACT_REPORT.md`.
+- **Gate 1B report**: `docs/reports/PHASE25_GATE1B_MATERIAL_ROLE_RECIPES_REPORT.md`.
+- **Entry report**: `docs/reports/PHASE25_UI_STANDARDIZATION_ENTRY_REPORT.md`.
+- **Lock state**: LOCKED. No Phase26 work is included in this Lock.
 
 ## Phase 24 Combined Completion Authorization
 
@@ -44,7 +87,7 @@
 - **Construction branch**: `codex/phase24-completion`
 - **Execution policy**: 24C, 24D, 24E, and 24F retain independent migrations, contracts, tests, gates, reports, and rollback boundaries; intermediate human acceptance pauses are waived
 - **Finalization policy**: no final Phase 24 Lock/tag until 24F delivery and the combined Phase 24 completion gate have passed
-- **Governance boundary**: Phase 0–23 are not reorganized; Phase 24A–24F numbering remains unchanged; migration `024` is a permanent historical gap; Phase 25 is not created
+- **Governance boundary**: Phase 0–23 are not reorganized; Phase 24A–24F numbering remains unchanged; migration `024` is a permanent historical gap; Phase 25 was not created by the Phase 24 closure task and was entered separately on 2026-07-12.
 - **Joint acceptance state**: accepted by explicit human instruction on 2026-07-12; Phase 24A–24F are closed under the annotated tag `xlb-phase24-customer-support-closure`.
 
 ### Phase 24D–24F construction verification

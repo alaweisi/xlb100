@@ -115,8 +115,8 @@ const routeConfig: Record<
 };
 
 const shellStyle = {
-  "--xlb-role-accent": "#d98245",
-  background: "#efe7da",
+  background: "var(--xlb-role-worker-page)",
+  color: "var(--xlb-role-worker-text)",
   minHeight: "100vh",
 } as CSSProperties;
 
@@ -228,7 +228,7 @@ function AppFrame({ route, children }: { route: WorkerRoute; children: ReactNode
       <div style={{ margin: "0 auto", maxWidth: 430, minHeight: "100vh", padding: "28px 18px" }}>
         <div
           style={{
-            background: "#08172B",
+            background: "var(--xlb-role-worker-page)",
             border: "10px solid #1d6595",
             borderRadius: 28,
             boxShadow: "0 24px 54px rgba(8, 23, 43, 0.32)",
@@ -241,7 +241,7 @@ function AppFrame({ route, children }: { route: WorkerRoute; children: ReactNode
             topBar={<WorkerPageHeader route={route} />}
             bottomNav={<RouteNav activeRoute={route} />}
             contentStyle={{ padding: "8px 20px 0" }}
-            style={{ background: "#08172B", color: "#f8fbff", minHeight: 824 }}
+            style={{ background: "var(--xlb-role-worker-page)", color: "var(--xlb-role-worker-text)", minHeight: 824 }}
           >
             <div style={{ display: "grid", gap: 14, paddingBottom: 18 }}>{children}</div>
           </MobileShell>

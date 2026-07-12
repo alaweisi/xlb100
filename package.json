@@ -73,6 +73,17 @@
     "test:watch": "vitest --workspace vitest.workspace.ts",
     "lint": "turbo run lint",
     "check:phase-governance": "node scripts/check-phase-governance.mjs",
+    "gate:phase25:design": "node scripts/check-phase25-ui-design-gate.mjs",
+    "test:phase25:gate1a": "vitest run --workspace vitest.workspace.ts --project unit-contract tests/unit/phase25ThemeTokens.test.ts tests/contract/phase25RuntimeTheme.contract.test.ts && vitest run --workspace vitest.workspace.ts --project db-serial tests/security/phase25Gate1aBoundaries.test.ts",
+    "gate:phase25:gate1a": "node scripts/check-phase25-gate1a.mjs && pnpm test:phase25:gate1a",
+    "test:phase25:gate1b": "vitest run --workspace vitest.workspace.ts --project unit-contract tests/unit/phase25CustomerMaterialRecipe.test.ts tests/unit/phase25RoleMaterialRecipes.test.ts tests/unit/phase25RuntimeCapabilityRecipes.test.ts && vitest run --workspace vitest.workspace.ts --project db-serial tests/security/phase25Gate1bBoundaries.test.ts",
+    "gate:phase25:gate1b": "node scripts/check-phase25-gate1b.mjs && pnpm test:phase25:gate1b",
+    "test:phase25:gate1c": "vitest run --workspace vitest.workspace.ts --project unit-contract tests/unit/phase25RuntimeThemeResolver.test.ts",
+    "gate:phase25:gate1c": "node scripts/check-phase25-gate1c.mjs && pnpm test:phase25:gate1c",
+    "test:phase25:gate1def": "vitest run --workspace vitest.workspace.ts --project unit-contract tests/unit/phase25PresentationSlots.test.tsx",
+    "gate:phase25:gate1def": "node scripts/check-phase25-gate1def.mjs && pnpm test:phase25:gate1def",
+    "gate:phase25:readiness": "node scripts/check-phase25-readiness-gates.mjs",
+    "gate:phase25:closure": "node scripts/check-phase25-closure.mjs && pnpm gate:phase25:gate1c && pnpm gate:phase25:gate1def && pnpm gate:phase25:readiness",
     "preflight": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/preflight-architecture.ps1"
   },
   "devDependencies": {

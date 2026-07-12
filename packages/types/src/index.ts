@@ -314,6 +314,25 @@ export type {
   CampaignThemeId,
 } from "./campaign.js";
 export type {
+  RuntimeThemeSchemaVersion,
+  RuntimeThemeRole,
+  RuntimeThemeMode,
+  RuntimeThemePlacement,
+  RuntimeCampaignTokenPath,
+  AllowedCampaignTokenOverrides,
+  CampaignPresentationCta,
+  CampaignPlacementPresentation,
+  CampaignPresentation,
+  RuntimeThemeAssetMimeType,
+  RuntimeThemeAssetSourcePolicy,
+  RuntimeThemeResponsiveAssetSource,
+  RuntimeThemeAsset,
+  RuntimeThemeAssetManifest,
+  RuntimeThemeResolutionReason,
+  RuntimeThemeEnvelope,
+} from "./runtimeTheme.js";
+export { RUNTIME_CAMPAIGN_TOKEN_PATHS } from "./runtimeTheme.js";
+export type {
   SupportTicketSource,
   SupportTicketType,
   SupportTicketPriority,

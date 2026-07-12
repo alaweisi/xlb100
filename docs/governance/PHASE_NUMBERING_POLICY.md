@@ -26,10 +26,12 @@ If these sources disagree, stop and reconcile before construction.
 
 ## Current Baseline
 
-- Last locked program: `Phase 24A` through `Phase 24F`.
-- Final closure tag: `xlb-phase24-customer-support-closure`.
+- Last locked program: `Phase 25`.
+- Phase 25 closure tag: `xlb-phase25-ui-standardization-v1.0`.
 - Latest verified migration: `053`.
-- Next allowed formal phase: `Phase 25`.
+- Phase 25 Lock is complete; no successor phase has been entered.
+- Phase 25 is locked; Phase 26 has not been entered.
+- Next allowed formal phase: `Phase 26`.
 
 ## Required Gate
 
