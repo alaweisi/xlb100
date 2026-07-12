@@ -59,8 +59,8 @@
   fixture assumptions plus a Phase 1 historical-gate snapshot issue; the Worker
   file passed 18/18 alone, the real compatibility issues were corrected, and the
   final full run passed without failures.
-- Complete architecture preflight is run again from the committed Phase 2 state
-  before the acceptance request, because historical gates compare committed refs.
+- Complete architecture preflight: passed from committed Phase 2 state,
+  including the Phase 1 historical snapshot gate and Phase 2 boundary gate.
 
 ## Acceptance boundary
 
