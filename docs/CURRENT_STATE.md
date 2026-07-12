@@ -31,6 +31,52 @@
 | Phase 23B | LOCKED | xlb-phase23b-event-api-reliability | Event outbox and API client reliability |
 | Phase 23C | LOCKED | xlb-phase23c-three-app-frontend-engineering | Three-app frontend engineering |
 | Phase 23D | LOCKED | xlb-phase23d-performance-quality-closure | Performance and quality closure |
+| Phase 24A | APPROVED | — | Customer support system discovery and design; incremental Phase 17 intake approved |
+| Phase 24B | COMPLETE / AWAITING ACCEPTANCE | — | City-scoped support ticket MVP across Customer, Worker, and Admin |
+
+## Phase 24B — Support Ticket MVP (COMPLETE / AWAITING ACCEPTANCE)
+
+- **Entered**: 2026-07-12
+- **Branch**: `codex/phase24b-support-ticket-mvp`
+- **Base**: Phase 24A design branch from `main` at `04f1c43`; Phase 24A changes remain uncommitted in this worktree
+- **Approval**: human approval received for the incremental Phase 17 intake design
+- **Required migration**: `047_phase24b_support_ticket_mvp.sql` (append-only)
+- **Completion**: implementation and verification completed on 2026-07-12; not merged, tagged, or locked
+- **Scope**:
+  - city-scoped support tickets and append-only ticket events
+  - authenticated Customer/Worker create, own-list, detail, comment, and reopen flows
+  - city-scoped Admin/Operator list, detail, assign, comment, escalate, resolve, and close flows
+  - idempotency, optimistic concurrency, ownership/role/city rejection, and transactional Outbox events
+  - Customer/Worker/Admin frontend entry points through `@xlb/api-client`
+  - independent contracts, tests, migration replay, boundary gate, browser evidence, and report
+- **Boundary**:
+  - Phase 24 owns support intake, ticket handling, assignment, comments, and support status only
+  - Phase 17 remains the owner of complaint, repair, liability, compensation, refund, and reverse semantics
+  - linked complaints are validated and referenced; Support never mutates `aftersale_*` tables directly
+  - no payment, dispatch, worker-finance, ledger, settlement, payout, refund-provider, WebSocket, bot, knowledge-base, SLA-routing, or CSAT implementation
+  - no mutation of migrations `000`–`046`, locked tags, or existing domain state machines
+- **Verification**: Phase 24B aggregate gate passed; full unit/contract regression 136 files / 759 tests; full database/security regression 174 files / 494 tests; architecture preflight passed
+- **Exit requirement**: explicit human acceptance and Lock decision; Phase 24C may not begin before that decision
+
+## Phase 24A — Customer Support System Discovery And Design (APPROVED)
+
+- **Entered**: 2026-07-12
+- **Branch**: `codex/phase24-support-system-design`
+- **Base**: `main` at `04f1c43` after the locked Phase 23D line and deployment fixes
+- **Scope**:
+  - inspect the current Fastify/MySQL/Redis/Outbox/auth/frontend/test architecture
+  - define support conversation, ticket, routing, bot, knowledge-base, quality, and agent-workbench boundaries
+  - reconcile the support ticket design with the locked Phase 17 aftersale complaint domain
+  - draft field-level schema, indexes, city/tenant constraints, diagrams, phase plan, tests, and gates
+- **Boundary**:
+  - documentation and design only
+  - no migration 047, support runtime module, API, WebSocket, Provider, or frontend page
+  - no mutation of migrations `000`–`046`, locked tags, or existing business semantics
+  - no direct support-domain write to order, payment, dispatch, worker, aftersale, ledger, or settlement tables
+- **Design**: `docs/architecture/support-system-design.md`
+- **Report**: `docs/reports/PHASE24_SUPPORT_SYSTEM_DESIGN_REPORT.md`
+- **Approval**: approved on 2026-07-12 with incremental intake: Support owns customer-service orchestration while Phase 17 retains aftersale business truth
+- **Exit state**: approved for Phase 24B implementation; no Phase 24A tag was created
 
 ## Phase 23D — Performance and Quality Closure (LOCKED)
 

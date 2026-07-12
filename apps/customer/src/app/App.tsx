@@ -2,6 +2,7 @@ import { lazy, useCallback, useEffect, useMemo, useState } from "react";
 import type { CatalogSnapshot, CityCode } from "@xlb/types";
 import type { CustomerOrderCreatePageProps } from "../pages/CustomerOrderCreatePage";
 import type { CustomerOrdersPageProps } from "../pages/CustomerOrdersPage";
+import type { CustomerSupportApi } from "../pages/CustomerSupportPage";
 import {
   appendOrderId,
   createCustomerApiClient,
@@ -21,6 +22,7 @@ const CustomerOrdersPage = lazy(() => import("../pages/CustomerOrdersPage").then
 const CustomerAftersalePage = lazy(() => import("../pages/CustomerAftersalePage").then((module) => ({ default: module.CustomerAftersalePage })));
 const CustomerProfilePage = lazy(() => import("../pages/CustomerProfilePage").then((module) => ({ default: module.CustomerProfilePage })));
 const CustomerServicesPage = lazy(() => import("../pages/CustomerServicesPage").then((module) => ({ default: module.CustomerServicesPage })));
+const CustomerSupportPage = lazy(() => import("../pages/CustomerSupportPage").then((module) => ({ default: module.CustomerSupportPage })));
 
 export function App() {
   const initialCityCode = useMemo(() => readCustomerCityCode(), []);
@@ -156,6 +158,17 @@ export function App() {
 
   if (currentRoute === "aftersale") {
     return <CustomerAftersalePage api={api} orderIds={orderIds} />;
+  }
+
+  if (currentRoute === "support") {
+    const supportApi: CustomerSupportApi = {
+      createTicket: (input) => api.createSupportTicket(input),
+      listTickets: (filters) => api.listSupportTickets(filters),
+      getTicket: (ticketId) => api.getSupportTicket(ticketId),
+      addComment: (ticketId, input) => api.addSupportTicketComment(ticketId, input),
+      reopenTicket: (ticketId, input) => api.reopenSupportTicket(ticketId, input),
+    };
+    return <CustomerSupportPage api={supportApi} />;
   }
 
   return <CustomerProfilePage api={api} cityCode={cityCode} />;

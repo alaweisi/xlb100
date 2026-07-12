@@ -1,4 +1,5 @@
 import type { ApiClient } from "./createApiClient.js";
+import { createRequesterSupportApi } from "./support.js";
 import type {
   AftersaleComplaintDetailResponse,
   AftersaleComplaintResponse,
@@ -284,6 +285,7 @@ export interface OrderReviewResponse {
 
 export function createCustomerOrderApi(client: ApiClient) {
   return {
+    ...createRequesterSupportApi(client),
     getProfile() {
       return client.get<{ ok: true; profile: CustomerProfile }>("/api/customer/profile");
     },

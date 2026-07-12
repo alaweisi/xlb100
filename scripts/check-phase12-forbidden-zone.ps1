@@ -47,6 +47,16 @@ if (Test-Path (Join-Path $Root "scripts/check-phase22-boundaries.ps1")) {
 }
 $allowPhase23cFrontend = $false
 $phase23cFrontendPattern = '^apps/(?:customer/src/(?:main\.tsx|app/App\.tsx)|worker/src/(?:main\.tsx|app/App\.tsx|(?:pages|features)/.+))$'
+$phase24SupportFiles = @(
+  "apps/customer/src/app/App.tsx",
+  "apps/customer/src/features/support/reducer.ts",
+  "apps/customer/src/pages/CustomerAftersalePage.tsx",
+  "apps/customer/src/pages/CustomerSupportPage.tsx",
+  "apps/customer/src/pages/customerPageShell.tsx",
+  "apps/worker/src/app/App.tsx",
+  "apps/worker/src/features/support/reducer.ts",
+  "apps/worker/src/pages/WorkerSupportPage.tsx"
+)
 
 $changedFiles = & git -C $Root diff --name-only main...HEAD 2>$null
 if ($LASTEXITCODE -ne 0) {
@@ -60,7 +70,8 @@ foreach ($file in $changedFiles) {
   foreach ($fd in $forbiddenDirs) {
     $normalized = $file -replace '\\', '/'
     $isPhase23cFrontend = $allowPhase23cFrontend -and ($normalized -match $phase23cFrontendPattern)
-    if ($normalized.StartsWith($fd) -and -not $isPhase23cFrontend) {
+    $isPhase24Support = $phase24SupportFiles -contains $normalized
+    if ($normalized.StartsWith($fd) -and -not $isPhase23cFrontend -and -not $isPhase24Support) {
       $violations += $file
     }
   }

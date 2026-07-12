@@ -26,6 +26,7 @@ import {
 
 import { helperText, workerPanelStyle } from "../pages/pageShared";
 import { useWorkerAuthStore } from "../features/auth/store";
+import type { WorkerSupportApi } from "../pages/WorkerSupportPage";
 
 const WorkerLoginPage = lazy(() => import("../pages/AuthPages").then((module) => ({ default: module.WorkerLoginPage })));
 const HallPage = lazy(() => import("../pages/TaskPages").then((module) => ({ default: module.HallPage })));
@@ -35,6 +36,7 @@ const TaskDetailPage = lazy(() => import("../pages/FulfillmentPages").then((modu
 const WalletPage = lazy(() => import("../pages/FinancePages").then((module) => ({ default: module.WalletPage })));
 const WorkerLocationPage = lazy(() => import("../pages/ProfilePages").then((module) => ({ default: module.WorkerLocationPage })));
 const CertificationPage = lazy(() => import("../pages/ProfilePages").then((module) => ({ default: module.CertificationPage })));
+const WorkerSupportPage = lazy(() => import("../pages/WorkerSupportPage").then((module) => ({ default: module.WorkerSupportPage })));
 
 const DEFAULT_CITY_CODE = "hangzhou";
 type WorkerRoute =
@@ -43,6 +45,7 @@ type WorkerRoute =
   | "taskDetail"
   | "repairs"
   | "wallet"
+  | "support"
   | "profile"
   | "certification";
 
@@ -93,6 +96,7 @@ const routeConfig: Record<
     subtitle: "Receivable balance and withdrawal requests",
     icon: "W",
   },
+  support: { label: "Support", href: "/worker/support", title: "Support Tickets", subtitle: "Tracked help and dispute requests", icon: "S" },
   profile: {
     label: "Profile",
     href: "/worker/profile",
@@ -136,6 +140,7 @@ function resolveRoute(): ResolvedRoute {
   }
 
   if (rawPath === "/worker/wallet") return { route: "wallet" };
+  if (rawPath === "/worker/support") return { route: "support" };
   if (rawPath === "/worker/certification") return { route: "certification" };
   if (rawPath === "/worker/profile") return { route: "profile" };
   return { route: "hall" };
@@ -196,7 +201,7 @@ function WorkerPageHeader({ route }: { route: WorkerRoute }) {
 function RouteNav({ activeRoute }: { activeRoute: WorkerRoute }) {
   return (
     <BottomNav
-      items={(["hall", "tasks", "repairs", "wallet", "profile", "certification"] as WorkerRoute[]).map((key) => ({
+      items={(["hall", "tasks", "repairs", "wallet", "support", "profile", "certification"] as WorkerRoute[]).map((key) => ({
         key,
         label: routeConfig[key].label,
         active: key === activeRoute || (key === "tasks" && activeRoute === "taskDetail"),
@@ -791,6 +796,14 @@ export function App() {
         selectedBankAccountId={selectedBankAccountId} onReload={() => void loadWallet()} onAccountHolderChange={setAccountHolder}
         onBankNameChange={setBankName} onBankCardNumberChange={setBankCardNumber} onWithdrawalAmountChange={setWithdrawalAmount}
         onSelectedBankAccountChange={setSelectedBankAccountId} onAddBankAccount={() => void addBankAccount()} onRequestWithdrawal={() => void requestWithdrawal()} />
+    ) : route.route === "support" ? (
+      <WorkerSupportPage api={{
+        createTicket: (input) => api!.createSupportTicket(input),
+        listTickets: (filters) => api!.listSupportTickets(filters),
+        getTicket: (ticketId) => api!.getSupportTicket(ticketId),
+        addComment: (ticketId, input) => api!.addSupportTicketComment(ticketId, input),
+        reopenTicket: (ticketId, input) => api!.reopenSupportTicket(ticketId, input),
+      } satisfies WorkerSupportApi} />
     ) : route.route === "profile" ? (
       <WorkerLocationPage location={workerLocation} busy={locationBusy} error={locationError} latitude={latitude} longitude={longitude}
         radius={serviceRadius} sharing={locationSharing} onLatitudeChange={setLatitude} onLongitudeChange={setLongitude}
