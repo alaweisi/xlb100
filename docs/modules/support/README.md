@@ -1,5 +1,21 @@
 # Support / 客服系统
 
+## Phase 24C Phase 3 delivery
+
+Phase 3 activates the two SLA breach markers through append-only migration
+`050`, performs bounded database-claimed first-response and resolution breach
+scans, raises priority one step per breach kind, and emits both an internal
+`sla_breached` ticket event and `support.sla.breached` Outbox fact. The existing
+auto-run lifecycle invokes the Support run-once step; database row locking and
+CAS provide multi-instance mutation safety.
+
+The Admin workbench provides `mine`, `skill_group`, and scoped `all` views with
+versioned SLA cursors, real pagination, SLA remaining-time states, and an
+exactly-one public-pool claim. Requester-visible Admin/Operator comments establish
+first response only for an active Support profile; internal notes do not. Phase
+24C is not locked until explicit acceptance. Conversation/WebSocket, bot/
+knowledge-base, and quality/CSAT remain reserved for 24D, 24E, and 24F.
+
 ## 当前状态
 
 Phase 24A 设计已获人工批准；Phase 24B 工单 MVP 已完成施工、验证并 Lock，tag 为 `xlb-phase24b-support-ticket-mvp`。Phase 24C Phase 0 设计与 Phase 1 坐席/技能组工程已获验收；Phase 2 自动路由、城市 SLA 策略修订、新工单时限快照和 Admin 配置页已完成施工，当前等待人工验收，Phase 24C 尚未 Lock。实时会话、机器人、知识库、质检和 CSAT 仍未进入范围，不能据此声称这些能力已经上线。

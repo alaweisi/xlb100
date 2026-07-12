@@ -30,11 +30,17 @@ export type SupportTicketEventType =
   | "created"
   | "commented"
   | "assigned"
+  | "claimed"
   | "status_changed"
   | "escalated"
   | "resolved"
   | "reopened"
-  | "closed";
+  | "closed"
+  | "sla_breached";
+
+export type SupportSlaBreachKind = "first_response" | "resolution";
+export type SupportTicketWorkbenchView = "mine" | "skill_group" | "all";
+export type SupportTicketWorkbenchSort = "sla_due";
 
 export type SupportTicketActorType =
   | "customer"
@@ -66,6 +72,8 @@ export interface SupportTicket {
   slaFirstResponseDueAt: string | null;
   slaResolutionDueAt: string | null;
   firstRespondedAt: string | null;
+  slaFirstResponseBreachedAt: string | null;
+  slaResolutionBreachedAt: string | null;
   resolvedAt: string | null;
   closedAt: string | null;
   resolutionCode: string | null;
@@ -125,6 +133,11 @@ export interface AssignSupportTicketRequest {
   idempotencyKey: string;
 }
 
+export interface ClaimSupportTicketRequest {
+  expectedVersion: number;
+  idempotencyKey: string;
+}
+
 export interface EscalateSupportTicketRequest {
   reason: string;
   expectedVersion: number;
@@ -152,6 +165,8 @@ export interface SupportTicketListFilters {
   requesterId?: string;
   relatedOrderId?: string;
   assignedAgentId?: string;
+  view?: SupportTicketWorkbenchView;
+  sort?: SupportTicketWorkbenchSort;
   cursor?: string;
   limit?: number;
 }
@@ -188,6 +203,16 @@ export interface SupportTicketOutboxEventPayload {
   actorId: string | null;
   version: number;
   occurredAt: string;
+}
+
+export interface SupportSlaBreachedOutboxEventPayload {
+  ticketId: string;
+  cityCode: CityCode;
+  breachKind: SupportSlaBreachKind;
+  dueAt: string;
+  oldPriority: SupportTicketPriority;
+  newPriority: SupportTicketPriority;
+  version: number;
 }
 
 export type SupportAgentLifecycleStatus = "active" | "suspended";

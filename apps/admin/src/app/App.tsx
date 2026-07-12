@@ -137,7 +137,7 @@ export function App() {
   const viewTitle = view.page === "workerWithdrawals"
     ? "Worker Withdrawals"
     : view.page === "support"
-    ? "Support Tickets"
+    ? "Support Agent Workbench"
     : view.page === "platformOperations"
     ? "Platform Operations"
     : view.page === "enterprise"
@@ -283,7 +283,7 @@ export function App() {
             { key:"enterprise",label:"Enterprise",active:view.page==="enterprise",href:"#/enterprise",onClick:navigateToEnterprise },
             { key:"dispatch",label:"Dispatch",active:view.page==="dispatch",href:"#/dispatch",onClick:navigateToDispatch },
             { key:"platformOperations",label:"Orders / SKU / Workers",active:view.page==="platformOperations",href:"#/platform-operations",onClick:navigateToPlatformOperations },
-            { key: "support", label: "Support Tickets", active: view.page === "support", href: "#/support", onClick: navigateToSupport },
+            { key: "support", label: "Support Workbench", active: view.page === "support", href: "#/support", onClick: navigateToSupport },
           ]}
         />
       }

@@ -64,6 +64,7 @@ describe("Phase 24B support ticket contracts", () => {
       relatedOrderId: null, relatedWorkerId: null, linkedAftersaleComplaintId: null,
       assignedAgentId: null, assignedSkillGroupId: null, routingLanguage: null,
       slaFirstResponseDueAt: null, slaResolutionDueAt: null, firstRespondedAt: null,
+      slaFirstResponseBreachedAt: null, slaResolutionBreachedAt: null,
       closedAt: null, version: 0, createdAt: "2026-07-12T00:00:00.000Z",
       updatedAt: "2026-07-12T00:00:00.000Z",
     };

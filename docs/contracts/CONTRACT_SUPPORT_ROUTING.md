@@ -4,7 +4,8 @@
 
 This contract activates city-scoped Support agent profiles, skill groups, and
 agent membership. Phase 2 additionally activates automatic routing and SLA
-policy configuration. It does not define SLA breach jobs, realtime presence,
+policy configuration. Phase 3 activates SLA breach processing, public-pool
+claim, and the agent workbench. It does not define realtime presence,
 conversation, bot, knowledge-base, quality, or CSAT behavior.
 
 `admin_users` remains the only login identity. `support_agents` is a business
@@ -246,3 +247,55 @@ Ticket due timestamps are calculated once from the database transaction time
 and stored in the existing Phase 24B columns. The created event payload records
 the selected policy and timing snapshot. Later policy revisions never modify an
 existing ticket's group, routing language, or SLA due timestamps.
+
+## Phase 3 public-pool claim
+
+`POST /api/internal/support/tickets/:ticketId/claim` accepts
+`{ expectedVersion, idempotencyKey }`. The claimant identity is derived from
+verified Admin RequestContext; clients cannot provide an agent or Admin user ID.
+Claim requires a current Admin/Operator database role and explicit real-city
+scope, an active Support profile with `workStatus=online`, a non-null ticket
+skill group, and active membership in that group. The ticket must be unassigned
+and in `open`, `processing`, `waiting_requester`, or `escalated`.
+
+The final assignment is a ticket-version CAS. Exactly one concurrent claimant
+succeeds; a loser receives 409 and writes no event or Outbox row. Success
+returns `SupportTicketMutationResponse`, appends a `claimed` ticket event, and
+publishes the existing `support.ticket.assigned` Outbox fact.
+
+## Phase 3 workbench list contract
+
+The internal ticket list adds optional `view` and `sort` query parameters:
+
+- `view=mine` returns tickets assigned to the current active Support profile.
+- `view=skill_group` returns unassigned tickets in the profile's active groups.
+- `view=all` preserves city-wide Admin/Operator supervision; Auditor remains read-only.
+- `sort=sla_due` orders effective SLA due time ascending with NULL last, then
+  priority rank descending, creation time ascending, and ticket ID ascending.
+
+Omitting `view` and `sort` preserves the locked Phase 24B created-desc list.
+Cursors are opaque, versioned, and bound to city, view, sort, and filters. The
+effective due time is first-response due before first response, otherwise
+resolution due, with resolution used when first-response due is NULL. Clients
+derive normal, near-due (30 minutes or less), and overdue presentation from the
+raw timestamps and breach markers.
+
+## Phase 3 SLA breach facts
+
+Ticket responses add nullable `slaFirstResponseBreachedAt` and
+`slaResolutionBreachedAt`. Existing tickets remain NULL. A requester-visible
+Admin/Operator comment (`requester` or `all`) by an active Support profile is
+the only prospective first response; an internal note does not count.
+
+For each overdue, non-terminal, unmarked SLA kind, the bounded database worker
+sets its marker, raises priority one step (`low` to `normal` to `high` to
+`urgent` to `critical`), increments ticket version, appends one `sla_breached`
+event, and publishes one `support.sla.breached` Outbox fact. Critical remains
+critical. First-response and resolution markers are independent and may each
+produce one escalation. Terminal tickets are never escalated. Mutation-time
+catch-up applies the same rule before a late visible response or resolve/close.
+
+The minimal `support.sla.breached` payload is `ticketId`, `cityCode`,
+`breachKind` (`first_response` or `resolution`), `dueAt`, `oldPriority`,
+`newPriority`, and resulting positive `version`. It contains no
+requester text, credentials, contact details, or mutable policy reference.

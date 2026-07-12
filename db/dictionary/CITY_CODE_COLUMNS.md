@@ -109,3 +109,7 @@ Migration `038` makes the client dimension part of the agreement/order and subsc
 | Table | city_code column | Notes |
 |-------|------------------|-------|
 | `support_sla_policies` | required FK + non-global check | Append-only revisions; exact type/priority then city other/normal fallback |
+
+Migration `050` keeps SLA breach markers on the already city-scoped
+`support_tickets` row and uses city-leading scan indexes. Its event CHECK
+expansion does not change the composite same-city ticket-event foreign key.

@@ -19,9 +19,12 @@ export const supportTicketStatusSchema = z.enum([
   "open", "processing", "waiting_requester", "escalated", "resolved", "closed",
 ]);
 export const supportTicketEventTypeSchema = z.enum([
-  "created", "commented", "assigned", "status_changed", "escalated", "resolved",
-  "reopened", "closed",
+  "created", "commented", "assigned", "claimed", "status_changed", "escalated", "resolved",
+  "reopened", "closed", "sla_breached",
 ]);
+export const supportSlaBreachKindSchema = z.enum(["first_response", "resolution"]);
+export const supportTicketWorkbenchViewSchema = z.enum(["mine", "skill_group", "all"]);
+export const supportTicketWorkbenchSortSchema = z.literal("sla_due");
 export const supportTicketActorTypeSchema = z.enum([
   "customer", "worker", "admin", "operator", "system", "bot",
 ]);
@@ -48,6 +51,8 @@ export const supportTicketSchema = z.object({
   slaFirstResponseDueAt: timestampSchema.nullable(),
   slaResolutionDueAt: timestampSchema.nullable(),
   firstRespondedAt: timestampSchema.nullable(),
+  slaFirstResponseBreachedAt: timestampSchema.nullable(),
+  slaResolutionBreachedAt: timestampSchema.nullable(),
   resolvedAt: timestampSchema.nullable(),
   closedAt: timestampSchema.nullable(),
   resolutionCode: z.string().trim().min(1).max(64).nullable(),
@@ -133,6 +138,11 @@ export const assignSupportTicketRequestSchema = z.object({
   idempotencyKey: idempotencyKeySchema,
 }).strict();
 
+export const claimSupportTicketRequestSchema = z.object({
+  expectedVersion: z.number().int().nonnegative(),
+  idempotencyKey: idempotencyKeySchema,
+}).strict();
+
 export const escalateSupportTicketRequestSchema = z.object({
   reason: z.string().trim().min(1).max(2_000),
   expectedVersion: z.number().int().nonnegative(),
@@ -160,6 +170,8 @@ export const supportTicketListFiltersSchema = z.object({
   requesterId: idSchema.optional(),
   relatedOrderId: idSchema.optional(),
   assignedAgentId: idSchema.optional(),
+  view: supportTicketWorkbenchViewSchema.optional(),
+  sort: supportTicketWorkbenchSortSchema.optional(),
   cursor: z.string().trim().min(1).max(512).optional(),
   limit: z.number().int().min(1).max(100).optional(),
 }).strict();
@@ -185,6 +197,16 @@ export const supportTicketOutboxEventPayloadSchema = z.object({
   actorId: idSchema.nullable(),
   version: z.number().int().nonnegative(),
   occurredAt: timestampSchema,
+}).strict();
+
+export const supportSlaBreachedOutboxEventPayloadSchema = z.object({
+  ticketId: idSchema,
+  cityCode: cityCodeSchema,
+  breachKind: supportSlaBreachKindSchema,
+  dueAt: timestampSchema,
+  oldPriority: supportTicketPrioritySchema,
+  newPriority: supportTicketPrioritySchema,
+  version: z.number().int().positive(),
 }).strict();
 
 export const supportAgentLifecycleStatusSchema = z.enum(["active", "suspended"]);
@@ -439,6 +461,7 @@ export const supportSlaPolicyListResponseSchema = z.object({
 export type SupportTicketInput = z.infer<typeof supportTicketSchema>;
 export type SupportTicketEventInput = z.infer<typeof supportTicketEventSchema>;
 export type CreateSupportTicketRequestInput = z.infer<typeof createSupportTicketRequestSchema>;
+export type ClaimSupportTicketRequestInput = z.infer<typeof claimSupportTicketRequestSchema>;
 export type SupportTicketListFiltersInput = z.infer<typeof supportTicketListFiltersSchema>;
 export type SupportAgentInput = z.infer<typeof supportAgentSchema>;
 export type SupportSlaPolicyInput = z.infer<typeof supportSlaPolicySchema>;

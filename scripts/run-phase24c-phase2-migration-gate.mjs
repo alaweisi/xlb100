@@ -57,9 +57,6 @@ async function verify() {
   }
   const routingColumn = await scalar("SELECT LOWER(column_type) column_type FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='support_tickets' AND column_name='routing_language'");
   if (routingColumn !== "varchar(32)") throw new Error("support_tickets.routing_language must remain VARCHAR(32)");
-  if (await scalar("SELECT COUNT(*) count FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='support_tickets' AND column_name IN ('sla_first_response_breached_at','sla_resolution_breached_at')") !== "0") {
-    throw new Error("migration 049 entered Phase 3 breach scope");
-  }
 }
 
 try {

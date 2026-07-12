@@ -33,9 +33,9 @@
 | Phase 23D | LOCKED | xlb-phase23d-performance-quality-closure | Performance and quality closure |
 | Phase 24A | APPROVED | — | Customer support system discovery and design; incremental Phase 17 intake approved |
 | Phase 24B | LOCKED | xlb-phase24b-support-ticket-mvp | City-scoped support ticket MVP across Customer, Worker, and Admin |
-| Phase 24C | PHASE 2 IN PROGRESS | — | Automatic skill-group routing and city SLA policy snapshots |
+| Phase 24C | PHASE 3 IN PROGRESS | — | SLA breach detection, public-pool claim, and Admin agent workbench |
 
-## Phase 24C — Routing / SLA / Agent Workbench (PHASE 2 IN PROGRESS)
+## Phase 24C — Routing / SLA / Agent Workbench (PHASE 3 IN PROGRESS)
 
 - **Entered**: 2026-07-12
 - **Design branch**: `codex/phase24c-routing-sla-design`
@@ -44,21 +44,25 @@
 - **Base**: locked Phase 24B metadata commit `6ac201a`; tag `xlb-phase24b-support-ticket-mvp`
 - **Phase 0 approval**: approved by human on 2026-07-12; design commit `35bae96`
 - **Phase 1 acceptance**: approved by human on 2026-07-12; implementation commits `ddd2715`, `ff815f1`
-- **Current scope**: append-only migration 049; automatic type/city/optional-language skill-group routing; city SLA policy revisions; immutable due-time snapshots on new tickets; Admin skill-group/SLA configuration UI
+- **Phase 2 acceptance**: approved by human on 2026-07-12; implementation commits `efa3542`, `5bc0647`
+- **Phase 3 branch**: `codex/phase24c-phase3-sla-workbench`
+- **Current scope**: append-only migration 050; SLA breach detection and one-step escalation; public-pool CAS claim; mine/skill-group/all workbench queues; SLA remaining-time visualization
 - **Discoveries**:
   - existing recurring jobs are demo-oriented process-local auto-run; SLA must add Support-owned DB claim/CAS while reusing the run-once lifecycle
   - Support agents bind existing `admin_users` plus explicit real-city `admin_city_scopes`; no parallel identity system
   - locked `assignedAgentId` remains an Admin user ID
   - existing NULL skill-group/SLA fields and historical first-response facts are not bulk rewritten
-- **Boundary**: no SLA breach polling/escalation job, public-pool claim, mine/pool workbench queues, WebSocket, bot, knowledge base, quality, CSAT, OA, or protected-domain mutation during Phase 2
+- **Boundary**: no WebSocket/conversation (24D), bot/knowledge base (24E), quality/CSAT (24F), OA, or protected-domain mutation during Phase 3
 - **Design report**: `docs/reports/PHASE24C_ROUTING_SLA_DESIGN_REPORT.md`
 - **Phase 1 report**: `docs/reports/PHASE24C_PHASE1_AGENT_SKILL_GROUP_REPORT.md`
 - **Verification**: contract 5/5; integration 3/3; security 1/1; migration 048 schema/re-execution; typecheck 17/17; build 11/11; full regression 176 files/498 tests; full architecture preflight passed
 - **Phase 2 report**: `docs/reports/PHASE24C_PHASE2_ROUTING_SLA_REPORT.md`
 - **Phase 2 verification**: contract 4/4; integration 3/3; Admin UI 3/3; security 1/1; migration 049 schema/re-execution; typecheck 17/17; build 11/11; full regression 178 files/502 tests; complete architecture preflight passed; critical audit clean
-- **Phase 2 status**: implementation verified and awaiting explicit human acceptance; Phase 3 not entered
-- **Status note**: Phase 1 accepted; Phase 2 entered by explicit human approval; Phase 24C remains not locked
-- **Exit requirement**: Phase 2 migration/contract/integration/UI/security gates and explicit human acceptance before Phase 3
+- **Phase 2 status**: accepted; Phase 3 entered by explicit human approval
+- **Phase 3 report**: `docs/reports/PHASE24C_PHASE3_SLA_WORKBENCH_REPORT.md`
+- **Phase 3 verification**: aggregate gate passed; contract/unit 5/5; integration 2/2; Admin UI 3/3; security 1/1; migration 050 schema/re-execution; typecheck 17/17; build 11/11; full regression 180 files / 505 tests; complete architecture preflight passed; critical audit clean
+- **Status note**: Phase 1 and Phase 2 accepted; Phase 24C Phase 3 implementation is verified, awaiting explicit human acceptance, and remains not locked
+- **Exit requirement**: Phase 3 migration/contract/integration/UI/security gates and explicit human acceptance before Phase 24C Lock consideration
 
 ## Phase 24B — Support Ticket MVP (LOCKED)
 

@@ -37,7 +37,7 @@ and both references must resolve in the ticket city.
 | type | `order_question`, `order_dispute`, `service_complaint`, `withdrawal_issue`, `account_issue`, `safety`, `other` |
 | priority | `low`, `normal`, `high`, `urgent`, `critical` |
 | status | `open`, `processing`, `waiting_requester`, `escalated`, `resolved`, `closed` |
-| event type | `created`, `commented`, `assigned`, `status_changed`, `escalated`, `resolved`, `reopened`, `closed` |
+| event type | `created`, `commented`, `assigned`, `claimed`, `status_changed`, `escalated`, `resolved`, `reopened`, `closed`, `sla_breached` |
 | actor type | `customer`, `worker`, `admin`, `operator`, `system`, `bot` |
 | visibility | `requester`, `internal`, `all` |
 
@@ -66,6 +66,8 @@ All JSON request schemas are strict: unknown properties are rejected.
 - Assign: `{ assignedAgentId, expectedVersion, idempotencyKey }`.
   During 24B, `assignedAgentId` is a verified admin/operator user ID; the
   `support_agents` binding belongs to 24C.
+- Claim: `{ expectedVersion, idempotencyKey }`. The claimant identity is
+  derived from verified Admin RequestContext and cannot be supplied by clients.
 - Escalate: `{ reason, expectedVersion, idempotencyKey }`.
 - Resolve: `{ resolutionCode, resolutionNote?, expectedVersion,
   idempotencyKey }`.
@@ -107,6 +109,7 @@ Admin/operator routes:
 | GET | `/api/internal/support/tickets` | `SupportTicketListResponse` |
 | GET | `/api/internal/support/tickets/:ticketId` | `SupportTicketDetailResponse` |
 | POST | `/api/internal/support/tickets/:ticketId/assign` | `SupportTicketMutationResponse` |
+| POST | `/api/internal/support/tickets/:ticketId/claim` | `SupportTicketMutationResponse` |
 | POST | `/api/internal/support/tickets/:ticketId/events` | `SupportTicketMutationResponse` |
 | POST | `/api/internal/support/tickets/:ticketId/escalate` | `SupportTicketMutationResponse` |
 | POST | `/api/internal/support/tickets/:ticketId/resolve` | `SupportTicketMutationResponse` |
@@ -123,10 +126,19 @@ New-ticket creation snapshots automatic skill-group routing and SLA due times.
 Policy changes never recalculate an existing ticket, and Phase 24B historical
 NULL routing/SLA values are not backfilled.
 
+From Phase 24C Phase 3, ticket responses expose nullable
+`slaFirstResponseBreachedAt` and `slaResolutionBreachedAt`. Existing rows remain
+NULL until an eligible breach is recorded.
+
 Lists use a bounded `limit` of 1–100 and an opaque cursor. Admin filters may
 include `source`, `type`, `priority`, `status`, `requesterId`,
 `relatedOrderId`, and `assignedAgentId`. Requester filters do not expand the
 ownership scope.
+
+Internal workbench lists also accept optional `view=mine|skill_group|all` and
+`sort=sla_due`. Omitting both preserves the locked created-desc behavior. The
+workbench cursor and SLA ordering contract is defined in
+`CONTRACT_SUPPORT_ROUTING.md`.
 
 ## Idempotency and API Client retry
 
@@ -145,8 +157,8 @@ The Customer and Worker APIs export:
 
 The Admin API exports:
 `listSupportTickets`, `getSupportTicket`, `assignSupportTicket`,
-`addSupportTicketComment`, `escalateSupportTicket`, `resolveSupportTicket`, and
-`closeSupportTicket`.
+`claimSupportTicket`, `addSupportTicketComment`, `escalateSupportTicket`,
+`resolveSupportTicket`, and `closeSupportTicket`.
 
 Critical create/list/detail/mutation responses are runtime-validated by the
 client; malformed success responses become `ApiClientError` with
@@ -162,9 +174,14 @@ The closed `OutboxEventType` and validator include:
 - `support.ticket.resolved`
 - `support.ticket.reopened`
 - `support.ticket.closed`
+- `support.sla.breached`
 
 Each successful fact is written atomically with the ticket/event mutation.
 Support events are internal by default and are not implicitly added to the
 enterprise webhook allowlist. Payloads must contain only the documented
 minimal `SupportTicketOutboxEventPayload`; credentials, tokens, raw contact
 details and unrestricted message content are forbidden.
+
+The SLA breach fact instead uses the strict minimal
+`SupportSlaBreachedOutboxEventPayload` documented in
+`CONTRACT_SUPPORT_ROUTING.md`.

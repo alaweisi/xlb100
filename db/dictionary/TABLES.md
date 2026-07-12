@@ -244,3 +244,8 @@ only the Support-domain profile key.
 Migration `049` also adds nullable `support_tickets.routing_language` for the
 canonical lowercase language used by deterministic routing. Policies are
 city-only; existing ticket SLA due timestamps remain immutable snapshots.
+
+Migration `050` adds nullable first-response and resolution breach markers to
+`support_tickets`, dedicated city/status SLA scan indexes, and expands the
+append-only `support_ticket_events.event_type` CHECK with `claimed` and
+`sla_breached`. It creates no new identity, scheduler, or business table.

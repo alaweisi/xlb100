@@ -1,6 +1,6 @@
 import type {
   AddSupportTicketCommentRequest, AdminAddSupportTicketCommentRequest, AssignSupportTicketRequest,
-  CloseSupportTicketRequest, CreateSupportTicketRequest, EscalateSupportTicketRequest,
+  ClaimSupportTicketRequest, CloseSupportTicketRequest, CreateSupportTicketRequest, EscalateSupportTicketRequest,
   ReopenSupportTicketRequest, ResolveSupportTicketRequest, SupportTicket, SupportTicketDetailResponse,
   SupportTicketEvent, SupportTicketListFilters, SupportTicketListResponse,
   SupportTicketMutationResponse, SupportTicketResponse,
@@ -21,7 +21,7 @@ const SOURCES = ["customer", "worker", "enterprise", "admin", "system"] as const
 const TYPES = ["order_question", "order_dispute", "service_complaint", "withdrawal_issue", "account_issue", "safety", "other"] as const;
 const PRIORITIES = ["low", "normal", "high", "urgent", "critical"] as const;
 const STATUSES = ["open", "processing", "waiting_requester", "escalated", "resolved", "closed"] as const;
-const EVENT_TYPES = ["created", "commented", "assigned", "status_changed", "escalated", "resolved", "reopened", "closed"] as const;
+const EVENT_TYPES = ["created", "commented", "assigned", "claimed", "status_changed", "escalated", "resolved", "reopened", "closed", "sla_breached"] as const;
 const ACTOR_TYPES = ["customer", "worker", "admin", "operator", "system", "bot"] as const;
 const VISIBILITIES = ["requester", "internal", "all"] as const;
 const AGENT_LIFECYCLE_STATUSES = ["active", "suspended"] as const;
@@ -42,7 +42,7 @@ function ticket(value: unknown): SupportTicket {
   string(item.ticketId, "support ticket.ticketId"); string(item.cityCode, "support ticket.cityCode"); oneOf(item.source, SOURCES, "support ticket.source");
   string(item.requesterId, "support ticket.requesterId"); nullableString(item.businessClientId, "support ticket.businessClientId"); oneOf(item.type, TYPES, "support ticket.type");
   oneOf(item.priority, PRIORITIES, "support ticket.priority"); oneOf(item.status, STATUSES, "support ticket.status"); string(item.subject, "support ticket.subject"); string(item.description, "support ticket.description");
-  for (const field of ["relatedOrderId", "relatedWorkerId", "linkedAftersaleComplaintId", "assignedAgentId", "assignedSkillGroupId", "slaFirstResponseDueAt", "slaResolutionDueAt", "firstRespondedAt", "resolvedAt", "closedAt", "resolutionCode"] as const) nullableString(item[field], `support ticket.${field}`);
+  for (const field of ["relatedOrderId", "relatedWorkerId", "linkedAftersaleComplaintId", "assignedAgentId", "assignedSkillGroupId", "slaFirstResponseDueAt", "slaResolutionDueAt", "firstRespondedAt", "slaFirstResponseBreachedAt", "slaResolutionBreachedAt", "resolvedAt", "closedAt", "resolutionCode"] as const) nullableString(item[field], `support ticket.${field}`);
   routingLanguage(item.routingLanguage, "support ticket.routingLanguage");
   integer(item.version, "support ticket.version"); string(item.createdAt, "support ticket.createdAt"); string(item.updatedAt, "support ticket.updatedAt"); return value as SupportTicket;
 }
@@ -148,6 +148,7 @@ export function createAdminSupportApi(client: ApiClient) {
     listSupportTickets(filters: SupportTicketListFilters = {}): Promise<SupportTicketListResponse> { return client.get(`${base}${queryString(filters)}`, { validate: validateSupportTicketListResponse }); },
     getSupportTicket(ticketId: string): Promise<SupportTicketDetailResponse> { return client.get(ticketPath(base, ticketId), { validate: validateSupportTicketDetailResponse }); },
     assignSupportTicket(ticketId: string, body: AssignSupportTicketRequest): Promise<SupportTicketMutationResponse> { return client.post(`${ticketPath(base, ticketId)}/assign`, body, { ...idempotent, validate: validateSupportTicketMutationResponse }); },
+    claimSupportTicket(ticketId: string, body: ClaimSupportTicketRequest): Promise<SupportTicketMutationResponse> { return client.post(`${ticketPath(base, ticketId)}/claim`, body, { ...idempotent, validate: validateSupportTicketMutationResponse }); },
     addSupportTicketComment(ticketId: string, body: AdminAddSupportTicketCommentRequest): Promise<SupportTicketMutationResponse> { return client.post(`${ticketPath(base, ticketId)}/events`, body, { ...idempotent, validate: validateSupportTicketMutationResponse }); },
     escalateSupportTicket(ticketId: string, body: EscalateSupportTicketRequest): Promise<SupportTicketMutationResponse> { return client.post(`${ticketPath(base, ticketId)}/escalate`, body, { ...idempotent, validate: validateSupportTicketMutationResponse }); },
     resolveSupportTicket(ticketId: string, body: ResolveSupportTicketRequest): Promise<SupportTicketMutationResponse> { return client.post(`${ticketPath(base, ticketId)}/resolve`, body, { ...idempotent, validate: validateSupportTicketMutationResponse }); },

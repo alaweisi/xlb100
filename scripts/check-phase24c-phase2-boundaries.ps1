@@ -1,22 +1,24 @@
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 $BaseRef = "ff815f1"
+$PhaseEndRef = "5bc0647"
 
 function Require-Path([string]$Path) {
   if (-not (Test-Path (Join-Path $Root $Path))) { throw "missing Phase 24C Phase 2 artifact: $Path" }
 }
 
 function Changed-Files([string[]]$Paths) {
-  $tracked = @(& git diff --name-only $BaseRef -- @Paths)
+  $tracked = @(& git diff --name-only $BaseRef $PhaseEndRef -- @Paths)
   if ($LASTEXITCODE -ne 0) { throw "unable to inspect Phase 24C Phase 2 diff" }
-  $untracked = @(& git ls-files --others --exclude-standard -- @Paths)
-  return @($tracked + $untracked | Sort-Object -Unique)
+  return @($tracked | Sort-Object -Unique)
 }
 
 Push-Location $Root
 try {
   & git rev-parse --verify "$BaseRef^{commit}" *> $null
   if ($LASTEXITCODE -ne 0) { throw "missing accepted Phase 24C Phase 1 baseline: $BaseRef" }
+  & git rev-parse --verify "$PhaseEndRef^{commit}" *> $null
+  if ($LASTEXITCODE -ne 0) { throw "missing accepted Phase 24C Phase 2 endpoint: $PhaseEndRef" }
 
   $locked = @(Changed-Files @("db/migrations") | Where-Object {
     $_ -match '^db/migrations/(?:0(?:0[0-9]|1[0-9]|2[0-9]|3[0-9]|4[0-8]))_'
@@ -58,8 +60,9 @@ try {
   $runtime = @(Changed-Files @("backend/src/support", "apps/admin/src", "packages"))
   $futurePattern = '(?i)(/claim\b|sla[_A-Za-z]*breach|SKIP\s+LOCKED|support\.sla\.breached|WebSocket|knowledge.?base|CSAT|public.?pool|assigned.?to.?me)'
   foreach ($relative in $runtime) {
-    $path = Join-Path $Root $relative
-    if ((Test-Path $path) -and (Get-Content $path -Raw) -match $futurePattern) {
+    $phaseContent = (& git show "$PhaseEndRef`:$relative" 2>$null) -join "`n"
+    if ($LASTEXITCODE -ne 0) { throw "unable to read Phase 2 endpoint content: $relative" }
+    if ($phaseContent -match $futurePattern) {
       throw "Phase 24C Phase 2 runtime entered Phase 3+ scope: $relative"
     }
   }
@@ -82,7 +85,7 @@ try {
     if (-not $ticketService.Contains($required)) { throw "ticket creation missing Phase 2 snapshot: $required" }
   }
 
-  $deletedTests = @(& git diff --diff-filter=D --name-only $BaseRef -- tests)
+  $deletedTests = @(& git diff --diff-filter=D --name-only $BaseRef $PhaseEndRef -- tests)
   if ($deletedTests.Count -gt 0) { throw "Phase 24C Phase 2 deleted historical tests: $($deletedTests -join ', ')" }
   foreach ($testPath in @(
     "tests/contract/phase24cRoutingSla.contract.test.ts",

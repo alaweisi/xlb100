@@ -23,6 +23,7 @@ const ticket = (overrides: Partial<SupportTicket> = {}): SupportTicket => ({
   relatedOrderId: null, relatedWorkerId: null, linkedAftersaleComplaintId: null,
   assignedAgentId: null, assignedSkillGroupId: null, routingLanguage: null,
   slaFirstResponseDueAt: null, slaResolutionDueAt: null, firstRespondedAt: null,
+  slaFirstResponseBreachedAt: null, slaResolutionBreachedAt: null,
   resolvedAt: null, closedAt: null, resolutionCode: null, version: 0,
   createdAt: at, updatedAt: at, ...overrides,
 });

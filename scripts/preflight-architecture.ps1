@@ -537,3 +537,6 @@ Write-Host "XLB Phase 24C Phase 1 agent and skill-group boundary preflight passe
 
 Invoke-PreflightGate "check-phase24c-phase2-boundaries.ps1"
 Write-Host "XLB Phase 24C Phase 2 routing and SLA boundary preflight passed."
+
+Invoke-PreflightGate "check-phase24c-phase3-boundaries.ps1"
+Write-Host "XLB Phase 24C Phase 3 SLA breach and agent workbench boundary preflight passed."

@@ -39,6 +39,7 @@ export type OutboxEventType =
   | "support.ticket.resolved"
   | "support.ticket.reopened"
   | "support.ticket.closed"
+  | "support.sla.breached"
   | "conflict_audit"
   | "worker.receivable.statement.created"
   | "worker.receivable.statement.reviewed"

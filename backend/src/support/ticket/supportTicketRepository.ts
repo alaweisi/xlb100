@@ -36,6 +36,8 @@ type TicketRow = RowDataPacket & {
   sla_first_response_due_at: Date | null;
   sla_resolution_due_at: Date | null;
   first_responded_at: Date | null;
+  sla_first_response_breached_at: Date | null;
+  sla_resolution_breached_at: Date | null;
   resolved_at: Date | null;
   closed_at: Date | null;
   resolution_code: string | null;
@@ -60,7 +62,8 @@ type EventRow = RowDataPacket & {
 const TICKET_COLUMNS = `ticket_id,city_code,source,requester_id,business_client_id,type,priority,
   status,subject,description,related_order_id,related_worker_id,linked_aftersale_complaint_id,
   assigned_agent_id,assigned_skill_group_id,routing_language,sla_first_response_due_at,sla_resolution_due_at,
-  first_responded_at,resolved_at,closed_at,resolution_code,version,created_at,updated_at`;
+  first_responded_at,sla_first_response_breached_at,sla_resolution_breached_at,
+  resolved_at,closed_at,resolution_code,version,created_at,updated_at`;
 const EVENT_COLUMNS = `ticket_event_id,city_code,ticket_id,event_type,actor_type,actor_id,visibility,
   content,payload_json,created_at`;
 
@@ -85,6 +88,8 @@ function mapTicket(row: TicketRow): SupportTicket {
     slaFirstResponseDueAt: row.sla_first_response_due_at?.toISOString() ?? null,
     slaResolutionDueAt: row.sla_resolution_due_at?.toISOString() ?? null,
     firstRespondedAt: row.first_responded_at?.toISOString() ?? null,
+    slaFirstResponseBreachedAt: row.sla_first_response_breached_at?.toISOString() ?? null,
+    slaResolutionBreachedAt: row.sla_resolution_breached_at?.toISOString() ?? null,
     resolvedAt: row.resolved_at?.toISOString() ?? null,
     closedAt: row.closed_at?.toISOString() ?? null,
     resolutionCode: row.resolution_code,
@@ -112,6 +117,12 @@ function mapEvent(row: EventRow): SupportTicketEvent {
 }
 
 export type TicketCursor = { createdAt: string; ticketId: string };
+export type TicketSlaCursor = {
+  effectiveDueAt: string | null;
+  priorityRank: number;
+  createdAt: string;
+  ticketId: string;
+};
 
 export class SupportTicketRepository extends RepositoryBase {
   constructor(pool?: Pool) {
@@ -242,6 +253,26 @@ export class SupportTicketRepository extends RepositoryBase {
     return result.affectedRows === 1;
   }
 
+  async claimTicketCas(connection: PoolConnection, input: {
+    cityCode: CityCode; ticketId: string; adminUserId: string; expectedVersion: number;
+  }): Promise<boolean> {
+    const [result] = await connection.query<ResultSetHeader>(
+      `UPDATE support_tickets t
+       INNER JOIN support_agents sa
+         ON sa.city_code=t.city_code AND sa.admin_user_id=?
+        AND sa.lifecycle_status='active' AND sa.work_status='online'
+       INNER JOIN support_agent_skill_groups sag
+         ON sag.city_code=sa.city_code AND sag.agent_id=sa.agent_id
+        AND sag.skill_group_id=t.assigned_skill_group_id AND sag.is_active=1
+       SET t.assigned_agent_id=?,t.status=IF(t.status='open','processing',t.status),t.version=t.version+1
+       WHERE t.city_code=? AND t.ticket_id=? AND t.version=?
+         AND t.assigned_agent_id IS NULL AND t.assigned_skill_group_id IS NOT NULL
+         AND t.status IN ('open','processing','waiting_requester','escalated')`,
+      [input.adminUserId, input.adminUserId, input.cityCode, input.ticketId, input.expectedVersion],
+    );
+    return result.affectedRows === 1;
+  }
+
   async updateStatusCas(connection: PoolConnection, input: {
     cityCode: CityCode;
     ticketId: string;
@@ -335,6 +366,67 @@ export class SupportTicketRepository extends RepositoryBase {
        WHERE ${clauses.join(" AND ")}
        ORDER BY created_at DESC,ticket_id DESC LIMIT ?`,
       params,
+    );
+    return rows.map(mapTicket);
+  }
+
+  async listWorkbenchTickets(
+    context: RequestContext,
+    cityCode: CityCode,
+    filters: SupportTicketListFilters,
+    limit: number,
+    cursor: TicketSlaCursor | null,
+    actorUserId: string,
+    view: "mine" | "skill_group" | "all",
+  ): Promise<SupportTicket[]> {
+    this.requireContext(context);
+    assertCityScopedContext(context);
+    const where = buildCityScopedWhere(cityCode, "t.city_code");
+    const clauses = [where.clause];
+    const params: unknown[] = [...where.params];
+    let joins = "";
+    if (view === "mine") {
+      clauses.push("t.assigned_agent_id=?");
+      params.push(actorUserId);
+      joins = `INNER JOIN support_agents own_sa ON own_sa.city_code=t.city_code
+        AND own_sa.admin_user_id=? AND own_sa.lifecycle_status='active'`;
+      params.unshift(actorUserId);
+    } else if (view === "skill_group") {
+      joins = `INNER JOIN support_agents own_sa ON own_sa.city_code=t.city_code
+          AND own_sa.admin_user_id=? AND own_sa.lifecycle_status='active'
+        INNER JOIN support_agent_skill_groups own_sag ON own_sag.city_code=own_sa.city_code
+          AND own_sag.agent_id=own_sa.agent_id AND own_sag.skill_group_id=t.assigned_skill_group_id
+          AND own_sag.is_active=1`;
+      params.unshift(actorUserId);
+      clauses.push("t.assigned_agent_id IS NULL", "t.assigned_skill_group_id IS NOT NULL",
+        "t.status IN ('open','processing','waiting_requester','escalated')");
+    }
+    const mappings: [keyof SupportTicketListFilters, string][] = [
+      ["source", "t.source"], ["type", "t.type"], ["priority", "t.priority"], ["status", "t.status"],
+      ["requesterId", "t.requester_id"], ["relatedOrderId", "t.related_order_id"],
+      ["assignedAgentId", "t.assigned_agent_id"],
+    ];
+    for (const [key, column] of mappings) {
+      const value = filters[key];
+      if (typeof value === "string" && value) { clauses.push(`${column}=?`); params.push(value); }
+    }
+    const due = "COALESCE(IF(t.first_responded_at IS NULL,t.sla_first_response_due_at,NULL),t.sla_resolution_due_at)";
+    const rank = "FIELD(t.priority,'low','normal','high','urgent','critical')";
+    if (cursor) {
+      if (cursor.effectiveDueAt === null) {
+        clauses.push(`${due} IS NULL AND (${rank}<? OR (${rank}=? AND (t.created_at>? OR (t.created_at=? AND t.ticket_id>?))))`);
+        params.push(cursor.priorityRank, cursor.priorityRank, cursor.createdAt, cursor.createdAt, cursor.ticketId);
+      } else {
+        clauses.push(`(${due}>? OR ${due} IS NULL OR (${due}=? AND (${rank}<? OR (${rank}=? AND (t.created_at>? OR (t.created_at=? AND t.ticket_id>?))))))`);
+        params.push(cursor.effectiveDueAt, cursor.effectiveDueAt, cursor.priorityRank, cursor.priorityRank,
+          cursor.createdAt, cursor.createdAt, cursor.ticketId);
+      }
+    }
+    params.push(limit);
+    const [rows] = await this.pool.query<TicketRow[]>(
+      `SELECT ${TICKET_COLUMNS.split(",").map((column) => `t.${column.trim()}`).join(",")} FROM support_tickets t ${joins}
+       WHERE ${clauses.join(" AND ")}
+       ORDER BY ${due} IS NULL ASC,${due} ASC,${rank} DESC,t.created_at ASC,t.ticket_id ASC LIMIT ?`, params,
     );
     return rows.map(mapTicket);
   }

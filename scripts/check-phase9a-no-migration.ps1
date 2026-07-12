@@ -17,7 +17,8 @@ $allowed = @(
   "db/migrations/046_phase23d_query_path_indexes.sql",
   "db/migrations/047_phase24b_support_ticket_mvp.sql",
   "db/migrations/048_phase24c_support_agents_skill_groups.sql",
-  "db/migrations/049_phase24c_support_routing_sla_policies.sql"
+  "db/migrations/049_phase24c_support_routing_sla_policies.sql",
+  "db/migrations/050_phase24c_support_sla_breach_workbench.sql"
 )
 
 $vs = $diff | ForEach-Object {

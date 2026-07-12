@@ -4,6 +4,7 @@ import { dispatchService } from "../dispatch/dispatchService.js";
 import { dispatchSimulationService } from "../dispatch/dispatchSimulationService.js";
 import { ledgerService } from "../ledger/ledgerService.js";
 import { settlementPreparationService } from "../settlement/settlementPreparationService.js";
+import { supportSlaBreachService } from "../support/ticket/supportSlaBreachService.js";
 
 type AutoRunLogger = {
   info: (payload: unknown, message?: string) => void;
@@ -15,7 +16,7 @@ export type AutoRunHandle = {
   stop: () => void;
 };
 
-type AutoRunStep = "dispatch" | "dispatch.match" | "ledger" | "settlement.prepare";
+type AutoRunStep = "dispatch" | "dispatch.match" | "ledger" | "settlement.prepare" | "support.sla";
 
 type AutoRunOptions = {
   env: EnvConfig;
@@ -57,6 +58,12 @@ async function runStep(
 
     if (step === "ledger") {
       const result = await ledgerService.runOnce(context);
+      logger.info({ step, cityCode, processed: result.processed }, "auto-run step completed");
+      return;
+    }
+
+    if (step === "support.sla") {
+      const result = await supportSlaBreachService.runOnce(context, cityCode);
       logger.info({ step, cityCode, processed: result.processed }, "auto-run step completed");
       return;
     }
@@ -103,6 +110,7 @@ export function startAutoRunJobs({ env, logger }: AutoRunOptions): AutoRunHandle
         await runStep("dispatch.match", cityCode, context, logger);
         await runStep("ledger", cityCode, context, logger);
         await runStep("settlement.prepare", cityCode, context, logger);
+        await runStep("support.sla", cityCode, context, logger);
       }
     } finally {
       isRunning = false;
