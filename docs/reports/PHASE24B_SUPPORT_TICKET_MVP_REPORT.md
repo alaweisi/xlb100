@@ -102,9 +102,30 @@ The repository-wide `pnpm lint` command still reports the pre-existing
 That file is unchanged by Phase 24B; the finding is recorded here rather than
 expanding this phase into unrelated historical cleanup.
 
+## Lock verification — feature branch
+
+- Human Lock approval received on 2026-07-12.
+- Feature commit: `3740d84`; legacy-gate compatibility commits: `659e481`,
+  `87b6ea6`, `f5399af`, and `7fd45b2`.
+- MySQL and Redis local containers were healthy; migration runner reported
+  `SKIP 047_phase24b_support_ticket_mvp`, and the complete seed runner passed.
+- `pnpm build`: 11/11 tasks passed.
+- `pnpm typecheck`: 17/17 tasks passed.
+- `pnpm test`: 174/174 files and 494/494 tests passed after all committed-file
+  boundary checks were active.
+- `pnpm gate:phase24b`: passed, including migration replay, authenticated
+  lifecycle integration, persisted Customer → Admin → Customer Playwright flow,
+  build/typecheck, and critical dependency audit.
+- `pnpm preflight`: passed through Phase 24B, including ledger replay and
+  immutability proof.
+- Historical Phase 8J/8K/8L, Phase 9A–9E, Phase 11, and Phase 12 gates received
+  exact later-phase allowlists for the Support files, Support tables, and
+  migration 047. Their original forbidden terms and money-movement boundaries
+  remain active.
+
 ## Lock readiness
 
-Phase 24B implementation and verification are complete, but the phase is not
-locked. Work stops here for human acceptance. Phase 24C must not begin, and no
-merge or tag may be created, until an explicit acceptance/Lock decision is
-received.
+Phase 24B implementation, human acceptance, and feature-branch Lock verification
+are complete. The remaining Lock ceremony is the `--no-ff` main merge,
+post-merge verification, Lock metadata commit, and tag creation. Phase 24C has
+not been entered.
