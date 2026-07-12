@@ -1,6 +1,6 @@
 # Phase 24 Customer Support System Completion Report
 
-> Draft verification ledger. This file does not declare Phase 24 complete or locked.
+> Final unified acceptance and Lock report for Phase 24A–24F.
 
 ## Completion scope
 
@@ -42,11 +42,12 @@ Phase 17 remains the source of truth for complaint, repair, liability, compensat
 | Three-app UI and realtime evidence | PASS — Customer/Worker/Admin UI tests, production builds, REST persistence and websocket integration coverage |
 | Worktree status | Awaiting acceptance commit/Lock handoff; unrelated user-owned untracked audit files remain preserved |
 
-## Final handoff (fill only after success)
+## Lock conclusion
 
-- Final commit: PENDING
-- Final tag: PENDING
+- Merged to `main`: yes; final merge commit is the annotated tag target
+- Final tag: `xlb-phase24-customer-support-closure`
 - Test report: PASS — aggregate gates, migration replay 051–053, 184 files / 518 tests, typecheck, build, audit and preflight
-- Clean worktree proof: PENDING
+- Clean worktree proof: PASS before merge; third-party audit/benchmark artifacts were preserved in the named Git stash `user audit and benchmark reports preserved before Phase 24 Lock`
+- Next phase: not entered; Phase 25 was not created
 
-Human acceptance and the repository Lock workflow remain mandatory. Only after Phase 24F final Lock should a separate governance branch organize historical phase registration; new business work then begins at Phase 25.
+Phase 24A–24F are accepted as one customer-support closure. Historical phase registration remains a separate governance task.
