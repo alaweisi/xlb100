@@ -3,6 +3,16 @@ $ErrorActionPreference = "Stop"; $Root = Split-Path -Parent $PSScriptRoot
 $d = & git -C $Root diff main...HEAD -- backend/src/ packages/ docs/ ':!docs/release/' 2>$null
 $fb = @('mutate_settlement','commit_settlement','ledger_mutation','reverse_ledger','refund_execution','payout','execute_payout','paid_at','refunded_at','settled_at')
 $allowedFiles = @(
+  "apps/admin/src/pages/SupportTicketsPage.tsx",
+  "apps/worker/src/pages/WorkerSupportPage.tsx",
+  "docs/architecture/support-system-design.md",
+  "docs/contracts/CONTRACT_SUPPORT_TICKETS.md",
+  "docs/diagrams/support-system-architecture.md",
+  "docs/modules/support/README.md",
+  "docs/reports/PHASE24B_SUPPORT_TICKET_MVP_REPORT.md",
+  "packages/api-client/src/support.ts",
+  "packages/types/src/support.ts",
+  "packages/validators/src/supportSchema.ts",
   "docs/CURRENT_STATE.md",
   "docs/reports/PHASE21_THREE_APP_OPERATIONS_CLOSURE_REPORT.md",
   "docs/reports/PHASE21_TEST_COVERAGE.md",
