@@ -71,7 +71,8 @@
               "HISTORICAL_INCOMPLETE",
               "INTEGRATED_UNLOCKED",
               "SUPERSEDED",
-              "RESERVED"
+              "RESERVED",
+              "IN_PROGRESS"
             ]
           },
           "tag": { "type": "string" },

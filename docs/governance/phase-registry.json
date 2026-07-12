@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "sourceOfTruth": "docs/CURRENT_STATE.md plus immutable git tags and reports",
-  "lastLockedPhase": "Phase 24F",
-  "nextFormalPhase": "Phase 25",
+  "lastLockedPhase": "Phase 25",
+  "nextFormalPhase": "Phase 26",
   "rules": {
     "doNotRenameHistoricalTags": true,
     "doNotBackfillMissingTags": true,
@@ -315,6 +315,18 @@
       "status": "LOCKED",
       "tag": "xlb-phase24-customer-support-closure",
       "summary": "CSAT, quality review, and support operations metrics."
+    },
+    {
+      "id": "Phase 25",
+      "kind": "formal",
+      "status": "LOCKED",
+      "tag": "xlb-phase25-ui-standardization-v1.0",
+      "summary": "Five-system UI standardization: Customer, Worker, Admin, OA collaboration, and realtime Dashboard.",
+      "notes": [
+        "Entered by explicit human instruction on 2026-07-12.",
+        "No database migration is authorized by the Phase 25 UI scope.",
+        "Locked on 2026-07-13 after the unified closure gate, typecheck, build, full test, and architecture preflight passed."
+      ]
     }
   ]
 }

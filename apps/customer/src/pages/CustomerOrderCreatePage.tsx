@@ -35,7 +35,7 @@ import {
   scheduleDayOptions,
   serviceTimeSlots,
 } from "../adapters/orderAddressOptions";
-import { UatDebugPanel, useSearchParamSku } from "./customerPageShell";
+import { useSearchParamSku } from "./customerPageShell";
 
 type QuoteState =
   | { status: "pending" }
@@ -81,9 +81,6 @@ export interface CustomerOrderCreatePageProps {
   cityCode: CityCode;
   onOrderCreated: (orderId: string) => void;
 }
-
-const catalogSourceEndpoint = "GET /api/catalog";
-const pricingEndpoint = "GET /api/pricing/quote";
 
 function statusTone(status: string): "success" | "warning" | "danger" | "muted" {
   if (status === "paid") return "success";
@@ -263,14 +260,6 @@ export function CustomerOrderCreatePage({
       setSubmitState({ status: "error", error: error instanceof Error ? error.message : "Submit failed" });
     }
   }
-
-  const createOrderPayload = selectedSkuId ? createOrderRequestPayload(selectedSkuId, quantity, orderFormDetails) : null;
-  const uatCreateOrderPayload = selectedSkuId
-    ? {
-        ...createOrderPayload,
-        cityCode,
-      }
-    : null;
 
   return (
     <CustomerOrderCreateTemplate route="/customer/order/create" cityCode={cityCode} binding={binding}>
@@ -458,25 +447,6 @@ export function CustomerOrderCreatePage({
       </section>
 
       <CustomerAnswerCard state={binding.state} />
-      <UatDebugPanel
-        binding={binding}
-        facts={[
-          { label: "city_code", value: cityCode },
-          { label: "selectedSkuId", value: selectedSku?.skuId ?? null },
-          { label: "selectedSkuName", value: selectedSku?.name ?? null },
-          { label: "quote", value: quoteState.status === "success" ? quoteState.quote : quoteState },
-          { label: "catalog source endpoint", value: catalogSourceEndpoint },
-          { label: "pricing endpoint", value: pricingEndpoint },
-          { label: "createOrderPayload", value: uatCreateOrderPayload },
-          { label: "service address", value: orderFormDetails },
-          { label: "schedule label", value: formatScheduledLabel(orderFormDetails.scheduledAt, orderFormDetails.scheduledTimeSlot) },
-          { label: "orderId", value: submitState.status === "success" ? submitState.order.orderId : null },
-          { label: "orderDetail", value: submitState.status === "success" ? submitState.orderDetail : null },
-          { label: "workflow state", value: binding.state },
-          { label: "availableActions", value: binding.availableActions },
-          { label: "disabledReason", value: binding.disabledReasons },
-        ]}
-      />
     </CustomerOrderCreateTemplate>
   );
 }

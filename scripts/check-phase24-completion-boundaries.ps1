@@ -9,7 +9,10 @@ Push-Location $Root
 try {
   if (Test-Path "db/migrations/024_*") { throw "migration 024 is a permanent historical gap" }
   if (Test-Path "db/migrations/054_*") { throw "Phase 24 completion cannot create a Phase 25/054 migration" }
-  if ((Test-Path "docs/reports/PHASE25*") -or (Test-Path "docs/architecture/*phase25*")) { throw "Phase 25 must not be created before Phase 24 governance" }
+  $phase24Closure = (& git rev-list -n 1 xlb-phase24-customer-support-closure).Trim()
+  if (-not $phase24Closure) { throw "Phase 24 closure tag is required before separate Phase 25 entry" }
+  & git merge-base --is-ancestor $phase24Closure main
+  if ($LASTEXITCODE -ne 0) { throw "Phase 24 closure tag must remain reachable from main before Phase 25 work" }
 
   $expected = @{
     "051" = "051_phase24d_support_realtime_conversations.sql"

@@ -14,7 +14,6 @@ import {
 } from "@xlb/ui";
 import { formatScheduledLabel } from "../adapters/orderAddressOptions";
 import { createCustomerUiBinding } from "../adapters/workflowAdapter";
-import { UatDebugPanel } from "./customerPageShell";
 
 interface CustomerOrderApi {
   getOrder(orderId: string): Promise<{ order: Order }>;
@@ -419,19 +418,6 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
         })}
 
       <CustomerAnswerCard state={binding.state} />
-      <UatDebugPanel
-        binding={binding}
-        facts={[
-          { label: "city_code", value: cityCode },
-          { label: "order ids", value: orderIds },
-          { label: "order list count", value: orders.length },
-          { label: "review states", value: reviewStates },
-          { label: "confirm states", value: confirmStates },
-          { label: "payment states", value: paymentStates },
-          { label: "refund request states", value: refundStates },
-          { label: "workflow state", value: binding.state },
-        ]}
-      />
     </CustomerOrdersTemplate>
   );
 }

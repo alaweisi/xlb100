@@ -12,7 +12,7 @@ import {
   LocationSearchBar,
   ServiceCard,
 } from "@xlb/ui";
-import { CITY_OPTIONS, CustomerLoadable, UatDebugPanel } from "./customerPageShell";
+import { CITY_OPTIONS, CustomerLoadable } from "./customerPageShell";
 import { cityDisplayLabel, representativeHomeSkus } from "../adapters/catalogAdapters";
 import { createCustomerUiBinding } from "../adapters/workflowAdapter";
 
@@ -153,18 +153,6 @@ export function CustomerHomePage({ cityCode, catalogState, onRetryCatalog }: Cus
       )}
 
       <CustomerAnswerCard state={binding.state} />
-      <UatDebugPanel
-        binding={binding}
-        facts={[
-          { label: "catalog source endpoint", value: "GET /api/catalog" },
-          { label: "city_code", value: cityCode },
-          { label: "search query", value: searchQuery },
-          { label: "matchedSkuCount", value: quickSkus.length },
-          { label: "workflow state", value: binding.state },
-          { label: "availableActions", value: binding.availableActions },
-          { label: "disabledReason", value: binding.disabledReasons },
-        ]}
-      />
     </CustomerHomeTemplate>
   );
 }

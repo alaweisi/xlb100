@@ -528,6 +528,26 @@ export {
   type CampaignInput,
 } from "./campaignSchema.js";
 export {
+  runtimeThemeRoleSchema,
+  runtimeThemeModeSchema,
+  runtimeThemePlacementSchema,
+  allowedCampaignTokenOverridesSchema,
+  campaignPresentationCtaSchema,
+  campaignPlacementPresentationSchema,
+  campaignPresentationSchema,
+  runtimeThemeAssetMimeTypeSchema,
+  runtimeThemeAssetSourcePolicySchema,
+  runtimeThemeResponsiveAssetSourceSchema,
+  runtimeThemeAssetSchema,
+  runtimeThemeAssetManifestSchema,
+  runtimeThemeResolutionReasonSchema,
+  runtimeThemeEnvelopeSchema,
+  type AllowedCampaignTokenOverridesInput,
+  type CampaignPresentationInput,
+  type RuntimeThemeAssetManifestInput,
+  type RuntimeThemeEnvelopeInput,
+} from "./runtimeThemeSchema.js";
+export {
   updateCustomerProfileSchema,
   saveCustomerAddressSchema,
   type UpdateCustomerProfileInput,

@@ -1,64 +1,59 @@
-import type { ThemeTokenOverrides } from "../tokenTypes.js";
+import type {
+  ThemeMode,
+  ThemeModeDefinition,
+  ThemeRole,
+  ThemeRoleDefinition,
+  ThemeTokenLayerDefinition,
+  ThemeTokenOverrides,
+} from "../tokenTypes.js";
 
-export const defaultThemeTokens = {
-  surface: {
-    page: "#f8fafc",
-    panel: "#ffffff",
-    muted: "#f3f4f6",
-    elevated: "#ffffff",
-  },
-  color: {
-    brand: "#2563eb",
-    brandContrast: "#ffffff",
-    accent: "#b85f2a",
-  },
-  border: {
-    subtle: "#e5e7eb",
-    strong: "#d1d5db",
-    focus: "#2563eb",
-  },
-} as const satisfies ThemeTokenOverrides;
+export const TOKEN_LAYER_TAXONOMY = [
+  { id: "L0", name: "foundation", owner: "ui", mayOverrideProtectedSemantics: true },
+  { id: "L1", name: "semantic", owner: "ui", mayOverrideProtectedSemantics: true },
+  { id: "L2", name: "role", owner: "resolver", mayOverrideProtectedSemantics: false },
+  { id: "L3", name: "mode", owner: "resolver", mayOverrideProtectedSemantics: false },
+  { id: "L4", name: "campaign", owner: "campaign-bridge", mayOverrideProtectedSemantics: false },
+  { id: "L5", name: "component", owner: "component", mayOverrideProtectedSemantics: false },
+  { id: "L6", name: "state", owner: "component", mayOverrideProtectedSemantics: false },
+  { id: "L7", name: "accessibility-runtime", owner: "runtime", mayOverrideProtectedSemantics: true },
+] as const satisfies readonly ThemeTokenLayerDefinition[];
+
+export const roleThemeDefinitions: Readonly<Record<ThemeRole, ThemeRoleDefinition>> = {
+  customer: { id: "customer", label: "Customer" },
+  worker: { id: "worker", label: "Worker" },
+  admin: { id: "admin", label: "Admin" },
+  oa: { id: "oa", label: "OA" },
+  dashboard: { id: "dashboard", label: "Dashboard" },
+};
+
+export const modeThemeDefinitions: Readonly<Record<ThemeMode, ThemeModeDefinition>> = {
+  light: { id: "light", label: "Light" },
+  dark: { id: "dark", label: "Dark" },
+  "high-contrast": { id: "high-contrast", label: "High Contrast" },
+  "large-display": { id: "large-display", label: "Large Display" },
+};
+
+/** The default theme is exactly the canonical base tree, not a second copy. */
+export const defaultThemeTokens = {} as const satisfies ThemeTokenOverrides;
 
 export const springFestivalThemeTokens = {
-  surface: {
-    page: "#fff7ed",
-    panel: "#ffffff",
-    muted: "#ffedd5",
-    elevated: "#fffaf4",
-  },
-  color: {
-    brand: "#b91c1c",
-    brandContrast: "#ffffff",
+  campaign: {
     accent: "#c2410c",
-  },
-  border: {
-    subtle: "#fed7aa",
-    strong: "#fdba74",
-    focus: "#b91c1c",
-  },
-  shadow: {
-    md: "0 12px 28px rgba(185, 28, 28, 0.10)",
+    ambient: "#fff1e6",
+    banner: { background: "#fff1e6", text: "#7f1d1d" },
+    badge: { background: "#b91c1c", text: "#ffffff" },
+    decoration: { opacity: 1, intensity: 1 },
+    navigation: { accent: "#c2410c" },
   },
 } as const satisfies ThemeTokenOverrides;
 
 export const double11ThemeTokens = {
-  surface: {
-    page: "#faf5ff",
-    panel: "#ffffff",
-    muted: "#f3e8ff",
-    elevated: "#fdfcff",
-  },
-  color: {
-    brand: "#7c3aed",
-    brandContrast: "#ffffff",
+  campaign: {
     accent: "#db2777",
-  },
-  border: {
-    subtle: "#ddd6fe",
-    strong: "#c4b5fd",
-    focus: "#7c3aed",
-  },
-  shadow: {
-    md: "0 12px 28px rgba(124, 58, 237, 0.10)",
+    ambient: "#f3e8ff",
+    banner: { background: "#f3e8ff", text: "#581c87" },
+    badge: { background: "#7c3aed", text: "#ffffff" },
+    decoration: { opacity: 1, intensity: 1 },
+    navigation: { accent: "#db2777" },
   },
 } as const satisfies ThemeTokenOverrides;

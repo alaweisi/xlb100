@@ -562,3 +562,54 @@ if ((Test-Path (Join-Path $PSScriptRoot "..\db\migrations\051_phase24d_support_r
 
 Invoke-PreflightGate "check-phase-governance.ps1"
 Write-Host "XLB Phase numbering governance preflight passed."
+
+$phase25GlobalConstruction = (Get-Content (Join-Path $PSScriptRoot "..\docs\CURRENT_STATE.md") -Raw) -match "Global construction authorization"
+
+if (-not $phase25GlobalConstruction -and (Test-Path (Join-Path $PSScriptRoot "check-phase25-gate1a.mjs"))) {
+  & node (Join-Path $PSScriptRoot "check-phase25-gate1a.mjs")
+  if ($LASTEXITCODE -ne 0) {
+    Write-Host "XLB Phase 25 Gate 1A token contract preflight FAILED."
+    exit $LASTEXITCODE
+  }
+  Write-Host "XLB Phase 25 Gate 1A token contract preflight passed."
+}
+
+if (-not $phase25GlobalConstruction -and (Test-Path (Join-Path $PSScriptRoot "check-phase25-gate1b.mjs"))) {
+  & node (Join-Path $PSScriptRoot "check-phase25-gate1b.mjs")
+  if ($LASTEXITCODE -ne 0) {
+    Write-Host "XLB Phase 25 Gate 1B material and role recipe preflight FAILED."
+    exit $LASTEXITCODE
+  }
+  Write-Host "XLB Phase 25 Gate 1B material and role recipe preflight passed."
+}
+
+if ($phase25GlobalConstruction) {
+  Write-Host "XLB Phase 25 Gate 1A/1B historical isolation checks superseded by the authorized unified closure gate."
+}
+
+if (Test-Path (Join-Path $PSScriptRoot "check-phase25-gate1c.mjs")) {
+  & node (Join-Path $PSScriptRoot "check-phase25-gate1c.mjs")
+  if ($LASTEXITCODE -ne 0) {
+    Write-Host "XLB Phase 25 Gate 1C runtime resolver preflight FAILED."
+    exit $LASTEXITCODE
+  }
+  Write-Host "XLB Phase 25 Gate 1C runtime resolver preflight passed."
+}
+
+if (Test-Path (Join-Path $PSScriptRoot "check-phase25-readiness-gates.mjs")) {
+  & node (Join-Path $PSScriptRoot "check-phase25-readiness-gates.mjs")
+  if ($LASTEXITCODE -ne 0) {
+    Write-Host "XLB Phase 25 OA/Dashboard readiness preflight FAILED."
+    exit $LASTEXITCODE
+  }
+  Write-Host "XLB Phase 25 OA/Dashboard readiness preflight passed."
+}
+
+if ($phase25GlobalConstruction -and (Test-Path (Join-Path $PSScriptRoot "check-phase25-closure.mjs"))) {
+  & node (Join-Path $PSScriptRoot "check-phase25-closure.mjs")
+  if ($LASTEXITCODE -ne 0) {
+    Write-Host "XLB Phase 25 unified closure preflight FAILED."
+    exit $LASTEXITCODE
+  }
+  Write-Host "XLB Phase 25 unified closure preflight passed."
+}
