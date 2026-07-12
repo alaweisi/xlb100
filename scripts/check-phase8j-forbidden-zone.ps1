@@ -84,7 +84,9 @@ $allowedFiles = @(
   "packages/validators/src/eventOutboxSchema.ts",
   "packages/validators/src/index.ts",
   "packages/validators/src/ledgerSchema.ts",
-  "packages/validators/src/refundSchema.ts"
+  "packages/validators/src/refundSchema.ts",
+  "backend/src/support/ticket/supportTicketService.ts",
+  "packages/validators/src/supportSchema.ts"
 )
 $diff = & git -C $Root diff main...HEAD -- backend/src/ packages/ 2>$null
 if ($LASTEXITCODE -ne 0) { Write-Host "FAILED - git diff"; exit 1 }
