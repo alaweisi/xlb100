@@ -72,6 +72,7 @@
     "gate:phase24": "node scripts/run-phase24-completion-gates.mjs",
     "test:watch": "vitest --workspace vitest.workspace.ts",
     "lint": "turbo run lint",
+    "check:phase-governance": "node scripts/check-phase-governance.mjs",
     "preflight": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/preflight-architecture.ps1"
   },
   "devDependencies": {

@@ -559,3 +559,6 @@ if ((Test-Path (Join-Path $PSScriptRoot "..\db\migrations\051_phase24d_support_r
   Invoke-PreflightGate "check-phase24-completion-boundaries.ps1"
   Write-Host "XLB Phase 24 combined completion boundary preflight passed."
 }
+
+Invoke-PreflightGate "check-phase-governance.ps1"
+Write-Host "XLB Phase numbering governance preflight passed."

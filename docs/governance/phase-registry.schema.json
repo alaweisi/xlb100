@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://xlb.local/schemas/phase-registry.schema.json",
+  "title": "XLB Phase Registry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "sourceOfTruth",
+    "lastLockedPhase",
+    "nextFormalPhase",
+    "rules",
+    "migrationNumbering",
+    "phases"
+  ],
+  "properties": {
+    "schemaVersion": { "type": "integer", "minimum": 1 },
+    "sourceOfTruth": { "type": "string", "minLength": 1 },
+    "lastLockedPhase": { "type": "string", "minLength": 1 },
+    "nextFormalPhase": { "type": "string", "minLength": 1 },
+    "rules": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "doNotRenameHistoricalTags",
+        "doNotBackfillMissingTags",
+        "doNotReuseMigration024",
+        "phaseIdsAreNotMigrationNumbers",
+        "nestedIdsAreWorkUnits"
+      ],
+      "properties": {
+        "doNotRenameHistoricalTags": { "type": "boolean" },
+        "doNotBackfillMissingTags": { "type": "boolean" },
+        "doNotReuseMigration024": { "type": "boolean" },
+        "phaseIdsAreNotMigrationNumbers": { "type": "boolean" },
+        "nestedIdsAreWorkUnits": { "type": "boolean" }
+      }
+    },
+    "migrationNumbering": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reservedPermanentGaps", "latestVerified"],
+      "properties": {
+        "reservedPermanentGaps": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[0-9]{3}$" },
+          "uniqueItems": true
+        },
+        "latestVerified": { "type": "string", "pattern": "^[0-9]{3}$" }
+      }
+    },
+    "phases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "kind", "status", "summary"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^Phase [0-9]+[A-Z]?$" },
+          "kind": {
+            "type": "string",
+            "enum": ["formal", "subphase", "historical-gap", "historical-work-unit"]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "LOCKED",
+              "EXITED",
+              "COMPLETE_UNTAGGED",
+              "NOT_IMPLEMENTED",
+              "HISTORICAL_INCOMPLETE",
+              "INTEGRATED_UNLOCKED",
+              "SUPERSEDED",
+              "RESERVED"
+            ]
+          },
+          "tag": { "type": "string" },
+          "summary": { "type": "string", "minLength": 1 },
+          "notes": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "aliases": {
+            "type": "array",
+            "items": { "type": "string" },
+            "uniqueItems": true
+          }
+        }
+      }
+    }
+  }
+}

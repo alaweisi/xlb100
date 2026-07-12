@@ -1,0 +1,320 @@
+{
+  "schemaVersion": 1,
+  "sourceOfTruth": "docs/CURRENT_STATE.md plus immutable git tags and reports",
+  "lastLockedPhase": "Phase 24F",
+  "nextFormalPhase": "Phase 25",
+  "rules": {
+    "doNotRenameHistoricalTags": true,
+    "doNotBackfillMissingTags": true,
+    "doNotReuseMigration024": true,
+    "phaseIdsAreNotMigrationNumbers": true,
+    "nestedIdsAreWorkUnits": true
+  },
+  "migrationNumbering": {
+    "reservedPermanentGaps": ["024"],
+    "latestVerified": "053"
+  },
+  "phases": [
+    {
+      "id": "Phase 0",
+      "kind": "formal",
+      "status": "EXITED",
+      "tag": "xlb-phase0-foundation",
+      "summary": "Foundation bootstrap."
+    },
+    {
+      "id": "Phase 1",
+      "kind": "formal",
+      "status": "EXITED",
+      "tag": "xlb-phase1-request-context-city",
+      "summary": "RequestContext and CityCode foundation."
+    },
+    {
+      "id": "Phase 2",
+      "kind": "formal",
+      "status": "EXITED",
+      "tag": "xlb-phase2-database-scope-dal",
+      "summary": "Database scope and DAL foundation."
+    },
+    {
+      "id": "Phase 3",
+      "kind": "formal",
+      "status": "EXITED",
+      "tag": "xlb-phase3-cityconfig-catalog-pricing",
+      "summary": "CityConfig, catalog, and pricing foundation."
+    },
+    {
+      "id": "Phase 3A",
+      "kind": "subphase",
+      "status": "LOCKED",
+      "tag": "xlb-phase3a-official-catalog-import-protocol",
+      "summary": "Official catalog import protocol.",
+      "aliases": ["xlb-phase3a-official-catalog-seeds"]
+    },
+    {
+      "id": "Phase 4",
+      "kind": "formal",
+      "status": "LOCKED",
+      "tag": "xlb-phase4-order-payment-outbox",
+      "summary": "Order, payment, and outbox foundation."
+    },
+    {
+      "id": "Phase 5A",
+      "kind": "subphase",
+      "status": "LOCKED",
+      "tag": "xlb-phase5a-dispatch-outbox-city-stream",
+      "summary": "Dispatch outbox city stream."
+    },
+    {
+      "id": "Phase 5B",
+      "kind": "subphase",
+      "status": "LOCKED",
+      "tag": "xlb-phase5b-worker-pool-taskpool-readiness",
+      "summary": "Worker pool and task-pool readiness."
+    },
+    {
+      "id": "Phase 6",
+      "kind": "formal",
+      "status": "LOCKED",
+      "tag": "xlb-phase6-certification-worker-eligibility",
+      "summary": "Certification and worker eligibility."
+    },
+    {
+      "id": "Phase 7A",
+      "kind": "subphase",
+      "status": "LOCKED",
+      "tag": "xlb-phase7a-worker-accept-fulfillment-skeleton",
+      "summary": "Worker accept and fulfillment skeleton."
+    },
+    {
+      "id": "Phase 7B",
+      "kind": "subphase",
+      "status": "LOCKED",
+      "tag": "xlb-phase7b-fulfillment-start-complete",
+      "summary": "Fulfillment start and complete."
+    },
+    {
+      "id": "Phase 8",
+      "kind": "formal",
+      "status": "EXITED",
+      "tag": "xlb-phase8-exit-settlement-governance",
+      "summary": "Settlement foundation umbrella and exit governance.",
+      "aliases": [
+        "xlb-phase8a-ledger-accrual",
+        "xlb-phase8b-settlement-preparation",
+        "xlb-phase8c-settlement-confirmation",
+        "xlb-phase8d-settlement-payable-readiness",
+        "xlb-phase8e-settlement-payable-queue",
+        "xlb-phase8f-worker-receivable-statement",
+        "xlb-phase8g-worker-receivable-statement-review",
+        "xlb-phase8h-worker-receivable-statement-export-package",
+        "xlb-phase8i-statement-audit-query",
+        "xlb-phase8j-review-summary-governance",
+        "xlb-phase8k-settlement-audit-summary",
+        "xlb-phase8l-reconciliation-gap-scan"
+      ]
+    },
+    {
+      "id": "Phase 9A",
+      "kind": "subphase",
+      "status": "LOCKED",
+      "tag": "xlb-phase9a-admin-settlement-operations-console",
+      "summary": "Admin settlement operations console."
+    },
+    {
+      "id": "Phase 9B",
+      "kind": "subphase",
+      "status": "LOCKED",
+      "tag": "xlb-phase9b-admin-settlement-operations-drilldown",
+      "summary": "Settlement detail drilldown."
+    },
+    {
+      "id": "Phase 9C",
+      "kind": "subphase",
+      "status": "LOCKED",
+      "tag": "xlb-phase9c-admin-settlement-export-review-console",
+      "summary": "Settlement export review console."
+    },
+    {
+      "id": "Phase 9D",
+      "kind": "subphase",
+      "status": "LOCKED",
+      "tag": "xlb-phase9d-admin-settlement-cross-link-navigation",
+      "summary": "Settlement cross-link navigation."
+    },
+    {
+      "id": "Phase 9E",
+      "kind": "subphase",
+      "status": "LOCKED",
+      "tag": "xlb-phase9e-admin-settlement-query-pagination",
+      "summary": "Settlement query pagination."
+    },
+    {
+      "id": "Phase 9F",
+      "kind": "historical-gap",
+      "status": "NOT_IMPLEMENTED",
+      "summary": "Skipped by governance decision; do not reuse."
+    },
+    {
+      "id": "Phase 10",
+      "kind": "formal",
+      "status": "LOCKED",
+      "tag": "xlb-phase10-settlement-action-governance",
+      "summary": "Settlement action governance."
+    },
+    {
+      "id": "Phase 11",
+      "kind": "formal",
+      "status": "LOCKED",
+      "tag": "xlb-phase11-settlement-execution-dry-run-planner",
+      "summary": "Settlement execution dry-run planner."
+    },
+    {
+      "id": "Phase 12",
+      "kind": "formal",
+      "status": "COMPLETE_UNTAGGED",
+      "summary": "Settlement execution preparation control envelope.",
+      "notes": ["Completed historically without a canonical Lock tag; do not backfill a tag."]
+    },
+    {
+      "id": "Phase 13",
+      "kind": "formal",
+      "status": "COMPLETE_UNTAGGED",
+      "summary": "Final ledger replay and immutability proof CI gates.",
+      "notes": ["Completed historically without a canonical Lock tag; do not backfill a tag."]
+    },
+    {
+      "id": "Phase 14",
+      "kind": "formal",
+      "status": "HISTORICAL_INCOMPLETE",
+      "summary": "Readiness diagnostics reached 64/100 and was not closed as a canonical Lock.",
+      "aliases": ["phase14-staging-rc1", "phase14-staging-rc2"]
+    },
+    {
+      "id": "Phase 15",
+      "kind": "historical-work-unit",
+      "status": "INTEGRATED_UNLOCKED",
+      "summary": "Historical integrated work with no canonical Lock; retained as registry entry to prevent numbering reuse.",
+      "notes": ["Do not relabel later work as Phase 15."]
+    },
+    {
+      "id": "Phase 16",
+      "kind": "formal",
+      "status": "COMPLETE_UNTAGGED",
+      "summary": "SKU, pricing, fee items, and installation standards foundation.",
+      "notes": ["Completed historically without a canonical Lock tag; do not backfill a tag."]
+    },
+    {
+      "id": "Phase 17",
+      "kind": "formal",
+      "status": "LOCKED",
+      "tag": "xlb-phase17-order-reverse-aftersale",
+      "summary": "Order reverse flow and aftersale complaints."
+    },
+    {
+      "id": "Phase 18",
+      "kind": "formal",
+      "status": "LOCKED",
+      "tag": "xlb-phase18-fulfillment-evidence-oss-envelope",
+      "summary": "Fulfillment evidence and object-storage envelope."
+    },
+    {
+      "id": "Phase 19",
+      "kind": "formal",
+      "status": "LOCKED",
+      "tag": "xlb-phase19-enterprise-openapi-webhook",
+      "summary": "B-side enterprise OpenAPI and webhook foundation."
+    },
+    {
+      "id": "Phase 20",
+      "kind": "formal",
+      "status": "LOCKED",
+      "tag": "xlb-phase20-lbs-lite-dispatch",
+      "summary": "LBS-lite dispatch."
+    },
+    {
+      "id": "Phase 21",
+      "kind": "formal",
+      "status": "LOCKED",
+      "tag": "xlb-phase21-three-app-operations-closure",
+      "summary": "Three-app operations UI closure."
+    },
+    {
+      "id": "Phase 22",
+      "kind": "formal",
+      "status": "LOCKED",
+      "tag": "xlb-phase22-e2e-security-performance-gates",
+      "summary": "E2E, observability, security, and performance gates."
+    },
+    {
+      "id": "Phase 23A",
+      "kind": "subphase",
+      "status": "LOCKED",
+      "tag": "xlb-phase23a-auth-data-safety-hardening",
+      "summary": "Authentication and data safety hardening."
+    },
+    {
+      "id": "Phase 23B",
+      "kind": "subphase",
+      "status": "LOCKED",
+      "tag": "xlb-phase23b-event-api-reliability",
+      "summary": "Event and API reliability."
+    },
+    {
+      "id": "Phase 23C",
+      "kind": "subphase",
+      "status": "LOCKED",
+      "tag": "xlb-phase23c-three-app-frontend-engineering",
+      "summary": "Three-app frontend engineering."
+    },
+    {
+      "id": "Phase 23D",
+      "kind": "subphase",
+      "status": "LOCKED",
+      "tag": "xlb-phase23d-performance-quality-closure",
+      "summary": "Performance and quality closure."
+    },
+    {
+      "id": "Phase 24A",
+      "kind": "subphase",
+      "status": "LOCKED",
+      "tag": "xlb-phase24-customer-support-closure",
+      "summary": "Customer support system discovery and design."
+    },
+    {
+      "id": "Phase 24B",
+      "kind": "subphase",
+      "status": "LOCKED",
+      "tag": "xlb-phase24b-support-ticket-mvp",
+      "summary": "Support ticket MVP."
+    },
+    {
+      "id": "Phase 24C",
+      "kind": "subphase",
+      "status": "LOCKED",
+      "tag": "xlb-phase24-customer-support-closure",
+      "summary": "Routing, SLA, and agent workbench."
+    },
+    {
+      "id": "Phase 24D",
+      "kind": "subphase",
+      "status": "LOCKED",
+      "tag": "xlb-phase24-customer-support-closure",
+      "summary": "Realtime conversation and durable messaging."
+    },
+    {
+      "id": "Phase 24E",
+      "kind": "subphase",
+      "status": "LOCKED",
+      "tag": "xlb-phase24-customer-support-closure",
+      "summary": "Knowledge base and deterministic/mock bot orchestration."
+    },
+    {
+      "id": "Phase 24F",
+      "kind": "subphase",
+      "status": "LOCKED",
+      "tag": "xlb-phase24-customer-support-closure",
+      "summary": "CSAT, quality review, and support operations metrics."
+    }
+  ]
+}
