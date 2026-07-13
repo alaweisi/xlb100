@@ -40,10 +40,11 @@ The review confirmed canonical receipt/revision reuse, claim and source revalida
 | Workspace typecheck, forced/no cache | PASS — 17/17 |
 | Workspace build, forced/no cache | PASS — 11/11 |
 | Critical dependency audit | PASS — no known critical vulnerability |
-| Architecture preflight | PASS — complete Phase0–27 chain |
+| Post-merge full regression | PASS — 192 files / 549 tests |
+| Architecture preflight | PASS — complete Phase0–27 chain, before and after merge |
 | Diff hygiene | PASS |
 
-The stable full regression ran 192 files / 549 tests. All Phase27 and business assertions passed. One historical Phase8F PowerShell gate exceeded its fixed five-second test timeout under the full serial run; its complete file immediately passed in isolation at 1 file / 9 tests in 3.38s. No Phase27 timeout or assertion failure occurred, and the historical timeout was not modified.
+The pre-merge stable full regression ran 192 files / 549 tests. All Phase27 and business assertions passed except one historical Phase8F PowerShell gate that exceeded its fixed five-second timeout; its complete file immediately passed in isolation at 1 file / 9 tests in 3.38s. The post-merge full regression then passed all 192 files / 549 tests cleanly. No Phase27 timeout or assertion failure occurred, and the historical timeout was not modified.
 
 ## Real browser acceptance
 
@@ -78,4 +79,4 @@ Phase14 remains `64/100`, `IN PROGRESS`, with staging/production `NO-GO`. Phase2
 
 ## Exit decision
 
-Phase27 A–E exit verification is complete and accepted for a no-fast-forward merge to `main`, canonical tag `xlb-phase27-notification-foundation`, and governance metadata finalization. No Phase28 work is included.
+Phase27 A–E exit verification is complete. The feature was merged no-fast-forward to local `main` at `9be272c`; post-merge typecheck, build, browser, full regression, preflight, aggregate Gate and diff hygiene pass. The final governance metadata commit is the target of canonical tag `xlb-phase27-notification-foundation`. No Phase28 work is included.

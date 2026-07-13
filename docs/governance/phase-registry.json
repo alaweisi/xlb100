@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "sourceOfTruth": "docs/CURRENT_STATE.md plus immutable git tags and reports",
-  "lastLockedPhase": "Phase 25",
-  "nextFormalPhase": "Phase 26",
+  "lastLockedPhase": "Phase 27",
+  "nextFormalPhase": "Phase 28",
   "rules": {
     "doNotRenameHistoricalTags": true,
     "doNotBackfillMissingTags": true,
@@ -12,7 +12,7 @@
   },
   "migrationNumbering": {
     "reservedPermanentGaps": ["024"],
-    "latestVerified": "053"
+    "latestVerified": "055"
   },
   "phases": [
     {
@@ -337,20 +337,21 @@
         "Accepted as design only on commit 0b9f9db633326799b0e08665d663c065805ea722; this is not a Lock and has no tag.",
         "Option A, the additive MySQL per-subscriber delivery ledger, is an accepted architecture decision only.",
         "G0–G6 passed at design level; runtime, migrations 054+, APIs, pages, Providers, subscription activation, backfill, and replay remain unauthorized.",
-        "At Phase 26 design acceptance, Phase 27 had not yet been entered; Phase 27 design was subsequently accepted at da45791 only, while runtime remains unauthorized and not ready."
+        "At Phase 26 design acceptance, Phase 27 had not yet been entered. Phase 27 was subsequently designed, constructed and locked separately without backfilling a Phase 26 tag."
       ]
     },
     {
       "id": "Phase 27",
       "kind": "formal",
-      "status": "COMPLETE_UNTAGGED",
-      "summary": "Notification in-app inbox architecture design accepted; runtime implementation is not authorized.",
+      "status": "LOCKED",
+      "tag": "xlb-phase27-notification-foundation",
+      "summary": "Platform Delivery and Customer/Worker same-city in-app Notification foundation.",
       "notes": [
-        "Accepted as design only on commit da45791b790e8787ee0369dd9f3bf20cdadde8be; COMPLETE_UNTAGGED means only that the design acceptance is complete, not that runtime implementation is complete.",
-        "This record is not a Lock, has no tag, and does not mark Phase 27 as implemented, runtime-ready, or production-ready.",
-        "Migrations 054/055, TypeScript contracts and validators, APIs, clients, routes, Customer/Worker pages, subscription registration or activation, live-start, backfill/replay, and external Providers remain unauthorized.",
-        "The candidate events order.created and support.ticket.resolved remain HUMAN PENDING ACTIVATION; no allowlist row or subscription is activated by this record.",
-        "Phase 25 remains the last LOCKED Phase, and Phase 28 has not been entered or authorized."
+        "Design was accepted at da45791b790e8787ee0369dd9f3bf20cdadde8be; construction was merged to local main at 9be272c.",
+        "Migrations 054/055, strict contracts, dormant prospective-only projection, scoped APIs and real Customer/Worker inbox pages are locked.",
+        "No subscriber, subscription, template, activation, live-start, seed, historical backfill/replay, automatic scheduler or external Provider is authorized or present.",
+        "Phase 14 remains 64/100, IN PROGRESS and staging/production NO-GO; Phase27 Lock is not production readiness.",
+        "Phase 28 has not been entered or authorized."
       ]
     }
   ]
