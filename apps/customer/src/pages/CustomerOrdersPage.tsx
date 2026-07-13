@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import type { CityCode, Order, OrderReview, PaymentOrder, RefundRequest } from "@xlb/types";
+import type {
+  CityCode,
+  CustomerOrderReviewView,
+  Order,
+  OrderReview,
+  PaymentOrder,
+  RefundRequest,
+  ReviewAppeal,
+} from "@xlb/types";
 import {
   Button,
   CustomerAnswerCard,
@@ -14,6 +22,7 @@ import {
 } from "@xlb/ui";
 import { formatScheduledLabel } from "../adapters/orderAddressOptions";
 import { createCustomerUiBinding } from "../adapters/workflowAdapter";
+import "./customer-orders.css";
 
 interface CustomerOrderApi {
   getOrder(orderId: string): Promise<{ order: Order }>;
@@ -40,6 +49,16 @@ interface CustomerOrderApi {
     review: OrderReview;
     idempotent: boolean;
   }>;
+  getOrderReview(orderId: string): Promise<{ review: CustomerOrderReviewView | null }>;
+  createReviewAppeal(reviewId: string, payload: {
+    moderationVersion: number;
+    reason: string;
+    idempotencyKey: string;
+  }): Promise<{ appeal: ReviewAppeal; idempotent: boolean }>;
+  withdrawReviewAppeal(reviewId: string, payload: {
+    moderationVersion: number;
+    idempotencyKey: string;
+  }): Promise<{ appeal: ReviewAppeal; idempotent: boolean }>;
 }
 
 export interface CustomerOrdersPageProps {
@@ -88,6 +107,11 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
   const [reviewRatings, setReviewRatings] = useState<Record<string, number>>({});
   const [reviewComments, setReviewComments] = useState<Record<string, string>>({});
   const [reviewStates, setReviewStates] = useState<Record<string, ReviewUiState>>({});
+  const [reviewViews, setReviewViews] = useState<Record<string, CustomerOrderReviewView | null>>({});
+  const [appealReasons, setAppealReasons] = useState<Record<string, string>>({});
+  const [appealStates, setAppealStates] = useState<Record<string, "idle" | "submitting" | "success" | "error">>({});
+  const [appealErrors, setAppealErrors] = useState<Record<string, string>>({});
+  const [appealKeys, setAppealKeys] = useState<Record<string, string>>({});
   const [confirmStates, setConfirmStates] = useState<Record<string, ConfirmUiState>>({});
   const [paymentStates, setPaymentStates] = useState<Record<string, PaymentUiState>>({});
 
@@ -108,6 +132,10 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
         );
         if (!cancelled) {
           setOrders(results);
+          const reviewResults = await Promise.all(
+            results.map(async (order) => [order.orderId, (await api.getOrderReview(order.orderId)).review] as const),
+          );
+          if (!cancelled) setReviewViews(Object.fromEntries(reviewResults));
         }
       } catch (err) {
         if (!cancelled) {
@@ -161,7 +189,14 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
 
   async function submitReview(orderId: string) {
     const rating = reviewRatings[orderId] || 5;
-    const comment = reviewComments[orderId]?.trim() || "Service completed as expected";
+    const comment = reviewComments[orderId]?.trim() ?? "";
+    if (!comment) {
+      setReviewStates((previous) => ({
+        ...previous,
+        [orderId]: { status: "error", error: "Please enter your own review comment" },
+      }));
+      return;
+    }
     setReviewStates((previous) => ({
       ...previous,
       [orderId]: { status: "submitting" },
@@ -180,6 +215,12 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
           idempotent: result.idempotent,
         },
       }));
+      try {
+        const persisted = await api.getOrderReview(orderId);
+        setReviewViews((previous) => ({ ...previous, [orderId]: persisted.review }));
+      } catch {
+        // The immutable review mutation succeeded. Keep success state and let the next page load reconcile its view.
+      }
     } catch (err) {
       setReviewStates((previous) => ({
         ...previous,
@@ -187,6 +228,75 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
           status: "error",
           error: err instanceof Error ? err.message : "create review failed",
         },
+      }));
+    }
+  }
+
+  async function submitReviewAppeal(orderId: string, view: CustomerOrderReviewView) {
+    const reason = appealReasons[orderId]?.trim() ?? "";
+    if (!reason) {
+      setAppealStates((previous) => ({ ...previous, [orderId]: "error" }));
+      return;
+    }
+    setAppealStates((previous) => ({ ...previous, [orderId]: "submitting" }));
+    setAppealErrors((previous) => ({ ...previous, [orderId]: "" }));
+    const idempotencyKey = appealKeys[orderId]
+      ?? `customer-review-appeal-${crypto.randomUUID()}`;
+    if (!appealKeys[orderId]) {
+      setAppealKeys((previous) => ({ ...previous, [orderId]: idempotencyKey }));
+    }
+    try {
+      await api.createReviewAppeal(view.review.reviewId, {
+        moderationVersion: view.visibility.moderationVersion,
+        reason,
+        idempotencyKey,
+      });
+      const persisted = await api.getOrderReview(orderId);
+      setReviewViews((previous) => ({ ...previous, [orderId]: persisted.review }));
+      setAppealStates((previous) => ({ ...previous, [orderId]: "success" }));
+      setAppealKeys((previous) => {
+        const next = { ...previous };
+        delete next[orderId];
+        return next;
+      });
+    } catch (cause) {
+      setAppealStates((previous) => ({ ...previous, [orderId]: "error" }));
+      setAppealErrors((previous) => ({
+        ...previous,
+        [orderId]: cause && typeof cause === "object" && "status" in cause && cause.status === 409
+          ? "This moderation decision changed or already has an active appeal. Refresh the order and try again."
+          : cause instanceof Error ? cause.message : "Appeal failed",
+      }));
+    }
+  }
+
+  async function withdrawReviewAppeal(orderId: string, view: CustomerOrderReviewView) {
+    setAppealStates((previous) => ({ ...previous, [orderId]: "submitting" }));
+    setAppealErrors((previous) => ({ ...previous, [orderId]: "" }));
+    const commandKey = `withdraw:${orderId}:${view.visibility.moderationVersion}`;
+    const idempotencyKey = appealKeys[commandKey]
+      ?? `customer-review-withdraw-${crypto.randomUUID()}`;
+    if (!appealKeys[commandKey]) {
+      setAppealKeys((previous) => ({ ...previous, [commandKey]: idempotencyKey }));
+    }
+    try {
+      await api.withdrawReviewAppeal(view.review.reviewId, {
+        moderationVersion: view.visibility.moderationVersion,
+        idempotencyKey,
+      });
+      const persisted = await api.getOrderReview(orderId);
+      setReviewViews((previous) => ({ ...previous, [orderId]: persisted.review }));
+      setAppealStates((previous) => ({ ...previous, [orderId]: "success" }));
+      setAppealKeys((previous) => {
+        const next = { ...previous };
+        delete next[commandKey];
+        return next;
+      });
+    } catch (cause) {
+      setAppealStates((previous) => ({ ...previous, [orderId]: "error" }));
+      setAppealErrors((previous) => ({
+        ...previous,
+        [orderId]: cause instanceof Error ? cause.message : "Appeal withdrawal failed",
       }));
     }
   }
@@ -264,6 +374,8 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
         sortedOrders.map((order) => {
           const refundState = refundStates[order.orderId] ?? { status: "idle" };
           const reviewState = reviewStates[order.orderId] ?? { status: "idle" };
+          const persistedReview = reviewViews[order.orderId];
+          const appealState = appealStates[order.orderId] ?? "idle";
           const confirmState = confirmStates[order.orderId] ?? { status: "idle" };
           const paymentState = paymentStates[order.orderId] ?? { status: "idle" };
           const isConfirmAllowed = order.status === "pending_dispatch";
@@ -329,11 +441,23 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
                   Service review
                 </strong>
                 <span style={{ color: "#64748b", fontSize: 12, lineHeight: "18px" }}>
-                  Creates only a review record with status=created after worker completion.
+                  Your review is immutable and enters moderation before it contributes to reputation.
                 </span>
+                {persistedReview && (
+                  <div className="customer-review-stack">
+                    <div className="customer-review-inline">
+                      <StatusTag tone="success">submitted {persistedReview.review.rating}/5</StatusTag>
+                      <StatusTag tone={persistedReview.visibility.visibility === "visible" ? "success" : "warning"}>
+                        {persistedReview.visibility.visibility}
+                      </StatusTag>
+                      <StatusTag tone="muted">version {persistedReview.visibility.moderationVersion}</StatusTag>
+                    </div>
+                    <span className="customer-review-comment">{persistedReview.review.comment}</span>
+                  </div>
+                )}
                 <div style={{ display: "grid", gap: 8, gridTemplateColumns: "120px" }}>
                   <Input
-                    disabled={!isReviewRequestAllowed || reviewState.status === "submitting"}
+                    disabled={!isReviewRequestAllowed || !!persistedReview || reviewState.status === "submitting" || reviewState.status === "success"}
                     max={5}
                     min={1}
                     type="number"
@@ -347,7 +471,7 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
                   />
                 </div>
                 <Textarea
-                  disabled={!isReviewRequestAllowed || reviewState.status === "submitting"}
+                  disabled={!isReviewRequestAllowed || !!persistedReview || reviewState.status === "submitting" || reviewState.status === "success"}
                   maxLength={500}
                   placeholder="Review comment"
                   value={reviewComments[order.orderId] ?? ""}
@@ -360,7 +484,13 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
                 />
                 <div>
                   <Button
-                    disabled={!isReviewRequestAllowed || reviewState.status === "submitting"}
+                    disabled={
+                      !isReviewRequestAllowed ||
+                      !!persistedReview ||
+                      reviewState.status === "submitting" ||
+                      reviewState.status === "success" ||
+                      !(reviewComments[order.orderId]?.trim())
+                    }
                     onClick={() => void submitReview(order.orderId)}
                   >
                     {reviewState.status === "submitting" ? "Submitting review" : "Submit review"}
@@ -380,6 +510,46 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
                 {reviewState.status === "error" && (
                   <span style={{ color: "#b42318", fontSize: 12, lineHeight: "18px" }}>{reviewState.error}</span>
                 )}
+                {persistedReview?.visibility.visibility === "hidden" &&
+                  !persistedReview.appeals.some((appeal) => appeal.status === "open") && (
+                    <div className="customer-review-stack">
+                      <Textarea
+                        maxLength={1_000}
+                        placeholder="Explain why this moderation decision should be reviewed"
+                        value={appealReasons[order.orderId] ?? ""}
+                        onChange={(event) => setAppealReasons((previous) => ({
+                          ...previous,
+                          [order.orderId]: event.target.value,
+                        }))}
+                      />
+                      <Button
+                        disabled={appealState === "submitting" || !appealReasons[order.orderId]?.trim()}
+                        onClick={() => void submitReviewAppeal(order.orderId, persistedReview)}
+                      >
+                        {appealState === "submitting" ? "Submitting appeal" : "Appeal moderation"}
+                      </Button>
+                      {appealState === "error" && (
+                        <span className="customer-review-error">
+                          {appealErrors[order.orderId] || "Appeal failed"}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                {persistedReview?.appeals.map((appeal) => (
+                  <div className="customer-review-inline" key={appeal.appealId}>
+                    <StatusTag tone={appeal.status === "upheld" ? "success" : "warning"}>
+                      appeal {appeal.status}
+                    </StatusTag>
+                    {appeal.status === "open" && (
+                      <Button
+                        disabled={appealState === "submitting"}
+                        onClick={() => void withdrawReviewAppeal(order.orderId, persistedReview)}
+                      >
+                        Withdraw appeal
+                      </Button>
+                    )}
+                  </div>
+                ))}
 
                 <strong style={{ color: "#2b2118", fontSize: 13, lineHeight: "18px" }}>
                   Aftersale request

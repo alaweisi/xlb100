@@ -3,8 +3,13 @@ import type {
   NotificationRenderParameters,
   NotificationRecipientType,
   OutboxEventType,
+  PlatformReviewCreatedV1CompatibilityPayload,
+  PlatformReviewVisibilityChangedV1CompatibilityPayload,
 } from "@xlb/types";
-import { parsePlatformCompatibilityPayload } from "@xlb/validators";
+import {
+  parsePlatformCompatibilityPayload,
+  parseVersionedPlatformCompatibilityPayload,
+} from "@xlb/validators";
 import {
   PlatformDeliveryCanonicalError,
   type PlatformDeliveryCanonicalErrorCode,
@@ -59,6 +64,106 @@ export function validateImplicitV0Compatibility(
   }
 
   return { eventMajorVersion: 0, payloadHash: canonicalPayloadHash(payload) };
+}
+
+export function isApprovedPlatformEventVersion(
+  eventType: OutboxEventType,
+  eventMajorVersion: number,
+): boolean {
+  return (
+    (eventMajorVersion === 0 &&
+      (eventType === "order.created" || eventType === "support.ticket.resolved")) ||
+    (eventMajorVersion === 1 &&
+      (eventType === "review.created" || eventType === "review.visibility.changed"))
+  );
+}
+
+export function validateVersionedPlatformCompatibility(
+  eventType: OutboxEventType,
+  eventMajorVersion: number,
+  envelopeCityCode: string,
+  subscriptionCityCode: string,
+  payload: unknown,
+): { eventMajorVersion: number; payloadHash: string } {
+  if (envelopeCityCode !== subscriptionCityCode) {
+    throw new PlatformCompatibilityError("CITY_SCOPE_MISMATCH");
+  }
+  if (!isApprovedPlatformEventVersion(eventType, eventMajorVersion)) {
+    if (
+      eventType === "order.created" ||
+      eventType === "support.ticket.resolved" ||
+      eventType === "review.created" ||
+      eventType === "review.visibility.changed"
+    ) {
+      throw new PlatformCompatibilityError("UNSUPPORTED_EVENT_VERSION");
+    }
+    throw new PlatformCompatibilityError("UNSUPPORTED_EVENT_TYPE");
+  }
+  try {
+    const parsed = parseVersionedPlatformCompatibilityPayload(
+      eventType,
+      eventMajorVersion,
+      payload,
+    ) as { cityCode?: string };
+    if (eventMajorVersion === 0 && parsed.cityCode !== envelopeCityCode) {
+      throw new PlatformCompatibilityError("CITY_SCOPE_MISMATCH");
+    }
+  } catch (error) {
+    if (error instanceof PlatformCompatibilityError) throw error;
+    throw new PlatformCompatibilityError("INVALID_EVENT_PAYLOAD");
+  }
+  return { eventMajorVersion, payloadHash: canonicalPayloadHash(payload) };
+}
+
+export function projectReviewCreatedV1Compatibility(
+  envelopeCityCode: string,
+  subscriptionCityCode: string,
+  payload: unknown,
+): PlatformReviewCreatedV1CompatibilityPayload & { eventMajorVersion: 1; payloadHash: string } {
+  const compatibility = validateVersionedPlatformCompatibility(
+    "review.created",
+    1,
+    envelopeCityCode,
+    subscriptionCityCode,
+    payload,
+  );
+  const parsed = parseVersionedPlatformCompatibilityPayload(
+    "review.created",
+    1,
+    payload,
+  ) as PlatformReviewCreatedV1CompatibilityPayload;
+  return {
+    ...parsed,
+    eventMajorVersion: 1,
+    payloadHash: compatibility.payloadHash,
+  };
+}
+
+export function projectReviewVisibilityChangedV1Compatibility(
+  envelopeCityCode: string,
+  subscriptionCityCode: string,
+  payload: unknown,
+): PlatformReviewVisibilityChangedV1CompatibilityPayload & {
+  eventMajorVersion: 1;
+  payloadHash: string;
+} {
+  const compatibility = validateVersionedPlatformCompatibility(
+    "review.visibility.changed",
+    1,
+    envelopeCityCode,
+    subscriptionCityCode,
+    payload,
+  );
+  const parsed = parseVersionedPlatformCompatibilityPayload(
+    "review.visibility.changed",
+    1,
+    payload,
+  ) as PlatformReviewVisibilityChangedV1CompatibilityPayload;
+  return {
+    ...parsed,
+    eventMajorVersion: 1,
+    payloadHash: compatibility.payloadHash,
+  };
 }
 
 /**

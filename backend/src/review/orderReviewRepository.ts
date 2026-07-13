@@ -28,6 +28,11 @@ export type ReviewableOrderSnapshot = {
   fulfillmentId: string;
 };
 
+export type OwnedOrderSnapshot = {
+  orderId: string;
+  customerId: string;
+};
+
 export type InsertOrderReviewInput = {
   reviewId: string;
   cityCode: CityCode;
@@ -58,6 +63,26 @@ function mapReview(row: OrderReviewRow): OrderReview {
 export class OrderReviewRepository extends RepositoryBase {
   constructor(pool?: Pool) {
     super(pool);
+  }
+
+  async lockOwnedOrder(
+    connection: PoolConnection,
+    cityCode: CityCode,
+    orderId: string,
+    customerId: string,
+  ): Promise<OwnedOrderSnapshot | null> {
+    const [rows] = await connection.query<
+      (RowDataPacket & { order_id: string; customer_id: string })[]
+    >(
+      `SELECT order_id, customer_id
+         FROM orders
+        WHERE city_code=? AND order_id=? AND customer_id=?
+        LIMIT 1 FOR UPDATE`,
+      [cityCode, orderId, customerId],
+    );
+    return rows[0]
+      ? { orderId: rows[0].order_id, customerId: rows[0].customer_id }
+      : null;
   }
 
   async loadReviewableOrderSnapshot(

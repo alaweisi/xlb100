@@ -5,7 +5,18 @@ Set-Location $root
 $migration056Plus = @(Get-ChildItem db/migrations -File | Where-Object {
   $_.Name -match '^(\d{3})_' -and [int]$Matches[1] -ge 56
 })
-if ($migration056Plus.Count -ne 0) { throw "Phase27B B2 forbids migration 056 or later" }
+$phase28DecisionPath = 'docs/reports/PHASE28_REVIEW_REPUTATION_RUNTIME_DECISION_REPORT.md'
+$phase28Authorized =
+  (Get-Content -Raw -Encoding UTF8 -LiteralPath 'docs/CURRENT_STATE.md').Contains('Phase 27 | LOCKED') -and
+  (Test-Path -LiteralPath $phase28DecisionPath) -and
+  (Get-Content -Raw -Encoding UTF8 -LiteralPath $phase28DecisionPath).Contains('HUMAN APPROVED')
+$expectedPhase28Migration =
+  $phase28Authorized -and
+  $migration056Plus.Count -eq 1 -and
+  $migration056Plus[0].Name -eq '056_phase28_review_reputation.sql'
+if ($migration056Plus.Count -ne 0 -and -not $expectedPhase28Migration) {
+  throw "Phase27B B2 forbids unauthorized migration 056 or later"
+}
 
 $requiredFiles = @(
   'backend/src/notification/notificationProjectionWorker.ts',
@@ -48,13 +59,20 @@ foreach ($required in @(
   'inapp.order.created.customer',
   'inapp.support.ticket.resolved.',
   'source_snapshot_consistent',
-  'SELECT payload_json FROM event_outbox',
   'FOR UPDATE',
   'sameNotificationProjection'
 )) {
   if (-not (($policy + "`n" + $events).Contains($required))) {
     throw "B2 compatibility or source-lock boundary missing: $required"
   }
+}
+$expectedSourceLockSelect = if ($phase28Authorized) {
+  'SELECT payload_json,event_major_version,aggregate_type,aggregate_id FROM event_outbox'
+} else {
+  'SELECT payload_json FROM event_outbox'
+}
+if (-not $events.Contains($expectedSourceLockSelect)) {
+  throw "B2 compatibility or source-lock boundary missing: $expectedSourceLockSelect"
 }
 
 $executable = [regex]::Replace(($worker + "`n" + $service + "`n" + $repository), '(?s)/\*.*?\*/', '')

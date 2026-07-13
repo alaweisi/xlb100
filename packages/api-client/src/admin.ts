@@ -17,6 +17,7 @@ import type {
 } from "./aftersale.js";
 import type { OrderFulfillmentEvidenceResponse } from "./evidence.js";
 import { createEnterpriseAdminApi } from "./enterprise.js";
+import { createAdminReviewApi } from "./reviewReputation.js";
 import type {
   AdminOrderSummary,
   AdminSkuOperationsRow,
@@ -70,7 +71,8 @@ export interface AdminOrderTrace {
     reviewId: string;
     status: string | null;
     rating: number;
-    comment: string;
+    comment: null;
+    commentRestricted: true;
     createdAt: string | null;
   } | null;
   aftersale: {
@@ -131,6 +133,7 @@ export function createAdminApi(client: ApiClient) {
     ...createAdminSupportApi(client),
     settlement: createSettlementApi(client),
     enterprise: createEnterpriseAdminApi(client),
+    review: createAdminReviewApi(client),
     listOperationsOrders(): Promise<{ok:true;orders:AdminOrderSummary[]}>{return client.get("/api/internal/operations/orders");},
     listOperationsSkus(): Promise<{ok:true;skus:AdminSkuOperationsRow[]}>{return client.get("/api/internal/operations/skus");},
     setOperationsSkuEnabled(skuId:string,enabled:boolean):Promise<{ok:true;sku:{skuId:string;isEnabled:boolean}}>{return client.post(`/api/internal/operations/skus/${encodeURIComponent(skuId)}/status`,{enabled});},

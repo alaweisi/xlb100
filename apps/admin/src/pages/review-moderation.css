@@ -1,0 +1,19 @@
+.review-moderation-page,
+.review-moderation-content {
+  display: grid;
+  gap: var(--xlb-spacing-md);
+}
+
+.review-moderation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--xlb-spacing-sm);
+}
+
+.review-moderation-text {
+  overflow-wrap: anywhere;
+}
+
+.review-moderation-load-more {
+  margin-top: var(--xlb-spacing-sm);
+}

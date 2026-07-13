@@ -98,6 +98,8 @@ export const platformEventDeliverySchema = z.object({
   payloadHash: sha256,
   aggregateType: z.string().trim().min(1).max(64),
   aggregateId: shortIdentifier,
+  aggregateVersion: z.number().int().positive().nullable(),
+  aggregateSequence: z.number().int().positive().nullable(),
   status: platformDeliveryStatusSchema,
   availableAt: z.string().min(1),
   leaseOwner: identifier.nullable(),
@@ -150,14 +152,66 @@ export const platformSupportTicketResolvedCompatibilityPayloadSchema = z.object(
   }
 });
 
-export function parsePlatformCompatibilityPayload(eventType: string, payload: unknown) {
-  if (eventType === "order.created") {
+export const platformReviewCreatedV1CompatibilityPayloadSchema = z.object({
+  reviewId: shortIdentifier,
+  orderId: shortIdentifier,
+  workerId: shortIdentifier,
+  rating: z.number().int().min(1).max(5),
+  visibility: z.literal("pending_moderation"),
+  occurredAt: timezoneAwareTimestamp,
+}).strict();
+
+export const platformReviewVisibilityChangedV1CompatibilityPayloadSchema = z.object({
+  reviewId: shortIdentifier,
+  workerId: shortIdentifier,
+  rating: z.number().int().min(1).max(5),
+  fromVisibility: z.enum(["pending_moderation", "visible", "hidden"]),
+  toVisibility: z.enum(["visible", "hidden"]),
+  moderationVersion: z.number().int().positive(),
+  occurredAt: timezoneAwareTimestamp,
+}).strict().superRefine((value, context) => {
+  if (value.fromVisibility === value.toVisibility) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["toVisibility"],
+      message: "visibility transition must change state",
+    });
+  }
+});
+
+export function parseVersionedPlatformCompatibilityPayload(
+  eventType: string,
+  eventMajorVersion: number,
+  payload: unknown,
+) {
+  if (!Number.isInteger(eventMajorVersion) || eventMajorVersion < 0 || eventMajorVersion > 65535) {
+    throw new Error(`UNSUPPORTED_EVENT_VERSION:${eventType}@${eventMajorVersion}`);
+  }
+  if (eventType === "order.created" && eventMajorVersion === 0) {
     return platformOrderCreatedCompatibilityPayloadSchema.parse(payload);
   }
-  if (eventType === "support.ticket.resolved") {
+  if (eventType === "support.ticket.resolved" && eventMajorVersion === 0) {
     return platformSupportTicketResolvedCompatibilityPayloadSchema.parse(payload);
   }
+  if (eventType === "review.created" && eventMajorVersion === 1) {
+    return platformReviewCreatedV1CompatibilityPayloadSchema.parse(payload);
+  }
+  if (eventType === "review.visibility.changed" && eventMajorVersion === 1) {
+    return platformReviewVisibilityChangedV1CompatibilityPayloadSchema.parse(payload);
+  }
+  if (
+    eventType === "order.created" ||
+    eventType === "support.ticket.resolved" ||
+    eventType === "review.created" ||
+    eventType === "review.visibility.changed"
+  ) {
+    throw new Error(`UNSUPPORTED_EVENT_VERSION:${eventType}@${eventMajorVersion}`);
+  }
   throw new Error(`UNSUPPORTED_EVENT_TYPE:${eventType}`);
+}
+
+export function parsePlatformCompatibilityPayload(eventType: string, payload: unknown) {
+  return parseVersionedPlatformCompatibilityPayload(eventType, 0, payload);
 }
 
 export type PlatformServiceIdentityInput = z.infer<typeof platformServiceIdentitySchema>;

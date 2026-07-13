@@ -23,6 +23,19 @@ export type {
 } from "./worker.js";
 export { adminApi } from "./admin.js";
 export {
+  createCustomerReviewApi,
+  createWorkerReputationApi,
+  createAdminReviewApi,
+  validateCustomerOrderReviewResponse,
+  validateReviewAppealMutationResponse,
+  validateWorkerReputationResponse,
+  validateWorkerAppealTargetsResponse,
+  validateModerationListResponse,
+  validateModerationMutationResponse,
+  validateReviewContentResponse,
+  validateAppealListResponse,
+} from "./reviewReputation.js";
+export {
   createRequesterSupportApi,
   createAdminSupportApi,
   validateSupportTicketResponse,

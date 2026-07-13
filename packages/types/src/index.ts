@@ -42,6 +42,8 @@ export type {
   OrderPaidEventPayload,
   PaymentPaidEventPayload,
   OrderCreatedEventPayload,
+  ReviewCreatedV1EventPayload,
+  ReviewVisibilityChangedV1EventPayload,
   RefundApprovedEventPayload,
 } from "./eventOutbox.js";
 export type {
@@ -62,6 +64,10 @@ export type {
   PlatformReconciliationResult,
   PlatformOrderCreatedCompatibilityPayload,
   PlatformSupportTicketResolvedCompatibilityPayload,
+  PlatformReviewCreatedV1CompatibilityPayload,
+  PlatformReviewCreatedV1CompatibilityProjection,
+  PlatformReviewVisibilityChangedV1CompatibilityPayload,
+  PlatformReviewVisibilityChangedV1CompatibilityProjection,
   PlatformCompatibilityPayload,
 } from "./platformDelivery.js";
 export type {
@@ -278,8 +284,27 @@ export type {
 } from "./enterprise.js";
 export type {
   OrderReviewStatus,
+  ReviewVisibility,
+  ReviewAppealStatus,
+  ReviewAppealSubjectType,
   OrderReview,
   CreateOrderReview,
+  ReviewVisibilityState,
+  ReviewAppeal,
+  ReviewAppealQueueItem,
+  ReviewAppealListQuery,
+  ReviewAppealListResponse,
+  CustomerOrderReviewView,
+  ReviewModerationQueueItem,
+  ReviewModerationListQuery,
+  ReviewModerationListResponse,
+  ReputationRatingDistribution,
+  WorkerReputation,
+  WorkerReviewAppealTarget,
+  CreateReviewAppealRequest,
+  ModerateReviewRequest,
+  ResolveReviewAppealRequest,
+  WithdrawReviewAppealRequest,
 } from "./review.js";
 export type { ModulePlaceholder } from "./module.js";
 export type {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   parsePlatformCompatibilityPayload,
+  parseVersionedPlatformCompatibilityPayload,
   platformDeliveryClaimRequestSchema,
   platformDeliveryMutationRequestSchema,
   platformDeliveryStatusSchema,
@@ -107,5 +108,76 @@ describe("Platform Delivery contract", () => {
     expect(() => parsePlatformCompatibilityPayload("support.ticket.resolved", { ...payload, source: "admin" })).toThrow();
     expect(() => parsePlatformCompatibilityPayload("support.ticket.resolved", { ...payload, resolutionNote: "private" })).toThrow();
     expect(() => parsePlatformCompatibilityPayload("support.ticket.assigned", payload)).toThrow(/UNSUPPORTED_EVENT_TYPE/);
+  });
+
+  it("accepts only the exact privacy-minimized review.created v1 payload", () => {
+    const payload = {
+      reviewId: "review-1",
+      orderId: "order-1",
+      workerId: "worker-1",
+      rating: 5,
+      visibility: "pending_moderation",
+      occurredAt: "2026-07-13T08:00:00.000Z",
+    };
+    expect(parseVersionedPlatformCompatibilityPayload("review.created", 1, payload)).toEqual(payload);
+    expect(() => parseVersionedPlatformCompatibilityPayload(
+      "review.created",
+      1,
+      { ...payload, comment: "private comment" },
+    )).toThrow();
+    expect(() => parseVersionedPlatformCompatibilityPayload(
+      "review.created",
+      1,
+      { ...payload, customerId: "customer-1" },
+    )).toThrow();
+    expect(() => parseVersionedPlatformCompatibilityPayload("review.created", 0, payload))
+      .toThrow(/UNSUPPORTED_EVENT_VERSION/);
+    expect(() => parseVersionedPlatformCompatibilityPayload("review.created", 2, payload))
+      .toThrow(/UNSUPPORTED_EVENT_VERSION/);
+  });
+
+  it("accepts only the exact privacy-minimized review.visibility.changed v1 payload", () => {
+    const payload = {
+      reviewId: "review-1",
+      workerId: "worker-1",
+      rating: 5,
+      fromVisibility: "pending_moderation",
+      toVisibility: "visible",
+      moderationVersion: 1,
+      occurredAt: "2026-07-13T08:00:00.000Z",
+    };
+    expect(parseVersionedPlatformCompatibilityPayload(
+      "review.visibility.changed",
+      1,
+      payload,
+    )).toEqual(payload);
+    for (const forbidden of [
+      { comment: "private" },
+      { customerId: "customer-1" },
+      { cityCode: "hangzhou" },
+      { decisionId: "decision-1" },
+      { reasonCode: "approved" },
+    ]) {
+      expect(() => parseVersionedPlatformCompatibilityPayload(
+        "review.visibility.changed",
+        1,
+        { ...payload, ...forbidden },
+      )).toThrow();
+    }
+    expect(() => parseVersionedPlatformCompatibilityPayload(
+      "review.visibility.changed",
+      1,
+      { ...payload, toVisibility: "pending_moderation" },
+    )).toThrow();
+    expect(() => parseVersionedPlatformCompatibilityPayload(
+      "review.visibility.changed",
+      1,
+      { ...payload, fromVisibility: "visible", toVisibility: "visible" },
+    )).toThrow();
+    expect(() => parseVersionedPlatformCompatibilityPayload(
+      "review.visibility.changed",
+      2,
+      payload,
+    )).toThrow(/UNSUPPORTED_EVENT_VERSION/);
   });
 });

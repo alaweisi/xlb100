@@ -1,0 +1,57 @@
+.worker-reputation-page,
+.worker-reputation-stack,
+.worker-reputation-distribution,
+.worker-reputation-appeals,
+.worker-reputation-appeal {
+  display: grid;
+  gap: var(--xlb-spacing-md);
+  min-width: 0;
+}
+
+.worker-reputation-panel {
+  background: color-mix(in srgb, var(--xlb-role-worker-page) 82%, var(--xlb-color-surface)) !important;
+  color: var(--xlb-role-worker-text) !important;
+}
+
+.worker-reputation-summary,
+.worker-reputation-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--xlb-spacing-sm);
+}
+
+.worker-reputation-summary {
+  align-items: end;
+}
+
+.worker-reputation-score {
+  color: var(--xlb-role-worker-text);
+}
+
+.worker-reputation-helper {
+  color: var(--xlb-role-worker-muted);
+  margin: 0;
+}
+
+.worker-reputation-distribution {
+  gap: var(--xlb-spacing-sm);
+}
+
+.worker-reputation-distribution-row {
+  align-items: center;
+  display: grid;
+  gap: var(--xlb-spacing-sm);
+  grid-template-columns: var(--xlb-size-control-sm) minmax(0, 1fr) var(--xlb-size-control-sm);
+}
+
+.worker-reputation-meter {
+  accent-color: var(--xlb-role-accent);
+  block-size: var(--xlb-spacing-sm);
+  inline-size: 100%;
+}
+
+.worker-reputation-appeal {
+  border-block-start: var(--xlb-stroke-hairline) solid var(--xlb-color-border);
+  padding-block-start: var(--xlb-spacing-md);
+}

@@ -37,6 +37,7 @@ type SubscriptionRow = RowDataPacket & {
 export type PlatformSourceEventRow = RowDataPacket & {
   event_id: string;
   event_type: OutboxEventType;
+  event_major_version: number;
   aggregate_type: string;
   aggregate_id: string;
   city_code: string;
@@ -56,6 +57,8 @@ type DeliveryRow = RowDataPacket & {
   payload_hash: string;
   aggregate_type: string;
   aggregate_id: string;
+  aggregate_version: number | null;
+  aggregate_sequence: number | null;
   status: PlatformEventDelivery["status"];
   available_at: Date;
   lease_owner: string | null;
@@ -79,6 +82,10 @@ export type PlatformClaimCompatibilitySourceRow = RowDataPacket & {
   event_type: OutboxEventType;
   event_major_version: number;
   payload_hash: string;
+  aggregate_type: string;
+  aggregate_id: string;
+  aggregate_version: number | null;
+  aggregate_sequence: number | null;
   compatibility_handler_revision: string;
   payload_json: unknown;
   source_snapshot_consistent?: boolean;
@@ -86,6 +93,7 @@ export type PlatformClaimCompatibilitySourceRow = RowDataPacket & {
 
 const DELIVERY_COLUMNS = `d.delivery_id,d.city_code,d.subscriber_id,d.subscription_id,
   d.event_id,d.event_type,d.event_major_version,d.payload_hash,d.aggregate_type,d.aggregate_id,
+  d.aggregate_version,d.aggregate_sequence,
   d.status,d.available_at,d.lease_owner,d.lease_token,d.lease_expires_at,d.attempt_count,
   d.max_attempts,d.last_error_code,d.last_error_message,d.delivered_at,d.dead_lettered_at,d.row_version`;
 
@@ -131,6 +139,8 @@ function mapDelivery(row: DeliveryRow): PlatformEventDelivery {
     payloadHash: row.payload_hash,
     aggregateType: row.aggregate_type,
     aggregateId: row.aggregate_id,
+    aggregateVersion: row.aggregate_version === null ? null : Number(row.aggregate_version),
+    aggregateSequence: row.aggregate_sequence === null ? null : Number(row.aggregate_sequence),
     status: row.status,
     availableAt: row.available_at.toISOString(),
     leaseOwner: row.lease_owner,
@@ -190,10 +200,13 @@ export class PlatformDeliveryRepository {
     const eventProjection = lockForUpdate ? "NULL AS payload_json" : "e.payload_json";
     const eventJoin = lockForUpdate
       ? ""
-      : "INNER JOIN event_outbox e ON e.city_code=d.city_code AND e.event_id=d.event_id";
+      : `INNER JOIN event_outbox e ON e.city_code=d.city_code AND e.event_id=d.event_id
+           AND e.event_type=d.event_type AND e.event_major_version=d.event_major_version
+           AND e.aggregate_type=d.aggregate_type AND e.aggregate_id=d.aggregate_id`;
     const [rows] = await executor.query<PlatformClaimCompatibilitySourceRow[]>(
       `SELECT d.delivery_id,d.city_code,d.subscriber_id,d.subscription_id,d.event_id,
-         d.event_type,d.event_major_version,d.payload_hash,s.compatibility_handler_revision,
+         d.event_type,d.event_major_version,d.payload_hash,d.aggregate_type,d.aggregate_id,
+         d.aggregate_version,d.aggregate_sequence,s.compatibility_handler_revision,
          ${eventProjection}
        FROM platform_event_deliveries d
        INNER JOIN platform_event_subscriptions s
@@ -221,18 +234,24 @@ export class PlatformDeliveryRepository {
     const row = rows[0];
     if (!row) return null;
     if (lockForUpdate) {
-      const [snapshotRows] = await executor.query<(RowDataPacket & { payload_json: unknown })[]>(
-        `SELECT payload_json FROM event_outbox
+      const [snapshotRows] = await executor.query<(RowDataPacket & {
+        payload_json: unknown; event_major_version: number; aggregate_type: string; aggregate_id: string;
+      })[]>(
+        `SELECT payload_json,event_major_version,aggregate_type,aggregate_id FROM event_outbox
          WHERE city_code=? AND event_id=? LIMIT 1`,
         [row.city_code, row.event_id],
       );
-      const [lockedRows] = await executor.query<(RowDataPacket & { payload_json: unknown })[]>(
-        `SELECT payload_json FROM event_outbox
+      const [lockedRows] = await executor.query<(RowDataPacket & {
+        payload_json: unknown; event_major_version: number; aggregate_type: string; aggregate_id: string;
+      })[]>(
+        `SELECT payload_json,event_major_version,aggregate_type,aggregate_id FROM event_outbox
          WHERE city_code=? AND event_id=? LIMIT 1 FOR UPDATE`,
         [row.city_code, row.event_id],
       );
-      const [committedRows] = await this.pool.query<(RowDataPacket & { payload_json: unknown })[]>(
-        `SELECT payload_json FROM event_outbox
+      const [committedRows] = await this.pool.query<(RowDataPacket & {
+        payload_json: unknown; event_major_version: number; aggregate_type: string; aggregate_id: string;
+      })[]>(
+        `SELECT payload_json,event_major_version,aggregate_type,aggregate_id FROM event_outbox
          WHERE city_code=? AND event_id=? LIMIT 1`,
         [row.city_code, row.event_id],
       );
@@ -244,6 +263,15 @@ export class PlatformDeliveryRepository {
         ...row,
         payload_json: lockedPayload,
         source_snapshot_consistent:
+          Number(snapshotRows[0].event_major_version) === Number(row.event_major_version) &&
+          Number(lockedRows[0].event_major_version) === Number(row.event_major_version) &&
+          Number(committedRows[0].event_major_version) === Number(row.event_major_version) &&
+          snapshotRows[0].aggregate_type === row.aggregate_type &&
+          lockedRows[0].aggregate_type === row.aggregate_type &&
+          committedRows[0].aggregate_type === row.aggregate_type &&
+          snapshotRows[0].aggregate_id === row.aggregate_id &&
+          lockedRows[0].aggregate_id === row.aggregate_id &&
+          committedRows[0].aggregate_id === row.aggregate_id &&
           JSON.stringify(snapshotPayload) === JSON.stringify(lockedPayload) &&
           JSON.stringify(committedPayload) === JSON.stringify(lockedPayload),
       };
@@ -256,11 +284,11 @@ export class PlatformDeliveryRepository {
     limit: number,
   ): Promise<PlatformSourceEventRow[]> {
     const [rows] = await this.pool.query<PlatformSourceEventRow[]>(
-      `SELECT e.event_id,e.event_type,e.aggregate_type,e.aggregate_id,e.city_code,e.payload_json,e.created_at
+      `SELECT e.event_id,e.event_type,e.event_major_version,e.aggregate_type,e.aggregate_id,e.city_code,e.payload_json,e.created_at
        FROM event_outbox e
        LEFT JOIN platform_event_materialization_checkpoints c
          ON c.city_code=? AND c.subscription_id=?
-       WHERE e.city_code=? AND e.event_type=?
+       WHERE e.city_code=? AND e.event_type=? AND e.event_major_version=?
          AND (e.created_at>? OR (e.created_at=? AND e.event_id>=?))
          AND (c.candidate_created_at IS NULL OR e.created_at>c.candidate_created_at
            OR (e.created_at=c.candidate_created_at AND e.event_id>c.candidate_event_id))
@@ -270,6 +298,7 @@ export class PlatformDeliveryRepository {
         subscription.subscriptionId,
         subscription.cityCode,
         subscription.eventType,
+        subscription.eventMajorVersion,
         subscription.liveStartCreatedAt,
         subscription.liveStartCreatedAt,
         subscription.liveStartEventId,
@@ -284,7 +313,7 @@ export class PlatformDeliveryRepository {
     limit: number,
   ): Promise<PlatformSourceEventRow[]> {
     const [rows] = await this.pool.query<PlatformSourceEventRow[]>(
-      `SELECT e.event_id,e.event_type,e.aggregate_type,e.aggregate_id,e.city_code,e.payload_json,e.created_at,
+      `SELECT e.event_id,e.event_type,e.event_major_version,e.aggregate_type,e.aggregate_id,e.city_code,e.payload_json,e.created_at,
          CASE WHEN c.candidate_created_at IS NOT NULL
            AND (e.created_at<c.candidate_created_at
              OR (e.created_at=c.candidate_created_at AND e.event_id<=c.candidate_event_id))
@@ -298,7 +327,8 @@ export class PlatformDeliveryRepository {
            AND r.action_kind='materialization_rejected'
        LEFT JOIN platform_event_materialization_checkpoints c
          ON c.city_code=? AND c.subscription_id=?
-       WHERE e.city_code=? AND e.event_type=? AND d.delivery_id IS NULL AND r.action_id IS NULL
+       WHERE e.city_code=? AND e.event_type=? AND e.event_major_version=?
+         AND d.delivery_id IS NULL AND r.action_id IS NULL
          AND (e.created_at>? OR (e.created_at=? AND e.event_id>=?))
        ORDER BY e.created_at ASC,e.event_id ASC LIMIT ?`,
       [
@@ -310,6 +340,7 @@ export class PlatformDeliveryRepository {
         subscription.subscriptionId,
         subscription.cityCode,
         subscription.eventType,
+        subscription.eventMajorVersion,
         subscription.liveStartCreatedAt,
         subscription.liveStartCreatedAt,
         subscription.liveStartEventId,
@@ -335,7 +366,8 @@ export class PlatformDeliveryRepository {
          ON r.city_code=e.city_code AND r.subscription_id_copy=? AND r.subscriber_id_copy=?
            AND r.event_id_copy=e.event_id AND r.compatibility_handler_revision_copy=?
            AND r.action_kind='materialization_rejected'
-       WHERE e.city_code=? AND e.event_type=? AND d.delivery_id IS NULL AND r.action_id IS NULL
+       WHERE e.city_code=? AND e.event_type=? AND e.event_major_version=?
+         AND d.delivery_id IS NULL AND r.action_id IS NULL
          AND (e.created_at>? OR (e.created_at=? AND e.event_id>=?))
        ORDER BY e.created_at ASC,e.event_id ASC LIMIT 1`,
       [
@@ -345,6 +377,7 @@ export class PlatformDeliveryRepository {
         subscription.compatibilityHandlerRevision,
         subscription.cityCode,
         subscription.eventType,
+        subscription.eventMajorVersion,
         subscription.liveStartCreatedAt,
         subscription.liveStartCreatedAt,
         subscription.liveStartEventId,
@@ -359,6 +392,8 @@ export class PlatformDeliveryRepository {
     payloadHash: string,
     actorServiceId: string,
     reason: "materialized" | "reconciliation_repair",
+    aggregateVersion: number | null,
+    aggregateSequence: number | null,
   ): Promise<boolean> {
     const connection = await this.pool.getConnection();
     try {
@@ -367,8 +402,8 @@ export class PlatformDeliveryRepository {
       const [result] = await connection.query<ResultSetHeader>(
         `INSERT INTO platform_event_deliveries
           (delivery_id,city_code,subscriber_id,subscription_id,event_id,event_type,event_major_version,
-           payload_hash,aggregate_type,aggregate_id,status,max_attempts)
-         VALUES (?,?,?,?,?,?,?,?,?,?,'pending',?)
+           payload_hash,aggregate_type,aggregate_id,aggregate_version,aggregate_sequence,status,max_attempts)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,'pending',?)
          ON DUPLICATE KEY UPDATE delivery_id=delivery_id`,
         [
           deliveryId,
@@ -381,6 +416,8 @@ export class PlatformDeliveryRepository {
           payloadHash,
           source.aggregate_type,
           source.aggregate_id,
+          aggregateVersion,
+          aggregateSequence,
           subscription.maxAttempts,
         ],
       );

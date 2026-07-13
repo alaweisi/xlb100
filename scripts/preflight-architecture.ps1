@@ -639,3 +639,8 @@ if (Test-Path (Join-Path $PSScriptRoot "check-phase27-completion-boundaries.ps1"
   Invoke-PreflightGate "check-phase27-completion-boundaries.ps1"
   Write-Host "XLB Phase 27 aggregate completion boundary preflight passed."
 }
+
+if (Test-Path (Join-Path $PSScriptRoot "..\db\migrations\056_phase28_review_reputation.sql")) {
+  Invoke-PreflightGate "check-phase28-review-reputation-boundaries.ps1"
+  Write-Host "XLB Phase 28 Review/Reputation boundary preflight passed."
+}

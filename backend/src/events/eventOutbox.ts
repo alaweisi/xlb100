@@ -18,6 +18,7 @@ import {
 type OutboxRow = RowDataPacket & {
   event_id: string;
   event_type: string;
+  event_major_version: number;
   aggregate_type: string;
   aggregate_id: string;
   city_code: string;
@@ -47,6 +48,7 @@ function mapOutboxRow(row: OutboxRow): EventOutbox {
   return {
     eventId: row.event_id,
     eventType: row.event_type as EventOutbox["eventType"],
+    eventMajorVersion: Number(row.event_major_version),
     aggregateType: row.aggregate_type,
     aggregateId: row.aggregate_id,
     cityCode: row.city_code as CityCode,
@@ -69,7 +71,7 @@ function mapOutboxRow(row: OutboxRow): EventOutbox {
   };
 }
 
-const OUTBOX_COLUMNS = `e.event_id, e.event_type, e.aggregate_type, e.aggregate_id,
+const OUTBOX_COLUMNS = `e.event_id, e.event_type, e.event_major_version, e.aggregate_type, e.aggregate_id,
   e.city_code, e.payload_json, e.status, e.created_at, e.published_at,
   e.processing_started_at, e.lease_owner, e.lease_token, e.lease_expires_at,
   e.attempt_count, e.max_attempts, e.available_at, e.last_error_code,
@@ -89,6 +91,7 @@ type ClaimKind = "dispatch" | "fulfillment-ledger" | "event-type";
 export type InsertOutboxEventInput = {
   eventId: string;
   eventType: OutboxEventType;
+  eventMajorVersion?: number;
   aggregateType: string;
   aggregateId: string;
   cityCode: CityCode;
@@ -258,13 +261,28 @@ export class EventOutboxRepository extends RepositoryBase {
     connection: PoolConnection,
     input: InsertOutboxEventInput,
   ): Promise<void> {
+    const eventMajorVersion = input.eventMajorVersion ?? 0;
+    if (
+      !Number.isInteger(eventMajorVersion) ||
+      eventMajorVersion < 0 ||
+      eventMajorVersion > 65535
+    ) {
+      throw new Error("outbox event major version is invalid");
+    }
+    if (
+      (input.eventType === "review.created" || input.eventType === "review.visibility.changed") &&
+      input.eventMajorVersion !== 1
+    ) {
+      throw new Error(`${input.eventType} requires explicit event major version 1`);
+    }
     await connection.query(
       `INSERT INTO event_outbox
-        (event_id, event_type, aggregate_type, aggregate_id, city_code, payload_json, status)
-       VALUES (?, ?, ?, ?, ?, ?, 'pending')`,
+        (event_id, event_type, event_major_version, aggregate_type, aggregate_id, city_code, payload_json, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')`,
       [
         input.eventId,
         input.eventType,
+        eventMajorVersion,
         input.aggregateType,
         input.aggregateId,
         input.cityCode,
