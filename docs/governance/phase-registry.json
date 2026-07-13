@@ -327,6 +327,18 @@
         "No database migration is authorized by the Phase 25 UI scope.",
         "Locked on 2026-07-13 after the unified closure gate, typecheck, build, full test, and architecture preflight passed."
       ]
+    },
+    {
+      "id": "Phase 26",
+      "kind": "formal",
+      "status": "COMPLETE_UNTAGGED",
+      "summary": "Platform foundation architecture design accepted; runtime implementation is not authorized.",
+      "notes": [
+        "Accepted as design only on commit 0b9f9db633326799b0e08665d663c065805ea722; this is not a Lock and has no tag.",
+        "Option A, the additive MySQL per-subscriber delivery ledger, is an accepted architecture decision only.",
+        "G0–G6 passed at design level; runtime, migrations 054+, APIs, pages, Providers, subscription activation, backfill, and replay remain unauthorized.",
+        "Phase 27 has not been entered, authorized, or made runtime-ready."
+      ]
     }
   ]
 }

@@ -38,6 +38,7 @@
 | Phase 24E | LOCKED | xlb-phase24-customer-support-closure | Knowledge base and deterministic/mock bot orchestration |
 | Phase 24F | LOCKED | xlb-phase24-customer-support-closure | CSAT, quality review, and support operations metrics |
 | Phase 25 | LOCKED | xlb-phase25-ui-standardization-v1.0 | Five-system UI standardization: Customer, Worker, Admin, OA, and realtime Dashboard |
+| Phase 26 | ACCEPTED — DESIGN ONLY | — | Platform foundation design accepted; no implementation authority |
 
 ## Phase 25 — Five-System UI Standardization (LOCKED)
 
@@ -81,6 +82,15 @@
 - **Gate 1B report**: `docs/reports/PHASE25_GATE1B_MATERIAL_ROLE_RECIPES_REPORT.md`.
 - **Entry report**: `docs/reports/PHASE25_UI_STANDARDIZATION_ENTRY_REPORT.md`.
 - **Lock state**: LOCKED. No Phase26 work is included in this Lock.
+
+## Phase 26 — Platform Foundation Design (ACCEPTED — DESIGN ONLY)
+
+- **Design acceptance commit**: `0b9f9db633326799b0e08665d663c065805ea722` (`docs: accept Phase 26 platform foundation design`).
+- **Accepted decision**: Option A — additive MySQL per-subscriber delivery ledger — is accepted as architecture/design only.
+- **Design gates**: G0–G6 passed at design level as recorded in `docs/reports/PHASE26_PLATFORM_FOUNDATION_DESIGN_REPORT.md`.
+- **Not authorized**: runtime implementation, migrations `054+`, APIs, pages, Providers, subscription activation, backfill, and replay.
+- **Phase boundary**: Phase 27 has not been entered. This acceptance does not authorize Phase 27 or make it runtime-ready.
+- **Lock truth**: Phase 25 remains the last LOCKED Phase and retains its immutable canonical tag `xlb-phase25-ui-standardization-v1.0`; Phase 26 has no Lock tag.
 
 ## Phase 24 Combined Completion Authorization
 
