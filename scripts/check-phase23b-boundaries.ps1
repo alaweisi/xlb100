@@ -34,7 +34,11 @@ try {
     "backend/src/ledger/ledgerAccrualService.ts",
     "backend/src/ledger/ledgerOutboxConsumer.ts",
     "backend/src/ledger/ledgerReversalService.ts",
-    "backend/src/ledger/replay/replayValidator.ts"
+    "backend/src/ledger/replay/replayValidator.ts",
+    "backend/src/events/platformDeliveryPolicy.ts",
+    "backend/src/events/platformEventCompatibility.ts",
+    "backend/src/events/platformDeliveryRepository.ts",
+    "backend/src/events/platformDeliveryService.ts"
   )
   $runtimeDiff = @(& git diff --name-only $BaseRef -- backend/src/dispatch backend/src/events backend/src/ledger)
   $unexpected = @($runtimeDiff | Where-Object { $allowedRuntime -notcontains $_ })

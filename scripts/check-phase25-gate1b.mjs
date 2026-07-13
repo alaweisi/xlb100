@@ -162,11 +162,20 @@ const currentState = read("docs/CURRENT_STATE.md");
 const phase27aAuthorized =
   currentState.includes("Phase 27A | IN PROGRESS — RUNTIME ENTRY AUTHORIZED") ||
   currentState.includes("Phase 27A | HUMAN ACCEPTED — NOT LOCKED");
+const phase27bB1Authorized =
+  currentState.includes("Phase 27B | B1 IMPLEMENTED") ||
+  currentState.includes("Phase 27B | B1 ACCEPTED");
+const phase27bMigrations = [
+  "db/migrations/054_phase27a_platform_delivery_foundation.sql",
+  "db/migrations/055_phase27b_notification_projection_foundation.sql",
+];
 if (laterMigrations.length > 0 && !(
-  phase27aAuthorized && laterMigrations.length === 1 &&
-  laterMigrations[0] === "db/migrations/054_phase27a_platform_delivery_foundation.sql"
+  (phase27aAuthorized && laterMigrations.length === 1 &&
+    laterMigrations[0] === "db/migrations/054_phase27a_platform_delivery_foundation.sql") ||
+  (phase27bB1Authorized &&
+    JSON.stringify([...laterMigrations].sort()) === JSON.stringify(phase27bMigrations))
 )) {
-  fail(`Gate 1B permits no later migration except the explicitly authorized Phase27A migration 054; found ${laterMigrations.join(", ")}`);
+  fail(`Gate 1B permits only explicitly authorized migration 054 and Phase27B B1 migration 055; found ${laterMigrations.join(", ")}`);
 }
 
 for (const app of globalConstructionAuthorized ? [] : ["customer", "worker", "admin", "oa", "dashboard"]) {

@@ -1,5 +1,9 @@
 import { createHash } from "node:crypto";
-import type { OutboxEventType } from "@xlb/types";
+import type {
+  NotificationRenderParameters,
+  NotificationRecipientType,
+  OutboxEventType,
+} from "@xlb/types";
 import { parsePlatformCompatibilityPayload } from "@xlb/validators";
 import {
   PlatformDeliveryCanonicalError,
@@ -55,4 +59,60 @@ export function validateImplicitV0Compatibility(
   }
 
   return { eventMajorVersion: 0, payloadHash: canonicalPayloadHash(payload) };
+}
+
+/**
+ * Produces the only payload-derived values that may cross from Events into
+ * Notification. The raw payload remains inside this compatibility boundary;
+ * fields classified as discard-only are validated above and then dropped.
+ */
+export function projectImplicitV0NotificationCompatibility(
+  eventType: OutboxEventType,
+  envelopeCityCode: string,
+  subscriptionCityCode: string,
+  payload: unknown,
+): {
+  eventMajorVersion: 0;
+  payloadHash: string;
+  recipientType: NotificationRecipientType;
+  recipientId: string;
+  renderParameters: NotificationRenderParameters;
+  occurredAt: string;
+} {
+  const compatibility = validateImplicitV0Compatibility(
+    eventType,
+    envelopeCityCode,
+    subscriptionCityCode,
+    payload,
+  );
+  const parsed = parsePlatformCompatibilityPayload(eventType, payload);
+
+  if (eventType === "order.created") {
+    const order = parsed as {
+      orderId: string;
+      customerId: string;
+      createdAt: string;
+    };
+    return {
+      ...compatibility,
+      recipientType: "customer",
+      recipientId: order.customerId,
+      renderParameters: { kind: "order_created", orderId: order.orderId },
+      occurredAt: order.createdAt,
+    };
+  }
+
+  const ticket = parsed as {
+    ticketId: string;
+    source: "customer" | "worker";
+    requesterId: string;
+    occurredAt: string;
+  };
+  return {
+    ...compatibility,
+    recipientType: ticket.source,
+    recipientId: ticket.requesterId,
+    renderParameters: { kind: "support_ticket_resolved", ticketId: ticket.ticketId },
+    occurredAt: ticket.occurredAt,
+  };
 }

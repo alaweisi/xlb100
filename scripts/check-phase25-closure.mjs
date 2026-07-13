@@ -30,8 +30,19 @@ const phase27aRuntimeFiles = new Set([
   "backend/src/events/platformDeliveryService.ts",
   "db/migrations/054_phase27a_platform_delivery_foundation.sql",
 ]);
+const phase27bB1Authorized =
+  currentState.includes("Phase 27B | B1 IMPLEMENTED") ||
+  currentState.includes("Phase 27B | B1 ACCEPTED");
+const phase27bB1RuntimeFiles = new Set([
+  ...phase27aRuntimeFiles,
+  "backend/src/notification/notificationProjectionPolicy.ts",
+  "backend/src/notification/notificationRepository.ts",
+  "backend/src/notification/notificationService.ts",
+  "db/migrations/055_phase27b_notification_projection_foundation.sql",
+]);
 for (const file of changed) {
   if (["backend/", "db/", "deploy/", "infra/", "packages/api-client/"].some((prefix) => file.startsWith(prefix))) {
+    if (phase27bB1Authorized && phase27bB1RuntimeFiles.has(file)) continue;
     if (phase27aRuntimeAuthorized && phase27aRuntimeFiles.has(file)) continue;
     throw new Error(`[phase25-closure] prohibited change: ${file}`);
   }
@@ -42,5 +53,12 @@ if (
   (!phase27aRuntimeAuthorized || migration054.length !== 1 || migration054[0] !== "054_phase27a_platform_delivery_foundation.sql")
 ) {
   throw new Error("[phase25-closure] unauthorized migration 054 is forbidden");
+}
+const migration055 = readdirSync(join(root, "db/migrations")).filter((name) => /^055[_-].*\.sql$/i.test(name));
+if (
+  migration055.length > 0 &&
+  (!phase27bB1Authorized || migration055.length !== 1 || migration055[0] !== "055_phase27b_notification_projection_foundation.sql")
+) {
+  throw new Error("[phase25-closure] unauthorized migration 055 is forbidden");
 }
 process.stdout.write("[phase25-closure] PASS aggregate scope, evidence artifacts, and OA/Dashboard truthfulness verified\n");

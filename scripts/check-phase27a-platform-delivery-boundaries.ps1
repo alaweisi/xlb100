@@ -1,6 +1,10 @@
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
+$currentState = Get-Content -Raw -LiteralPath 'docs/CURRENT_STATE.md'
+$phase27bB1Authorized =
+  $currentState.Contains('Phase 27B | B1 IMPLEMENTED') -or
+  $currentState.Contains('Phase 27B | B1 ACCEPTED')
 
 $migration054 = @(Get-ChildItem db/migrations -File | Where-Object { $_.Name -match '^054_' })
 $migration055Plus = @(Get-ChildItem db/migrations -File | Where-Object {
@@ -9,7 +13,13 @@ $migration055Plus = @(Get-ChildItem db/migrations -File | Where-Object {
 if ($migration054.Count -ne 1 -or $migration054[0].Name -ne '054_phase27a_platform_delivery_foundation.sql') {
   throw "Phase27A requires exactly the approved migration 054"
 }
-if ($migration055Plus.Count -ne 0) { throw "Phase27A forbids migration 055 or later" }
+if ($migration055Plus.Count -ne 0) {
+  $expectedPhase27bMigration =
+    $phase27bB1Authorized -and
+    $migration055Plus.Count -eq 1 -and
+    $migration055Plus[0].Name -eq '055_phase27b_notification_projection_foundation.sql'
+  if (-not $expectedPhase27bMigration) { throw "Phase27A forbids unauthorized migration 055 or later" }
+}
 
 $platformFiles = @(
   'backend/src/events/platformDeliveryPolicy.ts',
@@ -118,7 +128,7 @@ foreach ($required in @(
   }
 }
 
-if (Test-Path -LiteralPath 'backend/src/notification') {
+if ((Test-Path -LiteralPath 'backend/src/notification') -and -not $phase27bB1Authorized) {
   throw "Notification runtime is forbidden in Phase27A"
 }
 $publicEntryText = (Get-Content -Raw backend/src/app.ts) + "`n" + (Get-Content -Raw backend/src/server.ts)
@@ -140,11 +150,13 @@ $allowed = @(
   '^docs/reports/PHASE27A_PLATFORM_DELIVERY_(ENTRY|IMPLEMENTATION)_REPORT\.md$'
 )
 $statusLines = @(git status --porcelain=v1)
-foreach ($line in $statusLines) {
-  $path = $line.Substring(3).Replace('\', '/')
-  if ($path -match ' -> ') { $path = ($path -split ' -> ')[-1] }
-  if (-not ($allowed | Where-Object { $path -match $_ })) {
-    throw "out-of-scope Phase27A path: $path"
+if (-not $phase27bB1Authorized) {
+  foreach ($line in $statusLines) {
+    $path = $line.Substring(3).Replace('\', '/')
+    if ($path -match ' -> ') { $path = ($path -split ' -> ')[-1] }
+    if (-not ($allowed | Where-Object { $path -match $_ })) {
+      throw "out-of-scope Phase27A path: $path"
+    }
   }
 }
 

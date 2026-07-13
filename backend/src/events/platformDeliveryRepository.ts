@@ -9,7 +9,7 @@ import type {
   PlatformServiceIdentity,
 } from "@xlb/types";
 import type { OutboxEventType } from "@xlb/types";
-import type { Pool, ResultSetHeader, RowDataPacket } from "mysql2/promise";
+import type { Pool, PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { getMysqlPool } from "../dal/mysqlPool.js";
 import {
   PLATFORM_DELIVERY_CANONICAL_ERRORS,
@@ -68,6 +68,19 @@ type DeliveryRow = RowDataPacket & {
   delivered_at: Date | null;
   dead_lettered_at: Date | null;
   row_version: number;
+};
+
+export type PlatformClaimCompatibilitySourceRow = RowDataPacket & {
+  delivery_id: string;
+  city_code: string;
+  subscriber_id: string;
+  subscription_id: string;
+  event_id: string;
+  event_type: OutboxEventType;
+  event_major_version: number;
+  payload_hash: string;
+  compatibility_handler_revision: string;
+  payload_json: unknown;
 };
 
 const DELIVERY_COLUMNS = `d.delivery_id,d.city_code,d.subscriber_id,d.subscription_id,
@@ -159,6 +172,49 @@ export class PlatformDeliveryRepository {
       liveStartCreatedAt: row.live_start_created_at,
       liveStartEventId: row.live_start_event_id,
     };
+  }
+
+  /**
+   * Reads raw source payload only inside the Events boundary and only for the
+   * caller's exact, currently leased delivery. Notification never receives
+   * this row; the service immediately validates and narrows it.
+   */
+  async readClaimCompatibilitySource(
+    identity: PlatformServiceIdentity,
+    request: PlatformDeliveryMutationRequest,
+    connection?: PoolConnection,
+    lockForUpdate = false,
+  ): Promise<PlatformClaimCompatibilitySourceRow | null> {
+    const executor = connection ?? this.pool;
+    const [rows] = await executor.query<PlatformClaimCompatibilitySourceRow[]>(
+      `SELECT d.delivery_id,d.city_code,d.subscriber_id,d.subscription_id,d.event_id,
+         d.event_type,d.event_major_version,d.payload_hash,s.compatibility_handler_revision,
+         e.payload_json
+       FROM platform_event_deliveries d
+       INNER JOIN platform_event_subscriptions s
+         ON s.city_code=d.city_code AND s.subscription_id=d.subscription_id
+        AND s.subscriber_id=d.subscriber_id AND s.event_type=d.event_type
+        AND s.event_major_version=d.event_major_version
+       INNER JOIN platform_event_subscribers p ON p.subscriber_id=d.subscriber_id
+       INNER JOIN event_outbox e ON e.city_code=d.city_code AND e.event_id=d.event_id
+       WHERE d.delivery_id=? AND d.city_code=? AND d.subscriber_id=? AND d.subscription_id=?
+         AND d.status='processing' AND d.lease_owner=? AND d.lease_token=?
+         AND d.lease_expires_at>CURRENT_TIMESTAMP(3) AND d.row_version=?
+         AND s.status='active' AND p.status='active'
+         AND s.live_start_created_at IS NOT NULL AND s.live_start_event_id IS NOT NULL
+       LIMIT 1${lockForUpdate ? " FOR UPDATE" : ""}`,
+      [
+        request.deliveryId,
+        identity.cityCode,
+        identity.subscriberId,
+        request.subscriptionId,
+        request.owner,
+        request.leaseToken,
+        request.expectedRowVersion,
+      ],
+    );
+    const row = rows[0];
+    return row ? { ...row, payload_json: parsePayload(row.payload_json) } : null;
   }
 
   async listCandidateSourceEvents(

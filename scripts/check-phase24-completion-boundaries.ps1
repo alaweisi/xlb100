@@ -21,6 +21,18 @@ try {
       throw "Phase 24 completion cannot create an unauthorized migration 054"
     }
   }
+  $migration055 = @(Get-ChildItem "db/migrations" -File -Filter "055_*.sql")
+  if ($migration055.Count -gt 0) {
+    $currentState = Get-Content "docs/CURRENT_STATE.md" -Raw
+    $authorizedPhase27bMigration =
+      $migration055.Count -eq 1 -and
+      $migration055[0].Name -eq "055_phase27b_notification_projection_foundation.sql" -and
+      ($currentState.Contains("Phase 27B | B1 IMPLEMENTED") -or
+        $currentState.Contains("Phase 27B | B1 ACCEPTED"))
+    if (-not $authorizedPhase27bMigration) {
+      throw "Phase 24 completion cannot accept an unauthorized migration 055"
+    }
+  }
   $phase24Closure = (& git rev-list -n 1 xlb-phase24-customer-support-closure).Trim()
   if (-not $phase24Closure) { throw "Phase 24 closure tag is required before separate Phase 25 entry" }
   & git merge-base --is-ancestor $phase24Closure main

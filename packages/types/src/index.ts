@@ -65,6 +65,24 @@ export type {
   PlatformCompatibilityPayload,
 } from "./platformDelivery.js";
 export type {
+  NotificationRecipientType,
+  NotificationEventType,
+  NotificationOrderCreatedRenderParameters,
+  NotificationSupportTicketResolvedRenderParameters,
+  NotificationRenderParameters,
+  PlatformNotificationCompatibilityProjection,
+  NotificationTemplateRevision,
+  NotificationRecord,
+  NotificationReceiptResult,
+  NotificationDeliveryReceipt,
+  NotificationRecipientState,
+  NotificationAction,
+  NotificationTombstone,
+  NotificationMaterializeCommand,
+  NotificationMaterializeClaimRequest,
+  NotificationMaterializationResult,
+} from "./notification.js";
+export type {
   LedgerAccountType,
   LedgerEntryDirection,
   LedgerEntrySourceType,

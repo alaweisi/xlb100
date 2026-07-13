@@ -3,6 +3,7 @@ import type {
   PlatformDeliveryClaimRequest,
   PlatformDeliveryMutationRequest,
   PlatformDeliveryMutationResult,
+  PlatformNotificationCompatibilityProjection,
   PlatformEventSubscription,
   PlatformMaterializationResult,
   PlatformReconciliationResult,
@@ -13,9 +14,11 @@ import {
   platformDeliveryMutationRequestSchema,
   platformServiceIdentitySchema,
 } from "@xlb/validators";
+import type { PoolConnection } from "mysql2/promise";
 import {
   canonicalPayloadHash,
   PlatformCompatibilityError,
+  projectImplicitV0NotificationCompatibility,
   validateImplicitV0Compatibility,
 } from "./platformEventCompatibility.js";
 import { projectPlatformDeliveryError } from "./platformDeliveryPolicy.js";
@@ -23,7 +26,50 @@ import {
   platformDeliveryRepository,
   PlatformDeliveryRepository,
   type PlatformSourceEventRow,
+  type PlatformClaimCompatibilitySourceRow,
 } from "./platformDeliveryRepository.js";
+
+function projectNotificationCompatibilitySource(
+  source: PlatformClaimCompatibilitySourceRow,
+): PlatformNotificationCompatibilityProjection {
+  if (
+    (source.event_type !== "order.created" && source.event_type !== "support.ticket.resolved") ||
+    Number(source.event_major_version) !== 0
+  ) {
+    throw new PlatformCompatibilityError("UNSUPPORTED_EVENT_VERSION");
+  }
+  const projected = projectImplicitV0NotificationCompatibility(
+    source.event_type,
+    source.city_code,
+    source.city_code,
+    source.payload_json,
+  );
+  if (projected.payloadHash !== source.payload_hash) {
+    throw new PlatformCompatibilityError("INVALID_EVENT_PAYLOAD");
+  }
+  return {
+    deliveryId: source.delivery_id,
+    cityCode: source.city_code,
+    subscriberId: source.subscriber_id,
+    subscriptionId: source.subscription_id,
+    eventId: source.event_id,
+    eventType: source.event_type,
+    eventMajorVersion: 0,
+    payloadHash: source.payload_hash,
+    compatibilityHandlerRevision: source.compatibility_handler_revision,
+    recipientType: projected.recipientType,
+    recipientId: projected.recipientId,
+    renderParameters: projected.renderParameters,
+    occurredAt: projected.occurredAt,
+  };
+}
+
+function sameNotificationProjection(
+  left: PlatformNotificationCompatibilityProjection,
+  right: PlatformNotificationCompatibilityProjection,
+): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
 
 export class PlatformDeliveryAuthorizationError extends Error {
   constructor(message: string) {
@@ -172,6 +218,62 @@ export class PlatformDeliveryService {
     const request = platformDeliveryClaimRequestSchema.parse(requestInput) as PlatformDeliveryClaimRequest;
     const { subscription } = await this.requireActiveSubscription(identity, request.subscriptionId);
     return this.repository.claim(identity, subscription, request);
+  }
+
+  async projectClaimForNotification(
+    identityInput: unknown,
+    requestInput: unknown,
+  ): Promise<PlatformNotificationCompatibilityProjection | null> {
+    const identity = assertServiceIdentity(identityInput);
+    const request = platformDeliveryMutationRequestSchema.parse(requestInput) as PlatformDeliveryMutationRequest;
+    const { subscription } = await this.requireActiveSubscription(identity, request.subscriptionId);
+    const source = await this.repository.readClaimCompatibilitySource(identity, request);
+    if (!source) return null;
+    if (
+      (source.event_type !== "order.created" && source.event_type !== "support.ticket.resolved") ||
+      source.event_type !== subscription.eventType ||
+      Number(source.event_major_version) !== subscription.eventMajorVersion ||
+      source.compatibility_handler_revision !== subscription.compatibilityHandlerRevision
+    ) {
+      throw new PlatformCompatibilityError("UNSUPPORTED_EVENT_VERSION");
+    }
+    return projectNotificationCompatibilitySource(source);
+  }
+
+  /**
+   * Revalidates the complete claim/source/subscription projection while the
+   * Notification target transaction holds row locks. Raw payload remains
+   * inside the Events boundary and never crosses this method.
+   */
+  async revalidateNotificationProjectionClaim(
+    identityInput: unknown,
+    requestInput: unknown,
+    expectedProjection: PlatformNotificationCompatibilityProjection,
+    connection: PoolConnection,
+  ): Promise<void> {
+    const identity = assertServiceIdentity(identityInput);
+    const request = platformDeliveryMutationRequestSchema.parse(requestInput) as PlatformDeliveryMutationRequest;
+    const source = await this.repository.readClaimCompatibilitySource(
+      identity,
+      request,
+      connection,
+      true,
+    );
+    if (!source) {
+      throw new PlatformDeliveryAuthorizationError("exact active notification claim is required");
+    }
+    const currentPayloadHash = canonicalPayloadHash(source.payload_json);
+    if (
+      currentPayloadHash !== source.payload_hash ||
+      currentPayloadHash !== expectedProjection.payloadHash ||
+      source.compatibility_handler_revision !== expectedProjection.compatibilityHandlerRevision
+    ) {
+      throw new PlatformCompatibilityError("INVALID_EVENT_PAYLOAD");
+    }
+    const currentProjection = projectNotificationCompatibilitySource(source);
+    if (!sameNotificationProjection(currentProjection, expectedProjection)) {
+      throw new PlatformCompatibilityError("INVALID_EVENT_PAYLOAD");
+    }
   }
 
   async acknowledge(
