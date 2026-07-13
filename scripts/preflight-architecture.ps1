@@ -613,3 +613,25 @@ if ($phase25GlobalConstruction -and (Test-Path (Join-Path $PSScriptRoot "check-p
   }
   Write-Host "XLB Phase 25 unified closure preflight passed."
 }
+
+if (Test-Path (Join-Path $PSScriptRoot "..\db\migrations\054_phase27a_platform_delivery_foundation.sql")) {
+  Invoke-PreflightGate "check-phase27a-platform-delivery-boundaries.ps1"
+  Write-Host "XLB Phase 27A Platform Delivery boundary preflight passed."
+}
+if (Test-Path (Join-Path $PSScriptRoot "..\db\migrations\055_phase27b_notification_projection_foundation.sql")) {
+  Invoke-PreflightGate "check-phase27b-notification-projection-boundaries.ps1"
+  Write-Host "XLB Phase 27B Notification projection boundary preflight passed."
+}
+if (Test-Path (Join-Path $PSScriptRoot "..\backend\src\notification\notificationProjectionWorker.ts")) {
+  Invoke-PreflightGate "check-phase27b-b2-notification-runtime-boundaries.ps1"
+  Write-Host "XLB Phase 27B B2 Notification runtime boundary preflight passed."
+}
+if (Test-Path (Join-Path $PSScriptRoot "..\backend\src\routes\notificationRoutes.ts")) {
+  Invoke-PreflightGate "check-phase27c-notification-api-boundaries.ps1"
+  Write-Host "XLB Phase 27C Notification API boundary preflight passed."
+}
+if ((Test-Path (Join-Path $PSScriptRoot "..\apps\customer\src\pages\CustomerNotificationsPage.tsx")) -and
+    (Test-Path (Join-Path $PSScriptRoot "..\apps\worker\src\pages\WorkerNotificationsPage.tsx"))) {
+  Invoke-PreflightGate "check-phase27d-notification-ui-boundaries.ps1"
+  Write-Host "XLB Phase 27D Notification UI boundary preflight passed."
+}

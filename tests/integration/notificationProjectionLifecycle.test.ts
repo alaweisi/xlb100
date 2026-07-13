@@ -12,10 +12,12 @@ import {
   NotificationProjectionError,
 } from "../../backend/src/notification/notificationProjectionPolicy.js";
 import { NotificationService } from "../../backend/src/notification/notificationService.js";
+import { NotificationProjectionWorker } from "../../backend/src/notification/notificationProjectionWorker.js";
 
 const runDb = process.env.XLB_SKIP_DB_TESTS !== "1";
 const prefix = `p27b_${Date.now().toString(36)}_`;
 const testCity = `phase27b_test_${Date.now().toString(36)}`;
+let fixtureSequence = 0;
 
 async function count(sql: string, params: unknown[] = []): Promise<number> {
   const [rows] = await getMysqlPool().query<(RowDataPacket & { count: number })[]>(sql, params);
@@ -32,11 +34,11 @@ async function sourceLifecycle(eventId: string) {
   return rows[0];
 }
 
-async function createClaimFixture() {
+async function createClaimFixture(exactRuntimeTemplateKey = false) {
   const suffix = randomUUID().slice(0, 8);
   const subscriberId = `${prefix}sub_${suffix}`;
   const subscriptionId = `${prefix}sc_${suffix}`;
-  const eventId = `${prefix}evt_${suffix}`;
+  const eventId = `${prefix}evt_${String(++fixtureSequence).padStart(4, "0")}_${suffix}`;
   const serviceId = `${prefix}service_${suffix}`;
   const customerId = `${prefix}customer_${suffix}`;
   const orderId = `${prefix}order_${suffix}`;
@@ -84,8 +86,17 @@ async function createClaimFixture() {
       }),
     ],
   );
+  await getMysqlPool().query(
+    `UPDATE platform_event_subscriptions
+     SET live_start_created_at=(SELECT created_at FROM event_outbox WHERE event_id=?),
+         live_start_event_id=?
+     WHERE subscription_id=?`,
+    [eventId, eventId, subscriptionId],
+  );
   const parameterNames = ["orderId"];
-  const templateKey = `order.created.${suffix}`;
+  const templateKey = exactRuntimeTemplateKey
+    ? "inapp.order.created.customer"
+    : `order.created.${suffix}`;
   const revisionLabel = "r1";
   const titleTemplate = "订单已创建";
   const bodyTemplate = "订单 {{orderId}} 已创建";
@@ -137,17 +148,64 @@ async function createClaimFixture() {
     leaseSeconds: 30,
   });
   if (!claim) throw new Error("test claim missing");
+  if (claim.eventId !== eventId) throw new Error("test claim did not select its exact fixture event");
   return {
     identity,
     subscriptionId,
     subscriberId,
     eventId,
     templateRevisionId,
+    templateId,
     claim,
     customerId,
     orderId,
     occurredAt,
   };
+}
+
+async function insertPublishedRevision(
+  fixture: Awaited<ReturnType<typeof createClaimFixture>>,
+  revisionNumber: number,
+): Promise<string> {
+  const templateRevisionId = `${prefix}rev_${revisionNumber}_${randomUUID().slice(0, 8)}`;
+  const revisionLabel = `r${revisionNumber}`;
+  const parameterNames = ["orderId"];
+  const titleTemplate = `订单已创建 v${revisionNumber}`;
+  const bodyTemplate = `订单 {{orderId}} 已创建 v${revisionNumber}`;
+  const contentHash = notificationSha256(notificationCanonicalJson({
+    templateId: fixture.templateId,
+    templateKey: "inapp.order.created.customer",
+    revisionLabel,
+    locale: "zh-CN",
+    eventType: "order.created",
+    recipientType: "customer",
+    parameterNames,
+    titleTemplate,
+    bodyTemplate,
+    piiLevel: "P1",
+  }));
+  await getMysqlPool().query(
+    `INSERT INTO notification_template_revisions
+      (template_revision_id,city_code,template_id,revision_number,revision_label,locale,
+       title_pattern,body_pattern,parameter_names_json,content_hash,pii_level,status,
+       created_by_service_id,reviewed_by_actor_id,published_by_actor_id,reviewed_at,published_at)
+     VALUES (?,?,?,?,?,'zh-CN',?,?,?,?, 'P1','published',?,?,?,CURRENT_TIMESTAMP(3),CURRENT_TIMESTAMP(3))`,
+    [
+      templateRevisionId,
+      testCity,
+      fixture.templateId,
+      revisionNumber,
+      revisionLabel,
+      titleTemplate,
+      bodyTemplate,
+      JSON.stringify(parameterNames),
+      contentHash,
+      fixture.identity.serviceId,
+      `${prefix}reviewer`,
+      `${prefix}publisher`,
+    ],
+  );
+  return templateRevisionId;
 }
 
 describe.skipIf(!runDb)("Phase27B dormant Notification projection", { timeout: 60000 }, () => {
@@ -263,16 +321,22 @@ describe.skipIf(!runDb)("Phase27B dormant Notification projection", { timeout: 6
       { name: "changed source payload", run: async (fixture) => {
         const mutationConnection = await getMysqlPool().getConnection();
         await mutationConnection.beginTransaction();
+        const changedPayload = {
+          orderId: `${fixture.orderId}_changed`,
+          cityCode: testCity,
+          customerId: fixture.customerId,
+          skuId: "discard-only-sku",
+          totalAmount: 89,
+          createdAt: fixture.occurredAt,
+        };
+        const changedPayloadHash = canonicalPayloadHash(changedPayload);
         await mutationConnection.query(
           "UPDATE event_outbox SET payload_json=? WHERE event_id=?",
-          [JSON.stringify({
-            orderId: `${fixture.orderId}_changed`,
-            cityCode: testCity,
-            customerId: fixture.customerId,
-            skuId: "discard-only-sku",
-            totalAmount: 89,
-            createdAt: fixture.occurredAt,
-          }), fixture.eventId],
+          [JSON.stringify(changedPayload), fixture.eventId],
+        );
+        await mutationConnection.query(
+          "UPDATE platform_event_deliveries SET payload_hash=? WHERE delivery_id=?",
+          [changedPayloadHash, fixture.claim.deliveryId],
         );
         await mutationConnection.commit();
         mutationConnection.release();
@@ -282,10 +346,15 @@ describe.skipIf(!runDb)("Phase27B dormant Notification projection", { timeout: 6
            WHERE e.event_id=?`,
           [fixture.eventId],
         );
-        const payload = typeof rows[0]?.payload_json === "string"
-          ? JSON.parse(rows[0].payload_json as string)
-          : rows[0]?.payload_json;
-        expect(canonicalPayloadHash(payload)).not.toBe(rows[0]?.payload_hash);
+        const rawPayload = rows[0]?.payload_json;
+        const payload = typeof rawPayload === "string"
+          ? JSON.parse(rawPayload)
+          : Buffer.isBuffer(rawPayload)
+            ? JSON.parse(rawPayload.toString("utf8"))
+            : rawPayload;
+        expect(payload).toEqual(changedPayload);
+        expect(canonicalPayloadHash(payload)).toBe(rows[0]?.payload_hash);
+        expect(rows[0]?.payload_hash).not.toBe(fixture.claim.payloadHash);
       } },
     ];
 
@@ -304,18 +373,6 @@ describe.skipIf(!runDb)("Phase27B dormant Notification projection", { timeout: 6
       await mutation.run(fixture);
       const connection = await getMysqlPool().getConnection();
       await connection.beginTransaction();
-      if (mutation.name === "changed source payload") {
-        const [transactionRows] = await connection.query<RowDataPacket[]>(
-          `SELECT e.payload_json,d.payload_hash FROM event_outbox e
-           INNER JOIN platform_event_deliveries d ON d.event_id=e.event_id
-           WHERE e.event_id=? FOR UPDATE`,
-          [fixture.eventId],
-        );
-        const transactionPayload = typeof transactionRows[0]?.payload_json === "string"
-          ? JSON.parse(transactionRows[0].payload_json as string)
-          : transactionRows[0]?.payload_json;
-        expect(canonicalPayloadHash(transactionPayload)).not.toBe(transactionRows[0]?.payload_hash);
-      }
       const result = await platform.revalidateNotificationProjectionClaim(
         fixture.identity,
         claim,
@@ -378,5 +435,113 @@ describe.skipIf(!runDb)("Phase27B dormant Notification projection", { timeout: 6
         targetRow.target_fingerprint,
       ],
     )).rejects.toMatchObject({ code: "ER_NO_REFERENCED_ROW_2" });
+  });
+
+  it("selects the highest exact published template once and reuses that canonical receipt after ack loss", async () => {
+    const fixture = await createClaimFixture(true);
+    const revision2 = await insertPublishedRevision(fixture, 2);
+    const service = new NotificationService();
+    const claim = {
+      subscriptionId: fixture.subscriptionId,
+      deliveryId: fixture.claim.deliveryId,
+      owner: fixture.claim.leaseOwner,
+      leaseToken: fixture.claim.leaseToken,
+      expectedRowVersion: fixture.claim.rowVersion,
+    };
+    const first = await service.materializeClaimWithCurrentTemplate(fixture.identity, claim);
+    expect(first.outcome).toBe("applied");
+    const revision3 = await insertPublishedRevision(fixture, 3);
+
+    const retried = await service.materializeClaimWithCurrentTemplate(fixture.identity, claim);
+    expect(retried).toEqual({ ...first, outcome: "already_applied" });
+    const [rows] = await getMysqlPool().query<RowDataPacket[]>(
+      `SELECT template_revision_id,rendered_title FROM notification_records
+       WHERE notification_id=?`,
+      [first.notificationId],
+    );
+    expect(rows[0]).toMatchObject({
+      template_revision_id: revision2,
+      rendered_title: "订单已创建 v2",
+    });
+    expect(rows[0]?.template_revision_id).not.toBe(revision3);
+    expect(await count("SELECT COUNT(*) count FROM notification_records WHERE city_code=?", [testCity])).toBe(1);
+  });
+
+  it("runs the prospective B2 path and acknowledges once", async () => {
+    const fixture = await createClaimFixture(true);
+    const platform = new PlatformDeliveryService();
+    await platform.fail(fixture.identity, {
+      subscriptionId: fixture.subscriptionId,
+      deliveryId: fixture.claim.deliveryId,
+      owner: fixture.claim.leaseOwner,
+      leaseToken: fixture.claim.leaseToken,
+      expectedRowVersion: fixture.claim.rowVersion,
+    }, new Error("test lease handoff"));
+    await getMysqlPool().query(
+      "UPDATE platform_event_deliveries SET available_at=CURRENT_TIMESTAMP(3) WHERE delivery_id=?",
+      [fixture.claim.deliveryId],
+    );
+
+    const worker = new NotificationProjectionWorker();
+    const first = await worker.runOnce(fixture.identity, {
+      subscriptionId: fixture.subscriptionId,
+      owner: `${prefix}runtime_owner`,
+      limit: 1,
+      leaseSeconds: 30,
+    });
+    expect(first).toEqual({
+      claimed: 1,
+      projected: 1,
+      reused: 0,
+      acknowledged: 1,
+      failed: 0,
+      conflicts: 0,
+    });
+    expect(await count("SELECT COUNT(*) count FROM notification_records WHERE city_code=?", [testCity])).toBe(1);
+    const [deliveryRows] = await getMysqlPool().query<RowDataPacket[]>(
+      "SELECT status FROM platform_event_deliveries WHERE delivery_id=?",
+      [fixture.claim.deliveryId],
+    );
+    expect(deliveryRows[0]?.status).toBe("delivered");
+
+    const repeated = await worker.runOnce(fixture.identity, {
+      subscriptionId: fixture.subscriptionId,
+      owner: `${prefix}runtime_owner_2`,
+      limit: 1,
+    });
+    expect(repeated.claimed).toBe(0);
+  });
+
+  it("fails closed through the Phase27A retry lifecycle when no exact published template exists", async () => {
+    const fixture = await createClaimFixture();
+    const platform = new PlatformDeliveryService();
+    await platform.fail(fixture.identity, {
+      subscriptionId: fixture.subscriptionId,
+      deliveryId: fixture.claim.deliveryId,
+      owner: fixture.claim.leaseOwner,
+      leaseToken: fixture.claim.leaseToken,
+      expectedRowVersion: fixture.claim.rowVersion,
+    }, new Error("test lease handoff"));
+    await getMysqlPool().query(
+      "UPDATE platform_event_deliveries SET available_at=CURRENT_TIMESTAMP(3) WHERE delivery_id=?",
+      [fixture.claim.deliveryId],
+    );
+
+    const result = await new NotificationProjectionWorker().runOnce(fixture.identity, {
+      subscriptionId: fixture.subscriptionId,
+      owner: `${prefix}missing_template_owner`,
+      limit: 1,
+    });
+    expect(result).toMatchObject({ claimed: 1, projected: 0, acknowledged: 0, failed: 1 });
+    expect(await count("SELECT COUNT(*) count FROM notification_records WHERE city_code=?", [testCity])).toBe(0);
+    const [deliveryRows] = await getMysqlPool().query<RowDataPacket[]>(
+      "SELECT status,last_error_code,last_error_message FROM platform_event_deliveries WHERE delivery_id=?",
+      [fixture.claim.deliveryId],
+    );
+    expect(deliveryRows[0]).toMatchObject({
+      status: "retry_wait",
+      last_error_code: "PLATFORM_DELIVERY_ERROR",
+      last_error_message: "platform delivery failed",
+    });
   });
 });

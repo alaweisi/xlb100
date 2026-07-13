@@ -39,9 +39,9 @@
 | Phase 24F | LOCKED | xlb-phase24-customer-support-closure | CSAT, quality review, and support operations metrics |
 | Phase 25 | LOCKED | xlb-phase25-ui-standardization-v1.0 | Five-system UI standardization: Customer, Worker, Admin, OA, and realtime Dashboard |
 | Phase 26 | ACCEPTED — DESIGN ONLY | — | Platform foundation design accepted; no implementation authority |
-| Phase 27 | IN PROGRESS — NOT LOCKED | — | Unified Phase27 A–E construction authorized; Phase27A and Phase27B B1 accepted; B2/27C next |
+| Phase 27 | PHASE27E EXIT VERIFICATION — NOT LOCKED | — | Phase27A–D accepted by independent review; aggregate Lock verification in progress |
 | Phase 27A | HUMAN ACCEPTED — NOT LOCKED | — | Platform Delivery Foundation accepted on its feature commit; no activation authority |
-| Phase 27B | B1 ACCEPTED — B2/27C AUTHORIZED | — | S4 independent review PASS; unified construction proceeds sequentially with zero production activation |
+| Phase 27B | B2/C/D ACCEPTED — PHASE27E IN PROGRESS | — | Independent reviews clear; full regression/browser/migration/Lock verification in progress |
 
 ## Phase 25 — Five-System UI Standardization (LOCKED)
 
@@ -130,7 +130,7 @@
 - **Production truth**: Phase 14 remains 64/100, IN PROGRESS and staging/production NO-GO.
 - **Acceptance boundary**: Phase27A runtime foundation is accepted on its feature branch but is not LOCKED, merged, tagged, pushed, activated, or production-ready. That acceptance did not itself authorize Phase27B; the later B0/B1 authorization is separately recorded below.
 
-## Phase 27B — Notification Projection Foundation (B1 ACCEPTED — B2/27C AUTHORIZED)
+## Phase 27B — Notification Projection Foundation (B2/C/D ACCEPTED — PHASE27E IN PROGRESS)
 
 - **Human authorization**: on 2026-07-13 the user first accepted B0+B1, then explicitly authorized automatic completion of the remaining Phase27 A–E construction. This waives intermediate wait states but not technical Gates or production prohibitions.
 - **Branch/base**: `codex/phase27b-notification-projection-foundation`, stacked from Phase27A accepted commit `7874355837430b8a803f09be731265fb20889073`.
@@ -139,6 +139,12 @@
 - **Zero-entry truth**: no subscriber, subscription, allowlist, template, active pointer, live-start, backfill, replay or activation row is inserted. `backend/src/app.ts` and `backend/src/server.ts` do not register Notification runtime.
 - **External-channel truth**: SMS, Push, WeChat, Email, channel intent/attempt and Provider runtime remain absent. Notification does not own a second retry, lease or DLQ lifecycle.
 - **Review status**: S4 independent read-only review found no P0/P1/P2/P3 and concluded PASS. Focused independent verification passed 8 files / 32 tests, both Phase27A/27B direct Gates, and diff hygiene. B1 is accepted as the predecessor for sequential B2/27C construction.
+- **B2 runtime decision**: production subscriber/allowlist/template data remains empty. The internal runner consumes only pre-existing exact active Platform subscriptions and prospective live-start deliveries, resolves the exact `zh-CN`/`P1` highest published immutable revision for a closed event/recipient template key, materializes atomically, and delegates ack/fail/retry ownership back to Phase27A.
+- **B2 implementation truth**: the runner has no scheduler, public route, registration API, seed, activation, backfill, replay, Admin entry or external channel. Focused policy/lifecycle verification passes, including one-effect success, repeated no-op, missing-template canonical failure, and concurrent source snapshot/lock disagreement fail-closed.
+- **Phase27C/27D construction truth**: Customer/Worker own-inbox shared types, strict validators and API Client paths are implemented and under independent review. Backend recipient-scoped API and Customer/Worker pages are being constructed in parallel; this is not yet Phase27E acceptance or Lock evidence.
+- **Phase27C implementation truth**: Customer/Worker recipient-scoped list, unread count, mark-read and archive/restore APIs are registered. Scope derives only from authenticated `RequestContext`; signed keyset cursors bind city/recipient/view; hidden records never surface; CAS and hashed idempotency reuse migration 055 audit actions. Focused contract/integration/security tests and the direct C Gate pass; independent review is running.
+- **Phase27D implementation truth**: `/customer/notifications` and `/worker/notifications` use the real shared API Client and implement loading/empty/error/retry, inbox/archive, cursor loading, accessible unread state, mark-read, archive/restore and conflict reload. Bottom navigation remains seven items, no speculative badge/count or fake data was added, and the Phase25 hardcode Gate passes. Independent review is running.
+- **Independent acceptance**: B2 second-round review, Phase27C review and Phase27D second-round review each report P0/P1/P2 clear and PASS. Phase27D retained only a non-blocking report-count correction, now synchronized. Phase27E aggregate verification is entered; Phase27 remains NOT LOCKED until full, migration, browser, governance, merge and tag evidence all pass.
 - **Production boundary**: Phase14 remains `64/100`, `IN PROGRESS`, and staging/production `NO-GO`.
 - **Entry report**: `docs/reports/PHASE27B_NOTIFICATION_PROJECTION_ENTRY_REPORT.md`.
 - **Implementation evidence**: `docs/reports/PHASE27B_NOTIFICATION_PROJECTION_IMPLEMENTATION_REPORT.md`; S4 remediation and independent PASS are recorded there.

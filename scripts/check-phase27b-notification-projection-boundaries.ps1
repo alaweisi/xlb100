@@ -2,6 +2,11 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 
+$currentState = Get-Content -Raw -LiteralPath 'docs/CURRENT_STATE.md'
+$phase27Continuation =
+  $currentState.Contains('Phase 27B | B2 IMPLEMENTED') -or
+  $currentState.Contains('Phase 27 | LOCKED')
+
 $baseline = '7874355837430b8a803f09be731265fb20889073'
 & git cat-file -e "$baseline^{commit}"
 if ($LASTEXITCODE -ne 0) { throw "Phase27B baseline commit is unavailable: $baseline" }
@@ -59,9 +64,11 @@ $allowed = @(
   '^tests/security/phase27bNotificationProjectionBoundaries\.test\.ts$',
   '^tests/security/phase27aPlatformDeliveryBoundaries\.test\.ts$'
 )
-foreach ($path in $changedPaths) {
-  if (-not ($allowed | Where-Object { $path -match $_ })) {
-    throw "out-of-scope Phase27B B1 path: $path"
+if (-not $phase27Continuation) {
+  foreach ($path in $changedPaths) {
+    if (-not ($allowed | Where-Object { $path -match $_ })) {
+      throw "out-of-scope Phase27B B1 path: $path"
+    }
   }
 }
 
@@ -214,13 +221,13 @@ foreach ($requiredClaimLock in @(
 if ($notificationExecutableText -match '(?i)\b(retry_count|next_attempt_at|dead_letter|dlq)\b') {
   throw "Notification runtime must not create an independent retry or DLQ lifecycle"
 }
-if ($notificationExecutableText -match '(?i)from\s+["''](?:express|fastify)["'']|\bRouter\s*\(|\bapp\.(get|post|put|patch|delete)\s*\(') {
+if (-not $phase27Continuation -and $notificationExecutableText -match '(?i)from\s+["''](?:express|fastify)["'']|\bRouter\s*\(|\bapp\.(get|post|put|patch|delete)\s*\(') {
   throw "Phase27B B1 must not expose a Notification API or public route"
 }
 
 $publicEntryText = (Get-Content -Raw -LiteralPath 'backend/src/app.ts') + "`n" +
   (Get-Content -Raw -LiteralPath 'backend/src/server.ts')
-if ($publicEntryText -match '(?i)notification') {
+if (-not $phase27Continuation -and $publicEntryText -match '(?i)notification') {
   throw "Phase27B B1 must not wire Notification into app.ts or server.ts"
 }
 
@@ -232,9 +239,11 @@ $forbiddenChangedPathPatterns = @(
   '(^|/)(admin|oa|dashboard)(/|$)',
   '(?i)(backfill|replay|live.?start|provider)'
 )
-foreach ($path in $changedPaths) {
-  if ($forbiddenChangedPathPatterns | Where-Object { $path -match $_ }) {
-    throw "Phase27B B1 contains forbidden API/UI/Admin/Provider/activation path: $path"
+if (-not $phase27Continuation) {
+  foreach ($path in $changedPaths) {
+    if ($forbiddenChangedPathPatterns | Where-Object { $path -match $_ }) {
+      throw "Phase27B B1 contains forbidden API/UI/Admin/Provider/activation path: $path"
+    }
   }
 }
 

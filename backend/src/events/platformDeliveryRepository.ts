@@ -81,6 +81,7 @@ export type PlatformClaimCompatibilitySourceRow = RowDataPacket & {
   payload_hash: string;
   compatibility_handler_revision: string;
   payload_json: unknown;
+  source_snapshot_consistent?: boolean;
 };
 
 const DELIVERY_COLUMNS = `d.delivery_id,d.city_code,d.subscriber_id,d.subscription_id,
@@ -186,17 +187,21 @@ export class PlatformDeliveryRepository {
     lockForUpdate = false,
   ): Promise<PlatformClaimCompatibilitySourceRow | null> {
     const executor = connection ?? this.pool;
+    const eventProjection = lockForUpdate ? "NULL AS payload_json" : "e.payload_json";
+    const eventJoin = lockForUpdate
+      ? ""
+      : "INNER JOIN event_outbox e ON e.city_code=d.city_code AND e.event_id=d.event_id";
     const [rows] = await executor.query<PlatformClaimCompatibilitySourceRow[]>(
       `SELECT d.delivery_id,d.city_code,d.subscriber_id,d.subscription_id,d.event_id,
          d.event_type,d.event_major_version,d.payload_hash,s.compatibility_handler_revision,
-         e.payload_json
+         ${eventProjection}
        FROM platform_event_deliveries d
        INNER JOIN platform_event_subscriptions s
          ON s.city_code=d.city_code AND s.subscription_id=d.subscription_id
         AND s.subscriber_id=d.subscriber_id AND s.event_type=d.event_type
         AND s.event_major_version=d.event_major_version
        INNER JOIN platform_event_subscribers p ON p.subscriber_id=d.subscriber_id
-       INNER JOIN event_outbox e ON e.city_code=d.city_code AND e.event_id=d.event_id
+       ${eventJoin}
        WHERE d.delivery_id=? AND d.city_code=? AND d.subscriber_id=? AND d.subscription_id=?
          AND d.status='processing' AND d.lease_owner=? AND d.lease_token=?
          AND d.lease_expires_at>CURRENT_TIMESTAMP(3) AND d.row_version=?
@@ -214,7 +219,36 @@ export class PlatformDeliveryRepository {
       ],
     );
     const row = rows[0];
-    return row ? { ...row, payload_json: parsePayload(row.payload_json) } : null;
+    if (!row) return null;
+    if (lockForUpdate) {
+      const [snapshotRows] = await executor.query<(RowDataPacket & { payload_json: unknown })[]>(
+        `SELECT payload_json FROM event_outbox
+         WHERE city_code=? AND event_id=? LIMIT 1`,
+        [row.city_code, row.event_id],
+      );
+      const [lockedRows] = await executor.query<(RowDataPacket & { payload_json: unknown })[]>(
+        `SELECT payload_json FROM event_outbox
+         WHERE city_code=? AND event_id=? LIMIT 1 FOR UPDATE`,
+        [row.city_code, row.event_id],
+      );
+      const [committedRows] = await this.pool.query<(RowDataPacket & { payload_json: unknown })[]>(
+        `SELECT payload_json FROM event_outbox
+         WHERE city_code=? AND event_id=? LIMIT 1`,
+        [row.city_code, row.event_id],
+      );
+      if (!snapshotRows[0] || !lockedRows[0] || !committedRows[0]) return null;
+      const snapshotPayload = parsePayload(snapshotRows[0].payload_json);
+      const lockedPayload = parsePayload(lockedRows[0].payload_json);
+      const committedPayload = parsePayload(committedRows[0].payload_json);
+      return {
+        ...row,
+        payload_json: lockedPayload,
+        source_snapshot_consistent:
+          JSON.stringify(snapshotPayload) === JSON.stringify(lockedPayload) &&
+          JSON.stringify(committedPayload) === JSON.stringify(lockedPayload),
+      };
+    }
+    return { ...row, payload_json: parsePayload(row.payload_json) };
   }
 
   async listCandidateSourceEvents(

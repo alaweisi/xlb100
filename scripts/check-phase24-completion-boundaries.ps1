@@ -28,7 +28,8 @@ try {
       $migration055.Count -eq 1 -and
       $migration055[0].Name -eq "055_phase27b_notification_projection_foundation.sql" -and
       ($currentState.Contains("Phase 27B | B1 IMPLEMENTED") -or
-        $currentState.Contains("Phase 27B | B1 ACCEPTED"))
+        $currentState.Contains("Phase 27B | B1 ACCEPTED") -or
+        $currentState.Contains("Phase 27B | B2 IMPLEMENTED"))
     if (-not $authorizedPhase27bMigration) {
       throw "Phase 24 completion cannot accept an unauthorized migration 055"
     }

@@ -10,6 +10,12 @@ export {
 } from "./createApiClient.js";
 export { customerApi } from "./customer.js";
 export { workerApi } from "./worker.js";
+export {
+  createNotificationApi,
+  validateNotificationInboxListResponse,
+  validateNotificationUnreadCountResponse,
+  validateNotificationStateMutationResponse,
+} from "./notification.js";
 export type {
   WorkerBankAccountResponse,
   WorkerReceivableBalanceResponse,

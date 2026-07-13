@@ -11,6 +11,7 @@ import {
   notificationRenderParametersHash,
   notificationSha256,
   notificationTargetFingerprint,
+  notificationTemplateKey,
   NotificationProjectionError,
   renderNotificationTemplate,
   type NotificationTemplateContent,
@@ -22,6 +23,17 @@ type ExistingProjectionRow = RowDataPacket & {
   state_id: string;
   target_fingerprint: string;
   row_version: number;
+  city_code: string;
+  recipient_type: string;
+  recipient_id: string;
+  source_event_id: string;
+  subscriber_id: string;
+  event_type: string;
+  event_major_version: number;
+  payload_hash: string;
+  render_parameters_hash: string;
+  occurred_at: Date;
+  template_revision_id: string;
 };
 
 type TemplateRevisionRow = RowDataPacket & {
@@ -67,20 +79,70 @@ function templateContentHash(row: TemplateRevisionRow, parameterNames: string[])
 export class NotificationRepository {
   constructor(private readonly pool: Pool = getMysqlPool()) {}
 
+  async resolveCurrentPublishedTemplateRevision(
+    projection: PlatformNotificationCompatibilityProjection,
+    connection?: PoolConnection,
+  ): Promise<string> {
+    const executor = connection ?? this.pool;
+    const [rows] = await executor.query<(RowDataPacket & { template_revision_id: string })[]>(
+      `SELECT r.template_revision_id
+       FROM notification_templates t
+       INNER JOIN notification_template_revisions r
+         ON r.city_code=t.city_code AND r.template_id=t.template_id
+       WHERE t.city_code=? AND t.template_key=? AND t.event_type=? AND t.recipient_type=?
+         AND t.status='published' AND r.status='published'
+         AND r.locale='zh-CN' AND r.pii_level='P1'
+       ORDER BY r.revision_number DESC,r.template_revision_id DESC
+       LIMIT 1${connection ? " FOR UPDATE" : ""}`,
+      [
+        projection.cityCode,
+        notificationTemplateKey(projection),
+        projection.eventType,
+        projection.recipientType,
+      ],
+    );
+    const revision = rows[0]?.template_revision_id;
+    if (!revision) {
+      throw new NotificationProjectionError("TEMPLATE_REVISION_NOT_AVAILABLE");
+    }
+    return revision;
+  }
+
   private async findExisting(
     connection: PoolConnection,
     projection: PlatformNotificationCompatibilityProjection,
   ): Promise<ExistingProjectionRow | null> {
     const [rows] = await connection.query<ExistingProjectionRow[]>(
       `SELECT r.receipt_id,r.notification_id,s.state_id,r.target_fingerprint,s.row_version
+         ,n.city_code,n.recipient_type,n.recipient_id,n.source_event_id,n.subscriber_id,
+         n.event_type,n.event_major_version,n.payload_hash,n.render_parameters_hash,
+         n.occurred_at,n.template_revision_id
        FROM notification_delivery_receipts r
        INNER JOIN notification_recipient_states s
          ON s.city_code=r.city_code AND s.notification_id=r.notification_id
+       INNER JOIN notification_records n
+         ON n.city_code=r.city_code AND n.notification_id=r.notification_id
        WHERE r.subscriber_id=? AND r.event_id=?
        LIMIT 1 FOR UPDATE`,
       [projection.subscriberId, projection.eventId],
     );
     return rows[0] ?? null;
+  }
+
+  private existingMatchesProjection(
+    existing: ExistingProjectionRow,
+    projection: PlatformNotificationCompatibilityProjection,
+  ): boolean {
+    return existing.city_code === projection.cityCode &&
+      existing.recipient_type === projection.recipientType &&
+      existing.recipient_id === projection.recipientId &&
+      existing.source_event_id === projection.eventId &&
+      existing.subscriber_id === projection.subscriberId &&
+      existing.event_type === projection.eventType &&
+      Number(existing.event_major_version) === projection.eventMajorVersion &&
+      existing.payload_hash === projection.payloadHash &&
+      existing.render_parameters_hash === notificationRenderParametersHash(projection.renderParameters) &&
+      existing.occurred_at.getTime() === new Date(projection.occurredAt).getTime();
   }
 
   private async requireTemplateRevision(
@@ -126,14 +188,33 @@ export class NotificationRepository {
     command: NotificationMaterializeCommand,
     revalidateClaim: (connection: PoolConnection) => Promise<void>,
   ): Promise<NotificationMaterializationResult> {
+    return this.materializeInternal(command, revalidateClaim, command.templateRevisionId);
+  }
+
+  async materializeWithCurrentTemplate(
+    projection: PlatformNotificationCompatibilityProjection,
+    actorServiceId: string,
+    revalidateClaim: (connection: PoolConnection) => Promise<void>,
+  ): Promise<NotificationMaterializationResult> {
+    return this.materializeInternal({ projection, actorServiceId }, revalidateClaim);
+  }
+
+  private async materializeInternal(
+    command: Pick<NotificationMaterializeCommand, "projection" | "actorServiceId">,
+    revalidateClaim: (connection: PoolConnection) => Promise<void>,
+    requestedTemplateRevisionId?: string,
+  ): Promise<NotificationMaterializationResult> {
     const connection = await this.pool.getConnection();
-    const fingerprint = notificationTargetFingerprint(command.projection, command.templateRevisionId);
     try {
       await connection.beginTransaction();
       await revalidateClaim(connection);
       const existing = await this.findExisting(connection, command.projection);
       if (existing) {
-        if (existing.target_fingerprint !== fingerprint) {
+        const requestedFingerprint = requestedTemplateRevisionId
+          ? notificationTargetFingerprint(command.projection, requestedTemplateRevisionId)
+          : null;
+        if (!this.existingMatchesProjection(existing, command.projection) ||
+            (requestedFingerprint !== null && existing.target_fingerprint !== requestedFingerprint)) {
           throw new NotificationProjectionError("PROJECTION_CONFLICT");
         }
         await connection.commit();
@@ -147,10 +228,14 @@ export class NotificationRepository {
         };
       }
 
+      const templateRevisionId = requestedTemplateRevisionId ??
+        await this.resolveCurrentPublishedTemplateRevision(command.projection, connection);
+      const fingerprint = notificationTargetFingerprint(command.projection, templateRevisionId);
+
       const template = await this.requireTemplateRevision(
         connection,
         command.projection,
-        command.templateRevisionId,
+        templateRevisionId,
       );
       const rendered = renderNotificationTemplate(command.projection, template);
       const notificationId = id("ntf");
@@ -174,7 +259,7 @@ export class NotificationRepository {
           command.projection.subscriberId,
           command.projection.eventType,
           command.projection.eventMajorVersion,
-          command.templateRevisionId,
+          templateRevisionId,
           command.projection.payloadHash,
           fingerprint,
           notificationCanonicalJson(command.projection.renderParameters),
@@ -195,7 +280,7 @@ export class NotificationRepository {
           command.projection.subscriberId,
           command.projection.eventId,
           notificationId,
-          command.templateRevisionId,
+          templateRevisionId,
           command.projection.payloadHash,
           fingerprint,
         ],

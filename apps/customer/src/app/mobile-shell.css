@@ -43,6 +43,76 @@ body {
   padding-bottom: 18px;
 }
 
+.notification-page-header,
+.notification-list,
+.notification-error,
+.notification-card {
+  display: grid;
+  gap: var(--xlb-spacing-md);
+}
+
+.notification-page-header {
+  padding: var(--xlb-spacing-md);
+}
+
+.notification-page-header h1,
+.notification-page-header p,
+.notification-body,
+.notification-notice {
+  margin: 0;
+}
+
+.notification-page-header p,
+.notification-time {
+  color: var(--xlb-color-text-muted);
+}
+
+.notification-view-tabs,
+.notification-card-header,
+.notification-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--xlb-spacing-md);
+}
+
+.notification-view-tabs {
+  margin-block-end: var(--xlb-spacing-md);
+}
+
+.notification-card-header {
+  justify-content: space-between;
+}
+
+.notification-card {
+  background: var(--xlb-color-surface);
+  border: var(--xlb-stroke-hairline) solid var(--xlb-color-border);
+  border-radius: var(--xlb-radius-xxl);
+  padding: var(--xlb-spacing-md);
+}
+
+.notification-card-unread {
+  background: var(--xlb-color-surface-accent);
+  border-inline-start: var(--xlb-stroke-emphasis) solid var(--xlb-color-primary);
+}
+
+.notification-body {
+  white-space: pre-wrap;
+}
+
+.notification-error {
+  color: var(--xlb-color-danger);
+}
+
+.notification-link,
+.notification-entry-link {
+  color: var(--xlb-color-primary);
+}
+
+.notification-notice {
+  color: var(--xlb-color-success);
+}
+
 .customer-app-root [data-runtime-theme] > div {
   background: color-mix(in srgb, var(--xlb-role-customer-glass-tint) 86%, transparent) !important;
   backdrop-filter: blur(var(--xlb-glass-backdrop-blur)) saturate(var(--xlb-glass-saturation));

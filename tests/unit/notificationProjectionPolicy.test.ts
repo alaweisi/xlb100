@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { PlatformNotificationCompatibilityProjection } from "@xlb/types";
 import {
+  notificationTemplateKey,
   notificationTargetFingerprint,
   NotificationProjectionError,
   renderNotificationTemplate,
@@ -34,6 +35,14 @@ describe("Phase27B Notification projection policy", () => {
     expect(notificationTargetFingerprint(projection, "revision-2")).not.toBe(
       notificationTargetFingerprint(projection, "revision-1"),
     );
+  });
+
+  it("selects the closed runtime template key for the exact event and recipient", () => {
+    expect(notificationTemplateKey(projection)).toBe("inapp.order.created.customer");
+    expect(notificationTemplateKey({ eventType: "support.ticket.resolved", recipientType: "worker" }))
+      .toBe("inapp.support.ticket.resolved.worker");
+    expect(() => notificationTemplateKey({ eventType: "order.created", recipientType: "worker" }))
+      .toThrow(NotificationProjectionError);
   });
 
   it("renders only the event-specific minimal allowlist", () => {

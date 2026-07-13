@@ -157,3 +157,40 @@ Phase27 A–E construction instruction waives intermediate wait states, so this
 B1 evidence is accepted for sequential progression to B2/27C. Production
 activation, external Providers, migration 056+, Phase28 and deployment remain
 outside that authority.
+
+## 8. B2 prospective runtime entry
+
+The unified Phase27 A–E construction instruction authorized the conservative
+B2 decision package without introducing production activation. The frozen
+decision is recorded in
+`docs/reports/PHASE27B_B2_NOTIFICATION_RUNTIME_DECISION_REPORT.md`.
+
+The internal `NotificationProjectionWorker` now claims only through an exact,
+pre-existing active Phase27A subscription, resolves the closed event/recipient
+template key to the highest published `zh-CN` / `P1` immutable revision,
+materializes the target through the B1 transaction boundary, and acknowledges
+or fails through Phase27A. Phase27A remains the sole owner of leases, retries,
+attempts and dead-letter state.
+
+There is still no subscriber registration, seed, activation API, scheduler,
+historical backfill/replay, public worker endpoint, Admin operation, external
+channel or Provider. A missing exact published template fails through the
+canonical Phase27A retry lifecycle and creates no Notification record.
+
+The target-transaction revalidation now also compares the consistent source
+snapshot with the locked source row. Any disagreement fails closed before the
+Notification effect, covering both ordinary hash drift and database isolation
+skew while retaining an explicit row lock.
+
+Focused B2 evidence at implementation time:
+
+| Verification | Result |
+|---|---|
+| Projection policy + lifecycle | PASS — 2 files / 9 tests |
+| Backend typecheck | PASS |
+| Shared Phase27C contract/API client | PASS — 2 files / 8 tests |
+| Types/validators/API-client typecheck | PASS |
+
+Repository-wide tests, build, migration replay, browser evidence and aggregate
+boundary Gates are reserved for Phase27E closure. B2 implementation does not
+authorize production data, Phase28, migration 056+, push or deployment.

@@ -1,10 +1,12 @@
 import type {
   NotificationMaterializationResult,
   NotificationMaterializeClaimRequest,
+  PlatformServiceIdentity,
 } from "@xlb/types";
 import {
   notificationMaterializeClaimRequestSchema,
   notificationMaterializeCommandSchema,
+  platformDeliveryMutationRequestSchema,
   platformServiceIdentitySchema,
 } from "@xlb/validators";
 import {
@@ -42,16 +44,45 @@ export class NotificationService {
       request.claim,
     );
     if (!projection) throw new NotificationProjectionError("CLAIM_NOT_AVAILABLE");
+    return this.materializeProjection(identity, request.claim, projection, request.templateRevisionId);
+  }
+
+  async materializeClaimWithCurrentTemplate(
+    identityInput: unknown,
+    claimInput: unknown,
+  ): Promise<NotificationMaterializationResult> {
+    const identity = platformServiceIdentitySchema.parse(identityInput);
+    const claim = platformDeliveryMutationRequestSchema.parse(claimInput);
+    const projection = await this.platformService.projectClaimForNotification(identity, claim);
+    if (!projection) throw new NotificationProjectionError("CLAIM_NOT_AVAILABLE");
+    return this.repository.materializeWithCurrentTemplate(
+      projection,
+      identity.serviceId,
+      (connection) => this.platformService.revalidateNotificationProjectionClaim(
+        identity,
+        claim,
+        projection,
+        connection,
+      ),
+    );
+  }
+
+  private async materializeProjection(
+    identity: PlatformServiceIdentity,
+    claim: NotificationMaterializeClaimRequest["claim"],
+    projection: NonNullable<Awaited<ReturnType<PlatformDeliveryService["projectClaimForNotification"]>>>,
+    templateRevisionId: string,
+  ): Promise<NotificationMaterializationResult> {
     const command = notificationMaterializeCommandSchema.parse({
       projection,
-      templateRevisionId: request.templateRevisionId,
+      templateRevisionId,
       actorServiceId: identity.serviceId,
     });
     return this.repository.materialize(
       command,
       (connection) => this.platformService.revalidateNotificationProjectionClaim(
         identity,
-        request.claim,
+        claim,
         projection,
         connection,
       ),

@@ -35,6 +35,7 @@ import { registerAdminOperationsRoutes } from "./adminOperations/adminOperations
 import { recordHttpRequest, renderPrometheusMetrics } from "./observability/metrics.js";
 import { createRateLimitGuard, type RateLimitOptions } from "./security/rateLimit.js";
 import { registerSupportModule } from "./support/supportModule.js";
+import { registerNotificationModule } from "./notification/notificationModule.js";
 
 export type BuildAppOptions = {
   rateLimit?: RateLimitOptions;
@@ -154,6 +155,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   await registerOrderTraceRoutes(app);
   await registerEnterpriseRoutes(app);
   await registerSupportModule(app);
+  await registerNotificationModule(app);
 
   return app;
 }

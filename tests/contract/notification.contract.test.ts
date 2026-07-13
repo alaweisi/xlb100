@@ -146,7 +146,8 @@ describe("Phase27B Notification foundation contract", () => {
     }).success).toBe(true);
     expect(notificationRecipientStateSchema.safeParse({
       stateId: "state-1", cityCode: "hangzhou", notificationId: "notification-1",
-      recipientType: "customer", recipientId: "customer-1", readAt: null, rowVersion: 1,
+      recipientType: "customer", recipientId: "customer-1", readAt: null,
+      archivedAt: null, hiddenAt: null, rowVersion: 1,
       createdAt: timestamp, updatedAt: timestamp,
     }).success).toBe(true);
     expect(notificationActionSchema.safeParse({

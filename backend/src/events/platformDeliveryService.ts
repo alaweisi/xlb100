@@ -264,6 +264,7 @@ export class PlatformDeliveryService {
     }
     const currentPayloadHash = canonicalPayloadHash(source.payload_json);
     if (
+      source.source_snapshot_consistent === false ||
       currentPayloadHash !== source.payload_hash ||
       currentPayloadHash !== expectedProjection.payloadHash ||
       source.compatibility_handler_revision !== expectedProjection.compatibilityHandlerRevision

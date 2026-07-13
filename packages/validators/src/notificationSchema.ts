@@ -25,6 +25,70 @@ export const notificationRenderParametersSchema = z.discriminatedUnion("kind", [
   notificationSupportTicketResolvedRenderParametersSchema,
 ]);
 
+export const notificationInboxReferenceSchema = notificationRenderParametersSchema;
+export const notificationInboxViewSchema = z.enum(["inbox", "archive"]);
+
+export const notificationInboxListQuerySchema = z.object({
+  cursor: z.string().trim().min(1).max(512).regex(/^[A-Za-z0-9_-]+$/).optional(),
+  limit: z.number().int().min(1).max(100).optional(),
+  view: notificationInboxViewSchema.optional(),
+}).strict();
+
+export const notificationInboxItemSchema = z.object({
+  notificationId: identifier,
+  eventType: notificationEventTypeSchema,
+  templateRevisionId: identifier,
+  title: z.string().min(1).max(255),
+  body: z.string().min(1).max(2_000),
+  reference: notificationInboxReferenceSchema,
+  occurredAt: timestampSchema,
+  createdAt: timestampSchema,
+  readAt: timestampSchema.nullable(),
+  archivedAt: timestampSchema.nullable(),
+  rowVersion: positiveRowVersionSchema,
+}).strict().superRefine((value, context) => {
+  const expectedKind = value.eventType === "order.created" ? "order_created" : "support_ticket_resolved";
+  if (value.reference.kind !== expectedKind) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["reference", "kind"],
+      message: "notification reference must match event type",
+    });
+  }
+});
+
+export const notificationInboxListResponseSchema = z.object({
+  ok: z.literal(true),
+  items: z.array(notificationInboxItemSchema).max(100),
+  nextCursor: z.string().min(1).max(512).regex(/^[A-Za-z0-9_-]+$/).nullable(),
+}).strict();
+
+export const notificationUnreadCountResponseSchema = z.object({
+  ok: z.literal(true),
+  unreadCount: z.number().int().nonnegative(),
+}).strict();
+
+export const notificationMarkReadRequestSchema = z.object({
+  expectedRowVersion: positiveRowVersionSchema,
+  idempotencyKey: z.string().trim().min(8).max(128),
+}).strict();
+
+export const notificationArchiveRequestSchema = notificationMarkReadRequestSchema.extend({
+  archived: z.boolean(),
+}).strict();
+
+export const notificationStateMutationOutcomeSchema = z.enum(["applied", "already_applied"]);
+
+export const notificationStateMutationResultSchema = z.object({
+  outcome: notificationStateMutationOutcomeSchema,
+  rowVersion: positiveRowVersionSchema,
+}).strict();
+
+export const notificationStateMutationResponseSchema = z.object({
+  ok: z.literal(true),
+  result: notificationStateMutationResultSchema,
+}).strict();
+
 export const platformNotificationCompatibilityProjectionSchema = z.object({
   deliveryId: identifier,
   cityCode: cityCodeSchema,
@@ -135,6 +199,8 @@ export const notificationRecipientStateSchema = z.object({
   recipientType: notificationRecipientTypeSchema,
   recipientId: identifier,
   readAt: timestampSchema.nullable(),
+  archivedAt: timestampSchema.nullable(),
+  hiddenAt: timestampSchema.nullable(),
   rowVersion: positiveRowVersionSchema,
   createdAt: timestampSchema,
   updatedAt: timestampSchema,
@@ -190,6 +256,10 @@ export const notificationMaterializationResultSchema = z.object({
 }).strict();
 
 export type NotificationRenderParametersInput = z.infer<typeof notificationRenderParametersSchema>;
+export type NotificationInboxListQueryInput = z.infer<typeof notificationInboxListQuerySchema>;
+export type NotificationInboxItemInput = z.infer<typeof notificationInboxItemSchema>;
+export type NotificationMarkReadRequestInput = z.infer<typeof notificationMarkReadRequestSchema>;
+export type NotificationArchiveRequestInput = z.infer<typeof notificationArchiveRequestSchema>;
 export type PlatformNotificationCompatibilityProjectionInput = z.infer<
   typeof platformNotificationCompatibilityProjectionSchema
 >;

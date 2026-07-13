@@ -71,6 +71,18 @@ export interface NotificationTemplateContent {
   bodyTemplate: string;
 }
 
+export function notificationTemplateKey(
+  projection: Pick<PlatformNotificationCompatibilityProjection, "eventType" | "recipientType">,
+): string {
+  if (projection.eventType === "order.created") {
+    if (projection.recipientType !== "customer") {
+      throw new NotificationProjectionError("TEMPLATE_REVISION_MISMATCH");
+    }
+    return "inapp.order.created.customer";
+  }
+  return `inapp.support.ticket.resolved.${projection.recipientType}`;
+}
+
 function parameterRecord(parameters: NotificationRenderParameters): Record<string, string> {
   if (parameters.kind === "order_created") {
     return { orderId: parameters.orderId };
