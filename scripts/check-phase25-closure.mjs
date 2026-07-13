@@ -54,8 +54,38 @@ const phase27ContinuationPatterns = [
   /^packages\/api-client\/src\/(?:index|customer|worker|notification)\.ts$/,
   /^db\/migrations\/05[45]_[a-z0-9_]+\.sql$/,
 ];
+const phase28DecisionPath = join(root, "docs/reports/PHASE28_REVIEW_REPUTATION_RUNTIME_DECISION_REPORT.md");
+const phase28MigrationPath = join(root, "db/migrations/056_phase28_review_reputation.sql");
+const phase28Authorized =
+  currentState.includes("Phase 27 | LOCKED") &&
+  existsSync(phase28DecisionPath) &&
+  readFileSync(phase28DecisionPath, "utf8").includes("HUMAN APPROVED") &&
+  existsSync(phase28MigrationPath);
+const phase28RuntimeFiles = new Set([
+  "backend/src/events/eventOutbox.ts",
+  "backend/src/events/platformDeliveryRepository.ts",
+  "backend/src/events/platformDeliveryService.ts",
+  "backend/src/events/platformEventCompatibility.ts",
+  "backend/src/order/orderTraceRoutes.ts",
+  "backend/src/review/orderReviewRepository.ts",
+  "backend/src/review/orderReviewRoutes.ts",
+  "backend/src/review/orderReviewService.ts",
+  "backend/src/review/reputationProjectionWorker.ts",
+  "backend/src/review/reputationRepository.ts",
+  "backend/src/review/reputationService.ts",
+  "backend/src/review/reviewModerationRepository.ts",
+  "backend/src/review/reviewModerationService.ts",
+  "backend/src/review/reviewQueueCursorPolicy.ts",
+  "db/migrations/056_phase28_review_reputation.sql",
+  "packages/api-client/src/admin.ts",
+  "packages/api-client/src/customer.ts",
+  "packages/api-client/src/index.ts",
+  "packages/api-client/src/reviewReputation.ts",
+  "packages/api-client/src/worker.ts",
+]);
 for (const file of changed) {
   if (["backend/", "db/", "deploy/", "infra/", "packages/api-client/"].some((prefix) => file.startsWith(prefix))) {
+    if (phase28Authorized && phase28RuntimeFiles.has(file)) continue;
     if (phase27Continuation && phase27ContinuationPatterns.some((pattern) => pattern.test(file))) continue;
     if (phase27bB1Authorized && phase27bB1RuntimeFiles.has(file)) continue;
     if (phase27aRuntimeAuthorized && phase27aRuntimeFiles.has(file)) continue;
@@ -75,5 +105,12 @@ if (
   (!phase27bB1Authorized || migration055.length !== 1 || migration055[0] !== "055_phase27b_notification_projection_foundation.sql")
 ) {
   throw new Error("[phase25-closure] unauthorized migration 055 is forbidden");
+}
+const migration056 = readdirSync(join(root, "db/migrations")).filter((name) => /^056[_-].*\.sql$/i.test(name));
+if (
+  migration056.length > 0 &&
+  (!phase28Authorized || migration056.length !== 1 || migration056[0] !== "056_phase28_review_reputation.sql")
+) {
+  throw new Error("[phase25-closure] unauthorized migration 056 is forbidden");
 }
 process.stdout.write("[phase25-closure] PASS aggregate scope, evidence artifacts, and OA/Dashboard truthfulness verified\n");

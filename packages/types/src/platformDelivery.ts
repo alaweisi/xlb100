@@ -73,6 +73,8 @@ export interface PlatformEventDelivery {
   payloadHash: string;
   aggregateType: string;
   aggregateId: string;
+  aggregateVersion: number | null;
+  aggregateSequence: number | null;
   status: PlatformDeliveryStatus;
   availableAt: string;
   leaseOwner: string | null;
@@ -161,6 +163,57 @@ export interface PlatformSupportTicketResolvedCompatibilityPayload {
   occurredAt: string;
 }
 
+export interface PlatformReviewCreatedV1CompatibilityPayload {
+  reviewId: string;
+  orderId: string;
+  workerId: string;
+  rating: number;
+  visibility: "pending_moderation";
+  occurredAt: string;
+}
+
+export interface PlatformReviewCreatedV1CompatibilityProjection
+  extends PlatformReviewCreatedV1CompatibilityPayload {
+  deliveryId: string;
+  cityCode: CityCode;
+  subscriberId: string;
+  subscriptionId: string;
+  eventId: string;
+  eventType: "review.created";
+  eventMajorVersion: 1;
+  payloadHash: string;
+  compatibilityHandlerRevision: string;
+  aggregateVersion: 1;
+  aggregateSequence: 1;
+}
+
+export interface PlatformReviewVisibilityChangedV1CompatibilityPayload {
+  reviewId: string;
+  workerId: string;
+  rating: number;
+  fromVisibility: "pending_moderation" | "visible" | "hidden";
+  toVisibility: "visible" | "hidden";
+  moderationVersion: number;
+  occurredAt: string;
+}
+
+export interface PlatformReviewVisibilityChangedV1CompatibilityProjection
+  extends PlatformReviewVisibilityChangedV1CompatibilityPayload {
+  deliveryId: string;
+  cityCode: CityCode;
+  subscriberId: string;
+  subscriptionId: string;
+  eventId: string;
+  eventType: "review.visibility.changed";
+  eventMajorVersion: 1;
+  payloadHash: string;
+  compatibilityHandlerRevision: string;
+  aggregateVersion: number;
+  aggregateSequence: number;
+}
+
 export type PlatformCompatibilityPayload =
   | PlatformOrderCreatedCompatibilityPayload
-  | PlatformSupportTicketResolvedCompatibilityPayload;
+  | PlatformSupportTicketResolvedCompatibilityPayload
+  | PlatformReviewCreatedV1CompatibilityPayload
+  | PlatformReviewVisibilityChangedV1CompatibilityPayload;

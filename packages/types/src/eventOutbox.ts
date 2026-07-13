@@ -47,6 +47,8 @@ export type OutboxEventType =
   | "support.csat.submitted"
   | "support.quality.reviewed"
   | "support.bot.handed_off"
+  | "review.created"
+  | "review.visibility.changed"
   | "conflict_audit"
   | "worker.receivable.statement.created"
   | "worker.receivable.statement.reviewed"
@@ -55,6 +57,11 @@ export type OutboxEventType =
 export interface EventOutbox {
   eventId: string;
   eventType: OutboxEventType;
+  /**
+   * Persisted source-contract major. Legacy writers may omit it and are stored
+   * as the approved synthetic implicit-v0 contract by the Outbox repository.
+   */
+  eventMajorVersion?: number;
   aggregateType: string;
   aggregateId: string;
   cityCode: CityCode;
@@ -101,6 +108,25 @@ export interface OrderCreatedEventPayload {
   skuId: string;
   totalAmount: number;
   createdAt: string;
+}
+
+export interface ReviewCreatedV1EventPayload {
+  reviewId: string;
+  orderId: string;
+  workerId: string;
+  rating: number;
+  visibility: "pending_moderation";
+  occurredAt: string;
+}
+
+export interface ReviewVisibilityChangedV1EventPayload {
+  reviewId: string;
+  workerId: string;
+  rating: number;
+  fromVisibility: "pending_moderation" | "visible" | "hidden";
+  toVisibility: "visible" | "hidden";
+  moderationVersion: number;
+  occurredAt: string;
 }
 
 export interface RefundApprovedEventPayload {

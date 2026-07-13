@@ -20,7 +20,17 @@ $expectedMigrations = @(
   '054_phase27a_platform_delivery_foundation.sql',
   '055_phase27b_notification_projection_foundation.sql'
 )
-if ($migrations.Count -ne 2) { throw "Phase27 requires exactly migrations 054 and 055" }
+$phase28DecisionPath = 'docs/reports/PHASE28_REVIEW_REPUTATION_RUNTIME_DECISION_REPORT.md'
+$phase28Authorized =
+  $currentState.Contains('Phase 27 | LOCKED') -and
+  (Test-Path -LiteralPath $phase28DecisionPath) -and
+  (Get-Content -Raw -Encoding UTF8 -LiteralPath $phase28DecisionPath).Contains('HUMAN APPROVED')
+if ($phase28Authorized) {
+  $expectedMigrations += '056_phase28_review_reputation.sql'
+}
+if ($migrations.Count -ne $expectedMigrations.Count) {
+  throw "Phase27 completion migration ledger contains an unauthorized 054+ migration"
+}
 foreach ($expected in $expectedMigrations) {
   if ($migrations.Name -notcontains $expected) { throw "Phase27 migration missing: $expected" }
 }

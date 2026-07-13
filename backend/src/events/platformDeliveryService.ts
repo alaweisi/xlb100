@@ -8,6 +8,8 @@ import type {
   PlatformMaterializationResult,
   PlatformReconciliationResult,
   PlatformServiceIdentity,
+  PlatformReviewCreatedV1CompatibilityProjection,
+  PlatformReviewVisibilityChangedV1CompatibilityProjection,
 } from "@xlb/types";
 import {
   platformDeliveryClaimRequestSchema,
@@ -17,9 +19,12 @@ import {
 import type { PoolConnection } from "mysql2/promise";
 import {
   canonicalPayloadHash,
+  isApprovedPlatformEventVersion,
   PlatformCompatibilityError,
   projectImplicitV0NotificationCompatibility,
-  validateImplicitV0Compatibility,
+  projectReviewCreatedV1Compatibility,
+  projectReviewVisibilityChangedV1Compatibility,
+  validateVersionedPlatformCompatibility,
 } from "./platformEventCompatibility.js";
 import { projectPlatformDeliveryError } from "./platformDeliveryPolicy.js";
 import {
@@ -71,6 +76,110 @@ function sameNotificationProjection(
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
+function projectReviewCreatedCompatibilitySource(
+  source: PlatformClaimCompatibilitySourceRow,
+): PlatformReviewCreatedV1CompatibilityProjection {
+  if (source.event_type !== "review.created" || Number(source.event_major_version) !== 1) {
+    throw new PlatformCompatibilityError("UNSUPPORTED_EVENT_VERSION");
+  }
+  const projected = projectReviewCreatedV1Compatibility(
+    source.city_code,
+    source.city_code,
+    source.payload_json,
+  );
+  if (projected.payloadHash !== source.payload_hash) {
+    throw new PlatformCompatibilityError("INVALID_EVENT_PAYLOAD");
+  }
+  if (
+    source.aggregate_type !== "order_review" ||
+    source.aggregate_id !== projected.reviewId ||
+    Number(source.aggregate_version) !== 1 ||
+    Number(source.aggregate_sequence) !== 1
+  ) {
+    throw new PlatformCompatibilityError("INVALID_EVENT_PAYLOAD");
+  }
+  return {
+    deliveryId: source.delivery_id,
+    cityCode: source.city_code,
+    subscriberId: source.subscriber_id,
+    subscriptionId: source.subscription_id,
+    eventId: source.event_id,
+    eventType: "review.created",
+    eventMajorVersion: 1,
+    payloadHash: source.payload_hash,
+    compatibilityHandlerRevision: source.compatibility_handler_revision,
+    aggregateVersion: 1,
+    aggregateSequence: 1,
+    reviewId: projected.reviewId,
+    orderId: projected.orderId,
+    workerId: projected.workerId,
+    rating: projected.rating,
+    visibility: projected.visibility,
+    occurredAt: projected.occurredAt,
+  };
+}
+
+function sameReviewCreatedProjection(
+  left: PlatformReviewCreatedV1CompatibilityProjection,
+  right: PlatformReviewCreatedV1CompatibilityProjection,
+): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function projectReviewVisibilityChangedCompatibilitySource(
+  source: PlatformClaimCompatibilitySourceRow,
+): PlatformReviewVisibilityChangedV1CompatibilityProjection {
+  if (
+    source.event_type !== "review.visibility.changed" ||
+    Number(source.event_major_version) !== 1
+  ) {
+    throw new PlatformCompatibilityError("UNSUPPORTED_EVENT_VERSION");
+  }
+  const projected = projectReviewVisibilityChangedV1Compatibility(
+    source.city_code,
+    source.city_code,
+    source.payload_json,
+  );
+  if (projected.payloadHash !== source.payload_hash) {
+    throw new PlatformCompatibilityError("INVALID_EVENT_PAYLOAD");
+  }
+  if (
+    source.aggregate_type !== "order_review" ||
+    source.aggregate_id !== projected.reviewId ||
+    Number(source.aggregate_version) !== projected.moderationVersion ||
+    Number(source.aggregate_sequence) !== projected.moderationVersion
+  ) {
+    throw new PlatformCompatibilityError("INVALID_EVENT_PAYLOAD");
+  }
+  return {
+    deliveryId: source.delivery_id,
+    cityCode: source.city_code,
+    subscriberId: source.subscriber_id,
+    subscriptionId: source.subscription_id,
+    eventId: source.event_id,
+    eventType: "review.visibility.changed",
+    eventMajorVersion: 1,
+    payloadHash: source.payload_hash,
+    compatibilityHandlerRevision: source.compatibility_handler_revision,
+    aggregateVersion: projected.moderationVersion,
+    aggregateSequence: projected.moderationVersion,
+    reviewId: projected.reviewId,
+    workerId: projected.workerId,
+    rating: projected.rating,
+    fromVisibility: projected.fromVisibility,
+    toVisibility: projected.toVisibility,
+    moderationVersion: projected.moderationVersion,
+    occurredAt: projected.occurredAt,
+  };
+}
+
+function sameReviewVisibilityChangedProjection(
+  left: PlatformReviewVisibilityChangedV1CompatibilityProjection,
+  right: PlatformReviewVisibilityChangedV1CompatibilityProjection,
+): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
 export class PlatformDeliveryAuthorizationError extends Error {
   constructor(message: string) {
     super(message);
@@ -105,9 +214,9 @@ export class PlatformDeliveryService {
         "active exact-version subscription for service identity and city is required",
       );
     }
-    if (subscription.eventMajorVersion !== 0) {
+    if (!isApprovedPlatformEventVersion(subscription.eventType, subscription.eventMajorVersion)) {
       throw new PlatformDeliveryAuthorizationError(
-        "this Phase27A adapter supports only an approved synthetic compatibility major 0",
+        "subscription event type and exact major version have no approved compatibility handler",
       );
     }
     return { identity, subscription };
@@ -125,9 +234,15 @@ export class PlatformDeliveryService {
     for (const source of rows) {
       const fallbackHash = canonicalPayloadHash(source.payload_json);
       let payloadHash: string;
+      let aggregateVersion: number | null = null;
+      let aggregateSequence: number | null = null;
       try {
-        const compatibility = validateImplicitV0Compatibility(
+        if (Number(source.event_major_version) !== subscription.eventMajorVersion) {
+          throw new PlatformCompatibilityError("UNSUPPORTED_EVENT_VERSION");
+        }
+        const compatibility = validateVersionedPlatformCompatibility(
           source.event_type,
+          Number(source.event_major_version),
           source.city_code,
           subscription.cityCode,
           source.payload_json,
@@ -136,6 +251,28 @@ export class PlatformDeliveryService {
           throw new PlatformCompatibilityError("UNSUPPORTED_EVENT_VERSION");
         }
         payloadHash = compatibility.payloadHash;
+        if (source.event_type === "review.created" && Number(source.event_major_version) === 1) {
+          const review = projectReviewCreatedV1Compatibility(
+            source.city_code, subscription.cityCode, source.payload_json,
+          );
+          if (source.aggregate_type !== "order_review" || source.aggregate_id !== review.reviewId) {
+            throw new PlatformCompatibilityError("INVALID_EVENT_PAYLOAD");
+          }
+          aggregateVersion = 1;
+          aggregateSequence = 1;
+        } else if (
+          source.event_type === "review.visibility.changed" &&
+          Number(source.event_major_version) === 1
+        ) {
+          const review = projectReviewVisibilityChangedV1Compatibility(
+            source.city_code, subscription.cityCode, source.payload_json,
+          );
+          if (source.aggregate_type !== "order_review" || source.aggregate_id !== review.reviewId) {
+            throw new PlatformCompatibilityError("INVALID_EVENT_PAYLOAD");
+          }
+          aggregateVersion = review.moderationVersion;
+          aggregateSequence = review.moderationVersion;
+        }
       } catch (error) {
         rejected += 1;
         const failure = projectPlatformDeliveryError(error);
@@ -154,6 +291,8 @@ export class PlatformDeliveryService {
         payloadHash,
         identity.serviceId,
         reason,
+        aggregateVersion,
+        aggregateSequence,
       );
       if (created) inserted += 1;
       else duplicates += 1;
@@ -240,6 +379,48 @@ export class PlatformDeliveryService {
     return projectNotificationCompatibilitySource(source);
   }
 
+  async projectClaimForReviewCreated(
+    identityInput: unknown,
+    requestInput: unknown,
+  ): Promise<PlatformReviewCreatedV1CompatibilityProjection | null> {
+    const identity = assertServiceIdentity(identityInput);
+    const request = platformDeliveryMutationRequestSchema.parse(requestInput) as PlatformDeliveryMutationRequest;
+    const { subscription } = await this.requireActiveSubscription(identity, request.subscriptionId);
+    const source = await this.repository.readClaimCompatibilitySource(identity, request);
+    if (!source) return null;
+    if (
+      source.event_type !== "review.created" ||
+      source.event_type !== subscription.eventType ||
+      Number(source.event_major_version) !== 1 ||
+      subscription.eventMajorVersion !== 1 ||
+      source.compatibility_handler_revision !== subscription.compatibilityHandlerRevision
+    ) {
+      throw new PlatformCompatibilityError("UNSUPPORTED_EVENT_VERSION");
+    }
+    return projectReviewCreatedCompatibilitySource(source);
+  }
+
+  async projectClaimForReviewVisibilityChanged(
+    identityInput: unknown,
+    requestInput: unknown,
+  ): Promise<PlatformReviewVisibilityChangedV1CompatibilityProjection | null> {
+    const identity = assertServiceIdentity(identityInput);
+    const request = platformDeliveryMutationRequestSchema.parse(requestInput) as PlatformDeliveryMutationRequest;
+    const { subscription } = await this.requireActiveSubscription(identity, request.subscriptionId);
+    const source = await this.repository.readClaimCompatibilitySource(identity, request);
+    if (!source) return null;
+    if (
+      source.event_type !== "review.visibility.changed" ||
+      source.event_type !== subscription.eventType ||
+      Number(source.event_major_version) !== 1 ||
+      subscription.eventMajorVersion !== 1 ||
+      source.compatibility_handler_revision !== subscription.compatibilityHandlerRevision
+    ) {
+      throw new PlatformCompatibilityError("UNSUPPORTED_EVENT_VERSION");
+    }
+    return projectReviewVisibilityChangedCompatibilitySource(source);
+  }
+
   /**
    * Revalidates the complete claim/source/subscription projection while the
    * Notification target transaction holds row locks. Raw payload remains
@@ -273,6 +454,76 @@ export class PlatformDeliveryService {
     }
     const currentProjection = projectNotificationCompatibilitySource(source);
     if (!sameNotificationProjection(currentProjection, expectedProjection)) {
+      throw new PlatformCompatibilityError("INVALID_EVENT_PAYLOAD");
+    }
+  }
+
+  async revalidateReviewCreatedProjectionClaim(
+    identityInput: unknown,
+    requestInput: unknown,
+    expectedProjection: PlatformReviewCreatedV1CompatibilityProjection,
+    connection: PoolConnection,
+  ): Promise<void> {
+    const identity = assertServiceIdentity(identityInput);
+    const request = platformDeliveryMutationRequestSchema.parse(requestInput) as PlatformDeliveryMutationRequest;
+    const source = await this.repository.readClaimCompatibilitySource(
+      identity,
+      request,
+      connection,
+      true,
+    );
+    if (!source) {
+      throw new PlatformDeliveryAuthorizationError("exact active review.created claim is required");
+    }
+    const currentPayloadHash = canonicalPayloadHash(source.payload_json);
+    if (
+      source.source_snapshot_consistent === false ||
+      source.event_type !== "review.created" ||
+      Number(source.event_major_version) !== 1 ||
+      currentPayloadHash !== source.payload_hash ||
+      currentPayloadHash !== expectedProjection.payloadHash ||
+      source.compatibility_handler_revision !== expectedProjection.compatibilityHandlerRevision
+    ) {
+      throw new PlatformCompatibilityError("INVALID_EVENT_PAYLOAD");
+    }
+    const currentProjection = projectReviewCreatedCompatibilitySource(source);
+    if (!sameReviewCreatedProjection(currentProjection, expectedProjection)) {
+      throw new PlatformCompatibilityError("INVALID_EVENT_PAYLOAD");
+    }
+  }
+
+  async revalidateReviewVisibilityChangedProjectionClaim(
+    identityInput: unknown,
+    requestInput: unknown,
+    expectedProjection: PlatformReviewVisibilityChangedV1CompatibilityProjection,
+    connection: PoolConnection,
+  ): Promise<void> {
+    const identity = assertServiceIdentity(identityInput);
+    const request = platformDeliveryMutationRequestSchema.parse(requestInput) as PlatformDeliveryMutationRequest;
+    const source = await this.repository.readClaimCompatibilitySource(
+      identity,
+      request,
+      connection,
+      true,
+    );
+    if (!source) {
+      throw new PlatformDeliveryAuthorizationError(
+        "exact active review.visibility.changed claim is required",
+      );
+    }
+    const currentPayloadHash = canonicalPayloadHash(source.payload_json);
+    if (
+      source.source_snapshot_consistent === false ||
+      source.event_type !== "review.visibility.changed" ||
+      Number(source.event_major_version) !== 1 ||
+      currentPayloadHash !== source.payload_hash ||
+      currentPayloadHash !== expectedProjection.payloadHash ||
+      source.compatibility_handler_revision !== expectedProjection.compatibilityHandlerRevision
+    ) {
+      throw new PlatformCompatibilityError("INVALID_EVENT_PAYLOAD");
+    }
+    const currentProjection = projectReviewVisibilityChangedCompatibilitySource(source);
+    if (!sameReviewVisibilityChangedProjection(currentProjection, expectedProjection)) {
       throw new PlatformCompatibilityError("INVALID_EVENT_PAYLOAD");
     }
   }

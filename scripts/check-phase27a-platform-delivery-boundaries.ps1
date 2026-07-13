@@ -8,6 +8,12 @@ $phase27bB1Authorized =
   $currentState.Contains('Phase 27B | B2 IMPLEMENTED') -or
   $currentState.Contains('Phase 27B | B2/C/D ACCEPTED') -or
   $currentState.Contains('Phase 27 | LOCKED')
+$phase28DecisionPath = 'docs/reports/PHASE28_REVIEW_REPUTATION_RUNTIME_DECISION_REPORT.md'
+$phase28Authorized =
+  $phase27bB1Authorized -and
+  (Test-Path -LiteralPath $phase28DecisionPath) -and
+  (Get-Content -Raw -Encoding UTF8 -LiteralPath $phase28DecisionPath).Contains('HUMAN APPROVED') -and
+  (Test-Path -LiteralPath 'db/migrations/056_phase28_review_reputation.sql')
 
 $migration054 = @(Get-ChildItem db/migrations -File | Where-Object { $_.Name -match '^054_' })
 $migration055Plus = @(Get-ChildItem db/migrations -File | Where-Object {
@@ -21,7 +27,14 @@ if ($migration055Plus.Count -ne 0) {
     $phase27bB1Authorized -and
     $migration055Plus.Count -eq 1 -and
     $migration055Plus[0].Name -eq '055_phase27b_notification_projection_foundation.sql'
-  if (-not $expectedPhase27bMigration) { throw "Phase27A forbids unauthorized migration 055 or later" }
+  $expectedPhase28Migrations =
+    $phase28Authorized -and
+    $migration055Plus.Count -eq 2 -and
+    @($migration055Plus.Name | Sort-Object) -join ',' -eq
+      '055_phase27b_notification_projection_foundation.sql,056_phase28_review_reputation.sql'
+  if (-not $expectedPhase27bMigration -and -not $expectedPhase28Migrations) {
+    throw "Phase27A forbids unauthorized migration 055 or later"
+  }
 }
 
 $platformFiles = @(

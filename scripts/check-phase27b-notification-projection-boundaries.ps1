@@ -7,6 +7,11 @@ $phase27Continuation =
   $currentState.Contains('Phase 27B | B2 IMPLEMENTED') -or
   $currentState.Contains('Phase 27B | B2/C/D ACCEPTED') -or
   $currentState.Contains('Phase 27 | LOCKED')
+$phase28DecisionPath = 'docs/reports/PHASE28_REVIEW_REPUTATION_RUNTIME_DECISION_REPORT.md'
+$phase28Authorized =
+  $phase27Continuation -and
+  (Test-Path -LiteralPath $phase28DecisionPath) -and
+  (Get-Content -Raw -Encoding UTF8 -LiteralPath $phase28DecisionPath).Contains('HUMAN APPROVED')
 
 $baseline = '7874355837430b8a803f09be731265fb20889073'
 & git cat-file -e "$baseline^{commit}"
@@ -19,7 +24,13 @@ $migration056Plus = @(Get-ChildItem db/migrations -File | Where-Object {
 if ($migration055.Count -ne 1 -or $migration055[0].Name -ne '055_phase27b_notification_projection_foundation.sql') {
   throw "Phase27B requires exactly the approved migration 055"
 }
-if ($migration056Plus.Count -ne 0) { throw "Phase27B B1 forbids migration 056 or later" }
+$expectedPhase28Migration =
+  $phase28Authorized -and
+  $migration056Plus.Count -eq 1 -and
+  $migration056Plus[0].Name -eq '056_phase28_review_reputation.sql'
+if ($migration056Plus.Count -ne 0 -and -not $expectedPhase28Migration) {
+  throw "Phase27B B1 forbids unauthorized migration 056 or later"
+}
 
 $changedPaths = @(
   @(git diff --name-only $baseline --) |

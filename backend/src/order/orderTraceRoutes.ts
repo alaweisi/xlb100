@@ -38,7 +38,6 @@ type OrderTraceRow = RowDataPacket & {
   review_id: string | null;
   review_status: string | null;
   review_rating: number | null;
-  review_comment: string | null;
   review_created_at: NullableDate;
   refund_id: string | null;
   refund_status: string | null;
@@ -128,7 +127,6 @@ export async function registerOrderTraceRoutes(app: FastifyInstance): Promise<vo
                 rev.review_id,
                 rev.status AS review_status,
                 rev.rating AS review_rating,
-                rev.comment AS review_comment,
                 rev.created_at AS review_created_at,
                 rr.refund_id,
                 rr.status AS refund_status,
@@ -265,7 +263,8 @@ export async function registerOrderTraceRoutes(app: FastifyInstance): Promise<vo
                 reviewId: row.review_id,
                 status: row.review_status,
                 rating: Number(row.review_rating),
-                comment: row.review_comment,
+                comment: null,
+                commentRestricted: true,
                 createdAt: iso(row.review_created_at),
               }
             : null,

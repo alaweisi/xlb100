@@ -49,6 +49,8 @@ export const outboxEventTypeSchema = z.enum([
   "support.csat.submitted",
   "support.quality.reviewed",
   "support.bot.handed_off",
+  "review.created",
+  "review.visibility.changed",
   "conflict_audit",
   "worker.receivable.statement.created",
   "worker.receivable.statement.reviewed",
@@ -58,6 +60,7 @@ export const outboxEventTypeSchema = z.enum([
 export const eventOutboxSchema = z.object({
   eventId: z.string().min(1).max(64),
   eventType: outboxEventTypeSchema,
+  eventMajorVersion: z.number().int().min(0).max(65535).default(0),
   aggregateType: z.string().min(1).max(64),
   aggregateId: z.string().min(1).max(64),
   cityCode: cityCodeSchema,
@@ -77,6 +80,17 @@ export const eventOutboxSchema = z.object({
   lastFailedAt: z.string().nullable().optional(),
   deadLetteredAt: z.string().nullable().optional(),
   updatedAt: z.string().min(1).optional(),
+}).superRefine((value, context) => {
+  if (
+    (value.eventType === "review.created" || value.eventType === "review.visibility.changed") &&
+    value.eventMajorVersion !== 1
+  ) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["eventMajorVersion"],
+      message: `${value.eventType} requires explicit event major version 1`,
+    });
+  }
 });
 
 export const orderPaidEventPayloadSchema = z.object({
@@ -97,6 +111,33 @@ export const orderCreatedEventPayloadSchema = z.object({
   createdAt: z.string().min(1),
 });
 
+export const reviewCreatedV1EventPayloadSchema = z.object({
+  reviewId: z.string().trim().min(1).max(64),
+  orderId: z.string().trim().min(1).max(64),
+  workerId: z.string().trim().min(1).max(64),
+  rating: z.number().int().min(1).max(5),
+  visibility: z.literal("pending_moderation"),
+  occurredAt: z.string().datetime({ offset: true }),
+}).strict();
+
+export const reviewVisibilityChangedV1EventPayloadSchema = z.object({
+  reviewId: z.string().trim().min(1).max(64),
+  workerId: z.string().trim().min(1).max(64),
+  rating: z.number().int().min(1).max(5),
+  fromVisibility: z.enum(["pending_moderation", "visible", "hidden"]),
+  toVisibility: z.enum(["visible", "hidden"]),
+  moderationVersion: z.number().int().positive(),
+  occurredAt: z.string().datetime({ offset: true }),
+}).strict().superRefine((value, context) => {
+  if (value.fromVisibility === value.toVisibility) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["toVisibility"],
+      message: "visibility transition must change state",
+    });
+  }
+});
+
 export const refundApprovedEventPayloadSchema = z.object({
   refundId: z.string().min(1).max(64),
   orderId: z.string().min(1).max(64),
@@ -113,4 +154,6 @@ export const refundApprovedEventPayloadSchema = z.object({
 export type EventOutboxInput = z.infer<typeof eventOutboxSchema>;
 export type OrderPaidEventPayloadInput = z.infer<typeof orderPaidEventPayloadSchema>;
 export type OrderCreatedEventPayloadInput = z.infer<typeof orderCreatedEventPayloadSchema>;
+export type ReviewCreatedV1EventPayloadInput = z.infer<typeof reviewCreatedV1EventPayloadSchema>;
+export type ReviewVisibilityChangedV1EventPayloadInput = z.infer<typeof reviewVisibilityChangedV1EventPayloadSchema>;
 export type RefundApprovedEventPayloadInput = z.infer<typeof refundApprovedEventPayloadSchema>;

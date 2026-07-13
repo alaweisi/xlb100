@@ -172,13 +172,25 @@ const phase27bMigrations = [
   "db/migrations/054_phase27a_platform_delivery_foundation.sql",
   "db/migrations/055_phase27b_notification_projection_foundation.sql",
 ];
+const phase28DecisionPath = "docs/reports/PHASE28_REVIEW_REPUTATION_RUNTIME_DECISION_REPORT.md";
+const phase28Authorized =
+  currentState.includes("Phase 27 | LOCKED") &&
+  existsSync(join(root, phase28DecisionPath)) &&
+  read(phase28DecisionPath).includes("HUMAN APPROVED") &&
+  existsSync(join(root, "db/migrations/056_phase28_review_reputation.sql"));
+const phase28Migrations = [
+  ...phase27bMigrations,
+  "db/migrations/056_phase28_review_reputation.sql",
+];
 if (laterMigrations.length > 0 && !(
   (phase27aAuthorized && laterMigrations.length === 1 &&
     laterMigrations[0] === "db/migrations/054_phase27a_platform_delivery_foundation.sql") ||
   (phase27bB1Authorized &&
-    JSON.stringify([...laterMigrations].sort()) === JSON.stringify(phase27bMigrations))
+    JSON.stringify([...laterMigrations].sort()) === JSON.stringify(phase27bMigrations)) ||
+  (phase28Authorized &&
+    JSON.stringify([...laterMigrations].sort()) === JSON.stringify(phase28Migrations))
 )) {
-  fail(`Gate 1B permits only explicitly authorized migration 054 and Phase27B B1 migration 055; found ${laterMigrations.join(", ")}`);
+  fail(`Gate 1B permits migration 054, 055 and 056 only as the exact explicitly authorized chain through Phase28; found ${laterMigrations.join(", ")}`);
 }
 
 for (const app of globalConstructionAuthorized ? [] : ["customer", "worker", "admin", "oa", "dashboard"]) {

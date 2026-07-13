@@ -8,7 +8,10 @@ import {
 } from "../../backend/src/events/platformDeliveryPolicy.js";
 import {
   canonicalPayloadHash,
+  projectReviewCreatedV1Compatibility,
+  projectReviewVisibilityChangedV1Compatibility,
   validateImplicitV0Compatibility,
+  validateVersionedPlatformCompatibility,
 } from "../../backend/src/events/platformEventCompatibility.js";
 
 describe("Platform Delivery policy", () => {
@@ -79,5 +82,71 @@ describe("Platform Delivery policy", () => {
       .toMatchObject({ eventMajorVersion: 0 });
     expect(() => validateImplicitV0Compatibility("order.created", "shanghai", "hangzhou", payload))
       .toThrow(PLATFORM_DELIVERY_CANONICAL_ERRORS.CITY_SCOPE_MISMATCH);
+  });
+
+  it("accepts review.created only at explicit v1 and fails closed for unknown majors", () => {
+    const payload = {
+      reviewId: "review-1",
+      orderId: "order-1",
+      workerId: "worker-1",
+      rating: 4,
+      visibility: "pending_moderation",
+      occurredAt: "2026-07-13T08:00:00.000Z",
+    };
+    expect(validateVersionedPlatformCompatibility(
+      "review.created",
+      1,
+      "hangzhou",
+      "hangzhou",
+      payload,
+    )).toMatchObject({ eventMajorVersion: 1 });
+    expect(projectReviewCreatedV1Compatibility("hangzhou", "hangzhou", payload))
+      .toMatchObject({ ...payload, eventMajorVersion: 1 });
+    for (const major of [0, 2, -1, 1.5, 65536]) {
+      expect(() => validateVersionedPlatformCompatibility(
+        "review.created",
+        major,
+        "hangzhou",
+        "hangzhou",
+        payload,
+      )).toThrow(PLATFORM_DELIVERY_CANONICAL_ERRORS.UNSUPPORTED_EVENT_VERSION);
+    }
+    expect(() => validateVersionedPlatformCompatibility(
+      "review.created",
+      1,
+      "hangzhou",
+      "shanghai",
+      payload,
+    )).toThrow(PLATFORM_DELIVERY_CANONICAL_ERRORS.CITY_SCOPE_MISMATCH);
+  });
+
+  it("projects review.visibility.changed v1 without leaking forbidden fields", () => {
+    const payload = {
+      reviewId: "review-1",
+      workerId: "worker-1",
+      rating: 4,
+      fromVisibility: "hidden",
+      toVisibility: "visible",
+      moderationVersion: 3,
+      occurredAt: "2026-07-13T08:00:00.000Z",
+    };
+    const projection = projectReviewVisibilityChangedV1Compatibility(
+      "hangzhou",
+      "hangzhou",
+      payload,
+    );
+    expect(projection).toMatchObject({ ...payload, eventMajorVersion: 1 });
+    expect(projection).not.toHaveProperty("comment");
+    expect(projection).not.toHaveProperty("customerId");
+    expect(projection).not.toHaveProperty("cityCode");
+    for (const major of [0, 2, -1, 1.5, 65536]) {
+      expect(() => validateVersionedPlatformCompatibility(
+        "review.visibility.changed",
+        major,
+        "hangzhou",
+        "hangzhou",
+        payload,
+      )).toThrow(PLATFORM_DELIVERY_CANONICAL_ERRORS.UNSUPPORTED_EVENT_VERSION);
+    }
   });
 });

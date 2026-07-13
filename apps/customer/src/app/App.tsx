@@ -128,6 +128,9 @@ export function App() {
     mockPaySuccess: (payload) => api.mockPaySuccess(payload),
     createRefundRequest: (payload) => api.createRefundRequest(payload),
     createOrderReview: (payload) => api.createOrderReview(payload),
+    getOrderReview: (orderId) => api.getOrderReview(orderId),
+    createReviewAppeal: (reviewId, payload) => api.createReviewAppeal(reviewId, payload),
+    withdrawReviewAppeal: (reviewId, payload) => api.withdrawReviewAppeal(reviewId, payload),
   };
 
   if (!session) {

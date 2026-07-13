@@ -134,7 +134,7 @@ export function OrderTracePage({ initialCityCode, initialOrderId }: Props) {
           actor: trace.order.customerId,
           status: trace.review?.status || null,
           amount: trace.review ? `${trace.review.rating}/5` : "-",
-          note: trace.review?.comment || "-",
+          note: trace.review?.commentRestricted ? "Restricted to Review moderation" : "-",
         },
         {
           key: "aftersale",

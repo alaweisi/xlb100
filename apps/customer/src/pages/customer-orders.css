@@ -1,0 +1,19 @@
+.customer-review-stack {
+  display: grid;
+  gap: var(--xlb-spacing-sm);
+}
+
+.customer-review-inline {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--xlb-spacing-sm);
+}
+
+.customer-review-comment {
+  color: var(--xlb-text-secondary);
+}
+
+.customer-review-error {
+  color: var(--xlb-color-danger);
+}

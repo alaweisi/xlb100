@@ -1,6 +1,7 @@
 import type { ApiClient } from "./createApiClient.js";
 import { createRequesterSupportApi } from "./support.js";
 import { createNotificationApi } from "./notification.js";
+import { createCustomerReviewApi } from "./reviewReputation.js";
 import type {
   AftersaleComplaintDetailResponse,
   AftersaleComplaintResponse,
@@ -288,6 +289,7 @@ export function createCustomerOrderApi(client: ApiClient) {
   return {
     ...createRequesterSupportApi(client),
     ...createNotificationApi(client, "customer"),
+    ...createCustomerReviewApi(client),
     getProfile() {
       return client.get<{ ok: true; profile: CustomerProfile }>("/api/customer/profile");
     },

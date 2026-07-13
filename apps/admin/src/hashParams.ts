@@ -21,7 +21,7 @@ export function buildHash(path: string, params?: Record<string, string>): string
   return qs ? `#${path}?${qs}` : `#${path}`;
 }
 
-export function parseView(): { page: "dashboard" } | { page: "detail"; statementId: string } | { page: "exports" } | { page: "governance"; subView?: string } | { page: "orderTrace" } | { page: "workerWithdrawals" } | { page: "aftersale" } | { page: "enterprise" } | {page:"dispatch"} | {page:"platformOperations"} | { page: "support" } | {page:"supportQuality"} {
+export function parseView(): { page: "dashboard" } | { page: "detail"; statementId: string } | { page: "exports" } | { page: "governance"; subView?: string } | { page: "orderTrace" } | { page: "workerWithdrawals" } | { page: "aftersale" } | { page: "enterprise" } | {page:"dispatch"} | {page:"platformOperations"} | { page: "support" } | {page:"supportQuality"} | {page:"reviewModeration"} {
   const h = hashPath();
   const params = parseHashParams();
   if (h === "/order-trace") return { page: "orderTrace" };
@@ -32,6 +32,7 @@ export function parseView(): { page: "dashboard" } | { page: "detail"; statement
   if (h === "/platform-operations") return {page:"platformOperations"};
   if (h === "/support") return { page: "support" };
   if (h === "/support-quality") return {page:"supportQuality"};
+  if (h === "/review-moderation") return {page:"reviewModeration"};
   if (h === "/settlement-ops/exports") return { page: "exports" };
   if (h === "/settlement-ops/governance") return { page: "governance", subView: params.get("sub") || undefined };
   const m = h.match(/^\/settlement-ops\/statements\/(.+)$/);

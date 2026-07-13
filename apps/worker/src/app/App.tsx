@@ -38,6 +38,7 @@ const WorkerLocationPage = lazy(() => import("../pages/ProfilePages").then((modu
 const CertificationPage = lazy(() => import("../pages/ProfilePages").then((module) => ({ default: module.CertificationPage })));
 const WorkerSupportPage = lazy(() => import("../pages/WorkerSupportPage").then((module) => ({ default: module.WorkerSupportPage })));
 const WorkerNotificationsPage = lazy(() => import("../pages/WorkerNotificationsPage").then((module) => ({ default: module.WorkerNotificationsPage })));
+const WorkerReputationPage = lazy(() => import("../pages/WorkerReputationPage").then((module) => ({ default: module.WorkerReputationPage })));
 
 const DEFAULT_CITY_CODE = "hangzhou";
 type WorkerRoute =
@@ -48,6 +49,7 @@ type WorkerRoute =
   | "wallet"
   | "support"
   | "notifications"
+  | "reputation"
   | "profile"
   | "certification";
 
@@ -100,6 +102,7 @@ const routeConfig: Record<
   },
   support: { label: "Support", href: "/worker/support", title: "Support Tickets", subtitle: "Tracked help and dispute requests", icon: "S" },
   notifications: { label: "Messages", href: "/worker/notifications", title: "Notifications", subtitle: "Same-city in-app inbox", icon: "N" },
+  reputation: { label: "Rating", href: "/worker/reputation", title: "My Reputation", subtitle: "Visible-review aggregate", icon: "★" },
   profile: {
     label: "Profile",
     href: "/worker/profile",
@@ -145,6 +148,7 @@ function resolveRoute(): ResolvedRoute {
   if (rawPath === "/worker/wallet") return { route: "wallet" };
   if (rawPath === "/worker/support") return { route: "support" };
   if (rawPath === "/worker/notifications") return { route: "notifications" };
+  if (rawPath === "/worker/reputation") return { route: "reputation" };
   if (rawPath === "/worker/certification") return { route: "certification" };
   if (rawPath === "/worker/profile") return { route: "profile" };
   return { route: "hall" };
@@ -285,6 +289,7 @@ function SessionCard({
           </Button>
           <Button onClick={onLogout}>Logout</Button>
           <Button onClick={() => onNavigate("/worker/notifications")}>Notifications</Button>
+          <Button onClick={() => onNavigate("/worker/reputation")}>My reputation</Button>
         </div>
       </div>
     </Card>
@@ -818,6 +823,8 @@ export function App() {
       } satisfies WorkerSupportApi} />
     ) : route.route === "notifications" ? (
       <WorkerNotificationsPage api={api!} />
+    ) : route.route === "reputation" ? (
+      <WorkerReputationPage api={api!} />
     ) : route.route === "profile" ? (
       <WorkerLocationPage location={workerLocation} busy={locationBusy} error={locationError} latitude={latitude} longitude={longitude}
         radius={serviceRadius} sharing={locationSharing} onLatitudeChange={setLatitude} onLongitudeChange={setLongitude}
