@@ -68,3 +68,7 @@
 ## Exit decision
 
 Gate 1A is eligible for human acceptance. Typecheck, build, focused tests, isolated retry of the sole full-suite timeout, Phase 25 gates, architecture preflight and diff hygiene pass. The full-suite timeout is recorded rather than hidden; Gate 1B remains blocked until explicit acceptance.
+
+## Final Lock metadata correction
+
+The preceding exit decision is preserved as Gate 1A's interim, chronological evidence. It is superseded by the final Phase 25 Lock conclusion: Phase 25 is `LOCKED` on `main` commit `be9f569` with tag `xlb-phase25-ui-standardization-v1.0`. Final Lock verification passed the Phase25 closure gate, typecheck, build, 342 files / 1,373 tests with 1 existing todo, preflight, and diff hygiene. Gate 1B was subsequently accepted and Phase 25 construction was completed; it is not currently blocked. See `docs/reports/PHASE25_LOCK_METADATA_CORRECTION_REPORT.md`.
