@@ -39,6 +39,7 @@
 | Phase 24F | LOCKED | xlb-phase24-customer-support-closure | CSAT, quality review, and support operations metrics |
 | Phase 25 | LOCKED | xlb-phase25-ui-standardization-v1.0 | Five-system UI standardization: Customer, Worker, Admin, OA, and realtime Dashboard |
 | Phase 26 | ACCEPTED — DESIGN ONLY | — | Platform foundation design accepted; no implementation authority |
+| Phase 27 | ACCEPTED — DESIGN ONLY | — | Notification in-app inbox design accepted; runtime not authorized |
 
 ## Phase 25 — Five-System UI Standardization (LOCKED)
 
@@ -89,8 +90,26 @@
 - **Accepted decision**: Option A — additive MySQL per-subscriber delivery ledger — is accepted as architecture/design only.
 - **Design gates**: G0–G6 passed at design level as recorded in `docs/reports/PHASE26_PLATFORM_FOUNDATION_DESIGN_REPORT.md`.
 - **Not authorized**: runtime implementation, migrations `054+`, APIs, pages, Providers, subscription activation, backfill, and replay.
-- **Phase boundary**: Phase 27 has not been entered. This acceptance does not authorize Phase 27 or make it runtime-ready.
+- **Phase boundary at Phase 26 acceptance**: Phase 27 had not yet been entered when the Phase 26 design was accepted. Phase 27 design was subsequently accepted at `da45791` only; runtime remains unauthorized and the current Phase 27 truth is recorded below.
 - **Lock truth**: Phase 25 remains the last LOCKED Phase and retains its immutable canonical tag `xlb-phase25-ui-standardization-v1.0`; Phase 26 has no Lock tag.
+
+## Phase 27 — Notification Design (ACCEPTED — DESIGN ONLY)
+
+- **Design acceptance commit**: `da45791b790e8787ee0369dd9f3bf20cdadde8be` (`docs: accept Phase 27 notification design`).
+- **Accepted design documents**:
+  - `docs/architecture/27_XLB_NOTIFICATION_DESIGN.md`;
+  - `docs/contracts/CONTRACT_NOTIFICATION.md`;
+  - `docs/reports/PHASE27_NOTIFICATION_DESIGN_REPORT.md`.
+- **Design review**: N2/O2/P2 focused review passed. This PASS accepts design artifacts only and is not runtime, implementation, migration, production-readiness, or Lock evidence.
+- **MVP design target**: Customer and Worker own same-city in-app inbox only.
+- **Future construction order**: future `054` Platform delivery -> future `055` Notification projection -> API/runtime verification -> Customer/Worker pages.
+- **Candidate events**: `order.created` and `support.ticket.resolved` are both **CANDIDATE — HUMAN PENDING ACTIVATION**. Neither is registered, activated, live-started, backfilled, or replayed by this design acceptance.
+- **Version truth**: current source is `implicit-v0 / source schema version absent`; synthetic compatibility major `0` is future Platform compatibility metadata only, is not a current source or producer field, and may not be written back to source rows.
+- **Deferred blockers**: all seven approved deferral categories remain **API/RUNTIME ENTRY BLOCKER**: initial city/subscriber/event/synthetic-major allowlist; live-start/backfill/replay; template/language/fallback/mandatory/optional classification; preference defaults and archive/unread/hidden/delete semantics; retention/legal hold/redaction/tombstone/DLQ/physical deletion; Admin diagnostics/manual retry/template/auditor permissions and four-eyes review; external-channel strategy.
+- **Production readiness**: Phase 14 remains `64/100`, `IN PROGRESS`, and staging/production `NO-GO`; Phase 27 design acceptance does not waive any readiness blocker.
+- **Not authorized**: runtime; migrations `054/055`; TypeScript contracts or validators; APIs, clients, or routes; pages; subscription registration or activation; live-start; backfill/replay; external Providers; fake data or fake delivery success; Phase 27 Lock.
+- **Lock truth**: Phase 25 remains the last LOCKED Phase with tag `xlb-phase25-ui-standardization-v1.0`; Phase 27 has no tag and is not LOCKED, implemented, runtime-ready, or production-ready.
+- **Phase boundary**: Phase 28 has not been entered or authorized.
 
 ## Phase 24 Combined Completion Authorization
 
