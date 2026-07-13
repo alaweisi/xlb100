@@ -23,6 +23,7 @@ const CustomerAftersalePage = lazy(() => import("../pages/CustomerAftersalePage"
 const CustomerProfilePage = lazy(() => import("../pages/CustomerProfilePage").then((module) => ({ default: module.CustomerProfilePage })));
 const CustomerServicesPage = lazy(() => import("../pages/CustomerServicesPage").then((module) => ({ default: module.CustomerServicesPage })));
 const CustomerSupportPage = lazy(() => import("../pages/CustomerSupportPage").then((module) => ({ default: module.CustomerSupportPage })));
+const CustomerNotificationsPage = lazy(() => import("../pages/CustomerNotificationsPage").then((module) => ({ default: module.CustomerNotificationsPage })));
 
 export function App() {
   const initialCityCode = useMemo(() => readCustomerCityCode(), []);
@@ -174,6 +175,10 @@ export function App() {
       sendConversationMessage: (conversationId, input) => api.sendSupportMessage(conversationId, input),
     };
     return <CustomerSupportPage api={supportApi} />;
+  }
+
+  if (currentRoute === "notifications") {
+    return <CustomerNotificationsPage api={api} />;
   }
 
   return <CustomerProfilePage api={api} cityCode={cityCode} />;

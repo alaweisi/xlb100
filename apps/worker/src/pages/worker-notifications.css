@@ -1,0 +1,61 @@
+.worker-notification-panel,
+.notification-card {
+  background: color-mix(in srgb, var(--xlb-role-worker-page) 82%, var(--xlb-color-surface)) !important;
+  color: var(--xlb-role-worker-text) !important;
+}
+
+.notification-view-tabs,
+.notification-card-header,
+.notification-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--xlb-spacing-md);
+}
+
+.notification-view-tabs {
+  margin-block-end: var(--xlb-spacing-md);
+}
+
+.notification-card-header {
+  justify-content: space-between;
+}
+
+.notification-list,
+.notification-error,
+.notification-card {
+  display: grid;
+  gap: var(--xlb-spacing-md);
+}
+
+.notification-card {
+  border: var(--xlb-stroke-hairline) solid var(--xlb-color-border);
+  border-radius: var(--xlb-radius-xxl);
+  padding: var(--xlb-spacing-md);
+}
+
+.notification-card-unread {
+  background: color-mix(in srgb, var(--xlb-role-accent) 18%, var(--xlb-role-worker-page)) !important;
+  border-inline-start: var(--xlb-stroke-emphasis) solid var(--xlb-role-accent);
+}
+
+.notification-body,
+.notification-notice {
+  margin: 0;
+}
+
+.notification-body {
+  white-space: pre-wrap;
+}
+
+.notification-time {
+  color: var(--xlb-color-text-muted);
+}
+
+.notification-error {
+  color: var(--xlb-color-danger);
+}
+
+.notification-notice {
+  color: var(--xlb-color-success);
+}

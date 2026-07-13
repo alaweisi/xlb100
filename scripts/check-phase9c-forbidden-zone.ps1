@@ -113,7 +113,9 @@ $allowedFiles = @(
   "packages/validators/src/eventOutboxSchema.ts",
   "packages/validators/src/index.ts",
   "packages/validators/src/ledgerSchema.ts",
-  "packages/validators/src/refundSchema.ts"
+  "packages/validators/src/refundSchema.ts",
+  "packages/types/src/platformDelivery.ts",
+  "packages/validators/src/platformDeliverySchema.ts"
 )
 $lines = $d -split "`n"; $cf = ""; $vs = @()
 foreach ($l in $lines) {

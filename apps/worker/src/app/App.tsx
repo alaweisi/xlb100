@@ -37,6 +37,7 @@ const WalletPage = lazy(() => import("../pages/FinancePages").then((module) => (
 const WorkerLocationPage = lazy(() => import("../pages/ProfilePages").then((module) => ({ default: module.WorkerLocationPage })));
 const CertificationPage = lazy(() => import("../pages/ProfilePages").then((module) => ({ default: module.CertificationPage })));
 const WorkerSupportPage = lazy(() => import("../pages/WorkerSupportPage").then((module) => ({ default: module.WorkerSupportPage })));
+const WorkerNotificationsPage = lazy(() => import("../pages/WorkerNotificationsPage").then((module) => ({ default: module.WorkerNotificationsPage })));
 
 const DEFAULT_CITY_CODE = "hangzhou";
 type WorkerRoute =
@@ -46,6 +47,7 @@ type WorkerRoute =
   | "repairs"
   | "wallet"
   | "support"
+  | "notifications"
   | "profile"
   | "certification";
 
@@ -97,6 +99,7 @@ const routeConfig: Record<
     icon: "W",
   },
   support: { label: "Support", href: "/worker/support", title: "Support Tickets", subtitle: "Tracked help and dispute requests", icon: "S" },
+  notifications: { label: "Messages", href: "/worker/notifications", title: "Notifications", subtitle: "Same-city in-app inbox", icon: "N" },
   profile: {
     label: "Profile",
     href: "/worker/profile",
@@ -141,6 +144,7 @@ function resolveRoute(): ResolvedRoute {
 
   if (rawPath === "/worker/wallet") return { route: "wallet" };
   if (rawPath === "/worker/support") return { route: "support" };
+  if (rawPath === "/worker/notifications") return { route: "notifications" };
   if (rawPath === "/worker/certification") return { route: "certification" };
   if (rawPath === "/worker/profile") return { route: "profile" };
   return { route: "hall" };
@@ -256,12 +260,14 @@ function SessionCard({
   session,
   onCityChange,
   onLogout,
+  onNavigate,
   onReload,
 }: {
   cityCode: string;
   session: WorkerSession;
   onCityChange: (value: string) => void;
   onLogout: () => void;
+  onNavigate: (path: string) => void;
   onReload: () => void;
 }) {
   return (
@@ -278,6 +284,7 @@ function SessionCard({
             Reload current view
           </Button>
           <Button onClick={onLogout}>Logout</Button>
+          <Button onClick={() => onNavigate("/worker/notifications")}>Notifications</Button>
         </div>
       </div>
     </Card>
@@ -809,6 +816,8 @@ export function App() {
         getConversation: (conversationId) => api!.getSupportConversation(conversationId),
         sendConversationMessage: (conversationId, input) => api!.sendSupportMessage(conversationId, input),
       } satisfies WorkerSupportApi} />
+    ) : route.route === "notifications" ? (
+      <WorkerNotificationsPage api={api!} />
     ) : route.route === "profile" ? (
       <WorkerLocationPage location={workerLocation} busy={locationBusy} error={locationError} latitude={latitude} longitude={longitude}
         radius={serviceRadius} sharing={locationSharing} onLatitudeChange={setLatitude} onLongitudeChange={setLongitude}
@@ -835,6 +844,7 @@ export function App() {
         session={session}
         onCityChange={setWorkerCityCode}
         onLogout={handleLogout}
+        onNavigate={navigate}
         onReload={reloadCurrent}
       />
       <Suspense fallback={<LoadingState title="Loading worker page" />}>{content}</Suspense>

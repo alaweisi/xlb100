@@ -1,6 +1,5 @@
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
-import { createApiClient, customerApi } from "../../../../packages/api-client/src/index.js";
-import { createAuthApi } from "../../../../packages/api-client/src/auth.js";
+import { createApiClient, createAuthApi, customerApi } from "@xlb/api-client";
 import type { CatalogSnapshot, CityCode } from "@xlb/types";
 import { XLB_HEADERS } from "@xlb/types";
 import { BottomNav, MobileShell } from "@xlb/ui";
@@ -70,6 +69,7 @@ export const ORDER_HISTORY_KEY = "xlb.customer.orderIds";
 export const MOBILE_SHELL_QUERY = "(max-width: 640px), (pointer: coarse)";
 
 export type CustomerRoute = "home" | "services" | "createOrder" | "orders" | "aftersale" | "support" | "profile";
+export type CustomerShellRoute = CustomerRoute | "notifications";
 
 export type CustomerLoadable<T> =
   | { status: "pending" | "loading"; data?: T; error?: undefined }
@@ -96,8 +96,9 @@ export const customerRouteConfig: Record<
   profile: { label: "我的", href: "/customer/profile", title: "我的", icon: "👤" },
 };
 
-export function detectCustomerRoute(pathname = window.location.pathname): CustomerRoute {
+export function detectCustomerRoute(pathname = window.location.pathname): CustomerShellRoute {
   const trimmed = pathname.replace(/\/+$/, "") || "/";
+  if (trimmed.endsWith("/customer/notifications")) return "notifications";
   if (trimmed.endsWith("/customer/services")) return "services";
   if (trimmed.endsWith("/customer/order/create")) return "createOrder";
   if (trimmed.endsWith("/customer/orders")) return "orders";
@@ -223,7 +224,7 @@ export function useCustomerShellMode() {
   return mode;
 }
 
-export function CustomerBottomNav({ currentRoute }: { currentRoute: CustomerRoute }) {
+export function CustomerBottomNav({ currentRoute }: { currentRoute: CustomerShellRoute }) {
   const items = useMemo(
     () =>
       (Object.keys(customerRouteConfig) as CustomerRoute[]).map((route) => ({
@@ -241,7 +242,7 @@ export function CustomerBottomNav({ currentRoute }: { currentRoute: CustomerRout
 }
 
 type CustomerRouteShellProps = {
-  currentRoute: CustomerRoute;
+  currentRoute: CustomerShellRoute;
   topBar?: ReactNode;
   children: ReactNode;
   fixedBottomNav?: boolean;
