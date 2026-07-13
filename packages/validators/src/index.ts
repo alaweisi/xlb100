@@ -1,5 +1,26 @@
 export { cityCodeSchema, type CityCodeInput } from "./cityCodeSchema.js";
 export {
+  platformSubscriberStatusSchema,
+  platformSubscriptionStatusSchema,
+  platformDeliveryStatusSchema,
+  platformDeliveryAttemptOutcomeSchema,
+  platformDeliveryActionKindSchema,
+  platformEventMajorVersionSchema,
+  platformServiceIdentitySchema,
+  platformEventSubscriberSchema,
+  platformEventSubscriptionSchema,
+  platformDeliveryClaimRequestSchema,
+  platformDeliveryMutationRequestSchema,
+  platformDeliveryErrorSchema,
+  platformEventDeliverySchema,
+  platformOrderCreatedCompatibilityPayloadSchema,
+  platformSupportTicketResolvedCompatibilityPayloadSchema,
+  parsePlatformCompatibilityPayload,
+  type PlatformServiceIdentityInput,
+  type PlatformEventSubscriptionInput,
+  type PlatformEventDeliveryInput,
+} from "./platformDeliverySchema.js";
+export {
   cityConfigSnapshotSchema,
   cityConfigUpdateSchema,
   type CityConfigSnapshotInput,

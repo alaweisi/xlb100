@@ -214,8 +214,19 @@ for (const file of globalConstructionAuthorized ? [] : changed) {
   }
 }
 
-if (filesBelow("db/migrations").some((file) => /\/054[_-].*\.sql$/i.test(`/${file}`))) {
-  fail("Gate 1A forbids migration 054");
+const laterMigrations = filesBelow("db/migrations").filter((file) => {
+  const match = /\/(\d{3})[_-].*\.sql$/i.exec(`/${file}`);
+  return match && Number(match[1]) >= 54;
+});
+const currentState = read("docs/CURRENT_STATE.md");
+const phase27aAuthorized =
+  currentState.includes("Phase 27A | IN PROGRESS — RUNTIME ENTRY AUTHORIZED") ||
+  currentState.includes("Phase 27A | HUMAN ACCEPTED — NOT LOCKED");
+if (laterMigrations.length > 0 && !(
+  phase27aAuthorized && laterMigrations.length === 1 &&
+  laterMigrations[0] === "db/migrations/054_phase27a_platform_delivery_foundation.sql"
+)) {
+  fail(`Gate 1A permits no later migration except the explicitly authorized Phase27A migration 054; found ${laterMigrations.join(", ")}`);
 }
 
 for (const app of globalConstructionAuthorized ? [] : ["customer", "worker", "admin", "oa", "dashboard"]) {

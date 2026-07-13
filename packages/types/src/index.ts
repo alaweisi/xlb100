@@ -45,6 +45,26 @@ export type {
   RefundApprovedEventPayload,
 } from "./eventOutbox.js";
 export type {
+  PlatformSubscriberStatus,
+  PlatformSubscriptionStatus,
+  PlatformDeliveryStatus,
+  PlatformDeliveryAttemptOutcome,
+  PlatformDeliveryActionKind,
+  PlatformServiceIdentity,
+  PlatformEventSubscriber,
+  PlatformEventSubscription,
+  PlatformEventDelivery,
+  PlatformDeliveryClaim,
+  PlatformDeliveryClaimRequest,
+  PlatformDeliveryMutationRequest,
+  PlatformDeliveryMutationResult,
+  PlatformMaterializationResult,
+  PlatformReconciliationResult,
+  PlatformOrderCreatedCompatibilityPayload,
+  PlatformSupportTicketResolvedCompatibilityPayload,
+  PlatformCompatibilityPayload,
+} from "./platformDelivery.js";
+export type {
   LedgerAccountType,
   LedgerEntryDirection,
   LedgerEntrySourceType,

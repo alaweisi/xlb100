@@ -8,7 +8,19 @@ function Require-Path([string]$Path) {
 Push-Location $Root
 try {
   if (Test-Path "db/migrations/024_*") { throw "migration 024 is a permanent historical gap" }
-  if (Test-Path "db/migrations/054_*") { throw "Phase 24 completion cannot create a Phase 25/054 migration" }
+  $migration054 = @(Get-ChildItem "db/migrations" -File -Filter "054_*.sql")
+  if ($migration054.Count -gt 0) {
+    $currentState = Get-Content "docs/CURRENT_STATE.md" -Raw
+    $authorizedPhase27aMigration =
+      $migration054.Count -eq 1 -and
+      $migration054[0].Name -eq "054_phase27a_platform_delivery_foundation.sql" -and
+      $currentState.Contains("Phase27A Platform Delivery Foundation") -and
+      ($currentState.Contains("RUNTIME ENTRY AUTHORIZED") -or
+        $currentState.Contains("HUMAN ACCEPTED — NOT LOCKED"))
+    if (-not $authorizedPhase27aMigration) {
+      throw "Phase 24 completion cannot create an unauthorized migration 054"
+    }
+  }
   $phase24Closure = (& git rev-list -n 1 xlb-phase24-customer-support-closure).Trim()
   if (-not $phase24Closure) { throw "Phase 24 closure tag is required before separate Phase 25 entry" }
   & git merge-base --is-ancestor $phase24Closure main

@@ -39,7 +39,8 @@
 | Phase 24F | LOCKED | xlb-phase24-customer-support-closure | CSAT, quality review, and support operations metrics |
 | Phase 25 | LOCKED | xlb-phase25-ui-standardization-v1.0 | Five-system UI standardization: Customer, Worker, Admin, OA, and realtime Dashboard |
 | Phase 26 | ACCEPTED — DESIGN ONLY | — | Platform foundation design accepted; no implementation authority |
-| Phase 27 | ACCEPTED — DESIGN ONLY | — | Notification in-app inbox design accepted; runtime not authorized |
+| Phase 27 | ACCEPTED — DESIGN ONLY | — | Notification design accepted; only the Phase27A runtime foundation substage is human-accepted |
+| Phase 27A | HUMAN ACCEPTED — NOT LOCKED | — | Platform Delivery Foundation accepted; no Notification runtime or Phase 27B+ authority |
 
 ## Phase 25 — Five-System UI Standardization (LOCKED)
 
@@ -107,9 +108,26 @@
 - **Version truth**: current source is `implicit-v0 / source schema version absent`; synthetic compatibility major `0` is future Platform compatibility metadata only, is not a current source or producer field, and may not be written back to source rows.
 - **Deferred blockers**: all seven approved deferral categories remain **API/RUNTIME ENTRY BLOCKER**: initial city/subscriber/event/synthetic-major allowlist; live-start/backfill/replay; template/language/fallback/mandatory/optional classification; preference defaults and archive/unread/hidden/delete semantics; retention/legal hold/redaction/tombstone/DLQ/physical deletion; Admin diagnostics/manual retry/template/auditor permissions and four-eyes review; external-channel strategy.
 - **Production readiness**: Phase 14 remains `64/100`, `IN PROGRESS`, and staging/production `NO-GO`; Phase 27 design acceptance does not waive any readiness blocker.
-- **Not authorized**: runtime; migrations `054/055`; TypeScript contracts or validators; APIs, clients, or routes; pages; subscription registration or activation; live-start; backfill/replay; external Providers; fake data or fake delivery success; Phase 27 Lock.
-- **Lock truth**: Phase 25 remains the last LOCKED Phase with tag `xlb-phase25-ui-standardization-v1.0`; Phase 27 has no tag and is not LOCKED, implemented, runtime-ready, or production-ready.
+- **Current runtime exception**: the separately authorized Phase27A Platform Delivery Foundation substage has been implemented and human-accepted on its feature branch. This does not authorize Notification runtime or any Phase27B+ work.
+- **Still not authorized**: Notification migration `055`, projection, APIs, clients, routes or pages; subscription registration or activation; live-start; backfill/replay; external Providers; fake data or fake delivery success; Phase 27 Lock.
+- **Lock truth**: Phase 25 remains the last LOCKED Phase with tag `xlb-phase25-ui-standardization-v1.0`; Phase 27 has no tag and is not LOCKED, complete, production-ready, or authorized beyond the accepted Phase27A foundation substage.
 - **Phase boundary**: Phase 28 has not been entered or authorized.
+
+## Phase 27A — Platform Delivery Foundation (HUMAN ACCEPTED — NOT LOCKED)
+
+- **Human authorization**: “批准 Phase27A Platform Delivery Foundation runtime entry。” on 2026-07-13.
+- **Human acceptance**: accepted on 2026-07-13 by the instruction “直接发给窗口t，继续别停，抓紧施工”, following the explicit acceptance recommendation and T3 independent-review PASS.
+- **T3 independent review**: P0/P1/P2/P3 all clear; focused contract/unit `2 files / 10 tests`, integration/security `2 files / 10 tests`, migration 054 empty/existing/true-partial-DDL/double-replay Gate, typecheck `17/17`, build `11/11`, full regression `188 files / 535 tests`, preflight and diff hygiene all passed.
+- **Construction branch/base**: `codex/phase27a-platform-delivery-foundation` from clean `main` at `38fe944`.
+- **Authorized scope**: append-only migration `054`; Platform Delivery contracts, validators, persistence, read-only source materialization, retained-source anti-join reconciliation, independent delivery lease/retry/reaper/DLQ, internal service-identity boundary, audit structures, tests and direct Phase27A gates.
+- **Empty start**: migration `054` creates schema only. No city, subscriber, subscription, event allowlist or activation row may be inserted.
+- **Source boundary**: Platform Delivery may read retained `event_outbox` rows but must not claim, acknowledge, fail, reap or update source status, lease, attempts or payload.
+- **Not authorized**: migration `055+`; Notification projection/API/client/routes/pages/templates/preferences/inbox; SMS/Push/WeChat/Email or other Providers; activation, live-start, backfill, replay execution, purge, protected-domain mutation, production deployment, Phase 27 Lock or Phase 27B–27E/Phase 28 work.
+- **Lock truth**: Phase 25 remains the last LOCKED Phase. Phase 27 overall remains not LOCKED and has no tag.
+- **Production truth**: Phase 14 remains 64/100, IN PROGRESS and staging/production NO-GO.
+- **Acceptance boundary**: Phase27A runtime foundation is accepted on its feature branch but is not LOCKED, merged, tagged, pushed, activated, or production-ready. Acceptance does not authorize Phase27B.
+- **Entry report**: `docs/reports/PHASE27A_PLATFORM_DELIVERY_ENTRY_REPORT.md`.
+- **Implementation evidence**: `docs/reports/PHASE27A_PLATFORM_DELIVERY_IMPLEMENTATION_REPORT.md`; T3 independent review and human acceptance are recorded there.
 
 ## Phase 24 Combined Completion Authorization
 
