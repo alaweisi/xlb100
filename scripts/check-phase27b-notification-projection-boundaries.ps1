@@ -5,6 +5,7 @@ Set-Location $root
 $currentState = Get-Content -Raw -LiteralPath 'docs/CURRENT_STATE.md'
 $phase27Continuation =
   $currentState.Contains('Phase 27B | B2 IMPLEMENTED') -or
+  $currentState.Contains('Phase 27B | B2/C/D ACCEPTED') -or
   $currentState.Contains('Phase 27 | LOCKED')
 
 $baseline = '7874355837430b8a803f09be731265fb20889073'

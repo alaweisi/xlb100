@@ -5,7 +5,9 @@ $currentState = Get-Content -Raw -LiteralPath 'docs/CURRENT_STATE.md'
 $phase27bB1Authorized =
   $currentState.Contains('Phase 27B | B1 IMPLEMENTED') -or
   $currentState.Contains('Phase 27B | B1 ACCEPTED') -or
-  $currentState.Contains('Phase 27B | B2 IMPLEMENTED')
+  $currentState.Contains('Phase 27B | B2 IMPLEMENTED') -or
+  $currentState.Contains('Phase 27B | B2/C/D ACCEPTED') -or
+  $currentState.Contains('Phase 27 | LOCKED')
 
 $migration054 = @(Get-ChildItem db/migrations -File | Where-Object { $_.Name -match '^054_' })
 $migration055Plus = @(Get-ChildItem db/migrations -File | Where-Object {

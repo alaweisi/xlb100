@@ -38,6 +38,7 @@
     "test:security:phase24b": "vitest run --workspace vitest.workspace.ts --project db-serial tests/security/phase24bBoundaries.test.ts",
     "test:migration:phase24b": "node scripts/run-phase24b-migration-gate.mjs",
     "test:e2e:phase24b": "playwright test tests/e2e/phase24b-support-ticket.spec.ts",
+    "test:e2e:phase27": "playwright test --config playwright.phase27.config.ts",
     "gate:phase24b": "node scripts/run-phase24b-gates.mjs",
     "test:contract:phase24c1": "vitest run --workspace vitest.workspace.ts --project unit-contract tests/contract/phase24cAgentSkill.contract.test.ts",
     "test:integration:phase24c1": "vitest run --workspace vitest.workspace.ts --project db-serial tests/integration/phase24cAgentSkillGroups.test.ts",

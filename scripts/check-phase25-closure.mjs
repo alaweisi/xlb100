@@ -33,7 +33,9 @@ const phase27aRuntimeFiles = new Set([
 const phase27bB1Authorized =
   currentState.includes("Phase 27B | B1 IMPLEMENTED") ||
   currentState.includes("Phase 27B | B1 ACCEPTED") ||
-  currentState.includes("Phase 27B | B2 IMPLEMENTED");
+  currentState.includes("Phase 27B | B2 IMPLEMENTED") ||
+  currentState.includes("Phase 27B | B2/C/D ACCEPTED") ||
+  currentState.includes("Phase 27 | LOCKED");
 const phase27bB1RuntimeFiles = new Set([
   ...phase27aRuntimeFiles,
   "backend/src/notification/notificationProjectionPolicy.ts",
@@ -42,6 +44,7 @@ const phase27bB1RuntimeFiles = new Set([
   "db/migrations/055_phase27b_notification_projection_foundation.sql",
 ]);
 const phase27Continuation = currentState.includes("Phase 27B | B2 IMPLEMENTED") ||
+  currentState.includes("Phase 27B | B2/C/D ACCEPTED") ||
   currentState.includes("Phase 27 | LOCKED");
 const phase27ContinuationPatterns = [
   /^backend\/src\/events\/platform(?:DeliveryPolicy|EventCompatibility|DeliveryRepository|DeliveryService)\.ts$/,

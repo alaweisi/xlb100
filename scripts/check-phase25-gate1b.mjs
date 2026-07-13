@@ -165,7 +165,9 @@ const phase27aAuthorized =
 const phase27bB1Authorized =
   currentState.includes("Phase 27B | B1 IMPLEMENTED") ||
   currentState.includes("Phase 27B | B1 ACCEPTED") ||
-  currentState.includes("Phase 27B | B2 IMPLEMENTED");
+  currentState.includes("Phase 27B | B2 IMPLEMENTED") ||
+  currentState.includes("Phase 27B | B2/C/D ACCEPTED") ||
+  currentState.includes("Phase 27 | LOCKED");
 const phase27bMigrations = [
   "db/migrations/054_phase27a_platform_delivery_foundation.sql",
   "db/migrations/055_phase27b_notification_projection_foundation.sql",

@@ -186,7 +186,7 @@ Focused B2 evidence at implementation time:
 
 | Verification | Result |
 |---|---|
-| Projection policy + lifecycle | PASS — 2 files / 9 tests |
+| Projection policy + lifecycle | PASS — 2 files / 10 tests |
 | Backend typecheck | PASS |
 | Shared Phase27C contract/API client | PASS — 2 files / 8 tests |
 | Types/validators/API-client typecheck | PASS |

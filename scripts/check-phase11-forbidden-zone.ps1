@@ -27,6 +27,17 @@ $phase24SupportFiles = @(
   "apps/worker/src/features/support/reducer.ts",
   "apps/worker/src/pages/WorkerSupportPage.tsx"
 )
+$currentState = Get-Content -Raw -LiteralPath (Join-Path $Root 'docs/CURRENT_STATE.md')
+$allowPhase27dFrontend =
+  $currentState.Contains('Phase 27 | PHASE27E EXIT VERIFICATION') -or
+  $currentState.Contains('Phase 27 | LOCKED')
+$phase27dFrontendFiles = @(
+  'apps/customer/src/app/mobile-shell.css',
+  'apps/customer/src/pages/CustomerNotificationsPage.tsx',
+  'apps/customer/src/pages/CustomerProfilePage.tsx',
+  'apps/worker/src/pages/WorkerNotificationsPage.tsx',
+  'apps/worker/src/pages/worker-notifications.css'
+)
 
 $changedFiles = & git -C $Root diff --name-only main...HEAD 2>$null
 if ($LASTEXITCODE -ne 0) {
@@ -40,7 +51,8 @@ foreach ($file in $changedFiles) {
   foreach ($fd in $forbiddenDirs) {
     $isPhase23cFrontend = $allowPhase23cFrontend -and (($file -replace '\\', '/') -match $phase23cFrontendPattern)
     $isPhase24Support = $phase24SupportFiles -contains ($file -replace '\\', '/')
-    if ($file.StartsWith($fd) -and -not $isPhase23cFrontend -and -not $isPhase24Support) {
+    $isPhase27dFrontend = $allowPhase27dFrontend -and $phase27dFrontendFiles -contains ($file -replace '\\', '/')
+    if ($file.StartsWith($fd) -and -not $isPhase23cFrontend -and -not $isPhase24Support -and -not $isPhase27dFrontend) {
       $violations += $file
     }
   }

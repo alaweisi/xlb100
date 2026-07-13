@@ -29,7 +29,9 @@ try {
       $migration055[0].Name -eq "055_phase27b_notification_projection_foundation.sql" -and
       ($currentState.Contains("Phase 27B | B1 IMPLEMENTED") -or
         $currentState.Contains("Phase 27B | B1 ACCEPTED") -or
-        $currentState.Contains("Phase 27B | B2 IMPLEMENTED"))
+        $currentState.Contains("Phase 27B | B2 IMPLEMENTED") -or
+        $currentState.Contains("Phase 27B | B2/C/D ACCEPTED") -or
+        $currentState.Contains("Phase 27 | LOCKED"))
     if (-not $authorizedPhase27bMigration) {
       throw "Phase 24 completion cannot accept an unauthorized migration 055"
     }

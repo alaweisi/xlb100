@@ -635,3 +635,7 @@ if ((Test-Path (Join-Path $PSScriptRoot "..\apps\customer\src\pages\CustomerNoti
   Invoke-PreflightGate "check-phase27d-notification-ui-boundaries.ps1"
   Write-Host "XLB Phase 27D Notification UI boundary preflight passed."
 }
+if (Test-Path (Join-Path $PSScriptRoot "check-phase27-completion-boundaries.ps1")) {
+  Invoke-PreflightGate "check-phase27-completion-boundaries.ps1"
+  Write-Host "XLB Phase 27 aggregate completion boundary preflight passed."
+}

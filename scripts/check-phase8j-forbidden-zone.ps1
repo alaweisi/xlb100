@@ -3,6 +3,26 @@ $Root = Split-Path -Parent $PSScriptRoot
 $ScriptName = Split-Path -Leaf $PSCommandPath
 $PhaseName = $ScriptName -replace '^check-', '' -replace '-forbidden-zone\.ps1$', ''
 $forbiddenPatterns = @('\bpayout\b','\bpaid_settlement\b','\bwithdraw\b','\brefund\b','\baftersale\b','\bnotification\b','\bpayment_instruction\b')
+$currentState = Get-Content -Raw -LiteralPath (Join-Path $Root 'docs/CURRENT_STATE.md')
+$phase27RuntimeAuthorized =
+  $currentState.Contains('Phase 27 | PHASE27E EXIT VERIFICATION') -or
+  $currentState.Contains('Phase 27 | LOCKED')
+$phase27NotificationFiles = @(
+  'backend/src/events/platformDeliveryRepository.ts',
+  'backend/src/events/platformDeliveryService.ts',
+  'backend/src/events/platformEventCompatibility.ts',
+  'backend/src/notification/notificationInboxPolicy.ts',
+  'backend/src/notification/notificationInboxRepository.ts',
+  'backend/src/notification/notificationInboxService.ts',
+  'backend/src/notification/notificationProjectionPolicy.ts',
+  'backend/src/routes/notificationRoutes.ts',
+  'packages/api-client/src/customer.ts',
+  'packages/api-client/src/index.ts',
+  'packages/api-client/src/notification.ts',
+  'packages/api-client/src/worker.ts',
+  'packages/types/src/notification.ts',
+  'packages/validators/src/notificationSchema.ts'
+)
 $allowedFiles = @(
   'backend/src/support/bot/sensitiveSupportGuard.ts',
   "backend/src/governance/governanceGuard.ts",
@@ -97,7 +117,14 @@ foreach ($line in $lines) {
   if ($line -match '^\+(?!\+)') {
     if ($allowedFiles -contains $currentFile) { continue }
     $content = $line.Substring(1)
-    foreach ($pattern in $forbiddenPatterns) { if ($content -match $pattern) { $violations += "$($currentFile): $($line.Trim())"; break } }
+    foreach ($pattern in $forbiddenPatterns) {
+      if ($content -notmatch $pattern) { continue }
+      if ($pattern -eq '\bnotification\b' -and
+          $phase27RuntimeAuthorized -and
+          $phase27NotificationFiles -contains $currentFile) { continue }
+      $violations += "$($currentFile): $($line.Trim())"
+      break
+    }
   }
 }
 if ($violations.Count -gt 0) { Write-Host "FAILED - forbidden terms"; $violations | ForEach-Object { Write-Host "  $_" }; exit 1 }
