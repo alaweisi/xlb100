@@ -71,8 +71,15 @@ function Test-SameSet($Left,$Right) {
   return ($a.Count-eq$b.Count-and@(Compare-Object $a $b).Count-eq0)
 }
 function ConvertTo-CanonicalRunAssets($ContainerObjects,$VolumeObjects,$NetworkObjects) {
-  $containerIds=@($ContainerObjects|ForEach-Object{[string]$_.Id}|Where-Object{-not[string]::IsNullOrWhiteSpace($_)}|Sort-Object -Unique)
-  $containerServices=@($ContainerObjects|ForEach-Object{[string]$_.Config.Labels.'com.docker.compose.service'}|Where-Object{-not[string]::IsNullOrWhiteSpace($_)}|Sort-Object)
+  $containerMap=@{}
+  foreach($container in @($ContainerObjects)){
+    $id=[string]$container.Id;$service=[string]$container.Config.Labels.'com.docker.compose.service'
+    if([string]::IsNullOrWhiteSpace($id)-or[string]::IsNullOrWhiteSpace($service)){continue}
+    if($containerMap.ContainsKey($id)-and$containerMap[$id]-ne$service){throw"container ID resolves to conflicting compose services: $id"}
+    $containerMap[$id]=$service
+  }
+  $containerIds=@($containerMap.Keys|Sort-Object)
+  $containerServices=@($containerMap.Values|Sort-Object)
   $volumeNames=@($VolumeObjects|ForEach-Object{[string]$_.Name}|Where-Object{-not[string]::IsNullOrWhiteSpace($_)}|Sort-Object -Unique)
   $networkNames=@($NetworkObjects|ForEach-Object{[string]$_.Name}|Where-Object{-not[string]::IsNullOrWhiteSpace($_)}|Sort-Object -Unique)
   return [pscustomobject]@{Containers=$containerIds;ContainerServices=$containerServices;Volumes=$volumeNames;Networks=$networkNames;Count=$containerIds.Count+$volumeNames.Count+$networkNames.Count}
@@ -108,6 +115,7 @@ function Invoke-InventoryFixtureTests {
   )
   $canonical=ConvertTo-CanonicalRunAssets $containerObjects $volumeObjects $networkObjects
   Assert-True($canonical.Containers.Count-eq1-and$canonical.Containers[0]-eq$longId)"fixture failed: short and long container IDs were not canonicalized"
+  Assert-True($canonical.ContainerServices.Count-eq1-and$canonical.ContainerServices[0]-eq'mysql')"fixture failed: duplicate refs for one container ID duplicated its service"
   Assert-True($canonical.Networks.Count-eq1-and$canonical.Networks[0]-eq'fixture-network')"fixture failed: network ID and name were not canonicalized"
   $fixtureSlot=[pscustomobject]@{Project='fixture-project';MysqlVolume='fixture-mysql';RedisVolume='fixture-redis';Network='fixture-network'}
   $cleanup=@();$incomplete=[pscustomobject]@{Containers=@($longId);ContainerServices=@("mysql");Volumes=@();Networks=@();Count=1};$rejected=$false
@@ -116,6 +124,12 @@ function Invoke-InventoryFixtureTests {
   $cleanup=@();$unexpected=[pscustomobject]@{Containers=@($longId);ContainerServices=@("unexpected");Volumes=@();Networks=@();Count=1};$rejected=$false
   try{Register-CleanupInventory ([ref]$cleanup) $fixtureSlot $unexpected $false}catch{$rejected=$true}
   Assert-True($rejected-and$cleanup.Count-eq0)"fixture failed: unexpected inventory must never be registered for automatic cleanup"
+  $duplicateServiceAssets=ConvertTo-CanonicalRunAssets @(
+    [pscustomobject]@{Id=('c'*64);Config=[pscustomobject]@{Labels=[pscustomobject]@{'com.docker.compose.service'='mysql'}}},
+    [pscustomobject]@{Id=('d'*64);Config=[pscustomobject]@{Labels=[pscustomobject]@{'com.docker.compose.service'='mysql'}}}
+  ) @() @()
+  $cleanup=@();$rejected=$false;try{Register-CleanupInventory ([ref]$cleanup) $fixtureSlot $duplicateServiceAssets $false}catch{$rejected=$true}
+  Assert-True($rejected-and$cleanup.Count-eq0)"fixture failed: two container IDs for one service must be rejected without cleanup registration"
 }
 function Get-ValidatedRunAssets($Slot) {
   $containerRefs=@(& docker ps -aq --filter "label=com.docker.compose.project=$($Slot.Project)")
