@@ -41,6 +41,10 @@ Phase registry 与 execution registry 严格分离：`docs/governance/phase-regi
 
 所有 registry、Train、Work Unit 与 queue 状态变化必须引用 `governance/execution/transitions/` 下的 strict `TRANSITION` JSON；普通 Markdown、任意 clean 文件或仅有文字说明不构成 transition authority。记录必须绑定 subject、Train/Work Unit identity、前后状态、时间、决策角色与 `LEGAL_STATUS_EDGE_VERIFIED`。
 
+Gate 还会把 `previousStatus`、`statusChangedAt` 与 `transitionAuthorityRef` 绑定到 audited enablement baseline 之后的 immutable Git 历史；同一状态下偷换 transition metadata、伪报前态或让 Queue item 脱离其 Work Unit 父提交均 fail closed。每条 edge 使用固定 `actorRole + scope` 权限映射；Human 接受、执行系统启停与 Phase Lock closure 不得由其他角色代签。Train 进入 verified/accepted/closed 状态前，Work Unit terminal/integration 状态、active lease 与 queue item 必须满足 closure consistency。
+
+`authorityEnvelopeCommit` 与 audited candidate、enablement status-switch commit 均必须是单父直接子提交。一次性的 candidate diff 白名单只验证 `BOOTSTRAP → ENABLED`；进入 steady-state 后允许由各自 transition/evidence Gate 约束的正常 Train、Work Unit 与 Queue 提交，但 candidate/envelope/approval/audit/Human refs、digests 和 authority record 内容永久钉住，不得改写。
+
 环境至少包含 `slot`、固定且被 Git ignore 的 `envFileName`、canonical `composeOverrideRef`，以及唯一 `composeProject`、`mysqlDatabase`、`mysqlPort`、`redisNamespace`、`redisPort`、`backendPort`、`customerPort`、`workerPort` 与 `adminPort`。三个 validation manifest 固定绑定 Phase 29 canonical tag 解引用后的 commit `80921871baf8647b2d3b7c97f8c0fde2a88f9400`；annotated tag object 不得冒充 base commit。
 
 ## Human machine confirmations
