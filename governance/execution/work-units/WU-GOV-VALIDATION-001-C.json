@@ -8,7 +8,7 @@
   "status": "PLANNED",
   "previousStatus": "NONE",
   "statusChangedAt": "2026-07-14T00:00:00+08:00",
-  "transitionAuthorityRef": "governance/07_GOVERNANCE_EXECUTION_SYSTEM_IMPLANTATION_REPORT.md",
+  "transitionAuthorityRef": "governance/execution/transitions/TRANSITION-WU-GOV-VALIDATION-001-C-PLANNED.json",
   "executionMode": "VALIDATION_ONLY",
   "worktreePath": "G:\\xlb100-worktrees\\RT-GOV-VALIDATION-001\\WU-GOV-VALIDATION-001-C",
   "branch": "codex/rt-gov-validation-001-c",

@@ -244,6 +244,8 @@ Human Owner 已通过 P-01～P-18 选择 managed Work Unit parallelism；UD-01/G
 
 ### 7.2 Evidence record 最低字段
 
+本节定义 ADR/Phase 级 evidence 的概念字段；它不直接等同于 `governance/execution/evidence/*.json` 的 strict package record schema。执行系统 strict record 使用 `schemaVersion/recordType/recordId/candidateCommit/candidateDigest/environmentDigest/...`，并通过 type-specific `additionalProperties=false`、canonical digest 与 blob identity 绑定；ADR evidence 若要进入 package/queue，必须由显式 adapter/record type 映射，不能把两套字段混装进同一 JSON。
+
 | 字段 | 目的 | Gap |
 |---|---|---|
 | `evidenceId`, `adrId`, `adrRevision` | 证据与决策版本一一绑定 | G-12, G-16 |
@@ -274,7 +276,7 @@ Human Owner 已通过 P-01～P-18 选择 managed Work Unit parallelism；UD-01/G
 | `READ_ONLY_ALLOWED` | 仅允许事实读取、impact/audit/test design；记录 snapshot | 否 | G-02, G-14 |
 | `DRAFT_WRITE_ONLY` | 只允许写 ADR/设计草案的已授权文件；不含 runtime/Phase/CI/Lock | 仅限明确授权的设计文件 | G-01, G-08, G-13, G-16 |
 | `GOVERNANCE_DESIGN_WRITE_ONLY` | Human 已接受治理设计方向并显式授权修改列明的治理文档；设计 acceptance 不等于执行 enablement | 仅限授权清单中的治理文档；不含 runtime/migration/CI/Phase/Git/worktree/merge/Lock | G-01, G-08, G-13, G-16 |
-| `GOVERNANCE_EXECUTION_BOOTSTRAP_WRITE` | Human 已显式授权把治理控制植入项目并版本化，但执行 registry 仍为 Bootstrap | 仅治理控制、validation worktree 与 disposable local isolation resources；不含业务 runtime/migration/hosted CI/Phase/main/Lock | G-01, G-02, G-04, G-08, G-13, G-16 |
+| `GOVERNANCE_EXECUTION_BOOTSTRAP_WRITE` | Human 已显式授权把治理控制植入项目并版本化，但执行 registry 仍为 Bootstrap | 仅 canonical root 内的治理文档、registry、strict records、Skills 与本地 Gate candidate；不产生 worktree 创建或任何 Docker/DB/Redis runtime resource 权限，也不含业务 runtime/migration/hosted CI/Phase/main/Lock | G-01, G-02, G-04, G-08, G-13, G-16 |
 | `ELIGIBLE_FOR_SERIAL_WRITE_AUTHORIZATION` | L2–L4 的 Level/impact/risk/evidence plan 完整，等待唯一 Human Owner 对具体 Phase/scope 事先批准 | 否；不是 permission grant | G-02, G-08, G-13 |
 | `SERIAL_WRITE_AUTHORIZED` | Level-specific Required Authority 已满足时才可记录：L0/L1 依第 5 节 Agent authority，L2–L4 依唯一 Human Owner 的有效事先批准 | 是，且仅限 Level 定义与批准范围；本治理设计记录不产生具体 runtime/Phase/Lock 授权 | G-02, G-08, G-13 |
 | `GOVERNANCE_EXECUTION_BOOTSTRAP_NOT_ENABLED` | Human 已授权且本地执行控制 candidate 已安装，但尚缺 clean immutable candidate、独立审计 PASS 与 Human 启用确认 | 否；这是当前 WRITE parallel 强制状态 | G-02, G-03, G-04, G-07, G-08 |
@@ -389,13 +391,13 @@ PLANNED
 
 | 项 | 本文件结果 | Gap |
 |---|---|---|
-| Intent | 设计 ADR Decision Engine，并记录 P-01～P-18 managed parallelism 决策；本轮只写 01/04/06 治理文档 | G-01, G-16 |
+| Intent | 设计 ADR Decision Engine，并记录 P-01～P-18 managed parallelism 决策；Human 后续已授权治理宪法、`AGENTS.md`、execution registries/strict records、Skills、templates 与本地人工 Gate 正式版本化，仍不含 runtime、migration、hosted CI、Phase/main/Lock | G-01, G-16 |
 | Impact | Governance architecture `DOMAIN/CROSS_DOMAIN`；runtime/CI/Phase/Lock/Migration/Provider/Production 均 `NONE`（由任务边界与 diff 核验） | G-01, G-06, G-12, G-13, G-16 |
 | Risk / Level | R4 / L4，因为设计 Phase/ADR governance model；不是因为执行 production/platform runtime | G-01, G-09, G-16 |
 | Authority | 唯一 Human Owner 已接受 Engine、P-01～P-18，并显式授权治理执行系统植入与正式版本控制；不等于具体 Train/Phase/main/Lock approval | G-08, G-16 |
 | Parallelism | 唯一治理 writer 串行集成，多 Agent 只读审查/隔离子项施工；实际 WRITE parallel 状态为 `GOVERNANCE_EXECUTION_BOOTSTRAP_NOT_ENABLED` | G-02, G-03, G-04, G-14 |
 | Evidence | Human P-01～P-18 决策与植入授权、Gap/Dependency 追溯、机器台账、本地 Gate、隔离验证、candidate commit 与独立只读审查 | G-05, G-07, G-12, G-15, G-16 |
-| Permission | `GOVERNANCE_EXECUTION_BOOTSTRAP_WRITE`；仅治理控制、validation worktree 和 disposable local isolation resources，不含业务 runtime/migration/CI/Phase/main/Lock | G-01, G-08, G-13, G-16 |
+| Permission | `GOVERNANCE_EXECUTION_BOOTSTRAP_WRITE`；仅 canonical 治理控制 candidate。validation worktree 创建与 disposable runtime resources 在 execution system ENABLED、Train `VALIDATION_AUTHORIZED`、独立 safety audit 和 Human runtime validation approval 全部成立前均禁止 | G-01, G-08, G-13, G-16 |
 
 ## 免责声明
 

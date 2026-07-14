@@ -5,7 +5,7 @@
   "enablementStatus": "NOT_ENABLED",
   "previousEnablementStatus": "NONE",
   "statusChangedAt": "2026-07-14T00:00:00+08:00",
-  "transitionAuthorityRef": "governance/07_GOVERNANCE_EXECUTION_SYSTEM_IMPLANTATION_REPORT.md",
+  "transitionAuthorityRef": "governance/execution/transitions/TRANSITION-QUEUE-NOT-ENABLED.json",
   "acceptingItems": false,
   "mode": "MANUAL_AUDITABLE_SERIAL_QUEUE",
   "ownerRole": "Integration Owner",

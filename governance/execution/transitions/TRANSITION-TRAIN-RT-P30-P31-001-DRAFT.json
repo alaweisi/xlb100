@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "recordType": "TRANSITION",
+  "recordId": "TRANSITION-TRAIN-RT-P30-P31-001-DRAFT",
+  "createdAt": "2026-07-14T00:00:00+08:00",
+  "subjectType": "RELEASE_TRAIN",
+  "subjectId": "RT-P30-P31-001",
+  "trainId": "RT-P30-P31-001",
+  "previousStatus": "NONE",
+  "currentStatus": "DRAFT",
+  "changedAt": "2026-07-14T00:00:00+08:00",
+  "scope": "GOVERNANCE_EXECUTION_CONTROL",
+  "decision": "APPROVED",
+  "actorRole": "Human Owner",
+  "checks": [
+    "LEGAL_STATUS_EDGE_VERIFIED",
+    "GOVERNANCE_EXECUTION_INSTALLATION_AUTHORIZED"
+  ]
+}

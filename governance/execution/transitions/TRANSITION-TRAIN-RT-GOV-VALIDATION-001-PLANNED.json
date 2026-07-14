@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "recordType": "TRANSITION",
+  "recordId": "TRANSITION-TRAIN-RT-GOV-VALIDATION-001-PLANNED",
+  "createdAt": "2026-07-14T00:00:00+08:00",
+  "subjectType": "RELEASE_TRAIN",
+  "subjectId": "RT-GOV-VALIDATION-001",
+  "trainId": "RT-GOV-VALIDATION-001",
+  "previousStatus": "NONE",
+  "currentStatus": "PLANNED",
+  "changedAt": "2026-07-14T00:00:00+08:00",
+  "scope": "GOVERNANCE_EXECUTION_CONTROL",
+  "decision": "APPROVED",
+  "actorRole": "Human Owner",
+  "checks": [
+    "LEGAL_STATUS_EDGE_VERIFIED",
+    "GOVERNANCE_EXECUTION_INSTALLATION_AUTHORIZED"
+  ]
+}

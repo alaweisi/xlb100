@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "recordType": "TRANSITION",
+  "recordId": "TRANSITION-WU-GOV-VALIDATION-001-A-PLANNED",
+  "createdAt": "2026-07-14T00:00:00+08:00",
+  "subjectType": "WORK_UNIT",
+  "subjectId": "WU-GOV-VALIDATION-001-A",
+  "trainId": "RT-GOV-VALIDATION-001",
+  "workUnitId": "WU-GOV-VALIDATION-001-A",
+  "previousStatus": "NONE",
+  "currentStatus": "PLANNED",
+  "changedAt": "2026-07-14T00:00:00+08:00",
+  "scope": "GOVERNANCE_EXECUTION_CONTROL",
+  "decision": "APPROVED",
+  "actorRole": "Human Owner",
+  "checks": [
+    "LEGAL_STATUS_EDGE_VERIFIED",
+    "GOVERNANCE_EXECUTION_INSTALLATION_AUTHORIZED"
+  ]
+}

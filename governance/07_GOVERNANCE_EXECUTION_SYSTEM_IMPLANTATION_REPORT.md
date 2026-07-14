@@ -58,4 +58,8 @@ Execution Registry 只有同时满足下列条件才能从 `BOOTSTRAP / NOT_ENAB
 2. 独立只读审计 PASS，P0/P1/P2 为零；
 3. Human Owner 明确确认启用治理执行控制。
 
+Authority closure 采用两提交模型：先在 audited candidate 的直接子提交中只新增 exact authority/transition records，形成 `authorityEnvelopeCommit`；再以唯一一个后继提交切换 registry/queue 状态。Gate 必须从 envelope commit 重读 record 全文并核对 canonical digest，禁止启用后改写 record identity、checks 或任何其他字段。
+
+任何状态变化必须引用 strict `TRANSITION` record；Business Work Unit 从 `CONTRACT_FROZEN` 起必须绑定 Train 级 frozen contract authority 与 protected-path digest。Manifest 最低字段为机器必填，不能依赖说明文档或默认值补全。
+
 即使治理执行控制启用，Phase 30/31 业务施工仍须由 Human Owner 对最终 Train Charter 单独明确批准。治理启用不得被解释为 Phase、main、Lock、production 或 Provider authority。
