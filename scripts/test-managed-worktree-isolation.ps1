@@ -98,8 +98,8 @@ function Register-CleanupInventory([ref]$Cleanup,$Slot,$Inventory,[bool]$Require
 function Invoke-InventoryFixtureTests {
   $longId=('a'*64);$networkId=('b'*64)
   $containerObjects=@(
-    [pscustomobject]@{SourceRef=$longId.Substring(0,12);Id=$longId},
-    [pscustomobject]@{SourceRef=$longId;Id=$longId}
+    [pscustomobject]@{SourceRef=$longId.Substring(0,12);Id=$longId;Config=[pscustomobject]@{Labels=[pscustomobject]@{'com.docker.compose.service'='mysql'}}},
+    [pscustomobject]@{SourceRef=$longId;Id=$longId;Config=[pscustomobject]@{Labels=[pscustomobject]@{'com.docker.compose.service'='mysql'}}}
   )
   $volumeObjects=@([pscustomobject]@{Name='fixture-volume'},[pscustomobject]@{Name='fixture-volume'})
   $networkObjects=@(
