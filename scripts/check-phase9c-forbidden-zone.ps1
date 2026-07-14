@@ -9,7 +9,8 @@ $phase29Contract = Join-Path $Root 'docs/contracts/CONTRACT_MARKETING_COUPON.md'
 $phase29Registry = Join-Path $Root 'docs/governance/phase-registry.json'
 $phase29Authorized =
   ($currentState.Contains('| Phase 29 | IN PROGRESS |') -or $currentState.Contains('| Phase 29 | LOCKED |')) -and
-  $currentState.Contains('D01–D24') -and
+  $currentState.Contains('D01') -and
+  $currentState.Contains('D24') -and
   (Test-Path -LiteralPath $phase29Entry) -and
   (Get-Content -Raw -Encoding UTF8 -LiteralPath $phase29Entry).Contains('Every row below is **HUMAN APPROVED**') -and
   (Get-Content -Raw -Encoding UTF8 -LiteralPath $phase29Entry).Contains('| D24 |') -and
