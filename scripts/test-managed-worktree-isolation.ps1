@@ -60,11 +60,13 @@ function Invoke-Compose($Slot, [string[]]$Arguments) {
   Use-SlotEnvironment $Slot { $output=& docker compose -f $ComposeFile @Arguments 2>&1; if($LASTEXITCODE-ne 0){throw "compose failed for $($Slot.Project): $($output|Out-String)"}; return ($output|Out-String).Trim() }
 }
 function Test-DockerObject([string]$Kind,[string]$Name) { $null=& docker $Kind inspect $Name 2>$null; if($LASTEXITCODE-eq 0){return $true}; if($LASTEXITCODE-eq 1){return $false}; throw "docker $Kind inspect failed: $Name" }
-function Assert-CleanHeadScript([string]$Path,[string]$Label) {
+function Assert-CleanHeadFile([string]$Path,[string]$Label) {
   $full=[IO.Path]::GetFullPath($Path);$prefix=[IO.Path]::GetFullPath($Root).TrimEnd('\')+'\';Assert-True($full.StartsWith($prefix,[StringComparison]::OrdinalIgnoreCase))"$Label is outside canonical root"
   $relative=$full.Substring($prefix.Length).Replace('\','/');$null=&git -C $Root ls-files --error-unmatch -- $relative 2>$null;Assert-True($LASTEXITCODE-eq0)"$Label must be tracked"
   $null=&git -C $Root cat-file -e "HEAD`:$relative" 2>$null;Assert-True($LASTEXITCODE-eq0)"$Label must exist in HEAD"
   $status=@(&git -C $Root status --porcelain=v1 -z --untracked-files=all -- $relative);Assert-True([string]::IsNullOrWhiteSpace(($status-join'')))"$Label must be clean and byte-bound to HEAD"
+  $worktreeBlob=(&git -C $Root hash-object -- $relative).Trim();$headBlob=(&git -C $Root rev-parse "HEAD`:$relative").Trim()
+  Assert-True($LASTEXITCODE-eq0-and$worktreeBlob-eq$headBlob)"$Label worktree blob differs from immutable HEAD"
 }
 function Test-SameSet($Left,$Right) {
   $a=@($Left|Sort-Object -Unique);$b=@($Right|Sort-Object -Unique)
@@ -148,6 +150,13 @@ function Get-ValidatedRunAssets($Slot) {
 
 function Invoke-Main {
   Invoke-InventoryFixtureTests
+  if($RuntimeCanary){
+    Assert-CleanHeadFile $LeaseFile "managed-worktree Lease Ledger"
+    Assert-CleanHeadFile $ComposeFile "managed-worktree canonical Compose template"
+    Assert-CleanHeadFile $TrainRegistryFile "managed-worktree Train Registry"
+    Assert-CleanHeadFile $BoundaryGateFile "managed-worktree boundary Gate"
+    Assert-CleanHeadFile $PSCommandPath "managed-worktree Runtime Canary script"
+  }
   Assert-True ($null-ne(Get-Command docker -ErrorAction SilentlyContinue)) "docker is required"
   & docker compose version *> $null; Assert-True ($LASTEXITCODE-eq 0) "docker compose is required"
   & git -C $Root check-ignore -q --no-index -- ".env.worktree.local"
@@ -207,8 +216,6 @@ function Invoke-Main {
   Assert-True ($train.humanApprovalStatus-eq"EXPLICIT_HUMAN_APPROVAL_RECORDED") "RuntimeCanary blocked: explicit Human approval is absent"
   Assert-True (($train.PSObject.Properties.Name-contains"runtimeCanaryAuthorized")-and$train.runtimeCanaryAuthorized-eq$true) "RuntimeCanary blocked: runtimeCanaryAuthorized must be true"
   Assert-True ($train.businessWriteAuthorized-eq$false) "RuntimeCanary blocked: businessWriteAuthorized must remain false"
-  Assert-CleanHeadScript $BoundaryGateFile "managed-worktree boundary Gate"
-  Assert-CleanHeadScript $PSCommandPath "managed-worktree Runtime Canary script"
   $authorityGate=& powershell -NoProfile -ExecutionPolicy Bypass -File $BoundaryGateFile -Mode Repository 2>&1
   Assert-True ($LASTEXITCODE-eq0) "RuntimeCanary blocked: strict authority/evidence Repository Gate failed: $($authorityGate|Out-String)"
 

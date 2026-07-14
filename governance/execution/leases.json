@@ -310,7 +310,11 @@
         "governance/execution/transitions",
         "governance/execution/contracts",
         "docs/CURRENT_STATE.md",
-        "docs/governance/phase-registry.json"
+        "docs/governance/phase-registry.json",
+        ".cursor/skills",
+        ".cursor/rules",
+        "docs/architecture/00_XLB_ENGINEERING_ARCHITECTURE_MANDATORY.md",
+        "docs/architecture/02_XLB_ENGINEERING_FOUNDATION.md"
       ],
       "trainId": "SYSTEM-SERIAL-LANES",
       "workUnitId": "LOCK-FLOW",

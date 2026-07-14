@@ -57,6 +57,7 @@ Phase registry 与 execution registry 严格分离：`docs/governance/phase-regi
 - Contract、canonical runtime、migration ledger、global configuration、governance metadata、main/tag/Lock 始终走 serial lane。
 - Business Work Unit 从 `CONTRACT_FROZEN` 起必须与 Train 的 `frozenContractRevision`、strict `CONTRACT_FREEZE_AUTHORITY` record 和 canonical contract protected-path digest 完全一致。冻结 revision 之后任何 protected contract path material change 都使施工、package、evidence 与 queue 状态自动 `STALE`；一致地自报旧 revision 不能替代 current contract authority。
 - 没有有效 migration reservation 不得创建 migration 文件；编号一旦预约即不复用，`ABANDONED` 形成永久空洞；历史保留号 `024` 永久不可用。
+- Reservation Ledger 使用 schema v2：每条记录必须有严格 ISO-8601 `createdAt`、生命周期 `reason`；`RESERVED/MATERIALIZED` 的 `closedAt` 必须为 `null`，`MERGED/ABANDONED` 必须有不早于 `createdAt` 的 `closedAt`。历史 024 的时间只表示本台账登记时间，不声称是原始空洞形成时间。
 
 ## Integration Queue
 

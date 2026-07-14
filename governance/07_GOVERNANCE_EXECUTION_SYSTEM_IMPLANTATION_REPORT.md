@@ -42,7 +42,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-managed-worktre
 PASS managed worktree manifest/train/lease/static isolation
 
 governance/execution/**/*.json parse
-PASS — 7 files
+PASS — 14 files
 
 git diff --check
 PASS

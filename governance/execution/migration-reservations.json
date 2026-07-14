@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "reservations": [
     {
       "number": "024",
@@ -10,7 +10,10 @@
       "baseCommit": "80921871baf8647b2d3b7c97f8c0fde2a88f9400",
       "tables": [],
       "semanticScope": "permanent reserved gap; never reuse",
-      "status": "ABANDONED"
+      "status": "ABANDONED",
+      "createdAt": "2026-07-14T18:26:56+08:00",
+      "closedAt": "2026-07-14T18:26:56+08:00",
+      "reason": "ledger bootstrap imported permanent historical gap; this timestamp records ledger adoption and does not claim the original gap time"
     }
   ]
 }

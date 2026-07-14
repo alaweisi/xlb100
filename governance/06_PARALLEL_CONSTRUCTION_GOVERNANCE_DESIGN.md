@@ -4,7 +4,7 @@
 > 决策日期：2026-07-14（Asia/Shanghai）
 > Human 决策：P-01～P-18 全部选择 A；随后明确授权植入项目执行系统并纳入正式版本控制
 > 追溯：[正式项目工程治理宪法](./01_PROJECT_CONSTITUTION_DRAFT.md)、[当前施工模型](./02_CURRENT_ENGINEERING_EXECUTION_MODEL.md)、[治理差距](./03_GOVERNANCE_GAP_ANALYSIS.md)、[ADR Decision Engine](./04_ADR_DECISION_ENGINE_DESIGN.md)、[Worktree 调查](./05_WORKTREE_INVESTIGATION_REPORT.md)
-> 当前权限：允许治理文件、`AGENTS.md`、Skills、本地人工 Gate、registry/manifest/lease/reservation/queue、受管验证工棚与隔离环境施工；不修改业务 runtime、migration、hosted CI、Phase 状态或 Lock，不授权 Phase 30/31 业务 WRITE
+> 当前权限：只允许治理文件、`AGENTS.md`、Skills、本地人工 Gate、registry/manifest/lease/reservation/queue，以及 Manifest 驱动的 Compose 静态配置验证；当前不授权创建受管验证工棚或 Docker/DB/Redis runtime resource，Runtime Canary 未授权且未执行；不修改业务 runtime、migration、hosted CI、Phase 状态或 Lock，不授权 Phase 30/31 业务 WRITE
 
 ## 0. 决策结果
 
@@ -367,7 +367,7 @@ P-17 选择“先人工可审计队列试点，再自动化”。Human 已授权
 1. `AGENTS.md` 保留 canonical root 并批准严格路径的 managed worktree pool；
 2. `xlb-managed-worktree` Skill 与本地人工 Gate 检查 Charter、manifest、lease、base、contract、reservation、clean immutable candidate 和 evidence freshness；
 3. `governance/execution/` 固定 manifest、migration reservation、lease、Train registry 与 serial queue 的 canonical JSON/Markdown 载体；
-4. worktree Compose、MySQL、Redis 与端口按 Manifest 参数化并执行隔离验证；
+4. worktree Compose、MySQL、Redis 与端口按 Manifest 参数化并完成静态配置校验；实际隔离 Runtime Canary 须等待执行系统 `ENABLED`、Train `VALIDATION_AUTHORIZED`、独立 safety audit 与 Human runtime validation approval；
 5. Integration Queue 只接受 clean immutable commit，冲突退回原 Owner；
 6. Work Unit/Train execution registry 与 Phase registry 明确分离，package 状态不得冒充 Phase Lock；
 7. hosted CI 与现有 preflight 本轮不接入新 Gate；试点稳定后另行 Human 裁决。
