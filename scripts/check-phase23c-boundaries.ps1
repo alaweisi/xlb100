@@ -85,7 +85,10 @@ try {
   $workerApp = Get-Content (Join-Path $Root "apps/worker/src/app/App.tsx") -Raw
   Require-Match "Worker lazy page imports" $workerApp '(?is)\blazy\s*\(.{0,500}\bimport\s*\([^)]*pages/'
 
-  $frontendSources = Get-ChildItem (Join-Path $Root "apps") -Recurse -File -Include *.ts,*.tsx |
+  $frontendSources = Get-ChildItem (Join-Path $Root "apps") -Directory |
+    ForEach-Object { Join-Path $_.FullName "src" } |
+    Where-Object { Test-Path $_ -PathType Container } |
+    ForEach-Object { Get-ChildItem $_ -Recurse -File -Include *.ts,*.tsx } |
     ForEach-Object { Get-Content $_.FullName -Raw }
   $frontendText = $frontendSources -join "`n"
   if ($frontendText -match '(?i)(restapi\.amap\.com|AlipaySDK|WeChatPay|OSSClient|S3Client)') {

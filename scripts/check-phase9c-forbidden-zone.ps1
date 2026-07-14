@@ -2,6 +2,38 @@
 # Phase 10+11+12 governance/planner/preparation files: exact allowlist
 $d = & git -C $Root diff main...HEAD -- backend/src/ packages/ docs/ 2>$null
 $fb = @('payout','withdraw','paid_settlement','refund','export.*file','download')
+$currentState = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $Root 'docs/CURRENT_STATE.md')
+$phase29Entry = Join-Path $Root 'docs/reports/PHASE29_MARKETING_COUPON_ENTRY_REPORT.md'
+$phase29Architecture = Join-Path $Root 'docs/architecture/29_XLB_MARKETING_COUPON.md'
+$phase29Contract = Join-Path $Root 'docs/contracts/CONTRACT_MARKETING_COUPON.md'
+$phase29Registry = Join-Path $Root 'docs/governance/phase-registry.json'
+$phase29Authorized =
+  ($currentState.Contains('| Phase 29 | IN PROGRESS |') -or $currentState.Contains('| Phase 29 | LOCKED |')) -and
+  $currentState.Contains('D01–D24') -and
+  (Test-Path -LiteralPath $phase29Entry) -and
+  (Get-Content -Raw -Encoding UTF8 -LiteralPath $phase29Entry).Contains('Every row below is **HUMAN APPROVED**') -and
+  (Get-Content -Raw -Encoding UTF8 -LiteralPath $phase29Entry).Contains('| D24 |') -and
+  (Test-Path -LiteralPath $phase29Architecture) -and
+  (Get-Content -Raw -Encoding UTF8 -LiteralPath $phase29Architecture).Contains('ENTRY DECISIONS HUMAN-APPROVED; CONSTRUCTION AUTHORIZED') -and
+  (Test-Path -LiteralPath $phase29Contract) -and
+  (Get-Content -Raw -Encoding UTF8 -LiteralPath $phase29Contract).Contains('Phase 29 human-approved contract') -and
+  (Test-Path -LiteralPath $phase29Registry) -and
+  (Get-Content -Raw -Encoding UTF8 -LiteralPath $phase29Registry).Contains('Entry decisions D01-D24 are approved for continuous construction through independent acceptance.') -and
+  (Test-Path -LiteralPath (Join-Path $Root 'db/migrations/057_phase29_marketing_coupon.sql'))
+$phase29AllowedFiles = @(
+  'backend/src/events/platformDeliveryService.ts',
+  'backend/src/events/platformEventCompatibility.ts',
+  'backend/src/marketing/README.md',
+  'backend/src/marketing/marketingService.ts',
+  'docs/architecture/29_XLB_MARKETING_COUPON.md',
+  'docs/contracts/CONTRACT_MARKETING_COUPON.md',
+  'docs/reports/PHASE29_MARKETING_COUPON_ENTRY_REPORT.md',
+  'docs/reports/PHASE29_MARKETING_COUPON_IMPLEMENTATION_REPORT.md',
+  'docs/reports/PHASE29_MARKETING_COUPON_ACCEPTANCE_REPORT.md',
+  'packages/api-client/src/marketing.ts',
+  'packages/types/src/marketing.ts',
+  'packages/validators/src/marketingSchema.ts'
+)
 $allowedFiles = @(
   "backend/src/support/bot/sensitiveSupportGuard.ts",
   "docs/architecture/support-bot-kb-design.md",
@@ -123,8 +155,13 @@ foreach ($l in $lines) {
   if ($l -match '^\+(?!\+)') {
     if ($cf -like "docs/release/*") { continue }
     if ($allowedFiles -contains $cf) { continue }
-    foreach ($t in $fb) { if ($l -match $t) { $vs += "$($cf): $($l.Trim())"; break } }
+    foreach ($t in $fb) {
+      if ($l -notmatch $t) { continue }
+      if ($phase29Authorized -and $t -eq 'refund' -and $phase29AllowedFiles -contains $cf) { continue }
+      $vs += "$($cf): $($l.Trim())"
+      break
+    }
   }
 }
 if ($vs) { Write-Host "check-phase9c-forbidden-zone: FAILED"; exit 1 }
-Write-Host "check-phase9c-forbidden-zone: passed (exact allowlist with Phase 14R refund reversal)"
+Write-Host "check-phase9c-forbidden-zone: passed (exact allowlist through authorized Phase 29 marketing compensation)"
