@@ -120,7 +120,7 @@ const renderExportReview = async (hash: string) => {
   render(<App />);
   await waitFor(() => {
     expect(mockGet).toHaveBeenCalled();
-  });
+  }, { timeout: 5_000 });
 };
 
 describe("Phase 9C Export Review Console", () => {

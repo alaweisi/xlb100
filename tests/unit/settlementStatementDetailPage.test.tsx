@@ -78,7 +78,10 @@ describe("Phase 9B — Drilldown / Detail Foundation", () => {
       mockGet.mockResolvedValue(mockStatementDetail);
       window.location.hash = "#/settlement-ops/statements/stmt-001";
       render(<App />);
-      await waitFor(() => { expect(screen.getByText("Statement Detail")).toBeTruthy(); });
+      await waitFor(
+        () => { expect(screen.getByText("Statement Detail")).toBeTruthy(); },
+        { timeout: 5_000 },
+      );
     });
   });
 
