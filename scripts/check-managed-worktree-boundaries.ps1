@@ -1075,10 +1075,10 @@ function Get-UniqueMigrationIndex([string[]]$FileNames) {
 function Assert-ReservationLedgerHistory($CurrentReservations) {
   $ledgerPath = "governance/execution/migration-reservations.json"
   $historyCommits = @(Invoke-Git $Root @("log","--format=%H","--",$ledgerPath) | Where-Object { $_ -match '^[0-9a-f]{40}$' })
-  $sqlIntroductions=@()
+  $sqlIntroductions=@();$sqlIntroductionKeys=@{}
   foreach($commit in @(Invoke-Git $Root @("rev-list","HEAD"))){
-    foreach($entry in @(Invoke-Git $Root @("diff-tree","--root","--no-commit-id","--name-status","--diff-filter=A","-r",$commit,"--","db/migrations"))){
-      if($entry-match'^A\s+(db/migrations/(\d{3})[_-][^/]+\.sql)$'){$sqlIntroductions+=[pscustomobject]@{Commit="$commit".Trim();Path=$Matches[1];Number=$Matches[2]}}
+    foreach($entry in @(Invoke-Git $Root @("diff-tree","--root","-m","--no-renames","--no-commit-id","--name-status","--diff-filter=A","-r",$commit,"--","db/migrations"))){
+      if($entry-match'^A\s+(db/migrations/(\d{3})[_-][^/]+\.sql)$'){$path=$Matches[1];$number=$Matches[2];$key="$commit`:$path".ToLowerInvariant();if(-not$sqlIntroductionKeys.ContainsKey($key)){$sqlIntroductionKeys[$key]=$true;$sqlIntroductions+=[pscustomobject]@{Commit="$commit".Trim();Path=$path;Number=$number}}}
     }
   }
   $currentByNumber = @{}
@@ -1091,9 +1091,11 @@ function Assert-ReservationLedgerHistory($CurrentReservations) {
     $introduction=$presence[-1];$initialStatus=(Require-Text $introduction.Record "status" "Migration reservation $number introduction").ToUpperInvariant()
     $isBootstrap024=$number-eq"024"-and$initialStatus-eq"ABANDONED"-and(Require-Text $introduction.Record "expectedFilename" "Migration reservation 024 introduction")-eq"NONE_PERMANENT_GAP_024"
     if(-not$isBootstrap024-and$initialStatus-ne"RESERVED"){Fail "migration reservation $number introduction status must be RESERVED, not $initialStatus"}
+    $numberSqlIntroductions=@($sqlIntroductions|Where-Object Number -eq $number)
+    if($number-eq"024"-and$numberSqlIntroductions.Count){Fail "permanent migration gap 024 has reachable SQL introduction history: $($numberSqlIntroductions.Path-join', ')"}
     if(-not$isBootstrap024){
       $null=Require-Text $introduction.Record "expectedFilename" "Migration reservation $number introduction"
-      foreach($sql in @($sqlIntroductions|Where-Object Number -eq $number)){
+      foreach($sql in $numberSqlIntroductions){
         if($sql.Commit-eq$introduction.Commit){Fail "migration reservation $number and $($sql.Path) were introduced in the same commit; RESERVATION must be a strict ancestor"}
         &git -C $Root merge-base --is-ancestor $introduction.Commit $sql.Commit *> $null
         if($LASTEXITCODE-ne0){Fail "migration reservation $number introduction is not a strict ancestor of SQL introduction $($sql.Path) at $($sql.Commit)"}
@@ -2292,6 +2294,21 @@ function Invoke-NegativeSelfTests {
     [IO.File]::WriteAllText((Join-Path $reservationMigrationDir "062_sibling.sql"),"-- sibling SQL branch",[Text.Encoding]::UTF8);$null=&git -C $reservationRepo add db/migrations/062_sibling.sql;$null=&git -C $reservationRepo commit -m "fixture sibling SQL branch"
     $null=&git -C $reservationRepo merge --no-ff $siblingReservationCommit -m "fixture merge sibling reservation and SQL";if($LASTEXITCODE-ne0){throw"fixture sibling history merge failed"}
     Assert-Rejected "production reservation commit is sibling rather than ancestor of SQL introduction" { Invoke-WithRepositoryRoot $reservationRepo { Assert-ReservationLedgerHistory @($siblingReserved) } }
+
+    $null=&git -C $reservationRepo checkout --detach $reservationBaseline;if($LASTEXITCODE-ne0){throw"fixture reservation baseline restore for merge-only SQL failed"}
+    [IO.File]::WriteAllText((Join-Path $reservationRepo "merge-left.txt"),"left parent",[Text.Encoding]::UTF8);$null=&git -C $reservationRepo add merge-left.txt;$null=&git -C $reservationRepo commit -m "fixture merge-only SQL left parent";$mergeLeftCommit=(&git -C $reservationRepo rev-parse HEAD).Trim()
+    $null=&git -C $reservationRepo checkout --detach $reservationBaseline;[IO.File]::WriteAllText((Join-Path $reservationRepo "merge-right.txt"),"right parent",[Text.Encoding]::UTF8);$null=&git -C $reservationRepo add merge-right.txt;$null=&git -C $reservationRepo commit -m "fixture merge-only SQL right parent"
+    $null=&git -C $reservationRepo merge --no-ff --no-commit $mergeLeftCommit;if($LASTEXITCODE-ne0){throw"fixture merge-only SQL no-commit merge failed"};$null=New-Item -ItemType Directory -Path $reservationMigrationDir -Force
+    [IO.File]::WriteAllText((Join-Path $reservationMigrationDir "063_merge_resolution.sql"),"-- introduced only by merge resolution",[Text.Encoding]::UTF8);$null=&git -C $reservationRepo add db/migrations/063_merge_resolution.sql;$null=&git -C $reservationRepo commit -m "fixture merge resolution introduces SQL";$mergeOnlySqlCommit=(&git -C $reservationRepo rev-parse HEAD).Trim()
+    $lateMergeReservation=New-ReservationFixture "063" "RESERVED" "063_merge_resolution.sql";$lateMergeLedger=[ordered]@{schemaVersion=2;reservations=@($lateMergeReservation)}
+    [IO.File]::WriteAllText($reservationLedgerPath,($lateMergeLedger|ConvertTo-Json -Depth 10),[Text.Encoding]::UTF8);$null=&git -C $reservationRepo add governance/execution/migration-reservations.json;$null=&git -C $reservationRepo commit -m "fixture reservation after merge-only SQL"
+    Assert-Rejected "production merge-resolution-only SQL introduction before reservation" { Invoke-WithRepositoryRoot $reservationRepo { Assert-ReservationLedgerHistory @($lateMergeReservation) } }
+
+    $null=&git -C $reservationRepo checkout --detach $reservationBaseline;if($LASTEXITCODE-ne0){throw"fixture reservation baseline restore for 024 history failed"}
+    $bootstrap024=[pscustomobject][ordered]@{number="024";expectedFilename="NONE_PERMANENT_GAP_024";trainId="HISTORICAL-GOVERNANCE";workUnitId="NONE";owner="Migration Owner";baseCommit=$reservationBaseline;tables=@();semanticScope="permanent reserved gap; never reuse";status="ABANDONED";createdAt=$reservationTime;closedAt=$reservationTime;reason="fixture bootstrap permanent gap"};$bootstrap024Ledger=[ordered]@{schemaVersion=2;reservations=@($bootstrap024)}
+    [IO.File]::WriteAllText($reservationLedgerPath,($bootstrap024Ledger|ConvertTo-Json -Depth 10),[Text.Encoding]::UTF8);$null=&git -C $reservationRepo add governance/execution/migration-reservations.json;$null=&git -C $reservationRepo commit -m "fixture bootstrap permanent 024 gap";$null=New-Item -ItemType Directory -Path $reservationMigrationDir -Force
+    $probe024=Join-Path $reservationMigrationDir "024_probe.sql";[IO.File]::WriteAllText($probe024,"-- forbidden permanent gap probe",[Text.Encoding]::UTF8);$null=&git -C $reservationRepo add db/migrations/024_probe.sql;$null=&git -C $reservationRepo commit -m "fixture misuse permanent 024 gap";Remove-Item -LiteralPath $probe024 -Force;$null=&git -C $reservationRepo add -u -- db/migrations/024_probe.sql;$null=&git -C $reservationRepo commit -m "fixture hide permanent 024 misuse"
+    Assert-Rejected "production permanent 024 gap has any reachable SQL introduction" { Invoke-WithRepositoryRoot $reservationRepo { Assert-ReservationLedgerHistory @($bootstrap024) } }
 
     $queueHistoryRepo=Join-Path $fixtureRoot "queue-history-repo";$fixtureDirs+=$queueHistoryRepo;$queueHistoryDir=Join-Path $queueHistoryRepo "governance/execution";$queueManifestDir=Join-Path $queueHistoryDir "work-units";$null=New-Item -ItemType Directory -Path $queueManifestDir -Force
     $null=&git -C $queueHistoryRepo init;$null=&git -C $queueHistoryRepo config user.email "fixture@xlb.invalid";$null=&git -C $queueHistoryRepo config user.name "XLB Fixture"
