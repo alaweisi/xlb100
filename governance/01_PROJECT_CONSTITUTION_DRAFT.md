@@ -22,7 +22,7 @@
 - **稳定实践**：在多个近期 Phase 的报告和 Git 历史中重复出现，但尚未集中写成统一政策。
 - **未统一**：存在冲突、缺失或仅在单个 Phase 中出现，不能视为全项目通则。
 
-当前事实基线是：`main` 和 canonical tag `xlb-phase28-review-reputation` 指向 Phase 28 Lock 治理提交 `d7bf3e0`；工作目录位于 `codex/phase29-marketing-coupon`，Phase 29 为未提交、未合并、未标记、未 Lock 的施工态。Phase 29 文件可证明当前执行方式，但不能反向改写 Phase 28 及更早的已 Lock 事实。
+当前事实基线是：`main` 的 Phase 29 Lock 治理提交为 `80921871baf8647b2d3b7c97f8c0fde2a88f9400`，canonical tag `xlb-phase29-marketing-coupon` 解引用后指向该 commit；当前治理植入 branch 为 `codex/governance-execution-system`。Phase 29 已 Lock，Phase 30/31 尚未进入业务施工；本治理 candidate 不能反向改写 Phase 29 及更早的 Lock 事实。
 
 ## A. Phase 生命周期规则
 
@@ -122,8 +122,8 @@ Human Owner 于 2026-07-14 选择继续以本文件与 `04_ADR_DECISION_ENGINE_D
 10. **施工可并行，主线与 Lock 串行。** Candidate 按单一 merge queue 进入 integration branch；Phase 最终仍按依赖顺序逐个合入 main、复验、更新治理元数据并创建独立 canonical tag。
 11. **历史不可随意改写。** 仅 Work Unit Owner 可 rebase 未共享分支；已共享/已审计 commit、integration branch、main 与 tag 不得改写，禁止对 main/共享分支 force-push。
 12. **清理必须可证明安全。** 只有受管目录内、已结案、clean、无 untracked、无未合并 commit、无下游依赖且已登记证据的 worktree 才可在未来获批执行模型下自动回收；现有历史附加 worktree 不自动纳入或清理。
-13. **首次试点边界。** 当前 dirty Phase 29 不拆分；仅在 Phase 29 按现行规则完成 Lock 后，才可另行申请 Phase 30/31 并行试点的执行植入与施工批次授权。
-14. **设计决定不等于执行权限。** 在 `AGENTS.md`、Skills、登记载体、环境隔离和检查机制完成另行批准的植入前，现行单 writer/fail-closed 规则继续有效。
+13. **首次试点边界。** Phase 29 已按现行规则完成 Lock；Phase 30/31 试点 Charter 仍为 `DRAFT / WAITING_HUMAN_APPROVAL`，只有治理执行控制完成 Bootstrap 审计并由 Human 启用后，才可另行裁决该业务施工批次。
+14. **控制已安装不等于执行权限。** `AGENTS.md`、Skills、登记载体、环境隔离和检查机制已形成 candidate，但 execution registry 仍为 `BOOTSTRAP / NOT_ENABLED`；在独立审计和 Human 启用确认前，任何 Work Unit 可执行 eligibility 都必须 fail closed。
 
 ## C. 数据治理原则
 
@@ -168,7 +168,7 @@ Human Owner 于 2026-07-14 选择继续以本文件与 `04_ADR_DECISION_ENGINE_D
 5. Settlement confirmation 只做 prepared→confirmed、记录 actor/time 并写一次 outbox；不改金额快照，不具有 money-transfer 语义。
 6. Mock/local Provider envelope 必须如实标记，不得呈现外部支付、地图、OSS 或通知成功。
 
-当前 Phase 29 施工态进一步记录“Pricing 拥有 base price、Marketing 只返回 versioned discount decision、Order 拥有 final snapshot、Payment 复制已接受净额”；由于尚未 Lock，这只能作为正在接受审核的执行事实，不能当作已冻结基线。
+Phase 29 Lock 已冻结“Pricing 拥有 base price、Marketing 只返回 versioned discount decision、Order 拥有 final snapshot、Payment 复制已接受净额”的职责边界；后续 Phase 不得以并行施工为由改写该 canonical truth，任何 material change 必须走新的 Authority、evidence 与迁移/兼容决策。
 
 ## D. 前后端边界
 

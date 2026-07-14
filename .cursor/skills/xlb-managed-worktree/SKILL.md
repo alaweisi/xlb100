@@ -55,13 +55,19 @@ collision, scope escape, or unreserved migration is fail-closed.
 Business WRITE additionally requires the registered Train status
 `CHARTER_HUMAN_APPROVED`, an explicit approved `humanApprovalStatus`, Train and
 Work Unit business-write flags, and Work Unit status `CONSTRUCTION_AUTHORIZED`
-or `IN_CONSTRUCTION`. Validation eligibility never grants source-code writes.
+or `IN_CONSTRUCTION`. Both Registry fields `executionSystemStatus` and
+`enablementStatus` must first be `ENABLED`; while either is not enabled, no
+business or validation Work Unit may emit eligibility. Validation eligibility
+never grants source-code writes.
 
 ## Hard stops
 
 - Do not write from an unregistered or historical worktree.
 - Do not edit the Manifest or ledgers from the construction worktree to make a
   failing check pass; return the conflict to the General Contractor.
+- Train Charter, Manifest, Lease, Compose override and queue references must
+  resolve inside their canonical `G:\xlb100\governance\execution` locations;
+  runtime arguments may not substitute external copies.
 - Do not widen `allowedPaths`, semantic ownership, migration scope, or Phase
   scope locally.
 - Do not share a MySQL database, Redis namespace, Compose project, port slot,
@@ -77,6 +83,10 @@ or `IN_CONSTRUCTION`. Validation eligibility never grants source-code writes.
   never to parallel Work Unit environments.
 - Do not treat `PACKAGE_VERIFIED`, `PACKAGE_AUDITED`, `QUEUED`, or
   `INTEGRATED` as Phase `LOCKED`.
+- `PACKAGE_VERIFIED` and later states require a clean immutable candidate,
+  digest, fresh contract revision and evidence; audited/queued states also
+  require independent audit evidence. A `QUEUED` Work Unit must have exactly
+  one matching item in the accepting serial Integration Queue.
 - Do not create/remove worktrees, merge main, create tags, push, deploy, or
   perform Lock unless the separately required authority and queue step exists.
 

@@ -1,63 +1,87 @@
 ---
 name: xlb-current-vs-target
 description: >-
-  Distinguishes XLB current implementation from SDJ99/blueprint target architecture.
-  Use when the user shares directory structure tables, mentions sdj99, asks what
-  exists vs planned, or when an agent might copy unimplemented modules (refund,
-  aftersale, oa, dashboard, payout).
+  Distinguishes the implementation in the current XLB worktree from canonical
+  Phase/control facts and SDJ99 or blueprint target architecture. Use when a
+  user references directory tables, legacy names, planned modules, or asks
+  what exists versus what is authorized.
 ---
 
 # XLB Current vs Target
 
 ## Core rule
 
-**The repo on disk is current. Blueprint documents are target.**
+**Current implementation comes from the current Git worktree. Canonical Phase
+and authority come from `G:\xlb100`. Blueprint documents are targets only.**
 
-| Source | Role | Trust for "does it exist?" |
-|--------|------|----------------------------|
-| `G:\xlb100` git tree | **Current** | Yes |
-| `docs/CURRENT_STATE.md` | **Current summary** | Yes |
-| `docs/reports/PHASE*_*.md` | **Locked / in-progress scope** | Yes |
-| `xlb100工程目录结构表.txt` (Downloads) | **SDJ99 target blueprint** | **No** — naming, paths, and modules differ |
-| Old agent conversation | Stale | **No** |
+Run `xlb-session-sync` first. Do not `cd G:\xlb100` and then claim its HEAD,
+status, or files describe a managed Work Unit candidate.
+
+| Source | Role | Trust |
+|--------|------|-------|
+| Current Git top-level and its tracked tree | Branch/candidate implementation | Yes, for what this worktree contains |
+| Current worktree `git status`, HEAD, diff | Work Unit construction/candidate state | Yes |
+| Canonical `G:\xlb100\docs\CURRENT_STATE.md` | Phase/tag/Lock fact | Yes |
+| Canonical governance execution records | Train/Work Unit authority, leases, queue | Yes |
+| Current-worktree Phase report/contracts | Candidate design/evidence input | Yes, subject to canonical scope and freshness checks |
+| SDJ99 or external directory blueprint | Target inspiration | No, for existence or authority |
+| Old Agent conversation | Stale memory | No |
+
+The current and canonical roots must share the same Git common directory. A
+historical worktree, separate clone, unregistered path, or mismatching common
+directory supplies no construction authority.
 
 ## Naming
 
 | Wrong (blueprint / deprecated) | Correct (XLB) |
 |-------------------------------|---------------|
-| sdj99, @sdj99 | XLB, @xlb/* |
-| `00_SDJ99_*` docs (if seen externally) | `00_XLB_*` in this repo |
+| `sdj99`, `@sdj99` | XLB, `@xlb/*` |
+| external `00_SDJ99_*` docs | repository `00_XLB_*` documents |
 
 ## Common blueprint traps
 
-These appear in target structure but are **not** freely available on every branch:
+These may appear in a target structure but are not freely available on every
+branch or Phase:
 
-- `backend/src/aftersale/` — may be README-only placeholder
-- `ledger/settlementService` in old blueprint — XLB splits ledger (8A) vs settlement (8B+)
-- `apps/oa`, `apps/dashboard` — not in Phase 0–8C scope
-- Full refund/reversal/invoice providers — future phases
-- Old migration numbers (005_ledger.sql in blueprint ≠ 012_ledger_accrual_foundation)
+- `backend/src/aftersale/` may be a placeholder or differ by worktree revision.
+- Old blueprints may combine ledger and settlement responsibilities that XLB
+  keeps separate.
+- `apps/oa` and `apps/dashboard` may be placeholders without approved runtime.
+- Refund, reversal, invoice, payout, or provider activation requires its own
+  current Phase and authority.
+- Historical migration numbering never overrides the canonical reservation
+  ledger or locked migration tree.
 
 ## How to verify existence
 
 ```powershell
-# Module exists with real code?
-Test-Path backend/src/settlement/settlementPreparationService.ts
-
-# Migration applied?
-docker exec -i xlb-mysql-local mysql -uxlb -pxlb_local_password xlb_local -N -e "SELECT version FROM schema_migrations ORDER BY version;"
+$CurrentRoot = (git rev-parse --show-toplevel).Trim()
+Test-Path -LiteralPath "$CurrentRoot\backend\src\settlement\settlementPreparationService.ts"
+git -C $CurrentRoot ls-files -- 'backend/src/<module>/**'
+git -C $CurrentRoot log -1 --format='%H %s' -- 'backend/src/<module>/**'
 ```
 
-Or: `git ls-files backend/src/<module>/`
+For database state:
 
-## Before implementing "from the diagram"
+- A managed Work Unit may inspect only the isolated database/ports leased in
+  its canonical Manifest and must follow `xlb-managed-worktree`.
+- Hard-coded `xlb_local`, shared ports, `migrate-local.ps1`, and historical
+  migration replay belong to the serial canonical Integration lane, not a
+  parallel Work Unit.
+- File existence or a passing focused test does not create Phase authority.
 
-1. Read `docs/CURRENT_STATE.md` — is phase locked?
-2. Read latest `docs/reports/PHASE{N}_*.md` — scope boundary
-3. Grep repo for existing module — extend, don't duplicate
-4. If only in blueprint — **stop**; user must open a new Phase
+## Before implementing from a diagram
+
+1. Read canonical `docs/CURRENT_STATE.md` for Phase and Lock facts.
+2. If in a Work Unit, read the canonical Charter, Manifest, leases, reservation,
+   and evidence plan.
+3. Inspect the current worktree for the existing module and candidate base.
+4. Read the relevant current-worktree Phase report and contracts.
+5. If the capability exists only in a blueprint, or authority is missing,
+   stop and request Human Owner adjudication through the required choices.
 
 ## Related
 
-- `xlb-phase-boundary` — per-phase allow/forbid
-- `xlb-session-sync` — git + CURRENT_STATE first
+- `xlb-session-sync` - resolve canonical and current roots first
+- `xlb-managed-worktree` - validate a registered Work Unit
+- `xlb-phase-boundary` - Phase and Manifest allow/forbid checks

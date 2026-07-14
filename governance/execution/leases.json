@@ -26,7 +26,6 @@
         "composeProject": "xlb-rt-gov-validation-001-a",
         "mysqlDatabase": "xlb_rt_gov_validation_001_a",
         "redisNamespace": "rt-gov-validation-001-a",
-        "redisNamespace": "rt-gov-validation-001-a",
         "mysqlVolume": "xlb-rt-gov-validation-001-a_mysql-data",
         "redisVolume": "xlb-rt-gov-validation-001-a_redis-data",
         "network": "xlb-rt-gov-validation-001-a_worktree"
@@ -97,7 +96,6 @@
       "resources": {
         "composeProject": "xlb-rt-gov-validation-001-b",
         "mysqlDatabase": "xlb_rt_gov_validation_001_b",
-        "redisNamespace": "rt-gov-validation-001-b",
         "redisNamespace": "rt-gov-validation-001-b",
         "mysqlVolume": "xlb-rt-gov-validation-001-b_mysql-data",
         "redisVolume": "xlb-rt-gov-validation-001-b_redis-data",
@@ -170,7 +168,6 @@
         "composeProject": "xlb-rt-gov-validation-001-c",
         "mysqlDatabase": "xlb_rt_gov_validation_001_c",
         "redisNamespace": "rt-gov-validation-001-c",
-        "redisNamespace": "rt-gov-validation-001-c",
         "mysqlVolume": "xlb-rt-gov-validation-001-c_mysql-data",
         "redisVolume": "xlb-rt-gov-validation-001-c_redis-data",
         "network": "xlb-rt-gov-validation-001-c_worktree"
@@ -221,6 +218,12 @@
       "leaseId": "LEASE-SERIAL-SHARED-CONTRACT",
       "type": "CANONICAL_WRITER",
       "key": "shared-contract-types-validators-api-events",
+      "protectedPaths": [
+        "packages/types",
+        "packages/validators",
+        "packages/api-client",
+        "docs/contracts"
+      ],
       "trainId": "SYSTEM-SERIAL-LANES",
       "workUnitId": "CONTRACT-OWNER",
       "status": "ACTIVE"
@@ -229,6 +232,10 @@
       "leaseId": "LEASE-SERIAL-CANONICAL-RUNTIME",
       "type": "CANONICAL_WRITER",
       "key": "canonical-shared-runtime",
+      "protectedPaths": [
+        "backend/src/app.ts",
+        "backend/src/server.ts"
+      ],
       "trainId": "SYSTEM-SERIAL-LANES",
       "workUnitId": "DOMAIN-AND-INTEGRATION-OWNER",
       "status": "ACTIVE"
@@ -237,6 +244,11 @@
       "leaseId": "LEASE-SERIAL-MIGRATION-LEDGER",
       "type": "CANONICAL_WRITER",
       "key": "migration-reservation-and-schema-ledger",
+      "protectedPaths": [
+        "db/migrations",
+        "db/dictionary",
+        "governance/execution/migration-reservations.json"
+      ],
       "trainId": "SYSTEM-SERIAL-LANES",
       "workUnitId": "MIGRATION-OWNER",
       "status": "ACTIVE"
@@ -245,6 +257,12 @@
       "leaseId": "LEASE-SERIAL-INTEGRATION-QUEUE",
       "type": "CANONICAL_WRITER",
       "key": "integration-queue-and-integration-branch",
+      "protectedPaths": [
+        "governance/execution/integration-queue.json",
+        "package.json",
+        "pnpm-lock.yaml",
+        "scripts"
+      ],
       "trainId": "SYSTEM-SERIAL-LANES",
       "workUnitId": "INTEGRATION-OWNER",
       "status": "ACTIVE"
@@ -253,6 +271,12 @@
       "leaseId": "LEASE-SERIAL-GOVERNANCE-METADATA",
       "type": "CANONICAL_WRITER",
       "key": "current-state-phase-registry-lock-report-tag",
+      "protectedPaths": [
+        "AGENTS.md",
+        "governance",
+        "docs/CURRENT_STATE.md",
+        "docs/governance/phase-registry.json"
+      ],
       "trainId": "SYSTEM-SERIAL-LANES",
       "workUnitId": "LOCK-FLOW",
       "status": "ACTIVE"

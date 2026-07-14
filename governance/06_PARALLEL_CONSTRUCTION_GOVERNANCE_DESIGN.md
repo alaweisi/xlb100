@@ -148,14 +148,14 @@ PLANNED
 
 ### 5.1 目录与用途
 
-未来获批植入后的目标目录是：
+获批的受管目录政策是：
 
 ```text
 G:\xlb100                                      control / integration / main / Lock
 G:\xlb100-worktrees\<train-id>\<work-unit-id>  managed construction worktree
 ```
 
-`G:\xlb100` 保持唯一 canonical integration root。受管 pool 不是任意第二仓库；每个目录必须由 Git worktree 元数据连接同一 repository，并绑定唯一 branch/manifest。当前 `AGENTS.md` 未批准该 pool，因此本段暂不产生目录创建权限。（Gap: G-04）
+`G:\xlb100` 保持唯一 canonical integration root。`AGENTS.md` 已批准上述严格路径作为唯一受管 pool 政策，但 execution registry 仍为 `BOOTSTRAP / NOT_ENABLED`；在独立审计和 Human 启用前不得据此创建可执行 Work Unit。每个未来工棚必须由 Git worktree 元数据连接同一 repository，并绑定唯一 branch/manifest。（Gap: G-04）
 
 现有 `G:/xlb100-p0-architecture-foundation` 是历史附加 worktree；根据 05 报告，它没有新模型要求的 manifest/lease/lifecycle。P-13 明确规定它不自动纳入、不自动清理，也不能作为未来 WRITE parallel 授权先例。（Gap: G-04）
 
@@ -341,9 +341,9 @@ P-18 决定未来统一顺序为：
 
 ### 14.1 启动前提
 
-- 当前 Phase 29 继续按现行规则完成，不拆分 dirty worktree；
-- Phase 29 必须形成 clean、immutable、按现行 authority Lock 的 predecessor；
-- 并行执行模型已另行植入 `AGENTS.md`/Skills/manifest/ledger/environment checks 并验证；
+- Phase 29 已形成 clean、immutable、按现行 authority Lock 的 predecessor `80921871baf8647b2d3b7c97f8c0fde2a88f9400`；
+- canonical tag `xlb-phase29-marketing-coupon` 解引用后必须继续等于上述 commit；
+- 并行执行模型已形成 `AGENTS.md`/Skills/manifest/ledger/environment checks candidate，但仍为 `BOOTSTRAP / NOT_ENABLED`；
 - Human 收到通俗 Train Charter 并单独批准实际施工。
 
 ### 14.2 候选工作包

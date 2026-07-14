@@ -1,6 +1,6 @@
 name: ${COMPOSE_PROJECT_NAME:?COMPOSE_PROJECT_NAME is required}
 
-# Disposable development data plane for one managed Work Unit.
+# Disposable validation data plane for one managed Work Unit.
 # Every invocation must use a unique project name and host-port pair from the
 # Work Unit Manifest. Staging and production compose files are not overlays.
 services:

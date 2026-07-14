@@ -1,34 +1,54 @@
 ---
 name: xlb-context-map
 description: >-
-  Navigation index for XLB/喜乐帮 monorepo — which files to read for each domain
-  without searching the whole repo. Use when locating order, payment, dispatch,
-  worker accept, fulfillment, ledger, settlement code, contracts, tests, or
-  migrations; or when context window is limited.
+  Navigation index for the XLB monorepo. Selects a small set of control-plane
+  and current-worktree files without confusing the canonical root with a
+  managed Work Unit. Use when locating domain code, contracts, tests,
+  migrations, phase evidence, or governance records.
 ---
 
 # XLB Context Map
 
-**Goal:** Read 3–5 files, not the whole monorepo.
+**Goal:** Read 3-5 relevant files, from the correct root, rather than searching
+the whole monorepo.
 
-## Global entry points (always safe)
+## Resolve roots first
 
-| Need | Read |
-|------|------|
-| Current phase / tags | `docs/CURRENT_STATE.md` |
-| Agent rules | `AGENTS.md`, `.cursor/rules/xlb-architecture-mandatory.mdc` |
-| Architecture law | `docs/architecture/00_XLB_ENGINEERING_ARCHITECTURE_MANDATORY.md` |
-| DB tables | `db/dictionary/TABLES.md`, `CITY_CODE_COLUMNS.md` |
-| Preflight gates | `scripts/preflight-architecture.ps1` |
+Run `xlb-session-sync` first and retain:
+
+- `$CanonicalRoot = 'G:\xlb100'`
+- `$CurrentRoot = git rev-parse --show-toplevel`
+- the verified current/canonical Git common-directory identity
+
+Use the canonical root for control-plane facts. Use the current worktree for
+the source tree, tests, branch-local reports, and candidate diff. Never force a
+managed Work Unit to `cd` to the canonical root to inspect its implementation.
+
+## Global entry points
+
+| Need | Root | Read |
+|------|------|------|
+| Current Phase / Lock / tag facts | canonical | `docs/CURRENT_STATE.md` |
+| Highest governance and Agent rules | canonical | `AGENTS.md`, `governance/01_PROJECT_CONSTITUTION_DRAFT.md`, `governance/04_ADR_DECISION_ENGINE_DESIGN.md`, `governance/06_PARALLEL_CONSTRUCTION_GOVERNANCE_DESIGN.md` |
+| Train / Work Unit authority | canonical | `governance/execution/` registry, Charter, Manifest, leases, reservations, queue |
+| Architecture law | current worktree | `docs/architecture/00_XLB_ENGINEERING_ARCHITECTURE_MANDATORY.md` |
+| Branch-local source/contracts/tests | current worktree | touched module, `docs/contracts/`, `tests/` |
+| DB dictionaries and migrations in candidate | current worktree | `db/dictionary/`, `db/migrations/` |
+| Gate implementation for the candidate | current worktree | `scripts/check-*.ps1`, `scripts/preflight-architecture.ps1` |
+
+If a branch-local governance or `CURRENT_STATE` copy differs from canonical
+control facts, stop and report the conflict. A Work Unit may not mutate those
+protected serial paths.
 
 ## Do NOT read for context
 
 - `backend/dist/`, `apps/*/dist/`
 - `node_modules/`, `.turbo/`
 - `packages/types/src/*.js` (misbuild artifacts)
-- Old SDJ99 blueprint txt from Downloads
+- Old SDJ99 blueprint files outside the repository
+- The same source path in `G:\xlb100` as a substitute for the current Work Unit
 
-## Domain quick map
+## Domain quick map (relative to `$CurrentRoot`)
 
 | Domain | Service | Routes | Contract | Integration test |
 |--------|---------|--------|----------|------------------|
@@ -45,50 +65,46 @@ description: >-
 
 ## Contract-first edit order
 
-When changing a domain:
+When the authorized scope changes a domain, inspect in this order from
+`$CurrentRoot`:
 
 1. `packages/types/src/<domain>.ts`
 2. `packages/validators/src/<domain>Schema.ts`
 3. `backend/src/<module>/`
 4. `packages/api-client/src/<app>.ts`
-5. `db/migrations/` (new file only — never edit locked migrations)
-6. `tests/` unit → integration → contract → security
+5. `db/migrations/` (new file only; reservation required; never edit locked migrations)
+6. `tests/` unit -> integration -> contract -> security
 
-**Never** copy types into `apps/*/src`.
+This is an inspection/edit ordering, not authority. The Manifest path and
+semantic leases must cover every actual write. Never copy types into
+`apps/*/src`.
 
 ## Event / outbox map
 
-| event_type | Producer | Consumer (phase) |
-|------------|----------|------------------|
-| order.paid | payment | dispatch (5A) |
-| dispatch.accepted | worker accept | — |
-| fulfillment.completed | fulfillment complete | **ledger (8A)** |
-| settlement.prepared | settlement prep (8B) | — |
-| settlement.confirmed | settlement confirm (8C) | — |
+| event_type | Producer | Consumer |
+|------------|----------|----------|
+| `order.paid` | payment | dispatch |
+| `dispatch.accepted` | worker accept | downstream fulfillment |
+| `fulfillment.completed` | fulfillment complete | ledger |
+| `settlement.prepared` | settlement preparation | later settlement flow |
+| `settlement.confirmed` | settlement confirmation | downstream audit/projection |
 
-Consumer code: `backend/src/ledger/ledgerOutboxConsumer.ts`, settlement services.
-
-## Phase docs map
-
-| Phase | Report | Architecture |
-|-------|--------|--------------|
-| 7A accept | `PHASE7A_WORKER_ACCEPT_*` | `10_XLB_WORKER_ACCEPT_*` |
-| 7B lifecycle | `PHASE7B_FULFILLMENT_*` | `11_XLB_FULFILLMENT_*` |
-| 8A ledger | `PHASE8A_LEDGER_*` | `12_XLB_LEDGER_*` |
-| 8B settlement prep | `PHASE8B_SETTLEMENT_*` | `13_XLB_SETTLEMENT_*` |
-| 8C settlement confirm | `PHASE8C_SETTLEMENT_*` | `14_XLB_SETTLEMENT_*` |
-
-Full module tree: [reference.md](reference.md)
+Confirm the current implementation and allowed Phase in the current worktree;
+the table is navigation, not permission.
 
 ## Search strategy
 
-1. Check this map → read listed files
-2. `rg` in **one** module dir, not whole repo
-3. Read module `README.md`
-4. Only then broaden search
+1. Classify each needed fact as canonical control or current-worktree source.
+2. Check this map and read the listed 3-5 files.
+3. Use `rg` in one current-worktree module directory.
+4. Read the module `README.md`.
+5. Broaden search only when evidence is still missing.
+
+Full module tree: [reference.md](reference.md)
 
 ## Related skills
 
-- `xlb-session-sync` — run first
-- `xlb-phase-boundary` — what's allowed now
-- `xlb-current-vs-target` — blueprint vs repo
+- `xlb-session-sync` - root and state resolution; run first
+- `xlb-managed-worktree` - canonical Manifest and boundary enforcement
+- `xlb-phase-boundary` - allowed and forbidden scope
+- `xlb-current-vs-target` - blueprint versus current implementation

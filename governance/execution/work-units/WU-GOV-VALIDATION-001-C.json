@@ -33,6 +33,7 @@
   "environment": {
     "slot": 3,
     "envFileName": ".env.worktree.local",
+    "composeOverrideRef": "governance/execution/templates/docker-compose.worktree.yml",
     "composeProject": "xlb-rt-gov-validation-001-c",
     "mysqlDatabase": "xlb_rt_gov_validation_001_c",
     "mysqlPort": 13308,

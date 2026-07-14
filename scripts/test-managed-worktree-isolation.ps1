@@ -1,17 +1,12 @@
-param(
-  [switch]$RuntimeCanary,
-  [string]$TrainId = "RT-GOV-VALIDATION-001",
-  [string]$ComposeFile,
-  [string]$TrainRegistryFile,
-  [string]$LeaseFile
-)
+param([switch]$RuntimeCanary)
 
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 $Root = Split-Path -Parent $PSScriptRoot
-if (-not $ComposeFile) { $ComposeFile = Join-Path $Root "deploy\compose\docker-compose.worktree.yml" }
-if (-not $TrainRegistryFile) { $TrainRegistryFile = Join-Path $Root "governance\execution\train-registry.json" }
-if (-not $LeaseFile) { $LeaseFile = Join-Path $Root "governance\execution\leases.json" }
+$TrainId = "RT-GOV-VALIDATION-001"
+$ComposeFile = Join-Path $Root "governance\execution\templates\docker-compose.worktree.yml"
+$TrainRegistryFile = Join-Path $Root "governance\execution\train-registry.json"
+$LeaseFile = Join-Path $Root "governance\execution\leases.json"
 $ComposeFile = (Resolve-Path -LiteralPath $ComposeFile).Path
 $TrainRegistryFile = (Resolve-Path -LiteralPath $TrainRegistryFile).Path
 $LeaseFile = (Resolve-Path -LiteralPath $LeaseFile).Path
@@ -64,23 +59,28 @@ function Invoke-Compose($Slot, [string[]]$Arguments) {
   Use-SlotEnvironment $Slot { $output=& docker compose -f $ComposeFile @Arguments 2>&1; if($LASTEXITCODE-ne 0){throw "compose failed for $($Slot.Project): $($output|Out-String)"}; return ($output|Out-String).Trim() }
 }
 function Test-DockerObject([string]$Kind,[string]$Name) { $null=& docker $Kind inspect $Name 2>$null; if($LASTEXITCODE-eq 0){return $true}; if($LASTEXITCODE-eq 1){return $false}; throw "docker $Kind inspect failed: $Name" }
-function Assert-RunAssets($Slot, [bool]$RequireComplete) {
-  $count=0
-  foreach($service in @("mysql","redis")){
-    $id=Invoke-Compose $Slot @("ps","-q",$service)
-    if(-not[string]::IsNullOrWhiteSpace($id)){
-      $obj=(docker inspect $id|ConvertFrom-Json)[0]; Assert-Labels $obj.Config.Labels $Slot "$service-container"
-      Assert-True ($obj.Config.Labels.'com.docker.compose.project'-eq$Slot.Project) "$service project label mismatch"; $count++
-    }
+function Test-SameSet($Left,$Right) {
+  $a=@($Left|Sort-Object -Unique);$b=@($Right|Sort-Object -Unique)
+  return ($a.Count-eq$b.Count-and@(Compare-Object $a $b).Count-eq0)
+}
+function Get-ValidatedRunAssets($Slot, [bool]$RequireComplete) {
+  $containerIds=@(& docker ps -aq --filter "label=com.docker.compose.project=$($Slot.Project)")
+  foreach($name in @("$($Slot.Project)-mysql-1","$($Slot.Project)-redis-1","$($Slot.Project)_mysql_1","$($Slot.Project)_redis_1")){
+    if(Test-DockerObject "container" $name){$id=(& docker container inspect --format '{{.Id}}' $name|Out-String).Trim();$containerIds+=,$id}
   }
-  foreach($item in @(@("volume",$Slot.MysqlVolume,"mysql-volume"),@("volume",$Slot.RedisVolume,"redis-volume"),@("network",$Slot.Network,"network"))){
-    if(Test-DockerObject $item[0] $item[1]){
-      $obj=(& docker $item[0] inspect $item[1]|ConvertFrom-Json)[0]; Assert-Labels $obj.Labels $Slot $item[2]
-      Assert-True ($obj.Labels.'com.docker.compose.project'-eq$Slot.Project) "$($item[2]) project label mismatch"; $count++
-    }
-  }
-  if($RequireComplete){Assert-True($count-eq5)"runtime asset set is incomplete for $($Slot.Project)"}
-  return ($count-gt0)
+  $containerIds=@($containerIds|Where-Object{-not[string]::IsNullOrWhiteSpace($_)}|Sort-Object -Unique)
+  $volumeNames=@(& docker volume ls -q --filter "label=com.docker.compose.project=$($Slot.Project)")
+  foreach($name in @($Slot.MysqlVolume,$Slot.RedisVolume)){if(Test-DockerObject "volume" $name){$volumeNames+=,$name}}
+  $volumeNames=@($volumeNames|Where-Object{-not[string]::IsNullOrWhiteSpace($_)}|Sort-Object -Unique)
+  $networkNames=@(& docker network ls -q --filter "label=com.docker.compose.project=$($Slot.Project)")
+  if(Test-DockerObject "network" $Slot.Network){$networkNames+=,$Slot.Network}
+  $networkNames=@($networkNames|Where-Object{-not[string]::IsNullOrWhiteSpace($_)}|Sort-Object -Unique)
+  foreach($id in $containerIds){$obj=(docker inspect $id|ConvertFrom-Json)[0];Assert-Labels $obj.Config.Labels $Slot "container:$id";Assert-True($obj.Config.Labels.'com.docker.compose.project'-eq$Slot.Project)"container project label mismatch"}
+  foreach($name in $volumeNames){$obj=(& docker volume inspect $name|ConvertFrom-Json)[0];Assert-Labels $obj.Labels $Slot "volume:$name";Assert-True($obj.Labels.'com.docker.compose.project'-eq$Slot.Project)"volume project label mismatch"}
+  foreach($name in $networkNames){$obj=(& docker network inspect $name|ConvertFrom-Json)[0];Assert-Labels $obj.Labels $Slot "network:$name";Assert-True($obj.Labels.'com.docker.compose.project'-eq$Slot.Project)"network project label mismatch"}
+  $assets=[pscustomobject]@{Containers=$containerIds;Volumes=$volumeNames;Networks=$networkNames;Count=$containerIds.Count+$volumeNames.Count+$networkNames.Count}
+  if($RequireComplete){Assert-True($containerIds.Count-eq2-and$volumeNames.Count-eq2-and$networkNames.Count-eq1)"runtime asset set is incomplete for $($Slot.Project)"}
+  return $assets
 }
 
 function Invoke-Main {
@@ -102,6 +102,7 @@ function Invoke-Main {
     Assert-True ($manifest.trainId-eq $train.trainId) "manifest train mismatch: $ref"
     Assert-True ($manifest.baseCommit-eq $train.baseCommit) "manifest baseCommit mismatch: $ref"
     Assert-True ($manifest.environment.envFileName-eq ".env.worktree.local") "manifest must use .env.worktree.local"
+    Assert-True ($manifest.environment.composeOverrideRef-eq "governance/execution/templates/docker-compose.worktree.yml") "manifest must use the canonical worktree Compose template"
     $wt=Get-Lease $ledger $manifest.leaseRefs.worktreePath; Assert-Lease $wt $manifest "WORKTREE_PATH"; Assert-True ($wt.key-eq $manifest.worktreePath) "worktree path lease mismatch"
     $source=Get-Lease $ledger $manifest.leaseRefs.sourcePath; Assert-Lease $source $manifest "SOURCE_PATH"; Assert-True (@($source.paths).Count-eq @($manifest.allowedPaths).Count) "source path lease mismatch"
     $envLease=Get-Lease $ledger $manifest.leaseRefs.environment; Assert-Lease $envLease $manifest "ENVIRONMENT"
@@ -132,6 +133,12 @@ function Invoke-Main {
   }
   Write-Host "PASS managed worktree manifest/train/lease/static isolation"; $results|Format-Table -AutoSize
   if(-not$RuntimeCanary){Write-Host "Runtime canary skipped.";return}
+  Assert-True ($registry.executionSystemStatus-eq"ENABLED") "RuntimeCanary blocked: executionSystemStatus must be ENABLED"
+  Assert-True ($registry.enablementStatus-eq"ENABLED") "RuntimeCanary blocked: enablementStatus must be ENABLED"
+  Assert-True ($train.status-eq"VALIDATION_AUTHORIZED") "RuntimeCanary blocked: Train status must be VALIDATION_AUTHORIZED"
+  Assert-True ($train.humanApprovalStatus-eq"EXPLICIT_HUMAN_APPROVAL_RECORDED") "RuntimeCanary blocked: explicit Human approval is absent"
+  Assert-True (($train.PSObject.Properties.Name-contains"runtimeCanaryAuthorized")-and$train.runtimeCanaryAuthorized-eq$true) "RuntimeCanary blocked: runtimeCanaryAuthorized must be true"
+  Assert-True ($train.businessWriteAuthorized-eq$false) "RuntimeCanary blocked: businessWriteAuthorized must remain false"
 
   $listeners=[Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties().GetActiveTcpListeners().Port
   foreach($slot in $slots){
@@ -145,16 +152,33 @@ function Invoke-Main {
     foreach($slot in $slots){
       try{Invoke-Compose $slot @("up","-d","--wait","mysql","redis")|Out-Null}
       catch{
-        if(Assert-RunAssets $slot $false){$cleanup+=$slot}
-        throw
+        $upFailure=$_
+        try{$partial=Get-ValidatedRunAssets $slot $false;if($partial.Count-gt0){$cleanup+=[pscustomobject]@{Slot=$slot;Inventory=$partial}}}
+        catch{throw "MANUAL_DISPOSITION_REQUIRED: partial-up asset could not be proven to this nonce: $($_.Exception.Message)"}
+        throw $upFailure
       }
-      Assert-True (Assert-RunAssets $slot $true) "runtime assets not created"
-      $cleanup+=$slot
+      try{$inventory=Get-ValidatedRunAssets $slot $true}
+      catch{throw "MANUAL_DISPOSITION_REQUIRED: complete asset set could not be proven to this nonce: $($_.Exception.Message)"}
+      $cleanup+=[pscustomobject]@{Slot=$slot;Inventory=$inventory}
     }
     foreach($slot in $slots){$marker="slot-$($slot.Slot)";$sql="CREATE TABLE IF NOT EXISTS worktree_isolation_probe(probe_key VARCHAR(64) PRIMARY KEY,probe_value VARCHAR(64));INSERT INTO worktree_isolation_probe VALUES('shared-key','$marker') ON DUPLICATE KEY UPDATE probe_value=VALUES(probe_value);";Invoke-Compose $slot @("exec","-T","-e","MYSQL_PWD=$($slot.MysqlPassword)","mysql","mysql","-uxlb",$slot.Database,"-e",$sql)|Out-Null;Invoke-Compose $slot @("exec","-T","redis","redis-cli","SET","xlb:isolation:probe",$marker)|Out-Null}
     foreach($slot in $slots){$expected="slot-$($slot.Slot)";$m=Invoke-Compose $slot @("exec","-T","-e","MYSQL_PWD=$($slot.MysqlPassword)","mysql","mysql","-uxlb",$slot.Database,"-N","-B","-e","SELECT probe_value FROM worktree_isolation_probe WHERE probe_key='shared-key';");$r=Invoke-Compose $slot @("exec","-T","redis","redis-cli","--raw","GET","xlb:isolation:probe");Assert-True($m.Trim()-eq$expected-and$r.Trim()-eq$expected)"cross-contamination detected"}
     Write-Host "PASS managed worktree runtime canary"
-  }catch{$primary=$_}finally{for($i=$cleanup.Count-1;$i-ge0;$i--){$slot=$cleanup[$i];try{if(Assert-RunAssets $slot $false){Invoke-Compose $slot @("down","--volumes","--remove-orphans")|Out-Null};if((Test-DockerObject "volume" $slot.MysqlVolume)-or(Test-DockerObject "volume" $slot.RedisVolume)-or(Test-DockerObject "network" $slot.Network)){throw"resource survived cleanup"}}catch{$cleanupFailures+="$($slot.Project): $($_.Exception.Message)"}}}
+  }catch{$primary=$_}finally{for($i=$cleanup.Count-1;$i-ge0;$i--){$entry=$cleanup[$i];$slot=$entry.Slot;try{
+    $assets=Get-ValidatedRunAssets $slot $false
+    Assert-True (Test-SameSet $assets.Containers $entry.Inventory.Containers) "container inventory changed after verification"
+    Assert-True (Test-SameSet $assets.Volumes $entry.Inventory.Volumes) "volume inventory changed after verification"
+    Assert-True (Test-SameSet $assets.Networks $entry.Inventory.Networks) "network inventory changed after verification"
+    foreach($id in $assets.Containers){& docker container rm -f $id|Out-Null;if($LASTEXITCODE-ne0){throw"container cleanup failed: $id"}}
+    foreach($name in $assets.Volumes){& docker volume rm $name|Out-Null;if($LASTEXITCODE-ne0){throw"volume cleanup failed: $name"}}
+    foreach($name in $assets.Networks){& docker network rm $name|Out-Null;if($LASTEXITCODE-ne0){throw"network cleanup failed: $name"}}
+    $postContainers=@(& docker ps -aq --filter "label=com.docker.compose.project=$($slot.Project)");foreach($name in @("$($slot.Project)-mysql-1","$($slot.Project)-redis-1","$($slot.Project)_mysql_1","$($slot.Project)_redis_1")){if(Test-DockerObject "container" $name){$postContainers+=,$name}}
+    $postVolumes=@(& docker volume ls -q --filter "label=com.docker.compose.project=$($slot.Project)");foreach($name in @($slot.MysqlVolume,$slot.RedisVolume)){if(Test-DockerObject "volume" $name){$postVolumes+=,$name}}
+    $postNetworks=@(& docker network ls -q --filter "label=com.docker.compose.project=$($slot.Project)");if(Test-DockerObject "network" $slot.Network){$postNetworks+=,$slot.Network}
+    Assert-True (@($postContainers|Where-Object{-not[string]::IsNullOrWhiteSpace($_)}).Count-eq0) "postcondition failed: containers remain"
+    Assert-True (@($postVolumes|Where-Object{-not[string]::IsNullOrWhiteSpace($_)}).Count-eq0) "postcondition failed: volumes remain"
+    Assert-True (@($postNetworks|Where-Object{-not[string]::IsNullOrWhiteSpace($_)}).Count-eq0) "postcondition failed: networks remain"
+  }catch{$cleanupFailures+="$($slot.Project): MANUAL_DISPOSITION_REQUIRED: no down/remove-orphans executed for unproven inventory; $($_.Exception.Message)"}}}
   if($cleanupFailures.Count-gt0){throw "runtime cleanup failed: $($cleanupFailures-join'; ')"};if($null-ne$primary){throw $primary}
 }
 

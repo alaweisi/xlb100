@@ -7,7 +7,7 @@
       "trainId": "HISTORICAL-GOVERNANCE",
       "workUnitId": "NONE",
       "owner": "Migration Owner",
-      "baseCommit": "HISTORICAL_PERMANENT_GAP",
+      "baseCommit": "80921871baf8647b2d3b7c97f8c0fde2a88f9400",
       "tables": [],
       "semanticScope": "permanent reserved gap; never reuse",
       "status": "ABANDONED"
