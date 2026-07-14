@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "reservations": [
+    {
+      "number": "024",
+      "expectedFilename": "NONE_PERMANENT_GAP_024",
+      "trainId": "HISTORICAL-GOVERNANCE",
+      "workUnitId": "NONE",
+      "owner": "Migration Owner",
+      "baseCommit": "HISTORICAL_PERMANENT_GAP",
+      "tables": [],
+      "semanticScope": "permanent reserved gap; never reuse",
+      "status": "ABANDONED"
+    }
+  ]
+}

@@ -1,0 +1,261 @@
+{
+  "schemaVersion": 2,
+  "leases": [
+    {
+      "leaseId": "LEASE-GOV-VALIDATION-001-A-WORKTREE-PATH",
+      "type": "WORKTREE_PATH",
+      "key": "G:\\xlb100-worktrees\\RT-GOV-VALIDATION-001\\WU-GOV-VALIDATION-001-A",
+      "trainId": "RT-GOV-VALIDATION-001",
+      "workUnitId": "WU-GOV-VALIDATION-001-A",
+      "status": "ACTIVE"
+    },
+    {
+      "leaseId": "LEASE-GOV-VALIDATION-001-A-SOURCE-PATH",
+      "type": "SOURCE_PATH",
+      "key": "NO_SOURCE_WRITE::WU-GOV-VALIDATION-001-A",
+      "paths": [],
+      "trainId": "RT-GOV-VALIDATION-001",
+      "workUnitId": "WU-GOV-VALIDATION-001-A",
+      "status": "ACTIVE"
+    },
+    {
+      "leaseId": "LEASE-GOV-VALIDATION-001-A-ENVIRONMENT",
+      "type": "ENVIRONMENT",
+      "key": "xlb-rt-gov-validation-001-a",
+      "resources": {
+        "composeProject": "xlb-rt-gov-validation-001-a",
+        "mysqlDatabase": "xlb_rt_gov_validation_001_a",
+        "redisNamespace": "rt-gov-validation-001-a",
+        "redisNamespace": "rt-gov-validation-001-a",
+        "mysqlVolume": "xlb-rt-gov-validation-001-a_mysql-data",
+        "redisVolume": "xlb-rt-gov-validation-001-a_redis-data",
+        "network": "xlb-rt-gov-validation-001-a_worktree"
+      },
+      "trainId": "RT-GOV-VALIDATION-001",
+      "workUnitId": "WU-GOV-VALIDATION-001-A",
+      "status": "ACTIVE"
+    },
+    {
+      "leaseId": "LEASE-GOV-VALIDATION-001-A-PORT-MYSQL",
+      "type": "PORT",
+      "key": "tcp:127.0.0.1:13306",
+      "portName": "mysql",
+      "port": 13306,
+      "trainId": "RT-GOV-VALIDATION-001",
+      "workUnitId": "WU-GOV-VALIDATION-001-A",
+      "status": "ACTIVE"
+    },
+    {
+      "leaseId": "LEASE-GOV-VALIDATION-001-A-PORT-REDIS", "type": "PORT", "key": "tcp:127.0.0.1:16379", "portName": "redis", "port": 16379,
+      "trainId": "RT-GOV-VALIDATION-001", "workUnitId": "WU-GOV-VALIDATION-001-A", "status": "ACTIVE"
+    },
+    {
+      "leaseId": "LEASE-GOV-VALIDATION-001-A-PORT-BACKEND", "type": "PORT", "key": "tcp:127.0.0.1:13000", "portName": "backend", "port": 13000,
+      "trainId": "RT-GOV-VALIDATION-001", "workUnitId": "WU-GOV-VALIDATION-001-A", "status": "ACTIVE"
+    },
+    {
+      "leaseId": "LEASE-GOV-VALIDATION-001-A-PORT-CUSTOMER", "type": "PORT", "key": "tcp:127.0.0.1:14173", "portName": "customer", "port": 14173,
+      "trainId": "RT-GOV-VALIDATION-001", "workUnitId": "WU-GOV-VALIDATION-001-A", "status": "ACTIVE"
+    },
+    {
+      "leaseId": "LEASE-GOV-VALIDATION-001-A-PORT-WORKER", "type": "PORT", "key": "tcp:127.0.0.1:14174", "portName": "worker", "port": 14174,
+      "trainId": "RT-GOV-VALIDATION-001", "workUnitId": "WU-GOV-VALIDATION-001-A", "status": "ACTIVE"
+    },
+    {
+      "leaseId": "LEASE-GOV-VALIDATION-001-A-PORT-ADMIN", "type": "PORT", "key": "tcp:127.0.0.1:14175", "portName": "admin", "port": 14175,
+      "trainId": "RT-GOV-VALIDATION-001", "workUnitId": "WU-GOV-VALIDATION-001-A", "status": "ACTIVE"
+    },
+    {
+      "leaseId": "LEASE-GOV-VALIDATION-001-A-SEMANTIC",
+      "type": "SEMANTIC",
+      "key": "environment-isolation-validation-a",
+      "trainId": "RT-GOV-VALIDATION-001",
+      "workUnitId": "WU-GOV-VALIDATION-001-A",
+      "status": "ACTIVE"
+    },
+    {
+      "leaseId": "LEASE-GOV-VALIDATION-001-B-WORKTREE-PATH",
+      "type": "WORKTREE_PATH",
+      "key": "G:\\xlb100-worktrees\\RT-GOV-VALIDATION-001\\WU-GOV-VALIDATION-001-B",
+      "trainId": "RT-GOV-VALIDATION-001",
+      "workUnitId": "WU-GOV-VALIDATION-001-B",
+      "status": "ACTIVE"
+    },
+    {
+      "leaseId": "LEASE-GOV-VALIDATION-001-B-SOURCE-PATH",
+      "type": "SOURCE_PATH",
+      "key": "NO_SOURCE_WRITE::WU-GOV-VALIDATION-001-B",
+      "paths": [],
+      "trainId": "RT-GOV-VALIDATION-001",
+      "workUnitId": "WU-GOV-VALIDATION-001-B",
+      "status": "ACTIVE"
+    },
+    {
+      "leaseId": "LEASE-GOV-VALIDATION-001-B-ENVIRONMENT",
+      "type": "ENVIRONMENT",
+      "key": "xlb-rt-gov-validation-001-b",
+      "resources": {
+        "composeProject": "xlb-rt-gov-validation-001-b",
+        "mysqlDatabase": "xlb_rt_gov_validation_001_b",
+        "redisNamespace": "rt-gov-validation-001-b",
+        "redisNamespace": "rt-gov-validation-001-b",
+        "mysqlVolume": "xlb-rt-gov-validation-001-b_mysql-data",
+        "redisVolume": "xlb-rt-gov-validation-001-b_redis-data",
+        "network": "xlb-rt-gov-validation-001-b_worktree"
+      },
+      "trainId": "RT-GOV-VALIDATION-001",
+      "workUnitId": "WU-GOV-VALIDATION-001-B",
+      "status": "ACTIVE"
+    },
+    {
+      "leaseId": "LEASE-GOV-VALIDATION-001-B-PORT-MYSQL",
+      "type": "PORT",
+      "key": "tcp:127.0.0.1:13307",
+      "portName": "mysql",
+      "port": 13307,
+      "trainId": "RT-GOV-VALIDATION-001",
+      "workUnitId": "WU-GOV-VALIDATION-001-B",
+      "status": "ACTIVE"
+    },
+    {
+      "leaseId": "LEASE-GOV-VALIDATION-001-B-PORT-REDIS", "type": "PORT", "key": "tcp:127.0.0.1:16380", "portName": "redis", "port": 16380,
+      "trainId": "RT-GOV-VALIDATION-001", "workUnitId": "WU-GOV-VALIDATION-001-B", "status": "ACTIVE"
+    },
+    {
+      "leaseId": "LEASE-GOV-VALIDATION-001-B-PORT-BACKEND", "type": "PORT", "key": "tcp:127.0.0.1:13001", "portName": "backend", "port": 13001,
+      "trainId": "RT-GOV-VALIDATION-001", "workUnitId": "WU-GOV-VALIDATION-001-B", "status": "ACTIVE"
+    },
+    {
+      "leaseId": "LEASE-GOV-VALIDATION-001-B-PORT-CUSTOMER", "type": "PORT", "key": "tcp:127.0.0.1:14273", "portName": "customer", "port": 14273,
+      "trainId": "RT-GOV-VALIDATION-001", "workUnitId": "WU-GOV-VALIDATION-001-B", "status": "ACTIVE"
+    },
+    {
+      "leaseId": "LEASE-GOV-VALIDATION-001-B-PORT-WORKER", "type": "PORT", "key": "tcp:127.0.0.1:14274", "portName": "worker", "port": 14274,
+      "trainId": "RT-GOV-VALIDATION-001", "workUnitId": "WU-GOV-VALIDATION-001-B", "status": "ACTIVE"
+    },
+    {
+      "leaseId": "LEASE-GOV-VALIDATION-001-B-PORT-ADMIN", "type": "PORT", "key": "tcp:127.0.0.1:14275", "portName": "admin", "port": 14275,
+      "trainId": "RT-GOV-VALIDATION-001", "workUnitId": "WU-GOV-VALIDATION-001-B", "status": "ACTIVE"
+    },
+    {
+      "leaseId": "LEASE-GOV-VALIDATION-001-B-SEMANTIC",
+      "type": "SEMANTIC",
+      "key": "environment-isolation-validation-b",
+      "trainId": "RT-GOV-VALIDATION-001",
+      "workUnitId": "WU-GOV-VALIDATION-001-B",
+      "status": "ACTIVE"
+    },
+    {
+      "leaseId": "LEASE-GOV-VALIDATION-001-C-WORKTREE-PATH",
+      "type": "WORKTREE_PATH",
+      "key": "G:\\xlb100-worktrees\\RT-GOV-VALIDATION-001\\WU-GOV-VALIDATION-001-C",
+      "trainId": "RT-GOV-VALIDATION-001",
+      "workUnitId": "WU-GOV-VALIDATION-001-C",
+      "status": "ACTIVE"
+    },
+    {
+      "leaseId": "LEASE-GOV-VALIDATION-001-C-SOURCE-PATH",
+      "type": "SOURCE_PATH",
+      "key": "NO_SOURCE_WRITE::WU-GOV-VALIDATION-001-C",
+      "paths": [],
+      "trainId": "RT-GOV-VALIDATION-001",
+      "workUnitId": "WU-GOV-VALIDATION-001-C",
+      "status": "ACTIVE"
+    },
+    {
+      "leaseId": "LEASE-GOV-VALIDATION-001-C-ENVIRONMENT",
+      "type": "ENVIRONMENT",
+      "key": "xlb-rt-gov-validation-001-c",
+      "resources": {
+        "composeProject": "xlb-rt-gov-validation-001-c",
+        "mysqlDatabase": "xlb_rt_gov_validation_001_c",
+        "redisNamespace": "rt-gov-validation-001-c",
+        "redisNamespace": "rt-gov-validation-001-c",
+        "mysqlVolume": "xlb-rt-gov-validation-001-c_mysql-data",
+        "redisVolume": "xlb-rt-gov-validation-001-c_redis-data",
+        "network": "xlb-rt-gov-validation-001-c_worktree"
+      },
+      "trainId": "RT-GOV-VALIDATION-001",
+      "workUnitId": "WU-GOV-VALIDATION-001-C",
+      "status": "ACTIVE"
+    },
+    {
+      "leaseId": "LEASE-GOV-VALIDATION-001-C-PORT-MYSQL",
+      "type": "PORT",
+      "key": "tcp:127.0.0.1:13308",
+      "portName": "mysql",
+      "port": 13308,
+      "trainId": "RT-GOV-VALIDATION-001",
+      "workUnitId": "WU-GOV-VALIDATION-001-C",
+      "status": "ACTIVE"
+    },
+    {
+      "leaseId": "LEASE-GOV-VALIDATION-001-C-PORT-REDIS", "type": "PORT", "key": "tcp:127.0.0.1:16381", "portName": "redis", "port": 16381,
+      "trainId": "RT-GOV-VALIDATION-001", "workUnitId": "WU-GOV-VALIDATION-001-C", "status": "ACTIVE"
+    },
+    {
+      "leaseId": "LEASE-GOV-VALIDATION-001-C-PORT-BACKEND", "type": "PORT", "key": "tcp:127.0.0.1:13002", "portName": "backend", "port": 13002,
+      "trainId": "RT-GOV-VALIDATION-001", "workUnitId": "WU-GOV-VALIDATION-001-C", "status": "ACTIVE"
+    },
+    {
+      "leaseId": "LEASE-GOV-VALIDATION-001-C-PORT-CUSTOMER", "type": "PORT", "key": "tcp:127.0.0.1:14373", "portName": "customer", "port": 14373,
+      "trainId": "RT-GOV-VALIDATION-001", "workUnitId": "WU-GOV-VALIDATION-001-C", "status": "ACTIVE"
+    },
+    {
+      "leaseId": "LEASE-GOV-VALIDATION-001-C-PORT-WORKER", "type": "PORT", "key": "tcp:127.0.0.1:14374", "portName": "worker", "port": 14374,
+      "trainId": "RT-GOV-VALIDATION-001", "workUnitId": "WU-GOV-VALIDATION-001-C", "status": "ACTIVE"
+    },
+    {
+      "leaseId": "LEASE-GOV-VALIDATION-001-C-PORT-ADMIN", "type": "PORT", "key": "tcp:127.0.0.1:14375", "portName": "admin", "port": 14375,
+      "trainId": "RT-GOV-VALIDATION-001", "workUnitId": "WU-GOV-VALIDATION-001-C", "status": "ACTIVE"
+    },
+    {
+      "leaseId": "LEASE-GOV-VALIDATION-001-C-SEMANTIC",
+      "type": "SEMANTIC",
+      "key": "environment-isolation-validation-c",
+      "trainId": "RT-GOV-VALIDATION-001",
+      "workUnitId": "WU-GOV-VALIDATION-001-C",
+      "status": "ACTIVE"
+    },
+    {
+      "leaseId": "LEASE-SERIAL-SHARED-CONTRACT",
+      "type": "CANONICAL_WRITER",
+      "key": "shared-contract-types-validators-api-events",
+      "trainId": "SYSTEM-SERIAL-LANES",
+      "workUnitId": "CONTRACT-OWNER",
+      "status": "ACTIVE"
+    },
+    {
+      "leaseId": "LEASE-SERIAL-CANONICAL-RUNTIME",
+      "type": "CANONICAL_WRITER",
+      "key": "canonical-shared-runtime",
+      "trainId": "SYSTEM-SERIAL-LANES",
+      "workUnitId": "DOMAIN-AND-INTEGRATION-OWNER",
+      "status": "ACTIVE"
+    },
+    {
+      "leaseId": "LEASE-SERIAL-MIGRATION-LEDGER",
+      "type": "CANONICAL_WRITER",
+      "key": "migration-reservation-and-schema-ledger",
+      "trainId": "SYSTEM-SERIAL-LANES",
+      "workUnitId": "MIGRATION-OWNER",
+      "status": "ACTIVE"
+    },
+    {
+      "leaseId": "LEASE-SERIAL-INTEGRATION-QUEUE",
+      "type": "CANONICAL_WRITER",
+      "key": "integration-queue-and-integration-branch",
+      "trainId": "SYSTEM-SERIAL-LANES",
+      "workUnitId": "INTEGRATION-OWNER",
+      "status": "ACTIVE"
+    },
+    {
+      "leaseId": "LEASE-SERIAL-GOVERNANCE-METADATA",
+      "type": "CANONICAL_WRITER",
+      "key": "current-state-phase-registry-lock-report-tag",
+      "trainId": "SYSTEM-SERIAL-LANES",
+      "workUnitId": "LOCK-FLOW",
+      "status": "ACTIVE"
+    }
+  ]
+}

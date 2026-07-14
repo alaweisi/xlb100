@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-07-14T00:00:00+08:00",
+  "executionSystemStatus": "BOOTSTRAP",
+  "enablementStatus": "NOT_ENABLED",
+  "acceptingItems": false,
+  "mode": "MANUAL_AUDITABLE_SERIAL_QUEUE",
+  "ownerRole": "Integration Owner",
+  "nextSequence": 1,
+  "items": [],
+  "rules": {
+    "directWorkUnitMergeToMainForbidden": true,
+    "requireCleanWorktree": true,
+    "requireManifest": true,
+    "requireImmutableCandidateCommit": true,
+    "rejectUncommittedOrUntrackedCandidateContent": true,
+    "requireLeaseValidation": true,
+    "requireContractRevision": true,
+    "requireMigrationReservationOrNone": true,
+    "requirePackageEvidence": true,
+    "requirePackageAudit": true,
+    "rejectStaleCandidate": true,
+    "rejectScopeOrLeaseViolation": true,
+    "mainMergeRequiresSeparateHumanAuthorization": true,
+    "lockRequiresSeparateHumanAuthorization": true,
+    "queueEnablementRequiresIndependentAuditAndHumanConfirmation": true
+  }
+}

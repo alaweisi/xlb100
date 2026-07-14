@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-07-14T00:00:00+08:00",
+  "executionSystemStatus": "BOOTSTRAP",
+  "enablementStatus": "NOT_ENABLED",
+  "enablementConditions": [
+    "CLEAN_IMMUTABLE_GOVERNANCE_CANDIDATE_COMMIT",
+    "INDEPENDENT_READ_ONLY_AUDIT_PASS",
+    "EXPLICIT_HUMAN_ENABLEMENT_CONFIRMATION"
+  ],
+  "canonicalRoot": "G:\\xlb100",
+  "managedWorktreePool": "G:\\xlb100-worktrees",
+  "maxConcurrentWriteWorkUnits": 3,
+  "trains": [
+    {
+      "trainId": "RT-GOV-VALIDATION-001",
+      "title": "Managed Worktree Pool Isolation Validation",
+      "status": "PLANNED",
+      "executionMode": "VALIDATION_ONLY",
+      "humanApprovalStatus": "BOOTSTRAP_NOT_ENABLED",
+      "baseCommit": "80921871baf8647b2d3b7c97f8c0fde2a88f9400",
+      "baseTag": "xlb-phase29-marketing-coupon",
+      "baseTagObject": "b444aeb85c8d1264b21b38838524e21ceaea949e",
+      "charterRef": "governance/execution/README.md",
+      "workUnitRefs": [
+        "governance/execution/work-units/WU-GOV-VALIDATION-001-A.json",
+        "governance/execution/work-units/WU-GOV-VALIDATION-001-B.json",
+        "governance/execution/work-units/WU-GOV-VALIDATION-001-C.json"
+      ],
+      "maxConcurrentWriteWorkUnits": 3,
+      "businessWriteAuthorized": false,
+      "mainMergeAuthorized": false,
+      "lockAuthorized": false,
+      "productionAuthorized": false
+    },
+    {
+      "trainId": "RT-P30-P31-001",
+      "title": "Phase 30 Risk Core and Phase 31 BI Core Pilot",
+      "status": "DRAFT",
+      "executionMode": "BUSINESS_CONSTRUCTION",
+      "humanApprovalStatus": "WAITING_HUMAN_APPROVAL",
+      "baseCommit": "80921871baf8647b2d3b7c97f8c0fde2a88f9400",
+      "baseTag": "xlb-phase29-marketing-coupon",
+      "baseTagObject": "b444aeb85c8d1264b21b38838524e21ceaea949e",
+      "charterRef": "governance/execution/trains/RT-P30-P31-001_CHARTER.md",
+      "workUnitRefs": [],
+      "maxConcurrentWriteWorkUnits": 3,
+      "businessWriteAuthorized": false,
+      "mainMergeAuthorized": false,
+      "lockAuthorized": false,
+      "productionAuthorized": false
+    }
+  ]
+}

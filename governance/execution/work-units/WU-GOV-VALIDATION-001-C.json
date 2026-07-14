@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "workUnitId": "WU-GOV-VALIDATION-001-C",
+  "trainId": "RT-GOV-VALIDATION-001",
+  "targetPhase": "Governance Execution Validation",
+  "owner": "Construction Owner C",
+  "role": "Environment Validation",
+  "status": "PLANNED",
+  "executionMode": "VALIDATION_ONLY",
+  "worktreePath": "G:\\xlb100-worktrees\\RT-GOV-VALIDATION-001\\WU-GOV-VALIDATION-001-C",
+  "branch": "codex/rt-gov-validation-001-c",
+  "baseCommit": "80921871baf8647b2d3b7c97f8c0fde2a88f9400",
+  "baseTag": "xlb-phase29-marketing-coupon",
+  "dependencies": [],
+  "allowedPaths": [],
+  "forbiddenPaths": ["**"],
+  "semanticOwnership": ["environment-isolation-validation-c"],
+  "contractRevision": "NONE",
+  "migrationReservation": "NONE",
+  "leaseRefs": {
+    "worktreePath": "LEASE-GOV-VALIDATION-001-C-WORKTREE-PATH",
+    "sourcePath": "LEASE-GOV-VALIDATION-001-C-SOURCE-PATH",
+    "environment": "LEASE-GOV-VALIDATION-001-C-ENVIRONMENT",
+    "ports": {
+      "mysql": "LEASE-GOV-VALIDATION-001-C-PORT-MYSQL",
+      "redis": "LEASE-GOV-VALIDATION-001-C-PORT-REDIS",
+      "backend": "LEASE-GOV-VALIDATION-001-C-PORT-BACKEND",
+      "customer": "LEASE-GOV-VALIDATION-001-C-PORT-CUSTOMER",
+      "worker": "LEASE-GOV-VALIDATION-001-C-PORT-WORKER",
+      "admin": "LEASE-GOV-VALIDATION-001-C-PORT-ADMIN"
+    }
+  },
+  "environment": {
+    "slot": 3,
+    "envFileName": ".env.worktree.local",
+    "composeProject": "xlb-rt-gov-validation-001-c",
+    "mysqlDatabase": "xlb_rt_gov_validation_001_c",
+    "mysqlPort": 13308,
+    "redisNamespace": "rt-gov-validation-001-c",
+    "redisPort": 16381,
+    "backendPort": 13002,
+    "customerPort": 14373,
+    "workerPort": 14374,
+    "adminPort": 14375
+  },
+  "evidencePlan": ["worktree identity", "unique Compose project", "unique MySQL database and port", "unique Redis namespace and port", "cross-worktree contamination rejection"],
+  "auditRefs": [],
+  "businessWriteAuthorized": false,
+  "createdAt": "2026-07-14T00:00:00+08:00",
+  "expiresOrClosesAt": "CLOSE_AFTER_ISOLATION_EVIDENCE_ACCEPTED"
+}
