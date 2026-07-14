@@ -89,7 +89,8 @@ const phase29ArchitecturePath = join(root, "docs/architecture/29_XLB_MARKETING_C
 const phase29ContractPath = join(root, "docs/contracts/CONTRACT_MARKETING_COUPON.md");
 const phase29RegistryPath = join(root, "docs/governance/phase-registry.json");
 const phase29Authorized =
-  currentState.includes("Phase 29 — Marketing / Coupon MVP (IN PROGRESS)") &&
+  (currentState.includes("Phase 29 — Marketing / Coupon MVP (IN PROGRESS)") ||
+    currentState.includes("Phase 29 — Marketing / Coupon MVP (LOCKED)")) &&
   currentState.includes("D01–D24") &&
   existsSync(phase29EntryPath) &&
   readFileSync(phase29EntryPath, "utf8").includes("Every row below is **HUMAN APPROVED**") &&

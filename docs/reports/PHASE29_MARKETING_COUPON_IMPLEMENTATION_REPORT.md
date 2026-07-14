@@ -3,7 +3,7 @@
 Date: 2026-07-14
 Branch: `codex/phase29-marketing-coupon`
 Base: `d7bf3e02e3ae8e3e2ecf74c942fb7350040f1afc` (`xlb-phase28-review-reputation`)
-Status: **IMPLEMENTATION COMPLETE — INDEPENDENT ACCEPTANCE PASS; HUMAN ACCEPTANCE PENDING**
+Status: **LOCKED ON LOCAL MAIN — SEE PHASE29 MARKETING/COUPON LOCK REPORT**
 
 ## Implemented scope
 

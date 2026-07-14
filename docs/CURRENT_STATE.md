@@ -43,7 +43,7 @@
 | Phase 27A | INTEGRATED — LOCKED WITH PHASE27 | xlb-phase27-notification-foundation | Platform Delivery Foundation integrated under the Phase27 Lock |
 | Phase 27B | INTEGRATED — LOCKED WITH PHASE27 | xlb-phase27-notification-foundation | Notification projection, scoped API and Customer/Worker inbox integrated under the Phase27 Lock |
 | Phase 28 | LOCKED | xlb-phase28-review-reputation | Review moderation, appeal and Worker reputation foundation; production activation remains prohibited |
-| Phase 29 | IN PROGRESS | - | Marketing/Coupon MVP construction on `codex/phase29-marketing-coupon`; production activation remains prohibited |
+| Phase 29 | LOCKED | xlb-phase29-marketing-coupon | Marketing/Coupon MVP with fixed-amount coupons and Order-owned price evidence; production activation remains prohibited |
 
 ## Phase 25 — Five-System UI Standardization (LOCKED)
 
@@ -167,9 +167,9 @@
 - **Phase boundary**: Phase29 was subsequently entered by explicit human authorization on 2026-07-14; Phase28 remains immutable and locked.
 - **Reports**: `docs/reports/PHASE28_REVIEW_REPUTATION_ACCEPTANCE_REPORT.md`; `docs/reports/PHASE28_REVIEW_REPUTATION_LOCK_REPORT.md`.
 
-## Phase 29 — Marketing / Coupon MVP (IN PROGRESS)
+## Phase 29 — Marketing / Coupon MVP (LOCKED)
 
-- **Human authorization**: on 2026-07-14 the user explicitly approved Entry decisions D01–D24 and authorized continuous Phase29 construction through independent acceptance.
+- **Human authorization and acceptance**: on 2026-07-14 the user explicitly approved Entry decisions D01–D24 and authorized continuous Phase29 construction through independent acceptance. After the independent PASS, the user instructed that acceptance be sealed and archived immediately.
 - **Branch/base**: `codex/phase29-marketing-coupon` from locked Phase28 `main` commit `d7bf3e02e3ae8e3e2ecf74c942fb7350040f1afc`; canonical predecessor tag `xlb-phase28-review-reputation` remains immutable.
 - **Authorized scope**: distinct `MarketingCampaign`; fixed-amount coupon definition/grant/eligibility; immutable quote decision; one-coupon Order-time atomic reservation/redemption; cancellation/full-refund compensating grant; Customer coupon/quote surfaces; city-scoped Admin operations and audit; migration `057` only.
 - **Money ownership**: Pricing remains base-price owner, Marketing returns a versioned CNY minor-unit decision, Order owns the final gross/discount/net snapshot, and Payment continues to copy the accepted Order net total.
@@ -177,11 +177,14 @@
 - **Deferred/fail-closed**: automatic promotions, percentage/tiered discounts, multiple coupons, public redemption codes, behavioral segments, partial-refund return and payment-failure release.
 - **Production prohibitions**: no push, deployment, production migration execution, subscriber/subscription activation, live start, business seed, historical backfill/replay, Provider or production data processing. Phase14 remains `64/100`, `IN PROGRESS`, and staging/production `NO-GO`.
 - **Entry artifacts**: `docs/architecture/29_XLB_MARKETING_COUPON.md`; `docs/contracts/CONTRACT_MARKETING_COUPON.md`; `docs/reports/PHASE29_MARKETING_COUPON_ENTRY_REPORT.md`.
-- **Construction truth**: D01–D24 implementation is complete on the construction branch. Marketing governance, Coupon grant/decision, Order-time atomic redemption, dormant full-refund/cancel compensation, Customer/Admin surfaces, migration 057 and executable Gates are present.
+- **Integration chain**: implementation commit `8e4ceb6`; committed-candidate historical-gate hardening `84cd8fb` and `b25d2ce`; local `main` no-fast-forward merge `4881532bd52f4dfeb601cde12e34384462a2a2d2`.
+- **Construction truth**: D01–D24 implementation is complete and integrated on local `main`. Marketing governance, Coupon grant/decision, Order-time atomic redemption, dormant full-refund/cancel compensation, Customer/Admin surfaces, migration 057 and executable Gates are present.
 - **Independent acceptance**: the second independent read-only review returned PASS with `P0/P1/P2/P3 = 0/0/0/0`; Phase29 is ready for explicit human acceptance.
-- **Accepted verification**: `gate:phase29` with `9 files / 61` unit-contract, `1 / 2` security and `2 files / 9` real-MySQL tests; migration six-path replay plus five contradictory-SQL rejection cases; Chromium real-API E2E; typecheck `17/17`; build `11/11`; workspace unit/contract `179 files / 986 passed + 1 historical todo`; db/security/integration `198 files / 587 tests`; complete historical preflight through Phase29; critical audit and diff hygiene pass.
-- **Reports**: `docs/reports/PHASE29_MARKETING_COUPON_IMPLEMENTATION_REPORT.md`; `docs/reports/PHASE29_MARKETING_COUPON_ACCEPTANCE_REPORT.md`.
-- **Lock status**: independent acceptance is complete, but explicit human acceptance and separate Lock authorization are still required. No commit, merge, tag or Lock has been performed.
+- **Lock verification**: `gate:phase29` passed on feature and post-merge `main` with `9 files / 61` unit-contract, `1 / 2` security and `2 files / 9` real-MySQL tests; migration six-path replay plus contradictory-SQL rejection; Chromium real-API E2E `1/1`; typecheck `17/17`; build `11/11`; post-merge workspace unit/contract `179 files / 986 passed + 1 historical todo`; db/security/integration `198 files / 587 tests`; complete Preflight through Phase29 and diff hygiene pass.
+- **Lock truth**: LOCKED on local `main` on 2026-07-14. Canonical annotated tag `xlb-phase29-marketing-coupon` identifies the final Lock governance commit. The approved migration remains `057` only.
+- **Production truth**: no push, deployment, production migration, subscriber/subscription activation, live start, business seed, historical backfill/replay, Provider or production data processing occurred. Phase14 remains `64/100`, `IN PROGRESS`, and staging/production remain `NO-GO`.
+- **Phase boundary**: Phase30 and Phase31 are not included in this Lock. Their separately instructed windows must session-sync from the Phase29 canonical tag and establish their own entry/boundary evidence before construction.
+- **Reports**: `docs/reports/PHASE29_MARKETING_COUPON_IMPLEMENTATION_REPORT.md`; `docs/reports/PHASE29_MARKETING_COUPON_ACCEPTANCE_REPORT.md`; `docs/reports/PHASE29_MARKETING_COUPON_LOCK_REPORT.md`.
 
 ## Phase 24 Combined Completion Authorization
 

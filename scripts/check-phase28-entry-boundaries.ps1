@@ -24,7 +24,8 @@ $phase29ArchitecturePath = 'docs/architecture/29_XLB_MARKETING_COUPON.md'
 $phase29ContractPath = 'docs/contracts/CONTRACT_MARKETING_COUPON.md'
 $phase29RegistryPath = 'docs/governance/phase-registry.json'
 $phase29Authorized =
-  $state.Contains('Marketing / Coupon MVP (IN PROGRESS)') -and
+  ($state.Contains('Marketing / Coupon MVP (IN PROGRESS)') -or
+   $state.Contains('Marketing / Coupon MVP (LOCKED)')) -and
   $state.Contains('approved Entry decisions D01') -and
   $state.Contains('D24 and authorized continuous Phase29 construction through independent acceptance.') -and
   $state.Contains('migration `057` only') -and

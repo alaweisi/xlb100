@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "sourceOfTruth": "docs/CURRENT_STATE.md plus immutable git tags and reports",
-  "lastLockedPhase": "Phase 28",
-  "nextFormalPhase": "Phase 29",
+  "lastLockedPhase": "Phase 29",
+  "nextFormalPhase": "Phase 30",
   "rules": {
     "doNotRenameHistoricalTags": true,
     "doNotBackfillMissingTags": true,
@@ -12,7 +12,7 @@
   },
   "migrationNumbering": {
     "reservedPermanentGaps": ["024"],
-    "latestVerified": "056"
+    "latestVerified": "057"
   },
   "phases": [
     {
@@ -370,14 +370,16 @@
     {
       "id": "Phase 29",
       "kind": "formal",
-      "status": "IN_PROGRESS",
+      "status": "LOCKED",
+      "tag": "xlb-phase29-marketing-coupon",
       "summary": "Marketing and fixed-amount coupon MVP with versioned quote decisions and Order-owned price evidence.",
       "notes": [
         "Entered by explicit human authorization on 2026-07-14 after Phase 28 Lock.",
         "Entry decisions D01-D24 are approved for continuous construction through independent acceptance.",
         "Only append-only migration 057 is authorized; migrations 000-056 and historical tags remain immutable.",
-        "D01-D24 implementation and engineering verification are complete on the construction branch; the second independent read-only review returned PASS with P0/P1/P2/P3 all zero.",
-        "Phase29 is ready for explicit human acceptance, but no commit, merge, tag or Lock has been performed.",
+        "D01-D24 implementation and engineering verification are complete; the second independent read-only review returned PASS with P0/P1/P2/P3 all zero.",
+        "Feature tip b25d2ce was merged no-fast-forward to local main at 4881532; the canonical tag identifies the final Lock governance commit.",
+        "Migration 057 is the latest verified append-only migration; migrations 000-056 and historical tags remain immutable.",
         "No push, deployment, production activation, business seed, historical backfill/replay, Provider or subscriber activation is authorized."
       ]
     }

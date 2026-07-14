@@ -189,7 +189,8 @@ const phase29RegistryPath = "docs/governance/phase-registry.json";
 const phase29MigrationPath = "db/migrations/057_phase29_marketing_coupon.sql";
 const phase29Authorized =
   phase28Authorized &&
-  currentState.includes("Phase 29 — Marketing / Coupon MVP (IN PROGRESS)") &&
+  (currentState.includes("Phase 29 — Marketing / Coupon MVP (IN PROGRESS)") ||
+    currentState.includes("Phase 29 — Marketing / Coupon MVP (LOCKED)")) &&
   currentState.includes("approved Entry decisions D01–D24") &&
   currentState.includes("migration `057` only") &&
   existsSync(join(root, phase29EntryPath)) &&
