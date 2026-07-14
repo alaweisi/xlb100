@@ -7,6 +7,7 @@ $TrainId = "RT-GOV-VALIDATION-001"
 $ComposeFile = Join-Path $Root "governance\execution\templates\docker-compose.worktree.yml"
 $TrainRegistryFile = Join-Path $Root "governance\execution\train-registry.json"
 $LeaseFile = Join-Path $Root "governance\execution\leases.json"
+$BoundaryGateFile = Join-Path $Root "scripts\check-managed-worktree-boundaries.ps1"
 $ComposeFile = (Resolve-Path -LiteralPath $ComposeFile).Path
 $TrainRegistryFile = (Resolve-Path -LiteralPath $TrainRegistryFile).Path
 $LeaseFile = (Resolve-Path -LiteralPath $LeaseFile).Path
@@ -166,6 +167,8 @@ function Invoke-Main {
   Assert-True ($train.humanApprovalStatus-eq"EXPLICIT_HUMAN_APPROVAL_RECORDED") "RuntimeCanary blocked: explicit Human approval is absent"
   Assert-True (($train.PSObject.Properties.Name-contains"runtimeCanaryAuthorized")-and$train.runtimeCanaryAuthorized-eq$true) "RuntimeCanary blocked: runtimeCanaryAuthorized must be true"
   Assert-True ($train.businessWriteAuthorized-eq$false) "RuntimeCanary blocked: businessWriteAuthorized must remain false"
+  $authorityGate=& powershell -NoProfile -ExecutionPolicy Bypass -File $BoundaryGateFile -Mode Repository 2>&1
+  Assert-True ($LASTEXITCODE-eq0) "RuntimeCanary blocked: strict authority/evidence Repository Gate failed: $($authorityGate|Out-String)"
 
   $listeners=[Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties().GetActiveTcpListeners().Port
   foreach($slot in $slots){

@@ -29,15 +29,244 @@ function Fail([string]$Message) {
   throw "[managed-worktree] FAIL $Message"
 }
 
+function Invoke-WithRepositoryRoot([string]$RepositoryRoot, [scriptblock]$Action) {
+  $previous = @{
+    Root=$script:Root;ExecutionRoot=$script:ExecutionRoot;WorkUnitsRoot=$script:WorkUnitsRoot;LeasesPath=$script:LeasesPath
+    ReservationsPath=$script:ReservationsPath;TrainRegistryPath=$script:TrainRegistryPath;IntegrationQueuePath=$script:IntegrationQueuePath
+  }
+  try {
+    $script:Root = [IO.Path]::GetFullPath($RepositoryRoot)
+    $script:ExecutionRoot = Join-Path $script:Root "governance/execution"
+    $script:WorkUnitsRoot = Join-Path $script:ExecutionRoot "work-units"
+    $script:LeasesPath = Join-Path $script:ExecutionRoot "leases.json"
+    $script:ReservationsPath = Join-Path $script:ExecutionRoot "migration-reservations.json"
+    $script:TrainRegistryPath = Join-Path $script:ExecutionRoot "train-registry.json"
+    $script:IntegrationQueuePath = Join-Path $script:ExecutionRoot "integration-queue.json"
+    return & $Action
+  }
+  finally {
+    $script:Root=$previous.Root;$script:ExecutionRoot=$previous.ExecutionRoot;$script:WorkUnitsRoot=$previous.WorkUnitsRoot;$script:LeasesPath=$previous.LeasesPath
+    $script:ReservationsPath=$previous.ReservationsPath;$script:TrainRegistryPath=$previous.TrainRegistryPath;$script:IntegrationQueuePath=$previous.IntegrationQueuePath
+  }
+}
+
+function Assert-NoDuplicateJsonKeys([string]$Text, [string]$Label) {
+  $stack = New-Object System.Collections.Stack
+  for ($index = 0; $index -lt $Text.Length; $index++) {
+    $character = $Text[$index]
+    if ($character -eq '"') {
+      $start = $index
+      $index++
+      while ($index -lt $Text.Length) {
+        if ($Text[$index] -eq '\') { $index += 2; continue }
+        if ($Text[$index] -eq '"') { break }
+        $index++
+      }
+      if ($index -ge $Text.Length) { return }
+      $next = $index + 1
+      while ($next -lt $Text.Length -and [char]::IsWhiteSpace($Text[$next])) { $next++ }
+      if ($next -lt $Text.Length -and $Text[$next] -eq ':' -and $stack.Count -gt 0 -and $stack.Peek().Kind -eq "OBJECT") {
+        $literal = $Text.Substring($start, $index - $start + 1)
+        $key = "$($literal | ConvertFrom-Json)"
+        if (-not $stack.Peek().Keys.Add($key)) { Fail "$Label contains duplicate JSON key '$key'" }
+      }
+      continue
+    }
+    if ($character -eq '{') {
+      $keys = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::Ordinal)
+      $stack.Push([pscustomobject]@{ Kind="OBJECT"; Keys=$keys })
+    } elseif ($character -eq '[') {
+      $stack.Push([pscustomobject]@{ Kind="ARRAY"; Keys=$null })
+    } elseif ($character -eq '}' -or $character -eq ']') {
+      if ($stack.Count -gt 0) { $null = $stack.Pop() }
+    }
+  }
+}
+
+function Assert-AllowedFields($Object, [string[]]$Allowed, [string]$Label) {
+  if ($null -eq $Object) { Fail "$Label must be a JSON object" }
+  $set = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::Ordinal)
+  foreach ($field in $Allowed) { $null = $set.Add($field) }
+  foreach ($property in @($Object.PSObject.Properties)) {
+    if (-not $set.Contains($property.Name)) { Fail "$Label contains unsupported field '$($property.Name)' (additionalProperties=false)" }
+  }
+}
+
 function Read-Json([string]$Path, [string]$Label) {
   if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
     Fail "missing $Label at $Path"
   }
   try {
-    return Get-Content -LiteralPath $Path -Raw -Encoding UTF8 | ConvertFrom-Json
+    $text = Get-Content -LiteralPath $Path -Raw -Encoding UTF8
+    Assert-NoDuplicateJsonKeys $text $Label
+    return $text | ConvertFrom-Json
   } catch {
     Fail "$Label is not valid JSON: $Path ($($_.Exception.Message))"
   }
+}
+
+function Read-GitJson([string]$Commit, [string]$RepoPath, [string]$Label) {
+  $normalized = Normalize-RepoPath $RepoPath $Label
+  $output = @(& git -C $Root show "$Commit`:$normalized" 2>&1)
+  if ($LASTEXITCODE -ne 0) { Fail "$Label is missing from immutable commit $Commit`: $normalized" }
+  try {
+    $text = $output -join "`n"
+    Assert-NoDuplicateJsonKeys $text $Label
+    return $text | ConvertFrom-Json
+  } catch {
+    Fail "$Label is not valid JSON in immutable commit $Commit`: $normalized ($($_.Exception.Message))"
+  }
+}
+
+function ConvertTo-CanonicalJsonText($Value) {
+  if ($null -eq $Value) { return "null" }
+  if ($Value -is [string] -or $Value -is [char]) { return (ConvertTo-Json -InputObject "$Value" -Compress) }
+  if ($Value -is [bool]) { if ($Value) { return "true" }; return "false" }
+  if ($Value -is [System.Collections.IDictionary]) {
+    $pairs = @()
+    foreach ($key in @($Value.Keys | ForEach-Object { "$_" } | Sort-Object)) {
+      $pairs += "$(ConvertTo-Json -InputObject $key -Compress):$(ConvertTo-CanonicalJsonText $Value[$key])"
+    }
+    return "{$($pairs -join ',')}"
+  }
+  if ($Value -is [pscustomobject]) {
+    $pairs = @()
+    foreach ($property in @($Value.PSObject.Properties | Sort-Object Name)) {
+      $pairs += "$(ConvertTo-Json -InputObject $property.Name -Compress):$(ConvertTo-CanonicalJsonText $property.Value)"
+    }
+    return "{$($pairs -join ',')}"
+  }
+  if ($Value -is [System.Collections.IEnumerable]) {
+    $items = @()
+    foreach ($item in $Value) { $items += ConvertTo-CanonicalJsonText $item }
+    return "[$($items -join ',')]"
+  }
+  return (ConvertTo-Json -InputObject $Value -Compress)
+}
+
+function Get-ImmutableEnablementRegistrySnapshot($Registry) {
+  return [ordered]@{
+    schemaVersion=(Get-OptionalValue $Registry "schemaVersion")
+    updatedAt=(Get-OptionalValue $Registry "updatedAt")
+    enablementConditions=(Get-OptionalValue $Registry "enablementConditions")
+    canonicalRoot=(Get-OptionalValue $Registry "canonicalRoot")
+    managedWorktreePool=(Get-OptionalValue $Registry "managedWorktreePool")
+    maxConcurrentWriteWorkUnits=(Get-OptionalValue $Registry "maxConcurrentWriteWorkUnits")
+    trains=(Get-OptionalValue $Registry "trains")
+  }
+}
+
+function Get-ImmutableEnablementQueueSnapshot($Queue) {
+  return [ordered]@{
+    schemaVersion=(Get-OptionalValue $Queue "schemaVersion")
+    updatedAt=(Get-OptionalValue $Queue "updatedAt")
+    acceptingItems=(Get-OptionalValue $Queue "acceptingItems")
+    mode=(Get-OptionalValue $Queue "mode")
+    ownerRole=(Get-OptionalValue $Queue "ownerRole")
+    nextSequence=(Get-OptionalValue $Queue "nextSequence")
+    items=(Get-OptionalValue $Queue "items")
+    rules=(Get-OptionalValue $Queue "rules")
+  }
+}
+
+function Assert-IndependentAuditRecord($Record, [string]$RequiredCheck, [string]$Label) {
+  Assert-RecordValue $Record "actorRole" "Audit Agent" $Label
+  if ((Require-Text $Record "result" $Label).ToUpperInvariant() -ne "PASS" -or
+      (Get-OptionalValue $Record "independentFromWriter") -ne $true) {
+    Fail "$Label must be PASS, independentFromWriter=true, and produced by Audit Agent"
+  }
+  $checks = @(Get-Array $Record "checks" | ForEach-Object {
+    if ($_ -isnot [string] -or [string]::IsNullOrWhiteSpace("$_")) { Fail "$Label checks must contain non-blank strings" }
+    "$($_)".Trim().ToUpperInvariant()
+  })
+  if ($checks.Count -eq 0 -or $checks -notcontains $RequiredCheck.ToUpperInvariant()) {
+    Fail "$Label must include required check $RequiredCheck"
+  }
+}
+
+function Get-Sha256Hex([string]$Text) {
+  $sha = [Security.Cryptography.SHA256]::Create()
+  try { return (($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($Text)) | ForEach-Object { $_.ToString("x2") }) -join "") }
+  finally { $sha.Dispose() }
+}
+
+function Get-CandidateDigest([string]$CandidateCommit) {
+  if ($CandidateCommit -notmatch '^[0-9a-fA-F]{40}$') { Fail "candidateCommit must be a full commit hash before digest calculation" }
+  $type = (Invoke-Git $Root @("cat-file", "-t", $CandidateCommit) | Select-Object -First 1).Trim()
+  if ($type -ne "commit") { Fail "candidateCommit is not an immutable commit object: $CandidateCommit" }
+  $tree = (Invoke-Git $Root @("rev-parse", "$CandidateCommit^{tree}") | Select-Object -First 1).Trim()
+  return Get-Sha256Hex "GIT_COMMIT_TREE_SHA256_V1`ncommit=$($CandidateCommit.ToLowerInvariant())`ntree=$tree"
+}
+
+function Assert-CandidateDigestBinding([string]$CandidateCommit, [string]$DeclaredDigest, [string]$Algorithm, [string]$Label) {
+  $actual = Get-CandidateDigest $CandidateCommit
+  if ($Algorithm -ne "GIT_COMMIT_TREE_SHA256_V1" -or $DeclaredDigest.ToLowerInvariant() -ne $actual) { Fail "$Label candidateDigest does not match the immutable candidate commit/tree" }
+  return $actual
+}
+
+function Assert-CanonicalTrackedPath([string]$Ref, [string]$Label, [string[]]$AllowedPrefixes = @()) {
+  $normalized = Normalize-RepoPath $Ref $Label
+  if ($AllowedPrefixes.Count -gt 0 -and -not @($AllowedPrefixes | Where-Object { Test-PrefixMatch $normalized $_ }).Count) {
+    Fail "$Label is outside its canonical record directory: $normalized"
+  }
+  $fullPath = Join-Path $Root $normalized
+  if (-not (Test-Path -LiteralPath $fullPath -PathType Leaf)) { Fail "$Label is missing: $normalized" }
+  & git -C $Root ls-files --error-unmatch -- $normalized *> $null
+  if ($LASTEXITCODE -ne 0) { Fail "$Label must be a tracked canonical repository file: $normalized" }
+  & git -C $Root cat-file -e "HEAD`:$normalized" 2>$null
+  if ($LASTEXITCODE -ne 0) { Fail "$Label must exist in immutable HEAD: $normalized" }
+  $status = @(& git -C $Root status --porcelain=v1 -z --untracked-files=all -- $normalized 2>&1)
+  if ($LASTEXITCODE -ne 0 -or -not [string]::IsNullOrWhiteSpace(($status -join ""))) { Fail "$Label must be clean and byte-bound to immutable HEAD: $normalized" }
+  return $normalized
+}
+
+function Assert-StatusTransition([string]$Previous, [string]$Current, $Transitions, [string]$Label, [string]$ChangedAt, [string]$AuthorityRef) {
+  $previousStatus = $Previous.ToUpperInvariant(); $currentStatus = $Current.ToUpperInvariant()
+  if (-not $Transitions.ContainsKey($previousStatus) -or $currentStatus -notin @($Transitions[$previousStatus])) {
+    Fail "$Label has illegal status transition $previousStatus -> $currentStatus"
+  }
+  $parsed = [DateTimeOffset]::MinValue
+  if (-not [DateTimeOffset]::TryParse($ChangedAt, [ref]$parsed)) { Fail "$Label statusChangedAt is not an ISO timestamp" }
+  $null = Assert-CanonicalTrackedPath $AuthorityRef "$Label transitionAuthorityRef"
+}
+
+function Read-StrictRecord([string]$Ref, [string]$Label, [string[]]$AllowedPrefixes) {
+  $normalized = Assert-CanonicalTrackedPath $Ref $Label $AllowedPrefixes
+  if ($normalized -notmatch '\.json$') { Fail "$Label must be a strict JSON record: $normalized" }
+  $record = Read-Json (Join-Path $Root $normalized) $Label
+  $recordType = (Require-Text $record "recordType" $Label).ToUpperInvariant()
+  $common = @("schemaVersion","recordType","recordId","createdAt")
+  $typeFields = switch ($recordType) {
+    "ENABLEMENT_APPROVAL" { @("candidateCommit","candidateDigest","candidateDigestAlgorithm","baseCommit","decision","scope","auditRef","humanConfirmationRef","actorRole") }
+    "INDEPENDENT_ENABLEMENT_AUDIT" { @("candidateCommit","candidateDigest","candidateDigestAlgorithm","baseCommit","result","scope","independentFromWriter","checks","actorRole") }
+    "HUMAN_CONFIRMATION" { @("candidateCommit","candidateDigest","candidateDigestAlgorithm","baseCommit","decision","scope","confirmationCode","confirmationText","actorRole") }
+    "TRAIN_BUSINESS_APPROVAL" { @("trainId","baseCommit","charterRef","charterDigest","decision","scope","confirmationCode","confirmationText","actorRole") }
+    "RUNTIME_VALIDATION_APPROVAL" { @("trainId","candidateCommit","candidateDigest","candidateDigestAlgorithm","decision","scope","confirmationCode","confirmationText","actorRole") }
+    "INDEPENDENT_RUNTIME_SAFETY_AUDIT" { @("trainId","candidateCommit","candidateDigest","candidateDigestAlgorithm","result","scope","independentFromWriter","checks","actorRole") }
+    "EVIDENCE" { @("trainId","workUnitId","candidateCommit","candidateDigest","candidateDigestAlgorithm","baseCommit","contractRevision","environmentDigest","result","checks","actorRole") }
+    "INDEPENDENT_AUDIT" { @("trainId","workUnitId","candidateCommit","candidateDigest","candidateDigestAlgorithm","baseCommit","contractRevision","environmentDigest","result","independentFromWriter","evidenceRefs","evidenceBindings","checks","actorRole") }
+    "TRANSITION" { @("trainId","workUnitId","scope","decision","actorRole","checks") }
+    default { Fail "$Label has unsupported recordType $recordType" }
+  }
+  Assert-AllowedFields $record @($common+$typeFields) "$Label ($recordType)"
+  Require-SchemaVersion $record 1 $Label
+  return [pscustomobject]@{ Ref=$normalized; Record=$record; FullPath=(Join-Path $Root $normalized) }
+}
+
+function Assert-RecordValue($Record, [string]$Property, [string]$Expected, [string]$Label) {
+  $actual = Require-Text $Record $Property $Label
+  if (-not $actual.Equals($Expected, [StringComparison]::OrdinalIgnoreCase)) { Fail "$Label.$Property does not bind expected value $Expected" }
+}
+
+function Assert-ExplicitHumanConfirmation($Record, [string]$RecordType, [string]$Scope, [string]$Code, [string]$ChineseTextBase64, [string]$EnglishText, [string]$Label) {
+  Assert-RecordValue $Record "recordType" $RecordType $Label
+  Assert-RecordValue $Record "scope" $Scope $Label
+  Assert-RecordValue $Record "decision" "APPROVED" $Label
+  Assert-RecordValue $Record "actorRole" "Human Owner" $Label
+  Assert-RecordValue $Record "confirmationCode" $Code $Label
+  $text = Require-Text $Record "confirmationText" $Label
+  $ChineseText = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($ChineseTextBase64))
+  if ($text -cne $ChineseText -and $text -cne $EnglishText) { Fail "$Label confirmationText must equal one approved positive phrase; negation or inference is forbidden" }
 }
 
 function Require-Text($Object, [string]$Property, [string]$Label) {
@@ -124,6 +353,369 @@ function Require-Port($Object, [string]$Property, [string]$Label) {
   return $parsed
 }
 
+function Assert-StrictManifest($Manifest, [string]$Label) {
+  Assert-AllowedFields $Manifest @(
+    "schemaVersion","workUnitId","trainId","targetPhase","owner","role","status","previousStatus","statusChangedAt","transitionAuthorityRef",
+    "executionMode","worktreePath","branch","baseCommit","baseTag","dependencies","allowedPaths","forbiddenPaths","semanticOwnership",
+    "contractRevision","migrationReservation","leaseRefs","environment","evidencePlan","evidenceRefs","auditRefs","businessWriteAuthorized",
+    "createdAt","expiresOrClosesAt","candidateCommit","candidateDigest","candidateDigestAlgorithm","environmentDigest","candidateRecordRef"
+  ) $Label
+  $environment = Get-OptionalValue $Manifest "environment"
+  if ($null -ne $environment) {
+    Assert-AllowedFields $environment @("slot","envFileName","composeOverrideRef","composeProject","mysqlDatabase","mysqlPort","redisNamespace","redisPort","backendPort","customerPort","workerPort","adminPort") "$Label environment"
+  }
+  $leaseRefs = Get-OptionalValue $Manifest "leaseRefs"
+  if ($null -ne $leaseRefs) {
+    Assert-AllowedFields $leaseRefs @("worktreePath","sourcePath","environment","ports") "$Label leaseRefs"
+    $ports = Get-OptionalValue $leaseRefs "ports"
+    if ($null -ne $ports) { Assert-AllowedFields $ports @("mysql","redis","backend","customer","worker","admin") "$Label leaseRefs.ports" }
+  }
+  $reservation = Get-OptionalValue $Manifest "migrationReservation"
+  if ($null -ne $reservation -and "$reservation" -ne "NONE") {
+    Assert-AllowedFields $reservation @("number","expectedFilename") "$Label migrationReservation"
+  }
+}
+
+function Assert-StrictTrainRegistry($Registry) {
+  Assert-AllowedFields $Registry @(
+    "schemaVersion","updatedAt","executionSystemStatus","enablementStatus","previousExecutionSystemStatus","previousEnablementStatus",
+    "statusChangedAt","transitionAuthorityRef","enablementConditions","enablementApprovalRef","auditedCandidateCommit","independentAuditRef",
+    "humanConfirmationRef","canonicalRoot","managedWorktreePool","maxConcurrentWriteWorkUnits","trains"
+  ) "Release Train Registry"
+  foreach ($train in @(Get-LedgerItems $Registry "trains" "Release Train Registry")) {
+    Assert-AllowedFields $train @(
+      "trainId","title","status","previousStatus","statusChangedAt","transitionAuthorityRef","executionMode","humanApprovalStatus","approvalRef",
+      "runtimeCanaryAuthorized","runtimeValidationApprovalRef","runtimeValidationAuditRef","baseCommit","baseTag","baseTagObject","charterRef",
+      "workUnitRefs","maxConcurrentWriteWorkUnits","businessWriteAuthorized","mainMergeAuthorized","lockAuthorized","productionAuthorized"
+    ) "Release Train entry"
+  }
+}
+
+function Assert-StrictLeaseLedger($Ledger) {
+  Assert-AllowedFields $Ledger @("schemaVersion","leases") "Lease Ledger"
+  foreach ($lease in @(Get-LedgerItems $Ledger "leases" "Lease Ledger")) {
+    Assert-AllowedFields $lease @("leaseId","type","key","paths","resources","portName","port","protectedPaths","trainId","workUnitId","status") "Lease Ledger entry"
+    $resources = Get-OptionalValue $lease "resources"
+    if ($null -ne $resources) { Assert-AllowedFields $resources @("composeProject","mysqlDatabase","redisNamespace","mysqlVolume","redisVolume","network") "Lease resources" }
+  }
+}
+
+function Assert-StrictReservationLedger($Ledger) {
+  Assert-AllowedFields $Ledger @("schemaVersion","reservations") "Migration Reservation Ledger"
+  foreach ($reservation in @(Get-LedgerItems $Ledger "reservations" "Migration Reservation Ledger")) {
+    Assert-AllowedFields $reservation @("number","expectedFilename","trainId","workUnitId","owner","baseCommit","tables","semanticScope","status") "Migration Reservation"
+  }
+}
+
+function Assert-StrictQueue($Queue) {
+  Assert-AllowedFields $Queue @(
+    "schemaVersion","updatedAt","executionSystemStatus","enablementStatus","previousEnablementStatus","statusChangedAt","transitionAuthorityRef",
+    "acceptingItems","mode","ownerRole","nextSequence","items","rules"
+  ) "Integration Queue"
+  $rules = Get-OptionalValue $Queue "rules"
+  if ($null -ne $rules) {
+    Assert-AllowedFields $rules @(
+      "directWorkUnitMergeToMainForbidden","requireCleanWorktree","requireManifest","requireImmutableCandidateCommit",
+      "rejectUncommittedOrUntrackedCandidateContent","requireLeaseValidation","requireContractRevision","requireMigrationReservationOrNone",
+      "requirePackageEvidence","requirePackageAudit","rejectStaleCandidate","rejectScopeOrLeaseViolation",
+      "mainMergeRequiresSeparateHumanAuthorization","lockRequiresSeparateHumanAuthorization","queueEnablementRequiresIndependentAuditAndHumanConfirmation"
+    ) "Integration Queue rules"
+  }
+  foreach ($item in @(Get-LedgerItems $Queue "items" "Integration Queue")) {
+    Assert-AllowedFields $item @(
+      "sequence","trainId","workUnitId","status","candidateCommit","candidateDigest","candidateDigestAlgorithm","baseCommit",
+      "contractRevision","environmentDigest","candidateRecordRef","evidenceRefs","auditRefs","transitionAuthorityRef","submittedAt"
+    ) "Integration Queue item"
+  }
+}
+
+function Assert-EnablementAuthorityChain($Registry, [string]$ExecutionSystemStatus, [string]$EnablementStatus, $Trains) {
+  $validPair = ($ExecutionSystemStatus -eq "BOOTSTRAP" -and $EnablementStatus -eq "NOT_ENABLED") -or
+    ($ExecutionSystemStatus -eq "ENABLED" -and $EnablementStatus -eq "ENABLED") -or
+    ($ExecutionSystemStatus -eq "DISABLED" -and $EnablementStatus -eq "DISABLED")
+  if (-not $validPair) { Fail "executionSystemStatus/enablementStatus is not a valid fail-closed pair" }
+  $registryTransitions = @{
+    NONE=@("BOOTSTRAP"); BOOTSTRAP=@("ENABLED","DISABLED"); ENABLED=@("DISABLED"); DISABLED=@("ENABLED")
+  }
+  $enablementTransitions = @{
+    NONE=@("NOT_ENABLED"); NOT_ENABLED=@("ENABLED","DISABLED"); ENABLED=@("DISABLED"); DISABLED=@("ENABLED")
+  }
+  $changedAt = Require-Text $Registry "statusChangedAt" "Release Train Registry"
+  $authorityRef = Require-Text $Registry "transitionAuthorityRef" "Release Train Registry"
+  Assert-StatusTransition (Require-Text $Registry "previousExecutionSystemStatus" "Release Train Registry") $ExecutionSystemStatus $registryTransitions "Release Train Registry execution system" $changedAt $authorityRef
+  Assert-StatusTransition (Require-Text $Registry "previousEnablementStatus" "Release Train Registry") $EnablementStatus $enablementTransitions "Release Train Registry enablement" $changedAt $authorityRef
+  $fields = @("enablementApprovalRef","auditedCandidateCommit","independentAuditRef","humanConfirmationRef")
+  if ($ExecutionSystemStatus -ne "ENABLED") {
+    foreach ($field in $fields) { if ((Require-Text $Registry $field "Release Train Registry") -ne "PENDING") { Fail "NOT_ENABLED registry requires $field=PENDING" } }
+    return
+  }
+  $null=Assert-CanonicalTrackedPath "governance/execution/train-registry.json" "Enabled Train Registry"
+  $null=Assert-CanonicalTrackedPath "governance/execution/integration-queue.json" "Enabled Integration Queue"
+  $candidate = Require-Text $Registry "auditedCandidateCommit" "Release Train Registry"
+  $candidateDigest = Get-CandidateDigest $candidate
+  & git -C $Root merge-base --is-ancestor $candidate HEAD *> $null
+  if ($LASTEXITCODE -ne 0) { Fail "auditedCandidateCommit must be an ancestor of the enablement HEAD" }
+  $candidateRegistry = Read-GitJson $candidate "governance/execution/train-registry.json" "Audited candidate Train Registry"
+  $candidateQueue = Read-GitJson $candidate "governance/execution/integration-queue.json" "Audited candidate Integration Queue"
+  Assert-StrictTrainRegistry $candidateRegistry
+  Assert-StrictQueue $candidateQueue
+  if ((ConvertTo-CanonicalJsonText (Get-ImmutableEnablementRegistrySnapshot $candidateRegistry)) -cne
+      (ConvertTo-CanonicalJsonText (Get-ImmutableEnablementRegistrySnapshot $Registry))) {
+    Fail "Train Registry contains post-audit changes outside the enablement status and authority fields"
+  }
+  $currentQueue = Read-Json $IntegrationQueuePath "Integration Queue"
+  Assert-StrictQueue $currentQueue
+  if ((ConvertTo-CanonicalJsonText (Get-ImmutableEnablementQueueSnapshot $candidateQueue)) -cne
+      (ConvertTo-CanonicalJsonText (Get-ImmutableEnablementQueueSnapshot $currentQueue))) {
+    Fail "Integration Queue contains post-audit changes outside the enablement mirror fields"
+  }
+  $allowedEnablementRecords = @(
+    Normalize-RepoPath (Require-Text $Registry "enablementApprovalRef" "Release Train Registry") "enablementApprovalRef"
+    Normalize-RepoPath (Require-Text $Registry "independentAuditRef" "Release Train Registry") "independentAuditRef"
+    Normalize-RepoPath (Require-Text $Registry "humanConfirmationRef" "Release Train Registry") "humanConfirmationRef"
+  )
+  $enablementDiff = @(Invoke-Git $Root @("diff","--no-renames","--name-only",$candidate,"HEAD","--"))
+  foreach ($path in $enablementDiff) {
+    $normalized = Normalize-RepoPath $path "enablement candidate diff"
+    if ($normalized -notin @("governance/execution/train-registry.json","governance/execution/integration-queue.json") -and
+        $normalized -notin $allowedEnablementRecords) { Fail "audited controls changed after candidate audit or an undeclared record entered the authority closure: $normalized" }
+  }
+  $governanceTrain = @($Trains | Where-Object { "$(Get-OptionalValue $_ 'trainId')" -eq "RT-GOV-VALIDATION-001" })
+  if ($governanceTrain.Count -ne 1) { Fail "enablement authority requires the unique governance validation Train" }
+  $base = Require-Text $governanceTrain[0] "baseCommit" "Governance validation Train"
+  $approval = Read-StrictRecord (Require-Text $Registry "enablementApprovalRef" "Release Train Registry") "Enablement approval record" @("governance/execution/approvals")
+  $audit = Read-StrictRecord (Require-Text $Registry "independentAuditRef" "Release Train Registry") "Enablement independent audit record" @("governance/execution/evidence")
+  $human = Read-StrictRecord (Require-Text $Registry "humanConfirmationRef" "Release Train Registry") "Enablement Human confirmation record" @("governance/execution/approvals")
+  foreach ($entry in @($approval,$audit,$human)) {
+    Assert-RecordValue $entry.Record "candidateCommit" $candidate "$($entry.Record.recordType) record"
+    Assert-RecordValue $entry.Record "candidateDigest" $candidateDigest "$($entry.Record.recordType) record"
+    Assert-RecordValue $entry.Record "candidateDigestAlgorithm" "GIT_COMMIT_TREE_SHA256_V1" "$($entry.Record.recordType) record"
+    Assert-RecordValue $entry.Record "baseCommit" $base "$($entry.Record.recordType) record"
+  }
+  Assert-RecordValue $approval.Record "recordType" "ENABLEMENT_APPROVAL" "Enablement approval record"
+  Assert-RecordValue $approval.Record "scope" "GOVERNANCE_EXECUTION_ENABLEMENT" "Enablement approval record"
+  Assert-RecordValue $approval.Record "decision" "APPROVED" "Enablement approval record"
+  Assert-RecordValue $audit.Record "recordType" "INDEPENDENT_ENABLEMENT_AUDIT" "Enablement audit record"
+  Assert-RecordValue $audit.Record "scope" "GOVERNANCE_EXECUTION_ENABLEMENT" "Enablement audit record"
+  Assert-IndependentAuditRecord $audit.Record "CANDIDATE_CONTENT_PREFLIGHT_PASS" "Enablement audit record"
+  Assert-ExplicitHumanConfirmation $human.Record "HUMAN_CONFIRMATION" "GOVERNANCE_EXECUTION_ENABLEMENT" "ENABLE_GOVERNANCE_EXECUTION" "5ZCM5oSP5ZCv55So5rK755CG5omn6KGM57O757uf" "APPROVED: ENABLE GOVERNANCE EXECUTION SYSTEM" "Enablement Human confirmation"
+  Assert-RecordValue $approval.Record "auditRef" $audit.Ref "Enablement approval record"
+  Assert-RecordValue $approval.Record "humanConfirmationRef" $human.Ref "Enablement approval record"
+}
+
+function Assert-TrainAuthority($Train, $Registry, [string]$ExecutionSystemStatus, [string]$EnablementStatus) {
+  $trainId = Require-Text $Train "trainId" "Release Train"
+  $status = (Require-Text $Train "status" "Release Train $trainId").ToUpperInvariant()
+  $mode = (Require-Text $Train "executionMode" "Release Train $trainId").ToUpperInvariant()
+  $transitions = @{
+    NONE=@("PLANNED","DRAFT"); PLANNED=@("VALIDATION_AUTHORIZED","BLOCKED","ABANDONED");
+    DRAFT=@("CHARTER_HUMAN_APPROVED","BLOCKED","ABANDONED"); CHARTER_HUMAN_APPROVED=@("ASSEMBLING","BLOCKED","ABANDONED");
+    VALIDATION_AUTHORIZED=@("TRAIN_VERIFIED","BLOCKED","ABANDONED"); ASSEMBLING=@("TRAIN_VERIFIED","BLOCKED");
+    TRAIN_VERIFIED=@("HUMAN_ACCEPTED","BLOCKED"); HUMAN_ACCEPTED=@("PHASE_LOCKS_COMPLETED","CLOSED");
+    PHASE_LOCKS_COMPLETED=@("CLOSED"); BLOCKED=@("PLANNED","DRAFT","ABANDONED"); CLOSED=@(); ABANDONED=@()
+  }
+  Assert-StatusTransition (Require-Text $Train "previousStatus" "Release Train $trainId") $status $transitions "Release Train $trainId" (Require-Text $Train "statusChangedAt" "Release Train $trainId") (Require-Text $Train "transitionAuthorityRef" "Release Train $trainId")
+  $businessAuthorized = (Get-OptionalValue $Train "businessWriteAuthorized") -eq $true
+  $approvalRef = Require-Text $Train "approvalRef" "Release Train $trainId"
+  $approvedLifecycleStatuses = @("CHARTER_HUMAN_APPROVED","ASSEMBLING","TRAIN_VERIFIED","HUMAN_ACCEPTED","PHASE_LOCKS_COMPLETED","CLOSED")
+  if ($businessAuthorized -and $status -notin @("CHARTER_HUMAN_APPROVED","ASSEMBLING")) { Fail "businessWriteAuthorized is allowed only while an approved Train is assembling" }
+  if ($mode -eq "BUSINESS_CONSTRUCTION" -and ($status -in $approvedLifecycleStatuses -or $businessAuthorized -or $approvalRef -ne "PENDING")) {
+    if ($approvalRef -eq "PENDING") { Fail "approved or post-approval business Train cannot lose its approvalRef" }
+    if ((Require-Text $Train "humanApprovalStatus" "Release Train $trainId").ToUpperInvariant() -notin @("APPROVED","HUMAN_APPROVED","EXPLICIT_HUMAN_APPROVAL_RECORDED")) { Fail "approved business Train humanApprovalStatus does not match its immutable approval record" }
+    $approval = Read-StrictRecord $approvalRef "Train business approval record" @("governance/execution/approvals")
+    $record = $approval.Record
+    Assert-RecordValue $record "recordType" "TRAIN_BUSINESS_APPROVAL" "Train business approval record"
+    Assert-RecordValue $record "trainId" $trainId "Train business approval record"
+    Assert-RecordValue $record "baseCommit" (Require-Text $Train "baseCommit" "Release Train $trainId") "Train business approval record"
+    $charterRef = Assert-CanonicalTrackedPath (Require-Text $Train "charterRef" "Release Train $trainId") "Train charterRef"
+    Assert-RecordValue $record "charterRef" $charterRef "Train business approval record"
+    Assert-RecordValue $record "charterDigest" ((Get-FileHash -LiteralPath (Join-Path $Root $charterRef) -Algorithm SHA256).Hash.ToLowerInvariant()) "Train business approval record"
+    Assert-ExplicitHumanConfirmation $record "TRAIN_BUSINESS_APPROVAL" "TRAIN_BUSINESS_CONSTRUCTION" "AUTHORIZE_TRAIN_BUSINESS_CONSTRUCTION" "5ZCM5oSP5omn6KGM6K+lIFJlbGVhc2UgVHJhaW4g5Lia5Yqh5pa95bel" "APPROVED: AUTHORIZE RELEASE TRAIN BUSINESS CONSTRUCTION" "Train business approval record"
+  } elseif ($approvalRef -ne "PENDING") {
+    Fail "non-authorized Train must keep approvalRef=PENDING"
+  }
+  if ($status -eq "VALIDATION_AUTHORIZED") {
+    if ($mode -ne "VALIDATION_ONLY" -or $ExecutionSystemStatus -ne "ENABLED" -or $EnablementStatus -ne "ENABLED" -or
+        (Get-OptionalValue $Train "runtimeCanaryAuthorized") -ne $true -or $businessAuthorized) { Fail "VALIDATION_AUTHORIZED requires enabled validation-only authority with business writes false" }
+    $candidate = Require-Text $Registry "auditedCandidateCommit" "Release Train Registry"
+    $digest = Get-CandidateDigest $candidate
+    $approval = Read-StrictRecord (Require-Text $Train "runtimeValidationApprovalRef" "Release Train $trainId") "Runtime validation approval record" @("governance/execution/approvals")
+    $audit = Read-StrictRecord (Require-Text $Train "runtimeValidationAuditRef" "Release Train $trainId") "Runtime validation audit record" @("governance/execution/evidence")
+    foreach ($entry in @($approval,$audit)) { Assert-RecordValue $entry.Record "trainId" $trainId "Runtime validation record"; Assert-RecordValue $entry.Record "candidateCommit" $candidate "Runtime validation record"; Assert-RecordValue $entry.Record "candidateDigest" $digest "Runtime validation record"; Assert-RecordValue $entry.Record "candidateDigestAlgorithm" "GIT_COMMIT_TREE_SHA256_V1" "Runtime validation record" }
+    Assert-ExplicitHumanConfirmation $approval.Record "RUNTIME_VALIDATION_APPROVAL" "RUNTIME_CANARY_VALIDATION" "AUTHORIZE_RUNTIME_CANARY_VALIDATION" "5ZCM5oSP5omn6KGMIFJ1bnRpbWUgQ2FuYXJ5IOmqjOivgQ==" "APPROVED: AUTHORIZE RUNTIME CANARY VALIDATION" "Runtime validation approval"
+    Assert-RecordValue $audit.Record "recordType" "INDEPENDENT_RUNTIME_SAFETY_AUDIT" "Runtime validation audit"
+    Assert-RecordValue $audit.Record "scope" "RUNTIME_CANARY_VALIDATION" "Runtime validation audit"
+    Assert-IndependentAuditRecord $audit.Record "RUNTIME_CANARY_SAFETY_REVIEW_PASS" "Runtime validation audit"
+  } elseif ((Get-OptionalValue $Train "runtimeCanaryAuthorized") -eq $true -or (Require-Text $Train "runtimeValidationApprovalRef" "Release Train $trainId") -ne "PENDING" -or (Require-Text $Train "runtimeValidationAuditRef" "Release Train $trainId") -ne "PENDING") {
+    Fail "Runtime Canary authority fields must remain false/PENDING before VALIDATION_AUTHORIZED"
+  }
+}
+
+function Assert-NoSerialPathOverlap($ActiveWrites, [string[]]$CanonicalProtectedPaths) {
+  foreach ($record in @($ActiveWrites)) {
+    foreach ($allowed in @($record.AllowedPaths)) {
+      foreach ($protected in $CanonicalProtectedPaths) {
+        if (Test-PrefixOverlap $allowed $protected) { Fail "parallel SOURCE_PATH overlaps CANONICAL_WRITER protected path: $allowed <> $protected" }
+      }
+    }
+  }
+}
+
+function Assert-CanonicalWriterProtection($ActiveWrites, $ActiveLeases) {
+  $requiredWriters = @(
+    "shared-contract-types-validators-api-events","canonical-shared-runtime","migration-reservation-and-schema-ledger",
+    "integration-queue-and-integration-branch","current-state-phase-registry-lock-report-tag"
+  )
+  foreach ($requiredWriter in $requiredWriters) {
+    $writer = @($ActiveLeases | Where-Object { $_.Type -eq "CANONICAL_WRITER" -and $_.Key -eq $requiredWriter })
+    if ($writer.Count -ne 1) { Fail "missing unique CANONICAL_WRITER lease for protected serial authority: $requiredWriter" }
+  }
+  $canonicalWriters = @($ActiveLeases | Where-Object { $_.Type -eq "CANONICAL_WRITER" })
+  for ($i=0; $i -lt $canonicalWriters.Count; $i++) {
+    for ($j=$i+1; $j -lt $canonicalWriters.Count; $j++) {
+      foreach ($left in $canonicalWriters[$i].ProtectedPaths) { foreach ($right in $canonicalWriters[$j].ProtectedPaths) {
+        if (Test-PrefixOverlap $left $right) { Fail "CANONICAL_WRITER protected path ownership overlaps: $left <> $right" }
+      }}
+    }
+  }
+  $canonicalProtectedPaths = @($canonicalWriters | ForEach-Object { $_.ProtectedPaths } | Sort-Object -Unique)
+  Assert-NoSerialPathOverlap $ActiveWrites $canonicalProtectedPaths
+}
+
+function Assert-NoLockedMigrationStatusEntries([string[]]$Entries) {
+  foreach ($entry in $Entries) {
+    $trimmed = "$entry" -replace '[\x00\r\n]+$',''
+    if ($trimmed -match '^(\?\?|[ MADRCUT?!]{2}) (.+)$') {
+      $path = $Matches[2].Replace('\','/')
+      if ($path -match '^db/migrations/(\d{3})[_-]' -and [int]$Matches[1] -le 57) { Fail "git status contains locked migration 000-057 content: $path" }
+    }
+  }
+}
+
+function Get-UniqueMigrationIndex([string[]]$FileNames) {
+  $groups = @{}
+  foreach ($name in $FileNames) {
+    if ($name -match '^(\d{3})[_-]') {
+      $number = $Matches[1]
+      if (-not $groups.ContainsKey($number)) { $groups[$number] = @() }
+      $groups[$number] += $name
+    }
+  }
+  $index = @{}
+  foreach ($number in $groups.Keys) {
+    if ($groups[$number].Count -ne 1) { Fail "duplicate migration number $number in filesystem: $($groups[$number] -join ', ')" }
+    $index[$number] = $groups[$number][0]
+  }
+  return $index
+}
+
+function Get-MigrationRepositoryIndex([string]$RepositoryRoot) {
+  $migrationRoot = Join-Path $RepositoryRoot "db/migrations"
+  $migrationFiles = @(Get-ChildItem -LiteralPath $migrationRoot -Filter "*.sql" -File | Select-Object -ExpandProperty Name)
+  $index = Get-UniqueMigrationIndex $migrationFiles
+  $statusOutput = @(& git -C $RepositoryRoot status --porcelain=v1 -z --untracked-files=all --no-renames -- db/migrations 2>&1)
+  if ($LASTEXITCODE -ne 0) { Fail "git status --porcelain -z failed while checking locked migrations: $($statusOutput -join ' ')" }
+  $statusEntries = @((($statusOutput -join "`n") -split "`0") | Where-Object { -not [string]::IsNullOrWhiteSpace("$_") })
+  Assert-NoLockedMigrationStatusEntries $statusEntries
+  return $index
+}
+
+function Get-EnvironmentDigest($Record, $LeaseById) {
+  $manifest = $Record.Manifest
+  $leaseRefs = Get-OptionalValue $manifest "leaseRefs"
+  $environmentLeaseId = (Require-Text $leaseRefs "environment" "Manifest leaseRefs").ToLowerInvariant()
+  if (-not $LeaseById.ContainsKey($environmentLeaseId)) { Fail "environment digest cannot resolve ENVIRONMENT lease $environmentLeaseId" }
+  $portRefs = Get-OptionalValue $leaseRefs "ports"
+  $ports = [ordered]@{}
+  foreach ($name in @("mysql","redis","backend","customer","worker","admin")) {
+    $id = (Require-Text $portRefs $name "Manifest leaseRefs.ports").ToLowerInvariant()
+    if (-not $LeaseById.ContainsKey($id)) { Fail "environment digest cannot resolve PORT lease $id" }
+    $lease = $LeaseById[$id]
+    $ports[$name] = [ordered]@{ leaseId=$lease.Id; portName="$($lease.PortName)"; port=[int]$lease.Port }
+  }
+  $environment = [ordered]@{}
+  foreach ($field in @("slot","envFileName","composeOverrideRef","composeProject","mysqlDatabase","mysqlPort","redisNamespace","redisPort","backendPort","customerPort","workerPort","adminPort")) {
+    $environment[$field] = Get-OptionalValue $Record.Environment $field
+  }
+  $environmentLease = $LeaseById[$environmentLeaseId]
+  $composeRef=Assert-CanonicalTrackedPath (Require-Text $Record.Environment "composeOverrideRef" "Work Unit environment digest") "Work Unit Compose template"
+  $payload = [ordered]@{
+    algorithm="WORK_UNIT_ENVIRONMENT_SHA256_V1"; trainId=$Record.TrainId; workUnitId=$Record.WorkUnitId
+    baseCommit=(Require-Text $manifest "baseCommit" "Work Unit environment digest"); environment=$environment
+    environmentLease=[ordered]@{ leaseId=$environmentLease.Id; resources=$environmentLease.Resources }
+    ports=$ports
+    composeTemplateSha256=(Get-FileHash -LiteralPath (Join-Path $Root $composeRef) -Algorithm SHA256).Hash.ToLowerInvariant()
+  }
+  return Get-Sha256Hex ($payload | ConvertTo-Json -Depth 20 -Compress)
+}
+
+function Assert-LiveCandidateWorktree($Record, [string]$CandidateCommit) {
+  $worktree = Require-Text $Record.Manifest "worktreePath" "Work Unit candidate worktree"
+  if (-not (Test-Path -LiteralPath $worktree -PathType Container)) { Fail "package-state Work Unit requires its registered worktree for live immutable/clean verification" }
+  $head = (Invoke-Git $worktree @("rev-parse","HEAD^{commit}") | Select-Object -First 1).Trim()
+  $status = @(& git -C $worktree status --porcelain=v1 -z --untracked-files=all 2>&1)
+  if ($LASTEXITCODE -ne 0 -or $head -ne $CandidateCommit -or -not [string]::IsNullOrWhiteSpace(($status -join ""))) { Fail "package-state Work Unit is not clean at its immutable candidateCommit" }
+}
+
+function Assert-PackageRecordBindings($Record, [string]$CandidateCommit, [string]$CandidateDigest, [string]$EnvironmentDigest, [bool]$RequireAudit) {
+  $manifest = $Record.Manifest
+  $baseCommit = Require-Text $manifest "baseCommit" "Work Unit package record"
+  $contractRevision = Require-Text $manifest "contractRevision" "Work Unit package record"
+  $evidenceRefs = @(Get-Array $manifest "evidenceRefs" | ForEach-Object { "$_" })
+  if ($evidenceRefs.Count -eq 0) { Fail "package-state Work Unit requires evidenceRefs" }
+  $candidateRecordRef = Require-Text $manifest "candidateRecordRef" "Work Unit package record"
+  if ($evidenceRefs -notcontains $candidateRecordRef) { Fail "candidateRecordRef must be one of evidenceRefs" }
+  $evidenceFiles = @{}
+  foreach ($ref in $evidenceRefs) {
+    $entry = Read-StrictRecord $ref "Package evidence record" @("governance/execution/evidence")
+    $record = $entry.Record
+    Assert-RecordValue $record "recordType" "EVIDENCE" "Package evidence record"
+    Assert-RecordValue $record "trainId" $Record.TrainId "Package evidence record"
+    Assert-RecordValue $record "workUnitId" $Record.WorkUnitId "Package evidence record"
+    Assert-RecordValue $record "candidateCommit" $CandidateCommit "Package evidence record"
+    Assert-RecordValue $record "candidateDigest" $CandidateDigest "Package evidence record"
+    Assert-RecordValue $record "candidateDigestAlgorithm" "GIT_COMMIT_TREE_SHA256_V1" "Package evidence record"
+    Assert-RecordValue $record "baseCommit" $baseCommit "Package evidence record"
+    Assert-RecordValue $record "contractRevision" $contractRevision "Package evidence record"
+    Assert-RecordValue $record "environmentDigest" $EnvironmentDigest "Package evidence record"
+    if ((Require-Text $record "result" "Package evidence record").ToUpperInvariant() -ne "PASS") { Fail "Package evidence record result must be PASS" }
+    if ($ref -eq $candidateRecordRef) {
+      $checks = @(Get-Array $record "checks" | ForEach-Object { "$_".ToUpperInvariant() })
+      if ($checks -notcontains "CLEAN_WORKTREE_RECORDED" -or $checks -notcontains "IMMUTABLE_COMMIT_VERIFIED") { Fail "candidate record lacks clean immutable package checks" }
+    }
+    $evidenceFiles[$entry.Ref.ToLowerInvariant()] = (Get-FileHash -LiteralPath $entry.FullPath -Algorithm SHA256).Hash.ToLowerInvariant()
+  }
+  if (-not $RequireAudit) { return }
+  $auditRefs = @(Get-Array $manifest "auditRefs" | ForEach-Object { "$_" })
+  if ($auditRefs.Count -eq 0) { Fail "audited/queued package requires auditRefs" }
+  foreach ($ref in $auditRefs) {
+    $entry = Read-StrictRecord $ref "Package independent audit record" @("governance/execution/evidence")
+    $record = $entry.Record
+    Assert-RecordValue $record "recordType" "INDEPENDENT_AUDIT" "Package independent audit record"
+    Assert-RecordValue $record "trainId" $Record.TrainId "Package independent audit record"
+    Assert-RecordValue $record "workUnitId" $Record.WorkUnitId "Package independent audit record"
+    Assert-RecordValue $record "candidateCommit" $CandidateCommit "Package independent audit record"
+    Assert-RecordValue $record "candidateDigest" $CandidateDigest "Package independent audit record"
+    Assert-RecordValue $record "candidateDigestAlgorithm" "GIT_COMMIT_TREE_SHA256_V1" "Package independent audit record"
+    Assert-RecordValue $record "baseCommit" $baseCommit "Package independent audit record"
+    Assert-RecordValue $record "contractRevision" $contractRevision "Package independent audit record"
+    Assert-RecordValue $record "environmentDigest" $EnvironmentDigest "Package independent audit record"
+    Assert-IndependentAuditRecord $record "PACKAGE_EVIDENCE_BINDINGS_VERIFIED" "Package independent audit record"
+    $auditEvidenceRefs=@(Get-Array $record "evidenceRefs"|ForEach-Object{"$_"}|Sort-Object)
+    if (@(Compare-Object @($evidenceRefs|Sort-Object) $auditEvidenceRefs).Count -gt 0) { Fail "independent audit evidenceRefs do not exactly bind Manifest evidenceRefs" }
+    $bindings = @(Get-Array $record "evidenceBindings")
+    if ($bindings.Count -ne $evidenceFiles.Count) { Fail "audit evidenceBindings must cover every evidenceRef exactly once" }
+    $seen = @{}
+    foreach ($binding in $bindings) {
+      Assert-AllowedFields $binding @("ref","sha256") "audit evidence binding"
+      $bindingRef = (Assert-CanonicalTrackedPath (Require-Text $binding "ref" "audit evidence binding") "audit evidence binding" @("governance/execution/evidence")).ToLowerInvariant()
+      if ($seen.ContainsKey($bindingRef) -or -not $evidenceFiles.ContainsKey($bindingRef)) { Fail "audit evidence binding is duplicate or not declared by Manifest: $bindingRef" }
+      if ((Require-Text $binding "sha256" "audit evidence binding").ToLowerInvariant() -ne $evidenceFiles[$bindingRef]) { Fail "audit evidence digest mismatch: $bindingRef" }
+      $seen[$bindingRef] = $true
+    }
+  }
+}
+
 function Assert-ExecutionEnabled($Registry) {
   $system = (Require-Text $Registry "executionSystemStatus" "Release Train Registry").ToUpperInvariant()
   $enabled = (Require-Text $Registry "enablementStatus" "Release Train Registry").ToUpperInvariant()
@@ -152,11 +744,21 @@ function Get-ManifestRecords {
   foreach ($file in @(Get-ChildItem -LiteralPath $WorkUnitsRoot -Filter "*.json" -File | Sort-Object Name)) {
     $manifest = Read-Json $file.FullName "Work Unit Manifest"
     $label = "Work Unit Manifest $($file.Name)"
+    Assert-StrictManifest $manifest $label
     Require-SchemaVersion $manifest 1 $label
     $trainId = Require-Text $manifest "trainId" $label
     $workUnitId = Require-Text $manifest "workUnitId" $label
     $status = (Require-Text $manifest "status" $label).ToUpperInvariant()
     if ($status -notin $AllowedWorkUnitStatuses) { Fail "$label has unsupported status $status" }
+    $workUnitTransitions = @{
+      NONE=@("PLANNED"); PLANNED=@("WAITING_DEPENDENCY","CONTRACT_FROZEN","BLOCKED","ABANDONED");
+      WAITING_DEPENDENCY=@("CONTRACT_FROZEN","BLOCKED","ABANDONED"); CONTRACT_FROZEN=@("CONSTRUCTION_AUTHORIZED","BLOCKED","ABANDONED");
+      CONSTRUCTION_AUTHORIZED=@("IN_CONSTRUCTION","BLOCKED","ABANDONED"); IN_CONSTRUCTION=@("PACKAGE_VERIFIED","BLOCKED","ABANDONED");
+      PACKAGE_VERIFIED=@("PACKAGE_AUDITED","STALE","BLOCKED"); PACKAGE_AUDITED=@("QUEUED","STALE","BLOCKED");
+      QUEUED=@("INTEGRATED","STALE","BLOCKED"); INTEGRATED=@("CLOSED","BLOCKED");
+      STALE=@("IN_CONSTRUCTION","ABANDONED"); BLOCKED=@("WAITING_DEPENDENCY","CONTRACT_FROZEN","IN_CONSTRUCTION","ABANDONED"); CLOSED=@(); ABANDONED=@()
+    }
+    Assert-StatusTransition (Require-Text $manifest "previousStatus" $label) $status $workUnitTransitions $label (Require-Text $manifest "statusChangedAt" $label) (Require-Text $manifest "transitionAuthorityRef" $label)
     $null = Require-Text $manifest "owner" $label
     $null = Require-Text $manifest "worktreePath" $label
     $null = Require-Text $manifest "branch" $label
@@ -286,6 +888,7 @@ function Test-RepositoryGovernance {
   }
 
   $trainRegistry = Read-Json $TrainRegistryPath "Release Train Registry"
+  Assert-StrictTrainRegistry $trainRegistry
   Require-SchemaVersion $trainRegistry 1 "Release Train Registry"
   $executionSystemStatus = (Require-Text $trainRegistry "executionSystemStatus" "Release Train Registry").ToUpperInvariant()
   $enablementStatus = (Require-Text $trainRegistry "enablementStatus" "Release Train Registry").ToUpperInvariant()
@@ -299,7 +902,7 @@ function Test-RepositoryGovernance {
     $trainId = Require-Text $train "trainId" "Release Train Registry entry"
     $trainStatus = (Require-Text $train "status" "Release Train $trainId").ToUpperInvariant()
     if ($trainStatus -notin @(
-      "PLANNED", "DRAFT", "CHARTER_HUMAN_APPROVED", "ASSEMBLING", "TRAIN_VERIFIED",
+      "PLANNED", "DRAFT", "VALIDATION_AUTHORIZED", "CHARTER_HUMAN_APPROVED", "ASSEMBLING", "TRAIN_VERIFIED",
       "HUMAN_ACCEPTED", "PHASE_LOCKS_COMPLETED", "CLOSED", "BLOCKED", "ABANDONED"
     )) { Fail "Release Train $trainId has unsupported status $trainStatus" }
     $identity = $trainId.ToLowerInvariant()
@@ -319,6 +922,8 @@ function Test-RepositoryGovernance {
     $null = Test-BaseAuthority $train "Release Train $trainId"
     $trainSet[$identity] = $train
   }
+  Assert-EnablementAuthorityChain $trainRegistry $executionSystemStatus $enablementStatus $trains
+  foreach ($train in $trains) { Assert-TrainAuthority $train $trainRegistry $executionSystemStatus $enablementStatus }
   foreach ($record in $records) {
     $trainKey = $record.TrainId.ToLowerInvariant()
     if (-not $trainSet.ContainsKey($trainKey)) { Fail "Work Unit $($record.WorkUnitId) references unregistered Train $($record.TrainId)" }
@@ -347,20 +952,6 @@ function Test-RepositoryGovernance {
     $trainLimit = [int]$train.maxConcurrentWriteWorkUnits
     if (@($activeWrites | Where-Object { $_.TrainId -eq $trainId }).Count -gt $trainLimit) { Fail "active WRITE Work Units exceed Train $trainId maximum $trainLimit" }
   }
-  $protectedSerialPaths = @(
-    "AGENTS.md", "governance", "docs/CURRENT_STATE.md", "docs/governance/phase-registry.json",
-    "package.json", "pnpm-lock.yaml", "packages/types/src/index.ts", "packages/validators/src/index.ts",
-    "packages/api-client/src/index.ts", "backend/src/app.ts", "backend/src/server.ts",
-    "scripts", "db/dictionary", "db/migrations"
-  )
-  foreach ($record in $activeWrites) {
-    foreach ($allowed in $record.AllowedPaths) {
-      foreach ($protected in $protectedSerialPaths) {
-        if (Test-PrefixOverlap $allowed $protected) { Fail "parallel SOURCE_PATH overlaps protected SERIAL_WRITE path: $allowed <> $protected" }
-      }
-    }
-  }
-
   for ($i = 0; $i -lt $active.Count; $i++) {
     for ($j = $i + 1; $j -lt $active.Count; $j++) {
       foreach ($left in $active[$i].AllowedPaths) {
@@ -379,6 +970,7 @@ function Test-RepositoryGovernance {
   }
 
   $leaseLedger = Read-Json $LeasesPath "Lease Ledger"
+  Assert-StrictLeaseLedger $leaseLedger
   Require-SchemaVersion $leaseLedger 2 "Lease Ledger"
   $leases = @(Get-LedgerItems $leaseLedger "leases" "Lease Ledger")
   $activeLeases = @()
@@ -413,6 +1005,18 @@ function Test-RepositoryGovernance {
     $normalizedId = $leaseId.ToLowerInvariant()
     if ($leaseIds.ContainsKey($normalizedId)) { Fail "duplicate leaseId: $leaseId" }
     $leaseIds[$normalizedId] = $true
+    $protectedPaths = @()
+    if ($type -eq "CANONICAL_WRITER") {
+      $member = $lease.PSObject.Properties["protectedPaths"]
+      if ($null -eq $member -or $member.Value -isnot [System.Array] -or @($member.Value).Count -eq 0) { Fail "CANONICAL_WRITER $leaseId must declare a non-empty protectedPaths array" }
+      $seenProtected = @{}
+      foreach ($path in @($member.Value)) {
+        $normalizedPath = Normalize-RepoPath "$path" "CANONICAL_WRITER $leaseId protectedPaths"
+        $pathKey = $normalizedPath.ToLowerInvariant()
+        if ($seenProtected.ContainsKey($pathKey)) { Fail "CANONICAL_WRITER $leaseId has duplicate protected path $normalizedPath" }
+        $seenProtected[$pathKey] = $true; $protectedPaths += $normalizedPath
+      }
+    } elseif ($null -ne (Get-OptionalValue $lease "protectedPaths")) { Fail "only CANONICAL_WRITER leases may declare protectedPaths" }
     if ($status -notin $InactiveLeaseStatuses) {
       $identity = "$trainId/$workUnitId".ToLowerInvariant()
       if (-not $identity.StartsWith("system-serial-lanes/") -and
@@ -423,7 +1027,7 @@ function Test-RepositoryGovernance {
         Id=$leaseId; Type=$type; Key=$key; Resource=$resource; Value=$value
         Resources=$resources; Ports=$ports; PortName=$portName; Port=$port
         Paths=(Get-OptionalValue $lease "paths")
-        ProtectedPaths=(Get-OptionalValue $lease "protectedPaths")
+        ProtectedPaths=$protectedPaths
         Identity=$identity; WorkUnitId=$workUnitId
       }
       $activeLeases += $activeLease
@@ -470,23 +1074,7 @@ function Test-RepositoryGovernance {
       }
     }
   }
-  $writerPathMap = [ordered]@{
-    "shared-contract-types-validators-api-events" = @("packages/types", "packages/validators", "packages/api-client", "docs/contracts")
-    "canonical-shared-runtime" = @("backend/src/app.ts", "backend/src/server.ts")
-    "migration-reservation-and-schema-ledger" = @("governance/execution/migration-reservations.json", "db/dictionary", "db/migrations")
-    "integration-queue-and-integration-branch" = @("governance/execution/integration-queue.json", "scripts", "package.json", "pnpm-lock.yaml")
-    "current-state-phase-registry-lock-report-tag" = @("AGENTS.md", "governance", "docs/CURRENT_STATE.md", "docs/governance/phase-registry.json")
-  }
-  foreach ($requiredWriter in $writerPathMap.Keys) {
-    $writer = @($activeLeases | Where-Object { $_.Type -eq "CANONICAL_WRITER" -and $_.Key -eq $requiredWriter })
-    if ($writer.Count -ne 1) {
-      Fail "missing unique CANONICAL_WRITER lease for protected serial authority: $requiredWriter"
-    }
-    $actualPaths = @($writer[0].ProtectedPaths | ForEach-Object { Normalize-RepoPath "$_" "CANONICAL_WRITER protectedPaths" })
-    foreach ($requiredPath in $writerPathMap[$requiredWriter]) {
-      if ($actualPaths -notcontains $requiredPath) { Fail "CANONICAL_WRITER $requiredWriter does not cover protected path $requiredPath" }
-    }
-  }
+  Assert-CanonicalWriterProtection $activeWrites $activeLeases
 
   foreach ($record in $active) {
     $identity = "$($record.TrainId)/$($record.WorkUnitId)".ToLowerInvariant()
@@ -564,16 +1152,14 @@ function Test-RepositoryGovernance {
   }
 
   $reservationLedger = Read-Json $ReservationsPath "Migration Reservation Ledger"
+  Assert-StrictReservationLedger $reservationLedger
   Require-SchemaVersion $reservationLedger 1 "Migration Reservation Ledger"
   $reservations = @(Get-LedgerItems $reservationLedger "reservations" "Migration Reservation Ledger")
   Assert-UniqueValues $reservations "number" "Migration Reservation Ledger"
   Assert-UniqueValues $reservations "expectedFilename" "Migration Reservation Ledger"
   $numbers = @{}
   $filenames = @{}
-  $existingMigrations = @{}
-  foreach ($file in @(Get-ChildItem -LiteralPath (Join-Path $Root "db/migrations") -Filter "*.sql" -File)) {
-    if ($file.Name -match '^(\d{3})[_-]') { $existingMigrations[$Matches[1]] = $file.Name }
-  }
+  $existingMigrations = Get-MigrationRepositoryIndex $Root
   $lockedMigrationChanges = @()
   $lockedMigrationChanges += Invoke-Git $Root @("diff", "--no-renames", "--name-only", "xlb-phase29-marketing-coupon^{}", "HEAD", "--", "db/migrations")
   $lockedMigrationChanges += Invoke-Git $Root @("diff", "--no-renames", "--name-only", "--", "db/migrations")
@@ -628,15 +1214,19 @@ function Test-RepositoryGovernance {
   }
 
   foreach ($record in $records | Where-Object { $_.Status -in @("PACKAGE_VERIFIED", "PACKAGE_AUDITED", "QUEUED", "INTEGRATED") }) {
+    $manifestRelative=$record.File.Substring($Root.Length).TrimStart('\','/').Replace('\','/')
+    $null=Assert-CanonicalTrackedPath $manifestRelative "Package-state Work Unit Manifest"
+    $null=Assert-CanonicalTrackedPath "governance/execution/leases.json" "Package-state Lease Ledger"
     $candidateCommit = Require-Text $record.Manifest "candidateCommit" "Work Unit $($record.WorkUnitId)"
     if ($candidateCommit -notmatch '^[0-9a-fA-F]{40}$' -or
         (Invoke-Git $Root @("cat-file", "-t", $candidateCommit) | Select-Object -First 1).Trim() -ne "commit") {
       Fail "Work Unit $($record.WorkUnitId) candidateCommit must be an immutable commit object"
     }
-    if ((Get-OptionalValue $record.Manifest "cleanWorktree") -ne $true) { Fail "package-state Work Unit must record cleanWorktree=true" }
+    Assert-LiveCandidateWorktree $record $candidateCommit
     $digest = Require-Text $record.Manifest "candidateDigest" "Work Unit $($record.WorkUnitId)"
-    if ($digest -notmatch '^[0-9a-fA-F]{64}$') { Fail "candidateDigest must be a SHA-256 hex digest" }
-    if (@(Get-Array $record.Manifest "evidenceRefs").Count -eq 0) { Fail "package-state Work Unit requires evidenceRefs" }
+    $actualDigest = Assert-CandidateDigestBinding $candidateCommit $digest (Require-Text $record.Manifest "candidateDigestAlgorithm" "Work Unit $($record.WorkUnitId)") "Work Unit $($record.WorkUnitId)"
+    $environmentDigest = Get-EnvironmentDigest $record $leaseById
+    if ((Require-Text $record.Manifest "environmentDigest" "Work Unit $($record.WorkUnitId)").ToLowerInvariant() -ne $environmentDigest) { Fail "environmentDigest does not match Manifest, Lease, port, and Compose inputs" }
     if ($record.ExecutionMode -eq "BUSINESS_CONSTRUCTION") {
       $contractRevision = Require-Text $record.Manifest "contractRevision" "Work Unit contract freshness"
       if ($contractRevision -notmatch '^[0-9a-fA-F]{40}$' -or
@@ -646,12 +1236,7 @@ function Test-RepositoryGovernance {
       & git -C $Root merge-base --is-ancestor $contractRevision $candidateCommit *> $null
       if ($LASTEXITCODE -ne 0) { Fail "candidateCommit is stale against contractRevision" }
     }
-    if ($record.Status -in @("PACKAGE_AUDITED", "QUEUED", "INTEGRATED")) {
-      if (@(Get-Array $record.Manifest "auditRefs").Count -eq 0 -or
-          "$(Get-OptionalValue $record.Manifest "independentAuditStatus")".ToUpperInvariant() -ne "PASS") {
-        Fail "audited/queued package requires auditRefs and independentAuditStatus=PASS"
-      }
-    }
+    Assert-PackageRecordBindings $record $candidateCommit $actualDigest $environmentDigest ($record.Status -in @("PACKAGE_AUDITED", "QUEUED", "INTEGRATED"))
     $baseCommit = Require-Text $record.Manifest "baseCommit" "Work Unit base"
     $migrationDiff = @(Invoke-Git $Root @("diff", "--no-renames", "--name-only", $baseCommit, $candidateCommit, "--", "db/migrations"))
     foreach ($path in $migrationDiff) {
@@ -669,12 +1254,15 @@ function Test-RepositoryGovernance {
   }
 
   $queue = Read-Json $IntegrationQueuePath "Integration Queue"
+  Assert-StrictQueue $queue
   Require-SchemaVersion $queue 1 "Integration Queue"
   $queueSystemStatus = (Require-Text $queue "executionSystemStatus" "Integration Queue").ToUpperInvariant()
   $queueEnablement = (Require-Text $queue "enablementStatus" "Integration Queue").ToUpperInvariant()
   if ($queueSystemStatus -ne $executionSystemStatus -or $queueEnablement -ne $enablementStatus) {
     Fail "Integration Queue execution/enablement status must match Train Registry"
   }
+  $queueTransitions = @{ NONE=@("NOT_ENABLED"); NOT_ENABLED=@("ENABLED","DISABLED"); ENABLED=@("DISABLED"); DISABLED=@("ENABLED") }
+  Assert-StatusTransition (Require-Text $queue "previousEnablementStatus" "Integration Queue") $queueEnablement $queueTransitions "Integration Queue" (Require-Text $queue "statusChangedAt" "Integration Queue") (Require-Text $queue "transitionAuthorityRef" "Integration Queue")
   $acceptingItems = (Get-OptionalValue $queue "acceptingItems") -eq $true
   $queueItems = @(Get-LedgerItems $queue "items" "Integration Queue")
   Assert-QueueOpenState $acceptingItems $queueItems
@@ -701,12 +1289,21 @@ function Test-RepositoryGovernance {
       Fail "Integration Queue candidateCommit must be an immutable commit object"
     }
     if ((Require-Text $record.Manifest "candidateCommit" "QUEUED Work Unit") -ne $candidateCommit) { Fail "queue/Manifest candidateCommit mismatch" }
-    if ((Get-OptionalValue $item "cleanWorktree") -ne $true -or
-        (Get-OptionalValue $item "immutableCandidateCommit") -ne $true -or
-        (Get-OptionalValue $item "stale") -ne $false -or
-        (Require-Text $item "independentAuditStatus" "Integration Queue item $sequence").ToUpperInvariant() -ne "PASS") {
-      Fail "queue item requires clean immutable non-STALE candidate and independentAuditStatus=PASS"
+    $actualDigest = Assert-CandidateDigestBinding $candidateCommit (Require-Text $item "candidateDigest" "Integration Queue item $sequence") (Require-Text $item "candidateDigestAlgorithm" "Integration Queue item $sequence") "Integration Queue item $sequence"
+    foreach ($field in @("baseCommit","contractRevision","environmentDigest","candidateRecordRef")) {
+      if ((Require-Text $item $field "Integration Queue item $sequence") -ne (Require-Text $record.Manifest $field "QUEUED Work Unit")) { Fail "queue/Manifest $field mismatch" }
     }
+    foreach ($field in @("evidenceRefs","auditRefs")) {
+      $left = @(Get-Array $item $field | ForEach-Object { "$_" } | Sort-Object)
+      $right = @(Get-Array $record.Manifest $field | ForEach-Object { "$_" } | Sort-Object)
+      if (@(Compare-Object $left $right).Count -gt 0) { Fail "queue/Manifest $field mismatch" }
+    }
+    $null = Assert-CanonicalTrackedPath (Require-Text $item "transitionAuthorityRef" "Integration Queue item $sequence") "Integration Queue item transitionAuthorityRef"
+    $queueWorktree = Require-Text $record.Manifest "worktreePath" "QUEUED Work Unit"
+    if (-not (Test-Path -LiteralPath $queueWorktree -PathType Container)) { Fail "queue requires the candidate Work Unit worktree to exist for live clean-tree verification" }
+    $liveHead = (Invoke-Git $queueWorktree @("rev-parse", "HEAD^{commit}") | Select-Object -First 1).Trim()
+    $liveStatus = @(& git -C $queueWorktree status --porcelain=v1 -z --untracked-files=all 2>&1)
+    if ($LASTEXITCODE -ne 0 -or $liveHead -ne $candidateCommit -or -not [string]::IsNullOrWhiteSpace(($liveStatus -join ""))) { Fail "queue candidate is not the clean immutable Work Unit HEAD" }
     $queuedIdentity[$identity] = $true
   }
   $nextSequence = [int](Require-Text $queue "nextSequence" "Integration Queue")
@@ -743,6 +1340,8 @@ function Test-WorkUnitBoundary($RepositoryState) {
   $record = $record[0]
   $manifest = $record.Manifest
   Assert-ExecutionEnabled $RepositoryState.TrainRegistry
+  $manifestRelative=$resolvedManifest.Substring($Root.Length).TrimStart('\','/').Replace('\','/')
+  foreach($controlRef in @($manifestRelative,"governance/execution/train-registry.json","governance/execution/leases.json","governance/execution/integration-queue.json","governance/execution/templates/docker-compose.worktree.yml")){$null=Assert-CanonicalTrackedPath $controlRef "WorkUnit immutable control input"}
   $train = $RepositoryState.TrainSet[$record.TrainId.ToLowerInvariant()]
   if ($null -eq $train) { Fail "Work Unit references an unregistered Train" }
   $trainStatus = (Require-Text $train "status" "Release Train $($record.TrainId)").ToUpperInvariant()
@@ -750,24 +1349,15 @@ function Test-WorkUnitBoundary($RepositoryState) {
   $trainBusinessWrite = (Get-OptionalValue $train "businessWriteAuthorized") -eq $true
 
   if ($record.ExecutionMode -eq "BUSINESS_CONSTRUCTION") {
-    $approvalRef = Require-Text $train "approvalRef" "Release Train $($record.TrainId)"
-    $charterRef = Normalize-RepoPath (Require-Text $train "charterRef" "Release Train $($record.TrainId)") "Release Train charterRef"
-    $charterText = Get-Content -LiteralPath (Join-Path $Root $charterRef) -Raw -Encoding UTF8
-    if ($approvalRef -match '(?i)PENDING|WAITING|DRAFT' -or
-        $charterText -match '(?i)\bDRAFT\b|WAITING_HUMAN_APPROVAL|NO BUSINESS CONSTRUCTION AUTHORITY' -or
-        $charterText -notmatch 'CHARTER_HUMAN_APPROVED') {
-      Fail "BUSINESS_CONSTRUCTION requires machine-readable approvalRef and an approved, non-draft Charter"
-    }
-    if ($trainStatus -ne "CHARTER_HUMAN_APPROVED" -or
+    if ($trainStatus -notin @("CHARTER_HUMAN_APPROVED","ASSEMBLING") -or
         $humanApprovalStatus -notin @("APPROVED", "HUMAN_APPROVED", "EXPLICIT_HUMAN_APPROVAL_RECORDED") -or
         -not $trainBusinessWrite -or -not $record.BusinessWriteAuthorized -or
         $record.Status -notin @("CONSTRUCTION_AUTHORIZED", "IN_CONSTRUCTION")) {
       Fail "BUSINESS_CONSTRUCTION is not authorized: Train must be CHARTER_HUMAN_APPROVED with explicit Human approval and business authority; Work Unit must be CONSTRUCTION_AUTHORIZED or IN_CONSTRUCTION with businessWriteAuthorized=true"
     }
   } elseif ($record.ExecutionMode -eq "VALIDATION_ONLY") {
-    if ($record.BusinessWriteAuthorized -or $trainBusinessWrite) {
-      Fail "VALIDATION_ONLY may not carry business write authority"
-    }
+    if ($record.BusinessWriteAuthorized -or $trainBusinessWrite) { Fail "VALIDATION_ONLY may not carry business write authority" }
+    if ($trainStatus -ne "VALIDATION_AUTHORIZED" -or $humanApprovalStatus -ne "EXPLICIT_HUMAN_APPROVAL_RECORDED" -or (Get-OptionalValue $train "runtimeCanaryAuthorized") -ne $true) { Fail "VALIDATION_ONLY WorkUnit requires the independently approved VALIDATION_AUTHORIZED Train state" }
   } else {
     Fail "unsupported Work Unit executionMode: $($record.ExecutionMode)"
   }
@@ -929,6 +1519,158 @@ function Invoke-NegativeSelfTests {
   }
   Assert-Rejected "queue item while acceptingItems=false" {
     Assert-QueueOpenState $false @([pscustomobject]@{sequence=1})
+  }
+  $tempRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\')
+  $fixtureRoot = Join-Path $tempRoot ("xlb-managed-gate-fixture-" + [Guid]::NewGuid().ToString("N"))
+  $null = New-Item -ItemType Directory -Path $fixtureRoot
+  $fixtureFiles = @()
+  $fixtureDirs = @()
+  try {
+    $duplicatePath = Join-Path $fixtureRoot "duplicate.json"; $fixtureFiles += $duplicatePath
+    [IO.File]::WriteAllText($duplicatePath, '{"schemaVersion":1,"schemaVersion":2}', [Text.Encoding]::UTF8)
+    Assert-Rejected "production Read-Json duplicate key" { $null = Read-Json $duplicatePath "duplicate-key fixture" }
+
+    $globalPath = Join-Path $fixtureRoot "enabled-pending.json"; $fixtureFiles += $globalPath
+    $globalFixture = [ordered]@{
+      schemaVersion=1;updatedAt="2026-07-14T00:00:00+08:00";executionSystemStatus="ENABLED";enablementStatus="ENABLED"
+      previousExecutionSystemStatus="BOOTSTRAP";previousEnablementStatus="NOT_ENABLED";statusChangedAt="2026-07-14T00:00:00+08:00"
+      transitionAuthorityRef="governance/07_GOVERNANCE_EXECUTION_SYSTEM_IMPLANTATION_REPORT.md";enablementConditions=@()
+      enablementApprovalRef="PENDING";auditedCandidateCommit="PENDING";independentAuditRef="PENDING";humanConfirmationRef="PENDING"
+      canonicalRoot="G:\xlb100";managedWorktreePool="G:\xlb100-worktrees";maxConcurrentWriteWorkUnits=3;trains=@()
+    }
+    [IO.File]::WriteAllText($globalPath, ($globalFixture|ConvertTo-Json -Depth 10), [Text.Encoding]::UTF8)
+    Assert-Rejected "production global enablement with PENDING authority" { $fixture=Read-Json $globalPath "global enablement fixture";Assert-StrictTrainRegistry $fixture;Assert-EnablementAuthorityChain $fixture "ENABLED" "ENABLED" @() }
+
+    $queuePath = Join-Path $fixtureRoot "queue-fake-booleans.json"; $fixtureFiles += $queuePath
+    $queueFixture = [ordered]@{
+      schemaVersion=1;updatedAt="2026-07-14T00:00:00+08:00";executionSystemStatus="ENABLED";enablementStatus="ENABLED";previousEnablementStatus="NOT_ENABLED"
+      statusChangedAt="2026-07-14T00:00:00+08:00";transitionAuthorityRef="governance/07_GOVERNANCE_EXECUTION_SYSTEM_IMPLANTATION_REPORT.md"
+      acceptingItems=$true;mode="MANUAL_AUDITABLE_SERIAL_QUEUE";ownerRole="Integration Owner";nextSequence=2;rules=[ordered]@{}
+      items=@([ordered]@{sequence=1;trainId="RT";workUnitId="WU";status="QUEUED";candidateCommit=('0'*40);candidateDigest=('0'*64);cleanWorktree=$true;immutableCandidateCommit=$true;stale=$false;independentAuditStatus="PASS"})
+    }
+    [IO.File]::WriteAllText($queuePath, ($queueFixture|ConvertTo-Json -Depth 10), [Text.Encoding]::UTF8)
+    Assert-Rejected "production queue self-reported booleans" { $fixture=Read-Json $queuePath "queue fixture";Assert-StrictQueue $fixture }
+
+    $head = (Invoke-Git $Root @("rev-parse","HEAD^{commit}")|Select-Object -First 1).Trim()
+    $digestPath=Join-Path $fixtureRoot "queue-digest.json";$fixtureFiles+=$digestPath
+    [IO.File]::WriteAllText($digestPath,(@{candidateCommit=$head;candidateDigest=('0'*64);candidateDigestAlgorithm="GIT_COMMIT_TREE_SHA256_V1"}|ConvertTo-Json),[Text.Encoding]::UTF8)
+    Assert-Rejected "production candidate digest mismatch" { $digestFixture=Read-Json $digestPath "candidate digest fixture";$null=Assert-CandidateDigestBinding $digestFixture.candidateCommit $digestFixture.candidateDigest $digestFixture.candidateDigestAlgorithm "fixture" }
+
+    $serialPath=Join-Path $fixtureRoot "serial-overlap.json";$fixtureFiles+=$serialPath
+    $serialFixture=[ordered]@{
+      activeLeases=@(
+        @{Type="CANONICAL_WRITER";Key="shared-contract-types-validators-api-events";ProtectedPaths=@("packages/types")},
+        @{Type="CANONICAL_WRITER";Key="canonical-shared-runtime";ProtectedPaths=@("backend/src/order")},
+        @{Type="CANONICAL_WRITER";Key="migration-reservation-and-schema-ledger";ProtectedPaths=@("db/migrations")},
+        @{Type="CANONICAL_WRITER";Key="integration-queue-and-integration-branch";ProtectedPaths=@("scripts")},
+        @{Type="CANONICAL_WRITER";Key="current-state-phase-registry-lock-report-tag";ProtectedPaths=@("AGENTS.md")}
+      )
+      activeWrites=@(@{AllowedPaths=@("backend/src/order/extensions")},@{AllowedPaths=@("backend/src")})
+    }
+    [IO.File]::WriteAllText($serialPath,($serialFixture|ConvertTo-Json -Depth 8),[Text.Encoding]::UTF8)
+    Assert-Rejected "production serial protected descendant overlap" { $serial=Read-Json $serialPath "serial overlap fixture";Assert-CanonicalWriterProtection @($serial.activeWrites[0]) @($serial.activeLeases) }
+    Assert-Rejected "production serial protected ancestor overlap" { $serial=Read-Json $serialPath "serial overlap fixture";Assert-CanonicalWriterProtection @($serial.activeWrites[1]) @($serial.activeLeases) }
+
+    $migrationRepo=Join-Path $fixtureRoot "migration-repo";$fixtureDirs+=$migrationRepo;$migrationDir=Join-Path $migrationRepo "db/migrations";$null=New-Item -ItemType Directory -Path $migrationDir -Force
+    $null=& git -C $migrationRepo init; if($LASTEXITCODE-ne0){throw"fixture git init failed"}
+    $null=& git -C $migrationRepo config user.email "fixture@xlb.invalid";$null=& git -C $migrationRepo config user.name "XLB Fixture"
+    $base057=Join-Path $migrationDir "057_phase29.sql";[IO.File]::WriteAllText($base057,"-- locked baseline",[Text.Encoding]::UTF8)
+    $null=& git -C $migrationRepo add db/migrations/057_phase29.sql;$null=& git -C $migrationRepo commit -m "fixture baseline";if($LASTEXITCODE-ne0){throw"fixture baseline commit failed"}
+    $shadow024=Join-Path $migrationDir "024_shadow.sql";[IO.File]::WriteAllText($shadow024,"-- untracked fixture",[Text.Encoding]::UTF8)
+    Assert-Rejected "production untracked locked migration" { $null=Get-MigrationRepositoryIndex $migrationRepo }
+    Remove-Item -LiteralPath $shadow024 -Force
+    $duplicate057=Join-Path $migrationDir "057_duplicate.sql";[IO.File]::WriteAllText($duplicate057,"-- duplicate fixture",[Text.Encoding]::UTF8)
+    Assert-Rejected "production filesystem duplicate locked migration" { $null=Get-MigrationRepositoryIndex $migrationRepo }
+    Remove-Item -LiteralPath $duplicate057 -Force
+    [IO.File]::WriteAllText($base057,"-- unstaged mutation",[Text.Encoding]::UTF8)
+    Assert-Rejected "production unstaged locked migration" { $null=Get-MigrationRepositoryIndex $migrationRepo }
+    $null=& git -C $migrationRepo checkout -- db/migrations/057_phase29.sql;if($LASTEXITCODE-ne0){throw"fixture restore failed"}
+    [IO.File]::WriteAllText($base057,"-- staged mutation",[Text.Encoding]::UTF8);$null=& git -C $migrationRepo add db/migrations/057_phase29.sql
+    Assert-Rejected "production staged locked migration" { $null=Get-MigrationRepositoryIndex $migrationRepo }
+
+    $validationPath=Join-Path $fixtureRoot "validation-authority.json";$fixtureFiles+=$validationPath
+    $validationTrain=[ordered]@{trainId="RT-VALIDATION";status="VALIDATION_AUTHORIZED";previousStatus="PLANNED";statusChangedAt="2026-07-14T00:00:00+08:00";transitionAuthorityRef="governance/07_GOVERNANCE_EXECUTION_SYSTEM_IMPLANTATION_REPORT.md";executionMode="VALIDATION_ONLY";businessWriteAuthorized=$false;approvalRef="PENDING";runtimeCanaryAuthorized=$true;runtimeValidationApprovalRef="PENDING";runtimeValidationAuditRef="PENDING"}
+    [IO.File]::WriteAllText($validationPath,($validationTrain|ConvertTo-Json),[Text.Encoding]::UTF8)
+    Assert-Rejected "production VALIDATION_AUTHORIZED missing authority records" { $validation=Read-Json $validationPath "validation authority fixture";Assert-TrainAuthority $validation ([pscustomobject]@{auditedCandidateCommit=$head}) "ENABLED" "ENABLED" }
+    $illegalTransitions=@{PLANNED=@("WAITING_DEPENDENCY","CONTRACT_FROZEN")}
+    Assert-Rejected "production PLANNED direct to QUEUED transition" { Assert-StatusTransition "PLANNED" "QUEUED" $illegalTransitions "Work Unit fixture" "2026-07-14T00:00:00+08:00" "governance/07_GOVERNANCE_EXECUTION_SYSTEM_IMPLANTATION_REPORT.md" }
+    $negativeHuman=[pscustomobject]@{recordType="HUMAN_CONFIRMATION";scope="GOVERNANCE_EXECUTION_ENABLEMENT";decision="APPROVED";actorRole="Human Owner";confirmationCode="ENABLE_GOVERNANCE_EXECUTION";confirmationText="NOT APPROVED: ENABLE GOVERNANCE EXECUTION SYSTEM"}
+    Assert-Rejected "production Human confirmation negation" { Assert-ExplicitHumanConfirmation $negativeHuman "HUMAN_CONFIRMATION" "GOVERNANCE_EXECUTION_ENABLEMENT" "ENABLE_GOVERNANCE_EXECUTION" "5ZCM5oSP5ZCv55So5rK755CG5omn6KGM57O757uf" "APPROVED: ENABLE GOVERNANCE EXECUTION SYSTEM" "fixture Human confirmation" }
+    $writerAudit=[pscustomobject]@{recordType="INDEPENDENT_ENABLEMENT_AUDIT";scope="GOVERNANCE_EXECUTION_ENABLEMENT";result="PASS";independentFromWriter=$true;checks=@();actorRole="Writer"}
+    Assert-Rejected "production self-declared independent audit" { Assert-IndependentAuditRecord $writerAudit "CANDIDATE_CONTENT_PREFLIGHT_PASS" "fixture independent audit" }
+
+    $canonicalSource=$Root;$repositoryFixture=Join-Path $fixtureRoot "repository-context";$fixtureDirs+=$repositoryFixture
+    $savedErrorAction=$ErrorActionPreference;$ErrorActionPreference="Continue"
+    try{
+      $cloneOutput=@(& git clone --shared --no-checkout $canonicalSource $repositoryFixture 2>&1);$cloneExit=$LASTEXITCODE
+      if($cloneExit-ne0){throw"repository fixture clone failed: $($cloneOutput-join' ')"}
+      $checkoutOutput=@(& git -C $repositoryFixture checkout HEAD 2>&1);$checkoutExit=$LASTEXITCODE
+      if($checkoutExit-ne0){throw"repository fixture checkout failed: $($checkoutOutput-join' ')"}
+    }finally{$ErrorActionPreference=$savedErrorAction}
+    foreach($sourceFile in @(Get-ChildItem -LiteralPath (Join-Path $canonicalSource "governance/execution") -Recurse -File)){
+      $relative=$sourceFile.FullName.Substring((Join-Path $canonicalSource "governance/execution").Length).TrimStart('\','/')
+      $destination=Join-Path (Join-Path $repositoryFixture "governance/execution") $relative
+      $destinationDirectory=Split-Path -Parent $destination;if(-not(Test-Path -LiteralPath $destinationDirectory)){New-Item -ItemType Directory -Path $destinationDirectory -Force|Out-Null}
+      Copy-Item -LiteralPath $sourceFile.FullName -Destination $destination -Force
+    }
+    Copy-Item -LiteralPath (Join-Path $canonicalSource "scripts/check-managed-worktree-boundaries.ps1") -Destination (Join-Path $repositoryFixture "scripts/check-managed-worktree-boundaries.ps1") -Force
+    Copy-Item -LiteralPath (Join-Path $canonicalSource "scripts/test-managed-worktree-isolation.ps1") -Destination (Join-Path $repositoryFixture "scripts/test-managed-worktree-isolation.ps1") -Force
+    $null=& git -C $repositoryFixture add governance/execution scripts/check-managed-worktree-boundaries.ps1 scripts/test-managed-worktree-isolation.ps1
+    $null=& git -C $repositoryFixture commit -m "fixture governance candidate";if($LASTEXITCODE-ne0){throw"repository fixture baseline commit failed"}
+    $fixtureBaseline=(& git -C $repositoryFixture rev-parse HEAD).Trim()
+    $fixtureRegistryPath=Join-Path $repositoryFixture "governance/execution/train-registry.json";$fixtureQueuePath=Join-Path $repositoryFixture "governance/execution/integration-queue.json"
+
+    $fixtureRegistry=Get-Content -Raw -Encoding UTF8 $fixtureRegistryPath|ConvertFrom-Json;$fixtureQueue=Get-Content -Raw -Encoding UTF8 $fixtureQueuePath|ConvertFrom-Json
+    $fixtureRegistry.executionSystemStatus="ENABLED";$fixtureRegistry.enablementStatus="ENABLED";$fixtureRegistry.previousExecutionSystemStatus="BOOTSTRAP";$fixtureRegistry.previousEnablementStatus="NOT_ENABLED"
+    $fixtureQueue.executionSystemStatus="ENABLED";$fixtureQueue.enablementStatus="ENABLED";$fixtureQueue.previousEnablementStatus="NOT_ENABLED"
+    [IO.File]::WriteAllText($fixtureRegistryPath,($fixtureRegistry|ConvertTo-Json -Depth 20),[Text.Encoding]::UTF8);[IO.File]::WriteAllText($fixtureQueuePath,($fixtureQueue|ConvertTo-Json -Depth 20),[Text.Encoding]::UTF8)
+    $null=& git -C $repositoryFixture add governance/execution/train-registry.json governance/execution/integration-queue.json;$null=& git -C $repositoryFixture commit -m "fixture enabled pending authority";if($LASTEXITCODE-ne0){throw"fixture pending enablement commit failed"}
+    Assert-Rejected "full Repository global enablement with PENDING authority" { Invoke-WithRepositoryRoot $repositoryFixture { $null=Test-RepositoryGovernance } }
+    $null=& git -C $repositoryFixture checkout $fixtureBaseline -- governance/execution/train-registry.json governance/execution/integration-queue.json;$null=& git -C $repositoryFixture commit -m "fixture restore bootstrap controls";if($LASTEXITCODE-ne0){throw"fixture bootstrap restore commit failed"}
+
+    $fixtureQueue=Get-Content -Raw -Encoding UTF8 $fixtureQueuePath|ConvertFrom-Json;$fixtureQueue.items=@([pscustomobject]@{sequence=1;trainId="RT";workUnitId="WU";status="QUEUED";cleanWorktree=$true;immutableCandidateCommit=$true;stale=$false;independentAuditStatus="PASS"})
+    [IO.File]::WriteAllText($fixtureQueuePath,($fixtureQueue|ConvertTo-Json -Depth 20),[Text.Encoding]::UTF8)
+    Assert-Rejected "full Repository queue self-reported booleans" { Invoke-WithRepositoryRoot $repositoryFixture { $null=Test-RepositoryGovernance } }
+    $null=& git -C $repositoryFixture checkout -- governance/execution/integration-queue.json
+
+    $fixtureRegistry=Get-Content -Raw -Encoding UTF8 $fixtureRegistryPath|ConvertFrom-Json;$validation=@($fixtureRegistry.trains|Where-Object trainId -eq "RT-GOV-VALIDATION-001")[0]
+    $validation.status="VALIDATION_AUTHORIZED";$validation.previousStatus="PLANNED";$validation.runtimeCanaryAuthorized=$true
+    [IO.File]::WriteAllText($fixtureRegistryPath,($fixtureRegistry|ConvertTo-Json -Depth 20),[Text.Encoding]::UTF8)
+    Assert-Rejected "full Repository VALIDATION_AUTHORIZED closure" { Invoke-WithRepositoryRoot $repositoryFixture { $null=Test-RepositoryGovernance } }
+    $null=& git -C $repositoryFixture checkout -- governance/execution/train-registry.json
+
+    $fixtureShadow=Join-Path $repositoryFixture "db/migrations/024_shadow.sql";[IO.File]::WriteAllText($fixtureShadow,"-- full repository untracked fixture",[Text.Encoding]::UTF8)
+    Assert-Rejected "full Repository untracked locked migration" { Invoke-WithRepositoryRoot $repositoryFixture { $null=Test-RepositoryGovernance } }
+    Remove-Item -LiteralPath $fixtureShadow -Force
+
+    $auditedCandidate=(& git -C $repositoryFixture rev-parse HEAD).Trim()
+    $auditedDigest=Invoke-WithRepositoryRoot $repositoryFixture { Get-CandidateDigest $auditedCandidate }
+    $approvalRef="governance/execution/approvals/ENABLEMENT-FIXTURE.json";$auditRef="governance/execution/evidence/ENABLEMENT-AUDIT-FIXTURE.json";$humanRef="governance/execution/approvals/HUMAN-ENABLEMENT-FIXTURE.json"
+    foreach($directory in @((Join-Path $repositoryFixture "governance/execution/approvals"),(Join-Path $repositoryFixture "governance/execution/evidence"))){if(-not(Test-Path -LiteralPath $directory)){New-Item -ItemType Directory -Path $directory -Force|Out-Null}}
+    $base="80921871baf8647b2d3b7c97f8c0fde2a88f9400";$timestamp="2026-07-14T00:00:00+08:00"
+    $approvalRecord=[ordered]@{schemaVersion=1;recordType="ENABLEMENT_APPROVAL";recordId="ENABLEMENT-FIXTURE";createdAt=$timestamp;candidateCommit=$auditedCandidate;candidateDigest=$auditedDigest;candidateDigestAlgorithm="GIT_COMMIT_TREE_SHA256_V1";baseCommit=$base;decision="APPROVED";scope="GOVERNANCE_EXECUTION_ENABLEMENT";auditRef=$auditRef;humanConfirmationRef=$humanRef;actorRole="Governance Gate"}
+    $auditRecord=[ordered]@{schemaVersion=1;recordType="INDEPENDENT_ENABLEMENT_AUDIT";recordId="ENABLEMENT-AUDIT-FIXTURE";createdAt=$timestamp;candidateCommit=$auditedCandidate;candidateDigest=$auditedDigest;candidateDigestAlgorithm="GIT_COMMIT_TREE_SHA256_V1";baseCommit=$base;result="PASS";scope="GOVERNANCE_EXECUTION_ENABLEMENT";independentFromWriter=$true;checks=@("CANDIDATE_CONTENT_PREFLIGHT_PASS");actorRole="Audit Agent"}
+    $humanRecord=[ordered]@{schemaVersion=1;recordType="HUMAN_CONFIRMATION";recordId="HUMAN-ENABLEMENT-FIXTURE";createdAt=$timestamp;candidateCommit=$auditedCandidate;candidateDigest=$auditedDigest;candidateDigestAlgorithm="GIT_COMMIT_TREE_SHA256_V1";baseCommit=$base;decision="APPROVED";scope="GOVERNANCE_EXECUTION_ENABLEMENT";confirmationCode="ENABLE_GOVERNANCE_EXECUTION";confirmationText="APPROVED: ENABLE GOVERNANCE EXECUTION SYSTEM";actorRole="Human Owner"}
+    [IO.File]::WriteAllText((Join-Path $repositoryFixture $approvalRef),($approvalRecord|ConvertTo-Json -Depth 10),[Text.Encoding]::UTF8);[IO.File]::WriteAllText((Join-Path $repositoryFixture $auditRef),($auditRecord|ConvertTo-Json -Depth 10),[Text.Encoding]::UTF8);[IO.File]::WriteAllText((Join-Path $repositoryFixture $humanRef),($humanRecord|ConvertTo-Json -Depth 10),[Text.Encoding]::UTF8)
+    $fixtureRegistry=Get-Content -Raw -Encoding UTF8 $fixtureRegistryPath|ConvertFrom-Json;$fixtureRegistry.executionSystemStatus="ENABLED";$fixtureRegistry.enablementStatus="ENABLED";$fixtureRegistry.previousExecutionSystemStatus="BOOTSTRAP";$fixtureRegistry.previousEnablementStatus="NOT_ENABLED";$fixtureRegistry.enablementApprovalRef=$approvalRef;$fixtureRegistry.auditedCandidateCommit=$auditedCandidate;$fixtureRegistry.independentAuditRef=$auditRef;$fixtureRegistry.humanConfirmationRef=$humanRef
+    $fixtureQueue=Get-Content -Raw -Encoding UTF8 $fixtureQueuePath|ConvertFrom-Json;$fixtureQueue.executionSystemStatus="ENABLED";$fixtureQueue.enablementStatus="ENABLED";$fixtureQueue.previousEnablementStatus="NOT_ENABLED"
+    [IO.File]::WriteAllText($fixtureRegistryPath,($fixtureRegistry|ConvertTo-Json -Depth 20),[Text.Encoding]::UTF8);[IO.File]::WriteAllText($fixtureQueuePath,($fixtureQueue|ConvertTo-Json -Depth 20),[Text.Encoding]::UTF8)
+    $null=& git -C $repositoryFixture add governance/execution;$null=& git -C $repositoryFixture commit -m "fixture enablement records";if($LASTEXITCODE-ne0){throw"repository fixture enablement commit failed"}
+    Invoke-WithRepositoryRoot $repositoryFixture { $null=Test-RepositoryGovernance }
+    Write-Host "self-test accepted: full Repository immutable enablement authority chain"
+    $fixtureRegistry=Get-Content -Raw -Encoding UTF8 $fixtureRegistryPath|ConvertFrom-Json
+    $fixtureGovernanceTrain=@($fixtureRegistry.trains|Where-Object trainId -eq "RT-GOV-VALIDATION-001")[0]
+    $fixtureGovernanceTrain.title="TAMPERED AFTER INDEPENDENT AUDIT"
+    [IO.File]::WriteAllText($fixtureRegistryPath,($fixtureRegistry|ConvertTo-Json -Depth 20),[Text.Encoding]::UTF8)
+    $null=& git -C $repositoryFixture add governance/execution/train-registry.json;$null=& git -C $repositoryFixture commit -m "fixture post-audit registry tamper";if($LASTEXITCODE-ne0){throw"repository fixture post-audit tamper commit failed"}
+    Assert-Rejected "full Repository post-audit immutable registry field tamper" { Invoke-WithRepositoryRoot $repositoryFixture { $null=Test-RepositoryGovernance } }
+  }
+  finally {
+    if (Test-Path -LiteralPath $fixtureRoot) {
+      $resolvedFixture=[IO.Path]::GetFullPath($fixtureRoot)
+      if (-not $resolvedFixture.StartsWith($tempRoot+'\',[StringComparison]::OrdinalIgnoreCase)) { throw "refusing fixture cleanup outside temp root: $resolvedFixture" }
+      Remove-Item -LiteralPath $resolvedFixture -Recurse -Force
+    }
   }
   $scriptText = Get-Content -LiteralPath $PSCommandPath -Raw -Encoding UTF8
   if ([regex]::Matches($scriptText, '"--no-renames"').Count -lt 4) { throw "[managed-worktree] SELF-TEST FAIL production diff paths are not rename-safe" }
