@@ -62,10 +62,10 @@ Phase. Canonical `CURRENT_STATE.md` always wins.
 | Phase | Allows | Forbids |
 |-------|--------|---------|
 | 7A | accept, fulfillment skeleton | start, complete, ledger |
-| 7B | start, complete, lifecycle events | ledger, settlement, refund |
-| 8A | ledger accrual from `fulfillment.completed` | settlement, payout, upstream mutation |
-| 8B | settlement preparation from accruals | payout, paid status, refund, upstream mutation |
-| 8C | settlement confirmation and audit outbox | payout, ledger entries, refund, provider split |
+| 7B | start, complete, lifecycle events | ledger、结算、退款 |
+| 8A | ledger accrual from `fulfillment.completed` | 结算、出款、上游写入 |
+| 8B | settlement preparation from accruals | 出款、已支付状态、退款、上游写入 |
+| 8C | settlement confirmation and audit outbox | 出款、账本分录、退款、Provider 分账 |
 
 See [reference.md](reference.md) for the historical matrix. Do not use that
 reference instead of current canonical facts.
@@ -75,8 +75,8 @@ reference instead of current canonical facts.
 | From | Must NOT import |
 |------|-----------------|
 | fulfillment | ledger, settlement |
-| ledger | settlement where its Phase forbids it, refund, aftersale |
-| settlement preparation | payout or payment mutation |
+| ledger | Phase 禁止的结算、退款、售后 |
+| settlement preparation | 出款或支付写入 |
 | order / payment | worker accept, ledger, settlement internals |
 
 Verify the actual current-worktree source with current-worktree gates and the

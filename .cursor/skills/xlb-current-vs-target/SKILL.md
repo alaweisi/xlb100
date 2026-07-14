@@ -47,8 +47,7 @@ branch or Phase:
 - Old blueprints may combine ledger and settlement responsibilities that XLB
   keeps separate.
 - `apps/oa` and `apps/dashboard` may be placeholders without approved runtime.
-- Refund, reversal, invoice, payout, or provider activation requires its own
-  current Phase and authority.
+- 退款、冲正、开票、出款或 Provider 激活均需要各自明确的当前 Phase 与授权。
 - Historical migration numbering never overrides the canonical reservation
   ledger or locked migration tree.
 

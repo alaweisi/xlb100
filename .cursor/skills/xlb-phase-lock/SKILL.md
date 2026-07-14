@@ -104,8 +104,8 @@ and the locked migration tree against the canonical integration environment.
 
 ### 6. Boundary verification
 
-Confirm no forbidden domain, payout/refund/provider, contract, migration,
-semantic-lease, or Phase leakage. Recheck that all package evidence is current
+确认不存在禁止域、出款/退款/Provider、契约、migration、semantic lease 或
+Phase 越界。Recheck that all package evidence is current
 for the exact integration commit.
 
 ### 7. Finalize the Phase report
