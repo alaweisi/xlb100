@@ -41,9 +41,9 @@ Phase registry 与 execution registry 严格分离：`docs/governance/phase-regi
 
 所有 registry、Train、Work Unit 与 queue 状态变化必须引用 `governance/execution/transitions/` 下的 strict `TRANSITION` JSON；普通 Markdown、任意 clean 文件或仅有文字说明不构成 transition authority。记录必须绑定 subject、Train/Work Unit identity、前后状态、时间、决策角色与 `LEGAL_STATUS_EDGE_VERIFIED`。
 
-Gate 还会把 `previousStatus`、`statusChangedAt` 与 `transitionAuthorityRef` 绑定到 audited enablement baseline 之后的 immutable Git 历史；同一状态下偷换 transition metadata、伪报前态或让 Queue item 脱离其 Work Unit 父提交均 fail closed。每条 edge 使用固定 `actorRole + scope` 权限映射；Human 接受、执行系统启停与 Phase Lock closure 不得由其他角色代签。Train 进入 verified/accepted/closed 状态前，Work Unit terminal/integration 状态、active lease 与 queue item 必须满足 closure consistency。
+Gate 还会把 `previousStatus`、`statusChangedAt` 与 `transitionAuthorityRef` 绑定到 audited enablement baseline 之后的 immutable Git 历史；同一状态下偷换 transition metadata、伪报前态或让 Queue item 脱离其 Work Unit 父提交均 fail closed。所有 strict approval、audit、evidence、contract authority 与 `TRANSITION` JSON 从其规范路径首次提交起均为 append-only immutable record；修订必须创建新 record，禁止原路径改写。每条 edge 使用固定 `actorRole + scope` 权限映射；Human 接受、执行系统启停与 Phase Lock closure 不得由其他角色代签。Train 进入 verified/accepted/closed 状态前，Work Unit terminal/integration 状态、active lease、active migration reservation 与 queue item 必须满足 closure consistency。
 
-`authorityEnvelopeCommit` 与 audited candidate、enablement status-switch commit 均必须是单父直接子提交。一次性的 candidate diff 白名单只验证 `BOOTSTRAP → ENABLED`；进入 steady-state 后允许由各自 transition/evidence Gate 约束的正常 Train、Work Unit 与 Queue 提交，但 candidate/envelope/approval/audit/Human refs、digests 和 authority record 内容永久钉住，不得改写。
+`authorityEnvelopeCommit` 与 audited candidate、enablement status-switch commit 均必须是单父直接子提交。一次性的 candidate diff 白名单只验证 `BOOTSTRAP → ENABLED`；进入 steady-state 后允许由各自 transition/evidence Gate 约束的正常 Train、Work Unit 与 Queue 提交，但 candidate/envelope/approval/audit/Human refs、digests 和 authority record 内容永久钉住，不得改写。`DISABLED` 只允许发生在可证明的历史 `ENABLED` 之后，必须保留全部 enablement anchors/digests；从未启用的 Bootstrap 不得伪装成 `DISABLED`，也不得用停用状态抹除永久 authority chain。
 
 环境至少包含 `slot`、固定且被 Git ignore 的 `envFileName`、canonical `composeOverrideRef`，以及唯一 `composeProject`、`mysqlDatabase`、`mysqlPort`、`redisNamespace`、`redisPort`、`backendPort`、`customerPort`、`workerPort` 与 `adminPort`。三个 validation manifest 固定绑定 Phase 29 canonical tag 解引用后的 commit `80921871baf8647b2d3b7c97f8c0fde2a88f9400`；annotated tag object 不得冒充 base commit。
 
@@ -60,8 +60,9 @@ Gate 还会把 `previousStatus`、`statusChangedAt` 与 `transitionAuthorityRef`
 - Path lease 与 semantic lease 都必须无冲突；路径不同不代表业务真相不同。
 - Contract、canonical runtime、migration ledger、global configuration、governance metadata、main/tag/Lock 始终走 serial lane。
 - Business Work Unit 从 `CONTRACT_FROZEN` 起必须与 Train 的 `frozenContractRevision`、strict `CONTRACT_FREEZE_AUTHORITY` record 和 canonical contract protected-path digest 完全一致。冻结 revision 之后任何 protected contract path material change 都使施工、package、evidence 与 queue 状态自动 `STALE`；一致地自报旧 revision 不能替代 current contract authority。
+- `STALE` Work Unit 必须保留触发 stale 时最后一个冻结 authority 的 `contractRevision`，不得改填任意 commit；`CLOSED` Work Unit 必须继续保留并复核其 candidate、package evidence 与 independent audit closure，终态不能成为删除证据的旁路。
 - 没有有效 migration reservation 不得创建 migration 文件；编号一旦预约即不复用，`ABANDONED` 形成永久空洞；历史保留号 `024` 永久不可用。
-- Reservation Ledger 使用 schema v2：每条记录必须有严格 ISO-8601 `createdAt`、生命周期 `reason`；`RESERVED/MATERIALIZED` 的 `closedAt` 必须为 `null`，`MERGED/ABANDONED` 必须有不早于 `createdAt` 的 `closedAt`。历史 024 的时间只表示本台账登记时间，不声称是原始空洞形成时间。
+- Reservation Ledger 使用 schema v2：除显式 bootstrap 的永久空洞 `024` 外，每个编号在 Git 历史中的首次状态必须为 `RESERVED`，且 reservation 提交必须早于对应 migration 文件；不得把 reservation 与 SQL 同一提交后直接标成 `MATERIALIZED` 或 `MERGED`。每条记录必须有严格 ISO-8601 `createdAt`、生命周期 `reason`；`RESERVED/MATERIALIZED` 的 `closedAt` 必须为 `null`，`MERGED/ABANDONED` 必须有不早于 `createdAt` 的 `closedAt`。历史 024 的时间只表示本台账登记时间，不声称是原始空洞形成时间。
 
 ## Integration Queue
 

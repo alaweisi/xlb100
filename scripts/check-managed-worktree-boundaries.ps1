@@ -425,11 +425,13 @@ function Read-StrictRecord([string]$Ref, [string]$Label, [string[]]$AllowedPrefi
   Assert-AllowedFields $record @($common+$typeFields) "$Label ($recordType)"
   Require-SchemaVersion $record 1 $Label
   Assert-StrictRecordIdentity $record $Label
-  return [pscustomobject]@{ Ref=$normalized; Record=$record; FullPath=(Join-Path $Root $normalized) }
+  $entry=[pscustomobject]@{ Ref=$normalized; Record=$record; FullPath=(Join-Path $Root $normalized) }
+  Assert-RecordImmutableSinceIntroduction $entry $Label
+  return $entry
 }
 
 function Assert-RecordImmutableSinceIntroduction($Entry,[string]$Label) {
-  $commits=@(Invoke-Git $Root @("log","--follow","--format=%H","--",$Entry.Ref))
+  $commits=@(Invoke-Git $Root @("log","--format=%H","--",$Entry.Ref))
   if($commits.Count-eq0){Fail "$Label has no immutable Git introduction history"}
   $introducedAt="$($commits[-1])".Trim();$introduced=Read-GitJson $introducedAt $Entry.Ref "$Label introduction"
   if((ConvertTo-CanonicalJsonText $introduced)-cne(ConvertTo-CanonicalJsonText $Entry.Record)){Fail "$Label was rewritten after its immutable introduction; create a new authority record instead"}
@@ -667,10 +669,10 @@ function Assert-EnablementAuthorityChain($Registry, [string]$ExecutionSystemStat
     ($ExecutionSystemStatus -eq "DISABLED" -and $EnablementStatus -eq "DISABLED")
   if (-not $validPair) { Fail "executionSystemStatus/enablementStatus is not a valid fail-closed pair" }
   $registryTransitions = @{
-    NONE=@("BOOTSTRAP"); BOOTSTRAP=@("ENABLED","DISABLED"); ENABLED=@("DISABLED"); DISABLED=@("ENABLED")
+    NONE=@("BOOTSTRAP"); BOOTSTRAP=@("ENABLED"); ENABLED=@("DISABLED"); DISABLED=@("ENABLED")
   }
   $enablementTransitions = @{
-    NONE=@("NOT_ENABLED"); NOT_ENABLED=@("ENABLED","DISABLED"); ENABLED=@("DISABLED"); DISABLED=@("ENABLED")
+    NONE=@("NOT_ENABLED"); NOT_ENABLED=@("ENABLED"); ENABLED=@("DISABLED"); DISABLED=@("ENABLED")
   }
   $changedAt = Require-Text $Registry "statusChangedAt" "Release Train Registry"
   $authorityRef = Require-Text $Registry "transitionAuthorityRef" "Release Train Registry"
@@ -679,12 +681,12 @@ function Assert-EnablementAuthorityChain($Registry, [string]$ExecutionSystemStat
   Assert-LegalStatusTransition $previousExecution $ExecutionSystemStatus $registryTransitions "Release Train Registry execution system"
   Assert-LegalStatusTransition $previousEnablement $EnablementStatus $enablementTransitions "Release Train Registry enablement"
   Assert-TransitionAuthorityRecord $authorityRef "EXECUTION_SYSTEM" "GLOBAL_EXECUTION_SYSTEM" "$previousExecution/$previousEnablement" "$ExecutionSystemStatus/$EnablementStatus" $changedAt "Release Train Registry"
-  if($ExecutionSystemStatus-eq"ENABLED"){Assert-StatusHistoryBinding "governance/execution/train-registry.json" "EXECUTION_SYSTEM" "GLOBAL_EXECUTION_SYSTEM" "$ExecutionSystemStatus/$EnablementStatus" "$previousExecution/$previousEnablement" $changedAt $authorityRef "" "" (Require-Text $Registry "auditedCandidateCommit" "Release Train Registry")}
   $fields = @("enablementApprovalRef","auditedCandidateCommit","independentAuditRef","humanConfirmationRef","authorityEnvelopeCommit","enablementApprovalDigest","independentAuditDigest","humanConfirmationDigest")
-  if ($ExecutionSystemStatus -ne "ENABLED") {
+  if ($ExecutionSystemStatus -eq "BOOTSTRAP") {
     foreach ($field in $fields) { if ((Require-Text $Registry $field "Release Train Registry") -ne "PENDING") { Fail "NOT_ENABLED registry requires $field=PENDING" } }
     return
   }
+  Assert-StatusHistoryBinding "governance/execution/train-registry.json" "EXECUTION_SYSTEM" "GLOBAL_EXECUTION_SYSTEM" "$ExecutionSystemStatus/$EnablementStatus" "$previousExecution/$previousEnablement" $changedAt $authorityRef "" "" (Require-Text $Registry "auditedCandidateCommit" "Release Train Registry")
   $null=Assert-CanonicalTrackedPath "governance/execution/train-registry.json" "Enabled Train Registry"
   $null=Assert-CanonicalTrackedPath "governance/execution/integration-queue.json" "Enabled Integration Queue"
   $candidate = Require-Text $Registry "auditedCandidateCommit" "Release Train Registry"
@@ -697,28 +699,12 @@ function Assert-EnablementAuthorityChain($Registry, [string]$ExecutionSystemStat
   Assert-StrictQueue $candidateQueue
   $currentQueue = Read-Json $IntegrationQueuePath "Integration Queue"
   Assert-StrictQueue $currentQueue
-  $allowedEnablementRecords = @(
-    Normalize-RepoPath (Require-Text $Registry "enablementApprovalRef" "Release Train Registry") "enablementApprovalRef"
-    Normalize-RepoPath (Require-Text $Registry "independentAuditRef" "Release Train Registry") "independentAuditRef"
-    Normalize-RepoPath (Require-Text $Registry "humanConfirmationRef" "Release Train Registry") "humanConfirmationRef"
-    Normalize-RepoPath (Require-Text $Registry "transitionAuthorityRef" "Release Train Registry") "execution transitionAuthorityRef"
-    Normalize-RepoPath (Require-Text $currentQueue "transitionAuthorityRef" "Integration Queue") "queue transitionAuthorityRef"
-  )
-  if (@($allowedEnablementRecords | Sort-Object -Unique).Count -ne $allowedEnablementRecords.Count) { Fail "enablement authority closure contains duplicate record paths" }
   $envelope = Require-Text $Registry "authorityEnvelopeCommit" "Release Train Registry"
   if ($envelope -notmatch '^[0-9a-fA-F]{40}$' -or (Invoke-Git $Root @("cat-file","-t",$envelope) | Select-Object -First 1).Trim() -ne "commit") { Fail "authorityEnvelopeCommit must be an immutable commit" }
   $envelopeLine = (Invoke-Git $Root @("rev-list","--parents","-n","1",$envelope) | Select-Object -First 1).Trim() -split '\s+'
   if ($envelopeLine.Count -ne 2 -or $envelopeLine[1] -ne $candidate.ToLowerInvariant()) { Fail "authorityEnvelopeCommit must be the single-parent direct child of auditedCandidateCommit" }
   & git -C $Root merge-base --is-ancestor $envelope HEAD *> $null
   if ($LASTEXITCODE -ne 0) { Fail "authorityEnvelopeCommit must be an ancestor of the enablement HEAD" }
-  $envelopeDiff = @(Invoke-Git $Root @("diff","--no-renames","--name-status",$candidate,$envelope,"--"))
-  if ($envelopeDiff.Count -ne $allowedEnablementRecords.Count) { Fail "authority envelope must add exactly the declared authority and transition records" }
-  $envelopeAdded = @()
-  foreach ($entry in $envelopeDiff) {
-    if ($entry -notmatch '^A\s+(.+)$') { Fail "authority envelope may only add new immutable records: $entry" }
-    $envelopeAdded += Normalize-RepoPath $Matches[1] "authority envelope record"
-  }
-  if (@(Compare-Object @($allowedEnablementRecords|Sort-Object) @($envelopeAdded|Sort-Object)).Count -gt 0) { Fail "authority envelope record set differs from the exact declared authority closure" }
   $postEnvelopeFirstParent = @(Invoke-Git $Root @("rev-list","--first-parent","--reverse","$envelope..HEAD"))
   if ($postEnvelopeFirstParent.Count -eq 0) { Fail "enablement status-switch commit is missing after authorityEnvelopeCommit" }
   $enablementCommit = "$($postEnvelopeFirstParent[0])".Trim()
@@ -737,6 +723,18 @@ function Assert-EnablementAuthorityChain($Registry, [string]$ExecutionSystemStat
       (Require-Text $enablementQueue "enablementStatus" "Enablement status-switch Integration Queue") -ne "ENABLED") {
     Fail "the direct post-envelope commit is not the ENABLED status switch"
   }
+  $allowedEnablementRecords = @(
+    Normalize-RepoPath (Require-Text $enablementRegistry "enablementApprovalRef" "Enablement status-switch Train Registry") "enablementApprovalRef"
+    Normalize-RepoPath (Require-Text $enablementRegistry "independentAuditRef" "Enablement status-switch Train Registry") "independentAuditRef"
+    Normalize-RepoPath (Require-Text $enablementRegistry "humanConfirmationRef" "Enablement status-switch Train Registry") "humanConfirmationRef"
+    Normalize-RepoPath (Require-Text $enablementRegistry "transitionAuthorityRef" "Enablement status-switch Train Registry") "execution enablement transitionAuthorityRef"
+    Normalize-RepoPath (Require-Text $enablementQueue "transitionAuthorityRef" "Enablement status-switch Integration Queue") "queue enablement transitionAuthorityRef"
+  )
+  if (@($allowedEnablementRecords | Sort-Object -Unique).Count -ne $allowedEnablementRecords.Count) { Fail "enablement authority closure contains duplicate record paths" }
+  $envelopeDiff = @(Invoke-Git $Root @("diff","--no-renames","--name-status",$candidate,$envelope,"--"))
+  if ($envelopeDiff.Count -ne $allowedEnablementRecords.Count) { Fail "authority envelope must add exactly the declared authority and transition records" }
+  $envelopeAdded = @();foreach ($entry in $envelopeDiff) {if ($entry -notmatch '^A\s+(.+)$') { Fail "authority envelope may only add new immutable records: $entry" };$envelopeAdded += Normalize-RepoPath $Matches[1] "authority envelope record"}
+  if (@(Compare-Object @($allowedEnablementRecords|Sort-Object) @($envelopeAdded|Sort-Object)).Count -gt 0) { Fail "authority envelope record set differs from the exact declared authority closure" }
   if ((ConvertTo-CanonicalJsonText (Get-ImmutableEnablementRegistrySnapshot $candidateRegistry)) -cne
       (ConvertTo-CanonicalJsonText (Get-ImmutableEnablementRegistrySnapshot $enablementRegistry))) {
     Fail "enablement status-switch Train Registry differs from the audited candidate outside status and authority fields"
@@ -745,13 +743,13 @@ function Assert-EnablementAuthorityChain($Registry, [string]$ExecutionSystemStat
       (ConvertTo-CanonicalJsonText (Get-ImmutableEnablementQueueSnapshot $enablementQueue))) {
     Fail "enablement status-switch Integration Queue differs from the audited candidate outside enablement mirror fields"
   }
-  $pinnedRegistryFields=@($fields+@("executionSystemStatus","enablementStatus","previousExecutionSystemStatus","previousEnablementStatus","statusChangedAt","transitionAuthorityRef","canonicalRoot","managedWorktreePool","maxConcurrentWriteWorkUnits","enablementConditions"))
+  $pinnedRegistryFields=@($fields+@("canonicalRoot","managedWorktreePool","maxConcurrentWriteWorkUnits","enablementConditions"))
   foreach ($field in $pinnedRegistryFields) {
     if ((ConvertTo-CanonicalJsonText (Get-OptionalValue $Registry $field)) -cne (ConvertTo-CanonicalJsonText (Get-OptionalValue $enablementRegistry $field))) {
       Fail "steady-state enabled Registry rewrote immutable enablement authority field $field"
     }
   }
-  foreach($field in @("executionSystemStatus","enablementStatus","previousEnablementStatus","statusChangedAt","transitionAuthorityRef","mode","ownerRole","rules")){
+  foreach($field in @("mode","ownerRole","rules")){
     if((ConvertTo-CanonicalJsonText (Get-OptionalValue $currentQueue $field))-cne(ConvertTo-CanonicalJsonText (Get-OptionalValue $enablementQueue $field))){Fail "steady-state enabled Queue rewrote immutable enablement field $field"}
   }
   $governanceTrain = @($Trains | Where-Object { "$(Get-OptionalValue $_ 'trainId')" -eq "RT-GOV-VALIDATION-001" })
@@ -864,7 +862,7 @@ function Assert-TrainWorkUnitAuthority($Record, $Train, [string]$ExecutionSystem
   }
 }
 
-function Assert-TrainWorkUnitClosureConsistency($Trains,$Records,$ActiveLeases,$QueueItems) {
+function Assert-TrainWorkUnitClosureConsistency($Trains,$Records,$ActiveLeases,$QueueItems,$Reservations=@()) {
   foreach($train in @($Trains)){
     $trainId=Require-Text $train "trainId" "Train closure consistency";$status=(Require-Text $train "status" "Train closure consistency").ToUpperInvariant();$mode=(Require-Text $train "executionMode" "Train closure consistency").ToUpperInvariant()
     $units=@($Records|Where-Object TrainId -eq $trainId)
@@ -880,11 +878,13 @@ function Assert-TrainWorkUnitClosureConsistency($Trains,$Records,$ActiveLeases,$
       $notTerminal=@($units|Where-Object{$_.Status-notin@("CLOSED","ABANDONED")});if($notTerminal.Count){Fail "closed Train $trainId contains non-terminal Work Units"}
       if(@($ActiveLeases|Where-Object{"$($_.trainId)"-eq$trainId}).Count){Fail "closed Train $trainId still owns active leases"}
       if(@($QueueItems|Where-Object{"$($_.trainId)"-eq$trainId}).Count){Fail "closed Train $trainId still has Integration Queue items"}
+      if(@($Reservations|Where-Object{"$($_.trainId)"-eq$trainId-and"$($_.status)".ToUpperInvariant()-in@("RESERVED","MATERIALIZED")}).Count){Fail "closed Train $trainId still owns an active migration reservation"}
     }
   }
   foreach($record in @($Records|Where-Object{$_.Status-in@("CLOSED","ABANDONED")})){
     if(@($ActiveLeases|Where-Object{"$($_.trainId)"-eq$record.TrainId-and"$($_.workUnitId)"-eq$record.WorkUnitId}).Count){Fail "terminal Work Unit $($record.WorkUnitId) still owns active leases"}
     if(@($QueueItems|Where-Object{"$($_.trainId)"-eq$record.TrainId-and"$($_.workUnitId)"-eq$record.WorkUnitId}).Count){Fail "terminal Work Unit $($record.WorkUnitId) still has an Integration Queue item"}
+    if(@($Reservations|Where-Object{"$($_.trainId)"-eq$record.TrainId-and"$($_.workUnitId)"-eq$record.WorkUnitId-and"$($_.status)".ToUpperInvariant()-in@("RESERVED","MATERIALIZED")}).Count){Fail "terminal Work Unit $($record.WorkUnitId) still owns an active migration reservation"}
   }
 }
 
@@ -977,7 +977,6 @@ function Assert-TrainContractAuthority($Train, $ActiveLeases) {
   }
   $paths = @(Get-ContractProtectedPaths $ActiveLeases)
   $entry = Read-StrictRecord $authorityRef "Release Train $trainId contract freeze authority" @("governance/execution/contracts")
-  Assert-RecordImmutableSinceIntroduction $entry "Release Train $trainId contract freeze authority"
   $record = $entry.Record
   Assert-RecordValue $record "recordType" "CONTRACT_FREEZE_AUTHORITY" "Release Train $trainId contract freeze authority"
   Assert-RecordValue $record "trainId" $trainId "Release Train $trainId contract freeze authority"
@@ -1003,9 +1002,10 @@ function Assert-WorkUnitContractAuthority($Record, $Authority, [string]$Candidat
   if ($null -eq $Authority) { Fail "business Work Unit $($Record.WorkUnitId) lacks Train frozen contract authority" }
   $revision = Require-Text $Record.Manifest "contractRevision" "Work Unit $($Record.WorkUnitId) contract authority"
   $recordStatus=if($null-eq$Record.PSObject.Properties["Status"]){""}else{"$($Record.Status)".ToUpperInvariant()}
-  if($recordStatus-eq"STALE"){
-    if($revision-notmatch'^[0-9a-fA-F]{40}$'-or(Invoke-Git $Root @("cat-file","-t",$revision)|Select-Object -First 1).Trim()-ne"commit"){Fail "STALE Work Unit must retain its prior immutable contractRevision"}
-    if((Get-OptionalValue $Record "BusinessWriteAuthorized")-eq$true){Fail "STALE Work Unit must be inert with businessWriteAuthorized=false"}
+  if($recordStatus-in@("STALE","CLOSED")){
+    if($revision-notmatch'^[0-9a-fA-F]{40}$'-or(Invoke-Git $Root @("cat-file","-t",$revision)|Select-Object -First 1).Trim()-ne"commit"){Fail "$recordStatus Work Unit must retain its prior immutable contractRevision"}
+    if($revision.ToLowerInvariant()-ne$Authority.Revision){Fail "$recordStatus Work Unit contractRevision must retain its frozen Train authority revision"}
+    if((Get-OptionalValue $Record "BusinessWriteAuthorized")-eq$true){Fail "$recordStatus Work Unit must be inert with businessWriteAuthorized=false"}
     return
   }
   if ($revision -notmatch '^[0-9a-fA-F]{40}$' -or $revision.ToLowerInvariant() -ne $Authority.Revision) { Fail "Work Unit $($Record.WorkUnitId) contractRevision differs from Train frozenContractRevision" }
@@ -1049,6 +1049,20 @@ function Assert-ReservationLedgerHistory($CurrentReservations) {
   $currentByNumber = @{}
   foreach ($reservation in @($CurrentReservations)) { $currentByNumber["$($reservation.number)"] = $reservation }
   $statusTransitions = @{ RESERVED=@("RESERVED","MATERIALIZED","MERGED","ABANDONED");MATERIALIZED=@("MATERIALIZED","MERGED","ABANDONED");MERGED=@("MERGED");ABANDONED=@("ABANDONED") }
+  foreach($current in @($CurrentReservations)){
+    $number=Require-Text $current "number" "Current Migration Reservation";$presence=@()
+    foreach($commit in $historyCommits){$ledger=Read-GitJson $commit $ledgerPath "Migration reservation introduction history";$match=@(Get-LedgerItems $ledger "reservations" "Migration reservation introduction history"|Where-Object{"$($_.number)"-eq$number});if($match.Count-gt0){$presence+=[pscustomobject]@{Commit="$commit";Record=$match[0]}}}
+    if($presence.Count-eq0){Fail "migration reservation $number has no immutable introduction commit"}
+    $introduction=$presence[-1];$initialStatus=(Require-Text $introduction.Record "status" "Migration reservation $number introduction").ToUpperInvariant()
+    $isBootstrap024=$number-eq"024"-and$initialStatus-eq"ABANDONED"-and(Require-Text $introduction.Record "expectedFilename" "Migration reservation 024 introduction")-eq"NONE_PERMANENT_GAP_024"
+    if(-not$isBootstrap024-and$initialStatus-ne"RESERVED"){Fail "migration reservation $number introduction status must be RESERVED, not $initialStatus"}
+    if(-not$isBootstrap024){
+      $filename=Require-Text $introduction.Record "expectedFilename" "Migration reservation $number introduction";$path="db/migrations/$filename"
+      $atIntroduction=@(Invoke-Git $Root @("ls-tree","-r","--name-only",$introduction.Commit,"--",$path));if($atIntroduction.Count-gt0){Fail "migration reservation $number file exists in its introduction commit; RESERVATION must precede materialization"}
+      $introLine=(Invoke-Git $Root @("rev-list","--parents","-n","1",$introduction.Commit)|Select-Object -First 1).Trim()-split'\s+'
+      if($introLine.Count-gt1){$earlier=@(Invoke-Git $Root @("log","--format=%H",$introLine[1],"--",$path));if($earlier.Count-gt0){Fail "migration reservation $number file existed before reservation introduction"}}
+    }
+  }
   foreach ($commit in $historyCommits) {
     $historicalLedger = Read-GitJson $commit $ledgerPath "Historical Migration Reservation Ledger"
     foreach ($historical in @(Get-LedgerItems $historicalLedger "reservations" "Historical Migration Reservation Ledger")) {
@@ -1754,7 +1768,7 @@ function Test-RepositoryGovernance {
     if ($match.Count -ne 1) { Fail "migration file has no unique materialized/merged reservation: $($entry.Value)" }
   }
 
-  foreach ($record in $records | Where-Object { $_.Status -in @("PACKAGE_VERIFIED", "PACKAGE_AUDITED", "QUEUED", "INTEGRATED") }) {
+  foreach ($record in $records | Where-Object { $_.Status -in @("PACKAGE_VERIFIED", "PACKAGE_AUDITED", "QUEUED", "INTEGRATED", "CLOSED") }) {
     $manifestRelative=$record.File.Substring($Root.Length).TrimStart('\','/').Replace('\','/')
     $null=Assert-CanonicalTrackedPath $manifestRelative "Package-state Work Unit Manifest"
     $null=Assert-CanonicalTrackedPath "governance/execution/leases.json" "Package-state Lease Ledger"
@@ -1763,16 +1777,16 @@ function Test-RepositoryGovernance {
         (Invoke-Git $Root @("cat-file", "-t", $candidateCommit) | Select-Object -First 1).Trim() -ne "commit") {
       Fail "Work Unit $($record.WorkUnitId) candidateCommit must be an immutable commit object"
     }
-    Assert-LiveCandidateWorktree $record $candidateCommit
+    if($record.Status-ne"CLOSED"){Assert-LiveCandidateWorktree $record $candidateCommit}
     $digest = Require-Text $record.Manifest "candidateDigest" "Work Unit $($record.WorkUnitId)"
     $actualDigest = Assert-CandidateDigestBinding $candidateCommit $digest (Require-Text $record.Manifest "candidateDigestAlgorithm" "Work Unit $($record.WorkUnitId)") "Work Unit $($record.WorkUnitId)"
-    $environmentDigest = Get-EnvironmentDigest $record $leaseById
-    if ((Require-Text $record.Manifest "environmentDigest" "Work Unit $($record.WorkUnitId)").ToLowerInvariant() -ne $environmentDigest) { Fail "environmentDigest does not match Manifest, Lease, port, and Compose inputs" }
+    $environmentDigest = if($record.Status-eq"CLOSED"){(Require-Text $record.Manifest "environmentDigest" "CLOSED Work Unit $($record.WorkUnitId)").ToLowerInvariant()}else{Get-EnvironmentDigest $record $leaseById}
+    if ($record.Status-ne"CLOSED"-and(Require-Text $record.Manifest "environmentDigest" "Work Unit $($record.WorkUnitId)").ToLowerInvariant() -ne $environmentDigest) { Fail "environmentDigest does not match Manifest, Lease, port, and Compose inputs" }
     if ($record.ExecutionMode -eq "BUSINESS_CONSTRUCTION") {
       $contractAuthority = $trainContractAuthorities[$record.TrainId.ToLowerInvariant()]
       Assert-WorkUnitContractAuthority $record $contractAuthority $candidateCommit
     }
-    Assert-PackageRecordBindings $record $candidateCommit $actualDigest $environmentDigest ($record.Status -in @("PACKAGE_AUDITED", "QUEUED", "INTEGRATED"))
+    Assert-PackageRecordBindings $record $candidateCommit $actualDigest $environmentDigest ($record.Status -in @("PACKAGE_AUDITED", "QUEUED", "INTEGRATED", "CLOSED"))
     $baseCommit = Require-Text $record.Manifest "baseCommit" "Work Unit base"
     $migrationDiff = @(Invoke-Git $Root @("diff", "--no-renames", "--name-only", $baseCommit, $candidateCommit, "--", "db/migrations"))
     foreach ($path in $migrationDiff) {
@@ -1797,9 +1811,9 @@ function Test-RepositoryGovernance {
   if ($queueSystemStatus -ne $executionSystemStatus -or $queueEnablement -ne $enablementStatus) {
     Fail "Integration Queue execution/enablement status must match Train Registry"
   }
-  $queueTransitions = @{ NONE=@("NOT_ENABLED"); NOT_ENABLED=@("ENABLED","DISABLED"); ENABLED=@("DISABLED"); DISABLED=@("ENABLED") }
+  $queueTransitions = @{ NONE=@("NOT_ENABLED"); NOT_ENABLED=@("ENABLED"); ENABLED=@("DISABLED"); DISABLED=@("ENABLED") }
   Assert-StatusTransition (Require-Text $queue "previousEnablementStatus" "Integration Queue") $queueEnablement $queueTransitions "Integration Queue" (Require-Text $queue "statusChangedAt" "Integration Queue") (Require-Text $queue "transitionAuthorityRef" "Integration Queue") "INTEGRATION_QUEUE" "INTEGRATION_QUEUE"
-  if($executionSystemStatus-eq"ENABLED"-and$enablementStatus-eq"ENABLED"){Assert-StatusHistoryBinding "governance/execution/integration-queue.json" "INTEGRATION_QUEUE" "INTEGRATION_QUEUE" $queueEnablement (Require-Text $queue "previousEnablementStatus" "Integration Queue") (Require-Text $queue "statusChangedAt" "Integration Queue") (Require-Text $queue "transitionAuthorityRef" "Integration Queue") "" "" (Require-Text $trainRegistry "auditedCandidateCommit" "Release Train Registry")}
+  if($executionSystemStatus-in@("ENABLED","DISABLED")){Assert-StatusHistoryBinding "governance/execution/integration-queue.json" "INTEGRATION_QUEUE" "INTEGRATION_QUEUE" $queueEnablement (Require-Text $queue "previousEnablementStatus" "Integration Queue") (Require-Text $queue "statusChangedAt" "Integration Queue") (Require-Text $queue "transitionAuthorityRef" "Integration Queue") "" "" (Require-Text $trainRegistry "auditedCandidateCommit" "Release Train Registry")}
   $acceptingItems = (Get-OptionalValue $queue "acceptingItems") -eq $true
   $queueItems = @(Get-LedgerItems $queue "items" "Integration Queue")
   Assert-QueueOpenState $acceptingItems $queueItems
@@ -1856,7 +1870,7 @@ function Test-RepositoryGovernance {
     $identity = "$($record.TrainId)/$($record.WorkUnitId)".ToLowerInvariant()
     if (-not $acceptingItems -or -not $queuedIdentity.ContainsKey($identity)) { Fail "QUEUED Work Unit lacks one accepting Integration Queue item: $identity" }
   }
-  Assert-TrainWorkUnitClosureConsistency $trains $records $activeLeases $queueItems
+  Assert-TrainWorkUnitClosureConsistency $trains $records $activeLeases $queueItems $reservations
 
   Write-Host "check-managed-worktree-boundaries: Repository passed ($($records.Count) manifests, $($activeLeases.Count) active leases, $($reservations.Count) reservations)"
   return [pscustomobject]@{
@@ -2155,6 +2169,8 @@ function Invoke-NegativeSelfTests {
     $inertStaleAuthority=[pscustomobject]@{Revision=$contractBase;Digest=$contractDigest;Paths=$contractPaths;IsCurrent=$false}
     $inertStaleRecord=[pscustomobject]@{WorkUnitId="WU-CONTRACT-INERT-STALE";Status="STALE";BusinessWriteAuthorized=$false;Manifest=[pscustomobject]@{contractRevision=$contractBase}}
     Invoke-WithRepositoryRoot $contractRepo { Assert-WorkUnitContractAuthority $inertStaleRecord $inertStaleAuthority }
+    $mismatchedStaleRecord=[pscustomobject]@{WorkUnitId="WU-CONTRACT-MISMATCH-STALE";Status="STALE";BusinessWriteAuthorized=$false;Manifest=[pscustomobject]@{contractRevision=$contractCandidate}}
+    Assert-Rejected "production STALE Work Unit contractRevision differs from retained authority" { Invoke-WithRepositoryRoot $contractRepo { Assert-WorkUnitContractAuthority $mismatchedStaleRecord $inertStaleAuthority } }
     $activeWithStaleContract=[pscustomobject]@{WorkUnitId="WU-CONTRACT-ACTIVE-STALE";Status="PACKAGE_AUDITED";BusinessWriteAuthorized=$false;Manifest=[pscustomobject]@{contractRevision=$contractBase}}
     Assert-Rejected "production active Work Unit with stale contract authority" { Invoke-WithRepositoryRoot $contractRepo { Assert-WorkUnitContractAuthority $activeWithStaleContract $inertStaleAuthority } }
 
@@ -2185,6 +2201,37 @@ function Invoke-NegativeSelfTests {
     [IO.File]::WriteAllText($base057,"-- staged mutation",[Text.Encoding]::UTF8);$null=& git -C $migrationRepo add db/migrations/057_phase29.sql
     Assert-Rejected "production staged locked migration" { $null=Get-MigrationRepositoryIndex $migrationRepo }
 
+    $reservationRepo=Join-Path $fixtureRoot "reservation-history-repo";$fixtureDirs+=$reservationRepo
+    $reservationLedgerDir=Join-Path $reservationRepo "governance/execution";$reservationMigrationDir=Join-Path $reservationRepo "db/migrations"
+    $null=New-Item -ItemType Directory -Path $reservationLedgerDir -Force;$null=New-Item -ItemType Directory -Path $reservationMigrationDir -Force
+    $null=&git -C $reservationRepo init;$null=&git -C $reservationRepo config user.email "fixture@xlb.invalid";$null=&git -C $reservationRepo config user.name "XLB Fixture"
+    $reservationLedgerPath=Join-Path $reservationLedgerDir "migration-reservations.json";$emptyReservationLedger=[ordered]@{schemaVersion=2;reservations=@()}
+    [IO.File]::WriteAllText($reservationLedgerPath,($emptyReservationLedger|ConvertTo-Json -Depth 10),[Text.Encoding]::UTF8)
+    $null=&git -C $reservationRepo add governance/execution/migration-reservations.json;$null=&git -C $reservationRepo commit -m "fixture empty reservation ledger"
+    if($LASTEXITCODE-ne0){throw"fixture empty reservation ledger commit failed"};$reservationBaseline=(&git -C $reservationRepo rev-parse HEAD).Trim();$reservationTime="2026-07-14T03:00:00+08:00"
+    function New-ReservationFixture([string]$Number,[string]$Status,[string]$Filename){
+      return [pscustomobject][ordered]@{number=$Number;expectedFilename=$Filename;trainId="RT-RESERVATION-FIXTURE";workUnitId="WU-RESERVATION-FIXTURE-$Number";owner="Migration Owner";baseCommit=$reservationBaseline;tables=@("fixture_table_$Number");semanticScope="fixture reservation $Number";status=$Status;createdAt=$reservationTime;closedAt=$(if($Status-eq"MERGED"){$reservationTime}else{"PENDING"});reason=$(if($Status-eq"MERGED"){"fixture direct terminal introduction"}else{"PENDING"})}
+    }
+    $directMerged=New-ReservationFixture "058" "MERGED" "058_direct_merged.sql";$directMergedLedger=[ordered]@{schemaVersion=2;reservations=@($directMerged)}
+    [IO.File]::WriteAllText($reservationLedgerPath,($directMergedLedger|ConvertTo-Json -Depth 10),[Text.Encoding]::UTF8);[IO.File]::WriteAllText((Join-Path $reservationMigrationDir "058_direct_merged.sql"),"-- direct MERGED fixture",[Text.Encoding]::UTF8)
+    $null=&git -C $reservationRepo add governance/execution/migration-reservations.json db/migrations/058_direct_merged.sql;$null=&git -C $reservationRepo commit -m "fixture direct MERGED reservation introduction"
+    Assert-Rejected "production migration reservation introduced directly as MERGED with SQL" { Invoke-WithRepositoryRoot $reservationRepo { Assert-ReservationLedgerHistory @($directMerged) } }
+    $null=&git -C $reservationRepo checkout --detach $reservationBaseline;if($LASTEXITCODE-ne0){throw"fixture reservation baseline restore failed"}
+    $directMaterialized=New-ReservationFixture "059" "MATERIALIZED" "059_direct_materialized.sql";$directMaterializedLedger=[ordered]@{schemaVersion=2;reservations=@($directMaterialized)}
+    [IO.File]::WriteAllText($reservationLedgerPath,($directMaterializedLedger|ConvertTo-Json -Depth 10),[Text.Encoding]::UTF8)
+    $null=&git -C $reservationRepo add governance/execution/migration-reservations.json;$null=&git -C $reservationRepo commit -m "fixture direct MATERIALIZED reservation introduction"
+    Assert-Rejected "production migration reservation introduced directly as MATERIALIZED" { Invoke-WithRepositoryRoot $reservationRepo { Assert-ReservationLedgerHistory @($directMaterialized) } }
+    $null=&git -C $reservationRepo checkout --detach $reservationBaseline;if($LASTEXITCODE-ne0){throw"fixture reservation baseline restore for positive path failed"}
+    $reserved=New-ReservationFixture "060" "RESERVED" "060_reserved_then_materialized.sql";$reservedLedger=[ordered]@{schemaVersion=2;reservations=@($reserved)}
+    [IO.File]::WriteAllText($reservationLedgerPath,($reservedLedger|ConvertTo-Json -Depth 10),[Text.Encoding]::UTF8);$null=&git -C $reservationRepo add governance/execution/migration-reservations.json;$null=&git -C $reservationRepo commit -m "fixture reservation before SQL"
+    Invoke-WithRepositoryRoot $reservationRepo { Assert-ReservationLedgerHistory @($reserved) }
+    $materialized=New-ReservationFixture "060" "MATERIALIZED" "060_reserved_then_materialized.sql";$materializedLedger=[ordered]@{schemaVersion=2;reservations=@($materialized)}
+    $null=New-Item -ItemType Directory -Path $reservationMigrationDir -Force
+    [IO.File]::WriteAllText($reservationLedgerPath,($materializedLedger|ConvertTo-Json -Depth 10),[Text.Encoding]::UTF8);[IO.File]::WriteAllText((Join-Path $reservationMigrationDir "060_reserved_then_materialized.sql"),"-- materialized after reservation",[Text.Encoding]::UTF8)
+    $null=&git -C $reservationRepo add governance/execution/migration-reservations.json db/migrations/060_reserved_then_materialized.sql;$null=&git -C $reservationRepo commit -m "fixture materialize after reservation"
+    Invoke-WithRepositoryRoot $reservationRepo { Assert-ReservationLedgerHistory @($materialized) }
+    Write-Host "self-test accepted: reservation introduction precedes migration materialization"
+
     $queueHistoryRepo=Join-Path $fixtureRoot "queue-history-repo";$fixtureDirs+=$queueHistoryRepo;$queueHistoryDir=Join-Path $queueHistoryRepo "governance/execution";$queueManifestDir=Join-Path $queueHistoryDir "work-units";$null=New-Item -ItemType Directory -Path $queueManifestDir -Force
     $null=&git -C $queueHistoryRepo init;$null=&git -C $queueHistoryRepo config user.email "fixture@xlb.invalid";$null=&git -C $queueHistoryRepo config user.name "XLB Fixture"
     $queueHistoryPath=Join-Path $queueHistoryDir "integration-queue.json";$queueManifestPath=Join-Path $queueManifestDir "WU-QUEUE-HISTORY.json";$queueHistoryTime="2026-07-14T02:00:00+08:00"
@@ -2199,6 +2246,21 @@ function Invoke-NegativeSelfTests {
     Invoke-WithRepositoryRoot $queueHistoryRepo { Assert-QueueItemHistoryBinding $queueHistoryItem $queueHistoryRecord 1 $queueHistoryBaseline }
     $queueHistoryItem.previousStatus="IN_CONSTRUCTION";$queueHistory.items=@($queueHistoryItem);[IO.File]::WriteAllText($queueHistoryPath,($queueHistory|ConvertTo-Json -Depth 10),[Text.Encoding]::UTF8);$null=&git -C $queueHistoryRepo add governance/execution/integration-queue.json;$null=&git -C $queueHistoryRepo commit -m "fixture queue previousStatus tamper"
     Assert-Rejected "production Queue item previousStatus differs from immutable Work Unit parent" { Invoke-WithRepositoryRoot $queueHistoryRepo { Assert-QueueItemHistoryBinding $queueHistoryItem $queueHistoryRecord 1 $queueHistoryBaseline } }
+
+    $strictHistoryRepo=Join-Path $fixtureRoot "strict-record-history-repo";$fixtureDirs+=$strictHistoryRepo
+    $strictTransitionDir=Join-Path $strictHistoryRepo "governance/execution/transitions";$strictEvidenceDir=Join-Path $strictHistoryRepo "governance/execution/evidence"
+    $null=New-Item -ItemType Directory -Path $strictTransitionDir -Force;$null=New-Item -ItemType Directory -Path $strictEvidenceDir -Force
+    $null=&git -C $strictHistoryRepo init;$null=&git -C $strictHistoryRepo config user.email "fixture@xlb.invalid";$null=&git -C $strictHistoryRepo config user.name "XLB Fixture"
+    $strictTransitionRef="governance/execution/transitions/TRANSITION-IMMUTABLE-FIXTURE.json";$strictAuditRef="governance/execution/evidence/PACKAGE-AUDIT-IMMUTABLE-FIXTURE.json"
+    $strictTransition=[ordered]@{schemaVersion=1;recordType="TRANSITION";recordId="TRANSITION-IMMUTABLE-FIXTURE";createdAt="2026-07-14T04:00:00+08:00";subjectType="WORK_UNIT";subjectId="WU-STRICT-FIXTURE";trainId="RT-STRICT-FIXTURE";workUnitId="WU-STRICT-FIXTURE";previousStatus="PACKAGE_VERIFIED";currentStatus="PACKAGE_AUDITED";changedAt="2026-07-14T04:00:00+08:00";scope="WORK_UNIT_AUDIT";decision="APPROVED";actorRole="Audit Agent";checks=@("LEGAL_STATUS_EDGE_VERIFIED")}
+    $strictAudit=[ordered]@{schemaVersion=1;recordType="INDEPENDENT_AUDIT";recordId="PACKAGE-AUDIT-IMMUTABLE-FIXTURE";createdAt="2026-07-14T04:00:00+08:00";trainId="RT-STRICT-FIXTURE";workUnitId="WU-STRICT-FIXTURE";candidateCommit=('0'*40);candidateDigest=('0'*64);candidateDigestAlgorithm="GIT_COMMIT_TREE_SHA256_V1";baseCommit=('1'*40);contractRevision=('2'*40);environmentDigest=('3'*64);result="PASS";independentFromWriter=$true;evidenceRefs=@("governance/execution/evidence/EVIDENCE-FIXTURE.json");evidenceBindings=@();checks=@("PACKAGE_EVIDENCE_BOUND");actorRole="Audit Agent"}
+    [IO.File]::WriteAllText((Join-Path $strictHistoryRepo $strictTransitionRef),($strictTransition|ConvertTo-Json -Depth 10),[Text.Encoding]::UTF8);[IO.File]::WriteAllText((Join-Path $strictHistoryRepo $strictAuditRef),($strictAudit|ConvertTo-Json -Depth 10),[Text.Encoding]::UTF8)
+    $null=&git -C $strictHistoryRepo add governance/execution;$null=&git -C $strictHistoryRepo commit -m "fixture introduce immutable strict records";if($LASTEXITCODE-ne0){throw"fixture strict record introduction failed"}
+    $strictTransition.checks=@("LEGAL_STATUS_EDGE_VERIFIED","TAMPERED_AFTER_INTRODUCTION");$strictAudit.result="FAIL"
+    [IO.File]::WriteAllText((Join-Path $strictHistoryRepo $strictTransitionRef),($strictTransition|ConvertTo-Json -Depth 10),[Text.Encoding]::UTF8);[IO.File]::WriteAllText((Join-Path $strictHistoryRepo $strictAuditRef),($strictAudit|ConvertTo-Json -Depth 10),[Text.Encoding]::UTF8)
+    $null=&git -C $strictHistoryRepo add governance/execution;$null=&git -C $strictHistoryRepo commit -m "fixture rewrite immutable strict records";if($LASTEXITCODE-ne0){throw"fixture strict record rewrite failed"}
+    Assert-Rejected "production TRANSITION record rewrite after introduction" { Invoke-WithRepositoryRoot $strictHistoryRepo { $null=Read-StrictRecord $strictTransitionRef "immutable TRANSITION fixture" @("governance/execution/transitions") } }
+    Assert-Rejected "production package independent audit rewrite after introduction" { Invoke-WithRepositoryRoot $strictHistoryRepo { $null=Read-StrictRecord $strictAuditRef "immutable package audit fixture" @("governance/execution/evidence") } }
 
     $validationPath=Join-Path $fixtureRoot "validation-authority.json";$fixtureFiles+=$validationPath
     $validationTrain=[ordered]@{trainId="RT-VALIDATION";status="VALIDATION_AUTHORIZED";previousStatus="PLANNED";statusChangedAt="2026-07-14T00:00:00+08:00";transitionAuthorityRef="governance/07_GOVERNANCE_EXECUTION_SYSTEM_IMPLANTATION_REPORT.md";executionMode="VALIDATION_ONLY";businessWriteAuthorized=$false;approvalRef="PENDING";runtimeCanaryAuthorized=$true;runtimeValidationApprovalRef="PENDING";runtimeValidationAuditRef="PENDING"}
@@ -2220,7 +2282,11 @@ function Invoke-NegativeSelfTests {
     $terminalUnitFixture=[pscustomobject]@{TrainId="RT-CLOSED-FIXTURE";WorkUnitId="WU-TERMINAL";Status="CLOSED"}
     $terminalLeaseFixture=[pscustomobject]@{TrainId="RT-CLOSED-FIXTURE";WorkUnitId="WU-TERMINAL";Id="LEASE-TERMINAL"}
     Assert-Rejected "production terminal Work Unit with active lease" { Assert-TrainWorkUnitClosureConsistency @($closedTrainFixture) @($terminalUnitFixture) @($terminalLeaseFixture) @() }
+    $terminalReservationFixture=[pscustomobject]@{trainId="RT-CLOSED-FIXTURE";workUnitId="WU-TERMINAL";status="MATERIALIZED";number="058"}
+    Assert-Rejected "production terminal Work Unit and Train with active migration reservation" { Assert-TrainWorkUnitClosureConsistency @($closedTrainFixture) @($terminalUnitFixture) @() @() @($terminalReservationFixture) }
     Assert-TrainWorkUnitClosureConsistency @($closedTrainFixture) @($terminalUnitFixture) @() @()
+    $closedEvidenceErasureFixture=[pscustomobject]@{TrainId="RT-CLOSED-FIXTURE";WorkUnitId="WU-TERMINAL";Status="CLOSED";Manifest=[pscustomobject]@{baseCommit=$head;contractRevision=$head;evidenceRefs=@();candidateRecordRef="PENDING";auditRefs=@()}}
+    Assert-Rejected "production CLOSED Work Unit package evidence erasure" { Assert-PackageRecordBindings $closedEvidenceErasureFixture $head (Get-CandidateDigest $head) ('0'*64) $true }
     $writerAudit=[pscustomobject]@{recordType="INDEPENDENT_ENABLEMENT_AUDIT";scope="GOVERNANCE_EXECUTION_ENABLEMENT";result="PASS";independentFromWriter=$true;checks=@();actorRole="Writer"}
     Assert-Rejected "production self-declared independent audit" { Assert-IndependentAuditRecord $writerAudit "CANDIDATE_CONTENT_PREFLIGHT_PASS" "fixture independent audit" }
 
@@ -2258,6 +2324,19 @@ function Invoke-NegativeSelfTests {
     [IO.File]::WriteAllText($fixtureRegistryPath,($fixtureRegistry|ConvertTo-Json -Depth 20),[Text.Encoding]::UTF8)
     Assert-Rejected "full Repository noncanonical business Charter" { Invoke-WithRepositoryRoot $repositoryFixture { $null=Test-RepositoryGovernance } }
     $null=& git -C $repositoryFixture checkout -- governance/execution/train-registry.json
+
+    $fakeDisabledTime="2026-07-14T00:30:00+08:00";$fakeDisabledExecutionRef="governance/execution/transitions/TRANSITION-FAKE-DISABLED-EXECUTION.json";$fakeDisabledQueueRef="governance/execution/transitions/TRANSITION-FAKE-DISABLED-QUEUE.json"
+    $fakeDisabledExecution=[ordered]@{schemaVersion=1;recordType="TRANSITION";recordId="TRANSITION-FAKE-DISABLED-EXECUTION";createdAt=$fakeDisabledTime;subjectType="EXECUTION_SYSTEM";subjectId="GLOBAL_EXECUTION_SYSTEM";previousStatus="ENABLED/ENABLED";currentStatus="DISABLED/DISABLED";changedAt=$fakeDisabledTime;scope="GOVERNANCE_EXECUTION_ENABLEMENT";decision="APPROVED";actorRole="Human Owner";checks=@("LEGAL_STATUS_EDGE_VERIFIED")}
+    $fakeDisabledQueue=[ordered]@{schemaVersion=1;recordType="TRANSITION";recordId="TRANSITION-FAKE-DISABLED-QUEUE";createdAt=$fakeDisabledTime;subjectType="INTEGRATION_QUEUE";subjectId="INTEGRATION_QUEUE";previousStatus="ENABLED";currentStatus="DISABLED";changedAt=$fakeDisabledTime;scope="GOVERNANCE_EXECUTION_ENABLEMENT";decision="APPROVED";actorRole="Human Owner";checks=@("LEGAL_STATUS_EDGE_VERIFIED")}
+    [IO.File]::WriteAllText((Join-Path $repositoryFixture $fakeDisabledExecutionRef),($fakeDisabledExecution|ConvertTo-Json -Depth 10),[Text.Encoding]::UTF8);[IO.File]::WriteAllText((Join-Path $repositoryFixture $fakeDisabledQueueRef),($fakeDisabledQueue|ConvertTo-Json -Depth 10),[Text.Encoding]::UTF8)
+    $null=&git -C $repositoryFixture add -- $fakeDisabledExecutionRef $fakeDisabledQueueRef;$null=&git -C $repositoryFixture commit -m "fixture fake disable authorities";if($LASTEXITCODE-ne0){throw"fixture fake disable authority commit failed"}
+    $fixtureRegistry=Get-Content -Raw -Encoding UTF8 $fixtureRegistryPath|ConvertFrom-Json;$fixtureQueue=Get-Content -Raw -Encoding UTF8 $fixtureQueuePath|ConvertFrom-Json
+    $fixtureRegistry.executionSystemStatus="DISABLED";$fixtureRegistry.enablementStatus="DISABLED";$fixtureRegistry.previousExecutionSystemStatus="ENABLED";$fixtureRegistry.previousEnablementStatus="ENABLED";$fixtureRegistry.statusChangedAt=$fakeDisabledTime;$fixtureRegistry.transitionAuthorityRef=$fakeDisabledExecutionRef
+    $fixtureQueue.executionSystemStatus="DISABLED";$fixtureQueue.enablementStatus="DISABLED";$fixtureQueue.previousEnablementStatus="ENABLED";$fixtureQueue.statusChangedAt=$fakeDisabledTime;$fixtureQueue.transitionAuthorityRef=$fakeDisabledQueueRef
+    [IO.File]::WriteAllText($fixtureRegistryPath,($fixtureRegistry|ConvertTo-Json -Depth 20),[Text.Encoding]::UTF8);[IO.File]::WriteAllText($fixtureQueuePath,($fixtureQueue|ConvertTo-Json -Depth 20),[Text.Encoding]::UTF8)
+    $null=&git -C $repositoryFixture add governance/execution/train-registry.json governance/execution/integration-queue.json;$null=&git -C $repositoryFixture commit -m "fixture bootstrap fake disabled state";if($LASTEXITCODE-ne0){throw"fixture fake disabled state commit failed"}
+    Assert-Rejected "full Repository cannot reach DISABLED without historical ENABLED ancestor" { Invoke-WithRepositoryRoot $repositoryFixture { $null=Test-RepositoryGovernance } }
+    $null=&git -C $repositoryFixture checkout $fixtureBaseline -- governance/execution/train-registry.json governance/execution/integration-queue.json;$null=&git -C $repositoryFixture commit -m "fixture restore bootstrap after fake disabled";if($LASTEXITCODE-ne0){throw"fixture bootstrap restore after fake disabled failed"}
 
     $fixtureRegistry=Get-Content -Raw -Encoding UTF8 $fixtureRegistryPath|ConvertFrom-Json;$fixtureQueue=Get-Content -Raw -Encoding UTF8 $fixtureQueuePath|ConvertFrom-Json
     $fixtureRegistry.executionSystemStatus="ENABLED";$fixtureRegistry.enablementStatus="ENABLED";$fixtureRegistry.previousExecutionSystemStatus="BOOTSTRAP";$fixtureRegistry.previousEnablementStatus="NOT_ENABLED"
@@ -2329,6 +2408,23 @@ function Invoke-NegativeSelfTests {
     Invoke-WithRepositoryRoot $repositoryFixture { $null=Test-RepositoryGovernance }
     Write-Host "self-test accepted: full Repository enabled steady-state commit"
     $enabledFixtureCommit=(& git -C $repositoryFixture rev-parse HEAD).Trim()
+    $disabledTime="2026-07-14T00:45:00+08:00";$disabledExecutionRef="governance/execution/transitions/TRANSITION-EXECUTION-DISABLED-FIXTURE.json";$disabledQueueRef="governance/execution/transitions/TRANSITION-QUEUE-DISABLED-FIXTURE.json"
+    $disabledExecution=[ordered]@{schemaVersion=1;recordType="TRANSITION";recordId="TRANSITION-EXECUTION-DISABLED-FIXTURE";createdAt=$disabledTime;subjectType="EXECUTION_SYSTEM";subjectId="GLOBAL_EXECUTION_SYSTEM";previousStatus="ENABLED/ENABLED";currentStatus="DISABLED/DISABLED";changedAt=$disabledTime;scope="GOVERNANCE_EXECUTION_ENABLEMENT";decision="APPROVED";actorRole="Human Owner";checks=@("LEGAL_STATUS_EDGE_VERIFIED")}
+    $disabledQueue=[ordered]@{schemaVersion=1;recordType="TRANSITION";recordId="TRANSITION-QUEUE-DISABLED-FIXTURE";createdAt=$disabledTime;subjectType="INTEGRATION_QUEUE";subjectId="INTEGRATION_QUEUE";previousStatus="ENABLED";currentStatus="DISABLED";changedAt=$disabledTime;scope="GOVERNANCE_EXECUTION_ENABLEMENT";decision="APPROVED";actorRole="Human Owner";checks=@("LEGAL_STATUS_EDGE_VERIFIED")}
+    [IO.File]::WriteAllText((Join-Path $repositoryFixture $disabledExecutionRef),($disabledExecution|ConvertTo-Json -Depth 10),[Text.Encoding]::UTF8);[IO.File]::WriteAllText((Join-Path $repositoryFixture $disabledQueueRef),($disabledQueue|ConvertTo-Json -Depth 10),[Text.Encoding]::UTF8)
+    $null=&git -C $repositoryFixture add -- $disabledExecutionRef $disabledQueueRef;$null=&git -C $repositoryFixture commit -m "fixture immutable disable authorities";if($LASTEXITCODE-ne0){throw"repository fixture disable authority commit failed"}
+    $fixtureRegistry=Get-Content -Raw -Encoding UTF8 $fixtureRegistryPath|ConvertFrom-Json;$fixtureQueue=Get-Content -Raw -Encoding UTF8 $fixtureQueuePath|ConvertFrom-Json
+    $fixtureRegistry.executionSystemStatus="DISABLED";$fixtureRegistry.enablementStatus="DISABLED";$fixtureRegistry.previousExecutionSystemStatus="ENABLED";$fixtureRegistry.previousEnablementStatus="ENABLED";$fixtureRegistry.statusChangedAt=$disabledTime;$fixtureRegistry.transitionAuthorityRef=$disabledExecutionRef
+    $fixtureQueue.executionSystemStatus="DISABLED";$fixtureQueue.enablementStatus="DISABLED";$fixtureQueue.previousEnablementStatus="ENABLED";$fixtureQueue.statusChangedAt=$disabledTime;$fixtureQueue.transitionAuthorityRef=$disabledQueueRef
+    [IO.File]::WriteAllText($fixtureRegistryPath,($fixtureRegistry|ConvertTo-Json -Depth 20),[Text.Encoding]::UTF8);[IO.File]::WriteAllText($fixtureQueuePath,($fixtureQueue|ConvertTo-Json -Depth 20),[Text.Encoding]::UTF8)
+    $null=&git -C $repositoryFixture add governance/execution/train-registry.json governance/execution/integration-queue.json;$null=&git -C $repositoryFixture commit -m "fixture enabled to disabled transition";if($LASTEXITCODE-ne0){throw"repository fixture disable transition commit failed"}
+    Invoke-WithRepositoryRoot $repositoryFixture { $null=Test-RepositoryGovernance }
+    Write-Host "self-test accepted: full Repository ENABLED to DISABLED retains immutable enablement anchors"
+    $disabledFixtureCommit=(&git -C $repositoryFixture rev-parse HEAD).Trim()
+    $fixtureRegistry=Get-Content -Raw -Encoding UTF8 $fixtureRegistryPath|ConvertFrom-Json;$fixtureRegistry.enablementApprovalRef="PENDING";$fixtureRegistry.enablementApprovalDigest="PENDING"
+    [IO.File]::WriteAllText($fixtureRegistryPath,($fixtureRegistry|ConvertTo-Json -Depth 20),[Text.Encoding]::UTF8);$null=&git -C $repositoryFixture add governance/execution/train-registry.json;$null=&git -C $repositoryFixture commit -m "fixture disabled state anchor wipe";if($LASTEXITCODE-ne0){throw"repository fixture disabled anchor wipe commit failed"}
+    Assert-Rejected "full Repository DISABLED state cannot wipe permanent enablement anchors" { Invoke-WithRepositoryRoot $repositoryFixture { $null=Test-RepositoryGovernance } }
+    $null=&git -C $repositoryFixture checkout --detach $enabledFixtureCommit;if($LASTEXITCODE-ne0){throw"fixture enabled state restore after disabled tests failed"}
     $falseHistoryRef="governance/execution/transitions/TRANSITION-FALSE-HISTORY-FIXTURE.json";$falseHistoryTime="2026-07-14T01:00:00+08:00"
     $falseHistoryRecord=[ordered]@{schemaVersion=1;recordType="TRANSITION";recordId="TRANSITION-FALSE-HISTORY-FIXTURE";createdAt=$falseHistoryTime;subjectType="RELEASE_TRAIN";subjectId="RT-P30-P31-001";trainId="RT-P30-P31-001";previousStatus="PLANNED";currentStatus="BLOCKED";changedAt=$falseHistoryTime;scope="TRAIN_EXECUTION_CONTROL";decision="APPROVED";actorRole="Human Owner";checks=@("LEGAL_STATUS_EDGE_VERIFIED")}
     [IO.File]::WriteAllText((Join-Path $repositoryFixture $falseHistoryRef),($falseHistoryRecord|ConvertTo-Json -Depth 10),[Text.Encoding]::UTF8)
