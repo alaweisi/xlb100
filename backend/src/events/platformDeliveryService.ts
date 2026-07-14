@@ -10,6 +10,7 @@ import type {
   PlatformServiceIdentity,
   PlatformReviewCreatedV1CompatibilityProjection,
   PlatformReviewVisibilityChangedV1CompatibilityProjection,
+  PlatformMarketingCompensationV0CompatibilityProjection,
 } from "@xlb/types";
 import {
   platformDeliveryClaimRequestSchema,
@@ -24,6 +25,7 @@ import {
   projectImplicitV0NotificationCompatibility,
   projectReviewCreatedV1Compatibility,
   projectReviewVisibilityChangedV1Compatibility,
+  projectMarketingCompensationV0Compatibility,
   validateVersionedPlatformCompatibility,
 } from "./platformEventCompatibility.js";
 import { projectPlatformDeliveryError } from "./platformDeliveryPolicy.js";
@@ -176,6 +178,61 @@ function projectReviewVisibilityChangedCompatibilitySource(
 function sameReviewVisibilityChangedProjection(
   left: PlatformReviewVisibilityChangedV1CompatibilityProjection,
   right: PlatformReviewVisibilityChangedV1CompatibilityProjection,
+): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function projectMarketingCompensationCompatibilitySource(
+  source: PlatformClaimCompatibilitySourceRow,
+): PlatformMarketingCompensationV0CompatibilityProjection {
+  if (
+    (source.event_type !== "order.reverse.applied" && source.event_type !== "refund.approved") ||
+    Number(source.event_major_version) !== 0
+  ) {
+    throw new PlatformCompatibilityError("UNSUPPORTED_EVENT_VERSION");
+  }
+  const projected = projectMarketingCompensationV0Compatibility(
+    source.event_type,
+    source.city_code,
+    source.city_code,
+    source.payload_json,
+  );
+  if (projected.payloadHash !== source.payload_hash) {
+    throw new PlatformCompatibilityError("INVALID_EVENT_PAYLOAD");
+  }
+  const isCancellation = source.event_type === "order.reverse.applied";
+  const triggerId = isCancellation
+    ? (projected as { reverseRequestId: string }).reverseRequestId
+    : (projected as { refundId: string }).refundId;
+  if (
+    source.aggregate_type !== (isCancellation ? "order_reverse" : "refund") ||
+    source.aggregate_id !== triggerId
+  ) {
+    throw new PlatformCompatibilityError("INVALID_EVENT_PAYLOAD");
+  }
+  return {
+    deliveryId: source.delivery_id,
+    cityCode: source.city_code,
+    subscriberId: source.subscriber_id,
+    subscriptionId: source.subscription_id,
+    eventId: source.event_id,
+    eventType: source.event_type,
+    eventMajorVersion: 0,
+    payloadHash: source.payload_hash,
+    compatibilityHandlerRevision: source.compatibility_handler_revision,
+    triggerType: isCancellation ? "order_cancellation" : "full_refund",
+    triggerId,
+    orderId: projected.orderId,
+    customerId: isCancellation ? null : (projected as { customerId: string }).customerId,
+    refundAmount: isCancellation ? null : (projected as { amount: number }).amount,
+    refundCurrency: isCancellation ? null : (projected as { currency: "CNY" }).currency,
+    occurredAt: isCancellation ? null : (projected as { approvedAt: string }).approvedAt,
+  };
+}
+
+function sameMarketingCompensationProjection(
+  left: PlatformMarketingCompensationV0CompatibilityProjection,
+  right: PlatformMarketingCompensationV0CompatibilityProjection,
 ): boolean {
   return JSON.stringify(left) === JSON.stringify(right);
 }
@@ -421,6 +478,27 @@ export class PlatformDeliveryService {
     return projectReviewVisibilityChangedCompatibilitySource(source);
   }
 
+  async projectClaimForMarketingCompensation(
+    identityInput: unknown,
+    requestInput: unknown,
+  ): Promise<PlatformMarketingCompensationV0CompatibilityProjection | null> {
+    const identity = assertServiceIdentity(identityInput);
+    const request = platformDeliveryMutationRequestSchema.parse(requestInput) as PlatformDeliveryMutationRequest;
+    const { subscription } = await this.requireActiveSubscription(identity, request.subscriptionId);
+    const source = await this.repository.readClaimCompatibilitySource(identity, request);
+    if (!source) return null;
+    if (
+      (source.event_type !== "order.reverse.applied" && source.event_type !== "refund.approved") ||
+      source.event_type !== subscription.eventType ||
+      Number(source.event_major_version) !== 0 ||
+      subscription.eventMajorVersion !== 0 ||
+      source.compatibility_handler_revision !== subscription.compatibilityHandlerRevision
+    ) {
+      throw new PlatformCompatibilityError("UNSUPPORTED_EVENT_VERSION");
+    }
+    return projectMarketingCompensationCompatibilitySource(source);
+  }
+
   /**
    * Revalidates the complete claim/source/subscription projection while the
    * Notification target transaction holds row locks. Raw payload remains
@@ -524,6 +602,40 @@ export class PlatformDeliveryService {
     }
     const currentProjection = projectReviewVisibilityChangedCompatibilitySource(source);
     if (!sameReviewVisibilityChangedProjection(currentProjection, expectedProjection)) {
+      throw new PlatformCompatibilityError("INVALID_EVENT_PAYLOAD");
+    }
+  }
+
+  async revalidateMarketingCompensationProjectionClaim(
+    identityInput: unknown,
+    requestInput: unknown,
+    expectedProjection: PlatformMarketingCompensationV0CompatibilityProjection,
+    connection: PoolConnection,
+  ): Promise<void> {
+    const identity = assertServiceIdentity(identityInput);
+    const request = platformDeliveryMutationRequestSchema.parse(requestInput) as PlatformDeliveryMutationRequest;
+    const source = await this.repository.readClaimCompatibilitySource(
+      identity,
+      request,
+      connection,
+      true,
+    );
+    if (!source) {
+      throw new PlatformDeliveryAuthorizationError("exact active Marketing compensation claim is required");
+    }
+    const currentPayloadHash = canonicalPayloadHash(source.payload_json);
+    if (
+      source.source_snapshot_consistent === false ||
+      (source.event_type !== "order.reverse.applied" && source.event_type !== "refund.approved") ||
+      Number(source.event_major_version) !== 0 ||
+      currentPayloadHash !== source.payload_hash ||
+      currentPayloadHash !== expectedProjection.payloadHash ||
+      source.compatibility_handler_revision !== expectedProjection.compatibilityHandlerRevision
+    ) {
+      throw new PlatformCompatibilityError("INVALID_EVENT_PAYLOAD");
+    }
+    const currentProjection = projectMarketingCompensationCompatibilitySource(source);
+    if (!sameMarketingCompensationProjection(currentProjection, expectedProjection)) {
       throw new PlatformCompatibilityError("INVALID_EVENT_PAYLOAD");
     }
   }

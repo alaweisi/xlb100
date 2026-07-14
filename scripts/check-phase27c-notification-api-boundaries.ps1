@@ -6,15 +6,41 @@ $migration056Plus = @(Get-ChildItem db/migrations -File | Where-Object {
   $_.Name -match '^(\d{3})_' -and [int]$Matches[1] -ge 56
 })
 $phase28DecisionPath = 'docs/reports/PHASE28_REVIEW_REPUTATION_RUNTIME_DECISION_REPORT.md'
+$currentState = Get-Content -Raw -Encoding UTF8 -LiteralPath 'docs/CURRENT_STATE.md'
 $phase28Authorized =
-  (Get-Content -Raw -Encoding UTF8 -LiteralPath 'docs/CURRENT_STATE.md').Contains('Phase 27 | LOCKED') -and
+  $currentState.Contains('Phase 27 | LOCKED') -and
   (Test-Path -LiteralPath $phase28DecisionPath) -and
   (Get-Content -Raw -Encoding UTF8 -LiteralPath $phase28DecisionPath).Contains('HUMAN APPROVED')
+$phase29EntryPath = 'docs/reports/PHASE29_MARKETING_COUPON_ENTRY_REPORT.md'
+$phase29ArchitecturePath = 'docs/architecture/29_XLB_MARKETING_COUPON.md'
+$phase29ContractPath = 'docs/contracts/CONTRACT_MARKETING_COUPON.md'
+$phase29RegistryPath = 'docs/governance/phase-registry.json'
+$phase29Authorized =
+  $phase28Authorized -and
+  $currentState.Contains('Marketing / Coupon MVP (IN PROGRESS)') -and
+  $currentState.Contains('approved Entry decisions D01') -and
+  $currentState.Contains('D24 and authorized continuous Phase29 construction through independent acceptance.') -and
+  $currentState.Contains('migration `057` only') -and
+  (Test-Path -LiteralPath $phase29EntryPath) -and
+  (Get-Content -Raw -Encoding UTF8 -LiteralPath $phase29EntryPath).Contains('Every row below is **HUMAN APPROVED**') -and
+  (Get-Content -Raw -Encoding UTF8 -LiteralPath $phase29EntryPath).Contains('| D24 |') -and
+  (Test-Path -LiteralPath $phase29ArchitecturePath) -and
+  (Get-Content -Raw -Encoding UTF8 -LiteralPath $phase29ArchitecturePath).Contains('ENTRY DECISIONS HUMAN-APPROVED; CONSTRUCTION AUTHORIZED') -and
+  (Test-Path -LiteralPath $phase29ContractPath) -and
+  (Get-Content -Raw -Encoding UTF8 -LiteralPath $phase29ContractPath).Contains('Phase 29 human-approved contract') -and
+  (Test-Path -LiteralPath $phase29RegistryPath) -and
+  (Get-Content -Raw -Encoding UTF8 -LiteralPath $phase29RegistryPath).Contains('Entry decisions D01-D24 are approved for continuous construction through independent acceptance.') -and
+  (Test-Path -LiteralPath 'db/migrations/057_phase29_marketing_coupon.sql')
 $expectedPhase28Migration =
   $phase28Authorized -and
   $migration056Plus.Count -eq 1 -and
   $migration056Plus[0].Name -eq '056_phase28_review_reputation.sql'
-if ($migration056Plus.Count -ne 0 -and -not $expectedPhase28Migration) {
+$migration056PlusNames = @($migration056Plus.Name | Sort-Object) -join ','
+$expectedPhase29Migrations =
+  $phase29Authorized -and
+  $migration056Plus.Count -eq 2 -and
+  $migration056PlusNames -eq '056_phase28_review_reputation.sql,057_phase29_marketing_coupon.sql'
+if ($migration056Plus.Count -ne 0 -and -not $expectedPhase28Migration -and -not $expectedPhase29Migrations) {
   throw "Phase27C forbids unauthorized migration 056 or later"
 }
 

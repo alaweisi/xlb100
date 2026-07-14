@@ -43,6 +43,11 @@ function formatMoney(amount?: number | null, currency?: string | null): string {
   return `${currency || "CNY"} ${amount.toFixed(2)}`;
 }
 
+function formatMinorMoney(amountMinor?: number | null, currency?: string | null): string {
+  if (amountMinor == null) return "-";
+  return `${currency || "CNY"} ${(amountMinor / 100).toFixed(2)}`;
+}
+
 export function OrderTracePage({ initialCityCode, initialOrderId }: Props) {
   const params = parseHashParams();
   const [cityCode, setCityCode] = useState(initialCityCode || params.get("cityCode") || "hangzhou");
@@ -108,6 +113,19 @@ export function OrderTracePage({ initialCityCode, initialOrderId }: Props) {
           status: trace.payment?.status || null,
           amount: formatMoney(trace.payment?.amount, trace.payment?.currency),
           note: trace.payment?.updatedAt || "-",
+        },
+        {
+          key: "marketing",
+          stage: "Marketing",
+          id: trace.pricing?.marketingDecision?.decisionId || "-",
+          actor: trace.pricing?.marketingDecision?.grantId || "-",
+          status: trace.pricing?.source || null,
+          amount: trace.pricing
+            ? `${formatMinorMoney(trace.pricing.grossAmountMinor, trace.pricing.currency)} - ${formatMinorMoney(trace.pricing.discountAmountMinor, trace.pricing.currency)} = ${formatMinorMoney(trace.pricing.netAmountMinor, trace.pricing.currency)}`
+            : "-",
+          note: trace.pricing?.marketingDecision
+            ? `rule ${trace.pricing.marketingDecision.ruleRevisionId}; reservation ${trace.pricing.marketingDecision.reservationId}; redemption ${trace.pricing.marketingDecision.redemptionId}`
+            : "No Marketing decision",
         },
         {
           key: "dispatch",

@@ -43,18 +43,51 @@ try {
       'comment: row.review_comment,'
     )
     $expectedAdded = @('comment: null,', 'commentRestricted: true,')
-    if ($removed.Count -ne $expectedRemoved.Count -or $added.Count -ne $expectedAdded.Count -or
-        (Compare-Object $removed $expectedRemoved).Count -ne 0 -or
-        (Compare-Object $added $expectedAdded).Count -ne 0) {
+    $trace = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $Root $phase28OrderTrace)
+    $phase29Migration = Join-Path $Root 'db/migrations/057_phase29_marketing_coupon.sql'
+    if (Test-Path -LiteralPath $phase29Migration) {
+      if ($removed.Count -ne $expectedRemoved.Count -or
+          (Compare-Object $removed $expectedRemoved).Count -ne 0) {
+        throw 'Phase29 order trace may not remove anything beyond the Phase28 Review comment redaction'
+      }
+      foreach ($requiredMarketingEvidence in @(
+        'LEFT JOIN order_price_snapshots',
+        'grossAmountMinor',
+        'discountAmountMinor',
+        'netAmountMinor',
+        'ruleContentHash',
+        'reservationId',
+        'redemptionId'
+      )) {
+        if ($trace -notmatch [regex]::Escape($requiredMarketingEvidence)) {
+          throw "Phase29 order trace is missing read-only Marketing evidence: $requiredMarketingEvidence"
+        }
+      }
+      if ($trace -match '(?is)\b(INSERT\s+INTO|UPDATE|DELETE\s+FROM)\b' -or
+          $trace -match '(?i)(contact_phone|detail_address|allowed_sku_ids_json|issuance_ref)') {
+        throw 'Phase29 order trace must remain read-only and must not expose raw eligibility or contact inputs'
+      }
+    } elseif ($added.Count -ne $expectedAdded.Count -or
+              (Compare-Object $added $expectedAdded).Count -ne 0) {
       throw 'Phase28 order trace allowlist permits only the exact Review comment redaction diff'
     }
-    $trace = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $Root $phase28OrderTrace)
     if ($trace -match '(?i)\brev\.comment\b|\breview_comment\b' -or
         $trace -notmatch '(?s)review:\s*row\.review_id.*?comment:\s*null,\s*commentRestricted:\s*true') {
       throw 'Phase28 order trace must not select Review comment and must return an explicit restricted marker'
     }
     $protected = @($protected | Where-Object { $_ -ne $phase28OrderTrace })
-    Write-Host 'PASS exact Phase28 order-trace Review comment redaction allowlist'
+    Write-Host 'PASS Phase28 Review redaction plus Phase29 read-only Marketing order-trace allowlist'
+  }
+  $phase29Migration = Join-Path $Root 'db/migrations/057_phase29_marketing_coupon.sql'
+  $phase29BoundaryGate = Join-Path $Root 'scripts/check-phase29-marketing-coupon-boundaries.ps1'
+  if ((Test-Path -LiteralPath $phase29Migration) -and (Test-Path -LiteralPath $phase29BoundaryGate)) {
+    $phase29OrderAllowlist = @(
+      'backend/src/order/orderRepository.ts',
+      'backend/src/order/orderRoutes.ts',
+      'backend/src/order/orderService.ts'
+    )
+    $protected = @($protected | Where-Object { $phase29OrderAllowlist -notcontains $_ })
+    Write-Host 'PASS Phase29 Order atomic Marketing integration delegated to the Phase29 boundary gate'
   }
   if ($protected.Count -gt 0) { throw "Phase 23B changed protected business/provider code: $($protected -join ', ')" }
 

@@ -63,7 +63,19 @@ export class EnterpriseService {
       const existing=existingExternal??existingIdempotency;
       if(existing){if(existing.request_hash!==requestHash||existing.external_order_id!==parsed.data.externalOrderId)throw new EnterpriseError("external order id or idempotency key conflicts with a different request",409);return {businessOrder:await this.loadBusinessOrder(context,existing),idempotent:true};}
       const agreement=await enterpriseRepository.findCurrentAgreement(context.cityCode,context.businessClientId,parsed.data.skuId);
-      const order=await orderService.createOrder(customerContext(context),parsed.data,agreement?{unitAmount:agreement.unitPrice,priceText:`Enterprise agreement CNY ${agreement.unitPrice.toFixed(2)}`} : undefined);
+      const orderCommand={
+        skuId:parsed.data.skuId,
+        quantity:parsed.data.quantity,
+        addressProvince:parsed.data.addressProvince,
+        addressCity:parsed.data.addressCity,
+        addressDistrict:parsed.data.addressDistrict,
+        detailAddress:parsed.data.detailAddress,
+        contactName:parsed.data.contactName,
+        contactPhone:parsed.data.contactPhone,
+        scheduledAt:parsed.data.scheduledAt,
+        scheduledTimeSlot:parsed.data.scheduledTimeSlot,
+      };
+      const order=await orderService.createOrder(customerContext(context),orderCommand,agreement?{source:"enterprise",unitAmount:agreement.unitPrice,priceText:`Enterprise agreement CNY ${agreement.unitPrice.toFixed(2)}`,agreementPriceId:agreement.agreementPriceId} : undefined);
       const mapping={business_order_id:id("bord"),business_client_id:context.businessClientId,city_code:context.cityCode,external_order_id:parsed.data.externalOrderId,idempotency_key:parsed.data.idempotencyKey,request_hash:requestHash,order_id:order.orderId,agreement_price_id:agreement?.agreementPriceId??null,pricing_source:agreement?"agreement" as const:"public" as const,created_at:new Date()};
       await withTransaction(connection=>enterpriseRepository.insertBusinessOrder(connection,{businessOrderId:mapping.business_order_id,clientId:context.businessClientId,cityCode:context.cityCode,externalOrderId:mapping.external_order_id,idempotencyKey:mapping.idempotency_key,requestHash,orderId:order.orderId,agreementId:mapping.agreement_price_id,pricingSource:mapping.pricing_source,snapshot:parsed.data}));
       return {businessOrder:this.composeOrder(mapping,order),idempotent:false};

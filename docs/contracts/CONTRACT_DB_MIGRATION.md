@@ -29,3 +29,22 @@ powershell -File scripts/seed-local.ps1
 ```
 
 或通过 backend `migrationRunner` / `seedRunner` 模块。
+
+## Phase 29 migration 057 contract
+
+- File: `db/migrations/057_phase29_marketing_coupon.sql`.
+- Predecessor: locked migration `056_phase28_review_reputation`.
+- Append-only rule: migrations `000` through `056` remain immutable.
+- Schema-only rule: `057` may insert only its `schema_migrations` marker. It
+  must not seed campaigns/coupons, activate subscribers, create deliveries,
+  replay history, backfill business data, or create a scheduler/trigger.
+- Replay rule: applying the runner twice after fresh, `000`-`056` upgrade, or
+  interrupted partial DDL must converge on one marker and the same nine empty
+  Phase 29 tables.
+- Isolation rule: all nine Phase 29 tables require real-city `city_code` and
+  all evidence foreign keys use `RESTRICT`, never `CASCADE`.
+- Financial-evidence rule: composite UNIQUE/FK pairs must prevent disagreement
+  between Rule revision/content hash, Grant and Decision rule evidence,
+  Decision and Reservation amount, Reservation and Redemption amount, or source
+  Redemption and Compensation amount. Direct SQL contradictions must fail.
+- Verification command: `pnpm test:migration:phase29`.

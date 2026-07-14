@@ -249,3 +249,31 @@ Migration `050` adds nullable first-response and resolution breach markers to
 `support_tickets`, dedicated city/status SLA scan indexes, and expands the
 append-only `support_ticket_events.event_type` CHECK with `claimed` and
 `sla_breached`. It creates no new identity, scheduler, or business table.
+
+## Phase 29 Marketing / Coupon MVP
+
+| Table | Purpose | city_code |
+|-------|---------|-----------|
+| `marketing_campaigns` | Governed Marketing campaign lifecycle and active rule pointer | required FK + non-global check |
+| `marketing_rule_revisions` | Immutable-content, four-eyes reviewed/published rule revisions | required same-city campaign FK |
+| `coupon_definitions` | Fixed-amount CNY coupon definition, issuance cap and independent compensation cap | required same-city rule FK |
+| `coupon_grants` | Non-transferable customer coupon grant with reason/ref idempotency | required same-city definition FK |
+| `marketing_discount_decisions` | Five-minute immutable server quote decision and Order acceptance evidence | required same-city Grant/SKU/PriceRule FKs |
+| `coupon_reservations` | Two-minute Order-bound reservation with one blocking reservation per Grant | required same-city Decision/Order FKs |
+| `coupon_redemptions` | One immutable redemption per Grant, Decision, Reservation and Order | required same-city reservation FK |
+| `marketing_compensations` | Dormant cancel/full-refund compensation decision evidence | required same-city Redemption/Delivery/Outbox FKs |
+| `marketing_audit_records` | City-scoped Marketing governance and mutation audit trail | required FK + non-global check |
+
+Migration `057` is schema-only. It creates no coupon, campaign, subscription,
+delivery, scheduler, historical replay or backfill data. All money authority is
+integer CNY minor units; a DiscountDecision enforces
+`net = gross - discount >= 1`. Enterprise agreement pricing remains outside
+this domain. Compensation rows may record only the allowlisted cancellation or
+full-refund evidence and do not activate an event subscriber.
+
+The financial evidence path is relationally closed, not merely service-checked:
+`RuleRevision(revision, content_hash)` -> `Grant(rule_revision)` ->
+`DiscountDecision(grant, rule_revision, rule_content_hash, currency, amount)` ->
+`Reservation(currency, amount)` -> `Redemption(currency, amount)` ->
+`Compensation(currency, amount)`. Composite UNIQUE/FK pairs reject a mixed
+revision/hash or a changed downstream amount even through direct SQL.

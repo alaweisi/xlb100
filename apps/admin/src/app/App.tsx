@@ -6,6 +6,7 @@ import {
   loginAdminWithCode,
   readStoredAdminSession,
   requestAdminLoginCode,
+  adminOpsApi,
   type AdminSession,
 } from "../adminAuth";
 import { AdminShell, Button, FormField, GuardrailCard, Input, ScopeBadge, SideNav, StatusTag, TopBar } from "@xlb/ui";
@@ -23,6 +24,7 @@ const PlatformOperationsPage = lazy(() => import("../pages/PlatformOperationsPag
 const SupportTicketsPage = lazy(() => import("../pages/SupportTicketsPage").then((module) => ({ default: module.SupportTicketsPage })));
 const SupportQualityPage=lazy(()=>import("../pages/SupportQualityPage").then(module=>({default:module.SupportQualityPage})));
 const ReviewModerationPage=lazy(()=>import("../pages/ReviewModerationPage").then(module=>({default:module.ReviewModerationPage})));
+const MarketingOperationsPage=lazy(()=>import("../pages/MarketingOperationsPage").then(module=>({default:module.MarketingOperationsPage})));
 
 export function App() {
   const [view, setView] = useState(parseView);
@@ -133,6 +135,7 @@ export function App() {
   const navigateToSupport = useCallback(() => { window.location.hash = buildHash("/support", { cityCode: cityCode || "" }); }, [cityCode]);
   const navigateToSupportQuality=useCallback(()=>{window.location.hash=buildHash("/support-quality",{cityCode:cityCode||""})},[cityCode]);
   const navigateToReviewModeration=useCallback(()=>{window.location.hash=buildHash("/review-moderation",{cityCode:cityCode||""})},[cityCode]);
+  const navigateToMarketing=useCallback(()=>{window.location.hash=buildHash("/marketing",{cityCode:cityCode||""})},[cityCode]);
 
   const navigateToDashboard = useCallback(() => {
     window.location.hash = "";
@@ -146,6 +149,8 @@ export function App() {
     ? "Support Quality"
     : view.page === "reviewModeration"
     ? "Review Moderation"
+    : view.page === "marketing"
+    ? "Marketing / Coupon"
     : view.page === "platformOperations"
     ? "Platform Operations"
     : view.page === "enterprise"
@@ -199,6 +204,8 @@ export function App() {
     ? <SupportQualityPage initialCityCode={cityCode}/>
     : view.page === "reviewModeration"
     ? <ReviewModerationPage initialCityCode={cityCode}/>
+    : view.page === "marketing"
+    ? <MarketingOperationsPage api={adminOpsApi.marketing} initialCityCode={cityCode ?? "hangzhou"} role={session.role === "admin" || session.role === "operator" || session.role === "auditor" ? session.role : "auditor"}/>
     : view.page === "platformOperations"
     ? <PlatformOperationsPage initialCityCode={cityCode}/>
     : view.page === "enterprise"
@@ -298,6 +305,7 @@ export function App() {
             { key: "support", label: "Support Workbench", active: view.page === "support", href: "#/support", onClick: navigateToSupport },
             {key:"supportQuality",label:"Support Quality",active:view.page==="supportQuality",href:"#/support-quality",onClick:navigateToSupportQuality},
             {key:"reviewModeration",label:"Review / Reputation",active:view.page==="reviewModeration",href:"#/review-moderation",onClick:navigateToReviewModeration},
+            {key:"marketing",label:"Marketing / Coupon",active:view.page==="marketing",href:"#/marketing",onClick:navigateToMarketing},
           ]}
         />
       }

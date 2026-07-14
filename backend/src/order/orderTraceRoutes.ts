@@ -46,6 +46,7 @@ type OrderTraceRow = RowDataPacket & {
   refund_reason: string | null;
   requested_at: NullableDate;
   approved_at: NullableDate;
+  quote_snapshot: string | Record<string, unknown> | null;
 };
 
 type DispatchTimelineRow = RowDataPacket & {
@@ -135,7 +136,11 @@ export async function registerOrderTraceRoutes(app: FastifyInstance): Promise<vo
                 rr.reason AS refund_reason,
                 rr.requested_at,
                 rr.approved_at
+                ,ops.quote_snapshot
            FROM orders o
+           LEFT JOIN order_price_snapshots ops
+             ON ops.city_code = o.city_code
+            AND ops.order_id = o.order_id
            LEFT JOIN payment_orders p
              ON p.city_code = o.city_code
             AND p.order_id = o.order_id
@@ -169,6 +174,10 @@ export async function registerOrderTraceRoutes(app: FastifyInstance): Promise<vo
           error: `Order trace not found: ${orderId}`,
         });
       }
+      const quoteSnapshot = typeof row.quote_snapshot === "string"
+        ? JSON.parse(row.quote_snapshot) as Record<string, unknown>
+        : row.quote_snapshot;
+      const marketingDecision = quoteSnapshot?.marketingDecision as Record<string, unknown> | null | undefined;
 
       const dispatchTimeline = row.dispatch_task_id
         ? await getMysqlPool().query<DispatchTimelineRow[]>(
@@ -229,6 +238,31 @@ export async function registerOrderTraceRoutes(app: FastifyInstance): Promise<vo
             currency: row.order_currency,
             createdAt: row.order_created_at.toISOString(),
           },
+          pricing: quoteSnapshot
+            ? {
+                source: typeof quoteSnapshot.pricingSource === "string" ? quoteSnapshot.pricingSource : "legacy",
+                currency: typeof quoteSnapshot.currency === "string" ? quoteSnapshot.currency : row.order_currency,
+                grossAmountMinor: typeof quoteSnapshot.grossAmountMinor === "number" ? quoteSnapshot.grossAmountMinor : null,
+                discountAmountMinor: typeof quoteSnapshot.discountAmountMinor === "number" ? quoteSnapshot.discountAmountMinor : null,
+                netAmountMinor: typeof quoteSnapshot.netAmountMinor === "number" ? quoteSnapshot.netAmountMinor : null,
+                marketingDecision: marketingDecision
+                  ? {
+                      decisionId: marketingDecision.decisionId,
+                      decisionRevision: marketingDecision.decisionRevision,
+                      ruleRevisionId: marketingDecision.ruleRevisionId,
+                      ruleContentHash: marketingDecision.ruleContentHash,
+                      couponDefinitionId: marketingDecision.couponDefinitionId,
+                      grantId: marketingDecision.grantId,
+                      reservationId: marketingDecision.reservationId,
+                      redemptionId: marketingDecision.redemptionId,
+                      requestFingerprint: marketingDecision.requestFingerprint,
+                      issuedAt: marketingDecision.issuedAt,
+                      expiresAt: marketingDecision.expiresAt,
+                      acceptedAt: marketingDecision.acceptedAt,
+                    }
+                  : null,
+              }
+            : null,
           payment: row.payment_order_id
             ? {
                 paymentOrderId: row.payment_order_id,

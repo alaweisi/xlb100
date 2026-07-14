@@ -49,6 +49,10 @@ export type OutboxEventType =
   | "support.bot.handed_off"
   | "review.created"
   | "review.visibility.changed"
+  | "marketing.discount.decision.issued"
+  | "marketing.coupon.reserved"
+  | "marketing.coupon.redeemed"
+  | "marketing.coupon.released"
   | "conflict_audit"
   | "worker.receivable.statement.created"
   | "worker.receivable.statement.reviewed"
@@ -140,4 +144,26 @@ export interface RefundApprovedEventPayload {
   currency: "CNY";
   approvedAt: string;
   approvedByAdminId: string;
+}
+
+export interface MarketingDiscountDecisionIssuedV1Payload {
+  discountDecisionId: string;
+  couponGrantId: string;
+  skuId: string;
+  grossAmountMinor: number;
+  discountAmountMinor: number;
+  netAmountMinor: number;
+  currency: "CNY";
+  expiresAt: string;
+}
+
+export interface MarketingCouponLifecycleV1Payload {
+  couponReservationId: string;
+  couponGrantId: string;
+  discountDecisionId: string;
+  orderId: string;
+  discountAmountMinor: number;
+  currency: "CNY";
+  reasonCode?: string;
+  occurredAt: string;
 }

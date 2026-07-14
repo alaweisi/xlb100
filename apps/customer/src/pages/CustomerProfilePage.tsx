@@ -108,6 +108,7 @@ export function CustomerProfilePage({ api, cityCode }: CustomerProfilePageProps)
       <Card title="Account" actions={<StatusTag tone="success">Real API</StatusTag>}>
         <div style={{ display: "grid", gap: 10 }}>
           <a href="/customer/notifications" className="notification-entry-link">消息中心</a>
+          <a href="/customer/coupons" className="notification-entry-link">我的优惠券</a>
           <div style={{ color: "#64748b", fontSize: 13 }}>{profile?.phoneMasked ?? "Loading account"}</div>
           <FormField label="Display name"><Input value={name} onChange={(event) => setName(event.target.value)} /></FormField>
           <Button variant="primary" disabled={busy || !name.trim()} onClick={() => void saveProfile()}>Save profile</Button>

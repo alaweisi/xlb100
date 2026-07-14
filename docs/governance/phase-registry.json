@@ -366,6 +366,20 @@
         "Independent acceptance returned P0/P1/P2/P3 all zero; aggregate, MySQL, migration, browser, regression, typecheck, build and preflight gates passed.",
         "Phase 14 remains 64/100 and staging/production NO-GO; no activation, backfill/replay, Provider, deployment, push or Phase 29 entry is authorized."
       ]
+    },
+    {
+      "id": "Phase 29",
+      "kind": "formal",
+      "status": "IN_PROGRESS",
+      "summary": "Marketing and fixed-amount coupon MVP with versioned quote decisions and Order-owned price evidence.",
+      "notes": [
+        "Entered by explicit human authorization on 2026-07-14 after Phase 28 Lock.",
+        "Entry decisions D01-D24 are approved for continuous construction through independent acceptance.",
+        "Only append-only migration 057 is authorized; migrations 000-056 and historical tags remain immutable.",
+        "D01-D24 implementation and engineering verification are complete on the construction branch; the second independent read-only review returned PASS with P0/P1/P2/P3 all zero.",
+        "Phase29 is ready for explicit human acceptance, but no commit, merge, tag or Lock has been performed.",
+        "No push, deployment, production activation, business seed, historical backfill/replay, Provider or subscriber activation is authorized."
+      ]
     }
   ]
 }

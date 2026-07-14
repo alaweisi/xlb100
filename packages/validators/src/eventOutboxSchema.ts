@@ -51,6 +51,10 @@ export const outboxEventTypeSchema = z.enum([
   "support.bot.handed_off",
   "review.created",
   "review.visibility.changed",
+  "marketing.discount.decision.issued",
+  "marketing.coupon.reserved",
+  "marketing.coupon.redeemed",
+  "marketing.coupon.released",
   "conflict_audit",
   "worker.receivable.statement.created",
   "worker.receivable.statement.reviewed",
@@ -82,7 +86,9 @@ export const eventOutboxSchema = z.object({
   updatedAt: z.string().min(1).optional(),
 }).superRefine((value, context) => {
   if (
-    (value.eventType === "review.created" || value.eventType === "review.visibility.changed") &&
+    (value.eventType === "review.created" ||
+      value.eventType === "review.visibility.changed" ||
+      value.eventType.startsWith("marketing.")) &&
     value.eventMajorVersion !== 1
   ) {
     context.addIssue({
@@ -151,9 +157,36 @@ export const refundApprovedEventPayloadSchema = z.object({
   approvedByAdminId: z.string().min(1).max(64),
 });
 
+export const marketingDiscountDecisionIssuedV1PayloadSchema = z.object({
+  discountDecisionId: z.string().min(1).max(64),
+  couponGrantId: z.string().min(1).max(64),
+  skuId: z.string().min(1).max(128),
+  grossAmountMinor: z.number().int().positive(),
+  discountAmountMinor: z.number().int().positive(),
+  netAmountMinor: z.number().int().positive(),
+  currency: z.literal("CNY"),
+  expiresAt: z.string().datetime({ offset: true }),
+}).strict().refine(
+  (value) => value.grossAmountMinor - value.discountAmountMinor === value.netAmountMinor,
+  { path: ["netAmountMinor"], message: "net amount must equal gross minus discount" },
+);
+
+export const marketingCouponLifecycleV1PayloadSchema = z.object({
+  couponReservationId: z.string().min(1).max(64),
+  couponGrantId: z.string().min(1).max(64),
+  discountDecisionId: z.string().min(1).max(64),
+  orderId: z.string().min(1).max(64),
+  discountAmountMinor: z.number().int().positive(),
+  currency: z.literal("CNY"),
+  reasonCode: z.string().min(1).max(64).optional(),
+  occurredAt: z.string().datetime({ offset: true }),
+}).strict();
+
 export type EventOutboxInput = z.infer<typeof eventOutboxSchema>;
 export type OrderPaidEventPayloadInput = z.infer<typeof orderPaidEventPayloadSchema>;
 export type OrderCreatedEventPayloadInput = z.infer<typeof orderCreatedEventPayloadSchema>;
 export type ReviewCreatedV1EventPayloadInput = z.infer<typeof reviewCreatedV1EventPayloadSchema>;
 export type ReviewVisibilityChangedV1EventPayloadInput = z.infer<typeof reviewVisibilityChangedV1EventPayloadSchema>;
 export type RefundApprovedEventPayloadInput = z.infer<typeof refundApprovedEventPayloadSchema>;
+export type MarketingDiscountDecisionIssuedV1PayloadInput = z.infer<typeof marketingDiscountDecisionIssuedV1PayloadSchema>;
+export type MarketingCouponLifecycleV1PayloadInput = z.infer<typeof marketingCouponLifecycleV1PayloadSchema>;

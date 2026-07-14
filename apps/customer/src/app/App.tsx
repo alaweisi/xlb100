@@ -2,6 +2,7 @@ import { lazy, useCallback, useEffect, useMemo, useState } from "react";
 import type { CatalogSnapshot, CityCode } from "@xlb/types";
 import type { CustomerOrderCreatePageProps } from "../pages/CustomerOrderCreatePage";
 import type { CustomerOrdersPageProps } from "../pages/CustomerOrdersPage";
+import type { CustomerCouponsPageProps } from "../pages/CustomerCouponsPage";
 import type { CustomerSupportApi } from "../pages/CustomerSupportPage";
 import {
   appendOrderId,
@@ -24,6 +25,7 @@ const CustomerProfilePage = lazy(() => import("../pages/CustomerProfilePage").th
 const CustomerServicesPage = lazy(() => import("../pages/CustomerServicesPage").then((module) => ({ default: module.CustomerServicesPage })));
 const CustomerSupportPage = lazy(() => import("../pages/CustomerSupportPage").then((module) => ({ default: module.CustomerSupportPage })));
 const CustomerNotificationsPage = lazy(() => import("../pages/CustomerNotificationsPage").then((module) => ({ default: module.CustomerNotificationsPage })));
+const CustomerCouponsPage = lazy(() => import("../pages/CustomerCouponsPage").then((module) => ({ default: module.CustomerCouponsPage })));
 
 export function App() {
   const initialCityCode = useMemo(() => readCustomerCityCode(), []);
@@ -119,6 +121,8 @@ export function App() {
     getPriceQuote: (skuId) => api.getPriceQuote(skuId),
     createOrder: (payload) => api.createOrder(payload),
     getOrder: (orderId) => api.getOrder(orderId),
+    listCouponGrants: (query) => api.listCouponGrants(query),
+    issueDiscountDecision: (payload) => api.issueDiscountDecision(payload),
   };
 
   const ordersApi: CustomerOrdersPageProps["api"] = {
@@ -182,6 +186,20 @@ export function App() {
 
   if (currentRoute === "notifications") {
     return <CustomerNotificationsPage api={api} />;
+  }
+
+  if (currentRoute === "coupons") {
+    const couponsApi: CustomerCouponsPageProps["api"] = {
+      listCouponGrants: (query) => api.listCouponGrants(query),
+    };
+    return (
+      <CustomerCouponsPage
+        api={couponsApi}
+        onSelectForQuote={(couponGrantId) => {
+          window.location.assign(`/customer/order/create?couponGrantId=${encodeURIComponent(couponGrantId)}`);
+        }}
+      />
+    );
   }
 
   return <CustomerProfilePage api={api} cityCode={cityCode} />;

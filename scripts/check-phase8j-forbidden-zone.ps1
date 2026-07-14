@@ -3,10 +3,28 @@ $Root = Split-Path -Parent $PSScriptRoot
 $ScriptName = Split-Path -Leaf $PSCommandPath
 $PhaseName = $ScriptName -replace '^check-', '' -replace '-forbidden-zone\.ps1$', ''
 $forbiddenPatterns = @('\bpayout\b','\bpaid_settlement\b','\bwithdraw\b','\brefund\b','\baftersale\b','\bnotification\b','\bpayment_instruction\b')
-$currentState = Get-Content -Raw -LiteralPath (Join-Path $Root 'docs/CURRENT_STATE.md')
+$currentState = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $Root 'docs/CURRENT_STATE.md')
 $phase27RuntimeAuthorized =
   $currentState.Contains('Phase 27 | PHASE27E EXIT VERIFICATION') -or
   $currentState.Contains('Phase 27 | LOCKED')
+$phase29Entry = Join-Path $Root 'docs/reports/PHASE29_MARKETING_COUPON_ENTRY_REPORT.md'
+$phase29Architecture = Join-Path $Root 'docs/architecture/29_XLB_MARKETING_COUPON.md'
+$phase29Contract = Join-Path $Root 'docs/contracts/CONTRACT_MARKETING_COUPON.md'
+$phase29Registry = Join-Path $Root 'docs/governance/phase-registry.json'
+$phase29RuntimeAuthorized =
+  ($currentState.Contains('| Phase 29 | IN PROGRESS |') -or $currentState.Contains('| Phase 29 | LOCKED |')) -and
+  $currentState.Contains('D01') -and
+  $currentState.Contains('D24') -and
+  (Test-Path -LiteralPath $phase29Entry) -and
+  (Get-Content -Raw -Encoding UTF8 -LiteralPath $phase29Entry).Contains('Every row below is **HUMAN APPROVED**') -and
+  (Get-Content -Raw -Encoding UTF8 -LiteralPath $phase29Entry).Contains('| D24 |') -and
+  (Test-Path -LiteralPath $phase29Architecture) -and
+  (Get-Content -Raw -Encoding UTF8 -LiteralPath $phase29Architecture).Contains('ENTRY DECISIONS HUMAN-APPROVED; CONSTRUCTION AUTHORIZED') -and
+  (Test-Path -LiteralPath $phase29Contract) -and
+  (Get-Content -Raw -Encoding UTF8 -LiteralPath $phase29Contract).Contains('Phase 29 human-approved contract') -and
+  (Test-Path -LiteralPath $phase29Registry) -and
+  (Get-Content -Raw -Encoding UTF8 -LiteralPath $phase29Registry).Contains('Entry decisions D01-D24 are approved for continuous construction through independent acceptance.') -and
+  (Test-Path -LiteralPath (Join-Path $Root 'db/migrations/057_phase29_marketing_coupon.sql'))
 $phase27NotificationFiles = @(
   'backend/src/events/platformDeliveryRepository.ts',
   'backend/src/events/platformDeliveryService.ts',
@@ -22,6 +40,14 @@ $phase27NotificationFiles = @(
   'packages/api-client/src/worker.ts',
   'packages/types/src/notification.ts',
   'packages/validators/src/notificationSchema.ts'
+)
+$phase29RefundFiles = @(
+  'backend/src/events/platformDeliveryService.ts',
+  'backend/src/events/platformEventCompatibility.ts',
+  'backend/src/marketing/README.md',
+  'backend/src/marketing/marketingService.ts',
+  'packages/types/src/platformDelivery.ts',
+  'packages/validators/src/platformDeliverySchema.ts'
 )
 $allowedFiles = @(
   'backend/src/support/bot/sensitiveSupportGuard.ts',
@@ -122,11 +148,14 @@ foreach ($line in $lines) {
       if ($pattern -eq '\bnotification\b' -and
           $phase27RuntimeAuthorized -and
           $phase27NotificationFiles -contains $currentFile) { continue }
+      if ($phase29RuntimeAuthorized -and
+          $pattern -eq '\brefund\b' -and
+          $phase29RefundFiles -contains $currentFile) { continue }
       $violations += "$($currentFile): $($line.Trim())"
       break
     }
   }
 }
 if ($violations.Count -gt 0) { Write-Host "FAILED - forbidden terms"; $violations | ForEach-Object { Write-Host "  $_" }; exit 1 }
-Write-Host "check-${PhaseName}-forbidden-zone: passed (exact allowlist with Phase 14R refund reversal)"
+Write-Host "check-${PhaseName}-forbidden-zone: passed (exact allowlist through authorized Phase 29 marketing compensation)"
 

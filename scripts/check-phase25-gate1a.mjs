@@ -242,15 +242,51 @@ const phase28Migrations = [
   ...phase27bMigrations,
   "db/migrations/056_phase28_review_reputation.sql",
 ];
+const phase29EntryPath = "docs/reports/PHASE29_MARKETING_COUPON_ENTRY_REPORT.md";
+const phase29ArchitecturePath = "docs/architecture/29_XLB_MARKETING_COUPON.md";
+const phase29ContractPath = "docs/contracts/CONTRACT_MARKETING_COUPON.md";
+const phase29RegistryPath = "docs/governance/phase-registry.json";
+const phase29MigrationPath = "db/migrations/057_phase29_marketing_coupon.sql";
+const phase29Authorized =
+  phase28Authorized &&
+  currentState.includes("Phase 29 — Marketing / Coupon MVP (IN PROGRESS)") &&
+  currentState.includes("approved Entry decisions D01–D24") &&
+  currentState.includes("migration `057` only") &&
+  existsSync(join(root, phase29EntryPath)) &&
+  read(phase29EntryPath).includes("Every row below is **HUMAN APPROVED**") &&
+  read(phase29EntryPath).includes("| D24 |") &&
+  existsSync(join(root, phase29ArchitecturePath)) &&
+  read(phase29ArchitecturePath).includes("ENTRY DECISIONS HUMAN-APPROVED; CONSTRUCTION AUTHORIZED") &&
+  existsSync(join(root, phase29ContractPath)) &&
+  read(phase29ContractPath).includes("Phase 29 human-approved contract") &&
+  existsSync(join(root, phase29RegistryPath)) &&
+  read(phase29RegistryPath).includes("Entry decisions D01-D24 are approved for continuous construction through independent acceptance.") &&
+  existsSync(join(root, phase29MigrationPath));
+const phase29Migrations = [
+  ...phase28Migrations,
+  phase29MigrationPath,
+];
 if (laterMigrations.length > 0 && !(
   (phase27aAuthorized && laterMigrations.length === 1 &&
     laterMigrations[0] === "db/migrations/054_phase27a_platform_delivery_foundation.sql") ||
   (phase27bB1Authorized &&
     JSON.stringify([...laterMigrations].sort()) === JSON.stringify(phase27bMigrations)) ||
   (phase28Authorized &&
-    JSON.stringify([...laterMigrations].sort()) === JSON.stringify(phase28Migrations))
+    JSON.stringify([...laterMigrations].sort()) === JSON.stringify(phase28Migrations)) ||
+  (phase29Authorized &&
+    JSON.stringify([...laterMigrations].sort()) === JSON.stringify(phase29Migrations))
 )) {
-  fail(`Gate 1A permits migration 054, 055 and 056 only as the exact explicitly authorized chain through Phase28; found ${laterMigrations.join(", ")}`);
+  fail(`Gate 1A migration 054+ boundary permits only the exact explicitly authorized chain through the active formal Phase; found ${laterMigrations.join(", ")}`);
+}
+
+for (const [tag, migration] of [
+  ["xlb-phase27-notification-foundation^{}", phase27bMigrations[0]],
+  ["xlb-phase27-notification-foundation^{}", phase27bMigrations[1]],
+  ["xlb-phase28-review-reputation^{}", phase28Migrations[2]],
+]) {
+  const workingHash = execFileSync("git", ["hash-object", migration], { cwd: root, encoding: "utf8" }).trim();
+  const lockedHash = execFileSync("git", ["rev-parse", `${tag}:${migration}`], { cwd: root, encoding: "utf8" }).trim();
+  if (workingHash !== lockedHash) fail(`locked migration hash differs from ${tag}: ${migration}`);
 }
 
 for (const app of globalConstructionAuthorized ? [] : ["customer", "worker", "admin", "oa", "dashboard"]) {

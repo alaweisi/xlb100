@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import type { CatalogSnapshot, CityCode, Order, PriceQuote, ScheduledTimeSlot } from "@xlb/types";
+import type {
+  CatalogSnapshot,
+  CityCode,
+  CouponGrant,
+  MarketingDiscountDecision,
+  Order,
+  PriceQuote,
+  ScheduledTimeSlot,
+} from "@xlb/types";
 import {
   ActionDock,
   Button,
@@ -36,6 +44,10 @@ import {
   serviceTimeSlots,
 } from "../adapters/orderAddressOptions";
 import { useSearchParamSku } from "./customerPageShell";
+import {
+  formatServerMarketingMinor,
+  isCustomerCouponGrantSelectable,
+} from "../adapters/marketingAdapter";
 
 type QuoteState =
   | { status: "pending" }
@@ -46,6 +58,16 @@ type QuoteState =
 type SubmitState =
   | { status: "pending" | "submitting" }
   | { status: "success"; order: Order; orderDetail: Order }
+  | { status: "error"; error: string };
+
+type CouponState =
+  | { status: "loading" }
+  | { status: "success"; grants: CouponGrant[] }
+  | { status: "error"; error: string };
+
+type DecisionState =
+  | { status: "pending" | "loading" }
+  | { status: "success"; decision: MarketingDiscountDecision; orderCommandKey: string }
   | { status: "error"; error: string };
 
 interface CreateOrderFormDetails {
@@ -76,6 +98,13 @@ export interface CustomerOrderCreatePageProps {
       scheduledTimeSlot: ScheduledTimeSlot;
     }): Promise<{ order: Order }>;
     getOrder(orderId: string): Promise<{ order: Order }>;
+    listCouponGrants?(query?: { status?: "available" }): Promise<{ couponGrants: CouponGrant[] }>;
+    issueDiscountDecision?(payload: {
+      skuId: string;
+      quantity: number;
+      selectedCouponGrantId: string;
+      idempotencyKey: string;
+    }): Promise<{ discountDecision: MarketingDiscountDecision }>;
   };
   catalogState: CustomerLoadable<CatalogSnapshot>;
   cityCode: CityCode;
@@ -122,6 +151,12 @@ export function CustomerOrderCreatePage({
   const [scheduledTimeSlot, setScheduledTimeSlot] = useState<ScheduledTimeSlot>("morning");
   const [quoteState, setQuoteState] = useState<QuoteState>({ status: "pending" });
   const [submitState, setSubmitState] = useState<SubmitState>({ status: "pending" });
+  const [couponState, setCouponState] = useState<CouponState>({ status: "loading" });
+  const [selectedCouponGrantId, setSelectedCouponGrantId] = useState(() => {
+    if (typeof window === "undefined") return "";
+    return new URLSearchParams(window.location.search).get("couponGrantId") ?? "";
+  });
+  const [decisionState, setDecisionState] = useState<DecisionState>({ status: "pending" });
 
   const addressOption = useMemo(() => getOrderAddressOption(cityCode), [cityCode]);
   const scheduledAt = useMemo(
@@ -182,12 +217,38 @@ export function CustomerOrderCreatePage({
     Boolean(orderFormDetails.contactName) &&
     isContactPhoneValid;
   const isScheduleReady = Boolean(orderFormDetails.scheduledAt) && Boolean(orderFormDetails.scheduledTimeSlot);
+  const hasCurrentDecision = decisionState.status === "success"
+    && decisionState.decision.couponGrantId === selectedCouponGrantId
+    && decisionState.decision.skuId === selectedSkuId
+    && decisionState.decision.quantity === quantity;
   const canSubmit =
     Boolean(selectedSkuId) &&
     quoteState.status === "success" &&
     isAddressReady &&
     isScheduleReady &&
+    (!selectedCouponGrantId || hasCurrentDecision) &&
     submitState.status !== "submitting";
+
+  useEffect(() => {
+    if (!api.listCouponGrants) {
+      setCouponState({ status: "success", grants: [] });
+      return;
+    }
+    setCouponState({ status: "loading" });
+    void api.listCouponGrants({ status: "available" })
+      .then((response) => setCouponState({
+        status: "success",
+        grants: response.couponGrants.filter((grant) => isCustomerCouponGrantSelectable(grant)),
+      }))
+      .catch((error: unknown) => setCouponState({
+        status: "error",
+        error: error instanceof Error ? error.message : "Failed to load coupons",
+      }));
+  }, [api]);
+
+  useEffect(() => {
+    setDecisionState({ status: "pending" });
+  }, [selectedSkuId, quantity, selectedCouponGrantId]);
 
   useEffect(() => {
     if (!addressOption.districts.includes(selectedDistrict)) {
@@ -238,6 +299,34 @@ export function CustomerOrderCreatePage({
     }
   }
 
+  async function applySelectedCoupon() {
+    if (!selectedCouponGrantId || !selectedSkuId || !api.issueDiscountDecision) {
+      setDecisionState({ status: "error", error: "Select an available coupon and service first." });
+      return;
+    }
+    const decisionCommandKey = globalThis.crypto?.randomUUID?.()
+      ?? `marketing-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    setDecisionState({ status: "loading" });
+    try {
+      const response = await api.issueDiscountDecision({
+        skuId: selectedSkuId,
+        quantity,
+        selectedCouponGrantId,
+        idempotencyKey: decisionCommandKey,
+      });
+      setDecisionState({
+        status: "success",
+        decision: response.discountDecision,
+        orderCommandKey: decisionCommandKey,
+      });
+    } catch (error) {
+      setDecisionState({
+        status: "error",
+        error: error instanceof Error ? error.message : "Coupon validation failed. Reload and retry.",
+      });
+    }
+  }
+
   async function submitOrder() {
     clearSubmitError();
     if (!canSubmit || !selectedSkuId) {
@@ -245,7 +334,16 @@ export function CustomerOrderCreatePage({
       return;
     }
 
-    const requestPayload = createOrderRequestPayload(selectedSkuId, quantity, orderFormDetails);
+    const requestPayload = {
+      ...createOrderRequestPayload(selectedSkuId, quantity, orderFormDetails),
+      ...(decisionState.status === "success" && hasCurrentDecision
+        ? {
+            discountDecisionId: decisionState.decision.discountDecisionId,
+            discountDecisionRevision: decisionState.decision.version,
+            orderIdempotencyKey: decisionState.orderCommandKey,
+          }
+        : {}),
+    };
     setSubmitState({ status: "submitting" });
     try {
       const orderResponse = await api.createOrder(requestPayload);
@@ -367,6 +465,49 @@ export function CustomerOrderCreatePage({
             meta={`${quoteState.quoteViewModel.priceText} / ${quoteState.quoteViewModel.priceType}`}
           />
         )}
+
+        <section className="customer-coupon-selection" aria-label="Coupon selection">
+          <FormField
+            label="Coupon"
+            description="Coupons are applied only after the server validates the current SKU, quantity and Pricing revision."
+          >
+            <Select
+              value={selectedCouponGrantId}
+              disabled={couponState.status !== "success"}
+              onChange={(event) => setSelectedCouponGrantId(event.target.value)}
+            >
+              <option value="">Do not use a coupon</option>
+              {couponState.status === "success" && couponState.grants.map((grant) => (
+                <option key={grant.couponGrantId} value={grant.couponGrantId}>
+                  {grant.issuanceReason} / expires {new Date(grant.expiresAt).toLocaleDateString()}
+                </option>
+              ))}
+            </Select>
+          </FormField>
+          {couponState.status === "loading" && <LoadingState title="Loading coupons" description="Reading available grants..." />}
+          {couponState.status === "error" && <ErrorState title="Failed to load coupons" description={couponState.error} />}
+          {selectedCouponGrantId && (
+            <Button
+              type="button"
+              disabled={decisionState.status === "loading" || quoteState.status !== "success"}
+              onClick={() => void applySelectedCoupon()}
+            >
+              {decisionState.status === "loading" ? "Validating coupon..." : "Apply selected coupon"}
+            </Button>
+          )}
+          {decisionState.status === "error" && (
+            <ErrorState title="Coupon unavailable" description={`${decisionState.error} The original price is not submitted automatically.`} />
+          )}
+          {decisionState.status === "success" && (
+            <div className="customer-coupon-summary">
+              <StatusTag tone="success">Coupon validated by server</StatusTag>
+              <span>Gross: {formatServerMarketingMinor(decisionState.decision.grossAmountMinor)}</span>
+              <span>Discount: -{formatServerMarketingMinor(decisionState.decision.discountAmountMinor)}</span>
+              <strong>Net: {formatServerMarketingMinor(decisionState.decision.netAmountMinor)}</strong>
+              <small>Decision expires at {new Date(decisionState.decision.expiresAt).toLocaleString()}</small>
+            </div>
+          )}
+        </section>
 
         <WorkflowTimeline
           items={[

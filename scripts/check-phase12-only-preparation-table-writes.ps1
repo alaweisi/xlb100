@@ -48,6 +48,24 @@ try {
 
 # ── Normal gate logic ─────────────────────────────────────────────
 $Root = Split-Path -Parent $PSScriptRoot
+$currentState = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $Root 'docs/CURRENT_STATE.md')
+$phase29Entry = Join-Path $Root 'docs/reports/PHASE29_MARKETING_COUPON_ENTRY_REPORT.md'
+$phase29Architecture = Join-Path $Root 'docs/architecture/29_XLB_MARKETING_COUPON.md'
+$phase29Contract = Join-Path $Root 'docs/contracts/CONTRACT_MARKETING_COUPON.md'
+$phase29Registry = Join-Path $Root 'docs/governance/phase-registry.json'
+$phase29Authorized =
+  ($currentState.Contains('| Phase 29 | IN PROGRESS |') -or $currentState.Contains('| Phase 29 | LOCKED |')) -and
+  $currentState.Contains('D01') -and
+  $currentState.Contains('D24') -and
+  (Test-Path -LiteralPath $phase29Entry) -and
+  (Get-Content -Raw -Encoding UTF8 -LiteralPath $phase29Entry).Contains('Every row below is **HUMAN APPROVED**') -and
+  (Get-Content -Raw -Encoding UTF8 -LiteralPath $phase29Entry).Contains('| D24 |') -and
+  (Test-Path -LiteralPath $phase29Architecture) -and
+  (Get-Content -Raw -Encoding UTF8 -LiteralPath $phase29Architecture).Contains('ENTRY DECISIONS HUMAN-APPROVED; CONSTRUCTION AUTHORIZED') -and
+  (Test-Path -LiteralPath $phase29Contract) -and
+  (Get-Content -Raw -Encoding UTF8 -LiteralPath $phase29Contract).Contains('Phase 29 human-approved contract') -and
+  (Test-Path -LiteralPath $phase29Registry) -and
+  (Get-Content -Raw -Encoding UTF8 -LiteralPath $phase29Registry).Contains('Entry decisions D01-D24 are approved for continuous construction through independent acceptance.')
 
 $allowedDefaultPattern = 'settlement_execution_preparation_'
 $allowedPerModule = @{
@@ -63,6 +81,10 @@ $allowedPerModule = @{
   # Later Support phases own only support_* tables; Phase 24 boundary gates
   # independently reject protected-domain writes.
   'backend/src/support' = '(support_[A-Za-z0-9_]+|event_outbox)'
+}
+if ($phase29Authorized) {
+  $allowedPerModule['backend/src/marketing'] = '(marketing_(campaigns|rule_revisions|discount_decisions|compensations|audit_records)|coupon_(definitions|grants|reservations|redemptions))'
+  $allowedPerModule['backend/src/order'] = '(orders|order_price_snapshots)'
 }
 
 function Get-AllowedTablePattern([string]$FilePath) {

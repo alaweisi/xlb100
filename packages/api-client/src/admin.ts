@@ -18,6 +18,7 @@ import type {
 import type { OrderFulfillmentEvidenceResponse } from "./evidence.js";
 import { createEnterpriseAdminApi } from "./enterprise.js";
 import { createAdminReviewApi } from "./reviewReputation.js";
+import { createAdminMarketingApi } from "./marketing.js";
 import type {
   AdminOrderSummary,
   AdminSkuOperationsRow,
@@ -38,6 +39,27 @@ export interface AdminOrderTrace {
     currency: string;
     createdAt: string;
   };
+  pricing: {
+    source: "legacy" | "public" | "enterprise" | "marketing";
+    currency: string;
+    grossAmountMinor: number | null;
+    discountAmountMinor: number | null;
+    netAmountMinor: number | null;
+    marketingDecision: {
+      decisionId: string;
+      decisionRevision: number;
+      ruleRevisionId: string;
+      ruleContentHash: string;
+      couponDefinitionId: string;
+      grantId: string;
+      reservationId: string;
+      redemptionId: string;
+      requestFingerprint: string;
+      issuedAt: string;
+      expiresAt: string;
+      acceptedAt: string;
+    } | null;
+  } | null;
   payment: {
     paymentOrderId: string;
     status: string | null;
@@ -134,6 +156,7 @@ export function createAdminApi(client: ApiClient) {
     settlement: createSettlementApi(client),
     enterprise: createEnterpriseAdminApi(client),
     review: createAdminReviewApi(client),
+    marketing: createAdminMarketingApi(client),
     listOperationsOrders(): Promise<{ok:true;orders:AdminOrderSummary[]}>{return client.get("/api/internal/operations/orders");},
     listOperationsSkus(): Promise<{ok:true;skus:AdminSkuOperationsRow[]}>{return client.get("/api/internal/operations/skus");},
     setOperationsSkuEnabled(skuId:string,enabled:boolean):Promise<{ok:true;sku:{skuId:string;isEnabled:boolean}}>{return client.post(`/api/internal/operations/skus/${encodeURIComponent(skuId)}/status`,{enabled});},

@@ -43,6 +43,12 @@ body {
   padding-bottom: 18px;
 }
 
+.customer-coupon-selection,
+.customer-coupon-summary {
+  display: grid;
+  gap: var(--xlb-spacing-sm);
+}
+
 .notification-page-header,
 .notification-list,
 .notification-error,

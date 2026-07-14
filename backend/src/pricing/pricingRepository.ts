@@ -1,4 +1,4 @@
-import type { Pool, RowDataPacket } from "mysql2/promise";
+import type { Pool, PoolConnection, RowDataPacket } from "mysql2/promise";
 import type { CityCode } from "@xlb/types";
 import type {
   PriceFeeItem,
@@ -140,28 +140,121 @@ function mapServiceStandard(row: ServiceStandardRow): ServiceStandard {
   };
 }
 
+function decimalToMinorExact(value: string | number, label: string): number {
+  const decimal = typeof value === "number" ? value.toFixed(2) : value;
+  const match = /^(\d+)(?:\.(\d{1,2}))?$/.exec(decimal);
+  if (!match) throw new Error(`${label} must be a non-negative decimal with at most two fraction digits`);
+  const minor = Number(match[1]) * 100 + Number((match[2] ?? "").padEnd(2, "0"));
+  if (!Number.isSafeInteger(minor)) throw new Error(`${label} exceeds the safe money range`);
+  return minor;
+}
+
+function minorToAmount(minor: number): number {
+  if (!Number.isSafeInteger(minor)) throw new Error("price amount exceeds the safe money range");
+  return minor / 100;
+}
+
+function calculateBreakdownFromOrderedItems(
+  ruleBasePrice: string | number,
+  feeItems: Array<{ item: PriceFeeItem; amountDecimal: string | number }>,
+): { breakdown: PriceQuoteBreakdown; unitAmountMinor: number } {
+  const enabledItems = feeItems
+    .filter(({ item }) => item.isEnabled);
+  const baseItem = enabledItems.find(({ item }) => item.feeType === "base");
+  const baseAmountMinor = decimalToMinorExact(baseItem?.amountDecimal ?? ruleBasePrice, "Pricing base amount");
+  const requiredFeeAmountMinor = enabledItems
+    .filter(({ item }) => !item.isOptional && item.feeType !== "base" && item.chargeMethod !== "included")
+    .reduce((sum, { item, amountDecimal }) => sum + decimalToMinorExact(amountDecimal, `Pricing fee ${item.feeItemId}`), 0);
+  const optionalFeeAmountMinor = enabledItems
+    .filter(({ item }) => item.isOptional && item.chargeMethod !== "onsite_quote")
+    .reduce((sum, { item, amountDecimal }) => sum + decimalToMinorExact(amountDecimal, `Pricing fee ${item.feeItemId}`), 0);
+
+  const unitAmountMinor = baseAmountMinor + requiredFeeAmountMinor;
+  if (!Number.isSafeInteger(unitAmountMinor)) throw new Error("Pricing unit amount exceeds the safe money range");
+  return {
+    breakdown: {
+      baseAmount: minorToAmount(baseAmountMinor),
+      requiredFeeAmount: minorToAmount(requiredFeeAmountMinor),
+      optionalFeeAmount: minorToAmount(optionalFeeAmountMinor),
+      totalAmount: minorToAmount(unitAmountMinor),
+      feeItems: enabledItems.map(({ item }) => item),
+    },
+    unitAmountMinor,
+  };
+}
+
+export type CanonicalPublicPriceQuote = {
+  rule: PriceRule;
+  feeItems: PriceFeeItem[];
+  breakdown: PriceQuoteBreakdown;
+  unitAmountMinor: number;
+  unitAmountDecimal: string;
+};
+
+/**
+ * The one authoritative, transaction-scoped public quote loader used by
+ * Marketing issuance and Order acceptance. Lock order is SKU -> rule -> fee
+ * rows. Fee ordering and base selection are exactly the public Pricing rules.
+ */
+export async function loadCanonicalPublicPriceQuoteForUpdate(
+  connection: PoolConnection,
+  cityCode: CityCode,
+  skuId: string,
+): Promise<CanonicalPublicPriceQuote | null> {
+  const [skuRows] = await connection.query<(RowDataPacket & { sku_id: string })[]>(
+    `SELECT sku_id FROM service_skus
+     WHERE city_code=? AND sku_id=? AND is_enabled=1
+     LIMIT 1 FOR UPDATE`,
+    [cityCode, skuId],
+  );
+  if (!skuRows[0]) return null;
+
+  const [ruleRows] = await connection.query<PriceRuleRow[]>(
+    `SELECT price_rule_id, city_code, sku_id, base_price, price_text, price_type,
+            min_price, max_price, pricing_note, currency, version, is_enabled
+     FROM price_rules
+     WHERE city_code=? AND sku_id=? AND is_enabled=1
+     ORDER BY version DESC, price_rule_id
+     LIMIT 1 FOR UPDATE`,
+    [cityCode, skuId],
+  );
+  const ruleRow = ruleRows[0];
+  if (!ruleRow) return null;
+
+  const [feeRows] = await connection.query<PriceFeeItemRow[]>(
+    `SELECT fee_item_id, city_code, price_rule_id, sku_id, fee_code, fee_name,
+            fee_type, charge_method, amount, min_amount, max_amount, unit,
+            is_optional, is_enabled, sort_order
+     FROM price_fee_items
+     WHERE city_code=? AND price_rule_id=?
+     ORDER BY sort_order, fee_item_id
+     FOR UPDATE`,
+    [cityCode, ruleRow.price_rule_id],
+  );
+  const rule = mapPriceRule(ruleRow);
+  const feeItems = feeRows.map(mapPriceFeeItem);
+  const { breakdown, unitAmountMinor } = calculateBreakdownFromOrderedItems(
+    ruleRow.base_price,
+    feeRows.map((row, index) => ({ item: feeItems[index]!, amountDecimal: row.amount })),
+  );
+
+  return {
+    rule,
+    feeItems: breakdown.feeItems,
+    breakdown,
+    unitAmountMinor,
+    unitAmountDecimal: `${Math.floor(unitAmountMinor / 100)}.${String(unitAmountMinor % 100).padStart(2, "0")}`,
+  };
+}
+
 export function buildPriceQuoteBreakdown(
   rule: PriceRule,
   feeItems: PriceFeeItem[],
 ): PriceQuoteBreakdown {
-  const enabledItems = feeItems.filter((item) => item.isEnabled);
-  const baseItem = enabledItems.find((item) => item.feeType === "base");
-  const baseAmount = baseItem?.amount ?? rule.basePrice;
-  const requiredFeeAmount = enabledItems
-    .filter((item) => !item.isOptional && item.feeType !== "base" && item.chargeMethod !== "included")
-    .reduce((sum, item) => sum + item.amount, 0);
-  const optionalFeeAmount = enabledItems
-    .filter((item) => item.isOptional && item.chargeMethod !== "onsite_quote")
-    .reduce((sum, item) => sum + item.amount, 0);
-  const totalAmount = Number((baseAmount + requiredFeeAmount).toFixed(2));
-
-  return {
-    baseAmount,
-    requiredFeeAmount: Number(requiredFeeAmount.toFixed(2)),
-    optionalFeeAmount: Number(optionalFeeAmount.toFixed(2)),
-    totalAmount,
-    feeItems: enabledItems,
-  };
+  return calculateBreakdownFromOrderedItems(
+    rule.basePrice,
+    feeItems.map((item) => ({ item, amountDecimal: item.amount })),
+  ).breakdown;
 }
 
 export class PricingRepository extends RepositoryBase {
@@ -186,12 +279,20 @@ export class PricingRepository extends RepositoryBase {
               min_price, max_price, pricing_note, currency, version, is_enabled
        FROM price_rules
        WHERE ${where.clause} AND sku_id = ? AND is_enabled = 1
-       ORDER BY version DESC
+       ORDER BY version DESC, price_rule_id
        LIMIT 1`,
       [...where.params, skuId],
     );
 
     return rows[0] ? mapPriceRule(rows[0]) : null;
+  }
+
+  async findCanonicalPublicQuoteForUpdate(
+    connection: PoolConnection,
+    cityCode: CityCode,
+    skuId: string,
+  ): Promise<CanonicalPublicPriceQuote | null> {
+    return loadCanonicalPublicPriceQuoteForUpdate(connection, cityCode, skuId);
   }
 
   async findFeeItemsByPriceRule(
