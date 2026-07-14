@@ -2,6 +2,7 @@ import type { ApiClient } from "./createApiClient.js";
 import { createRequesterSupportApi } from "./support.js";
 import { createNotificationApi } from "./notification.js";
 import { createCustomerReviewApi } from "./reviewReputation.js";
+import { createCustomerMarketingApi } from "./marketing.js";
 import type {
   AftersaleComplaintDetailResponse,
   AftersaleComplaintResponse,
@@ -171,6 +172,9 @@ export interface CreateOrderBody {
   contactPhone: string;
   scheduledAt: string;
   scheduledTimeSlot: ScheduledTimeSlot;
+  discountDecisionId?: string;
+  discountDecisionRevision?: number;
+  orderIdempotencyKey?: string;
 }
 
 export interface CreatePaymentOrderBody {
@@ -229,6 +233,26 @@ export interface OrderResponse {
     breakdown: PriceQuoteBreakdownResponse;
     skuProfile: ServiceSkuProfileResponse | null;
     standards: ServiceStandardResponse[];
+    pricingSource?: "public" | "enterprise" | "marketing";
+    calculationVersion?: 1;
+    minorUnit?: 2;
+    grossAmountMinor?: number;
+    discountAmountMinor?: number;
+    netAmountMinor?: number;
+    marketingDecision?: {
+      decisionId: string;
+      decisionRevision: number;
+      ruleRevisionId: string;
+      ruleContentHash: string;
+      couponDefinitionId: string;
+      grantId: string;
+      reservationId: string;
+      redemptionId: string;
+      requestFingerprint: string;
+      issuedAt: string;
+      expiresAt: string;
+      acceptedAt: string;
+    } | null;
   } | null;
   status: OrderStatus;
   createdAt: string;
@@ -290,6 +314,7 @@ export function createCustomerOrderApi(client: ApiClient) {
     ...createRequesterSupportApi(client),
     ...createNotificationApi(client, "customer"),
     ...createCustomerReviewApi(client),
+    ...createCustomerMarketingApi(client),
     getProfile() {
       return client.get<{ ok: true; profile: CustomerProfile }>("/api/customer/profile");
     },

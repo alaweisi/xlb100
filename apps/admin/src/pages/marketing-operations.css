@@ -1,0 +1,56 @@
+.marketing-operations {
+  display: grid;
+  gap: var(--xlb-spacing-md);
+}
+
+.marketing-operations__toolbar,
+.marketing-operations__tabs,
+.marketing-operations__actions,
+.marketing-operations__facts {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--xlb-spacing-sm);
+}
+
+.marketing-operations__tabs button[aria-selected="true"] {
+  text-decoration: underline;
+  text-underline-offset: var(--xlb-spacing-xxs);
+}
+
+.marketing-operations__panel,
+.marketing-operations__row {
+  background: var(--xlb-surface-panel);
+  border: var(--xlb-stroke-hairline) solid var(--xlb-border-subtle);
+  border-radius: var(--xlb-radius-md);
+  display: grid;
+  gap: var(--xlb-spacing-sm);
+  padding: var(--xlb-spacing-md);
+}
+
+.marketing-operations__list {
+  display: grid;
+  gap: var(--xlb-spacing-sm);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.marketing-operations__muted {
+  color: var(--xlb-text-muted);
+}
+
+.marketing-operations__error {
+  color: var(--xlb-color-danger);
+}
+
+.marketing-operations__money {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (forced-colors: active) {
+  .marketing-operations__panel,
+  .marketing-operations__row {
+    border: var(--xlb-stroke-hairline) solid CanvasText;
+  }
+}

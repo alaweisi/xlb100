@@ -179,6 +179,26 @@ export const platformReviewVisibilityChangedV1CompatibilityPayloadSchema = z.obj
   }
 });
 
+export const platformOrderReverseAppliedV0CompatibilityPayloadSchema = z.object({
+  reverseRequestId: shortIdentifier,
+  orderId: shortIdentifier,
+  reverseType: z.literal("cancel"),
+  dispatchMutation: z.literal(false),
+}).strict();
+
+export const platformRefundApprovedV0CompatibilityPayloadSchema = z.object({
+  refundId: shortIdentifier,
+  orderId: shortIdentifier,
+  cityCode: cityCodeSchema,
+  customerId: shortIdentifier,
+  fulfillmentId: shortIdentifier,
+  paymentOrderId: shortIdentifier,
+  amount: z.number().positive(),
+  currency: z.literal("CNY"),
+  approvedAt: timezoneAwareTimestamp,
+  approvedByAdminId: shortIdentifier,
+}).strict().transform(({ fulfillmentId: _fulfillmentId, paymentOrderId: _paymentOrderId, approvedByAdminId: _approvedByAdminId, ...minimal }) => minimal);
+
 export function parseVersionedPlatformCompatibilityPayload(
   eventType: string,
   eventMajorVersion: number,
@@ -199,11 +219,19 @@ export function parseVersionedPlatformCompatibilityPayload(
   if (eventType === "review.visibility.changed" && eventMajorVersion === 1) {
     return platformReviewVisibilityChangedV1CompatibilityPayloadSchema.parse(payload);
   }
+  if (eventType === "order.reverse.applied" && eventMajorVersion === 0) {
+    return platformOrderReverseAppliedV0CompatibilityPayloadSchema.parse(payload);
+  }
+  if (eventType === "refund.approved" && eventMajorVersion === 0) {
+    return platformRefundApprovedV0CompatibilityPayloadSchema.parse(payload);
+  }
   if (
     eventType === "order.created" ||
     eventType === "support.ticket.resolved" ||
     eventType === "review.created" ||
-    eventType === "review.visibility.changed"
+    eventType === "review.visibility.changed" ||
+    eventType === "order.reverse.applied" ||
+    eventType === "refund.approved"
   ) {
     throw new Error(`UNSUPPORTED_EVENT_VERSION:${eventType}@${eventMajorVersion}`);
   }

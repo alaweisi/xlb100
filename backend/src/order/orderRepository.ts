@@ -135,6 +135,22 @@ export class OrderRepository extends RepositoryBase {
     return { skuId: rows[0].sku_id, name: rows[0].name, unit: rows[0].unit };
   }
 
+  async findEnabledSkuForUpdate(
+    connection: PoolConnection,
+    cityCode: CityCode,
+    skuId: string,
+  ): Promise<{ skuId: string; name: string; unit: string } | null> {
+    const [rows] = await connection.query<SkuRow[]>(
+      `SELECT sku_id, name, unit, is_enabled
+       FROM service_skus
+       WHERE city_code=? AND sku_id=? AND is_enabled=1
+       LIMIT 1 FOR UPDATE`,
+      [cityCode, skuId],
+    );
+    if (!rows[0]) return null;
+    return { skuId: rows[0].sku_id, name: rows[0].name, unit: rows[0].unit };
+  }
+
   async insertOrder(connection: PoolConnection, input: InsertOrderInput): Promise<void> {
     await connection.query(
       `INSERT INTO orders
@@ -174,6 +190,20 @@ export class OrderRepository extends RepositoryBase {
         (order_id, city_code, quote_snapshot)
        VALUES (?, ?, ?)`,
       [input.orderId, input.cityCode, JSON.stringify(input.quoteSnapshot)],
+    );
+  }
+
+  async updatePriceSnapshot(
+    connection: PoolConnection,
+    cityCode: CityCode,
+    orderId: string,
+    quoteSnapshot: OrderPriceSnapshot,
+  ): Promise<void> {
+    await connection.query(
+      `UPDATE order_price_snapshots
+       SET quote_snapshot = ?
+       WHERE city_code = ? AND order_id = ?`,
+      [JSON.stringify(quoteSnapshot), cityCode, orderId],
     );
   }
 

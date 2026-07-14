@@ -69,7 +69,7 @@ export const ORDER_HISTORY_KEY = "xlb.customer.orderIds";
 export const MOBILE_SHELL_QUERY = "(max-width: 640px), (pointer: coarse)";
 
 export type CustomerRoute = "home" | "services" | "createOrder" | "orders" | "aftersale" | "support" | "profile";
-export type CustomerShellRoute = CustomerRoute | "notifications";
+export type CustomerShellRoute = CustomerRoute | "notifications" | "coupons";
 
 export type CustomerLoadable<T> =
   | { status: "pending" | "loading"; data?: T; error?: undefined }
@@ -99,6 +99,7 @@ export const customerRouteConfig: Record<
 export function detectCustomerRoute(pathname = window.location.pathname): CustomerShellRoute {
   const trimmed = pathname.replace(/\/+$/, "") || "/";
   if (trimmed.endsWith("/customer/notifications")) return "notifications";
+  if (trimmed.endsWith("/customer/coupons")) return "coupons";
   if (trimmed.endsWith("/customer/services")) return "services";
   if (trimmed.endsWith("/customer/order/create")) return "createOrder";
   if (trimmed.endsWith("/customer/orders")) return "orders";

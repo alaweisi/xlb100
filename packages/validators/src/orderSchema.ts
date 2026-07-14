@@ -26,6 +26,37 @@ export const createOrderSchema = z.object({
   contactPhone: z.string().regex(/^1[3-9]\d{9}$/, "contactPhone must be a valid mainland China mobile number"),
   scheduledAt: z.string().datetime(),
   scheduledTimeSlot: scheduledTimeSlotSchema,
+  discountDecisionId: z.string().min(1).max(64).optional(),
+  discountDecisionRevision: z.number().int().positive().optional(),
+  orderIdempotencyKey: z.string().min(8).max(128).optional(),
+  discountAmountMinor: z.never().optional(),
+  netAmountMinor: z.never().optional(),
+  grossAmountMinor: z.never().optional(),
+}).strict().superRefine((value, context) => {
+  const hasDecision = value.discountDecisionId !== undefined;
+  const hasRevision = value.discountDecisionRevision !== undefined;
+  const hasIdempotency = value.orderIdempotencyKey !== undefined;
+  if (hasDecision !== hasRevision || hasDecision !== hasIdempotency) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "discount decision id, revision and order idempotency key must be supplied together",
+    });
+  }
+});
+
+const marketingDecisionEvidenceSchema = z.object({
+  decisionId: z.string().min(1).max(64),
+  decisionRevision: z.number().int().positive(),
+  ruleRevisionId: z.string().min(1).max(64),
+  ruleContentHash: z.string().regex(/^[a-f0-9]{64}$/),
+  couponDefinitionId: z.string().min(1).max(64),
+  grantId: z.string().min(1).max(64),
+  reservationId: z.string().min(1).max(64),
+  redemptionId: z.string().min(1).max(64),
+  requestFingerprint: z.string().regex(/^[a-f0-9]{64}$/),
+  issuedAt: z.string().datetime(),
+  expiresAt: z.string().datetime(),
+  acceptedAt: z.string().datetime(),
 });
 
 export const orderSchema = z.object({
@@ -62,6 +93,13 @@ export const orderSchema = z.object({
     breakdown: priceQuoteBreakdownSchema,
     skuProfile: serviceSkuProfileSchema.nullable(),
     standards: serviceStandardSchema.array(),
+    pricingSource: z.enum(["public", "enterprise", "marketing"]).optional(),
+    calculationVersion: z.literal(1).optional(),
+    minorUnit: z.literal(2).optional(),
+    grossAmountMinor: z.number().int().nonnegative().optional(),
+    discountAmountMinor: z.number().int().nonnegative().optional(),
+    netAmountMinor: z.number().int().positive().optional(),
+    marketingDecision: marketingDecisionEvidenceSchema.nullable().optional(),
   }).nullable().optional(),
   status: orderStatusSchema,
   createdAt: z.string().min(1),

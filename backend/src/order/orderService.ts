@@ -1,6 +1,7 @@
 import type { CreateOrderInput } from "@xlb/validators";
 import type { Order } from "@xlb/types";
 import type { RequestContext } from "@xlb/types";
+import type { PoolConnection } from "mysql2/promise";
 import { createOrderSchema } from "@xlb/validators";
 import { executeCityScoped } from "../dal/scopedExecutor.js";
 import { withTransaction } from "../dal/transaction.js";
@@ -11,6 +12,11 @@ import { buildOrderCreatedPayload } from "../events/orderPaidEvent.js";
 import { generateEventId, generateOrderId } from "../events/eventIds.js";
 import { assertOrderTransition } from "./orderStateMachine.js";
 import { orderRepository, OrderRepository } from "./orderRepository.js";
+import {
+  MarketingConflictError,
+  marketingService,
+  MarketingService,
+} from "../marketing/marketingService.js";
 
 export class OrderValidationError extends Error {
   readonly statusCode = 400;
@@ -61,17 +67,56 @@ function isDemoSku(skuId: string): boolean {
   return skuId.startsWith("demo_") || skuId.includes("demo_cleaning");
 }
 
+export type EnterprisePricingContext = {
+  source: "enterprise";
+  unitAmount: number;
+  priceText: string;
+  agreementPriceId: string;
+};
+
+function amountToMinor(amount: number): number {
+  const minor = Math.round(amount * 100);
+  if (!Number.isSafeInteger(minor) || Math.abs(amount * 100 - minor) > 1e-6) {
+    throw new OrderValidationError("money amount must have at most two decimal places");
+  }
+  return minor;
+}
+
+function isMysqlDeadlock(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const candidate = error as { code?: unknown; errno?: unknown };
+  return candidate.code === "ER_LOCK_DEADLOCK" || candidate.errno === 1213;
+}
+
+async function withOrderTransactionRetry<T>(
+  callback: (connection: PoolConnection) => Promise<T>,
+): Promise<T> {
+  const maxAttempts = 3;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await withTransaction(callback);
+    } catch (error) {
+      if (!isMysqlDeadlock(error)) throw error;
+      if (attempt === maxAttempts) {
+        throw new MarketingConflictError("concurrent Order/Marketing command could not be serialized");
+      }
+    }
+  }
+  throw new MarketingConflictError("concurrent Order/Marketing command could not be serialized");
+}
+
 export class OrderService {
   constructor(
     private readonly repository: OrderRepository = orderRepository,
     private readonly pricingRepo: PricingRepository = pricingRepository,
     private readonly outboxRepo: EventOutboxRepository = eventOutboxRepository,
+    private readonly marketing: MarketingService = marketingService,
   ) {}
 
   async createOrder(
     context: RequestContext,
     input: CreateOrderInput,
-    pricingOverride?: { unitAmount: number; priceText: string },
+    pricingOverride?: EnterprisePricingContext,
   ): Promise<Order> {
     const parsed = createOrderSchema.safeParse(input);
     if (!parsed.success) {
@@ -89,7 +134,31 @@ export class OrderService {
       throw new OrderSkuNotAllowedError(parsed.data.skuId);
     }
 
+    const hasMarketingDecision = parsed.data.discountDecisionId !== undefined;
+    if (pricingOverride && hasMarketingDecision) {
+      throw new OrderValidationError("enterprise agreement pricing and Marketing discount are mutually exclusive");
+    }
+
     return executeCityScoped(context, async (cityCode) => {
+      if (hasMarketingDecision) {
+        const replay = await withTransaction((connection) => this.marketing.findAcceptedOrderReplay(
+          connection,
+          context,
+          {
+            discountDecisionId: parsed.data.discountDecisionId!,
+            expectedDecisionVersion: parsed.data.discountDecisionRevision!,
+            orderCommandKey: parsed.data.orderIdempotencyKey!,
+            skuId: parsed.data.skuId,
+            quantity: parsed.data.quantity,
+          },
+        ));
+        if (replay) {
+          const existing = await this.repository.findById(context, cityCode, replay.acceptedOrderId);
+          if (!existing) throw new Error("accepted Marketing decision points to a missing Order");
+          return existing;
+        }
+      }
+
       const sku = await this.repository.findEnabledSku(context, cityCode, parsed.data.skuId);
       if (!sku) {
         throw new OrderValidationError(
@@ -121,9 +190,10 @@ export class OrderService {
             totalAmount: pricingOverride.unitAmount, feeItems: [] }
         : publicBreakdown;
 
-      const orderId = generateOrderId();
-      const totalAmount = Number((breakdown.totalAmount * parsed.data.quantity).toFixed(2));
-      const quoteSnapshot = {
+      const proposedOrderId = generateOrderId();
+      const publicTotalAmount = Number((breakdown.totalAmount * parsed.data.quantity).toFixed(2));
+      const publicGrossAmountMinor = amountToMinor(publicTotalAmount);
+      const baseQuoteSnapshot = {
         priceRuleId: priceRule.priceRuleId,
         skuId: sku.skuId,
         quantity: parsed.data.quantity,
@@ -131,16 +201,81 @@ export class OrderService {
         priceText: pricingOverride?.priceText ?? priceRule.priceText,
         priceType: priceRule.priceType,
         unitAmount: breakdown.totalAmount,
-        totalAmount,
+        totalAmount: publicTotalAmount,
         breakdown,
         skuProfile,
         standards,
+        pricingSource: pricingOverride ? "enterprise" as const : "public" as const,
+        calculationVersion: 1 as const,
+        minorUnit: 2 as const,
+        grossAmountMinor: publicGrossAmountMinor,
+        discountAmountMinor: 0,
+        netAmountMinor: publicGrossAmountMinor,
+        marketingDecision: null,
       };
       const now = new Date().toISOString();
 
-      await withTransaction(async (connection) => {
+      const runOrderTransaction = hasMarketingDecision ? withOrderTransactionRetry : withTransaction;
+      const persistedOrderId = await runOrderTransaction(async (connection) => {
+        if (hasMarketingDecision) {
+          const replay = await this.marketing.findAcceptedOrderReplay(connection, context, {
+            discountDecisionId: parsed.data.discountDecisionId!,
+            expectedDecisionVersion: parsed.data.discountDecisionRevision!,
+            orderCommandKey: parsed.data.orderIdempotencyKey!,
+            skuId: parsed.data.skuId,
+            quantity: parsed.data.quantity,
+          });
+          if (replay) return replay.acceptedOrderId;
+        }
+
+        const canonicalSku = await this.repository.findEnabledSkuForUpdate(
+          connection, cityCode, parsed.data.skuId,
+        );
+        if (!canonicalSku) {
+          throw new OrderValidationError(
+            `SKU not found or disabled for city_code=${cityCode}: ${parsed.data.skuId}`,
+          );
+        }
+
+        const prepared = hasMarketingDecision
+          ? await this.marketing.prepareDecisionForOrder(connection, context, {
+              discountDecisionId: parsed.data.discountDecisionId!,
+              expectedDecisionVersion: parsed.data.discountDecisionRevision!,
+              orderId: proposedOrderId,
+              orderCommandKey: parsed.data.orderIdempotencyKey!,
+              skuId: parsed.data.skuId,
+              quantity: parsed.data.quantity,
+            })
+          : null;
+        if (prepared && !prepared.canonicalQuote) {
+          throw new MarketingConflictError("canonical public Pricing evidence is unavailable for Order acceptance");
+        }
+        const canonicalQuote = prepared?.canonicalQuote ?? null;
+        const transactionPriceRule = canonicalQuote?.rule ?? priceRule;
+        const transactionBreakdown = canonicalQuote?.breakdown ?? breakdown;
+        const transactionUnitAmount = canonicalQuote?.breakdown.totalAmount ?? breakdown.totalAmount;
+        const grossAmountMinor = prepared?.decision.grossAmountMinor ?? publicGrossAmountMinor;
+        const discountAmountMinor = prepared?.decision.discountAmountMinor ?? 0;
+        const netAmountMinor = prepared?.decision.netAmountMinor ?? publicGrossAmountMinor;
+        const totalAmount = netAmountMinor / 100;
+        const quoteSnapshot = {
+          ...baseQuoteSnapshot,
+          priceRuleId: transactionPriceRule.priceRuleId,
+          skuId: canonicalSku.skuId,
+          currency: transactionPriceRule.currency,
+          priceText: pricingOverride?.priceText ?? transactionPriceRule.priceText,
+          priceType: transactionPriceRule.priceType,
+          unitAmount: transactionUnitAmount,
+          totalAmount,
+          breakdown: transactionBreakdown,
+          pricingSource: prepared ? "marketing" as const : baseQuoteSnapshot.pricingSource,
+          grossAmountMinor,
+          discountAmountMinor,
+          netAmountMinor,
+        };
+
         await this.repository.insertOrder(connection, {
-          orderId,
+          orderId: proposedOrderId,
           cityCode,
           addressProvince: parsed.data.addressProvince,
           addressCity: parsed.data.addressCity,
@@ -151,38 +286,80 @@ export class OrderService {
           scheduledAt: parsed.data.scheduledAt,
           scheduledTimeSlot: parsed.data.scheduledTimeSlot,
           customerId,
-          skuId: sku.skuId,
-          skuName: sku.name,
+          skuId: canonicalSku.skuId,
+          skuName: canonicalSku.name,
           quantity: parsed.data.quantity,
-          unit: sku.unit,
-          priceRuleId: priceRule.priceRuleId,
-          priceText: pricingOverride?.priceText ?? priceRule.priceText,
-          priceType: priceRule.priceType,
-          basePrice: pricingOverride?.unitAmount ?? priceRule.basePrice,
-          currency: priceRule.currency,
+          unit: canonicalSku.unit,
+          priceRuleId: transactionPriceRule.priceRuleId,
+          priceText: pricingOverride?.priceText ?? transactionPriceRule.priceText,
+          priceType: transactionPriceRule.priceType,
+          basePrice: pricingOverride?.unitAmount ?? transactionPriceRule.basePrice,
+          currency: transactionPriceRule.currency,
           totalAmount,
           quoteSnapshot,
           status: "pending_dispatch",
         });
 
+        if (prepared) {
+          const accepted = await this.marketing.commitPreparedDecisionAcceptance(connection, context, prepared);
+          const acceptedSnapshot = {
+            ...quoteSnapshot,
+            marketingDecision: {
+              decisionId: accepted.decision.discountDecisionId,
+              decisionRevision: accepted.decision.version,
+              ruleRevisionId: accepted.decision.ruleRevisionId,
+              ruleContentHash: accepted.decision.ruleContentHash,
+              couponDefinitionId: accepted.decision.couponDefinitionId,
+              grantId: accepted.decision.couponGrantId,
+              reservationId: accepted.reservation.couponReservationId,
+              redemptionId: accepted.redemption.couponRedemptionId,
+              requestFingerprint: accepted.decision.requestFingerprint,
+              issuedAt: accepted.decision.createdAt,
+              expiresAt: accepted.decision.expiresAt,
+              acceptedAt: accepted.redemption.redeemedAt,
+            },
+          };
+          await this.repository.updatePriceSnapshot(connection, cityCode, proposedOrderId, acceptedSnapshot);
+
+          const lifecyclePayload = {
+            couponReservationId: accepted.reservation.couponReservationId,
+            couponGrantId: accepted.decision.couponGrantId,
+            discountDecisionId: accepted.decision.discountDecisionId,
+            orderId: proposedOrderId,
+            discountAmountMinor: accepted.decision.discountAmountMinor,
+            currency: "CNY" as const,
+          };
+          await this.outboxRepo.insertEvent(connection, {
+            eventId: generateEventId(), eventType: "marketing.coupon.reserved", eventMajorVersion: 1,
+            aggregateType: "coupon_reservation", aggregateId: accepted.reservation.couponReservationId,
+            cityCode, payload: { ...lifecyclePayload, occurredAt: accepted.reservation.createdAt },
+          });
+          await this.outboxRepo.insertEvent(connection, {
+            eventId: generateEventId(), eventType: "marketing.coupon.redeemed", eventMajorVersion: 1,
+            aggregateType: "coupon_redemption", aggregateId: accepted.redemption.couponRedemptionId,
+            cityCode, payload: { ...lifecyclePayload, occurredAt: accepted.redemption.redeemedAt },
+          });
+        }
+
         await this.outboxRepo.insertEvent(connection, {
           eventId: generateEventId(),
           eventType: "order.created",
           aggregateType: "order",
-          aggregateId: orderId,
+          aggregateId: proposedOrderId,
           cityCode,
           payload: buildOrderCreatedPayload({
-            orderId,
+            orderId: proposedOrderId,
             cityCode,
             customerId,
-            skuId: sku.skuId,
+            skuId: canonicalSku.skuId,
             totalAmount,
             createdAt: now,
           }) as unknown as Record<string, unknown>,
         });
+        return proposedOrderId;
       });
 
-      const order = await this.repository.findById(context, cityCode, orderId);
+      const order = await this.repository.findById(context, cityCode, persistedOrderId);
       if (!order) {
         throw new Error("Failed to load created order");
       }

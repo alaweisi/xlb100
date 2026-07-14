@@ -19,6 +19,26 @@ Require-Contains $state 'Phase 14 | IN PROGRESS' 'Phase14 IN PROGRESS truth'
 Require-Contains $state '64/100' 'Phase14 readiness score'
 Require-Contains $state 'staging/production `NO-GO`' 'production NO-GO truth'
 
+$phase29EntryPath = 'docs/reports/PHASE29_MARKETING_COUPON_ENTRY_REPORT.md'
+$phase29ArchitecturePath = 'docs/architecture/29_XLB_MARKETING_COUPON.md'
+$phase29ContractPath = 'docs/contracts/CONTRACT_MARKETING_COUPON.md'
+$phase29RegistryPath = 'docs/governance/phase-registry.json'
+$phase29Authorized =
+  $state.Contains('Marketing / Coupon MVP (IN PROGRESS)') -and
+  $state.Contains('approved Entry decisions D01') -and
+  $state.Contains('D24 and authorized continuous Phase29 construction through independent acceptance.') -and
+  $state.Contains('migration `057` only') -and
+  (Test-Path -LiteralPath $phase29EntryPath) -and
+  (Get-Content -Raw -Encoding UTF8 -LiteralPath $phase29EntryPath).Contains('Every row below is **HUMAN APPROVED**') -and
+  (Get-Content -Raw -Encoding UTF8 -LiteralPath $phase29EntryPath).Contains('| D24 |') -and
+  (Test-Path -LiteralPath $phase29ArchitecturePath) -and
+  (Get-Content -Raw -Encoding UTF8 -LiteralPath $phase29ArchitecturePath).Contains('ENTRY DECISIONS HUMAN-APPROVED; CONSTRUCTION AUTHORIZED') -and
+  (Test-Path -LiteralPath $phase29ContractPath) -and
+  (Get-Content -Raw -Encoding UTF8 -LiteralPath $phase29ContractPath).Contains('Phase 29 human-approved contract') -and
+  (Test-Path -LiteralPath $phase29RegistryPath) -and
+  (Get-Content -Raw -Encoding UTF8 -LiteralPath $phase29RegistryPath).Contains('Entry decisions D01-D24 are approved for continuous construction through independent acceptance.') -and
+  (Test-Path -LiteralPath 'db/migrations/057_phase29_marketing_coupon.sql')
+
 $requiredDocs = @(
   'docs/architecture/28_XLB_REVIEW_REPUTATION.md',
   'docs/contracts/CONTRACT_REVIEW_REPUTATION.md',
@@ -84,9 +104,19 @@ if ($lockedDiff.Count -ne 0) {
 $laterMigrations = @(Get-ChildItem db/migrations -File | Where-Object {
   $_.Name -match '^(\d{3})_' -and [int]$Matches[1] -ge 56
 })
-if ($laterMigrations.Count -gt 1) { throw "Phase28 permits only one migration at 056" }
-if ($laterMigrations.Count -eq 1 -and $laterMigrations[0].Name -ne '056_phase28_review_reputation.sql') {
-  throw "Phase28 migration must be exactly 056_phase28_review_reputation.sql"
+$expectedPhase28Migrations = @('056_phase28_review_reputation.sql')
+if ($phase29Authorized) { $expectedPhase28Migrations += '057_phase29_marketing_coupon.sql' }
+$actualMigrationNames = @($laterMigrations.Name | Sort-Object) -join ','
+$expectedMigrationNames = @($expectedPhase28Migrations | Sort-Object) -join ','
+if ($laterMigrations.Count -ne $expectedPhase28Migrations.Count -or
+    $actualMigrationNames -ne $expectedMigrationNames) {
+  throw "Phase28 entry permits only the exact authorized migration chain through the active formal Phase"
+}
+$migration056Path = 'db/migrations/056_phase28_review_reputation.sql'
+$migration056Hash = (git hash-object -- $migration056Path).Trim()
+$lockedMigration056Hash = (git rev-parse "xlb-phase28-review-reputation^{}:$migration056Path").Trim()
+if ($LASTEXITCODE -ne 0 -or $migration056Hash -ne $lockedMigration056Hash) {
+  throw "locked migration 056 hash differs from the canonical Phase28 tag"
 }
 
 Write-Output "check-phase28-entry-boundaries: passed"

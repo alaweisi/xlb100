@@ -270,7 +270,9 @@ export class EventOutboxRepository extends RepositoryBase {
       throw new Error("outbox event major version is invalid");
     }
     if (
-      (input.eventType === "review.created" || input.eventType === "review.visibility.changed") &&
+      (input.eventType === "review.created" ||
+        input.eventType === "review.visibility.changed" ||
+        input.eventType.startsWith("marketing.")) &&
       input.eventMajorVersion !== 1
     ) {
       throw new Error(`${input.eventType} requires explicit event major version 1`);

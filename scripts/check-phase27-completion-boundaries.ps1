@@ -2,7 +2,7 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 
-$currentState = Get-Content -Raw -LiteralPath 'docs/CURRENT_STATE.md'
+$currentState = Get-Content -Raw -Encoding UTF8 -LiteralPath 'docs/CURRENT_STATE.md'
 if (-not ($currentState.Contains('Phase 27 | PHASE27E EXIT VERIFICATION') -or
           $currentState.Contains('Phase 27 | LOCKED'))) {
   throw "Phase27 completion Gate requires Phase27E exit verification or final Lock state"
@@ -28,11 +28,44 @@ $phase28Authorized =
 if ($phase28Authorized) {
   $expectedMigrations += '056_phase28_review_reputation.sql'
 }
+$phase29EntryPath = 'docs/reports/PHASE29_MARKETING_COUPON_ENTRY_REPORT.md'
+$phase29ArchitecturePath = 'docs/architecture/29_XLB_MARKETING_COUPON.md'
+$phase29ContractPath = 'docs/contracts/CONTRACT_MARKETING_COUPON.md'
+$phase29RegistryPath = 'docs/governance/phase-registry.json'
+$phase29Authorized =
+  $phase28Authorized -and
+  $currentState.Contains('Marketing / Coupon MVP (IN PROGRESS)') -and
+  $currentState.Contains('approved Entry decisions D01') -and
+  $currentState.Contains('D24 and authorized continuous Phase29 construction through independent acceptance.') -and
+  $currentState.Contains('migration `057` only') -and
+  (Test-Path -LiteralPath $phase29EntryPath) -and
+  (Get-Content -Raw -Encoding UTF8 -LiteralPath $phase29EntryPath).Contains('Every row below is **HUMAN APPROVED**') -and
+  (Get-Content -Raw -Encoding UTF8 -LiteralPath $phase29EntryPath).Contains('| D24 |') -and
+  (Test-Path -LiteralPath $phase29ArchitecturePath) -and
+  (Get-Content -Raw -Encoding UTF8 -LiteralPath $phase29ArchitecturePath).Contains('ENTRY DECISIONS HUMAN-APPROVED; CONSTRUCTION AUTHORIZED') -and
+  (Test-Path -LiteralPath $phase29ContractPath) -and
+  (Get-Content -Raw -Encoding UTF8 -LiteralPath $phase29ContractPath).Contains('Phase 29 human-approved contract') -and
+  (Test-Path -LiteralPath $phase29RegistryPath) -and
+  (Get-Content -Raw -Encoding UTF8 -LiteralPath $phase29RegistryPath).Contains('Entry decisions D01-D24 are approved for continuous construction through independent acceptance.') -and
+  (Test-Path -LiteralPath 'db/migrations/057_phase29_marketing_coupon.sql')
+if ($phase29Authorized) {
+  $expectedMigrations += '057_phase29_marketing_coupon.sql'
+}
 if ($migrations.Count -ne $expectedMigrations.Count) {
   throw "Phase27 completion migration ledger contains an unauthorized 054+ migration"
 }
 foreach ($expected in $expectedMigrations) {
   if ($migrations.Name -notcontains $expected) { throw "Phase27 migration missing: $expected" }
+}
+foreach ($lockedMigration in @(
+  'db/migrations/054_phase27a_platform_delivery_foundation.sql',
+  'db/migrations/055_phase27b_notification_projection_foundation.sql'
+)) {
+  $workingHash = (git hash-object -- $lockedMigration).Trim()
+  $lockedHash = (git rev-parse "xlb-phase27-notification-foundation^{}:$lockedMigration").Trim()
+  if ($LASTEXITCODE -ne 0 -or $workingHash -ne $lockedHash) {
+    throw "locked Phase27 migration hash differs from the canonical tag: $lockedMigration"
+  }
 }
 
 foreach ($gate in @(

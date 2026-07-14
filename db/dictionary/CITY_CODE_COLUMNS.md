@@ -113,3 +113,20 @@ Migration `038` makes the client dimension part of the agreement/order and subsc
 Migration `050` keeps SLA breach markers on the already city-scoped
 `support_tickets` row and uses city-leading scan indexes. Its event CHECK
 expansion does not change the composite same-city ticket-event foreign key.
+
+## Phase 29 Marketing / Coupon tables with city_code
+
+| Table | city_code column | Notes |
+|-------|------------------|-------|
+| `marketing_campaigns` | required FK + non-global check | Campaigns belong to exactly one real city |
+| `marketing_rule_revisions` | required composite FK + non-global check | Revision and campaign city cannot diverge |
+| `coupon_definitions` | required composite FK + non-global check | Definition, campaign and rule revision remain same-city |
+| `coupon_grants` | required composite FK + non-global check | Grant/customer eligibility is evaluated inside one city |
+| `marketing_discount_decisions` | required composite FKs + non-global check | Grant, SKU and canonical PriceRule are same-city evidence |
+| `coupon_reservations` | required composite FKs + non-global check | Decision and Order must share the reservation city |
+| `coupon_redemptions` | required composite FK + non-global check | Redemption inherits the full reservation scope |
+| `marketing_compensations` | required composite FKs + non-global check | Redemption, Platform Delivery and Outbox source must share a city |
+| `marketing_audit_records` | required FK + non-global check | Governance evidence is never nationwide/global |
+
+Phase 29 has no nationwide Marketing fallback. Customer, Admin and Order paths
+must carry authenticated/scoped `city_code`; IDs alone are not authorization.

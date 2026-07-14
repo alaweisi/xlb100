@@ -2,6 +2,27 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 
+$currentState = Get-Content -Raw -Encoding UTF8 -LiteralPath 'docs/CURRENT_STATE.md'
+$phase29EntryPath = 'docs/reports/PHASE29_MARKETING_COUPON_ENTRY_REPORT.md'
+$phase29ArchitecturePath = 'docs/architecture/29_XLB_MARKETING_COUPON.md'
+$phase29ContractPath = 'docs/contracts/CONTRACT_MARKETING_COUPON.md'
+$phase29RegistryPath = 'docs/governance/phase-registry.json'
+$phase29Authorized =
+  $currentState.Contains('Marketing / Coupon MVP (IN PROGRESS)') -and
+  $currentState.Contains('approved Entry decisions D01') -and
+  $currentState.Contains('D24 and authorized continuous Phase29 construction through independent acceptance.') -and
+  $currentState.Contains('migration `057` only') -and
+  (Test-Path -LiteralPath $phase29EntryPath) -and
+  (Get-Content -Raw -Encoding UTF8 -LiteralPath $phase29EntryPath).Contains('Every row below is **HUMAN APPROVED**') -and
+  (Get-Content -Raw -Encoding UTF8 -LiteralPath $phase29EntryPath).Contains('| D24 |') -and
+  (Test-Path -LiteralPath $phase29ArchitecturePath) -and
+  (Get-Content -Raw -Encoding UTF8 -LiteralPath $phase29ArchitecturePath).Contains('ENTRY DECISIONS HUMAN-APPROVED; CONSTRUCTION AUTHORIZED') -and
+  (Test-Path -LiteralPath $phase29ContractPath) -and
+  (Get-Content -Raw -Encoding UTF8 -LiteralPath $phase29ContractPath).Contains('Phase 29 human-approved contract') -and
+  (Test-Path -LiteralPath $phase29RegistryPath) -and
+  (Get-Content -Raw -Encoding UTF8 -LiteralPath $phase29RegistryPath).Contains('Entry decisions D01-D24 are approved for continuous construction through independent acceptance.') -and
+  (Test-Path -LiteralPath 'db/migrations/057_phase29_marketing_coupon.sql')
+
 & (Join-Path $PSScriptRoot 'check-phase28-entry-boundaries.ps1')
 if ($LASTEXITCODE -ne 0) { throw "Phase28 Entry Gate failed" }
 
@@ -12,7 +33,20 @@ if (-not (Test-Path -LiteralPath $migrationPath)) {
 $later = @(Get-ChildItem db/migrations -File | Where-Object {
   $_.Name -match '^(\d{3})_' -and [int]$Matches[1] -ge 57
 })
-if ($later.Count -ne 0) { throw "Phase28 forbids migration 057 or later" }
+$expectedLater = @()
+if ($phase29Authorized) { $expectedLater += '057_phase29_marketing_coupon.sql' }
+$actualLaterNames = @($later.Name | Sort-Object) -join ','
+$expectedLaterNames = @($expectedLater | Sort-Object) -join ','
+if ($later.Count -ne $expectedLater.Count -or
+    $actualLaterNames -ne $expectedLaterNames) {
+  throw "Phase28 forbids migrations beyond its exact formally authorized successor ledger"
+}
+
+$migration056Hash = (git hash-object -- $migrationPath).Trim()
+$lockedMigration056Hash = (git rev-parse "xlb-phase28-review-reputation^{}:$migrationPath").Trim()
+if ($LASTEXITCODE -ne 0 -or $migration056Hash -ne $lockedMigration056Hash) {
+  throw "locked migration 056 hash differs from the canonical Phase28 tag"
+}
 
 $migration = Get-Content -Raw -Encoding UTF8 -LiteralPath $migrationPath
 $dataInserts = [regex]::Matches($migration, '(?im)^\s*INSERT\s+INTO\s+([a-z0-9_]+)')
@@ -238,7 +272,7 @@ $phase28ChangedPaths = @(
 $phase29Paths = @($phase28ChangedPaths | Where-Object {
   $_ -match '(?i)(^|/)(marketing|growth)(/|$)|phase29'
 })
-if ($phase29Paths.Count -ne 0) {
+if (-not $phase29Authorized -and $phase29Paths.Count -ne 0) {
   throw "Phase28 change set contains Phase29 Marketing/Growth paths: $($phase29Paths -join ', ')"
 }
 

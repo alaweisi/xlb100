@@ -83,8 +83,39 @@ const phase28RuntimeFiles = new Set([
   "packages/api-client/src/reviewReputation.ts",
   "packages/api-client/src/worker.ts",
 ]);
+const phase29MigrationPath = join(root, "db/migrations/057_phase29_marketing_coupon.sql");
+const phase29EntryPath = join(root, "docs/reports/PHASE29_MARKETING_COUPON_ENTRY_REPORT.md");
+const phase29ArchitecturePath = join(root, "docs/architecture/29_XLB_MARKETING_COUPON.md");
+const phase29ContractPath = join(root, "docs/contracts/CONTRACT_MARKETING_COUPON.md");
+const phase29RegistryPath = join(root, "docs/governance/phase-registry.json");
+const phase29Authorized =
+  currentState.includes("Phase 29 — Marketing / Coupon MVP (IN PROGRESS)") &&
+  currentState.includes("D01–D24") &&
+  existsSync(phase29EntryPath) &&
+  readFileSync(phase29EntryPath, "utf8").includes("Every row below is **HUMAN APPROVED**") &&
+  readFileSync(phase29EntryPath, "utf8").includes("| D24 |") &&
+  existsSync(phase29ArchitecturePath) &&
+  readFileSync(phase29ArchitecturePath, "utf8").includes("ENTRY DECISIONS HUMAN-APPROVED; CONSTRUCTION AUTHORIZED") &&
+  existsSync(phase29ContractPath) &&
+  readFileSync(phase29ContractPath, "utf8").includes("Phase 29 human-approved contract") &&
+  existsSync(phase29RegistryPath) &&
+  readFileSync(phase29RegistryPath, "utf8").includes("Entry decisions D01-D24 are approved for continuous construction through independent acceptance.") &&
+  existsSync(phase29MigrationPath) &&
+  existsSync(phase29ContractPath);
+const phase29RuntimePatterns = [
+  /^backend\/src\/marketing\/(?:[A-Za-z0-9]+\.ts|README\.md)$/,
+  /^backend\/src\/app\.ts$/,
+  /^backend\/src\/enterprise\/enterpriseService\.ts$/,
+  /^backend\/src\/events\/(?:eventOutbox|platformDeliveryService|platformEventCompatibility)\.ts$/,
+  /^backend\/src\/order\/(?:orderRepository|orderRoutes|orderService|orderTraceRoutes)\.ts$/,
+  /^backend\/src\/pricing\/pricingRepository\.ts$/,
+  /^db\/migrations\/057_phase29_marketing_coupon\.sql$/,
+  /^db\/dictionary\/(?:TABLES|CITY_CODE_COLUMNS|SHARDING_KEYS)\.md$/,
+  /^packages\/api-client\/src\/(?:admin|customer|index|marketing|responseValidators)\.ts$/,
+];
 for (const file of changed) {
   if (["backend/", "db/", "deploy/", "infra/", "packages/api-client/"].some((prefix) => file.startsWith(prefix))) {
+    if (phase29Authorized && phase29RuntimePatterns.some((pattern) => pattern.test(file))) continue;
     if (phase28Authorized && phase28RuntimeFiles.has(file)) continue;
     if (phase27Continuation && phase27ContinuationPatterns.some((pattern) => pattern.test(file))) continue;
     if (phase27bB1Authorized && phase27bB1RuntimeFiles.has(file)) continue;
@@ -112,5 +143,12 @@ if (
   (!phase28Authorized || migration056.length !== 1 || migration056[0] !== "056_phase28_review_reputation.sql")
 ) {
   throw new Error("[phase25-closure] unauthorized migration 056 is forbidden");
+}
+const migration057 = readdirSync(join(root, "db/migrations")).filter((name) => /^057[_-].*\.sql$/i.test(name));
+if (
+  migration057.length > 0 &&
+  (!phase29Authorized || migration057.length !== 1 || migration057[0] !== "057_phase29_marketing_coupon.sql")
+) {
+  throw new Error("[phase25-closure] unauthorized migration 057 is forbidden");
 }
 process.stdout.write("[phase25-closure] PASS aggregate scope, evidence artifacts, and OA/Dashboard truthfulness verified\n");

@@ -13,6 +13,12 @@ import {
   OrderValidationError,
 } from "./orderService.js";
 import { InvalidOrderTransitionError } from "./orderStateMachine.js";
+import {
+  MarketingAuthorizationError,
+  MarketingConflictError,
+  MarketingNotFoundError,
+  MarketingValidationError,
+} from "../marketing/marketingService.js";
 
 export async function registerOrderModule(app: FastifyInstance): Promise<void> {
   app.post(
@@ -32,6 +38,12 @@ export async function registerOrderModule(app: FastifyInstance): Promise<void> {
       } catch (error) {
         if (error instanceof OrderValidationError || error instanceof OrderSkuNotAllowedError) {
           return reply.status(400).send({ ok: false, error: error.message });
+        }
+        if (
+          error instanceof MarketingValidationError || error instanceof MarketingAuthorizationError
+          || error instanceof MarketingNotFoundError || error instanceof MarketingConflictError
+        ) {
+          return reply.status(error.statusCode).send({ ok: false, error: error.message });
         }
         throw error;
       }

@@ -197,6 +197,47 @@ export interface PlatformReviewVisibilityChangedV1CompatibilityPayload {
   occurredAt: string;
 }
 
+export interface PlatformOrderReverseAppliedV0CompatibilityPayload {
+  reverseRequestId: string;
+  orderId: string;
+  reverseType: "cancel";
+  dispatchMutation: false;
+}
+
+export interface PlatformRefundApprovedV0CompatibilityPayload {
+  refundId: string;
+  orderId: string;
+  cityCode: CityCode;
+  customerId: string;
+  amount: number;
+  currency: "CNY";
+  approvedAt: string;
+}
+
+/**
+ * Narrow, lease-bound projection exposed to Marketing. The raw outbox payload
+ * remains inside Events; this shape carries only the evidence required to
+ * decide whether a redeemed coupon may receive a compensating grant.
+ */
+export interface PlatformMarketingCompensationV0CompatibilityProjection {
+  deliveryId: string;
+  cityCode: CityCode;
+  subscriberId: string;
+  subscriptionId: string;
+  eventId: string;
+  eventType: "order.reverse.applied" | "refund.approved";
+  eventMajorVersion: 0;
+  payloadHash: string;
+  compatibilityHandlerRevision: string;
+  triggerType: "order_cancellation" | "full_refund";
+  triggerId: string;
+  orderId: string;
+  customerId: string | null;
+  refundAmount: number | null;
+  refundCurrency: "CNY" | null;
+  occurredAt: string | null;
+}
+
 export interface PlatformReviewVisibilityChangedV1CompatibilityProjection
   extends PlatformReviewVisibilityChangedV1CompatibilityPayload {
   deliveryId: string;
@@ -216,4 +257,6 @@ export type PlatformCompatibilityPayload =
   | PlatformOrderCreatedCompatibilityPayload
   | PlatformSupportTicketResolvedCompatibilityPayload
   | PlatformReviewCreatedV1CompatibilityPayload
-  | PlatformReviewVisibilityChangedV1CompatibilityPayload;
+  | PlatformReviewVisibilityChangedV1CompatibilityPayload
+  | PlatformOrderReverseAppliedV0CompatibilityPayload
+  | PlatformRefundApprovedV0CompatibilityPayload;

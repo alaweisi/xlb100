@@ -51,4 +51,25 @@ export interface OrderPriceSnapshot {
   breakdown: PriceQuoteBreakdown;
   skuProfile: ServiceSkuProfile | null;
   standards: ServiceStandard[];
+  /** Phase29 authoritative money evidence. Older locked snapshots may omit it. */
+  pricingSource?: "public" | "enterprise" | "marketing";
+  calculationVersion?: 1;
+  minorUnit?: 2;
+  grossAmountMinor?: number;
+  discountAmountMinor?: number;
+  netAmountMinor?: number;
+  marketingDecision?: {
+    decisionId: string;
+    decisionRevision: number;
+    ruleRevisionId: string;
+    ruleContentHash: string;
+    couponDefinitionId: string;
+    grantId: string;
+    reservationId: string;
+    redemptionId: string;
+    requestFingerprint: string;
+    issuedAt: string;
+    expiresAt: string;
+    acceptedAt: string;
+  } | null;
 }

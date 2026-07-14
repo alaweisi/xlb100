@@ -630,7 +630,8 @@ if (Test-Path (Join-Path $PSScriptRoot "..\backend\src\routes\notificationRoutes
   Invoke-PreflightGate "check-phase27c-notification-api-boundaries.ps1"
   Write-Host "XLB Phase 27C Notification API boundary preflight passed."
 }
-if ((Test-Path (Join-Path $PSScriptRoot "..\apps\customer\src\pages\CustomerNotificationsPage.tsx")) -and
+if (
+    (Test-Path (Join-Path $PSScriptRoot "..\apps\customer\src\pages\CustomerNotificationsPage.tsx")) -and
     (Test-Path (Join-Path $PSScriptRoot "..\apps\worker\src\pages\WorkerNotificationsPage.tsx"))) {
   Invoke-PreflightGate "check-phase27d-notification-ui-boundaries.ps1"
   Write-Host "XLB Phase 27D Notification UI boundary preflight passed."
@@ -643,4 +644,10 @@ if (Test-Path (Join-Path $PSScriptRoot "check-phase27-completion-boundaries.ps1"
 if (Test-Path (Join-Path $PSScriptRoot "..\db\migrations\056_phase28_review_reputation.sql")) {
   Invoke-PreflightGate "check-phase28-review-reputation-boundaries.ps1"
   Write-Host "XLB Phase 28 Review/Reputation boundary preflight passed."
+}
+
+if (Test-Path (Join-Path $PSScriptRoot "..\db\migrations\057_phase29_marketing_coupon.sql")) {
+  Invoke-PreflightGate "check-phase29-entry-boundaries.ps1"
+  Invoke-PreflightGate "check-phase29-marketing-coupon-boundaries.ps1"
+  Write-Host "XLB Phase 29 Marketing/Coupon boundary preflight passed."
 }

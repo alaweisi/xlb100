@@ -1,0 +1,54 @@
+.customer-coupons {
+  display: grid;
+  gap: var(--xlb-spacing-md);
+  margin: var(--xlb-spacing-none) auto;
+  max-width: var(--xlb-grid-max-content);
+  padding: var(--xlb-spacing-md);
+}
+
+.customer-coupons__header,
+.customer-coupons__toolbar,
+.customer-coupons__card-header,
+.customer-coupons__facts {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--xlb-spacing-sm);
+  justify-content: space-between;
+}
+
+.customer-coupons__list {
+  display: grid;
+  gap: var(--xlb-spacing-sm);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.customer-coupons__card {
+  background: var(--xlb-surface-panel);
+  border: var(--xlb-stroke-hairline) solid var(--xlb-border-subtle);
+  border-radius: var(--xlb-radius-lg);
+  display: grid;
+  gap: var(--xlb-spacing-sm);
+  padding: var(--xlb-spacing-md);
+}
+
+.customer-coupons__amount {
+  color: var(--xlb-color-accent);
+}
+
+.customer-coupons__muted {
+  color: var(--xlb-text-muted);
+  margin: var(--xlb-spacing-none);
+}
+
+.customer-coupons__error {
+  color: var(--xlb-color-danger);
+}
+
+@media (forced-colors: active) {
+  .customer-coupons__card {
+    border: var(--xlb-stroke-hairline) solid CanvasText;
+  }
+}

@@ -36,6 +36,19 @@ export {
   validateAppealListResponse,
 } from "./reviewReputation.js";
 export {
+  createCustomerMarketingApi,
+  createAdminMarketingApi,
+  validateMarketingCampaignResponse,
+  validateMarketingCampaignListResponse,
+  validateMarketingRuleRevisionResponse,
+  validateMarketingRuleRevisionListResponse,
+  validateCouponDefinitionResponse,
+  validateCouponDefinitionListResponse,
+  validateCouponGrantResponse,
+  validateCouponGrantListResponse,
+  validateMarketingDiscountDecisionResponse,
+} from "./marketing.js";
+export {
   createRequesterSupportApi,
   createAdminSupportApi,
   validateSupportTicketResponse,
