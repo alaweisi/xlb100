@@ -75,27 +75,31 @@ function Test-SameSet($Left,$Right) {
 function ConvertTo-CanonicalRunAssets($ContainerObjects,$VolumeObjects,$NetworkObjects) {
   $containerMap=@{}
   foreach($container in @($ContainerObjects)){
-    $id=[string]$container.Id;$service=[string]$container.Config.Labels.'com.docker.compose.service'
-    if([string]::IsNullOrWhiteSpace($id)-or[string]::IsNullOrWhiteSpace($service)){continue}
-    if($containerMap.ContainsKey($id)-and$containerMap[$id]-ne$service){throw"container ID resolves to conflicting compose services: $id"}
-    $containerMap[$id]=$service
+    $id=[string]$container.Id;$service=[string]$container.Config.Labels.'com.docker.compose.service';$name=([string]$container.Name).TrimStart('/')
+    if([string]::IsNullOrWhiteSpace($id)-or[string]::IsNullOrWhiteSpace($service)-or[string]::IsNullOrWhiteSpace($name)){throw"inspected container lacks canonical ID, service, or name"}
+    if($containerMap.ContainsKey($id)-and($containerMap[$id].Service-ne$service-or$containerMap[$id].Name-ne$name)){throw"container ID resolves to conflicting compose identity: $id"}
+    $containerMap[$id]=[pscustomobject]@{Service=$service;Name=$name}
   }
   $containerIds=@($containerMap.Keys|Sort-Object)
-  $containerServices=@($containerMap.Values|Sort-Object)
+  $containerServices=@($containerMap.Values|ForEach-Object{$_.Service}|Sort-Object)
+  $containerNames=@($containerMap.Values|ForEach-Object{$_.Name}|Sort-Object)
   $volumeNames=@($VolumeObjects|ForEach-Object{[string]$_.Name}|Where-Object{-not[string]::IsNullOrWhiteSpace($_)}|Sort-Object -Unique)
   $networkNames=@($NetworkObjects|ForEach-Object{[string]$_.Name}|Where-Object{-not[string]::IsNullOrWhiteSpace($_)}|Sort-Object -Unique)
-  return [pscustomobject]@{Containers=$containerIds;ContainerServices=$containerServices;Volumes=$volumeNames;Networks=$networkNames;Count=$containerIds.Count+$volumeNames.Count+$networkNames.Count}
+  return [pscustomobject]@{Containers=$containerIds;ContainerServices=$containerServices;ContainerNames=$containerNames;Volumes=$volumeNames;Networks=$networkNames;Count=$containerIds.Count+$volumeNames.Count+$networkNames.Count}
 }
 function Assert-NoUnexpectedRunAssets($Slot,$Assets) {
-  $expectedServices=@("mysql","redis");$expectedVolumes=@($Slot.MysqlVolume,$Slot.RedisVolume);$expectedNetworks=@($Slot.Network)
+  $expectedServices=@("mysql","redis");$expectedNames=@("$($Slot.Project)-mysql-1","$($Slot.Project)-redis-1");$expectedVolumes=@($Slot.MysqlVolume,$Slot.RedisVolume);$expectedNetworks=@($Slot.Network)
   Assert-True (@($Assets.ContainerServices|Where-Object{$_-notin$expectedServices}).Count-eq0) "runtime inventory contains an unexpected container service for $($Slot.Project)"
   Assert-True (@($Assets.ContainerServices|Sort-Object -Unique).Count-eq$Assets.ContainerServices.Count) "runtime inventory contains duplicate container services for $($Slot.Project)"
+  Assert-True (@($Assets.ContainerNames|Where-Object{$_-notin$expectedNames}).Count-eq0) "runtime inventory contains an unexpected container name for $($Slot.Project)"
+  Assert-True (@($Assets.ContainerNames|Sort-Object -Unique).Count-eq$Assets.ContainerNames.Count) "runtime inventory contains duplicate container names for $($Slot.Project)"
   Assert-True (@($Assets.Volumes|Where-Object{$_-notin$expectedVolumes}).Count-eq0) "runtime inventory contains an unexpected volume for $($Slot.Project)"
   Assert-True (@($Assets.Networks|Where-Object{$_-notin$expectedNetworks}).Count-eq0) "runtime inventory contains an unexpected network for $($Slot.Project)"
 }
 function Assert-CompleteRunAssets($Slot,$Assets) {
   Assert-NoUnexpectedRunAssets $Slot $Assets
   Assert-True (Test-SameSet $Assets.ContainerServices @("mysql","redis")) "runtime container service set is incomplete for $($Slot.Project)"
+  Assert-True (Test-SameSet $Assets.ContainerNames @("$($Slot.Project)-mysql-1","$($Slot.Project)-redis-1")) "runtime container name set is incomplete for $($Slot.Project)"
   Assert-True (Test-SameSet $Assets.Volumes @($Slot.MysqlVolume,$Slot.RedisVolume)) "runtime volume set is incomplete for $($Slot.Project)"
   Assert-True (Test-SameSet $Assets.Networks @($Slot.Network)) "runtime network set is incomplete for $($Slot.Project)"
 }
@@ -107,8 +111,8 @@ function Register-CleanupInventory([ref]$Cleanup,$Slot,$Inventory,[bool]$Require
 function Invoke-InventoryFixtureTests {
   $longId=('a'*64);$networkId=('b'*64)
   $containerObjects=@(
-    [pscustomobject]@{SourceRef=$longId.Substring(0,12);Id=$longId;Config=[pscustomobject]@{Labels=[pscustomobject]@{'com.docker.compose.service'='mysql'}}},
-    [pscustomobject]@{SourceRef=$longId;Id=$longId;Config=[pscustomobject]@{Labels=[pscustomobject]@{'com.docker.compose.service'='mysql'}}}
+    [pscustomobject]@{SourceRef=$longId.Substring(0,12);Id=$longId;Name='/fixture-project-mysql-1';Config=[pscustomobject]@{Labels=[pscustomobject]@{'com.docker.compose.service'='mysql'}}},
+    [pscustomobject]@{SourceRef=$longId;Id=$longId;Name='/fixture-project-mysql-1';Config=[pscustomobject]@{Labels=[pscustomobject]@{'com.docker.compose.service'='mysql'}}}
   )
   $volumeObjects=@([pscustomobject]@{Name='fixture-volume'},[pscustomobject]@{Name='fixture-volume'})
   $networkObjects=@(
@@ -120,15 +124,15 @@ function Invoke-InventoryFixtureTests {
   Assert-True($canonical.ContainerServices.Count-eq1-and$canonical.ContainerServices[0]-eq'mysql')"fixture failed: duplicate refs for one container ID duplicated its service"
   Assert-True($canonical.Networks.Count-eq1-and$canonical.Networks[0]-eq'fixture-network')"fixture failed: network ID and name were not canonicalized"
   $fixtureSlot=[pscustomobject]@{Project='fixture-project';MysqlVolume='fixture-mysql';RedisVolume='fixture-redis';Network='fixture-network'}
-  $cleanup=@();$incomplete=[pscustomobject]@{Containers=@($longId);ContainerServices=@("mysql");Volumes=@();Networks=@();Count=1};$rejected=$false
+  $cleanup=@();$incomplete=[pscustomobject]@{Containers=@($longId);ContainerServices=@("mysql");ContainerNames=@("fixture-project-mysql-1");Volumes=@();Networks=@();Count=1};$rejected=$false
   try{Register-CleanupInventory ([ref]$cleanup) $fixtureSlot $incomplete $true}catch{$rejected=$true}
   Assert-True($rejected-and$cleanup.Count-eq1)"fixture failed: incomplete verified inventory must be registered before complete-set rejection"
-  $cleanup=@();$unexpected=[pscustomobject]@{Containers=@($longId);ContainerServices=@("unexpected");Volumes=@();Networks=@();Count=1};$rejected=$false
+  $cleanup=@();$unexpected=[pscustomobject]@{Containers=@($longId);ContainerServices=@("unexpected");ContainerNames=@("fixture-project-mysql-1");Volumes=@();Networks=@();Count=1};$rejected=$false
   try{Register-CleanupInventory ([ref]$cleanup) $fixtureSlot $unexpected $false}catch{$rejected=$true}
   Assert-True($rejected-and$cleanup.Count-eq0)"fixture failed: unexpected inventory must never be registered for automatic cleanup"
   $duplicateServiceAssets=ConvertTo-CanonicalRunAssets @(
-    [pscustomobject]@{Id=('c'*64);Config=[pscustomobject]@{Labels=[pscustomobject]@{'com.docker.compose.service'='mysql'}}},
-    [pscustomobject]@{Id=('d'*64);Config=[pscustomobject]@{Labels=[pscustomobject]@{'com.docker.compose.service'='mysql'}}}
+    [pscustomobject]@{Id=('c'*64);Name='/fixture-project-mysql-1';Config=[pscustomobject]@{Labels=[pscustomobject]@{'com.docker.compose.service'='mysql'}}},
+    [pscustomobject]@{Id=('d'*64);Name='/fixture-project-mysql-2';Config=[pscustomobject]@{Labels=[pscustomobject]@{'com.docker.compose.service'='mysql'}}}
   ) @() @()
   $cleanup=@();$rejected=$false;try{Register-CleanupInventory ([ref]$cleanup) $fixtureSlot $duplicateServiceAssets $false}catch{$rejected=$true}
   Assert-True($rejected-and$cleanup.Count-eq0)"fixture failed: two container IDs for one service must be rejected without cleanup registration"

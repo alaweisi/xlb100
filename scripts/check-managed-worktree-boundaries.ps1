@@ -428,6 +428,13 @@ function Read-StrictRecord([string]$Ref, [string]$Label, [string[]]$AllowedPrefi
   return [pscustomobject]@{ Ref=$normalized; Record=$record; FullPath=(Join-Path $Root $normalized) }
 }
 
+function Assert-RecordImmutableSinceIntroduction($Entry,[string]$Label) {
+  $commits=@(Invoke-Git $Root @("log","--follow","--format=%H","--",$Entry.Ref))
+  if($commits.Count-eq0){Fail "$Label has no immutable Git introduction history"}
+  $introducedAt="$($commits[-1])".Trim();$introduced=Read-GitJson $introducedAt $Entry.Ref "$Label introduction"
+  if((ConvertTo-CanonicalJsonText $introduced)-cne(ConvertTo-CanonicalJsonText $Entry.Record)){Fail "$Label was rewritten after its immutable introduction; create a new authority record instead"}
+}
+
 function Assert-StrictRecordIdentity($Record, [string]$Label) {
   $null = Require-Text $Record "recordId" $Label
   $createdAt = Require-Text $Record "createdAt" $Label
@@ -738,14 +745,14 @@ function Assert-EnablementAuthorityChain($Registry, [string]$ExecutionSystemStat
       (ConvertTo-CanonicalJsonText (Get-ImmutableEnablementQueueSnapshot $enablementQueue))) {
     Fail "enablement status-switch Integration Queue differs from the audited candidate outside enablement mirror fields"
   }
-  foreach ($field in @($fields + @("transitionAuthorityRef"))) {
-    if ((Require-Text $Registry $field "Current enabled Train Registry") -cne (Require-Text $enablementRegistry $field "Enablement status-switch Train Registry")) {
+  $pinnedRegistryFields=@($fields+@("executionSystemStatus","enablementStatus","previousExecutionSystemStatus","previousEnablementStatus","statusChangedAt","transitionAuthorityRef","canonicalRoot","managedWorktreePool","maxConcurrentWriteWorkUnits","enablementConditions"))
+  foreach ($field in $pinnedRegistryFields) {
+    if ((ConvertTo-CanonicalJsonText (Get-OptionalValue $Registry $field)) -cne (ConvertTo-CanonicalJsonText (Get-OptionalValue $enablementRegistry $field))) {
       Fail "steady-state enabled Registry rewrote immutable enablement authority field $field"
     }
   }
-  if ((Require-Text $currentQueue "transitionAuthorityRef" "Current enabled Integration Queue") -cne
-      (Require-Text $enablementQueue "transitionAuthorityRef" "Enablement status-switch Integration Queue")) {
-    Fail "steady-state enabled Queue rewrote its immutable enablement transition authority"
+  foreach($field in @("executionSystemStatus","enablementStatus","previousEnablementStatus","statusChangedAt","transitionAuthorityRef","mode","ownerRole","rules")){
+    if((ConvertTo-CanonicalJsonText (Get-OptionalValue $currentQueue $field))-cne(ConvertTo-CanonicalJsonText (Get-OptionalValue $enablementQueue $field))){Fail "steady-state enabled Queue rewrote immutable enablement field $field"}
   }
   $governanceTrain = @($Trains | Where-Object { "$(Get-OptionalValue $_ 'trainId')" -eq "RT-GOV-VALIDATION-001" })
   if ($governanceTrain.Count -ne 1) { Fail "enablement authority requires the unique governance validation Train" }
@@ -970,6 +977,7 @@ function Assert-TrainContractAuthority($Train, $ActiveLeases) {
   }
   $paths = @(Get-ContractProtectedPaths $ActiveLeases)
   $entry = Read-StrictRecord $authorityRef "Release Train $trainId contract freeze authority" @("governance/execution/contracts")
+  Assert-RecordImmutableSinceIntroduction $entry "Release Train $trainId contract freeze authority"
   $record = $entry.Record
   Assert-RecordValue $record "recordType" "CONTRACT_FREEZE_AUTHORITY" "Release Train $trainId contract freeze authority"
   Assert-RecordValue $record "trainId" $trainId "Release Train $trainId contract freeze authority"
@@ -1707,7 +1715,7 @@ function Test-RepositoryGovernance {
     $createdAtText=Require-Text $reservation "createdAt" "$label $number";$reason=Require-Text $reservation "reason" "$label $number"
     [string[]]$reservationTimeFormats=@("yyyy-MM-dd'T'HH:mm:sszzz","yyyy-MM-dd'T'HH:mm:ss.FFFFFFFzzz","yyyy-MM-dd'T'HH:mm:ss'Z'","yyyy-MM-dd'T'HH:mm:ss.FFFFFFF'Z'")
     $createdAt=[DateTimeOffset]::MinValue;if(-not[DateTimeOffset]::TryParseExact($createdAtText,$reservationTimeFormats,[Globalization.CultureInfo]::InvariantCulture,[Globalization.DateTimeStyles]::AssumeUniversal,[ref]$createdAt)){Fail "reservation $number createdAt must be strict ISO-8601"}
-    $closedMember=$reservation.PSObject.Properties["closedAt"];$closedText=if($null-eq$closedMember-or$null-eq$closedMember.Value){""}else{"$($closedMember.Value)".Trim()}
+    $closedMember=$reservation.PSObject.Properties["closedAt"];if($null-eq$closedMember){Fail "reservation $number is missing required closedAt"};$closedText=if($null-eq$closedMember.Value){""}else{"$($closedMember.Value)".Trim()}
     if($status-in@("MERGED","ABANDONED")){$closedAt=[DateTimeOffset]::MinValue;if(-not[DateTimeOffset]::TryParseExact($closedText,$reservationTimeFormats,[Globalization.CultureInfo]::InvariantCulture,[Globalization.DateTimeStyles]::AssumeUniversal,[ref]$closedAt)-or$closedAt-lt$createdAt){Fail "terminal reservation $number requires closedAt >= createdAt"}}
     elseif(-not[string]::IsNullOrWhiteSpace($closedText)){Fail "active reservation $number must keep closedAt=null"}
     $isPermanentGap = $number -eq "024" -and $status -eq "ABANDONED" -and $filename -eq "NONE_PERMANENT_GAP_024"
