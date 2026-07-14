@@ -1,7 +1,7 @@
 # Contract — Review / Moderation / Reputation
 
 > Phase: 28
-> Status: **APPROVED FOR PHASE28 CONSTRUCTION — NOT PRODUCTION-ACTIVE**
+> Status: **LOCKED PHASE28 ENGINEERING CONTRACT — NOT PRODUCTION-ACTIVE**
 
 ## 1. Canonical source compatibility
 

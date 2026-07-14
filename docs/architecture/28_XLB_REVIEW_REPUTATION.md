@@ -1,6 +1,6 @@
 # Phase 28 Review / Reputation Architecture
 
-> Status: **APPROVED ENTRY BASELINE — CONSTRUCTION AUTHORIZED — NOT LOCKED**
+> Status: **LOCKED ENGINEERING BASELINE — NOT PRODUCTION-ACTIVE**
 > Human decision: the conservative fourteen-point entry package was approved on 2026-07-13. This document authorizes Phase28 engineering only; it does not authorize Phase29, push, staging/production deployment, Provider activation, or production data processing.
 
 ## 1. Factual baseline
@@ -123,6 +123,6 @@ Migration `056` is append-only and must:
 
 ## 10. Exit gates
 
-Phase28 is eligible for Lock only after contract/type/validator alignment, migration replay, ownership-before-idempotency proof, cross-city/role/owner zero-leak proof, strict event-v1/PII proof, delivery retry/reconciliation/claim-revalidation proof, contribution idempotency, generation isolation/cutover proof, A/W/Admin real-API evidence, protected-domain zero-write proof, full regression, build, typecheck, architecture preflight and independent review all pass.
+Phase28 Lock required contract/type/validator alignment, migration replay, ownership-before-idempotency proof, cross-city/role/owner zero-leak proof, strict event-v1/PII proof, delivery retry/reconciliation/claim-revalidation proof, contribution idempotency, generation isolation/cutover proof, A/W/Admin real-API evidence, protected-domain zero-write proof, full regression, build, typecheck, architecture preflight and independent review. All requirements passed before canonical tag `xlb-phase28-review-reputation` was created.
 
 No Phase29 code or migration may be included in the Phase28 Lock.

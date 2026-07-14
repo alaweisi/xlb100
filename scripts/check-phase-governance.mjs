@@ -40,12 +40,12 @@ if (!existsSync(registryPath)) {
   const ids = new Set();
   const tags = new Set(git(["tag", "-l", "xlb-phase*"]).split(/\r?\n/).filter(Boolean));
 
-  if (registry.nextFormalPhase !== "Phase 28") {
-    fail(`expected nextFormalPhase to be Phase 28 after Phase 27 Lock, got ${registry.nextFormalPhase}`);
+  if (registry.nextFormalPhase !== "Phase 29") {
+    fail(`expected nextFormalPhase to be Phase 29 after Phase 28 Lock, got ${registry.nextFormalPhase}`);
   }
 
-  if (registry.lastLockedPhase !== "Phase 27") {
-    fail(`expected lastLockedPhase to be Phase 27, got ${registry.lastLockedPhase}`);
+  if (registry.lastLockedPhase !== "Phase 28") {
+    fail(`expected lastLockedPhase to be Phase 28, got ${registry.lastLockedPhase}`);
   }
 
   if (!registry.rules?.doNotReuseMigration024) {
@@ -76,7 +76,7 @@ if (!existsSync(registryPath)) {
     }
   }
 
-  for (const required of ["Phase 9F", "Phase 12", "Phase 13", "Phase 14", "Phase 15", "Phase 16", "Phase 24F", "Phase 25", "Phase 27"]) {
+  for (const required of ["Phase 9F", "Phase 12", "Phase 13", "Phase 14", "Phase 15", "Phase 16", "Phase 24F", "Phase 25", "Phase 27", "Phase 28"]) {
     if (!ids.has(required)) {
       fail(`registry missing required historical entry ${required}`);
     }
@@ -102,8 +102,13 @@ if (!existsSync(registryPath)) {
     fail("Phase 27 must be LOCKED with its canonical Notification foundation tag");
   }
 
-  if (registry.migrationNumbering?.latestVerified !== "055") {
-    fail(`expected latestVerified migration 055 after Phase 27 Lock, got ${registry.migrationNumbering?.latestVerified}`);
+  const phase28 = phases.find(phase => phase.id === "Phase 28");
+  if (phase28?.status !== "LOCKED" || phase28?.tag !== "xlb-phase28-review-reputation") {
+    fail("Phase 28 must be LOCKED with its canonical Review/Reputation tag");
+  }
+
+  if (registry.migrationNumbering?.latestVerified !== "056") {
+    fail(`expected latestVerified migration 056 after Phase 28 Lock, got ${registry.migrationNumbering?.latestVerified}`);
   }
 }
 
@@ -125,6 +130,9 @@ if (existsSync(currentStatePath)) {
   if (!/Phase 27\s*\|\s*LOCKED\s*\|\s*xlb-phase27-notification-foundation/i.test(currentState)) {
     fail("CURRENT_STATE.md must record the locked Phase 27 canonical tag");
   }
+  if (!/Phase 28\s*\|\s*LOCKED\s*\|\s*xlb-phase28-review-reputation/i.test(currentState)) {
+    fail("CURRENT_STATE.md must record the locked Phase 28 canonical tag");
+  }
 }
 
 const closureTarget = git(["rev-list", "-n", "1", "xlb-phase24-customer-support-closure"]);
@@ -142,8 +150,15 @@ try {
   fail("Phase 27 Lock tag must be reachable from current main");
 }
 
+const phase28Target = git(["rev-list", "-n", "1", "xlb-phase28-review-reputation"]);
+try {
+  git(["merge-base", "--is-ancestor", phase28Target, mainHead]);
+} catch {
+  fail("Phase 28 Lock tag must be reachable from current main");
+}
+
 if (process.exitCode) {
   process.exit(process.exitCode);
 }
 
-process.stdout.write("[phase-governance] PASS Phase 27 Lock, Phase 25 history, registry, migration 024 gap, and Phase 24 closure tag verified\n");
+process.stdout.write("[phase-governance] PASS Phase 28 Lock, Phase 27 history, registry, migration 024 gap, and Phase 24 closure tag verified\n");

@@ -42,6 +42,7 @@
 | Phase 27 | LOCKED | xlb-phase27-notification-foundation | Platform Delivery and Customer/Worker in-app Notification foundation; production activation remains prohibited |
 | Phase 27A | INTEGRATED — LOCKED WITH PHASE27 | xlb-phase27-notification-foundation | Platform Delivery Foundation integrated under the Phase27 Lock |
 | Phase 27B | INTEGRATED — LOCKED WITH PHASE27 | xlb-phase27-notification-foundation | Notification projection, scoped API and Customer/Worker inbox integrated under the Phase27 Lock |
+| Phase 28 | LOCKED | xlb-phase28-review-reputation | Review moderation, appeal and Worker reputation foundation; production activation remains prohibited |
 
 ## Phase 25 — Five-System UI Standardization (LOCKED)
 
@@ -115,7 +116,7 @@
 - **Continuing hard prohibitions**: production activation/data, seed, historical backfill/replay, external channels or Providers, Admin/OA/Dashboard inbox, migration `056+`, push or production deployment. Phase27 Lock may occur only after G1–G6 evidence; it never waives Phase14.
 - **Lock truth**: Phase27 is LOCKED on local `main` after merge commit `9be272c`; canonical tag `xlb-phase27-notification-foundation` identifies the final Lock metadata commit. This is an engineering foundation Lock, not production readiness.
 - **Lock verification**: independent review P0/P1/P2/P3 all clear; migrations 054/055 replay gates, focused 13 files / 57 tests, real Customer/Worker browser 2/2, forced typecheck 17/17, forced build 11/11, post-merge full regression 192 files / 549 tests, complete preflight, aggregate Gate and diff hygiene pass. See `docs/reports/PHASE27_NOTIFICATION_FOUNDATION_LOCK_REPORT.md`.
-- **Phase boundary**: Phase 28 has not been entered or authorized.
+- **Phase boundary**: Phase 28 was subsequently entered by explicit human authorization, constructed and locked separately without moving the Phase27 tag.
 
 ## Phase 27A — Platform Delivery Foundation (HUMAN ACCEPTED — NOT LOCKED)
 
@@ -150,6 +151,20 @@
 - **Production boundary**: Phase14 remains `64/100`, `IN PROGRESS`, and staging/production `NO-GO`.
 - **Entry report**: `docs/reports/PHASE27B_NOTIFICATION_PROJECTION_ENTRY_REPORT.md`.
 - **Implementation evidence**: `docs/reports/PHASE27B_NOTIFICATION_PROJECTION_IMPLEMENTATION_REPORT.md`; S4 remediation and independent PASS are recorded there.
+
+## Phase 28 — Review / Reputation Foundation (LOCKED)
+
+- **Human authorization**: the user approved the conservative 14-item Entry Gate and continuous construction through independent acceptance, local merge and Lock.
+- **Branch/base**: `codex/phase28-review-reputation` from immutable Phase27 commit `853f78af17262ca11fc829202af93972940903a8`; feature commit `ab32430d5a3df1ca212977fff374a2fb78dea0c2`.
+- **Local main integration**: no-fast-forward merge commit `5a2bc18`; lazy historical Phase9 route-test timing stabilization commit `e0ef589` followed before Lock governance.
+- **Canonical tag**: `xlb-phase28-review-reputation`; the Phase27 tag remains immutable at `853f78af17262ca11fc829202af93972940903a8`.
+- **Scope**: immutable Customer Review creation; exact v1 Outbox delivery; audited/redacted Admin moderation; Customer/Worker appeals with withdrawal, CAS, idempotency and four-eyes resolution; visible-only Worker Reputation projection; signed scope-bound queue cursors; real Customer/Worker/Admin UI and API clients.
+- **Migration**: append-only `056_phase28_review_reputation.sql`; migrations `000`–`055` remain unchanged.
+- **Independent acceptance**: final read-only review returned PASS with P0/P1/P2/P3 all zero.
+- **Lock verification**: Phase28 aggregate Gate passed; focused unit/contract 9 files / 50 tests; security 2 files / 23 tests; real MySQL lifecycle 1 file / 4 tests; migration 056 five-path replay; Chromium E2E 1/1; typecheck 17/17; build 11/11; unit-contract 170 files / 925 passed plus 1 historical todo; db-serial 195 files / 576 tests; complete preflight and diff hygiene passed.
+- **Production truth**: Phase14 remains `64/100`, `IN PROGRESS`; staging/production remain `NO-GO`. No production subscriber activation, historical backfill/replay, scheduler, Provider, push or deployment is authorized.
+- **Phase boundary**: Phase29 has not been entered or authorized.
+- **Reports**: `docs/reports/PHASE28_REVIEW_REPUTATION_ACCEPTANCE_REPORT.md`; `docs/reports/PHASE28_REVIEW_REPUTATION_LOCK_REPORT.md`.
 
 ## Phase 24 Combined Completion Authorization
 

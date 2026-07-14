@@ -3,7 +3,7 @@
 Date: 2026-07-14
 Branch: `codex/phase28-review-reputation`
 Base: `853f78af17262ca11fc829202af93972940903a8` (`xlb-phase27-notification-foundation`)
-Status: **INDEPENDENTLY ACCEPTED — ELIGIBLE FOR LOCAL MERGE AND LOCK**
+Status: **INDEPENDENTLY ACCEPTED — MERGED AND LOCKED ON LOCAL MAIN**
 
 ## Accepted scope
 
@@ -58,7 +58,7 @@ After the evidence table was synchronized and rechecked, the final independent r
 | Phase28 real-MySQL integration | 1 file / 4 tests PASS; three additional consecutive focused runs PASS |
 | Migration 056 gate | existing, empty, 000–055 upgrade, true partial-DDL and double replay PASS |
 | Phase28 Chromium real-API E2E | 1/1 PASS |
-| Workspace full regression | 195 files / 576 tests PASS |
+| Workspace full regression | unit-contract 170 files / 925 passed plus 1 historical todo; db-serial 195 files / 576 tests PASS |
 | Workspace typecheck | 17/17 PASS |
 | Workspace build | 11/11 PASS |
 | `pnpm audit:critical` | PASS; no known vulnerabilities |
@@ -91,4 +91,4 @@ Phase14 remains `64/100`, `IN PROGRESS`; staging and production remain **NO-GO**
 
 ## Acceptance conclusion
 
-Phase28 construction, engineering verification and independent acceptance are complete. The candidate is eligible for merge to local `main`, post-merge verification and canonical Lock tag creation. Phase29 is not entered.
+Phase28 construction, engineering verification, independent acceptance, local `main` merge and canonical Lock are complete. Phase29 is not entered.

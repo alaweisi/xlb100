@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "sourceOfTruth": "docs/CURRENT_STATE.md plus immutable git tags and reports",
-  "lastLockedPhase": "Phase 27",
-  "nextFormalPhase": "Phase 28",
+  "lastLockedPhase": "Phase 28",
+  "nextFormalPhase": "Phase 29",
   "rules": {
     "doNotRenameHistoricalTags": true,
     "doNotBackfillMissingTags": true,
@@ -12,7 +12,7 @@
   },
   "migrationNumbering": {
     "reservedPermanentGaps": ["024"],
-    "latestVerified": "055"
+    "latestVerified": "056"
   },
   "phases": [
     {
@@ -351,7 +351,20 @@
         "Migrations 054/055, strict contracts, dormant prospective-only projection, scoped APIs and real Customer/Worker inbox pages are locked.",
         "No subscriber, subscription, template, activation, live-start, seed, historical backfill/replay, automatic scheduler or external Provider is authorized or present.",
         "Phase 14 remains 64/100, IN PROGRESS and staging/production NO-GO; Phase27 Lock is not production readiness.",
-        "Phase 28 has not been entered or authorized."
+        "Phase 28 was subsequently entered, constructed and locked separately without moving the Phase 27 tag."
+      ]
+    },
+    {
+      "id": "Phase 28",
+      "kind": "formal",
+      "status": "LOCKED",
+      "tag": "xlb-phase28-review-reputation",
+      "summary": "Review moderation, appeal and Worker reputation foundation.",
+      "notes": [
+        "Constructed from immutable Phase 27 commit 853f78af17262ca11fc829202af93972940903a8 and merged no-fast-forward to local main.",
+        "Migration 056 is the latest verified append-only migration; migrations 000-055 and all historical tags remain immutable.",
+        "Independent acceptance returned P0/P1/P2/P3 all zero; aggregate, MySQL, migration, browser, regression, typecheck, build and preflight gates passed.",
+        "Phase 14 remains 64/100 and staging/production NO-GO; no activation, backfill/replay, Provider, deployment, push or Phase 29 entry is authorized."
       ]
     }
   ]
