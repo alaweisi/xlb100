@@ -1616,7 +1616,9 @@ function Invoke-NegativeSelfTests {
     Copy-Item -LiteralPath (Join-Path $canonicalSource "scripts/check-managed-worktree-boundaries.ps1") -Destination (Join-Path $repositoryFixture "scripts/check-managed-worktree-boundaries.ps1") -Force
     Copy-Item -LiteralPath (Join-Path $canonicalSource "scripts/test-managed-worktree-isolation.ps1") -Destination (Join-Path $repositoryFixture "scripts/test-managed-worktree-isolation.ps1") -Force
     $null=& git -C $repositoryFixture add governance/execution scripts/check-managed-worktree-boundaries.ps1 scripts/test-managed-worktree-isolation.ps1
-    $null=& git -C $repositoryFixture commit -m "fixture governance candidate";if($LASTEXITCODE-ne0){throw"repository fixture baseline commit failed"}
+    $null=& git -C $repositoryFixture diff --cached --quiet
+    if($LASTEXITCODE-eq1){$null=& git -C $repositoryFixture commit -m "fixture governance candidate";if($LASTEXITCODE-ne0){throw"repository fixture baseline commit failed"}}
+    elseif($LASTEXITCODE-ne0){throw"repository fixture staged diff check failed"}
     $fixtureBaseline=(& git -C $repositoryFixture rev-parse HEAD).Trim()
     $fixtureRegistryPath=Join-Path $repositoryFixture "governance/execution/train-registry.json";$fixtureQueuePath=Join-Path $repositoryFixture "governance/execution/integration-queue.json"
 
