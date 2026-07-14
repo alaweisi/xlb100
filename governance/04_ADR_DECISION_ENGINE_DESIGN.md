@@ -111,7 +111,7 @@ Execution Permission
 | Database | 是否新增/改表、约束、索引、query scope、snapshot、audit data 或 protected-domain write？ | 单域 data 至少 L2；跨域/financial/sensitive 至少 L3；改 locked schema 直接 BLOCKED。 | G-03, G-12, G-13 |
 | API Contract | 是否改变 request/response、enum、error、action、version、API Client 或兼容性？ | 单域 additive 至少 L2；shared/breaking/cross-domain 至少 L3。当前 placeholder Contract Check 不得作为唯一证据。 | G-10, G-12, G-14 |
 | Workflow | 是否改变状态机、canonical writer、available action、idempotency、audit 或 side effect？ | 单域至少 L2；跨域/不可逆/protected writer 至少 L3。 | G-01, G-09, G-13 |
-| Payment | 是否改变 price/discount/amount snapshot、payment/refund、ledger/settlement/payout 或 money evidence？ | 任一非 `NONE` 至少 L3，并触发 Financial Review；外部执行/production 为 L4。 | G-08, G-12, G-13 |
+| Payment（资金流） | 是否改变价格/折扣/金额快照、支付/退款、账本/结算/出款或资金证据？ | 任一非 `NONE` 至少 L3，并触发 Financial Review；外部执行/production 为 L4。 | G-08, G-12, G-13 |
 | Security | 是否改变 auth、city/tenant/role/owner、PII、secrets、audit visibility、provider trust？ | 任一 contract/authority 影响至少 L3，并触发 Security Review。 | G-07, G-08, G-13 |
 | UI | 是否只是投影既有 backend truth，还是新增/启用 action、fake state、金额或权限假设？ | 纯呈现可 L1；新 action/contract 至少 L2；money/security/cross-domain 按触发器升 L3。 | G-01, G-10, G-12 |
 | Migration | 是否分配新号、写 SQL、seed、backfill、重放、修改历史 migration？ | 新单域 migration 至少 L2；跨域/financial 至少 L3；reservation ledger candidate 已安装但未启用，未获具体 reservation/Charter 时 BLOCKED；历史修改 BLOCKED。 | G-03, G-04, G-12 |
@@ -239,7 +239,7 @@ Human Owner 已通过 P-01～P-18 选择 managed Work Unit parallelism；UD-01/G
 | L0 | link/path、diff hygiene、事实来源核对 | 条件性：authority-bearing docs 需要只读复核 | 不适用；若涉及 migration 语义则升级 | 不适用 | 不适用 | Agent 自决；无需事先或事后告知 | G-05, G-08, G-12, G-15 |
 | L1 | focused unit/component、typecheck/build（按影响） | 条件性，只读 review | 不允许；出现 migration 升 L2 | 条件性 boundary check | 用户可见行为变化时需 browser evidence | Agent 可直接执行；报告列出变更摘要并事后告知 | G-01, G-07, G-08, G-11, G-12 |
 | L2 | unit + contract + integration + regression delta | 必需；按 P-08/P-16 执行独立只读 package audit，P0/P1/P2 必须关闭 | 若有 migration：fresh/upgrade/partial/double replay、marker、constraint | city/role/owner/forbidden boundary 按影响必需 | 用户 workflow/API 变化时必需真实 API/browser | 唯一 Human Owner 必须事先明确批准；同一人承担适用 review class，测试不得替代批准 | G-03, G-07, G-08, G-10, G-12 |
-| L3 | focused + full regression + contract/integration/concurrency | 必需，finding closure + re-review | 有 migration 时必须完整 replay/contradiction/zero-write evidence | 必需；money/security/privacy/protected-domain 覆盖 | workflow 变化必需端到端；Provider truth/zero external call | 唯一 Human Owner 必须事先明确批准；`Implemented → Verified` 必须同时具备完整 evidence | G-03, G-07, G-08, G-10, G-12, G-13 |
+| L3 | focused + full regression + contract/integration/concurrency | 必需，finding closure + re-review | 有 migration 时必须完整 replay/contradiction/zero-write evidence | 必需；money/security/privacy/protected-domain 覆盖 | workflow 变化必需端到端；服务商真实性与零外部调用证据 | 唯一 Human Owner 必须事先明确批准；`Implemented → Verified` 必须同时具备完整 evidence | G-03, G-07, G-08, G-10, G-12, G-13 |
 | L4 | cross-phase regression、compatibility、rollback/recovery 验证计划 | 必需；平台级独立审查 | schema plan、reservation、upgrade/replay/rollback/retention 证据；依赖未解不得执行 | 必需；identity/PII/provider/production threat evidence | platform operational/live-chain/rollback evidence；production 仍需单独授权 | 唯一 Human Owner 必须事先显式书面确认“同意上线”或“同意执行”等；沉默、默认或推断无效 | G-01, G-03, G-06, G-07, G-08, G-10, G-12, G-13, G-16 |
 
 ### 7.2 Evidence record 最低字段
