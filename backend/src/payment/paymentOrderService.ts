@@ -15,6 +15,10 @@ import { generateEventId, generatePaymentOrderId } from "../events/eventIds.js";
 import { orderRepository, OrderRepository } from "../order/orderRepository.js";
 import { assertOrderTransition } from "../order/orderStateMachine.js";
 import { OrderNotFoundError } from "../order/orderService.js";
+import {
+  paymentGatewayProvider,
+  type PaymentGatewayProvider,
+} from "../providers/payment/mockPaymentProvider.js";
 import { buildPaymentMetadata } from "./paymentMetadataBuilder.js";
 import { isPaymentAlreadyPaid } from "./paymentIdempotency.js";
 import { paymentOrderRepository, PaymentOrderRepository } from "./paymentOrderRepository.js";
@@ -42,6 +46,7 @@ export class PaymentOrderService {
     private readonly paymentRepo: PaymentOrderRepository = paymentOrderRepository,
     private readonly orderRepo: OrderRepository = orderRepository,
     private readonly outboxRepo: EventOutboxRepository = eventOutboxRepository,
+    private readonly provider: PaymentGatewayProvider = paymentGatewayProvider,
   ) {}
 
   async createPaymentOrder(
@@ -67,6 +72,12 @@ export class PaymentOrderService {
 
       const paymentOrderId = generatePaymentOrderId();
       const metadata = buildPaymentMetadata(order);
+      const providerEnvelope = await this.provider.prepare({
+        paymentOrderId,
+        orderId: order.orderId,
+        amount: order.totalAmount,
+        currency: "CNY",
+      });
 
       await withTransaction(async (connection) => {
         await this.paymentRepo.insertPaymentOrder(connection, {
@@ -75,7 +86,7 @@ export class PaymentOrderService {
           cityCode,
           amount: order.totalAmount,
           currency: order.currency,
-          provider: "mock",
+          provider: providerEnvelope.provider,
           metadata,
         });
       });
@@ -96,6 +107,11 @@ export class PaymentOrderService {
     if (!parsed.success) {
       throw new PaymentValidationError(parsed.error.message);
     }
+
+    await this.provider.verifyCallback({
+      paymentOrderId: parsed.data.paymentOrderId,
+      providerTradeNo: parsed.data.providerTradeNo,
+    });
 
     return executeCityScoped(context, async (cityCode) => {
       const paymentOrder = await this.paymentRepo.findById(

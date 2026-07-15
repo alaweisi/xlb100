@@ -1,5 +1,6 @@
 import type { RowDataPacket } from "mysql2/promise";
 import { getMysqlPool } from "../dal/mysqlPool.js";
+import { smsProvider } from "../providers/sms/mockSmsProvider.js";
 import { createToken, verifyToken } from "./tokenAuth.js";
 import {
   issueLoginOtp,
@@ -11,7 +12,22 @@ import { hashPhoneIdentity, validateMainlandPhone } from "./phoneIdentity.js";
 
 // Fixed-code login has been removed. Each login now uses a random,
 // one-time Redis OTP with TTL and attempt limits.
-// TODO: real SMS delivery remains investor-approval gated.
+// SMS delivery is intentionally routed to a truthful mock provider. Real SMS
+// remains blocked until legal entity, credentials and production activation.
+
+async function deliverMockLoginCode(
+  scope: "customer" | "admin" | "worker",
+  recipient: string,
+  code: string,
+  expiresAt: string,
+): Promise<void> {
+  await smsProvider.sendLoginOtp({
+    recipient,
+    code,
+    purpose: `${scope}_login`,
+    expiresAt,
+  });
+}
 
 async function findOrCreateCustomer(
   phone: string,
@@ -94,6 +110,7 @@ export async function requestCustomerLoginCode(
 
   const issued = await issueLoginOtp("customer", phone);
   if (!issued.ok) return issued;
+  await deliverMockLoginCode("customer", phone, issued.code, issued.expiresAt);
   return {
     ok: true,
     expiresAt: issued.expiresAt,
@@ -115,6 +132,7 @@ export async function requestAdminLoginCode(
 
   const issued = await issueLoginOtp("admin", username);
   if (!issued.ok) return issued;
+  await deliverMockLoginCode("admin", username, issued.code, issued.expiresAt);
   return {
     ok: true,
     expiresAt: issued.expiresAt,
@@ -139,6 +157,7 @@ export async function requestWorkerLoginCode(
 
   const issued = await issueLoginOtp("worker", phone);
   if (!issued.ok) return issued;
+  await deliverMockLoginCode("worker", phone, issued.code, issued.expiresAt);
   return {
     ok: true,
     expiresAt: issued.expiresAt,

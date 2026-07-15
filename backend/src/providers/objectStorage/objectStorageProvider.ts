@@ -1,7 +1,10 @@
 import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve, sep } from "node:path";
+import { loadProviderReadinessConfig } from "@xlb/config";
 import type { ObjectStorageProviderEnvelope, ObjectStorageProviderKind } from "@xlb/types";
+import type { ProviderFaultPlan } from "../providerSimulation.js";
+import { applyProviderFault } from "../providerSimulation.js";
 
 export interface PutObjectInput {
   objectKey: string;
@@ -31,7 +34,10 @@ function assertSafeObjectKey(objectKey: string): void {
 export class LocalObjectStorageProvider implements ObjectStorageProvider {
   readonly kind = "local" as const;
 
-  constructor(private readonly root = process.env.XLB_OBJECT_STORAGE_ROOT ?? join(tmpdir(), "xlb-object-storage")) {}
+  constructor(
+    private readonly root = process.env.XLB_OBJECT_STORAGE_ROOT ?? join(tmpdir(), "xlb-object-storage"),
+    private readonly faultPlan: ProviderFaultPlan = {},
+  ) {}
 
   private resolvePath(objectKey: string): string {
     assertSafeObjectKey(objectKey);
@@ -42,6 +48,7 @@ export class LocalObjectStorageProvider implements ObjectStorageProvider {
   }
 
   async putObject(input: PutObjectInput): Promise<ObjectStorageProviderEnvelope> {
+    await applyProviderFault("object_storage", this.faultPlan);
     const target = this.resolvePath(input.objectKey);
     await mkdir(dirname(target), { recursive: true });
     await writeFile(target, input.bytes, { flag: "wx" });
@@ -61,10 +68,12 @@ export class LocalObjectStorageProvider implements ObjectStorageProvider {
   }
 
   async getObject(objectKey: string, contentType: StoredObject["contentType"]): Promise<StoredObject> {
+    await applyProviderFault("object_storage", this.faultPlan);
     return { bytes: await readFile(this.resolvePath(objectKey)), contentType };
   }
 
   async deleteObject(objectKey: string): Promise<void> {
+    await applyProviderFault("object_storage", this.faultPlan);
     try { await unlink(this.resolvePath(objectKey)); } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
     }
@@ -75,7 +84,10 @@ export class MockObjectStorageProvider implements ObjectStorageProvider {
   readonly kind = "mock" as const;
   private readonly objects = new Map<string, StoredObject>();
 
+  constructor(private readonly faultPlan: ProviderFaultPlan = {}) {}
+
   async putObject(input: PutObjectInput): Promise<ObjectStorageProviderEnvelope> {
+    await applyProviderFault("object_storage", this.faultPlan);
     assertSafeObjectKey(input.objectKey);
     if (this.objects.has(input.objectKey)) throw new Error("mock object already exists");
     this.objects.set(input.objectKey, { bytes: Buffer.from(input.bytes), contentType: input.contentType });
@@ -95,6 +107,7 @@ export class MockObjectStorageProvider implements ObjectStorageProvider {
   }
 
   async getObject(objectKey: string, contentType: StoredObject["contentType"]): Promise<StoredObject> {
+    await applyProviderFault("object_storage", this.faultPlan);
     assertSafeObjectKey(objectKey);
     const stored = this.objects.get(objectKey);
     if (!stored) throw new Error("mock object not found");
@@ -103,13 +116,14 @@ export class MockObjectStorageProvider implements ObjectStorageProvider {
   }
 
   async deleteObject(objectKey: string): Promise<void> {
+    await applyProviderFault("object_storage", this.faultPlan);
     assertSafeObjectKey(objectKey);
     this.objects.delete(objectKey);
   }
 }
 
 export function createObjectStorageProvider(): ObjectStorageProvider {
-  const configured = process.env.XLB_OBJECT_STORAGE_PROVIDER ?? "local";
+  const configured = loadProviderReadinessConfig().objectStorageProvider;
   if (configured === "local") return new LocalObjectStorageProvider();
   if (configured === "mock") return new MockObjectStorageProvider();
   throw new Error(`Unsupported XLB_OBJECT_STORAGE_PROVIDER: ${configured}. Only local or mock is allowed.`);

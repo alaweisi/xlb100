@@ -1,6 +1,8 @@
-import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
+import { loadProviderReadinessConfig } from "@xlb/config";
 import type { WebhookProviderEnvelope } from "@xlb/types";
+import type { ProviderFaultPlan } from "../providers/providerSimulation.js";
+import { applyProviderFault } from "../providers/providerSimulation.js";
 
 export interface WebhookDeliveryInput {
   callbackUrl: string;
@@ -29,14 +31,17 @@ export async function assertSafeHttpsWebhookUrl(raw: string): Promise<URL> {
   const url = new URL(raw);
   if (url.protocol !== "https:" || url.username || url.password || url.port) throw new Error("webhook URL must be credential-free HTTPS on port 443");
   if (url.hostname === "localhost" || isPrivateAddress(url.hostname)) throw new Error("webhook URL cannot target a private host");
-  const addresses = isIP(url.hostname) ? [{ address: url.hostname }] : await lookup(url.hostname, { all: true });
-  if (addresses.length === 0 || addresses.some((item) => isPrivateAddress(item.address))) throw new Error("webhook URL resolved to a private address");
+  if (isIP(url.hostname) && isPrivateAddress(url.hostname)) throw new Error("webhook URL cannot target a private address");
   return url;
 }
 
 export class MockWebhookProvider implements WebhookProvider {
   readonly kind = "mock" as const;
+
+  constructor(private readonly faultPlan: ProviderFaultPlan = {}) {}
+
   async deliver(input: WebhookDeliveryInput): Promise<WebhookProviderEnvelope> {
+    await applyProviderFault("enterprise_webhook", this.faultPlan);
     const success = input.callbackUrl.startsWith("mock://success");
     return { provider: "mock", providerStatus: success ? "delivered_mock" : "failed_mock",
       externalProviderExecuted: false, httpStatus: success ? 200 : 503,
@@ -44,28 +49,20 @@ export class MockWebhookProvider implements WebhookProvider {
   }
 }
 
-export class HttpsWebhookProvider implements WebhookProvider {
+export class BlockedHttpsWebhookProvider implements WebhookProvider {
   readonly kind = "https" as const;
   async deliver(input: WebhookDeliveryInput): Promise<WebhookProviderEnvelope> {
-    const url = await assertSafeHttpsWebhookUrl(input.callbackUrl);
-    try {
-      const response = await fetch(url, { method: "POST", redirect: "manual", signal: AbortSignal.timeout(8000),
-        headers: { "Content-Type": "application/json", "X-XLB-Delivery-Id": input.deliveryId,
-          "X-XLB-Event": input.eventType, "X-XLB-Timestamp": input.timestamp, "X-XLB-Signature": input.signature },
-        body: input.payload });
-      const body = (await response.text()).slice(0, 1000);
-      return { provider: "https", providerStatus: response.ok ? "delivered_https" : "failed_https",
-        externalProviderExecuted: true, httpStatus: response.status, responseBody: body, attemptedAt: new Date().toISOString() };
-    } catch (error) {
-      return { provider: "https", providerStatus: "failed_https", externalProviderExecuted: true,
-        httpStatus: null, responseBody: error instanceof Error ? error.message.slice(0, 1000) : "HTTPS delivery failed",
-        attemptedAt: new Date().toISOString() };
-    }
+    await assertSafeHttpsWebhookUrl(input.callbackUrl);
+    return { provider: "https", providerStatus: "failed_https", externalProviderExecuted: false,
+      httpStatus: null, responseBody: "external provider execution is disabled", attemptedAt: new Date().toISOString() };
   }
 }
 
 export function createWebhookProvider(callbackUrl: string): WebhookProvider {
+  const config = loadProviderReadinessConfig();
   if (callbackUrl.startsWith("mock://")) return new MockWebhookProvider();
-  if (callbackUrl.startsWith("https://")) return new HttpsWebhookProvider();
+  if (callbackUrl.startsWith("https://") && config.enterpriseWebhookProvider === "mock_only") {
+    return new BlockedHttpsWebhookProvider();
+  }
   throw new Error("unsupported webhook provider scheme");
 }

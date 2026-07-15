@@ -113,6 +113,9 @@
     "gate:phase25:closure": "node scripts/check-phase25-closure.mjs && pnpm gate:phase25:gate1c && pnpm gate:phase25:gate1def && pnpm gate:phase25:readiness",
     "prepare": "git config core.hooksPath .githooks",
     "setup:git-hooks": "git config core.hooksPath .githooks",
+    "check:provider-readiness": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-provider-readiness.ps1",
+    "test:provider-readiness": "vitest run --workspace vitest.workspace.ts --project unit-contract tests/unit/providerReadinessConfig.test.ts tests/unit/providerSimulation.test.ts tests/unit/paymentProvider.test.ts tests/unit/smsProvider.test.ts tests/unit/objectStorageProvider.test.ts tests/unit/geoProvider.test.ts tests/unit/enterpriseWebhookProvider.test.ts",
+    "gate:provider-readiness": "pnpm check:provider-readiness && pnpm test:provider-readiness && pnpm --filter @xlb/config build && pnpm --filter @xlb/backend typecheck",
     "check:risk": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-lean-risk.ps1 -DiffMode WorkingTree",
     "check:migration-integrity": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-migration-integrity.ps1 -DiffMode WorkingTree",
     "preflight": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/preflight-architecture.ps1"

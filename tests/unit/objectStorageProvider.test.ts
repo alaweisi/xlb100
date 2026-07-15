@@ -26,4 +26,12 @@ describe("ObjectStorageProviderEnvelope", () => {
     const provider = new MockObjectStorageProvider();
     await expect(provider.putObject({ ...put, objectKey: "../escape.png" })).rejects.toThrow("unsafe object storage key");
   });
+
+  it("does not mutate mock storage when a provider timeout is injected", async () => {
+    const provider = new MockObjectStorageProvider({ transport: "timeout" });
+    await expect(provider.putObject(put)).rejects.toMatchObject({
+      code: "SIMULATED_TIMEOUT",
+      externalProviderExecuted: false,
+    });
+  });
 });

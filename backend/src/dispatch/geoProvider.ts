@@ -1,4 +1,7 @@
 import type { CityCode, GeoPoint, GeoProviderEnvelope } from "@xlb/types";
+import { loadProviderReadinessConfig } from "@xlb/config";
+import type { ProviderFaultPlan } from "../providers/providerSimulation.js";
+import { applyProviderFault } from "../providers/providerSimulation.js";
 
 const centers: Record<string, GeoPoint> = {
   hangzhou: { latitude: 30.2741, longitude: 120.1551 },
@@ -13,11 +16,16 @@ export interface GeoProvider {
 
 export class LocalMockGeoProvider implements GeoProvider {
   readonly kind = "local_mock" as const;
+
+  constructor(private readonly faultPlan: ProviderFaultPlan = {}) {}
+
   async geocode(cityCode: CityCode, _address: string): Promise<GeoPoint> {
+    await applyProviderFault("geo", this.faultPlan);
     const center = centers[cityCode] ?? { latitude: 30, longitude: 120 };
     return { ...center };
   }
   async route(origin: GeoPoint, destination: GeoPoint): Promise<GeoProviderEnvelope> {
+    await applyProviderFault("geo", this.faultPlan);
     const rad = (value: number) => value * Math.PI / 180;
     const dLat = rad(destination.latitude - origin.latitude);
     const dLng = rad(destination.longitude - origin.longitude);
@@ -28,4 +36,10 @@ export class LocalMockGeoProvider implements GeoProvider {
   }
 }
 
-export const geoProvider: GeoProvider = new LocalMockGeoProvider();
+export function createGeoProvider(): GeoProvider {
+  const config = loadProviderReadinessConfig();
+  if (config.geoProvider === "local_mock") return new LocalMockGeoProvider();
+  throw new Error("No authorized geo provider is configured");
+}
+
+export const geoProvider: GeoProvider = createGeoProvider();
