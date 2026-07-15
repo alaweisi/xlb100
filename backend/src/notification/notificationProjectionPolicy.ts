@@ -90,8 +90,20 @@ function parameterRecord(parameters: NotificationRenderParameters): Record<strin
   return { ticketId: parameters.ticketId };
 }
 
+function hasInvalidTemplateCharacter(value: string): boolean {
+  return Array.from(value).some((character) => {
+    const code = character.charCodeAt(0);
+    return character === "<"
+      || character === ">"
+      || code <= 0x08
+      || code === 0x0b
+      || code === 0x0c
+      || (code >= 0x0e && code <= 0x1f);
+  });
+}
+
 function assertPlainTemplate(value: string, maxLength: number): void {
-  if (value.length < 1 || value.length > maxLength || /[<>\u0000-\u0008\u000B\u000C\u000E-\u001F]/u.test(value)) {
+  if (value.length < 1 || value.length > maxLength || hasInvalidTemplateCharacter(value)) {
     throw new NotificationProjectionError("TEMPLATE_CONTENT_INVALID");
   }
 }

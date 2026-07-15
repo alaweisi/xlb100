@@ -3,9 +3,10 @@
 三端 App（Customer · Worker · Admin）+ 后端 + 共享包 Monorepo。
 
 **本地路径：** `G:\xlb100`  
-**当前阶段：** Phase 3 已封版 · Phase 3A 正式类目导入协议已建立
+**当前状态：** Phase 29 已锁定；Phase 14 生产就绪度仍在推进，staging/production 暂为 NO-GO。
+**事实源：** [`docs/CURRENT_STATE.md`](./docs/CURRENT_STATE.md)
 
-Phase 0–3 工程与 CityConfig/Catalog/Pricing 地基已完成。正式 16 大类导入见 `docs/catalog/`。
+当前仓库已经覆盖 Catalog/Pricing、Order、Payment、Dispatch、Fulfillment、Ledger、Settlement、Support、Notification、Review 与 Marketing 等模块。正式服务类目来源见 `docs/catalog/`。
 
 ## 要求
 
@@ -74,4 +75,5 @@ docker compose -f deploy/compose/docker-compose.local.yml ps
 ## 文档
 
 - [AGENTS.md](./AGENTS.md) — AI Agent 必读
+- [docs/CURRENT_STATE.md](./docs/CURRENT_STATE.md) — 当前 Phase、Lock 与生产边界事实源
 - [docs/architecture/](./docs/architecture/) — 架构约束

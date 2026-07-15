@@ -28,6 +28,13 @@ function normalizeMethod(method: string): string {
   return ALLOWED_METHODS.has(normalized) ? normalized : "OTHER";
 }
 
+function hasControlCharacter(value: string): boolean {
+  return Array.from(value).some((character) => {
+    const code = character.charCodeAt(0);
+    return code <= 0x1f || code === 0x7f;
+  });
+}
+
 function normalizeRouteTemplate(route: string | undefined): string {
   if (!route) return UNMATCHED_ROUTE;
   const normalized = route.trim();
@@ -37,7 +44,7 @@ function normalizeRouteTemplate(route: string | undefined): string {
     || !normalized.startsWith("/")
     || normalized.includes("?")
     || normalized.includes("#")
-    || /[\u0000-\u001f\u007f]/u.test(normalized)
+    || hasControlCharacter(normalized)
   ) return UNMATCHED_ROUTE;
 
   const segments = normalized.split("/");

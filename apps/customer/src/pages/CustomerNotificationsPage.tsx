@@ -58,7 +58,11 @@ export function CustomerNotificationsPage({ api }: { api: CustomerNotificationAp
       nextCursorRef.current = null;
       setNextCursor(null);
     }
-    reset ? setLoading(true) : setLoadingMore(true);
+    if (reset) {
+      setLoading(true);
+    } else {
+      setLoadingMore(true);
+    }
     setError(null);
     try {
       const result = await api.listNotifications({

@@ -29,7 +29,7 @@ export async function registerSupportQualityRoutes(app: FastifyInstance) {
             csat: await supportQualityService.submitCsat(
               getRequestContext(req),
               target === "tickets" ? "ticket" : "conversation",
-              (req.params as any).targetId,
+              (req.params as { targetId: string }).targetId,
               req.body,
             ),
           };

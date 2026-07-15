@@ -1,5 +1,186 @@
-import { randomUUID } from "node:crypto";import type{RequestContext}from"@xlb/types";import{withTransaction}from"../../dal/transaction.js";import{deterministicSupportNluProvider}from"../../providers/nlu/deterministicSupportNluProvider.js";import type{SupportNluProvider}from"../../providers/nlu/supportNluProvider.js";import{supportKnowledgeBaseRepository,type SupportKnowledgeBaseRepositoryPort}from"../knowledgeBase/supportKnowledgeBaseRepository.js";import{supportBotConversationGateway,type SupportBotConversationGateway}from"../conversation/supportBotConversationGateway.js";import{classifySensitiveSupport}from"./sensitiveSupportGuard.js";import{supportBotRepository,type SupportBotRepository}from"./supportBotRepository.js";
-export class SupportBotError extends Error{constructor(message:string,readonly statusCode=400){super(message)}}
-export class SupportBotService{constructor(private readonly runs:SupportBotRepository=supportBotRepository,private readonly kb:SupportKnowledgeBaseRepositoryPort=supportKnowledgeBaseRepository,private readonly conversation:SupportBotConversationGateway=supportBotConversationGateway,private readonly provider:SupportNluProvider=deterministicSupportNluProvider){}
- async run(context:RequestContext,conversationId:string,messageId:string){if(context.appType!=="admin"||!context.userId||!context.cityCode||context.cityCode==="__global__")throw new SupportBotError("real-city Admin identity required",403);return withTransaction(async c=>{const role=await this.runs.requireAdminScope(c,context.cityCode!,context.userId!);if(!role||!["admin","operator"].includes(role))throw new SupportBotError("current role cannot run Bot orchestration",403);const replay=await this.runs.findByTrigger(c,context.cityCode!,conversationId,messageId);if(replay)return replay;const trigger=await this.conversation.loadRequesterTrigger(c,context.cityCode!,conversationId,messageId);if(!trigger)throw new SupportBotError("requester trigger message not found",404);if(trigger.status!=="queueing")throw new SupportBotError("conversation is not eligible for Bot orchestration",409);const sensitive=classifySensitiveSupport({text:trigger.text,conversationStatus:trigger.status});const candidates=sensitive.mustHandOff?[]:await this.kb.listPublishedCandidates(c,context.cityCode!,null);const envelope=sensitive.mustHandOff?{provider:"deterministic" as const,providerName:"xlb-deterministic-nlu" as const,providerStatus:"no_match_local" as const,externalProviderExecuted:false as const,intent:null,confidenceBasisPoints:0,matchedArticleVersionIds:[],reasonCodes:["sensitive_guard_preempted_retrieval"],ruleVersion:sensitive.ruleVersion}:await this.provider.classifyAndRetrieve({cityCode:context.cityCode!,language:null,normalizedText:trigger.text,publishedCandidates:candidates});let decision:"reply"|"hand_off"="hand_off",responseMessageId:string|null=null,reasonCodes=[...sensitive.reasonCodes,...envelope.reasonCodes],classification=sensitive.classification;if(!sensitive.mustHandOff&&envelope.providerStatus==="matched_local"&&envelope.matchedArticleVersionIds.length===1){const match=candidates.find(v=>v.articleVersionId===envelope.matchedArticleVersionIds[0]);if(match){responseMessageId=await this.conversation.appendBotReply(c,{city:context.cityCode!,trigger,text:match.bodyMarkdown,metadata:{provider:envelope.provider,externalProviderExecuted:false,articleVersionId:match.articleVersionId,ruleVersion:envelope.ruleVersion}});if(!responseMessageId)throw new SupportBotError("conversation version conflict",409);decision="reply";}}if(decision==="hand_off"){if(!reasonCodes.length)reasonCodes=["no_confident_local_match"];responseMessageId=await this.conversation.handOff(c,{city:context.cityCode!,trigger,reasonCodes});if(!responseMessageId)throw new SupportBotError("conversation handoff conflict",409);}const runId=`sbr_${randomUUID().replaceAll("-","")}`,run={botRunId:runId,cityCode:context.cityCode!,conversationId,triggerMessageId:messageId,provider:envelope.provider,providerStatus:envelope.providerStatus,externalProviderExecuted:false as const,providerRuleVersion:envelope.ruleVersion,intent:envelope.intent,confidenceBasisPoints:envelope.confidenceBasisPoints,sensitiveClassification:classification,decision,reasonCodes,matchedArticleVersionIds:decision==="reply"?envelope.matchedArticleVersionIds:[],responseMessageId};await this.runs.insert(c,{...run,idempotencyKey:`bot-run:${messageId}`});if(decision==="hand_off")await this.runs.insertHandoffOutbox(c,{eventId:`evt_${randomUUID().replaceAll("-","")}`,city:context.cityCode!,conversationId,runId,reasonCodes});return(await this.runs.findByTrigger(c,context.cityCode!,conversationId,messageId))!;});}}
-export const supportBotService=new SupportBotService();
+import { randomUUID } from "node:crypto";
+import type { RequestContext } from "@xlb/types";
+import { withTransaction } from "../../dal/transaction.js";
+import { deterministicSupportNluProvider } from "../../providers/nlu/deterministicSupportNluProvider.js";
+import type { SupportNluProvider } from "../../providers/nlu/supportNluProvider.js";
+import {
+  supportKnowledgeBaseRepository,
+  type SupportKnowledgeBaseRepositoryPort,
+} from "../knowledgeBase/supportKnowledgeBaseRepository.js";
+import {
+  supportBotConversationGateway,
+  type SupportBotConversationGateway,
+} from "../conversation/supportBotConversationGateway.js";
+import { classifySensitiveSupport } from "./sensitiveSupportGuard.js";
+import {
+  supportBotRepository,
+  type SupportBotRepository,
+} from "./supportBotRepository.js";
+
+export class SupportBotError extends Error {
+  constructor(message: string, readonly statusCode = 400) {
+    super(message);
+  }
+}
+
+export class SupportBotService {
+  constructor(
+    private readonly runs: SupportBotRepository = supportBotRepository,
+    private readonly kb: SupportKnowledgeBaseRepositoryPort = supportKnowledgeBaseRepository,
+    private readonly conversation: SupportBotConversationGateway = supportBotConversationGateway,
+    private readonly provider: SupportNluProvider = deterministicSupportNluProvider,
+  ) {}
+
+  async run(context: RequestContext, conversationId: string, messageId: string) {
+    if (
+      context.appType !== "admin"
+      || !context.userId
+      || !context.cityCode
+      || context.cityCode === "__global__"
+    ) {
+      throw new SupportBotError("real-city Admin identity required", 403);
+    }
+
+    return withTransaction(async (connection) => {
+      const role = await this.runs.requireAdminScope(
+        connection,
+        context.cityCode!,
+        context.userId!,
+      );
+      if (!role || !["admin", "operator"].includes(role)) {
+        throw new SupportBotError("current role cannot run Bot orchestration", 403);
+      }
+
+      const replay = await this.runs.findByTrigger(
+        connection,
+        context.cityCode!,
+        conversationId,
+        messageId,
+      );
+      if (replay) return replay;
+
+      const trigger = await this.conversation.loadRequesterTrigger(
+        connection,
+        context.cityCode!,
+        conversationId,
+        messageId,
+      );
+      if (!trigger) throw new SupportBotError("requester trigger message not found", 404);
+      if (trigger.status !== "queueing") {
+        throw new SupportBotError("conversation is not eligible for Bot orchestration", 409);
+      }
+
+      const sensitive = classifySensitiveSupport({
+        text: trigger.text,
+        conversationStatus: trigger.status,
+      });
+      const candidates = sensitive.mustHandOff
+        ? []
+        : await this.kb.listPublishedCandidates(connection, context.cityCode!, null);
+      const envelope = sensitive.mustHandOff
+        ? {
+            provider: "deterministic" as const,
+            providerName: "xlb-deterministic-nlu" as const,
+            providerStatus: "no_match_local" as const,
+            externalProviderExecuted: false as const,
+            intent: null,
+            confidenceBasisPoints: 0,
+            matchedArticleVersionIds: [],
+            reasonCodes: ["sensitive_guard_preempted_retrieval"],
+            ruleVersion: sensitive.ruleVersion,
+          }
+        : await this.provider.classifyAndRetrieve({
+            cityCode: context.cityCode!,
+            language: null,
+            normalizedText: trigger.text,
+            publishedCandidates: candidates,
+          });
+
+      let decision: "reply" | "hand_off" = "hand_off";
+      let responseMessageId: string | null = null;
+      let reasonCodes = [...sensitive.reasonCodes, ...envelope.reasonCodes];
+      const classification = sensitive.classification;
+
+      if (
+        !sensitive.mustHandOff
+        && envelope.providerStatus === "matched_local"
+        && envelope.matchedArticleVersionIds.length === 1
+      ) {
+        const match = candidates.find(
+          (candidate) => candidate.articleVersionId === envelope.matchedArticleVersionIds[0],
+        );
+        if (match) {
+          responseMessageId = await this.conversation.appendBotReply(connection, {
+            city: context.cityCode!,
+            trigger,
+            text: match.bodyMarkdown,
+            metadata: {
+              provider: envelope.provider,
+              externalProviderExecuted: false,
+              articleVersionId: match.articleVersionId,
+              ruleVersion: envelope.ruleVersion,
+            },
+          });
+          if (!responseMessageId) {
+            throw new SupportBotError("conversation version conflict", 409);
+          }
+          decision = "reply";
+        }
+      }
+
+      if (decision === "hand_off") {
+        if (!reasonCodes.length) reasonCodes = ["no_confident_local_match"];
+        responseMessageId = await this.conversation.handOff(connection, {
+          city: context.cityCode!,
+          trigger,
+          reasonCodes,
+        });
+        if (!responseMessageId) {
+          throw new SupportBotError("conversation handoff conflict", 409);
+        }
+      }
+
+      const runId = `sbr_${randomUUID().replaceAll("-", "")}`;
+      const run = {
+        botRunId: runId,
+        cityCode: context.cityCode!,
+        conversationId,
+        triggerMessageId: messageId,
+        provider: envelope.provider,
+        providerStatus: envelope.providerStatus,
+        externalProviderExecuted: false as const,
+        providerRuleVersion: envelope.ruleVersion,
+        intent: envelope.intent,
+        confidenceBasisPoints: envelope.confidenceBasisPoints,
+        sensitiveClassification: classification,
+        decision,
+        reasonCodes,
+        matchedArticleVersionIds: decision === "reply"
+          ? envelope.matchedArticleVersionIds
+          : [],
+        responseMessageId,
+      };
+      await this.runs.insert(connection, {
+        ...run,
+        idempotencyKey: `bot-run:${messageId}`,
+      });
+      if (decision === "hand_off") {
+        await this.runs.insertHandoffOutbox(connection, {
+          eventId: `evt_${randomUUID().replaceAll("-", "")}`,
+          city: context.cityCode!,
+          conversationId,
+          runId,
+          reasonCodes,
+        });
+      }
+      return (await this.runs.findByTrigger(
+        connection,
+        context.cityCode!,
+        conversationId,
+        messageId,
+      ))!;
+    });
+  }
+}
+
+export const supportBotService = new SupportBotService();

@@ -108,7 +108,7 @@ export class EnterpriseService {
       for(const row of due){const payload=canonical(typeof row.payload_json==="string"?JSON.parse(row.payload_json):row.payload_json);const occurredAt=(JSON.parse(payload) as {occurredAt:string}).occurredAt;let envelope:WebhookProviderEnvelope;
         try{envelope=await createWebhookProvider(row.callback_url).deliver({callbackUrl:row.callback_url,deliveryId:row.delivery_id,eventType:row.event_type,payload,signature:row.signature,timestamp:occurredAt});}
         catch(error){envelope={provider:row.callback_url.startsWith("https://")?"https":"mock",providerStatus:row.callback_url.startsWith("https://")?"failed_https":"failed_mock",externalProviderExecuted:false,httpStatus:null,responseBody:error instanceof Error?error.message:"delivery failed",attemptedAt:new Date().toISOString()};}
-        const success=envelope.providerStatus==="delivered_mock"||envelope.providerStatus==="delivered_https";await enterpriseRepository.finishDelivery({cityCode,deliveryId:row.delivery_id,success,envelope,error:success?null:envelope.responseBody});success?delivered++:retry++;
+        const success=envelope.providerStatus==="delivered_mock"||envelope.providerStatus==="delivered_https";await enterpriseRepository.finishDelivery({cityCode,deliveryId:row.delivery_id,success,envelope,error:success?null:envelope.responseBody});if(success){delivered++;}else{retry++;}
       }
       return {candidates:candidates.length,attempted:due.length,delivered,retry};
     });
