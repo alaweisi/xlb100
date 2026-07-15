@@ -89,7 +89,6 @@
     "gate:phase24": "node scripts/run-phase24-completion-gates.mjs",
     "test:watch": "vitest --workspace vitest.workspace.ts",
     "lint": "turbo run lint",
-    "check:phase-governance": "node scripts/check-phase-governance.mjs",
     "gate:phase25:design": "node scripts/check-phase25-ui-design-gate.mjs",
     "test:phase25:gate1a": "vitest run --workspace vitest.workspace.ts --project unit-contract tests/unit/phase25ThemeTokens.test.ts tests/contract/phase25RuntimeTheme.contract.test.ts && vitest run --workspace vitest.workspace.ts --project db-serial tests/security/phase25Gate1aBoundaries.test.ts",
     "gate:phase25:gate1a": "node scripts/check-phase25-gate1a.mjs && pnpm test:phase25:gate1a",
@@ -101,12 +100,10 @@
     "gate:phase25:gate1def": "node scripts/check-phase25-gate1def.mjs && pnpm test:phase25:gate1def",
     "gate:phase25:readiness": "node scripts/check-phase25-readiness-gates.mjs",
     "gate:phase25:closure": "node scripts/check-phase25-closure.mjs && pnpm gate:phase25:gate1c && pnpm gate:phase25:gate1def && pnpm gate:phase25:readiness",
-    "prepare": "node scripts/install-git-hooks.mjs",
-    "setup:git-hooks": "node scripts/install-git-hooks.mjs",
+    "prepare": "git config core.hooksPath .githooks",
+    "setup:git-hooks": "git config core.hooksPath .githooks",
     "check:risk": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-lean-risk.ps1 -DiffMode WorkingTree",
     "check:migration-integrity": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-migration-integrity.ps1 -DiffMode WorkingTree",
-    "check:managed-worktree": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-managed-worktree-boundaries.ps1",
-    "test:managed-worktree": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-managed-worktree-boundaries.ps1 -Mode SelfTest",
     "preflight": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/preflight-architecture.ps1"
   },
   "devDependencies": {

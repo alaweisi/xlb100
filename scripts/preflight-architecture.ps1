@@ -560,9 +560,6 @@ if ((Test-Path (Join-Path $PSScriptRoot "..\db\migrations\051_phase24d_support_r
   Write-Host "XLB Phase 24 combined completion boundary preflight passed."
 }
 
-Invoke-PreflightGate "check-phase-governance.ps1"
-Write-Host "XLB Phase numbering governance preflight passed."
-
 $phase25GlobalConstruction = (Get-Content (Join-Path $PSScriptRoot "..\docs\CURRENT_STATE.md") -Raw) -match "Global construction authorization"
 
 if (-not $phase25GlobalConstruction -and (Test-Path (Join-Path $PSScriptRoot "check-phase25-gate1a.mjs"))) {

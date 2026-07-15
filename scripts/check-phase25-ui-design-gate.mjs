@@ -68,7 +68,6 @@ const changed = new Set([
 const allowedExact = new Set([
   "package.json",
   "scripts/preflight-architecture.ps1",
-  "scripts/check-phase-governance.mjs",
   "scripts/check-phase24-completion-boundaries.ps1",
   "scripts/check-phase25-ui-design-gate.mjs",
   "scripts/check-phase25-gate1a.mjs",

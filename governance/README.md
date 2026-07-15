@@ -7,7 +7,7 @@
 ## 1. 权威层级
 
 1. [`00_LEAN_EXECUTION_POLICY.md`](./00_LEAN_EXECUTION_POLICY.md) 与根目录 `AGENTS.md` 是当前最高执行规则。
-2. `01`、`04`、`06` 和 [`execution/`](./execution/) 降级为高风险工程、生产专项与历史参考。
+2. `01`、`04`、`06` 是历史设计；旧执行系统已经归档到 [`archive/`](./archive/)，不再生效或被调用。
 3. `02`、`03`、`05` 是事实调查与差距分析记录。
 
 旧规则与精简政策冲突时，以精简政策为准；只有真实高风险、外部或生产操作才停止并请求 Human。
@@ -30,12 +30,6 @@
 
 ## 4. 执行入口
 
-普通开发直接从相关源文件和测试开始，不使用治理台账。以下入口仅供高风险专项或历史追溯：
+普通开发直接从相关源文件和测试开始。高风险改动由 `scripts/check-lean-risk.ps1` 展示摘要并记录一次 Human 自然语言批准；migration 额外运行 `scripts/check-migration-integrity.ps1`。不再使用治理台账、Queue 或状态机。
 
-- [`execution/train-registry.json`](./execution/train-registry.json)
-- [`execution/integration-queue.json`](./execution/integration-queue.json)
-- [`execution/leases.json`](./execution/leases.json)
-- [`execution/migration-reservations.json`](./execution/migration-reservations.json)
-- [`execution/work-units/`](./execution/work-units/)
-
-`docs/governance/phase-registry.json` 与 `governance/execution/train-registry.json` 相互独立：前者只记录 Phase/Lock 事实，后者只记录 Train/Work Unit 施工状态。任何 package、queue 或 train 状态都不得冒充或自动更新 Phase `LOCKED`。
+旧 registry、Queue、Lease、Transition、Work Unit、managed-worktree Gate 与相关 Agent Skills 统一保存在 [`archive/execution-system/`](./archive/execution-system/)；归档内容不产生权限、不参与 hook/CI，也不作为当前施工入口。

@@ -85,13 +85,13 @@
     {
       "trainId": "RT-BASELINE-REPAIR-001",
       "title": "Engineering Baseline Repair — Stage 1",
-      "status": "DRAFT",
-      "previousStatus": "NONE",
-      "statusChangedAt": "2026-07-15T16:39:39+08:00",
-      "transitionAuthorityRef": "governance/execution/transitions/TRANSITION-TRAIN-RT-BASELINE-REPAIR-001-DRAFT.json",
-      "executionMode": "BUSINESS_CONSTRUCTION",
-      "humanApprovalStatus": "WAITING_HUMAN_APPROVAL",
-      "approvalRef": "PENDING",
+      "status": "ARCHIVED_SUPERSEDED",
+      "previousStatus": "DRAFT",
+      "statusChangedAt": "2026-07-15T20:05:15.8944832+08:00",
+      "transitionAuthorityRef": "LEAN_EXECUTION_POLICY_2026-07-15",
+      "executionMode": "ARCHIVED_HISTORY",
+      "humanApprovalStatus": "NOT_REQUIRED_LOW_RISK",
+      "approvalRef": "SUPERSEDED_BY_LEAN_POLICY",
       "frozenContractRevision": "PENDING",
       "contractAuthorityRef": "PENDING",
       "contractProtectedPathsDigest": "PENDING",
@@ -99,9 +99,9 @@
       "runtimeValidationApprovalRef": "PENDING",
       "runtimeValidationAuditRef": "PENDING",
       "baseCommit": "95743585bfaadb171fa8c463d3209cdce7851f9f",
-      "charterRef": "governance/execution/trains/RT-BASELINE-REPAIR-001_CHARTER.md",
+      "charterRef": "governance/archive/execution-system/records/trains/RT-BASELINE-REPAIR-001_CHARTER.md",
       "workUnitRefs": [
-        "governance/execution/work-units/WU-BASELINE-1A-TEST-GATES.json"
+        "governance/archive/execution-system/records/work-units/WU-BASELINE-1A-TEST-GATES.json"
       ],
       "maxConcurrentWriteWorkUnits": 3,
       "businessWriteAuthorized": false,

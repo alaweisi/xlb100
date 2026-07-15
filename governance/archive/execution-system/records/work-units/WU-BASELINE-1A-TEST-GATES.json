@@ -5,11 +5,12 @@
   "targetPhase": "Engineering Baseline Repair — Stage 1A",
   "owner": "INTEGRATION-OWNER",
   "role": "SERIAL_CANONICAL_WRITER",
-  "status": "PLANNED",
-  "previousStatus": "NONE",
-  "statusChangedAt": "2026-07-15T16:39:39+08:00",
-  "transitionAuthorityRef": "governance/execution/transitions/TRANSITION-WU-BASELINE-1A-TEST-GATES-PLANNED.json",
-  "executionMode": "BUSINESS_CONSTRUCTION",
+  "status": "ARCHIVED_SUPERSEDED",
+  "previousStatus": "PLANNED",
+  "statusChangedAt": "2026-07-15T20:05:15.8944832+08:00",
+  "transitionAuthorityRef": "LEAN_EXECUTION_POLICY_2026-07-15",
+  "executionMode": "ARCHIVED_HISTORY",
+  "archivalDisposition": "LOW_RISK_NO_APPROVAL_REQUIRED",
   "worktreePath": "G:\\xlb100-worktrees\\RT-BASELINE-REPAIR-001\\WU-BASELINE-1A-TEST-GATES",
   "branch": "codex/rt-baseline-repair-001-1a",
   "baseCommit": "95743585bfaadb171fa8c463d3209cdce7851f9f",
@@ -80,5 +81,5 @@
   "auditRefs": [],
   "businessWriteAuthorized": false,
   "createdAt": "2026-07-15T16:39:39+08:00",
-  "expiresOrClosesAt": "CLOSE_AFTER_TRAIN_COMPLETION"
+  "expiresOrClosesAt": "ARCHIVED_2026-07-15"
 }

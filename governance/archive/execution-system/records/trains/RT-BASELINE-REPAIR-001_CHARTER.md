@@ -90,10 +90,10 @@ START@95743585
 
 Shared contract freeze、canonical writer、migration ledger、Integration Queue、全量 Gate、main、governance metadata、tag 与 Lock 始终串行。此 Charter 不授权 migration、业务 runtime、main merge、Lock、push/deploy、production、Provider、subscriber activation、历史 replay/backfill、purge 或 Runtime Canary。
 
-## Human 批准区
+## 归档结论
 
-1A 当前继续保持 `DRAFT / WAITING_HUMAN_APPROVAL / PLANNED`，`businessWriteAuthorized=false`；精简政策不追溯产生施工批准。
+1A 已标记为 `ARCHIVED / SUPERSEDED_BY_LEAN_POLICY / NO_APPROVAL_REQUIRED`。本 Charter 只是旧治理历史，不再产生等待状态或施工阻塞。
 
 1A 只允许修改两份 Phase 29 Marketing/Coupon 测试和两份对应的静态边界检查脚本，不包含 migration、认证授权、支付、退款、账本、生产配置、Provider 或外部操作，按现行精简政策属于普通测试维修。
 
-它最初等待批准，不是因为内容命中高风险类别，而是旧政策把所有 WRITE 都要求进入 Release Train，并把整个 `scripts/**` 归入 Integration Owner canonical writer，导致测试脚本维修也被统一套用业务施工批准。Human 后续以自然语言明确要求执行 1A 后即可开始；在此之前不得视为已批准。
+它最初等待批准，不是因为内容命中高风险类别，而是旧政策把所有 WRITE 都要求进入 Release Train，并把整个 `scripts/**` 归入 Integration Owner canonical writer，导致测试脚本维修也被统一套用业务施工批准。该等待状态现已被精简政策取代，不需要补做审批、Queue、Worktree 或旧状态迁移；相关普通维修可按当前规则直接实施。

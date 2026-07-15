@@ -37,12 +37,13 @@
 - 并行写入必须使用不同分支/worktree，不共享 mutable branch。
 - 只有实际使用数据库或 Redis 的单元才需要独立实例/端口；纯代码、文档、单元测试和静态脚本不需要。
 
-## Integration Queue
+## 高风险确认与本地集成
 
-- 普通单元任务不需要 Integration Queue，可在相关测试通过后完成本地集成。
-- 高风险工程以及 Phase 最终候选必须进入 Integration Queue，由 Integration Owner 串行处理后才能正式合入本地 `main`。
-- “候选代码已在工作分支提交”“进入 Integration Queue”“由队列正式合入本地 main”是三个不同阶段，不得把工作分支提交或直接本地 merge 宣称为正式 Phase 完成。
-- Queue 只负责本地正式集成，不产生 push、deploy、production、Provider 或公开发布权限。
+- 高风险路径由 `scripts/check-lean-risk.ps1` 在 commit 前客观识别，并输出敏感类别和文件摘要。
+- Human 用“同意”“继续”“按推荐执行”等自然语言确认一次即可；Agent 将该回复记录为本次施工批次的一行本地日志。
+- 一次确认覆盖已展示路径在同一施工批次内的后续 commit 和本地集成；新增敏感路径时才需要再次展示并确认。
+- 高风险任务不经过 Integration Queue、Release Train、Work Unit、Manifest、Lease 或状态机。测试通过后可直接完成本地提交和本地 `main` 集成。
+- 本地提交或本地集成不产生 push、deploy、production、真实 Provider 或公开发布权限。
 
 ## 测试与审查
 
@@ -64,7 +65,7 @@
 
 - 开始写入前只需确认当前分支、工作区状态和相关文件。
 - 只有 Phase/Lock/发布任务才必须读取 `docs/CURRENT_STATE.md`。
-- 只有高风险并行施工、migration、生产或 Lock 才使用旧的 managed-worktree/ledger/审计机制。
+- 旧 managed-worktree、registry、lease、transition 和 Integration Queue 已归档且不生效；真正并行写入只使用普通 Git 分支/worktree 隔离。
 - Skill 按任务需要使用，不再机械执行完整 Skill 链。
 - 当前代码、Git commit 和测试结果优先于旧报告；冲突只在会导致真实风险时阻塞。
 
