@@ -27,6 +27,11 @@ services:
       xlb.manifest-digest: ${XLB_MANIFEST_DIGEST:?XLB_MANIFEST_DIGEST is required}
       xlb.base-commit: ${XLB_BASE_COMMIT:?XLB_BASE_COMMIT is required}
       xlb.run-nonce: ${XLB_RUN_NONCE:?XLB_RUN_NONCE is required}
+      xlb.runtime-candidate-commit: ${XLB_RUNTIME_CANDIDATE_COMMIT:?XLB_RUNTIME_CANDIDATE_COMMIT is required}
+      xlb.runtime-head-commit: ${XLB_RUNTIME_HEAD_COMMIT:?XLB_RUNTIME_HEAD_COMMIT is required}
+      xlb.runtime-input-digest: ${XLB_RUNTIME_INPUT_DIGEST:?XLB_RUNTIME_INPUT_DIGEST is required}
+      xlb.docker-engine-id: ${XLB_DOCKER_ENGINE_ID:?XLB_DOCKER_ENGINE_ID is required}
+      xlb.docker-binding-digest: ${XLB_DOCKER_BINDING_DIGEST:?XLB_DOCKER_BINDING_DIGEST is required}
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u$${MYSQL_USER} -p$${MYSQL_PASSWORD}"]
       interval: 5s
@@ -53,6 +58,11 @@ services:
       xlb.manifest-digest: ${XLB_MANIFEST_DIGEST:?XLB_MANIFEST_DIGEST is required}
       xlb.base-commit: ${XLB_BASE_COMMIT:?XLB_BASE_COMMIT is required}
       xlb.run-nonce: ${XLB_RUN_NONCE:?XLB_RUN_NONCE is required}
+      xlb.runtime-candidate-commit: ${XLB_RUNTIME_CANDIDATE_COMMIT:?XLB_RUNTIME_CANDIDATE_COMMIT is required}
+      xlb.runtime-head-commit: ${XLB_RUNTIME_HEAD_COMMIT:?XLB_RUNTIME_HEAD_COMMIT is required}
+      xlb.runtime-input-digest: ${XLB_RUNTIME_INPUT_DIGEST:?XLB_RUNTIME_INPUT_DIGEST is required}
+      xlb.docker-engine-id: ${XLB_DOCKER_ENGINE_ID:?XLB_DOCKER_ENGINE_ID is required}
+      xlb.docker-binding-digest: ${XLB_DOCKER_BINDING_DIGEST:?XLB_DOCKER_BINDING_DIGEST is required}
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -69,6 +79,11 @@ volumes:
       xlb.manifest-digest: ${XLB_MANIFEST_DIGEST:?XLB_MANIFEST_DIGEST is required}
       xlb.base-commit: ${XLB_BASE_COMMIT:?XLB_BASE_COMMIT is required}
       xlb.run-nonce: ${XLB_RUN_NONCE:?XLB_RUN_NONCE is required}
+      xlb.runtime-candidate-commit: ${XLB_RUNTIME_CANDIDATE_COMMIT:?XLB_RUNTIME_CANDIDATE_COMMIT is required}
+      xlb.runtime-head-commit: ${XLB_RUNTIME_HEAD_COMMIT:?XLB_RUNTIME_HEAD_COMMIT is required}
+      xlb.runtime-input-digest: ${XLB_RUNTIME_INPUT_DIGEST:?XLB_RUNTIME_INPUT_DIGEST is required}
+      xlb.docker-engine-id: ${XLB_DOCKER_ENGINE_ID:?XLB_DOCKER_ENGINE_ID is required}
+      xlb.docker-binding-digest: ${XLB_DOCKER_BINDING_DIGEST:?XLB_DOCKER_BINDING_DIGEST is required}
   redis-data:
     labels:
       xlb.managed-worktree: "true"
@@ -78,6 +93,11 @@ volumes:
       xlb.manifest-digest: ${XLB_MANIFEST_DIGEST:?XLB_MANIFEST_DIGEST is required}
       xlb.base-commit: ${XLB_BASE_COMMIT:?XLB_BASE_COMMIT is required}
       xlb.run-nonce: ${XLB_RUN_NONCE:?XLB_RUN_NONCE is required}
+      xlb.runtime-candidate-commit: ${XLB_RUNTIME_CANDIDATE_COMMIT:?XLB_RUNTIME_CANDIDATE_COMMIT is required}
+      xlb.runtime-head-commit: ${XLB_RUNTIME_HEAD_COMMIT:?XLB_RUNTIME_HEAD_COMMIT is required}
+      xlb.runtime-input-digest: ${XLB_RUNTIME_INPUT_DIGEST:?XLB_RUNTIME_INPUT_DIGEST is required}
+      xlb.docker-engine-id: ${XLB_DOCKER_ENGINE_ID:?XLB_DOCKER_ENGINE_ID is required}
+      xlb.docker-binding-digest: ${XLB_DOCKER_BINDING_DIGEST:?XLB_DOCKER_BINDING_DIGEST is required}
 
 networks:
   worktree:
@@ -90,3 +110,8 @@ networks:
       xlb.manifest-digest: ${XLB_MANIFEST_DIGEST:?XLB_MANIFEST_DIGEST is required}
       xlb.base-commit: ${XLB_BASE_COMMIT:?XLB_BASE_COMMIT is required}
       xlb.run-nonce: ${XLB_RUN_NONCE:?XLB_RUN_NONCE is required}
+      xlb.runtime-candidate-commit: ${XLB_RUNTIME_CANDIDATE_COMMIT:?XLB_RUNTIME_CANDIDATE_COMMIT is required}
+      xlb.runtime-head-commit: ${XLB_RUNTIME_HEAD_COMMIT:?XLB_RUNTIME_HEAD_COMMIT is required}
+      xlb.runtime-input-digest: ${XLB_RUNTIME_INPUT_DIGEST:?XLB_RUNTIME_INPUT_DIGEST is required}
+      xlb.docker-engine-id: ${XLB_DOCKER_ENGINE_ID:?XLB_DOCKER_ENGINE_ID is required}
+      xlb.docker-binding-digest: ${XLB_DOCKER_BINDING_DIGEST:?XLB_DOCKER_BINDING_DIGEST is required}

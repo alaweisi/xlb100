@@ -6,7 +6,7 @@
 
 1. 本次治理植入形成 clean、immutable candidate commit；
 2. 独立只读 Audit Agent 对完整 candidate 与验证证据审查通过；
-3. Human Owner 阅读审计结论后明确确认“启用治理执行系统”。
+3. Human Owner 阅读审计结论后明确确认“同意启用治理执行系统”。
 
 在此之前，manifest、lease、reservation 或 queue 文件的存在只表示 BOOTSTRAP 配置，不产生 worktree 创建、业务写、排队、merge 或 Lock 权限。
 
@@ -62,12 +62,33 @@ Gate 还会把 `previousStatus`、`statusChangedAt` 与 `transitionAuthorityRef`
 - Business Work Unit 从 `CONTRACT_FROZEN` 起必须与 Train 的 `frozenContractRevision`、strict `CONTRACT_FREEZE_AUTHORITY` record 和 canonical contract protected-path digest 完全一致。冻结 revision 之后任何 protected contract path material change 都使施工、package、evidence 与 queue 状态自动 `STALE`；一致地自报旧 revision 不能替代 current contract authority。
 - `STALE` Work Unit 必须保留触发 stale 时最后一个冻结 authority 的 `contractRevision`，不得改填任意 commit；`CLOSED` Work Unit 必须继续保留并复核其 candidate、package evidence 与 independent audit closure，终态不能成为删除证据的旁路。
 - 没有有效 migration reservation 不得创建 migration 文件；编号一旦预约即不复用，`ABANDONED` 形成永久空洞；历史保留号 `024` 永久不可用。
-- Reservation Ledger 使用 schema v2：除显式 bootstrap 的永久空洞 `024` 外，每个编号在 Git 历史中的首次状态必须为 `RESERVED`。Gate 按编号、merge-aware 地扫描 HEAD 可达历史中的所有 migration SQL introduction（包括已删除的旧文件名、合并分支与仅在 merge resolution 出现的文件），并要求唯一 reservation introduction 是每个同编号 SQL introduction 的严格祖先；同一提交、SQL 先出现或兄弟分支并发产生均拒绝。`024` 只豁免首次台账状态，不豁免 SQL 历史：任何可达 `024_*.sql` introduction 均违反永久空洞。不得把 reservation 与 SQL 同一提交后直接标成 `MATERIALIZED` 或 `MERGED`。每条记录必须有严格 ISO-8601 `createdAt`、生命周期 `reason`；`RESERVED/MATERIALIZED` 的 `closedAt` 必须为 `null`，`MERGED/ABANDONED` 必须有不早于 `createdAt` 的 `closedAt`。Package/Audit/Queue 阶段接受 `RESERVED/MATERIALIZED`，进入 `INTEGRATED/CLOSED` 的 migration Work Unit 必须已为 `MERGED`。历史 024 的时间只表示本台账登记时间，不声称是原始空洞形成时间。
+- Reservation Ledger 使用 schema v2：除显式 bootstrap 的永久空洞 `024` 外，每个编号在 Git 历史中的首次状态必须为 `RESERVED`。Gate 按 parent→child DAG 边要求每个 reservation 恰有一次 introduction，记录一旦出现不得删除后重加，也不得在兄弟分支重复引入。Gate 同时按编号、merge-aware 地扫描 HEAD 可达历史中的所有 migration SQL introduction（包括已删除的旧文件名、合并分支与仅在 merge resolution 出现的文件）；每个 `058+` SQL 历史都必须反向解析到永久 ledger 记录、路径必须等于其 immutable `expectedFilename`，且唯一 reservation introduction 必须是每个同编号 SQL introduction 的严格祖先。同一提交、SQL 先出现、历史孤儿 SQL 或兄弟分支并发产生均拒绝。状态为 `MERGED` 的 `058+` migration 还要求该 canonical SQL path 在 HEAD 全部可达 DAG 中的每个非空 blob 都与 HEAD blob 恒等；普通改写、改写后恢复和 sibling merge-resolution 隐藏均拒绝。`024` 只豁免首次台账状态，不豁免 SQL 历史：任何可达 `024_*.sql` introduction 均违反永久空洞。不得把 reservation 与 SQL 同一提交后直接标成 `MATERIALIZED` 或 `MERGED`。每条记录必须有严格 ISO-8601 `createdAt`、生命周期 `reason`；`RESERVED/MATERIALIZED` 的 `closedAt` 必须为 `null`，`MERGED/ABANDONED` 必须有不早于 `createdAt` 的 `closedAt`。Package/Audit/Queue 阶段接受 `RESERVED/MATERIALIZED`，进入 `INTEGRATED/CLOSED` 的 migration Work Unit 必须已为 `MERGED`。历史 024 的时间只表示本台账登记时间，不声称是原始空洞形成时间。
 
 ## Integration Queue
 
-队列是人工串行队列。当前为 `NOT_ENABLED`。启用后，队列也只接受 clean、immutable candidate commit；入队前必须验证 worktree clean、candidate commit 固定且可解析、manifest、lease、contract revision、migration reservation、package evidence 与 package audit。存在未提交或 untracked candidate 内容时不得入队。冲突、越 lease、STALE 或 material change 必须退回原 Work Unit，Integration Owner 不得顺手修改业务语义。
+队列是人工串行队列。当前为 `NOT_ENABLED`。启用后，队列也只接受 clean、immutable candidate commit；入队前必须验证 worktree clean、candidate commit 固定且可解析、manifest、lease、contract revision、migration reservation、package evidence 与 package audit。Audit record 的 `evidenceBindings` 必须与 Queue item / Manifest 的完整 `{ref, sha256, blobOid}` 集合等价，并逐项绑定 Queue introduction commit 中已经存在的 record blob 与 canonical digest；只复核 ref 或另算工作区文件 hash 不构成审计闭包。存在未提交或 untracked candidate 内容时不得入队。冲突、越 lease、STALE 或 material change 必须退回原 Work Unit，Integration Owner 不得顺手修改业务语义。
 
 Enablement authority records 必须先进入 audited candidate 的直接子提交 `authorityEnvelopeCommit`，该 envelope 只允许新增声明的 approval/audit/Human/transition records；随后仅允许一个 registry/queue 状态切换提交。Gate 从 envelope commit 重新读取完整 record、比较 canonical digest 与 blob 内容，任何事后改写均 fail closed。Package evidence/audit 同时以 canonical record digest 与 HEAD blob identity 绑定，并由 queue 逐项复核。
 
 当前队列为空；Phase 30/31 Charter 获得独立 Human 明确批准前，不得加入业务 candidate。
+
+## Activation epoch（C / E / S）
+
+治理执行系统启用采用一次性的信任根，而不是对历史提交的白名单豁免：
+
+- `C`（`auditedCandidateCommit`）必须是 `HEAD` 的 40-hex 祖先，并以 commit-scoped snapshot 严格验证为 `BOOTSTRAP/NOT_ENABLED`。Registry、Queue、Train、Work Unit、lease、reservation 和 authority/evidence anchors 必须符合未启用闭包；active lease 只允许由 `PLANNED + VALIDATION_ONLY` Work Unit manifest 精确引用的 WORKTREE_PATH、零写 SOURCE_PATH、ENVIRONMENT、六类 PORT 与每项 `semanticOwnership` 唯一对应的 SEMANTIC lease，以及固定且唯一的五条 `SYSTEM-SERIAL-LANES / CANONICAL_WRITER`；type、key、identity、resources、ports 与 protected paths 任一不等或存在额外/孤儿 lease 都拒绝。C 的 tree/digest 必须绑定审计、批准与 Human 记录。
+- C 之后的全部可达 DAG 必须是 `rev-list --ancestry-path C..HEAD` 的同一集合；合入早于 C 的旧 sibling、旁支 merge 或恢复型改写均拒绝。C 后首条边起，状态、closure、transition authority、删除/重加和 append-only 规则照常严格执行，绝不比较或豁免 C 的父历史。
+- `E` 必须是 C 的单父直接子，且只引入已承诺的 authority envelope records；`S` 必须是 E 的单父直接子，仅完成 registry/queue 状态切换。启用后 steady-state 不再要求 HEAD 与 E 只有一个提交距离，但永久复核 E/C anchors、record identity 与 digest。
+- 从未合法启用的 Bootstrap 历史不得直接变为 `DISABLED`；合法停用必须保留全部 ENABLED anchors。activation 后的旧分支必须先 rebase 到当前 epoch，不能绕过 C。
+
+## Runtime validation boundary
+
+当前 `executionSystemStatus=BOOTSTRAP`、`enablementStatus=NOT_ENABLED`：任何 Work Unit（包括 `VALIDATION_ONLY`）都不得输出可执行 eligible；允许的静态检查仅限 Compose config、manifest/lease/schema 与负向 fixtures，宿主 Docker managed objects 必须保持 0→0。Runtime Canary 是唯一允许创建验证资源的 mutation path，未获独立 Runtime approval 时必须拒绝执行。
+
+真正 Runtime Canary 的机器前置必须同时满足：系统 `ENABLED`；Train 为 `VALIDATION_AUTHORIZED` 且 `runtimeCanaryAuthorized=true`；strict runtime approval/audit 与 Human confirmation 记录完整并绑定同一 candidate、input digest、frozen RunHead/blobs；RunHead clean 且 immutable；Docker 使用获批 local npipe endpoint 与固定 engine identity/binding digest。Frozen Repository Gate 与 approved `RuntimeBinding` 必须在任何 runtime `docker compose version/config` 或 mutation 前完成；此后每次 Compose/Docker 调用都只能走获批 endpoint，并在调用前后复核 frozen snapshot 与 daemon binding。Cleanup 必须对每个 container、volume、network 独立 try/catch、累计全部失败并继续，最后无条件执行 exact inventory；daemon drift 或无法证明零残留一律标为 `MANUAL_DISPOSITION_REQUIRED`，错标或未证明资源不得自动删除。
+
+Validation Train 从 `VALIDATION_AUTHORIZED` 进入 `TRAIN_VERIFIED` 后必须把 `runtimeCanaryAuthorized` 置为 `false`，不得再次运行 Canary；原 runtime approval/audit refs、candidate/input digest 与 Docker binding closure 必须原样保留并继续复核，不能在后续状态清空或替换。
+
+Compose runtime labels（project/train/WU/leaseId/manifestDigest/baseCommit/runNonce、candidate/head/input digest、engine/binding digest）只能由获批 Runtime Canary launcher 从 canonical manifest/lease 注入，操作者不得手工填写授权标签。`manifestDigest` 在静态与 Runtime 路径均使用同一口径：对 `GIT_BLOB_OID_SHA256_V1\nblobOid=<canonical-manifest-git-blob-oid>` 的 UTF-8 字节计算 SHA-256；禁止改用工作区文件字节摘要。
+
+Queue history 不是仅看当前快照：入队 item 必须与同提交的 Work Unit `PACKAGE_AUDITED→QUEUED` closure、独立 `QUEUE_ITEM` authority、candidate/evidence/audit bindings 对等；出队只验证 removal commit 的 Work Unit `QUEUED→INTEGRATED|STALE|BLOCKED` authority，入队 item blob 保持 immutable。完整可达 Git DAG 中禁止删除重加、改写后恢复、重复 introduction 或事后补写 authority。
