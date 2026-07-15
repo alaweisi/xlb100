@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "recordType": "TRANSITION",
+  "recordId": "TRANSITION-QUEUE-ENABLED-20260715",
+  "createdAt": "2026-07-15T15:35:50+08:00",
+  "subjectType": "INTEGRATION_QUEUE",
+  "subjectId": "INTEGRATION_QUEUE",
+  "previousStatus": "NOT_ENABLED",
+  "currentStatus": "ENABLED",
+  "changedAt": "2026-07-15T15:35:50+08:00",
+  "scope": "GOVERNANCE_EXECUTION_ENABLEMENT",
+  "decision": "APPROVED",
+  "actorRole": "Human Owner",
+  "checks": [
+    "LEGAL_STATUS_EDGE_VERIFIED"
+  ]
+}

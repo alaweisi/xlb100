@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "recordType": "TRANSITION",
+  "recordId": "TRANSITION-EXECUTION-ENABLED-20260715",
+  "createdAt": "2026-07-15T15:35:50+08:00",
+  "subjectType": "EXECUTION_SYSTEM",
+  "subjectId": "GLOBAL_EXECUTION_SYSTEM",
+  "previousStatus": "BOOTSTRAP/NOT_ENABLED",
+  "currentStatus": "ENABLED/ENABLED",
+  "changedAt": "2026-07-15T15:35:50+08:00",
+  "scope": "GOVERNANCE_EXECUTION_ENABLEMENT",
+  "decision": "APPROVED",
+  "actorRole": "Human Owner",
+  "checks": [
+    "LEGAL_STATUS_EDGE_VERIFIED"
+  ]
+}

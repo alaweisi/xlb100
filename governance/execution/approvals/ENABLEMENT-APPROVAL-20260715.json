@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "recordType": "ENABLEMENT_APPROVAL",
+  "recordId": "ENABLEMENT-APPROVAL-20260715",
+  "createdAt": "2026-07-15T15:35:50+08:00",
+  "candidateCommit": "98f883e1443295f3d6308e77107437ec9e3b3661",
+  "candidateDigest": "b43e349ac71a176291f6e246e55eb7dca0702a144d27be5f39a1bad2d3b73d39",
+  "candidateDigestAlgorithm": "GIT_COMMIT_TREE_SHA256_V1",
+  "baseCommit": "80921871baf8647b2d3b7c97f8c0fde2a88f9400",
+  "decision": "APPROVED",
+  "scope": "GOVERNANCE_EXECUTION_ENABLEMENT",
+  "auditRef": "governance/execution/evidence/INDEPENDENT-ENABLEMENT-AUDIT-20260715.json",
+  "humanConfirmationRef": "governance/execution/approvals/HUMAN-CONFIRMATION-ENABLE-GOVERNANCE-20260715.json",
+  "actorRole": "Governance Gate"
+}
