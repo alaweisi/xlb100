@@ -14,6 +14,11 @@ function Require-Contains([string]$Text, [string]$Needle, [string]$Label) {
 }
 
 $phase28Tag = 'xlb-phase28-review-reputation'
+$phase29Tag = 'xlb-phase29-marketing-coupon'
+$phase29Commit = (git rev-parse "$phase29Tag^{}").Trim()
+if ($LASTEXITCODE -ne 0 -or $phase29Commit -notmatch '^[0-9a-f]{40}$') {
+  throw "missing locked Phase29 tag: $phase29Tag"
+}
 $migrationPath = 'db/migrations/057_phase29_marketing_coupon.sql'
 $requiredFiles = @(
   $migrationPath,
@@ -83,10 +88,13 @@ $lockedMigrationChanges = @(git diff --name-only "$phase28Tag^{}" -- db/migratio
 if ($lockedMigrationChanges.Count -gt 0) {
   throw "Phase29 modified locked migration(s): $($lockedMigrationChanges -join ', ')"
 }
-$later = @(Get-ChildItem db/migrations -File | Where-Object { $_.Name -match '^(\d{3})_' -and [int]$Matches[1] -gt 57 })
-if ($later.Count -gt 0) { throw "Phase29 forbids migration 058 or later: $($later.Name -join ', ')" }
+$phase29MigrationTree = @(git ls-tree -r --name-only $phase29Commit -- db/migrations)
+$later = @($phase29MigrationTree | Where-Object {
+  [IO.Path]::GetFileName($_) -match '^(\d{3})_' -and [int]$Matches[1] -gt 57
+})
+if ($later.Count -gt 0) { throw "Phase29 locked commit contains migration 058 or later: $($later -join ', ')" }
 
-$workerChanges = @(git diff --name-only "$phase28Tag^{}" -- apps/worker)
+$workerChanges = @(git diff --name-only "$phase28Tag^{}" $phase29Commit -- apps/worker)
 if ($workerChanges.Count -gt 0) {
   throw "Phase29 coupon-first MVP forbids Worker UI changes: $($workerChanges -join ', ')"
 }
@@ -169,7 +177,7 @@ foreach ($forgedMoneyField in @('grossAmountMinor', 'discountAmountMinor', 'netA
   }
 }
 
-$platformDiff = @(git diff --unified=0 "$phase28Tag^{}" -- backend/src/events/platformDeliveryService.ts backend/src/events/platformEventCompatibility.ts packages/types/src/platformDelivery.ts packages/validators/src/platformDeliverySchema.ts)
+$platformDiff = @(git diff --unified=0 "$phase28Tag^{}" $phase29Commit -- backend/src/events/platformDeliveryService.ts backend/src/events/platformEventCompatibility.ts packages/types/src/platformDelivery.ts packages/validators/src/platformDeliverySchema.ts)
 $platformAdded = ($platformDiff | Where-Object {
   $_.StartsWith('+') -and -not $_.StartsWith('+++')
 } | ForEach-Object { $_.Substring(1) }) -join "`n"

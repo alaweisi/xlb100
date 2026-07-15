@@ -3,6 +3,7 @@ import { execFileSync } from "node:child_process";
 import { join } from "node:path";
 
 const root = process.cwd();
+const lockedHistoryRef = "xlb-phase29-marketing-coupon^{}";
 const required = [
   "docs/reports/PHASE25_GATE1DEF_SHARED_FOUNDATION_REPORT.md",
   "docs/reports/PHASE25_CUSTOMER_GATE2_GATE3_AUDIT.md",
@@ -14,10 +15,14 @@ const required = [
 ];
 for (const file of required) if (!existsSync(join(root, file))) throw new Error(`[phase25-closure] missing ${file}`);
 for (const app of ["oa", "dashboard"]) if (existsSync(join(root, "apps", app, "src"))) throw new Error(`[phase25-closure] forbidden fake ${app} runtime`);
-const changed = [
-  ...execFileSync("git", ["diff", "--name-only", "fb055b1"], { cwd: root, encoding: "utf8" }).split(/\r?\n/),
-  ...execFileSync("git", ["ls-files", "--others", "--exclude-standard"], { cwd: root, encoding: "utf8" }).split(/\r?\n/),
-].filter(Boolean).map((file) => file.replaceAll("\\", "/"));
+execFileSync("git", ["rev-parse", "--verify", lockedHistoryRef], { cwd: root, stdio: "ignore" });
+// Closure scope is evaluated against immutable locked history. Using the
+// current working tree here made every legitimate post-lock maintenance
+// change look like unauthorized Phase 25 construction.
+const changed = execFileSync("git", ["diff", "--name-only", "fb055b1", lockedHistoryRef], {
+  cwd: root,
+  encoding: "utf8",
+}).split(/\r?\n/).filter(Boolean).map((file) => file.replaceAll("\\", "/"));
 const currentState = readFileSync(join(root, "docs/CURRENT_STATE.md"), "utf8");
 const phase27aRuntimeAuthorized =
   currentState.includes("Phase27A Platform Delivery Foundation") &&

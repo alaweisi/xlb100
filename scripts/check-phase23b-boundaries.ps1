@@ -1,6 +1,7 @@
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 $BaseRef = "xlb-phase23a-auth-data-safety-hardening"
+$PhaseRef = "xlb-phase23b-event-api-reliability"
 
 function Require-Path([string]$Path) {
   if (-not (Test-Path (Join-Path $Root $Path))) { throw "missing Phase 23B artifact: $Path" }
@@ -14,6 +15,8 @@ Push-Location $Root
 try {
   & git rev-parse --verify "$BaseRef^{commit}" *> $null
   if ($LASTEXITCODE -ne 0) { throw "missing locked Phase 23A baseline tag: $BaseRef" }
+  & git rev-parse --verify "$PhaseRef^{commit}" *> $null
+  if ($LASTEXITCODE -ne 0) { throw "missing locked Phase 23B tag: $PhaseRef" }
 
   $locked = @(& git diff --name-only $BaseRef -- db/migrations | Where-Object { $_ -match '^db/migrations/0(?:0[0-9]|1[0-9]|2[0-9]|3[0-9]|4[0-3])_' })
   if ($locked.Count -gt 0) { throw "locked migrations 000-043 changed: $($locked -join ', ')" }
@@ -24,7 +27,10 @@ try {
     throw "Phase 23B must own exactly 044_phase23b_event_outbox_reliability.sql"
   }
 
-  $protected = @(& git diff --name-only $BaseRef -- backend/src/order backend/src/payment backend/src/fulfillment backend/src/settlement backend/src/aftersale backend/src/providers | Where-Object { $_ -notlike 'backend/src/providers/nlu/*' })
+  # Phase scope is immutable history. Compare the locked predecessor and Phase
+  # commits instead of HEAD so later maintenance cannot be misclassified as
+  # Phase 23B construction.
+  $protected = @(& git diff --name-only $BaseRef $PhaseRef -- backend/src/order backend/src/payment backend/src/fulfillment backend/src/settlement backend/src/aftersale backend/src/providers | Where-Object { $_ -notlike 'backend/src/providers/nlu/*' })
   $phase28OrderTrace = 'backend/src/order/orderTraceRoutes.ts'
   if ($protected -contains $phase28OrderTrace) {
     $phase28Migration = Join-Path $Root 'db/migrations/056_phase28_review_reputation.sql'
@@ -104,7 +110,7 @@ try {
     "backend/src/events/platformDeliveryRepository.ts",
     "backend/src/events/platformDeliveryService.ts"
   )
-  $runtimeDiff = @(& git diff --name-only $BaseRef -- backend/src/dispatch backend/src/events backend/src/ledger)
+  $runtimeDiff = @(& git diff --name-only $BaseRef $PhaseRef -- backend/src/dispatch backend/src/events backend/src/ledger)
   $unexpected = @($runtimeDiff | Where-Object { $allowedRuntime -notcontains $_ })
   if ($unexpected.Count -gt 0) { throw "unexpected Phase 23B runtime files: $($unexpected -join ', ')" }
 

@@ -25,6 +25,12 @@ function slaState(ticket: SupportTicket, now = Date.now()): { label: string; ton
   return { label: `Due in ${Math.ceil(remaining / 60000)}m`, tone: "success" };
 }
 
+function initialWorkbenchView(): SupportTicketWorkbenchView {
+  return typeof window !== "undefined" && window.localStorage.getItem("xlb.admin.role") === "admin"
+    ? "all"
+    : "mine";
+}
+
 export function SupportTicketsPage({ initialCityCode }: { initialCityCode?: string }) {
   const [ui, dispatch] = useReducer(adminSupportUiReducer, initialAdminSupportUiState);
   const [cityCode, setCityCode] = useState(initialCityCode || "hangzhou");
@@ -38,7 +44,7 @@ export function SupportTicketsPage({ initialCityCode }: { initialCityCode?: stri
   const [reason, setReason] = useState(""); const [resolutionCode, setResolutionCode] = useState("answered"); const [resolutionNote, setResolutionNote] = useState("");
   const [showConfiguration, setShowConfiguration] = useState(false);
   const [showKnowledgeBase,setShowKnowledgeBase]=useState(false);
-  const [workbenchView, setWorkbenchView] = useState<SupportTicketWorkbenchView>("mine");
+  const [workbenchView, setWorkbenchView] = useState<SupportTicketWorkbenchView>(initialWorkbenchView);
   const [conversations, setConversations] = useState<SupportConversation[]>([]); const [conversationDetail, setConversationDetail] = useState<SupportConversationDetailResponse | null>(null); const [conversationText, setConversationText] = useState(""); const [transferAgentId, setTransferAgentId] = useState("");
   const [botRun,setBotRun]=useState<SupportBotRun|null>(null);
   const filters = useMemo<SupportTicketListFilters>(() => ({ status: status || undefined, priority: priority || undefined, source: source || undefined, type: type || undefined, view: workbenchView, sort: "sla_due", limit: 100 }), [priority, source, status, type, workbenchView]);
