@@ -33,3 +33,9 @@ export function getDispatchStreamName(cityCode: string): string {
 
   return `xlb:dispatch:${parsed.data}:orders`;
 }
+
+export const DEFAULT_DISPATCH_CONSUMER_GROUP = "xlb-dispatch-workers-v1";
+
+export function getDispatchRetryHashName(streamName: string, groupName: string): string {
+  return `${streamName}:consumer-retries:${groupName}`;
+}

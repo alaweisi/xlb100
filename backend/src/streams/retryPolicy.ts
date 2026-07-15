@@ -1,7 +1,6 @@
-/** Phase 5A retry policy — placeholder for Phase 5B+ stream consumer retries */
-
 export const DEFAULT_STREAM_RETRY_MAX = 3;
-export const DEFAULT_STREAM_RETRY_DELAY_MS = 1000;
+export const DEFAULT_STREAM_RETRY_DELAY_MS = 30_000;
+export const DEFAULT_STREAM_RETRY_STATE_TTL_SECONDS = 7 * 24 * 60 * 60;
 
 export type RetryPolicy = {
   maxAttempts: number;
