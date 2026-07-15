@@ -36,6 +36,7 @@ services:
       retries: 10
 
   backend:
+    image: ${STAGING_BACKEND_IMAGE:-xlb/backend:staging}
     build:
       context: ../..
       dockerfile: infra/docker/Dockerfile.backend
@@ -71,8 +72,53 @@ services:
       AUTH_OTP_LOCK_SECONDS: ${AUTH_OTP_LOCK_SECONDS:-900}
       AUTH_OTP_RESEND_COOLDOWN_SECONDS: ${AUTH_OTP_RESEND_COOLDOWN_SECONDS:-60}
       AUTH_DEBUG_CODE_ENABLED: "false"
+      AUTO_RUN_ENABLED: "false"
     ports:
       - "127.0.0.1:${BACKEND_PORT:-3000}:${BACKEND_PORT:-3000}"
+
+  jobs:
+    image: ${STAGING_BACKEND_IMAGE:-xlb/backend:staging}
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.backend
+    container_name: xlb-jobs-staging
+    restart: unless-stopped
+    stop_grace_period: 30s
+    working_dir: /app/backend
+    command: ["node", "dist/jobWorker.js"]
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      BACKEND_PORT: ${BACKEND_PORT:-3000}
+      MYSQL_HOST: mysql
+      MYSQL_PORT: ${MYSQL_PORT:-3306}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-xlb_staging}
+      MYSQL_USER: ${MYSQL_USER:-xlb}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-change-me}
+      REDIS_HOST: redis
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      RATE_LIMIT_BACKEND: redis
+      TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-1}
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      JWT_ACTIVE_KID: ${JWT_ACTIVE_KID:-primary}
+      JWT_KEYS_JSON: "${JWT_KEYS_JSON:-}"
+      JWT_ISSUER: ${JWT_ISSUER:-xlb-backend}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-xlb-apps}
+      JWT_TTL_SECONDS: ${JWT_TTL_SECONDS:-86400}
+      AUTH_PHONE_HASH_SECRET: ${AUTH_PHONE_HASH_SECRET:-change-me-in-production}
+      AUTH_OTP_PEPPER: ${AUTH_OTP_PEPPER:-change-me-in-production}
+      AUTH_OTP_TTL_SECONDS: ${AUTH_OTP_TTL_SECONDS:-300}
+      AUTH_OTP_MAX_ATTEMPTS: ${AUTH_OTP_MAX_ATTEMPTS:-5}
+      AUTH_OTP_LOCK_SECONDS: ${AUTH_OTP_LOCK_SECONDS:-900}
+      AUTH_OTP_RESEND_COOLDOWN_SECONDS: ${AUTH_OTP_RESEND_COOLDOWN_SECONDS:-60}
+      AUTH_DEBUG_CODE_ENABLED: "false"
+      AUTO_RUN_ENABLED: "true"
+      AUTO_RUN_INTERVAL_MS: ${AUTO_RUN_INTERVAL_MS:-8000}
+      AUTO_RUN_CITY_CODES: ${AUTO_RUN_CITY_CODES:-hangzhou}
 
   customer:
     build:
