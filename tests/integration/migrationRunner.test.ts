@@ -415,4 +415,61 @@ describe.skipIf(!mysqlAvailable).sequential("migrationRunner reliability integra
     expect(legacy?.checksum_sha256).toBe(checksum(legacySql));
     expect(legacy?.executor_id).toBeNull();
   });
+
+  it("resumes an interrupted 058 after metadata DDL but before its marker", async () => {
+    const sourceByVersion = writeStandardMigrations();
+    await admin.query(`
+      CREATE TABLE \`${database}\`.schema_migrations (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        version VARCHAR(64) NOT NULL UNIQUE,
+        checksum_sha256 CHAR(64) NULL,
+        applied_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        execution_duration_ms BIGINT UNSIGNED NULL,
+        executor_id VARCHAR(128) NULL
+      )
+    `);
+    await admin.query(`
+      CREATE TABLE \`${database}\`.fixture_records (
+        id INT NOT NULL PRIMARY KEY,
+        value VARCHAR(64) NOT NULL
+      )
+    `);
+    await admin.query(
+      `INSERT INTO \`${database}\`.fixture_records (id, value) VALUES (1, 'base')`,
+    );
+    await admin.query(
+      `CREATE TABLE \`${database}\`.fixture_second (id INT NOT NULL PRIMARY KEY)`,
+    );
+    await admin.query(
+      `INSERT INTO \`${database}\`.schema_migrations (version)
+       VALUES ('000_fixture_base'), ('001_fixture_second')`,
+    );
+    await admin.query(`
+      CREATE TABLE \`${database}\`.migration_checksum_baselines (
+        version VARCHAR(64) NOT NULL PRIMARY KEY,
+        checksum_sha256 CHAR(64) NOT NULL,
+        created_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
+      )
+    `);
+    await admin.query(
+      `INSERT INTO \`${database}\`.migration_checksum_baselines
+       (version, checksum_sha256) VALUES ('000_fixture_base', ?)`,
+      [checksum(sourceByVersion.get("000_fixture_base")!)],
+    );
+
+    const recovery = await runMigrations();
+    const rowsAfterRecovery = await migrationRows();
+
+    expect(recovery.skipped).toEqual(["000_fixture_base", "001_fixture_second"]);
+    expect(recovery.applied).toEqual([migrationControlVersion]);
+    for (const [version, sql] of sourceByVersion) {
+      expect(rowsAfterRecovery.find((row) => row.version === version)?.checksum_sha256).toBe(
+        checksum(sql),
+      );
+    }
+
+    const rerun = await runMigrations();
+    expect(rerun).toEqual({ applied: [], skipped: [...sourceByVersion.keys()] });
+    expect((await getAppliedMigrations()).filter((version) => version === migrationControlVersion)).toHaveLength(1);
+  });
 });
