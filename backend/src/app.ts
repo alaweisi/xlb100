@@ -1,6 +1,7 @@
 import Fastify from "fastify";
 import websocket from "@fastify/websocket";
 import type { FastifyInstance } from "fastify";
+import { loadEnv } from "@xlb/config";
 import { XLB_HEADERS } from "@xlb/types";
 import {
   createRequestContextMiddleware,
@@ -44,7 +45,11 @@ export type BuildAppOptions = {
 };
 
 export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyInstance> {
-  const app = Fastify({ logger: process.env.NODE_ENV === "test" ? false : true });
+  const env = loadEnv();
+  const app = Fastify({
+    logger: env.nodeEnv === "test" ? false : true,
+    trustProxy: env.trustProxyHops > 0 ? env.trustProxyHops : false,
+  });
   await app.register(websocket, { options: { maxPayload: 65_536, perMessageDeflate: false } });
 
   app.addHook("onRequest", createRateLimitGuard(options.rateLimit));

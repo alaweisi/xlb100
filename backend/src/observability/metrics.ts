@@ -15,6 +15,7 @@ const ROUTE_SEGMENT = /^[a-z0-9._:-]+$/iu;
 
 const httpMetrics = new Map<string, HttpMetric>();
 let rateLimitRejections = 0;
+let rateLimitBackendFailures = 0;
 let webhookDelivered = 0;
 let webhookRetries = 0;
 let webhookBusyRuns = 0;
@@ -95,6 +96,10 @@ export function recordRateLimitRejection(): void {
   rateLimitRejections += 1;
 }
 
+export function recordRateLimitBackendFailure(): void {
+  rateLimitBackendFailures += 1;
+}
+
 export function recordWebhookRun(input: { delivered: number; retry: number; busy?: boolean }): void {
   webhookDelivered += input.delivered;
   webhookRetries += input.retry;
@@ -122,6 +127,9 @@ export function renderPrometheusMetrics(): string {
   lines.push("# HELP xlb_rate_limit_rejections_total Requests rejected by API edge rate limits.");
   lines.push("# TYPE xlb_rate_limit_rejections_total counter");
   lines.push(`xlb_rate_limit_rejections_total ${rateLimitRejections}`);
+  lines.push("# HELP xlb_rate_limit_backend_failures_total Requests failed closed because the rate limit backend was unavailable.");
+  lines.push("# TYPE xlb_rate_limit_backend_failures_total counter");
+  lines.push(`xlb_rate_limit_backend_failures_total ${rateLimitBackendFailures}`);
   lines.push("# HELP xlb_webhook_delivery_attempts_total Webhook provider attempts by outcome.");
   lines.push("# TYPE xlb_webhook_delivery_attempts_total counter");
   lines.push(`xlb_webhook_delivery_attempts_total{outcome="delivered"} ${webhookDelivered}`);
@@ -135,6 +143,7 @@ export function renderPrometheusMetrics(): string {
 export function resetMetricsForTests(): void {
   httpMetrics.clear();
   rateLimitRejections = 0;
+  rateLimitBackendFailures = 0;
   webhookDelivered = 0;
   webhookRetries = 0;
   webhookBusyRuns = 0;

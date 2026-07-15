@@ -11,6 +11,8 @@ export interface EnvConfig {
   mysqlPassword: string;
   redisHost: string;
   redisPort: number;
+  rateLimitBackend: "memory" | "redis";
+  trustProxyHops: number;
   jwtSecret: string;
   authPhoneHashSecret: string;
   authOtpTtlSeconds: number;
@@ -48,6 +50,12 @@ function validateProductionEnv(config: EnvConfig): void {
   assertProductionSecret("JWT_SECRET", config.jwtSecret, 32);
   assertProductionSecret("MYSQL_PASSWORD", config.mysqlPassword, 16);
   assertProductionSecret("AUTH_PHONE_HASH_SECRET", config.authPhoneHashSecret, 32);
+  if (config.rateLimitBackend !== "redis") {
+    throw new Error("RATE_LIMIT_BACKEND must be redis in production");
+  }
+  if (config.trustProxyHops < 1) {
+    throw new Error("TRUST_PROXY_HOPS must be at least 1 in production");
+  }
 }
 
 function readEnv(key: string, fallback: string): string {
@@ -65,6 +73,23 @@ function readEnvBool(key: string, fallback: boolean): boolean {
   const raw = process.env[key];
   if (raw === undefined || raw === "") return fallback;
   return raw.toLowerCase() === "true";
+}
+
+function readRateLimitBackend(nodeEnv: string): "memory" | "redis" {
+  const fallback = nodeEnv === "production" ? "redis" : "memory";
+  const value = readEnv("RATE_LIMIT_BACKEND", fallback).trim().toLowerCase();
+  if (value === "memory" || value === "redis") return value;
+  throw new Error("RATE_LIMIT_BACKEND must be memory or redis");
+}
+
+function readTrustProxyHops(nodeEnv: string): number {
+  const fallback = nodeEnv === "production" ? 1 : 0;
+  const raw = process.env.TRUST_PROXY_HOPS;
+  if (raw === undefined || raw === "") return fallback;
+  if (!/^\d+$/u.test(raw)) throw new Error("TRUST_PROXY_HOPS must be an integer between 0 and 10");
+  const value = Number.parseInt(raw, 10);
+  if (value < 0 || value > 10) throw new Error("TRUST_PROXY_HOPS must be an integer between 0 and 10");
+  return value;
 }
 
 function readEnvList(key: string, fallback: string[]): string[] {
@@ -92,6 +117,8 @@ export function loadEnv(): EnvConfig {
     mysqlPassword: readEnv("MYSQL_PASSWORD", LOCAL_MYSQL_PASSWORD),
     redisHost: readEnv("REDIS_HOST", "127.0.0.1"),
     redisPort: readEnvInt("REDIS_PORT", 6379),
+    rateLimitBackend: readRateLimitBackend(nodeEnv),
+    trustProxyHops: readTrustProxyHops(nodeEnv),
     jwtSecret: readEnv("JWT_SECRET", LOCAL_JWT_SECRET),
     authPhoneHashSecret: readEnv("AUTH_PHONE_HASH_SECRET", LOCAL_PHONE_HASH_SECRET),
     authOtpTtlSeconds: readEnvInt("AUTH_OTP_TTL_SECONDS", 300),

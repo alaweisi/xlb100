@@ -23,12 +23,37 @@ describe("production environment safety", () => {
     expect(env.jwtSecret).toBe("");
     expect(env.mysqlPassword).toBe("");
     expect(env.authPhoneHashSecret).toBe("");
+    expect(env).toMatchObject({ rateLimitBackend: "memory", trustProxyHops: 0 });
   });
 
   it("accepts explicit strong production secrets", () => {
     stubValidProductionEnv();
-    expect(loadEnv().nodeEnv).toBe("production");
+    expect(loadEnv()).toMatchObject({
+      nodeEnv: "production",
+      rateLimitBackend: "redis",
+      trustProxyHops: 1,
+    });
   });
+
+  it("rejects an in-memory production rate limit backend", () => {
+    stubValidProductionEnv();
+    vi.stubEnv("RATE_LIMIT_BACKEND", "memory");
+    expect(() => loadEnv()).toThrow("RATE_LIMIT_BACKEND");
+  });
+
+  it("rejects an unknown rate limit backend", () => {
+    vi.stubEnv("RATE_LIMIT_BACKEND", "unknown");
+    expect(() => loadEnv()).toThrow("RATE_LIMIT_BACKEND");
+  });
+
+  it.each(["0", "-1", "eleven", "11"])(
+    "rejects unsafe production TRUST_PROXY_HOPS=%s",
+    (value) => {
+      stubValidProductionEnv();
+      vi.stubEnv("TRUST_PROXY_HOPS", value);
+      expect(() => loadEnv()).toThrow("TRUST_PROXY_HOPS");
+    },
+  );
 
   it.each([
     ["JWT_SECRET", "change-me-in-production"],

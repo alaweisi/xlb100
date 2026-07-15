@@ -1,5 +1,15 @@
+import { createHash } from "node:crypto";
 import type { FastifyReply, FastifyRequest } from "fastify";
-import { recordRateLimitRejection } from "../observability/metrics.js";
+import { loadEnv } from "@xlb/config";
+import {
+  recordRateLimitBackendFailure,
+  recordRateLimitRejection,
+} from "../observability/metrics.js";
+import {
+  InMemoryRateLimitStore,
+  RedisRateLimitStore,
+  type RateLimitStore,
+} from "./rateLimitStore.js";
 
 type RateLimitRule = {
   id: string;
@@ -11,6 +21,7 @@ type RateLimitRule = {
 export type RateLimitOptions = {
   rules?: RateLimitRule[];
   now?: () => number;
+  store?: RateLimitStore;
 };
 
 const otpCodeRoutes = new Set([
@@ -33,28 +44,44 @@ const defaultRules: RateLimitRule[] = [
 export function createRateLimitGuard(options: RateLimitOptions = {}) {
   const rules = options.rules ?? defaultRules;
   const now = options.now ?? Date.now;
-  const windows = new Map<string, { startedAt: number; count: number }>();
+  for (const rule of rules) {
+    if (!Number.isInteger(rule.limit) || rule.limit <= 0) {
+      throw new Error(`rate limit rule ${rule.id} must have a positive integer limit`);
+    }
+    if (!Number.isInteger(rule.windowMs) || rule.windowMs <= 0) {
+      throw new Error(`rate limit rule ${rule.id} must have a positive integer windowMs`);
+    }
+  }
+  const store = options.store ?? (
+    loadEnv().rateLimitBackend === "redis"
+      ? new RedisRateLimitStore()
+      : new InMemoryRateLimitStore(now)
+  );
 
   return async function rateLimitGuard(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const path = request.url.split("?", 1)[0] ?? request.url;
     const rule = rules.find(candidate => candidate.matches(path));
     if (!rule) return;
 
-    const key = `${rule.id}:${request.ip}`;
-    const timestamp = now();
-    const current = windows.get(key);
-    const window = !current || timestamp - current.startedAt >= rule.windowMs
-      ? { startedAt: timestamp, count: 0 }
-      : current;
-    window.count += 1;
-    windows.set(key, window);
+    const key = createHash("sha256")
+      .update(`${rule.id}\0${request.ip}`)
+      .digest("hex");
+    let consumption;
+    try {
+      consumption = await store.consume(key, rule.windowMs);
+    } catch (error) {
+      recordRateLimitBackendFailure();
+      request.log.error({ err: error, rule: rule.id }, "rate limit backend unavailable");
+      reply.header("Retry-After", 1);
+      return reply.status(503).send({ ok: false, error: "rate limit unavailable", rule: rule.id });
+    }
 
     reply.header("X-RateLimit-Limit", rule.limit);
-    reply.header("X-RateLimit-Remaining", Math.max(0, rule.limit - window.count));
-    if (window.count <= rule.limit) return;
+    reply.header("X-RateLimit-Remaining", Math.max(0, rule.limit - consumption.count));
+    if (consumption.count <= rule.limit) return;
 
     recordRateLimitRejection();
-    reply.header("Retry-After", Math.max(1, Math.ceil((window.startedAt + rule.windowMs - timestamp) / 1000)));
+    reply.header("Retry-After", Math.max(1, Math.ceil(consumption.resetInMs / 1000)));
     return reply.status(429).send({ ok: false, error: "rate limit exceeded", rule: rule.id });
   };
 }

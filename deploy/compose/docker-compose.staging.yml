@@ -56,6 +56,8 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-change-me}
       REDIS_HOST: redis
       REDIS_PORT: ${REDIS_PORT:-6379}
+      RATE_LIMIT_BACKEND: redis
+      TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-1}
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
       AUTH_PHONE_HASH_SECRET: ${AUTH_PHONE_HASH_SECRET:-change-me-in-production}
     ports:
