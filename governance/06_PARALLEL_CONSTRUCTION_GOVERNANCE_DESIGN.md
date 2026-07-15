@@ -22,7 +22,7 @@ Human Owner 选择的目标模型是：
 | P-02 | A | 批次获批后由 General Contractor Agent 管理受管 worktree pool | 不立即创建/删除 worktree | G-04, G-08 |
 | P-03 | A | 每批次指定唯一 Contract、Migration、Integration Owner | Agent role 不获得 Human/Lock authority | G-03, G-08, G-13 |
 | P-04 | A | migration 提前预约；放弃编号永久留空、不复用 | 不授权当前 migration 写入 | G-03, G-12 |
-| P-05 | A | 每个 WRITE worktree 使用隔离 MySQL database 与 Redis namespace | production/staging 不在范围内 | G-02, G-03, G-12, G-13 |
+| P-05 | A | 每个 WRITE worktree 使用独立 Compose project、MySQL database/volume/port 与 Redis instance/namespace/volume/port | production/staging 不在范围内 | G-02, G-03, G-12, G-13 |
 | P-06 | A | 无直接依赖的后续 Work Unit 可在 predecessor Lock 前形成 candidate | candidate 不得自行 merge/Lock | G-01, G-02, G-09, G-14 |
 | P-07 | A | contract/base 实质变化使旧 candidate/evidence 自动 `STALE` | Integration Owner 不得猜测兼容 | G-12, G-14 |
 | P-08 | A | package audit + integration/Phase audit 两级只读审计 | package PASS 不等于 Phase PASS | G-07, G-12 |
@@ -242,7 +242,7 @@ Shared contract 采用“先冻主干，再铺支线”：
 
 ### 8.2 DB/Redis Isolation
 
-每个 WRITE Work Unit 使用独立 MySQL database 或独立 Compose project，以及独立 Redis namespace/database。命名必须可追溯到 `trainId/workUnitId`。各队只运行自己的 migration/seed/integration test；最终 merge queue 在全新的 integration database 中串行重放完整 migration ledger。
+每个 WRITE Work Unit 必须同时使用独立 Compose project、MySQL database/volume/port 与 Redis instance/namespace/volume/port；不得把“database 名不同”或“namespace 不同”当作共享容器、volume 或端口的替代。命名必须可追溯到 `trainId/workUnitId`。各队只运行自己的 migration/seed/integration test；最终 merge queue 在全新的 integration database 中串行重放完整 migration ledger。
 
 当前部分脚本/环境仍可能硬编码 `xlb_local`、容器名或共享 Redis；在完成参数化与隔离验证前，这些命令只能进入串行测试 lane。production/staging migration、replay、backfill 和 purge 始终需要单独 L4 Human 授权。（Gap: G-02, G-03, G-12, G-13）
 

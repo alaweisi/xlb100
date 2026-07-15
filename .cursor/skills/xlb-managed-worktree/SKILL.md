@@ -73,8 +73,9 @@ never grants source-code writes.
   copies or the canonical root's current checkout.
 - Do not widen `allowedPaths`, semantic ownership, migration scope, or Phase
   scope locally.
-- Do not share a MySQL database, Redis namespace, Compose project, port slot,
-  or mutable branch with another WRITE Work Unit.
+- Do not share a Compose project, MySQL database/volume/port, Redis
+  instance/namespace/volume/port, or mutable branch with another WRITE Work
+  Unit.
 - The Work Unit-local environment file must be named `.env.worktree.local` and
   must pass `git check-ignore`; never stage or commit local credentials/ports.
 - Work Units must not run `scripts/migrate-local.ps1`, `scripts/seed-local.ps1`,

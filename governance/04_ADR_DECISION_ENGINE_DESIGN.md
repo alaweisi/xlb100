@@ -3,7 +3,7 @@
 > 状态：Human Owner 已接受 ADR Engine 与 P-01～P-18，并授权植入项目执行系统、纳入正式版本控制；当前为 `BOOTSTRAP / NOT_ENABLED` candidate
 > 输入：[正式项目工程治理宪法](./01_PROJECT_CONSTITUTION_DRAFT.md)、[当前工程施工模型](./02_CURRENT_ENGINEERING_EXECUTION_MODEL.md)、[治理差距分析](./03_GOVERNANCE_GAP_ANALYSIS.md)
 > 范围：设计并植入本地人工 ADR/并行治理控制；不修改业务 runtime、Phase 状态、hosted CI、Lock，不执行 merge
-> 追溯规则：本文件每个设计条目以 `Gap` 标注回指 G-01～G-16；未决项以 `UNRESOLVED DEPENDENCY` 标注
+> 追溯规则：本文件现有设计条目回指当前 Gap catalog 的 G-01～G-16；未来 Gap 使用 `G-` 加至少两位数字的稳定 ID，并须先登记到 `03_GOVERNANCE_GAP_ANALYSIS.md` 或其明确后继 registry。未登记 ID 与缺失追溯都必须 fail closed；未决项以 `UNRESOLVED DEPENDENCY` 标注
 > 并行施工决定：[06_PARALLEL_CONSTRUCTION_GOVERNANCE_DESIGN.md](./06_PARALLEL_CONSTRUCTION_GOVERNANCE_DESIGN.md)；执行控制 candidate 已安装，实际 WRITE parallel 在独立审计与 Human 启用确认前保持未启用
 
 ## 0. 设计目标与边界
@@ -42,7 +42,7 @@ Execution Permission
 | `intentId` | 稳定的变更意图 ID | 保持 `Draft` | G-12, G-16 |
 | `title` / `problemStatement` | 要解决的已知问题，不是预设实现 | 保持 `Draft` | G-05, G-16 |
 | `sourceFacts` | Git/tag/`CURRENT_STATE`/contract/report 的精确引用 | 标记 `FACT_SOURCE_MISSING` | G-05, G-15 |
-| `gapRefs` | 一个或多个 G-01～G-16 | 标记 `TRACEABILITY_MISSING` | G-16 |
+| `gapRefs` | 一个或多个已登记的稳定 Gap ID；当前 catalog 为 G-01～G-16，未来可追加但不得复用或改号 | 标记 `TRACEABILITY_MISSING`；格式正确但未登记同样无效 | G-16 |
 | `targetPhaseOrWorkUnit` | 目标 Phase/Gate/工作包 | 标记 `PHASE_SCOPE_UNKNOWN` | G-01, G-09 |
 | `inScope` / `outOfScope` | 明确施工与禁止范围 | 不生成 write permission | G-01, G-13 |
 | `requestedActions` | read、design write、runtime write、migration、merge、Lock、push、production 等动作 | 未声明动作一律不推定 | G-06, G-13 |

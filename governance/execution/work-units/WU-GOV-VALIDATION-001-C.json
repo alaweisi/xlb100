@@ -47,7 +47,7 @@
     "workerPort": 14374,
     "adminPort": 14375
   },
-  "evidencePlan": ["worktree identity", "unique Compose project", "unique MySQL database and port", "unique Redis namespace and port", "cross-worktree contamination rejection"],
+  "evidencePlan": ["worktree identity", "unique Compose project", "unique MySQL database, volume, and port", "unique Redis instance, namespace, volume, and port", "cross-worktree contamination rejection"],
   "auditRefs": [],
   "businessWriteAuthorized": false,
   "createdAt": "2026-07-14T00:00:00+08:00",

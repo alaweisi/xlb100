@@ -1,6 +1,7 @@
 # XLB 项目工程治理宪法（正式版本控制候选）
 
 > 状态：Human Owner 已于 2026-07-14 授权把本宪法植入项目执行系统并纳入正式版本控制；当前 candidate 为 `BOOTSTRAP / NOT_ENABLED`，须经 immutable candidate、独立审计与 Human 确认后才能启用实际 Work Unit WRITE
+> 文件名说明：`_DRAFT` 是植入前遗留的稳定路径，保留以避免治理引用断裂；不表示本文件仍是草案，规范状态以上述状态行、Git commit 与 Human authority record 为准
 > 观察时间：2026-07-14（Asia/Shanghai）
 > 性质：项目最高工程施工治理依据；本轮授权仅覆盖治理执行系统植入与版本化，不授予 Phase 30/31 runtime、migration、hosted CI、main merge、部署、production 或 Lock 权限
 
