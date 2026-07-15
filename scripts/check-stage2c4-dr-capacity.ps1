@@ -22,10 +22,10 @@ $backup = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $Root 'deploy/
 $restore = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $Root 'deploy/backup/restore-db.ps1')
 $capacity = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $Root 'deploy/backup/measure-capacity.ps1')
 $runner = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $Root 'scripts/run-stage2c4-drill.ps1')
-foreach ($needle in @('--single-transaction', '--set-gtid-purged=OFF', 'sha256', 'criticalTableCounts')) {
+foreach ($needle in @('--single-transaction', '--set-gtid-purged=OFF', 'sha256', 'criticalTableCounts', 'sourceWritersQuiesced')) {
   if (-not $backup.Contains($needle)) { throw "backup gate missing: $needle" }
 }
-foreach ($needle in @('ConfirmIsolatedRestore', 'xlb_restore_drill_', 'duplicateLedgerEntries', 'DROP DATABASE IF EXISTS')) {
+foreach ($needle in @('ConfirmIsolatedRestore', 'xlb_restore_drill_', 'duplicateLedgerEntries', 'DROP DATABASE IF EXISTS', 'exactSourceCountsRequired', 'nonquiesced_drift_recorded')) {
   if (-not $restore.Contains($needle)) { throw "restore safety gate missing: $needle" }
 }
 foreach ($needle in @('MaxOutboxRows', 'MaxOutboxBytes', 'MaxRedisStreamLength', 'oldestEligibleAgeSeconds')) {
