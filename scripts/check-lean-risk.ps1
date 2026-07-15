@@ -65,6 +65,13 @@ if ($hits.Count -eq 0) {
   exit 0
 }
 
+if (@($hits | Where-Object Rule -eq "MIGRATION").Count -gt 0) {
+  $migrationCheck = Join-Path $Root "scripts/check-migration-integrity.ps1"
+  if (-not (Test-Path -LiteralPath $migrationCheck -PathType Leaf)) { throw "migration integrity checker is missing" }
+  & powershell -NoProfile -ExecutionPolicy Bypass -File $migrationCheck -DiffMode $DiffMode
+  if ($LASTEXITCODE -ne 0) { throw "migration integrity check failed" }
+}
+
 $approvalValid = $false
 if (-not [string]::IsNullOrWhiteSpace($ApprovalFile)) {
   if ($DiffMode -ne "Staged") { throw "high-risk approval binding is supported only for Staged mode" }

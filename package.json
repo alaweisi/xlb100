@@ -104,6 +104,7 @@
     "prepare": "node scripts/install-git-hooks.mjs",
     "setup:git-hooks": "node scripts/install-git-hooks.mjs",
     "check:risk": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-lean-risk.ps1 -DiffMode WorkingTree",
+    "check:migration-integrity": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-migration-integrity.ps1 -DiffMode WorkingTree",
     "check:managed-worktree": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-managed-worktree-boundaries.ps1",
     "test:managed-worktree": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-managed-worktree-boundaries.ps1 -Mode SelfTest",
     "preflight": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/preflight-architecture.ps1"
