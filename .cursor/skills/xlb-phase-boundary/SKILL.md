@@ -54,28 +54,20 @@ match does not override a semantic ownership conflict.
 | Apps UI | No business pages unless the active scope explicitly allows them |
 | Fake state | Frontend projects backend truth; no fake workflow success/state |
 
-## Historical phase examples
+## Phase evidence lookup
 
-The examples below are navigation aids, not a statement of the current active
-Phase. Canonical `CURRENT_STATE.md` always wins.
-
-| Phase | Allows | Forbids |
-|-------|--------|---------|
-| 7A | accept, fulfillment skeleton | start, complete, ledger |
-| 7B | start, complete, lifecycle events | ledger、结算、退款 |
-| 8A | ledger accrual from `fulfillment.completed` | 结算、出款、上游写入 |
-| 8B | settlement preparation from accruals | 出款、已支付状态、退款、上游写入 |
-| 8C | settlement confirmation and audit outbox | 出款、账本分录、退款、Provider 分账 |
-
-See [reference.md](reference.md) for the historical matrix. Do not use that
-reference instead of current canonical facts.
+Do not embed a historical phase matrix in this Skill. Resolve the active
+boundary from canonical `CURRENT_STATE.md`, the governing Phase/Lock report,
+the current Work Unit Manifest when applicable, and the actual gate scripts at
+the candidate commit. Historical matrices are not authority and become unsafe
+when copied forward.
 
 ## Module import boundaries (examples)
 
 | From | Must NOT import |
 |------|-----------------|
 | fulfillment | ledger, settlement |
-| ledger | Phase 禁止的结算、退款、售后 |
+| ledger | 当前 Phase/Manifest 禁止的结算、退款、售后 |
 | settlement preparation | 出款或支付写入 |
 | order / payment | worker accept, ledger, settlement internals |
 

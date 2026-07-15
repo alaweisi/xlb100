@@ -64,7 +64,7 @@
 ## Human Owner 交互式裁决
 
 - 需要 Human 裁决时，Agent 必须先提供通俗、互斥、可比较的选择题，推荐项排第一并说明影响；不得只抛出专业术语要求 Human 猜测
-- L0 可由 Agent 自决；L1 可先执行后报告；L2 必须事先获得 Human 明确批准；L3 必须事先批准并附完整测试/审计 evidence；L4 必须取得“同意执行”或“同意上线”等显式书面确认
+- L0 可由 Agent 自决；L1 可先执行后报告；L2 必须事先获得 Human 明确批准；L3 施工前必须获得 Human 明确批准，进入 `Verified` 前必须补齐完整测试与两级审计 evidence；L4 必须取得“同意执行”或“同意上线”等显式书面确认
 - 沉默、默认、历史批准和推断同意均不构成新的授权
 
 ## Phase 3A 约束（正式类目导入协议）
@@ -92,17 +92,18 @@
 
 ## Agent Skills（`.cursor/skills/`）
 
-**开工顺序（必须）：**
+**开工路由：**
 
-1. `xlb-session-sync` — git 状态 + `docs/CURRENT_STATE.md`，禁止依赖旧记忆
-2. `xlb-managed-worktree` — 核对 Charter、Manifest、Lease、base、reservation、隔离环境与 evidence freshness
-3. `xlb-context-map` — 按领域读 3–5 个文件（含 `reference.md` 模块树）
-4. `xlb-current-vs-target` — 蓝图 vs 当前实现 vs 差距 vs 禁止项
-5. `xlb-phase-boundary` — 当前 Phase 允许/禁止 + gate 索引
+1. 所有任务必须先执行 `xlb-session-sync`，同步 Git 与 canonical `docs/CURRENT_STATE.md`，禁止依赖旧记忆。
+2. 当前根目录不是 canonical root，或任务涉及 Release Train、Work Unit、worktree、lease、migration reservation、Integration Queue、隔离环境时，继续执行 `xlb-managed-worktree`。
+3. 需要定位领域代码、契约、测试、migration 或 Gate 时，执行 `xlb-context-map`，只在当前 worktree 动态选择 3–5 个文件。
+4. 涉及 SDJ99、外部蓝图、历史目录、计划能力或“已实现 vs 已授权”判断时，执行 `xlb-current-vs-target`。
+5. 任何实现、契约或 migration 变更、业务验证前必须执行 `xlb-phase-boundary`。
+6. Lock 任务额外执行 `xlb-phase-lock`。
 
-**Lock 任务额外执行：** `xlb-phase-lock`
+不满足触发条件的 Skill 不得机械叠加；满足多个触发条件时按上述顺序执行。
 
-**事实优先级：** git + `CURRENT_STATE` + `reference.md` + 实际代码 > 会话记忆 > 外部 prompt。若 prompt 与上述文件冲突，**停止并汇报**，不得擅自施工。
+**事实优先级：** canonical Git commit/tag、canonical `CURRENT_STATE` 与 execution records 决定 Phase 和 authority；当前 worktree 的 Git 状态与实际代码决定候选实现。二者之后才是架构/契约/报告与 Gate，最后才是会话记忆和外部 prompt。若这些事实彼此冲突，必须 fail closed 并汇报，不得用静态 Skill 快照覆盖实时仓库事实。
 
 | Skill | 用途 |
 |-------|------|

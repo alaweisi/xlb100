@@ -25,7 +25,7 @@ Write-Host ""
 $currentState = Join-Path $Root "docs\CURRENT_STATE.md"
 if (Test-Path $currentState) {
   Write-Host "--- CURRENT_STATE (first 25 lines) ---"
-  Get-Content $currentState -TotalCount 25
+  Get-Content $currentState -Encoding UTF8 -TotalCount 25
 } else {
   Write-Host "WARN: docs/CURRENT_STATE.md missing"
 }

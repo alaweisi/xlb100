@@ -101,8 +101,8 @@ questions.
 3. **Read canonical control facts**
 
    ```powershell
-   Get-Content -LiteralPath "$CanonicalRoot\docs\CURRENT_STATE.md"
-   Get-Content -LiteralPath "$CanonicalRoot\governance\execution\README.md"
+   Get-Content -LiteralPath "$CanonicalRoot\docs\CURRENT_STATE.md" -Encoding UTF8
+   Get-Content -LiteralPath "$CanonicalRoot\governance\execution\README.md" -Encoding UTF8
    git -C $CanonicalRoot tag -l 'xlb-phase*'
    ```
 

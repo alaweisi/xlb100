@@ -9,8 +9,8 @@ description: >-
 
 # XLB Context Map
 
-**Goal:** Read 3-5 relevant files, from the correct root, rather than searching
-the whole monorepo.
+**Goal:** Dynamically select 3-5 relevant files from the correct root rather
+than trusting a checked-in snapshot of the monorepo.
 
 ## Resolve roots first
 
@@ -96,11 +96,13 @@ the table is navigation, not permission.
 
 1. Classify each needed fact as canonical control or current-worktree source.
 2. Check this map and read the listed 3-5 files.
-3. Use `rg` in one current-worktree module directory.
-4. Read the module `README.md`.
+3. Use `git -C $CurrentRoot ls-files -- '<scoped-path>/**'` or `rg --files` in
+   one current-worktree module directory.
+4. Read the module `README.md` when it exists.
 5. Broaden search only when evidence is still missing.
 
-Full module tree: [reference.md](reference.md)
+Do not maintain or trust a static "full module tree" inside this Skill. The
+tracked tree at the current worktree commit is the only module inventory.
 
 ## Related skills
 
