@@ -1,2 +1,5 @@
-# Phase 0: contract check placeholder
-Write-Host "check-contracts: passed (Phase 0 placeholder)"
+Set-Location (Resolve-Path (Join-Path $PSScriptRoot '..'))
+node scripts/check-contracts.mjs
+if ($LASTEXITCODE -ne 0) {
+  throw "check-contracts failed (exit $LASTEXITCODE)"
+}
