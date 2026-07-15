@@ -101,6 +101,9 @@
     "gate:phase25:gate1def": "node scripts/check-phase25-gate1def.mjs && pnpm test:phase25:gate1def",
     "gate:phase25:readiness": "node scripts/check-phase25-readiness-gates.mjs",
     "gate:phase25:closure": "node scripts/check-phase25-closure.mjs && pnpm gate:phase25:gate1c && pnpm gate:phase25:gate1def && pnpm gate:phase25:readiness",
+    "prepare": "node scripts/install-git-hooks.mjs",
+    "setup:git-hooks": "node scripts/install-git-hooks.mjs",
+    "check:risk": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-lean-risk.ps1 -DiffMode WorkingTree",
     "check:managed-worktree": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-managed-worktree-boundaries.ps1",
     "test:managed-worktree": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-managed-worktree-boundaries.ps1 -Mode SelfTest",
     "preflight": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/preflight-architecture.ps1"
