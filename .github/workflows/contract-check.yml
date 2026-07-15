@@ -1,5 +1,8 @@
 name: Contract Check
 
+permissions:
+  contents: read
+
 on:
   push:
     branches: [main, master]
@@ -8,8 +11,23 @@ on:
 jobs:
   contract:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Contract check placeholder
-        run: pwsh -NoProfile -File scripts/check-contracts.ps1
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Contract typecheck and tests
+        run: pnpm check:contracts

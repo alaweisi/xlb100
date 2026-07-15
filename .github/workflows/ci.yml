@@ -1,5 +1,8 @@
 name: CI
 
+permissions:
+  contents: read
+
 on:
   push:
     branches: [main, master]
@@ -8,6 +11,7 @@ on:
 jobs:
   ci:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     services:
       mysql:
         image: mysql:8
@@ -50,7 +54,7 @@ jobs:
 
       - uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: 9.15.0
 
       - uses: actions/setup-node@v4
         with:
@@ -58,7 +62,10 @@ jobs:
           cache: "pnpm"
 
       - name: Install
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
 
       - name: Migrate database
         working-directory: backend
@@ -75,7 +82,10 @@ jobs:
         run: pnpm typecheck
 
       - name: Test
-        run: pnpm exec vitest run --pool=forks --poolOptions.forks.singleFork
+        run: pnpm test
+
+      - name: Critical dependency audit
+        run: pnpm audit:critical
 
       - name: Preflight
         run: pwsh -NoProfile -File scripts/preflight-architecture.ps1
