@@ -157,7 +157,7 @@ G:\xlb100                                      control / integration / main / Lo
 G:\xlb100-worktrees\<train-id>\<work-unit-id>  managed construction worktree
 ```
 
-`G:\xlb100` 保持唯一 canonical integration root。`AGENTS.md` 已批准上述严格路径作为唯一受管 pool 政策，但 execution registry 仍为 `BOOTSTRAP / NOT_ENABLED`；在独立审计和 Human 启用前不得据此创建可执行 Work Unit。每个未来工棚必须由 Git worktree 元数据连接同一 repository，并绑定唯一 branch/manifest。（Gap: G-04）
+`G:\xlb100` 保持唯一 canonical integration root，`refs/heads/main` 解析出的固定 commit 是唯一 committed control authority。Agent/Gate 必须从该 commit 读取 Phase、registry、Manifest、lease、reservation 与 queue，不得读取 canonical 目录当前 checkout 来替代 control ref。`AGENTS.md` 已批准上述严格路径作为唯一受管 pool 政策，但 execution registry 仍为 `BOOTSTRAP / NOT_ENABLED`；在独立审计和 Human 启用前不得据此创建可执行 Work Unit。每个未来工棚必须由 Git worktree 元数据连接同一 repository，并绑定唯一 branch/manifest。（Gap: G-04）
 
 现有 `G:/xlb100-p0-architecture-foundation` 是历史附加 worktree；根据 05 报告，它没有新模型要求的 manifest/lease/lifecycle。P-13 明确规定它不自动纳入、不自动清理，也不能作为未来 WRITE parallel 授权先例。（Gap: G-04）
 

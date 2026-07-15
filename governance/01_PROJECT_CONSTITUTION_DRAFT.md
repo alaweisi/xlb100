@@ -24,6 +24,8 @@
 
 当前事实基线是：`main` 的 Phase 29 Lock 治理提交为 `80921871baf8647b2d3b7c97f8c0fde2a88f9400`，canonical tag `xlb-phase29-marketing-coupon` 解引用后指向该 commit；当前治理植入 branch 为 `codex/governance-execution-system`。Phase 29 已 Lock，Phase 30/31 尚未进入业务施工；本治理 candidate 不能反向改写 Phase 29 及更早的 Lock 事实。
 
+Canonical path 与 control ref 是两个独立维度：`G:\xlb100` 是唯一 control/integration/main/Lock 操作根，`refs/heads/main` 解析出的固定 commit 是唯一 committed control authority。Agent 与 Gate 不得从该目录当时碰巧检出的 branch 文件读取 Phase、registry、Manifest、lease 或 queue authority。Bootstrap branch 只能作为 immutable candidate evidence；合入 main 且完成独立审计与 Human 启用确认前，始终保持 `NOT_ENABLED`。
+
 ## A. Phase 生命周期规则
 
 ### A1. 当前真实生命周期

@@ -17,20 +17,23 @@ than trusting a checked-in snapshot of the monorepo.
 Run `xlb-session-sync` first and retain:
 
 - `$CanonicalRoot = 'G:\xlb100'`
+- `$CanonicalControlCommit = refs/heads/main^{commit}` resolved by session sync
 - `$CurrentRoot = git rev-parse --show-toplevel`
 - the verified current/canonical Git common-directory identity
 
-Use the canonical root for control-plane facts. Use the current worktree for
-the source tree, tests, branch-local reports, and candidate diff. Never force a
-managed Work Unit to `cd` to the canonical root to inspect its implementation.
+Use blobs at the pinned canonical control commit for control-plane facts. Use
+the current worktree for the source tree, tests, branch-local reports, and
+candidate diff. Never force a managed Work Unit to `cd` to the canonical root
+to inspect its implementation, and never treat the canonical root's current
+checkout as control authority.
 
 ## Global entry points
 
 | Need | Root | Read |
 |------|------|------|
-| Current Phase / Lock / tag facts | canonical | `docs/CURRENT_STATE.md` |
-| Highest governance and Agent rules | canonical | `AGENTS.md`, `governance/01_PROJECT_CONSTITUTION_DRAFT.md`, `governance/04_ADR_DECISION_ENGINE_DESIGN.md`, `governance/06_PARALLEL_CONSTRUCTION_GOVERNANCE_DESIGN.md` |
-| Train / Work Unit authority | canonical | `governance/execution/` registry, Charter, Manifest, leases, reservations, queue |
+| Current Phase / Lock / tag facts | canonical control commit | `docs/CURRENT_STATE.md` |
+| Highest governance and Agent rules | canonical control commit | `AGENTS.md`, `governance/01_PROJECT_CONSTITUTION_DRAFT.md`, `governance/04_ADR_DECISION_ENGINE_DESIGN.md`, `governance/06_PARALLEL_CONSTRUCTION_GOVERNANCE_DESIGN.md` |
+| Train / Work Unit authority | canonical control commit | `governance/execution/` registry, Charter, Manifest, leases, reservations, queue |
 | Architecture law | current worktree | `docs/architecture/00_XLB_ENGINEERING_ARCHITECTURE_MANDATORY.md` |
 | Branch-local source/contracts/tests | current worktree | touched module, `docs/contracts/`, `tests/` |
 | DB dictionaries and migrations in candidate | current worktree | `db/dictionary/`, `db/migrations/` |

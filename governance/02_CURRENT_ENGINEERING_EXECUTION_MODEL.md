@@ -42,7 +42,7 @@ flowchart TD
 
 ## 3. Phase 如何启动
 
-1. **[正式规则]** Agent 依次执行 session sync、context map、current-vs-target、phase-boundary；核验 branch、tags、recent commits、dirty state 与 `CURRENT_STATE`。
+1. **[正式规则]** Agent 必须先执行 session sync；其余 Skill 按任务触发路由。Session sync 固定 `refs/heads/main` control commit，并分别核验 canonical authority 与当前 worktree 的 branch、HEAD、dirty state。
 2. **[稳定实践]** Human 明确进入某 Phase 或子 Gate；“设计已接受”“审计已 PASS”本身不会自动打开 runtime。
 3. **[稳定实践]** 从最近 locked main/tag 建立 `codex/phase...` branch，并在 Entry Report 记录 base SHA、最新 migration、下一 migration、允许/禁止文件和生产边界。
 4. **[稳定实践]** 先做 current-vs-target discovery，列出 P1/P2 风险和 deferred decisions；由 Human 接受保守决策包后 freeze architecture/contract。
@@ -141,13 +141,13 @@ Lock 的现行 ceremony 由 [`xlb-phase-lock`](../.cursor/skills/xlb-phase-lock/
 2. Session sync，确认 feature commits、clean worktree、未包含 dist/cache/无关文件。
 3. build/typecheck/full tests/preflight + 全部 Phase gates。
 4. infrastructure、migration/seed、live API、DB invariants、boundary scan（按 Phase 适用）。
-5. 完成/更新 Phase report。
-6. `--no-ff` merge main。
+5. 冻结 pre-merge acceptance evidence，不提前宣告 Lock。
+6. 在 canonical root 切换并断言当前 branch 为 `main`，再 `--no-ff` merge。
 7. main post-merge repeat verification。
-8. 创建 canonical Phase tag，更新 `CURRENT_STATE`/registry/Lock report。
+8. 更新并提交 `CURRENT_STATE`/registry/Lock report，再创建指向最终治理 commit 的 canonical Phase tag。
 9. 明确 next Phase 未进入；production/push/deploy 仍按单独授权处理。
 
-精确顺序尚不统一：Lock Skill 写的是先 tag 再更新 `CURRENT_STATE`，而 Phase 27/28 的 canonical tag 指向最终 governance commit；早期执行计划还要求立即 push，近期报告明确禁止 push。可确认的是所有这些 closure artifact 都要完成，不能确认一个全局唯一的提交/标记顺序。
+P-18 已统一未来顺序：Human merge/Lock authority → main merge → main 复验 → Lock metadata commit → canonical tag。早期顺序只属于历史，不得继续用于新 Lock；push/deploy 始终需要独立明确授权。
 
 ## 10. 模型摘要：正式规则、历史习惯、未明确治理
 

@@ -24,6 +24,10 @@ if(-not[string]::IsNullOrWhiteSpace($SnapshotCommit)){
   if($LASTEXITCODE-ne0-or$resolvedSnapshot-ne$SnapshotCommit.ToLowerInvariant()){throw "[managed-worktree] FAIL SnapshotCommit does not resolve to itself"}
   if([string]::IsNullOrWhiteSpace($ExpectedHead)-or$SnapshotCommit.ToLowerInvariant()-ne$ExpectedHead.ToLowerInvariant()){throw "[managed-worktree] FAIL SnapshotCommit requires the identical ExpectedHead binding"}
   $script:ControlCommit=$resolvedSnapshot
+}elseif($Mode-eq"WorkUnit"){
+  $resolvedMain=(&git -C $Root rev-parse "refs/heads/main^{commit}" 2>$null).Trim()
+  if($LASTEXITCODE-ne0-or$resolvedMain-notmatch'^[0-9a-fA-F]{40}$'){throw "[managed-worktree] FAIL canonical refs/heads/main control ref is missing"}
+  $script:ControlCommit=$resolvedMain.ToLowerInvariant()
 }else{$script:ControlCommit="HEAD"}
 $ExecutionRoot = Join-Path $Root "governance/execution"
 $WorkUnitsRoot = Join-Path $ExecutionRoot "work-units"
@@ -1901,7 +1905,7 @@ function Test-RepositoryGovernance {
     $TrainRegistryPath,
     $IntegrationQueuePath
   )) {
-    if (-not (Test-ControlLeaf $path)) { Fail "missing canonical governance artifact: $path" }
+    if (-not (Test-ControlLeaf $path)) { Fail "missing canonical governance artifact at control commit $(Get-ControlCommit): $path" }
   }
   Assert-AllCanonicalStrictRecordHistory
 

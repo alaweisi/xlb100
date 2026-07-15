@@ -108,10 +108,11 @@ and the locked migration tree against the canonical integration environment.
 Phase 越界。Recheck that all package evidence is current
 for the exact integration commit.
 
-### 7. Finalize the Phase report
+### 7. Freeze pre-merge acceptance evidence
 
-Update the canonical `docs/reports/PHASE{N}_*_REPORT.md` only under the
-authorized Lock scope, then commit it through the approved serial procedure.
+Freeze the accepted integration commit and its complete verification evidence.
+Do not finalize `CURRENT_STATE`, the Lock report, registry status, or tag here;
+those facts must bind the verified post-merge main commit.
 
 ### 8. Integrate to main
 
@@ -120,10 +121,18 @@ and explicit Human main-merge authority before the main merge. Never merge a
 Work Unit directly to main and never repair business semantics opportunistically
 in the Integration lane.
 
+Immediately before the merge, switch the canonical root to `main` and assert:
+
+```powershell
+$branch = (git -C G:\xlb100 branch --show-current).Trim()
+if ($branch -ne 'main') { throw "Lock merge requires main; found $branch" }
+```
+
 ### 9. Post-merge verification on main
 
 Repeat build, typecheck, tests, preflight, required infrastructure/live checks,
-and evidence freshness checks on the exact canonical main commit.
+and evidence freshness checks on the exact canonical main commit. Re-run the
+branch assertion above before writing any Lock fact.
 
 ### 10. Update canonical Lock facts and tag
 

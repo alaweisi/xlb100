@@ -12,7 +12,8 @@ description: >-
 ## Core rule
 
 **Current implementation comes from the current Git worktree. Canonical Phase
-and authority come from `G:\xlb100`. Blueprint documents are targets only.**
+and authority come from the pinned `refs/heads/main` commit in `G:\xlb100`.
+Blueprint documents are targets only.**
 
 Run `xlb-session-sync` first. Do not `cd G:\xlb100` and then claim its HEAD,
 status, or files describe a managed Work Unit candidate.
@@ -21,8 +22,8 @@ status, or files describe a managed Work Unit candidate.
 |--------|------|-------|
 | Current Git top-level and its tracked tree | Branch/candidate implementation | Yes, for what this worktree contains |
 | Current worktree `git status`, HEAD, diff | Work Unit construction/candidate state | Yes |
-| Canonical `G:\xlb100\docs\CURRENT_STATE.md` | Phase/tag/Lock fact | Yes |
-| Canonical governance execution records | Train/Work Unit authority, leases, queue | Yes |
+| `docs/CURRENT_STATE.md` at pinned canonical control commit | Phase/tag/Lock fact | Yes |
+| Governance records at pinned canonical control commit | Train/Work Unit authority, leases, queue | Yes |
 | Current-worktree Phase report/contracts | Candidate design/evidence input | Yes, subject to canonical scope and freshness checks |
 | SDJ99 or external directory blueprint | Target inspiration | No, for existence or authority |
 | Old Agent conversation | Stale memory | No |

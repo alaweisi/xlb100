@@ -27,6 +27,8 @@ activate production.
 ## Canonical roots
 
 - `G:\xlb100` is the only canonical integration root.
+- `refs/heads/main` resolved once to an immutable commit is the only Work Unit
+  control-plane authority. The canonical root's current checkout is not.
 - The only approved construction pool is
   `G:\xlb100-worktrees\<train-id>\<work-unit-id>`.
 - A construction worktree must be attached to the same Git common directory,
@@ -66,8 +68,9 @@ never grants source-code writes.
 - Do not edit the Manifest or ledgers from the construction worktree to make a
   failing check pass; return the conflict to the General Contractor.
 - Train Charter, Manifest, Lease, Compose override and queue references must
-  resolve inside their canonical `G:\xlb100\governance\execution` locations;
-  runtime arguments may not substitute external copies.
+  resolve from the pinned `refs/heads/main` commit at their canonical
+  `governance/execution` paths; runtime arguments may not substitute external
+  copies or the canonical root's current checkout.
 - Do not widen `allowedPaths`, semantic ownership, migration scope, or Phase
   scope locally.
 - Do not share a MySQL database, Redis namespace, Compose project, port slot,

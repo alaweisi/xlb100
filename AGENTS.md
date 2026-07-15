@@ -25,6 +25,7 @@
 ## Canonical Root 与受管 Worktree Pool
 
 - **唯一 canonical control / integration / main / Lock 根目录：** `G:\xlb100`
+- **唯一 committed control ref：** `refs/heads/main`。Phase、authority 与 execution records 必须从该 ref 的固定 commit 读取，不得从 `G:\xlb100` 当时碰巧检出的 branch/worktree 文件推断
 - **唯一获批的并行施工工棚池：** `G:\xlb100-worktrees\<train-id>\<work-unit-id>`
 - 受管 worktree 必须连接 `G:\xlb100` 的同一 Git common directory，并与已登记的 Train Charter、Work Unit Manifest、branch、base commit、lease、migration reservation 和隔离环境完全一致
 - 未登记目录、自由创建的第二仓库、共享 branch、共享数据库并发写一律禁止；历史目录 `G:\xlb100-p0-architecture-foundation` 不自动纳入受管池，也不构成授权先例
@@ -33,7 +34,7 @@
 
 ## Phase 事实与基础禁区
 
-- 当前 Phase、tag、branch、Lock 的唯一事实源是 `docs/CURRENT_STATE.md`；本节保留的是 Phase 0 建基规则，不代表当前仍处于 Phase 0
+- 当前 Phase、tag、branch、Lock 的唯一事实源是 committed control ref 上的 `docs/CURRENT_STATE.md`；Bootstrap 治理 branch 中的同名文件和 registry 只属于候选证据，不产生 authority；本节保留的是 Phase 0 建基规则，不代表当前仍处于 Phase 0
 - 未获得当前 Phase/Train 明确授权时，禁止写任何真实业务逻辑
 - 未经对应 Phase 与 Authority 明确批准，禁止新增或扩大登录、JWT、city_code 路由、ScopedExecutor、订单、支付、派单、账本、资质、退款和真实 Provider
 - 禁止：迁移或复制旧 SDJ99 半成品代码
@@ -103,7 +104,7 @@
 
 不满足触发条件的 Skill 不得机械叠加；满足多个触发条件时按上述顺序执行。
 
-**事实优先级：** canonical Git commit/tag、canonical `CURRENT_STATE` 与 execution records 决定 Phase 和 authority；当前 worktree 的 Git 状态与实际代码决定候选实现。二者之后才是架构/契约/报告与 Gate，最后才是会话记忆和外部 prompt。若这些事实彼此冲突，必须 fail closed 并汇报，不得用静态 Skill 快照覆盖实时仓库事实。
+**事实优先级：** canonical Git `refs/heads/main` 的固定 commit/tag、该 commit 的 `CURRENT_STATE` 与 execution records 决定 Phase 和 authority；当前 worktree 的 Git 状态与实际代码决定候选实现。二者之后才是架构/契约/报告与 Gate，最后才是会话记忆和外部 prompt。若这些事实彼此冲突，必须 fail closed 并汇报，不得用当前 checkout、Bootstrap candidate 或静态 Skill 快照覆盖 committed control facts。
 
 | Skill | 用途 |
 |-------|------|

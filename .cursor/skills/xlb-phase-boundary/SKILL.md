@@ -16,9 +16,9 @@ alone is permission.
 
 | Fact | Required root |
 |------|---------------|
-| Phase/tag/Lock state | `G:\xlb100\docs\CURRENT_STATE.md` |
-| Constitution, ADR authority, Train registry and Charter | `G:\xlb100` canonical control root |
-| Work Unit Manifest, leases, reservation and queue | `G:\xlb100\governance\execution` |
+| Phase/tag/Lock state | `docs/CURRENT_STATE.md` at pinned `refs/heads/main` commit |
+| Constitution, ADR authority, Train registry and Charter | pinned canonical control commit |
+| Work Unit Manifest, leases, reservation and queue | pinned canonical control commit under `governance/execution` |
 | Current branch, HEAD, status, diff and source | current Git top-level |
 | Candidate contracts, tests and gate implementation | current Git top-level |
 

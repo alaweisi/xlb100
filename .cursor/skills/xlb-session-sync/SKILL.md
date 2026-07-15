@@ -16,13 +16,16 @@ questions.
 ## Root model (mandatory)
 
 - Canonical control / integration / main / Lock root: `G:\xlb100`.
+- Canonical committed control ref: `refs/heads/main`. Resolve it to one commit
+  at session start and pin all Phase/authority/execution reads to that commit.
 - Approved construction pool:
   `G:\xlb100-worktrees\<train-id>\<work-unit-id>`.
 - Resolve the current Git top-level and common directory **before** changing
   directory or reading branch state.
 - Read control-plane facts (`docs/CURRENT_STATE.md`, `governance/`, execution
-  registries, Charter, Manifest, leases, reservations, queue) from the canonical
-  root.
+  registries, Charter, Manifest, leases, reservations, queue) from the pinned
+  committed control commit, not from whichever branch is currently checked out
+  at the canonical root.
 - Read branch, HEAD, status, diff, tracked source, and candidate evidence from
   the current Git top-level. A managed Work Unit must never borrow those facts
   from the canonical root.
@@ -82,6 +85,15 @@ questions.
    if (-not $IsCanonical -and -not $IsPoolCandidate) {
      throw "Unapproved XLB worktree root: $CurrentFull"
    }
+
+   $CanonicalControlRef = 'refs/heads/main'
+   $CanonicalControlCommit = (
+     git -C $CanonicalRoot rev-parse "$CanonicalControlRef^{commit}"
+   ).Trim()
+   if ($LASTEXITCODE -ne 0 -or
+       $CanonicalControlCommit -notmatch '^[0-9a-f]{40}$') {
+     throw "Canonical control ref is missing: $CanonicalControlRef"
+   }
    ```
 
 2. **Read current-worktree Git facts**
@@ -98,16 +110,39 @@ questions.
    Do not replace `$CurrentRoot` with `G:\xlb100` for these commands when the
    task runs in a Work Unit.
 
-3. **Read canonical control facts**
+3. **Read canonical committed control facts**
 
    ```powershell
-   Get-Content -LiteralPath "$CanonicalRoot\docs\CURRENT_STATE.md" -Encoding UTF8
-   Get-Content -LiteralPath "$CanonicalRoot\governance\execution\README.md" -Encoding UTF8
+   git -C $CanonicalRoot show `
+     "${CanonicalControlCommit}:docs/CURRENT_STATE.md"
+
+   $ExecutionReadmeSpec =
+     "${CanonicalControlCommit}:governance/execution/README.md"
+   git -C $CanonicalRoot cat-file -e $ExecutionReadmeSpec 2>$null
+   if ($LASTEXITCODE -eq 0) {
+     git -C $CanonicalRoot show $ExecutionReadmeSpec
+   } elseif ($IsCanonical) {
+     $CurrentHead = (git -C $CurrentRoot rev-parse HEAD).Trim()
+     $CandidateSpec = "${CurrentHead}:governance/execution/README.md"
+     git -C $CurrentRoot cat-file -e $CandidateSpec 2>$null
+     if ($LASTEXITCODE -ne 0) {
+       throw 'Committed governance execution records are unavailable.'
+     }
+     Write-Warning (
+       'Reading BOOTSTRAP governance candidate evidence from current HEAD; ' +
+       'it is not canonical authority until merged to main and enabled.'
+     )
+     git -C $CurrentRoot show $CandidateSpec
+   } else {
+     throw 'Canonical governance execution records are unavailable on main.'
+   }
    git -C $CanonicalRoot tag -l 'xlb-phase*'
    ```
 
-   Read only the needed registry, Charter, Manifest, lease, reservation, and
-   queue records under `$CanonicalRoot\governance\execution`.
+   Read needed registry, Charter, Manifest, lease, reservation, and queue blobs
+   from `$CanonicalControlCommit`. The Bootstrap fallback above is candidate
+   evidence only and must always produce `NOT_ENABLED`, never Work Unit
+   eligibility.
 
 4. **Classify the current root**
 
@@ -120,8 +155,8 @@ questions.
 
 5. **Read phase/task context**
 
-   - Locked Phase/control state: canonical `docs/CURRENT_STATE.md` and canonical
-     registries.
+   - Locked Phase/control state: `docs/CURRENT_STATE.md` and registries at the
+     pinned canonical control commit.
    - Work Unit scope and authority: canonical Charter/Manifest/ledgers.
    - Source, tests, phase report revision, and candidate diff being edited:
      current worktree.
@@ -142,6 +177,7 @@ questions.
 ## Session sync
 - Current root / classification: ... / canonical | managed Work Unit | blocked
 - Git common directory: ... (matches canonical: yes/no)
+- Canonical control ref / commit: refs/heads/main / ...
 - Current branch / HEAD: ... / ...
 - Canonical main tag / locked through: ... / ...
 - Train / Work Unit / manifest status: NONE | ...
@@ -154,6 +190,8 @@ questions.
 
 - Never `cd G:\xlb100` before capturing the current worktree root and branch.
 - Never use canonical-root branch/status/diff as evidence for a Work Unit.
+- Never read control authority from the canonical root's current checkout;
+  pin and read the committed control commit.
 - Never use Work Unit copies of `CURRENT_STATE` or governance registries as the
   control-plane authority.
 - Never assume Phase from old chat.
