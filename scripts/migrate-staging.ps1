@@ -47,11 +47,17 @@ if ([string]::IsNullOrWhiteSpace($nodeEnv)) {
 }
 
 Get-Command pnpm.cmd -ErrorAction Stop | Out-Null
-Write-Host "Running staging migrations through the canonical backend migration CLI..."
 Write-Host "Target: $($env:MYSQL_HOST):$($env:MYSQL_PORT)/$($env:MYSQL_DATABASE) user=$($env:MYSQL_USER)"
 
 Push-Location $Root
 try {
+  Write-Host "Verifying the tag-anchored migration integrity baseline..."
+  & powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-migration-integrity.ps1 -DiffMode WorkingTree
+  if ($LASTEXITCODE -ne 0) {
+    throw "migration integrity gate failed with exit code $LASTEXITCODE"
+  }
+
+  Write-Host "Running staging migrations through the canonical backend migration CLI..."
   & pnpm.cmd run db:migrate
   if ($LASTEXITCODE -ne 0) {
     throw "canonical migration CLI failed with exit code $LASTEXITCODE"

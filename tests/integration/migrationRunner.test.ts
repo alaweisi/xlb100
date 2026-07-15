@@ -52,6 +52,11 @@ function writeMigration(version: string, body: string): string {
   return sql;
 }
 
+function writeRawMigration(version: string, sql: string): string {
+  writeFileSync(join(migrationDir, `${version}.sql`), sql, "utf8");
+  return sql;
+}
+
 function writeStandardMigrations(): Map<string, string> {
   const sources = new Map<string, string>();
   sources.set(
@@ -385,6 +390,104 @@ describe.skipIf(!mysqlAvailable).sequential("migrationRunner reliability integra
     expect(recovery.applied).toEqual(["059_fixture_failure"]);
     expect(await getAppliedMigrations()).toContain("059_fixture_failure");
     expect(await countRows("fixture_partial_ddl")).toBe(1);
+  });
+
+  it("recovers a terminal marker committed before checksum metadata after a process crash", async () => {
+    writeStandardMigrations();
+    await runMigrations();
+    const crashSql = writeMigration(
+      "059_fixture_crash_window",
+      "CREATE TABLE fixture_crash_window (id INT NOT NULL PRIMARY KEY);",
+    );
+    const connection = await mysql.createConnection({ ...adminConfig, database });
+    try {
+      await connection.query(
+        "CREATE TABLE fixture_crash_window (id INT NOT NULL PRIMARY KEY)",
+      );
+      await connection.execute(
+        `INSERT INTO migration_execution_history
+           (version, checksum_sha256, status, executor_id, started_at)
+         VALUES ('059_fixture_crash_window', ?, 'running', 'crashed-runner', CURRENT_TIMESTAMP(3))`,
+        [checksum(crashSql)],
+      );
+      await connection.query(
+        "INSERT INTO schema_migrations (version) VALUES ('059_fixture_crash_window')",
+      );
+    } finally {
+      await connection.end();
+    }
+
+    const recovery = await runMigrations();
+    expect(recovery.applied).toEqual([]);
+    expect(recovery.skipped).toContain("059_fixture_crash_window");
+    const rows = await migrationRows();
+    expect(rows.find((row) => row.version === "059_fixture_crash_window")?.checksum_sha256)
+      .toBe(checksum(crashSql));
+    const evidence = await mysql.createConnection({ ...adminConfig, database });
+    try {
+      const [history] = await evidence.query<HistoryRow[]>(
+        `SELECT status FROM migration_execution_history
+          WHERE version = '059_fixture_crash_window' ORDER BY started_at DESC`,
+      );
+      expect(history[0]?.status).toBe("succeeded");
+    } finally {
+      await evidence.end();
+    }
+  });
+
+  it("preserves a successful marker when the success-history update fails", async () => {
+    writeStandardMigrations();
+    await runMigrations();
+    writeMigration(
+      "059_fixture_history_failure",
+      "CREATE TABLE fixture_history_failure (id INT NOT NULL PRIMARY KEY);",
+    );
+    await admin.query(`
+      CREATE TRIGGER ${database}.fail_migration_history_update
+      BEFORE UPDATE ON ${database}.migration_execution_history
+      FOR EACH ROW
+      SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'forced history update failure'
+    `);
+
+    await expect(runMigrations()).rejects.toMatchObject({ code: "ER_SIGNAL_EXCEPTION" });
+    const afterFailure = await migrationRows();
+    expect(afterFailure.find((row) => row.version === "059_fixture_history_failure")?.checksum_sha256)
+      .toMatch(/^[0-9a-f]{64}$/u);
+    expect(await countRows("fixture_history_failure")).toBe(0);
+
+    await admin.query(`DROP TRIGGER ${database}.fail_migration_history_update`);
+    const recovery = await runMigrations();
+    expect(recovery.applied).toEqual([]);
+    expect(recovery.skipped).toContain("059_fixture_history_failure");
+  });
+
+  it("preserves the primary SQL error when marker cleanup also fails", async () => {
+    writeStandardMigrations();
+    await runMigrations();
+    writeRawMigration(
+      "059_fixture_cleanup_failure",
+      `CREATE TABLE fixture_cleanup_failure (id INT NOT NULL PRIMARY KEY);
+       INSERT INTO schema_migrations (version) VALUES ('059_fixture_cleanup_failure');
+       THIS IS THE PRIMARY SQL FAILURE;`,
+    );
+    await admin.query(`
+      CREATE TRIGGER ${database}.fail_migration_marker_delete
+      BEFORE DELETE ON ${database}.schema_migrations
+      FOR EACH ROW
+      SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'forced marker cleanup failure'
+    `);
+
+    await expect(runMigrations()).rejects.toMatchObject({ code: "ER_PARSE_ERROR" });
+    const evidence = await mysql.createConnection({ ...adminConfig, database });
+    try {
+      const [history] = await evidence.query<HistoryRow[]>(
+        `SELECT status FROM migration_execution_history
+          WHERE version = '059_fixture_cleanup_failure' ORDER BY started_at DESC`,
+      );
+      expect(history[0]?.status).toBe("failed");
+    } finally {
+      await evidence.end();
+    }
   });
 
   it("backfills a checksum for a pre-058 legacy marker after the reliability migration", async () => {

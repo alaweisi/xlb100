@@ -28,6 +28,7 @@ type MigrationFile = {
   filePath: string;
   sql: string;
   checksum: string;
+  hasTerminalMarker: boolean;
 };
 
 type AppliedMigrationRow = RowDataPacket & {
@@ -37,6 +38,14 @@ type AppliedMigrationRow = RowDataPacket & {
 
 type CountRow = RowDataPacket & { count: number };
 type LockRow = RowDataPacket & { acquired: number | null };
+type InterruptedHistoryRow = RowDataPacket & {
+  migration_execution_id: number;
+  version: string;
+  checksum_sha256: string;
+  executor_id: string;
+  applied_checksum_sha256: string | null;
+  recovery_duration_ms: number | string;
+};
 
 export class MigrationLockTimeoutError extends Error {
   readonly code = "MIGRATION_LOCK_TIMEOUT";
@@ -93,6 +102,17 @@ function getMigrationDirectory(): string {
   return override ? path.resolve(override) : getDbPath("migrations");
 }
 
+function hasTerminalMigrationMarker(sql: string, version: string): boolean {
+  const escapedVersion = version.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+  const terminalMarker = new RegExp(
+    `INSERT\\s+INTO\\s+schema_migrations\\s*\\(\\s*version\\s*\\)\\s*` +
+      `VALUES\\s*\\(\\s*'${escapedVersion}'\\s*\\)\\s*` +
+      `ON\\s+DUPLICATE\\s+KEY\\s+UPDATE\\s+version\\s*=\\s*version\\s*;?\\s*$`,
+    "iu",
+  );
+  return terminalMarker.test(normalizeMigrationSql(sql));
+}
+
 function listMigrationFiles(): MigrationFile[] {
   const directory = getMigrationDirectory();
   return fs
@@ -107,6 +127,10 @@ function listMigrationFiles(): MigrationFile[] {
         filePath,
         sql,
         checksum: computeMigrationChecksum(sql),
+        hasTerminalMarker: hasTerminalMigrationMarker(
+          sql,
+          file.replace(/\.sql$/u, ""),
+        ),
       };
     });
 }
@@ -188,6 +212,68 @@ async function isMigrationRecorded(connection: Connection, version: string): Pro
     [version],
   );
   return Number(rows[0]?.count ?? 0) === 1;
+}
+
+async function recoverInterruptedSuccessfulMigrations(
+  connection: Connection,
+  files: MigrationFile[],
+): Promise<void> {
+  if (!(await hasTable(connection, "migration_execution_history"))) return;
+  const filesByVersion = new Map(files.map((file) => [file.version, file]));
+  const [rows] = await connection.query<InterruptedHistoryRow[]>(
+    `SELECT history.migration_execution_id,
+            history.version,
+            history.checksum_sha256,
+            history.executor_id,
+            applied.checksum_sha256 AS applied_checksum_sha256,
+            GREATEST(
+              0,
+              TIMESTAMPDIFF(MICROSECOND, history.started_at, CURRENT_TIMESTAMP(3)) DIV 1000
+            ) AS recovery_duration_ms
+       FROM migration_execution_history AS history
+       JOIN schema_migrations AS applied
+         ON BINARY applied.version = BINARY history.version
+      WHERE history.status = 'running'
+      ORDER BY history.migration_execution_id`,
+  );
+
+  for (const row of rows) {
+    const version = String(row.version);
+    const migration = filesByVersion.get(version);
+    const historyChecksum = String(row.checksum_sha256);
+    const appliedChecksum = row.applied_checksum_sha256 === null
+      ? null
+      : String(row.applied_checksum_sha256);
+    if (
+      !migration?.hasTerminalMarker ||
+      historyChecksum !== migration.checksum ||
+      (appliedChecksum !== null && appliedChecksum !== migration.checksum)
+    ) {
+      continue;
+    }
+
+    const durationMs = Math.max(0, Number(row.recovery_duration_ms));
+    // The file's terminal marker is committed only after all preceding SQL.
+    // A matching running-history checksum therefore closes the crash window
+    // between that marker and the runner's metadata/history updates.
+    await connection.execute(
+      `UPDATE schema_migrations
+          SET checksum_sha256 = ?,
+              execution_duration_ms = COALESCE(execution_duration_ms, ?),
+              executor_id = COALESCE(executor_id, ?)
+        WHERE version = ? AND (checksum_sha256 IS NULL OR checksum_sha256 = ?)`,
+      [migration.checksum, durationMs, String(row.executor_id), version, migration.checksum],
+    );
+    await connection.execute(
+      `UPDATE migration_execution_history
+          SET status = 'succeeded',
+              finished_at = CURRENT_TIMESTAMP(3),
+              execution_duration_ms = ?,
+              error_message = NULL
+        WHERE migration_execution_id = ? AND status = 'running'`,
+      [durationMs, Number(row.migration_execution_id)],
+    );
+  }
 }
 
 async function abandonInterruptedExecutionHistory(connection: Connection): Promise<void> {
@@ -364,34 +450,63 @@ async function executeMigration(
 ): Promise<void> {
   const startedAt = new Date();
   const historyId = await startExecutionHistory(connection, migration, executorId, startedAt);
+  let sqlCompleted = false;
   try {
     await connection.query(migration.sql);
+    sqlCompleted = true;
     const durationMs = Math.max(0, Date.now() - startedAt.getTime());
     await ensureSuccessfulMarker(connection, migration, durationMs, executorId);
-    await finishExecutionHistory(
-      connection,
-      historyId,
-      migration,
-      executorId,
-      startedAt,
-      durationMs,
-      null,
-    );
   } catch (error) {
     const durationMs = Math.max(0, Date.now() - startedAt.getTime());
-    // A migration marker is a success fact. Remove a marker written by a failed SQL batch.
-    await connection.execute("DELETE FROM schema_migrations WHERE version = ?", [migration.version]);
-    await finishExecutionHistory(
-      connection,
-      historyId,
-      migration,
-      executorId,
-      startedAt,
-      durationMs,
-      error,
-    );
+    const cleanupErrors: unknown[] = [];
+    if (!sqlCompleted) {
+      // Only a failed SQL batch may have written a false marker. Once the SQL
+      // batch completed, its terminal marker is a success fact and must survive
+      // metadata/history failures for restart reconciliation.
+      try {
+        await connection.execute(
+          "DELETE FROM schema_migrations WHERE version = ?",
+          [migration.version],
+        );
+      } catch (cleanupError) {
+        cleanupErrors.push(cleanupError);
+      }
+      try {
+        await finishExecutionHistory(
+          connection,
+          historyId,
+          migration,
+          executorId,
+          startedAt,
+          durationMs,
+          error,
+        );
+      } catch (cleanupError) {
+        cleanupErrors.push(cleanupError);
+      }
+    }
+    if (error instanceof Error && cleanupErrors.length > 0) {
+      Object.defineProperty(error, "migrationCleanupErrors", {
+        configurable: true,
+        enumerable: false,
+        value: cleanupErrors,
+      });
+    }
     throw error;
   }
+
+  const durationMs = Math.max(0, Date.now() - startedAt.getTime());
+  // A history failure must fail the CLI but never erase a successful marker.
+  // The running row and matching marker/checksum are reconciled on the next run.
+  await finishExecutionHistory(
+    connection,
+    historyId,
+    migration,
+    executorId,
+    startedAt,
+    durationMs,
+    null,
+  );
 }
 
 async function acquireMigrationLock(
@@ -436,6 +551,7 @@ export async function runMigrations(): Promise<MigrationResult> {
     await ensureSchemaMigrationsTable(connection);
     let controlsEnabled = await hasMigrationControls(connection);
     if (controlsEnabled) {
+      await recoverInterruptedSuccessfulMigrations(connection, files);
       await abandonInterruptedExecutionHistory(connection);
       // 058 uses idempotent DDL so an interrupted first attempt can be resumed.
       // The database baseline is authoritative only after its success marker exists.

@@ -42,6 +42,10 @@ foreach ($name in @("MYSQL_HOST", "MYSQL_PORT", "MYSQL_DATABASE", "MYSQL_USER", 
 Require ($staging -match 'change-me') "staging wrapper must explicitly reject example credentials"
 Require ($staging -match 'xlb_local') "staging wrapper must reject the local database target"
 Require ($staging -notmatch '\.env\.staging\.example') "staging wrapper must not load the example env file"
+$integrityGateIndex = $staging.IndexOf('check-migration-integrity.ps1')
+$canonicalCliIndex = $staging.IndexOf('pnpm.cmd run db:migrate')
+Require ($integrityGateIndex -ge 0) "staging wrapper must run the tag-anchored migration integrity gate"
+Require ($integrityGateIndex -lt $canonicalCliIndex) "staging integrity gate must run before the canonical CLI"
 
 foreach ($term in @(
   "check-migration-integrity.ps1",
