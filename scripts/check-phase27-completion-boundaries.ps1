@@ -52,6 +52,9 @@ $phase29Authorized =
 if ($phase29Authorized) {
   $expectedMigrations += '057_phase29_marketing_coupon.sql'
 }
+if (Test-Path -LiteralPath 'db/migrations/058_stage2c2_migration_control.sql') {
+  $expectedMigrations += '058_stage2c2_migration_control.sql'
+}
 if ($migrations.Count -ne $expectedMigrations.Count) {
   throw "Phase27 completion migration ledger contains an unauthorized 054+ migration"
 }

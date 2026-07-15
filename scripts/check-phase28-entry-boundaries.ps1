@@ -107,6 +107,9 @@ $laterMigrations = @(Get-ChildItem db/migrations -File | Where-Object {
 })
 $expectedPhase28Migrations = @('056_phase28_review_reputation.sql')
 if ($phase29Authorized) { $expectedPhase28Migrations += '057_phase29_marketing_coupon.sql' }
+if (Test-Path -LiteralPath 'db/migrations/058_stage2c2_migration_control.sql') {
+  $expectedPhase28Migrations += '058_stage2c2_migration_control.sql'
+}
 $actualMigrationNames = @($laterMigrations.Name | Sort-Object) -join ','
 $expectedMigrationNames = @($expectedPhase28Migrations | Sort-Object) -join ','
 if ($laterMigrations.Count -ne $expectedPhase28Migrations.Count -or

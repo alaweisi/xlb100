@@ -46,10 +46,17 @@ describe("stage 2C-1 dedicated job worker", () => {
     const startJobs = vi.fn().mockReturnValue({ stop, runOnce });
     const closeMysql = vi.fn().mockResolvedValue(undefined);
     const closeRedis = vi.fn().mockResolvedValue(undefined);
+    const streamRuntime = {
+      start: vi.fn(),
+      stop: vi.fn().mockResolvedValue(undefined),
+    };
     const worker = createJobWorker({
       env: buildEnv(),
       logger: buildLogger(),
       startJobs,
+      streamRuntime,
+      streamHandler: vi.fn().mockResolvedValue(undefined),
+      streamConsumerName: "worker-test",
       closeMysql,
       closeRedis,
     });
@@ -61,6 +68,8 @@ describe("stage 2C-1 dedicated job worker", () => {
     expect(startJobs).toHaveBeenCalledTimes(1);
     expect(runOnce).toHaveBeenCalledTimes(1);
     expect(stop).toHaveBeenCalledTimes(1);
+    expect(streamRuntime.start).toHaveBeenCalledTimes(1);
+    expect(streamRuntime.stop).toHaveBeenCalledTimes(1);
     expect(closeMysql).toHaveBeenCalledTimes(1);
     expect(closeRedis).toHaveBeenCalledTimes(1);
   });
@@ -86,6 +95,8 @@ describe("stage 2C-1 dedicated job worker", () => {
         stop: vi.fn().mockResolvedValue(undefined),
         runOnce: vi.fn().mockResolvedValue(undefined),
       }),
+      streamRuntime: { start: vi.fn(), stop: vi.fn().mockResolvedValue(undefined) },
+      streamHandler: vi.fn().mockResolvedValue(undefined),
       closeMysql,
       closeRedis,
     });
@@ -110,12 +121,15 @@ describe("stage 2C-1 dedicated job worker", () => {
     const stop = vi.fn().mockResolvedValue(undefined);
     const closeMysql = vi.fn().mockResolvedValue(undefined);
     const closeRedis = vi.fn().mockResolvedValue(undefined);
+    const streamRuntime = { start: vi.fn(), stop: vi.fn().mockResolvedValue(undefined) };
 
     await main({
       env: buildEnv(),
       logger: buildLogger(),
       processLike,
       startJobs: () => ({ stop, runOnce: vi.fn().mockResolvedValue(undefined) }),
+      streamRuntime,
+      streamHandler: vi.fn().mockResolvedValue(undefined),
       closeMysql,
       closeRedis,
     });
@@ -127,6 +141,7 @@ describe("stage 2C-1 dedicated job worker", () => {
 
     expect(processLike.once).toHaveBeenCalledTimes(2);
     expect(stop).toHaveBeenCalledOnce();
+    expect(streamRuntime.stop).toHaveBeenCalledOnce();
     expect(closeMysql).toHaveBeenCalledOnce();
     expect(processLike.exitCode).toBeUndefined();
   });

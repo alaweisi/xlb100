@@ -1,8 +1,15 @@
+import { hostname } from "node:os";
 import { fileURLToPath } from "node:url";
 import { loadEnv, type EnvConfig } from "@xlb/config";
 import { closeMysqlPool } from "./dal/mysqlPool.js";
 import { closeRedisClient } from "./dal/redisClient.js";
 import { startAutoRunJobs, type AutoRunHandle } from "./jobs/autoRun.js";
+import type { DispatchStreamHandler } from "./streams/dispatchStreamConsumer.js";
+import { dispatchStreamDurableHandler } from "./streams/dispatchStreamDurableHandler.js";
+import {
+  dispatchStreamRuntime,
+  type DispatchStreamRuntimeOptions,
+} from "./streams/dispatchStreamRuntime.js";
 
 export type JobWorkerLogger = {
   info: (payload: unknown, message?: string) => void;
@@ -19,6 +26,12 @@ type JobWorkerDependencies = {
   env?: EnvConfig;
   logger?: JobWorkerLogger;
   startJobs?: (options: { env: EnvConfig; logger: JobWorkerLogger }) => AutoRunHandle;
+  streamRuntime?: {
+    start: (options: DispatchStreamRuntimeOptions) => void;
+    stop: () => Promise<void>;
+  };
+  streamHandler?: DispatchStreamHandler;
+  streamConsumerName?: string;
   closeMysql?: () => Promise<void>;
   closeRedis?: () => Promise<void>;
 };
@@ -65,6 +78,10 @@ export function createJobWorker(dependencies: JobWorkerDependencies = {}): JobWo
   const env = dependencies.env ?? loadEnv();
   const logger = dependencies.logger ?? jobWorkerConsoleLogger;
   const startJobs = dependencies.startJobs ?? startAutoRunJobs;
+  const streamRuntime = dependencies.streamRuntime ?? dispatchStreamRuntime;
+  const streamHandler = dependencies.streamHandler ?? dispatchStreamDurableHandler;
+  const streamConsumerName = dependencies.streamConsumerName
+    ?? `${hostname().replace(/[^A-Za-z0-9._-]/gu, "_")}-${process.pid}`;
   const closeMysql = dependencies.closeMysql ?? closeMysqlPool;
   const closeRedis = dependencies.closeRedis ?? closeRedisClient;
   let jobs: AutoRunHandle | null = null;
@@ -87,13 +104,29 @@ export function createJobWorker(dependencies: JobWorkerDependencies = {}): JobWo
       ) {
         throw new Error("dedicated job worker requires AUTO_RUN_INTERVAL_MS between 1000 and 60000");
       }
-      jobs = startJobs({ env, logger });
+      streamRuntime.start({
+        cityCodes: env.autoRunCityCodes,
+        consumerName: streamConsumerName,
+        handler: streamHandler,
+        idleDelayMs: Math.min(env.autoRunIntervalMs, 1_000),
+        onError: (error) => logger.error({ error }, "dispatch stream consumer cycle failed"),
+      });
+      try {
+        jobs = startJobs({ env, logger });
+      } catch (error) {
+        void streamRuntime.stop();
+        throw error;
+      }
       started = true;
       void Promise.resolve(jobs.runOnce()).catch((error: unknown) => {
         logger.error({ error }, "dedicated job worker initial cycle failed");
       });
       logger.info(
-        { intervalMs: env.autoRunIntervalMs, cityCodes: env.autoRunCityCodes },
+        {
+          intervalMs: env.autoRunIntervalMs,
+          cityCodes: env.autoRunCityCodes,
+          streamConsumerName,
+        },
         "dedicated job worker started",
       );
     },
@@ -101,11 +134,21 @@ export function createJobWorker(dependencies: JobWorkerDependencies = {}): JobWo
       if (shutdownPromise) return shutdownPromise;
       shutdownPromise = (async () => {
         logger.info({ signal }, "dedicated job worker shutdown requested");
-        await jobs?.stop();
+        const failures: unknown[] = [];
+        try {
+          await jobs?.stop();
+        } catch (error) {
+          failures.push(error);
+        }
+        try {
+          await streamRuntime.stop();
+        } catch (error) {
+          failures.push(error);
+        }
         const results = await Promise.allSettled([closeMysql(), closeRedis()]);
-        const failures = results
+        failures.push(...results
           .filter((result): result is PromiseRejectedResult => result.status === "rejected")
-          .map((result) => result.reason);
+          .map((result) => result.reason));
         if (failures.length > 0) {
           throw new AggregateError(failures, "dedicated job worker resource cleanup failed");
         }

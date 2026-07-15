@@ -36,6 +36,7 @@ $phase29Authorized =
   (Test-Path -LiteralPath $phase29RegistryPath) -and
   (Get-Content -Raw -Encoding UTF8 -LiteralPath $phase29RegistryPath).Contains('Entry decisions D01-D24 are approved for continuous construction through independent acceptance.') -and
   (Test-Path -LiteralPath $phase29MigrationPath)
+$stage2c2Authorized = Test-Path -LiteralPath 'db/migrations/058_stage2c2_migration_control.sql'
 
 $migration054 = @(Get-ChildItem db/migrations -File | Where-Object { $_.Name -match '^054_' })
 $migration055Plus = @(Get-ChildItem db/migrations -File | Where-Object {
@@ -65,7 +66,13 @@ if ($migration055Plus.Count -ne 0) {
     $migration055Plus.Count -eq 3 -and
     @($migration055Plus.Name | Sort-Object) -join ',' -eq
       '055_phase27b_notification_projection_foundation.sql,056_phase28_review_reputation.sql,057_phase29_marketing_coupon.sql'
-  if (-not $expectedPhase27bMigration -and -not $expectedPhase28Migrations -and -not $expectedPhase29Migrations) {
+  $expectedStage2c2Migrations =
+    $phase29Authorized -and $stage2c2Authorized -and
+    $migration055Plus.Count -eq 4 -and
+    @($migration055Plus.Name | Sort-Object) -join ',' -eq
+      '055_phase27b_notification_projection_foundation.sql,056_phase28_review_reputation.sql,057_phase29_marketing_coupon.sql,058_stage2c2_migration_control.sql'
+  if (-not $expectedPhase27bMigration -and -not $expectedPhase28Migrations -and
+      -not $expectedPhase29Migrations -and -not $expectedStage2c2Migrations) {
     throw "Phase27A forbids unauthorized migration 055 or later"
   }
 }

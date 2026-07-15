@@ -41,7 +41,14 @@ $expectedPhase29Migrations =
   $migration056Plus.Count -eq 2 -and
   @($migration056Plus.Name | Sort-Object) -join ',' -eq
     '056_phase28_review_reputation.sql,057_phase29_marketing_coupon.sql'
-if ($migration056Plus.Count -ne 0 -and -not $expectedPhase28Migration -and -not $expectedPhase29Migrations) {
+$expectedStage2c2Migrations =
+  $phase29Authorized -and
+  (Test-Path -LiteralPath 'db/migrations/058_stage2c2_migration_control.sql') -and
+  $migration056Plus.Count -eq 3 -and
+  @($migration056Plus.Name | Sort-Object) -join ',' -eq
+    '056_phase28_review_reputation.sql,057_phase29_marketing_coupon.sql,058_stage2c2_migration_control.sql'
+if ($migration056Plus.Count -ne 0 -and -not $expectedPhase28Migration -and
+    -not $expectedPhase29Migrations -and -not $expectedStage2c2Migrations) {
   throw "Phase27B B2 forbids unauthorized migration 056 or later"
 }
 $migration055Path = 'db/migrations/055_phase27b_notification_projection_foundation.sql'

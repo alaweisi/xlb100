@@ -36,6 +36,9 @@ $later = @(Get-ChildItem db/migrations -File | Where-Object {
 })
 $expectedLater = @()
 if ($phase29Authorized) { $expectedLater += '057_phase29_marketing_coupon.sql' }
+if (Test-Path -LiteralPath 'db/migrations/058_stage2c2_migration_control.sql') {
+  $expectedLater += '058_stage2c2_migration_control.sql'
+}
 $actualLaterNames = @($later.Name | Sort-Object) -join ','
 $expectedLaterNames = @($expectedLater | Sort-Object) -join ','
 if ($later.Count -ne $expectedLater.Count -or
