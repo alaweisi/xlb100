@@ -335,6 +335,21 @@ function Assert-HistoryLegalStatusEdge([string]$SubjectType,[string]$Previous,[s
   if(-not$transitions.ContainsKey($Previous)-or$Current-notin$transitions[$Previous]){Fail "$Label has illegal historical status edge $Previous -> $Current"}
 }
 
+function Assert-PostActivationSubjectIntroduction($Introduction,[string]$SubjectType,[string]$SubjectId,[string]$TrainId="",[string]$WorkUnitId="") {
+  if($null-eq$Introduction-or$null-eq$Introduction.Snapshot){Fail "$SubjectType $SubjectId post-activation introduction is missing its immutable snapshot"}
+  if(@($Introduction.Parents).Count-ne1){Fail "$SubjectType $SubjectId post-activation introduction must be a single-parent commit: $($Introduction.Commit)"}
+  $snapshot=$Introduction.Snapshot;$expectedPrevious="NONE";$expectedCurrent=""
+  switch($SubjectType){
+    "RELEASE_TRAIN"{$mode=(Require-Text $snapshot.Subject "executionMode" "$SubjectType $SubjectId introduction").ToUpperInvariant();$expectedCurrent=if($mode-eq"VALIDATION_ONLY"){"PLANNED"}elseif($mode-eq"BUSINESS_CONSTRUCTION"){"DRAFT"}else{Fail "$SubjectType $SubjectId introduction has unsupported executionMode $mode"};break}
+    "WORK_UNIT"{$expectedCurrent="PLANNED";break}
+    "EXECUTION_SYSTEM"{$expectedPrevious="NONE/NONE";$expectedCurrent="BOOTSTRAP/NOT_ENABLED";break}
+    "INTEGRATION_QUEUE"{$expectedCurrent="NOT_ENABLED";break}
+    default{Fail "$SubjectType $SubjectId has no post-activation introduction policy"}
+  }
+  if("$($snapshot.Previous)"-ne$expectedPrevious-or"$($snapshot.Status)"-ne$expectedCurrent){Fail "$SubjectType $SubjectId post-activation introduction must declare $expectedPrevious -> $expectedCurrent"}
+  Assert-TransitionAuthorityRecord "$($snapshot.AuthorityRef)" $SubjectType $SubjectId $expectedPrevious $expectedCurrent "$($snapshot.ChangedAt)" "$SubjectType $SubjectId post-activation introduction" $TrainId $WorkUnitId "$($Introduction.Commit)"
+}
+
 function Assert-StatusHistoryBinding([string]$RepoPath,[string]$SubjectType,[string]$SubjectId,[string]$Current,[string]$Previous,[string]$ChangedAt,[string]$AuthorityRef,[string]$TrainId="",[string]$WorkUnitId="",[string]$BaselineCommit="",[string[]]$SameStatusClosureFields=@(),[string[]]$CarryForwardFields=@()) {
   $normalized=Normalize-RepoPath $RepoPath "status history path"
   $controlCommit=Get-ControlCommit
@@ -404,6 +419,10 @@ function Assert-StatusHistoryBinding([string]$RepoPath,[string]$SubjectType,[str
     }
   }
   if($introductions.Count-ne1){Fail "$SubjectType $SubjectId must have exactly one reachable introduction event; found $($introductions.Count)"}
+  $introduction=$introductions[0]
+  if(-not[string]::IsNullOrWhiteSpace($epochBoundary)-and"$($introduction.Commit)"-ne$epochBoundary){
+    Assert-PostActivationSubjectIntroduction $introduction $SubjectType $SubjectId $TrainId $WorkUnitId
+  }
   if($deletions.Count){Fail "$SubjectType $SubjectId was deleted after introduction and may not be re-added"}
   if($epochEntries.Count-ne1){Fail "$SubjectType $SubjectId current transition epoch must have exactly one DAG entry; found $($epochEntries.Count)"}
   $entry=$epochEntries[0]
@@ -913,26 +932,32 @@ function Test-PrefixOverlap([string]$Left, [string]$Right) {
 
 function Get-SerialCanonicalWriterDeclaration($Manifest, [string]$Label) {
   $role = Require-Text $Manifest "role" $Label
-  $writerKey = Get-OptionalValue $Manifest "canonicalWriterKey"
+  $writerKeyMember = $Manifest.PSObject.Properties["canonicalWriterKey"]
+  $writerKey = if ($null -eq $writerKeyMember) { $null } else { $writerKeyMember.Value }
   $leaseRefs = Get-OptionalValue $Manifest "leaseRefs"
-  $writerRef = if ($null -eq $leaseRefs) { $null } else { Get-OptionalValue $leaseRefs "canonicalWriter" }
+  $writerRefMember = if ($null -eq $leaseRefs) { $null } else { $leaseRefs.PSObject.Properties["canonicalWriter"] }
+  $writerRef = if ($null -eq $writerRefMember) { $null } else { $writerRefMember.Value }
   $hasRole = $role -eq $SerialCanonicalWriterRole
-  $hasKey = $null -ne $writerKey -and -not [string]::IsNullOrWhiteSpace("$writerKey")
-  $hasRef = $null -ne $writerRef -and -not [string]::IsNullOrWhiteSpace("$writerRef")
-  if (($hasRole -or $hasKey -or $hasRef) -and -not ($hasRole -and $hasKey -and $hasRef)) {
+  $hasKeyProperty = $null -ne $writerKeyMember
+  $hasRefProperty = $null -ne $writerRefMember
+  if (($hasRole -or $hasKeyProperty -or $hasRefProperty) -and -not ($hasRole -and $hasKeyProperty -and $hasRefProperty)) {
     Fail "$Label serial canonical writer declaration must include role, canonicalWriterKey, and leaseRefs.canonicalWriter together"
   }
   if (-not $hasRole) {
     return [pscustomobject]@{ IsSerial=$false; Key=""; LeaseId="" }
   }
+  if ($writerKey -isnot [string] -or $writerRef -isnot [string]) {
+    Fail "$Label serial canonical writer identifiers must be non-empty JSON strings"
+  }
   if ((Require-Text $Manifest "executionMode" $Label).ToUpperInvariant() -ne "BUSINESS_CONSTRUCTION") {
     Fail "$Label serial canonical writer must use BUSINESS_CONSTRUCTION"
   }
-  $normalizedKey = "$writerKey".Trim().ToLowerInvariant()
+  $normalizedKey = (Require-Text $Manifest "canonicalWriterKey" $Label).ToLowerInvariant()
+  $normalizedLeaseId = (Require-Text $leaseRefs "canonicalWriter" "$Label leaseRefs").Trim()
   if ($normalizedKey -notin $AllowedSerialCanonicalWriterKeys) {
     Fail "$Label canonicalWriterKey is not enabled for managed serial delegation: $normalizedKey"
   }
-  return [pscustomobject]@{ IsSerial=$true; Key=$normalizedKey; LeaseId="$writerRef".Trim() }
+  return [pscustomobject]@{ IsSerial=$true; Key=$normalizedKey; LeaseId=$normalizedLeaseId }
 }
 
 function Assert-UniqueSerialCanonicalWriterReservations($Records) {
@@ -2783,6 +2808,18 @@ function Invoke-NegativeSelfTests {
     Assert-Rejected "unsupported serial canonical writer key" {
       $null=Get-SerialCanonicalWriterDeclaration ([pscustomobject]@{role=$SerialCanonicalWriterRole;executionMode="BUSINESS_CONSTRUCTION";canonicalWriterKey="current-state-phase-registry-lock-report-tag";leaseRefs=[pscustomobject]@{canonicalWriter="LEASE-SERIAL-GOVERNANCE-METADATA"}}) "serial declaration fixture"
     }
+    Assert-Rejected "ordinary Work Unit cannot carry blank serial canonical writer markers" {
+      $null=Get-SerialCanonicalWriterDeclaration ([pscustomobject]@{role="TEST_OWNER";executionMode="BUSINESS_CONSTRUCTION";canonicalWriterKey="";leaseRefs=[pscustomobject]@{canonicalWriter=""}}) "serial declaration fixture"
+    }
+    Assert-Rejected "serial canonical writer key cannot be null" {
+      $null=Get-SerialCanonicalWriterDeclaration ([pscustomobject]@{role=$SerialCanonicalWriterRole;executionMode="BUSINESS_CONSTRUCTION";canonicalWriterKey=$null;leaseRefs=[pscustomobject]@{canonicalWriter="LEASE-SERIAL-INTEGRATION-QUEUE"}}) "serial declaration fixture"
+    }
+    Assert-Rejected "serial canonical writer key must be a JSON string" {
+      $null=Get-SerialCanonicalWriterDeclaration ([pscustomobject]@{role=$SerialCanonicalWriterRole;executionMode="BUSINESS_CONSTRUCTION";canonicalWriterKey=42;leaseRefs=[pscustomobject]@{canonicalWriter="LEASE-SERIAL-INTEGRATION-QUEUE"}}) "serial declaration fixture"
+    }
+    Assert-Rejected "serial canonical writer lease ref must be a JSON string" {
+      $null=Get-SerialCanonicalWriterDeclaration ([pscustomobject]@{role=$SerialCanonicalWriterRole;executionMode="BUSINESS_CONSTRUCTION";canonicalWriterKey="integration-queue-and-integration-branch";leaseRefs=[pscustomobject]@{canonicalWriter=@("LEASE-SERIAL-INTEGRATION-QUEUE")}}) "serial declaration fixture"
+    }
     $integrationLeaseSource=@($canonicalLeaseLedger.leases|Where-Object{$_.leaseId-eq"LEASE-SERIAL-INTEGRATION-QUEUE"})[0]
     $integrationLease=[pscustomobject]@{Id=$integrationLeaseSource.leaseId;Type="CANONICAL_WRITER";Key=$integrationLeaseSource.key;TrainId=$integrationLeaseSource.trainId;WorkUnitId=$integrationLeaseSource.workUnitId;ProtectedPaths=@($integrationLeaseSource.protectedPaths)}
     $serialRecord=[pscustomobject]@{IsSerialCanonicalWriter=$true;ExecutionMode="BUSINESS_CONSTRUCTION";CanonicalWriterLeaseId=$integrationLease.Id;CanonicalWriterKey=$integrationLease.Key;AllowedPaths=@("scripts/check-phase29-entry-boundaries.ps1");Manifest=[pscustomobject]@{owner="INTEGRATION-OWNER";role=$SerialCanonicalWriterRole}}
@@ -3043,6 +3080,12 @@ function Invoke-NegativeSelfTests {
 
     $null=&git -C $statusDagRepo checkout --detach $statusDagBaseline;if($LASTEXITCODE-ne0){throw"fixture status delete/readd baseline restore failed"};Remove-Item -LiteralPath $statusDagManifestPath -Force;$null=&git -C $statusDagRepo add -u -- $statusDagManifestRef;$null=&git -C $statusDagRepo commit -m "fixture delete initial Work Unit subject";$null=&git -C $statusDagRepo checkout $statusDagBaseline -- $statusDagManifestRef;$null=&git -C $statusDagRepo commit -m "fixture readd initial Work Unit subject"
     Assert-Rejected "production initial Work Unit subject delete and re-add" { Invoke-WithRepositoryRoot $statusDagRepo { Assert-StatusHistoryBinding $statusDagManifestRef "WORK_UNIT" "WU-STATUS-DAG" "PLANNED" "NONE" "2026-07-14T05:50:00+08:00" "governance/execution/transitions/WU-STATUS-DAG-PLANNED.json" "RT-STATUS-DAG" "WU-STATUS-DAG" } }
+
+    $postActivationIntro=[pscustomobject]@{Commit=('0'*40);Parents=@(('1'*40));Snapshot=[pscustomobject]@{Status="PLANNED";Previous="NONE";ChangedAt="2026-07-14T06:05:00+08:00";AuthorityRef="governance/execution/transitions/WU-POST-ACTIVATION-PLANNED.json";Subject=[pscustomobject]@{}}}
+    Assert-Rejected "post-activation Work Unit introduction previousStatus must be NONE" { $bad=$postActivationIntro.PSObject.Copy();$bad.Snapshot=$postActivationIntro.Snapshot.PSObject.Copy();$bad.Snapshot.Previous="BLOCKED";Assert-PostActivationSubjectIntroduction $bad "WORK_UNIT" "WU-POST-ACTIVATION" "RT-POST-ACTIVATION" "WU-POST-ACTIVATION" }
+    Assert-Rejected "post-activation Work Unit introduction status must be PLANNED" { $bad=$postActivationIntro.PSObject.Copy();$bad.Snapshot=$postActivationIntro.Snapshot.PSObject.Copy();$bad.Snapshot.Status="BLOCKED";Assert-PostActivationSubjectIntroduction $bad "WORK_UNIT" "WU-POST-ACTIVATION" "RT-POST-ACTIVATION" "WU-POST-ACTIVATION" }
+    Assert-Rejected "post-activation Work Unit introduction cannot be a merge commit" { $bad=$postActivationIntro.PSObject.Copy();$bad.Parents=@(('1'*40),('2'*40));Assert-PostActivationSubjectIntroduction $bad "WORK_UNIT" "WU-POST-ACTIVATION" "RT-POST-ACTIVATION" "WU-POST-ACTIVATION" }
+    Assert-Rejected "post-activation Work Unit introduction requires commit-scoped transition authority" { Assert-PostActivationSubjectIntroduction $postActivationIntro "WORK_UNIT" "WU-POST-ACTIVATION" "RT-POST-ACTIVATION" "WU-POST-ACTIVATION" }
 
     $mergeIntroRepo=Join-Path $fixtureRoot "status-merge-introduction-repo";$fixtureDirs+=$mergeIntroRepo;$null=&git -C $mergeIntroRepo init;$null=&git -C $mergeIntroRepo config user.email "fixture@xlb.invalid";$null=&git -C $mergeIntroRepo config user.name "XLB Fixture";[IO.File]::WriteAllText((Join-Path $mergeIntroRepo "base.txt"),"base",[Text.Encoding]::UTF8);$null=&git -C $mergeIntroRepo add base.txt;$null=&git -C $mergeIntroRepo commit -m "fixture merge intro base";$mergeIntroBase=(&git -C $mergeIntroRepo rev-parse HEAD).Trim();[IO.File]::WriteAllText((Join-Path $mergeIntroRepo "left.txt"),"left",[Text.Encoding]::UTF8);$null=&git -C $mergeIntroRepo add left.txt;$null=&git -C $mergeIntroRepo commit -m "fixture merge intro left";$mergeIntroLeft=(&git -C $mergeIntroRepo rev-parse HEAD).Trim();$null=&git -C $mergeIntroRepo checkout --detach $mergeIntroBase;[IO.File]::WriteAllText((Join-Path $mergeIntroRepo "right.txt"),"right",[Text.Encoding]::UTF8);$null=&git -C $mergeIntroRepo add right.txt;$null=&git -C $mergeIntroRepo commit -m "fixture merge intro right";$null=&git -C $mergeIntroRepo merge --no-ff --no-commit $mergeIntroLeft;if($LASTEXITCODE-ne0){throw"fixture merge-only subject preparation failed"};$mergeIntroManifestRef="governance/execution/work-units/WU-MERGE-INTRO.json";$mergeIntroManifestPath=Join-Path $mergeIntroRepo $mergeIntroManifestRef;$null=New-Item -ItemType Directory -Path (Split-Path $mergeIntroManifestPath) -Force;$mergeIntroManifest=[ordered]@{trainId="RT-MERGE-INTRO";workUnitId="WU-MERGE-INTRO";status="PLANNED";previousStatus="NONE";statusChangedAt="2026-07-14T06:10:00+08:00";transitionAuthorityRef="governance/execution/transitions/WU-MERGE-INTRO.json"};[IO.File]::WriteAllText($mergeIntroManifestPath,($mergeIntroManifest|ConvertTo-Json),[Text.Encoding]::UTF8);$null=&git -C $mergeIntroRepo add governance/execution/work-units/WU-MERGE-INTRO.json;$null=&git -C $mergeIntroRepo commit -m "fixture merge-only initial subject"
     Assert-Rejected "production initial subject introduced only by multi-parent merge" { Invoke-WithRepositoryRoot $mergeIntroRepo { Assert-StatusHistoryBinding $mergeIntroManifestRef "WORK_UNIT" "WU-MERGE-INTRO" "PLANNED" "NONE" "2026-07-14T06:10:00+08:00" "governance/execution/transitions/WU-MERGE-INTRO.json" "RT-MERGE-INTRO" "WU-MERGE-INTRO" } }

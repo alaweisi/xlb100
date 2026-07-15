@@ -53,7 +53,7 @@ START@95743585
 3. `scripts/check-phase29-entry-boundaries.ps1`
 4. `scripts/check-phase29-marketing-coupon-boundaries.ps1`
 
-用户最初提供的 `scripts/check-phase29-marketing-boundaries.ps1` 在基线中不存在；本 Charter 使用仓库真实路径 `scripts/check-phase29-marketing-coupon-boundaries.ps1`。
+基线中不存在 `scripts/check-phase29-marketing-boundaries.ps1`；本 Charter 使用仓库现有路径 `scripts/check-phase29-marketing-coupon-boundaries.ps1`。
 
 ## 隔离环境预约
 
