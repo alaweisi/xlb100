@@ -2984,20 +2984,30 @@ function Invoke-NegativeSelfTests {
     $writerAudit=[pscustomobject]@{recordType="INDEPENDENT_ENABLEMENT_AUDIT";scope="GOVERNANCE_EXECUTION_ENABLEMENT";result="PASS";independentFromWriter=$true;checks=@();actorRole="Writer"}
     Assert-Rejected "production self-declared independent audit" { Assert-IndependentAuditRecord $writerAudit "CANDIDATE_CONTENT_PREFLIGHT_PASS" "fixture independent audit" }
 
-    $canonicalSource=$Root;$repositoryFixture=Join-Path $fixtureRoot "repository-context";$fixtureDirs+=$repositoryFixture
+    $canonicalSource=$Root
+    $sourceRegistry=Get-Content -Raw -Encoding UTF8 (Join-Path $canonicalSource "governance/execution/train-registry.json")|ConvertFrom-Json
+    $sourceExecutionStatus=(Require-Text $sourceRegistry "executionSystemStatus" "self-test source Registry").ToUpperInvariant()
+    $bootstrapSourceCommit=if($sourceExecutionStatus-in@("ENABLED","DISABLED")){
+      Require-Text $sourceRegistry "auditedCandidateCommit" "self-test source Registry"
+    }else{
+      (&git -C $canonicalSource rev-parse HEAD).Trim()
+    }
+    if($bootstrapSourceCommit-notmatch'^[0-9a-fA-F]{40}$'-or(&git -C $canonicalSource cat-file -t $bootstrapSourceCommit 2>$null).Trim()-ne"commit"){
+      throw"self-test Bootstrap source commit is not immutable: $bootstrapSourceCommit"
+    }
+    $bootstrapRegistry=(&git -C $canonicalSource show "$bootstrapSourceCommit`:governance/execution/train-registry.json"|Out-String|ConvertFrom-Json)
+    if((Require-Text $bootstrapRegistry "executionSystemStatus" "self-test Bootstrap Registry")-ne"BOOTSTRAP"-or
+       (Require-Text $bootstrapRegistry "enablementStatus" "self-test Bootstrap Registry")-ne"NOT_ENABLED"){
+      throw"self-test Bootstrap source commit is not BOOTSTRAP/NOT_ENABLED: $bootstrapSourceCommit"
+    }
+    $repositoryFixture=Join-Path $fixtureRoot "repository-context";$fixtureDirs+=$repositoryFixture
     $savedErrorAction=$ErrorActionPreference;$ErrorActionPreference="Continue"
     try{
       $cloneOutput=@(& git clone --shared --no-checkout $canonicalSource $repositoryFixture 2>&1);$cloneExit=$LASTEXITCODE
       if($cloneExit-ne0){throw"repository fixture clone failed: $($cloneOutput-join' ')"}
-      $checkoutOutput=@(& git -C $repositoryFixture checkout HEAD 2>&1);$checkoutExit=$LASTEXITCODE
+      $checkoutOutput=@(& git -C $repositoryFixture checkout --detach $bootstrapSourceCommit 2>&1);$checkoutExit=$LASTEXITCODE
       if($checkoutExit-ne0){throw"repository fixture checkout failed: $($checkoutOutput-join' ')"}
     }finally{$ErrorActionPreference=$savedErrorAction}
-    foreach($sourceFile in @(Get-ChildItem -LiteralPath (Join-Path $canonicalSource "governance/execution") -Recurse -File)){
-      $relative=$sourceFile.FullName.Substring((Join-Path $canonicalSource "governance/execution").Length).TrimStart('\','/')
-      $destination=Join-Path (Join-Path $repositoryFixture "governance/execution") $relative
-      $destinationDirectory=Split-Path -Parent $destination;if(-not(Test-Path -LiteralPath $destinationDirectory)){New-Item -ItemType Directory -Path $destinationDirectory -Force|Out-Null}
-      Copy-Item -LiteralPath $sourceFile.FullName -Destination $destination -Force
-    }
     Copy-Item -LiteralPath (Join-Path $canonicalSource "scripts/check-managed-worktree-boundaries.ps1") -Destination (Join-Path $repositoryFixture "scripts/check-managed-worktree-boundaries.ps1") -Force
     Copy-Item -LiteralPath (Join-Path $canonicalSource "scripts/test-managed-worktree-isolation.ps1") -Destination (Join-Path $repositoryFixture "scripts/test-managed-worktree-isolation.ps1") -Force
     $null=& git -C $repositoryFixture add governance/execution scripts/check-managed-worktree-boundaries.ps1 scripts/test-managed-worktree-isolation.ps1
@@ -3091,12 +3101,8 @@ function Invoke-NegativeSelfTests {
     # because a temporary enablement followed by a checkout/revert would make
     # global execution closure history appear to have been restored.
     $enabledRepositoryFixture=Join-Path $fixtureRoot "repository-enabled-context";$fixtureDirs+=$enabledRepositoryFixture
-    $savedEnabledErrorAction=$ErrorActionPreference;$ErrorActionPreference="Continue";try{$cloneOutput=@(& git clone --quiet --depth 1 --branch xlb-phase29-marketing-coupon $canonicalSource $enabledRepositoryFixture 2>&1);$cloneExit=$LASTEXITCODE}finally{$ErrorActionPreference=$savedEnabledErrorAction};if($cloneExit-ne0){throw"enabled repository fixture clone failed: $($cloneOutput-join' ')"}
-    $null=& git -C $enabledRepositoryFixture checkout HEAD;if($LASTEXITCODE-ne0){throw"enabled repository fixture checkout failed"}
-    foreach($sourceFile in @(Get-ChildItem -LiteralPath (Join-Path $canonicalSource "governance/execution") -Recurse -File)){
-      $relative=$sourceFile.FullName.Substring((Join-Path $canonicalSource "governance/execution").Length).TrimStart('\','/');$destination=Join-Path (Join-Path $enabledRepositoryFixture "governance/execution") $relative;$destinationDirectory=Split-Path -Parent $destination;if(-not(Test-Path -LiteralPath $destinationDirectory)){New-Item -ItemType Directory -Path $destinationDirectory -Force|Out-Null};Copy-Item -LiteralPath $sourceFile.FullName -Destination $destination -Force
-    }
-    foreach($governanceDoc in @(Get-ChildItem -LiteralPath (Join-Path $canonicalSource "governance") -File -Filter "*.md")){Copy-Item -LiteralPath $governanceDoc.FullName -Destination (Join-Path $enabledRepositoryFixture "governance/$($governanceDoc.Name)") -Force}
+    $savedEnabledErrorAction=$ErrorActionPreference;$ErrorActionPreference="Continue";try{$cloneOutput=@(& git clone --quiet --shared --no-checkout $canonicalSource $enabledRepositoryFixture 2>&1);$cloneExit=$LASTEXITCODE}finally{$ErrorActionPreference=$savedEnabledErrorAction};if($cloneExit-ne0){throw"enabled repository fixture clone failed: $($cloneOutput-join' ')"}
+    $null=& git -C $enabledRepositoryFixture checkout --detach $bootstrapSourceCommit;if($LASTEXITCODE-ne0){throw"enabled repository fixture Bootstrap checkout failed"}
     Copy-Item -LiteralPath (Join-Path $canonicalSource "scripts/check-managed-worktree-boundaries.ps1") -Destination (Join-Path $enabledRepositoryFixture "scripts/check-managed-worktree-boundaries.ps1") -Force;Copy-Item -LiteralPath (Join-Path $canonicalSource "scripts/test-managed-worktree-isolation.ps1") -Destination (Join-Path $enabledRepositoryFixture "scripts/test-managed-worktree-isolation.ps1") -Force
     $null=&git -C $enabledRepositoryFixture add governance scripts/check-managed-worktree-boundaries.ps1 scripts/test-managed-worktree-isolation.ps1;$null=&git -C $enabledRepositoryFixture diff --cached --quiet;if($LASTEXITCODE-eq1){$null=&git -C $enabledRepositoryFixture commit -m "fixture enabled repository governance baseline";if($LASTEXITCODE-ne0){throw"enabled repository fixture baseline commit failed"}}
     $repositoryFixture=$enabledRepositoryFixture;$fixtureBaseline=(&git -C $repositoryFixture rev-parse HEAD).Trim();$fixtureRegistryPath=Join-Path $repositoryFixture "governance/execution/train-registry.json";$fixtureQueuePath=Join-Path $repositoryFixture "governance/execution/integration-queue.json"
