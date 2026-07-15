@@ -281,6 +281,7 @@ Human Owner 已通过 P-01～P-18 选择 managed Work Unit parallelism；UD-01/G
 | `SERIAL_WRITE_AUTHORIZED` | Level-specific Required Authority 已满足时才可记录：L0/L1 依第 5 节 Agent authority，L2–L4 依唯一 Human Owner 的有效事先批准 | 是，且仅限 Level 定义与批准范围；本治理设计记录不产生具体 runtime/Phase/Lock 授权 | G-02, G-08, G-13 |
 | `GOVERNANCE_EXECUTION_BOOTSTRAP_NOT_ENABLED` | Human 已授权且本地执行控制 candidate 已安装，但尚缺 clean immutable candidate、独立审计 PASS 与 Human 启用确认 | 否；这是当前 WRITE parallel 强制状态 | G-02, G-03, G-04, G-07, G-08 |
 | `WORK_UNIT_PARALLEL_ELIGIBLE` | 执行植入完成后，Train Charter 与第 6.2 节全部条件满足的 Work Unit | 是，仅限 manifest/lease/Level authority 范围；不含 main/Lock/production | G-01, G-02, G-03, G-04, G-08, G-14 |
+| `WORK_UNIT_SERIAL_CANONICAL_WRITER_ELIGIBLE` | Human 已批准 Train，且单一非终态 Work Unit 显式绑定现有 Integration Owner canonical-writer lease；只允许该 writer 保护面的严格子集 | 是，但只能在受管 Worktree 串行执行；不是 parallel eligibility，不占三个并行 WRITE 名额，不含治理台账自修改、main/Lock/production | G-02, G-03, G-04, G-08, G-13 |
 | `PREPARED_CANDIDATE_ELIGIBLE` | predecessor Lock 前、无直接依赖或 dependency frozen 的隔离候选 | 仅可在 Work Unit branch 施工；不得 main/Lock | G-01, G-02, G-09, G-14 |
 | `WORK_UNIT_STALE` | base/contract/dependency/candidate revision 变化使旧 evidence 失效 | 否，重新同步、验证和审计前不得排队 | G-05, G-12, G-14 |
 | `PRODUCTION_AUTHORITY_REQUIRED` | 涉及 production/provider/replay/purge/push/deploy | 否，等待独立 Human authority | G-06, G-08, G-13 |
@@ -295,7 +296,7 @@ Human Owner 已通过 P-01～P-18 选择 managed Work Unit parallelism；UD-01/G
 | 3 | 计算 Risk 与 ADR Level，取最高触发器 | `CLASSIFICATION_INCOMPLETE` | G-01, G-09, G-12 |
 | 4 | 按 UD-04 与 Train Charter 决定映射 Required Authority：L0 Agent 自决；L1 Agent 直行并事后报告；L2–L4 校验唯一 Human Owner 的事先批准；Train Charter 只覆盖写明的 local construction scope | 缺少所需批准时 `AUTHORITY_MISSING`；章程外/新增风险重新 Human 裁决 | G-07, G-08, G-13 |
 | 5 | 计算 Required Evidence 并绑定 revision | `EVIDENCE_INCOMPLETE` / `EVIDENCE_INVALIDATED` | G-10, G-11, G-12, G-14 |
-| 6 | 计算 parallelism；Bootstrap 未经独立审计与 Human 启用确认时停止；启用后逐项校验 Charter/manifest/lease/contract/reservation/environment/team limit | `GOVERNANCE_EXECUTION_BOOTSTRAP_NOT_ENABLED` / `WORK_UNIT_STALE` / `BLOCKED` | G-02, G-03, G-04, G-07, G-08, G-14 |
+| 6 | 计算执行 lane；Bootstrap 未经独立审计与 Human 启用确认时停止；启用后逐项校验 Charter/manifest/lease/contract/reservation/environment/team limit。普通 Work Unit 可进入 parallel lane；显式绑定 `LEASE-SERIAL-INTEGRATION-QUEUE` 的唯一 Integration Owner Work Unit 只能进入 serial canonical-writer lane | `GOVERNANCE_EXECUTION_BOOTSTRAP_NOT_ENABLED` / `WORK_UNIT_STALE` / `BLOCKED` | G-02, G-03, G-04, G-07, G-08, G-14 |
 | 7 | 检查 requested action 是否为 runtime/migration/production/merge/Lock | 对应 authority required / blocked | G-03, G-06, G-08, G-13 |
 | 8 | 输出 level-specific + Work Unit permission：L0/L1 记录 Agent authority；L2–L4 引用 Human 批准；parallel candidate 同时引用 Train Charter 与 manifest；main/Lock/push/production 永不从 Charter 推导 | 对应 serial/Work Unit/separate-authority 状态 | G-01, G-08, G-13 |
 

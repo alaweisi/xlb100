@@ -48,7 +48,17 @@ powershell -NoProfile -ExecutionPolicy Bypass `
   -TargetRef HEAD
 ```
 
-The only positive business WRITE result is `WORK_UNIT_PARALLEL_ELIGIBLE`.
+Positive business WRITE results are lane-specific: ordinary managed Work Units
+may emit `WORK_UNIT_PARALLEL_ELIGIBLE`; an explicitly bound Integration Owner
+serial writer may emit only `WORK_UNIT_SERIAL_CANONICAL_WRITER_ELIGIBLE`.
+The serial token is not parallel authority and does not count as one of the
+three parallel WRITE slots. It requires Manifest role
+`SERIAL_CANONICAL_WRITER`, owner `INTEGRATION-OWNER`, the exact
+`integration-queue-and-integration-branch` writer key and
+`leaseRefs.canonicalWriter=LEASE-SERIAL-INTEGRATION-QUEUE`. That writer may be
+reserved by only one non-terminal Work Unit and its paths must remain a strict
+subset of the writer's protected surface. It may never modify
+`governance/execution/**` from its construction worktree.
 `VALIDATION_ONLY` may emit only `VALIDATION_ENVIRONMENT_ELIGIBLE`; a `PLANNED`
 Work Unit can never emit business WRITE eligibility. Any missing
 Charter/Manifest/Ledger data, unregistered path, branch/base mismatch, lease

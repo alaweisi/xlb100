@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "recordType": "TRANSITION",
+  "recordId": "TRANSITION-TRAIN-RT-BASELINE-REPAIR-001-DRAFT",
+  "createdAt": "2026-07-15T16:39:39+08:00",
+  "subjectType": "RELEASE_TRAIN",
+  "subjectId": "RT-BASELINE-REPAIR-001",
+  "trainId": "RT-BASELINE-REPAIR-001",
+  "previousStatus": "NONE",
+  "currentStatus": "DRAFT",
+  "changedAt": "2026-07-15T16:39:39+08:00",
+  "scope": "GOVERNANCE_EXECUTION_CONTROL",
+  "decision": "APPROVED",
+  "actorRole": "General Contractor Agent",
+  "checks": [
+    "LEGAL_STATUS_EDGE_VERIFIED"
+  ]
+}

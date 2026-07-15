@@ -39,6 +39,8 @@ Phase registry 与 execution registry 严格分离：`docs/governance/phase-regi
 
 上述字段是机器必填项，不是说明性清单。`dependencies`、`allowedPaths`、`forbiddenPaths` 与 `auditRefs` 可以按阶段为空，但必须以数组显式存在；`semanticOwnership` 与 `evidencePlan` 必须为非空数组。删除字段、以错误类型代替或依赖默认值均 fail closed。
 
+需要修改 Integration Owner 串行保护面的 Work Unit 还必须形成三字段闭包：`role=SERIAL_CANONICAL_WRITER`、`canonicalWriterKey=integration-queue-and-integration-branch`、`leaseRefs.canonicalWriter=LEASE-SERIAL-INTEGRATION-QUEUE`，owner 固定为 `INTEGRATION-OWNER`。当前不开放其他 canonical writer 委派。其 `allowedPaths` 必须是绑定 writer 保护面的严格子集，且不得包含 `governance/execution/**`；同一 writer 最多一个非终态 Work Unit。合法 WorkUnit Gate 结果只能是 `WORK_UNIT_SERIAL_CANONICAL_WRITER_ELIGIBLE`，不产生 parallel、main、Lock、push 或 production authority。
+
 所有 registry、Train、Work Unit 与 queue 状态变化必须引用 `governance/execution/transitions/` 下的 strict `TRANSITION` JSON；普通 Markdown、任意 clean 文件或仅有文字说明不构成 transition authority。记录必须绑定 subject、Train/Work Unit identity、前后状态、时间、决策角色与 `LEGAL_STATUS_EDGE_VERIFIED`。
 
 Gate 还会把 `previousStatus`、`statusChangedAt` 与 `transitionAuthorityRef` 绑定到 audited enablement baseline 之后的 immutable Git 历史；同一状态下偷换 transition metadata、伪报前态或让 Queue item 脱离其 Work Unit 父提交均 fail closed。所有 strict approval、audit、evidence、contract authority 与 `TRANSITION` JSON 从其规范路径首次提交起均为 append-only immutable record；Gate 遍历当前 HEAD 可达的完整 Git DAG，要求只有一个 introduction、每个存在快照的 blob 恒等、且从未删除后重加，故“改写后恢复原字节”仍构成拒绝。修订必须创建新 record，禁止原路径改写；同一状态下也不得用新 record 替换既有 authority/evidence ref，package closure 进入 Queue/Integrated/Closed 等后续状态时必须连续保留。每条 edge 使用固定 `actorRole + scope` 权限映射；Human 接受、执行系统启停与 Phase Lock closure 不得由其他角色代签。Train 进入 verified/accepted/closed 状态前，Work Unit terminal/integration 状态、active lease、active migration reservation 与 queue item 必须满足 closure consistency。

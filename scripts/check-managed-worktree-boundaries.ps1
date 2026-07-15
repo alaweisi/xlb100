@@ -43,6 +43,8 @@ $AllowedWorkUnitStatuses = @(
   "IN_CONSTRUCTION", "PACKAGE_VERIFIED", "PACKAGE_AUDITED", "QUEUED", "INTEGRATED",
   "CLOSED", "STALE", "BLOCKED", "ABANDONED"
 )
+$SerialCanonicalWriterRole = "SERIAL_CANONICAL_WRITER"
+$AllowedSerialCanonicalWriterKeys = @("integration-queue-and-integration-branch")
 $CanonicalWriterMinimumMap = [ordered]@{
   "shared-contract-types-validators-api-events" = @(
     "packages/types","packages/validators","packages/api-client","docs/contracts"
@@ -358,8 +360,7 @@ function Assert-StatusHistoryBinding([string]$RepoPath,[string]$SubjectType,[str
   $currentSnapshot=Get-HistoryStatusSnapshotAtCommit $controlCommit $normalized $SubjectType $SubjectId $TrainId $WorkUnitId
   if($null-eq$currentSnapshot){Fail "$SubjectType $SubjectId is missing from current immutable history"}
   $currentClosure=ConvertTo-CanonicalJsonText (Get-HistorySubjectClosure $currentSnapshot $SubjectType);$introductions=@();$deletions=@();$epochEntries=@()
-  if(-not[string]::IsNullOrWhiteSpace($epochBoundary)){
-    if($null-eq$epochBoundarySnapshot){Fail "$SubjectType $SubjectId is absent from activation baseline C"}
+  if(-not[string]::IsNullOrWhiteSpace($epochBoundary)-and$null-ne$epochBoundarySnapshot){
     $introductions+=[pscustomobject]@{Commit=$epochBoundary;Snapshot=$epochBoundarySnapshot;Parents=@();ParentSnapshots=@()}
   }
   foreach($commit in $commits){
@@ -369,7 +370,9 @@ function Assert-StatusHistoryBinding([string]$RepoPath,[string]$SubjectType,[str
     $parentPresence=@($parentSnapshots|Where-Object{$null-ne$_}).Count
     if($null-ne$snapshot-and$parentPresence-eq0){
       if(-not[string]::IsNullOrWhiteSpace($epochBoundary)){
-        if($commit-ne$epochBoundary){Fail "$SubjectType $SubjectId was reintroduced without a post-C parent snapshot at $commit"}
+        if($commit-eq$epochBoundary-and$null-ne$epochBoundarySnapshot){}
+        elseif($null-eq$epochBoundarySnapshot){$introductions+=[pscustomobject]@{Commit="$commit";Snapshot=$snapshot;Parents=$parents;ParentSnapshots=$parentSnapshots}}
+        else{Fail "$SubjectType $SubjectId was reintroduced without a post-C parent snapshot at $commit"}
       }else{$introductions+=[pscustomobject]@{Commit="$commit";Snapshot=$snapshot;Parents=$parents;ParentSnapshots=$parentSnapshots}}
     }
     elseif($null-eq$snapshot-and$parentPresence-gt0){$deletions+="$commit"}
@@ -908,6 +911,39 @@ function Test-PrefixOverlap([string]$Left, [string]$Right) {
   return (Test-PrefixMatch $Left $Right) -or (Test-PrefixMatch $Right $Left)
 }
 
+function Get-SerialCanonicalWriterDeclaration($Manifest, [string]$Label) {
+  $role = Require-Text $Manifest "role" $Label
+  $writerKey = Get-OptionalValue $Manifest "canonicalWriterKey"
+  $leaseRefs = Get-OptionalValue $Manifest "leaseRefs"
+  $writerRef = if ($null -eq $leaseRefs) { $null } else { Get-OptionalValue $leaseRefs "canonicalWriter" }
+  $hasRole = $role -eq $SerialCanonicalWriterRole
+  $hasKey = $null -ne $writerKey -and -not [string]::IsNullOrWhiteSpace("$writerKey")
+  $hasRef = $null -ne $writerRef -and -not [string]::IsNullOrWhiteSpace("$writerRef")
+  if (($hasRole -or $hasKey -or $hasRef) -and -not ($hasRole -and $hasKey -and $hasRef)) {
+    Fail "$Label serial canonical writer declaration must include role, canonicalWriterKey, and leaseRefs.canonicalWriter together"
+  }
+  if (-not $hasRole) {
+    return [pscustomobject]@{ IsSerial=$false; Key=""; LeaseId="" }
+  }
+  if ((Require-Text $Manifest "executionMode" $Label).ToUpperInvariant() -ne "BUSINESS_CONSTRUCTION") {
+    Fail "$Label serial canonical writer must use BUSINESS_CONSTRUCTION"
+  }
+  $normalizedKey = "$writerKey".Trim().ToLowerInvariant()
+  if ($normalizedKey -notin $AllowedSerialCanonicalWriterKeys) {
+    Fail "$Label canonicalWriterKey is not enabled for managed serial delegation: $normalizedKey"
+  }
+  return [pscustomobject]@{ IsSerial=$true; Key=$normalizedKey; LeaseId="$writerRef".Trim() }
+}
+
+function Assert-UniqueSerialCanonicalWriterReservations($Records) {
+  foreach ($key in $AllowedSerialCanonicalWriterKeys) {
+    $holders = @($Records | Where-Object { $_.Active -and $_.IsSerialCanonicalWriter -and $_.CanonicalWriterKey -eq $key })
+    if ($holders.Count -gt 1) {
+      Fail "serial canonical writer $key is reserved by multiple non-terminal Work Units: $($holders.WorkUnitId -join ', ')"
+    }
+  }
+}
+
 function Get-LedgerItems($Ledger, [string]$Property, [string]$Label) {
   $member = $Ledger.PSObject.Properties[$Property]
   if ($null -eq $member -or $null -eq $member.Value) { Fail "$Label must contain a '$Property' array" }
@@ -948,7 +984,7 @@ function Require-Port($Object, [string]$Property, [string]$Label) {
 function Assert-StrictManifest($Manifest, [string]$Label) {
   Assert-AllowedFields $Manifest @(
     "schemaVersion","workUnitId","trainId","targetPhase","owner","role","status","previousStatus","statusChangedAt","transitionAuthorityRef",
-    "executionMode","worktreePath","branch","baseCommit","baseTag","dependencies","allowedPaths","forbiddenPaths","semanticOwnership",
+    "executionMode","worktreePath","branch","baseCommit","baseTag","dependencies","allowedPaths","forbiddenPaths","semanticOwnership","canonicalWriterKey",
     "contractRevision","migrationReservation","leaseRefs","environment","evidencePlan","evidenceRefs","auditRefs","businessWriteAuthorized",
     "createdAt","expiresOrClosesAt","candidateCommit","candidateDigest","candidateDigestAlgorithm","environmentDigest","candidateRecordRef",
     "evidenceBindings","auditBindings"
@@ -969,10 +1005,11 @@ function Assert-StrictManifest($Manifest, [string]$Label) {
   }
   $leaseRefs = Get-OptionalValue $Manifest "leaseRefs"
   if ($null -ne $leaseRefs) {
-    Assert-AllowedFields $leaseRefs @("worktreePath","sourcePath","environment","ports") "$Label leaseRefs"
+    Assert-AllowedFields $leaseRefs @("worktreePath","sourcePath","environment","ports","canonicalWriter") "$Label leaseRefs"
     $ports = Get-OptionalValue $leaseRefs "ports"
     if ($null -ne $ports) { Assert-AllowedFields $ports @("mysql","redis","backend","customer","worker","admin") "$Label leaseRefs.ports" }
   }
+  $null = Get-SerialCanonicalWriterDeclaration $Manifest $Label
   $reservation = Get-OptionalValue $Manifest "migrationReservation"
   if ($null -ne $reservation -and "$reservation" -ne "NONE") {
     Assert-AllowedFields $reservation @("number","expectedFilename") "$Label migrationReservation"
@@ -1304,6 +1341,45 @@ function Assert-NoSerialPathOverlap($ActiveWrites, [string[]]$CanonicalProtected
       }
     }
   }
+}
+
+function Assert-SerialCanonicalWriterBinding($Record, $ActiveLeases) {
+  if (-not $Record.IsSerialCanonicalWriter) { return }
+  if ($Record.ExecutionMode -ne "BUSINESS_CONSTRUCTION") { Fail "serial canonical writer Work Unit must use BUSINESS_CONSTRUCTION" }
+  if ((Require-Text $Record.Manifest "owner" "serial canonical writer Manifest") -cne "INTEGRATION-OWNER") {
+    Fail "serial integration canonical writer Work Unit owner must be INTEGRATION-OWNER"
+  }
+  if ((Require-Text $Record.Manifest "role" "serial canonical writer Manifest") -cne $SerialCanonicalWriterRole) {
+    Fail "serial canonical writer Work Unit role must be $SerialCanonicalWriterRole"
+  }
+  $writer = @($ActiveLeases | Where-Object { $_.Id -eq $Record.CanonicalWriterLeaseId })
+  if ($writer.Count -ne 1) { Fail "serial canonical writer leaseRef does not identify one active Lease: $($Record.CanonicalWriterLeaseId)" }
+  $writer = $writer[0]
+  if ($writer.Type -ne "CANONICAL_WRITER" -or $writer.Key -ne $Record.CanonicalWriterKey) {
+    Fail "serial canonical writer leaseRef type/key differs from Manifest declaration"
+  }
+  if ($writer.TrainId -ne "SYSTEM-SERIAL-LANES" -or $writer.WorkUnitId -ne "INTEGRATION-OWNER") {
+    Fail "serial integration canonical writer must bind the immutable SYSTEM-SERIAL-LANES/INTEGRATION-OWNER Lease"
+  }
+  if ($Record.AllowedPaths.Count -eq 0) { Fail "serial canonical writer Work Unit must declare allowedPaths" }
+  for ($i=0; $i -lt $Record.AllowedPaths.Count; $i++) {
+    $allowed = $Record.AllowedPaths[$i]
+    if (Test-PrefixMatch $allowed "governance/execution") { Fail "serial canonical writer Work Unit may not self-modify governance/execution control records" }
+    $owners = @($ActiveLeases | Where-Object {
+      $_.Type -eq "CANONICAL_WRITER" -and @($_.ProtectedPaths | Where-Object { Test-PrefixMatch $allowed $_ }).Count -gt 0
+    })
+    if ($owners.Count -ne 1 -or $owners[0].Key -ne $Record.CanonicalWriterKey) {
+      Fail "serial canonical writer allowedPath is not exclusively contained by its bound writer: $allowed"
+    }
+    for ($j=$i+1; $j -lt $Record.AllowedPaths.Count; $j++) {
+      if (Test-PrefixOverlap $allowed $Record.AllowedPaths[$j]) { Fail "serial canonical writer allowedPaths overlap: $allowed <> $($Record.AllowedPaths[$j])" }
+    }
+  }
+  $coversAll = $true
+  foreach ($protected in $writer.ProtectedPaths) {
+    if (-not @($Record.AllowedPaths | Where-Object { Test-PrefixMatch $protected $_ }).Count) { $coversAll=$false;break }
+  }
+  if ($coversAll) { Fail "serial canonical writer Work Unit may not reserve the writer's complete protected surface" }
 }
 
 function Assert-CanonicalWriterProtection($ActiveWrites, $ActiveLeases, [bool]$RequireMandatoryCoverage = $true) {
@@ -1816,6 +1892,7 @@ function Get-ManifestRecords {
     $executionMode = if ($null -eq $executionModeMember) { "WRITE" } else { "$($executionModeMember.Value)".ToUpperInvariant() }
     $businessWriteMember = $manifest.PSObject.Properties["businessWriteAuthorized"]
     $businessWriteAuthorized = $null -ne $businessWriteMember -and $businessWriteMember.Value -eq $true
+    $serialWriter = Get-SerialCanonicalWriterDeclaration $manifest $label
     if ($allowedPaths.Count -eq 0 -and ($executionMode -ne "VALIDATION_ONLY" -or $businessWriteAuthorized)) {
       Fail "$label must declare at least one allowedPaths lease"
     }
@@ -1847,6 +1924,9 @@ function Get-ManifestRecords {
       Active = $status -notin $InactiveWorkUnitStatuses
       ExecutionMode = $executionMode
       BusinessWriteAuthorized = $businessWriteAuthorized
+      IsSerialCanonicalWriter = $serialWriter.IsSerial
+      CanonicalWriterKey = $serialWriter.Key
+      CanonicalWriterLeaseId = $serialWriter.LeaseId
       WorktreePath = "$($manifest.worktreePath)"
       Environment = $environment
       AllowedPaths = $allowedPaths
@@ -1996,12 +2076,13 @@ function Test-RepositoryGovernance {
     if (-not (Test-ControlLeaf (Join-Path $Root $ref))) { Fail "dangling Train workUnitRef: $ref" }
   }
   $writeStatuses = @("CONSTRUCTION_AUTHORIZED", "IN_CONSTRUCTION")
-  $activeWrites = @($active | Where-Object { $_.ExecutionMode -eq "BUSINESS_CONSTRUCTION" -and $_.Status -in $writeStatuses -and $_.BusinessWriteAuthorized })
-  if ($activeWrites.Count -gt $registryMaxWrite) { Fail "active WRITE Work Units exceed registry maximum $registryMaxWrite" }
+  Assert-UniqueSerialCanonicalWriterReservations $records
+  $activeParallelWrites = @($active | Where-Object { $_.ExecutionMode -eq "BUSINESS_CONSTRUCTION" -and $_.Status -in $writeStatuses -and $_.BusinessWriteAuthorized -and -not $_.IsSerialCanonicalWriter })
+  if ($activeParallelWrites.Count -gt $registryMaxWrite) { Fail "active parallel WRITE Work Units exceed registry maximum $registryMaxWrite" }
   foreach ($train in $trains) {
     $trainId = "$($train.trainId)"
     $trainLimit = [int]$train.maxConcurrentWriteWorkUnits
-    if (@($activeWrites | Where-Object { $_.TrainId -eq $trainId }).Count -gt $trainLimit) { Fail "active WRITE Work Units exceed Train $trainId maximum $trainLimit" }
+    if (@($activeParallelWrites | Where-Object { $_.TrainId -eq $trainId }).Count -gt $trainLimit) { Fail "active parallel WRITE Work Units exceed Train $trainId maximum $trainLimit" }
   }
   for ($i = 0; $i -lt $active.Count; $i++) {
     for ($j = $i + 1; $j -lt $active.Count; $j++) {
@@ -2129,7 +2210,10 @@ function Test-RepositoryGovernance {
       }
     }
   }
-  Assert-CanonicalWriterProtection $activeWrites $activeLeases
+  Assert-CanonicalWriterProtection $activeParallelWrites $activeLeases
+  foreach ($record in @($active | Where-Object { $_.IsSerialCanonicalWriter })) {
+    Assert-SerialCanonicalWriterBinding $record $activeLeases
+  }
   $trainContractAuthorities = @{}
   foreach ($train in $trains) {
     $trainId = Require-Text $train "trainId" "Release Train contract authority"
@@ -2563,6 +2647,9 @@ function Test-WorkUnitBoundary($RepositoryState) {
 
   if ($record.ExecutionMode -eq "VALIDATION_ONLY") {
     Write-Output "VALIDATION_ENVIRONMENT_ELIGIBLE train=$($record.TrainId) workUnit=$($record.WorkUnitId) target=$target changedPaths=$($changed.Count)"
+  } elseif ($record.IsSerialCanonicalWriter) {
+    Assert-SerialCanonicalWriterBinding $record $RepositoryState.ActiveLeases
+    Write-Output "WORK_UNIT_SERIAL_CANONICAL_WRITER_ELIGIBLE train=$($record.TrainId) workUnit=$($record.WorkUnitId) writer=$($record.CanonicalWriterKey) target=$target changedPaths=$($changed.Count)"
   } else {
     Write-Output "WORK_UNIT_PARALLEL_ELIGIBLE train=$($record.TrainId) workUnit=$($record.WorkUnitId) target=$target changedPaths=$($changed.Count)"
   }
@@ -2683,6 +2770,41 @@ function Invoke-NegativeSelfTests {
       $governance=@($serial.activeLeases|Where-Object key -eq "current-state-phase-registry-lock-report-tag")[0]
       $governance.protectedPaths=@($governance.protectedPaths|Where-Object{$_-ne".cursor/skills"})
       Assert-CanonicalWriterProtection @() @($serial.activeLeases)
+    }
+    Assert-Rejected "serial canonical writer partial declaration" {
+      $null=Get-SerialCanonicalWriterDeclaration ([pscustomobject]@{role=$SerialCanonicalWriterRole;executionMode="BUSINESS_CONSTRUCTION";leaseRefs=[pscustomobject]@{canonicalWriter="LEASE-SERIAL-INTEGRATION-QUEUE"}}) "serial declaration fixture"
+    }
+    Assert-Rejected "ordinary Work Unit smuggles canonical writer binding" {
+      $null=Get-SerialCanonicalWriterDeclaration ([pscustomobject]@{role="TEST_OWNER";executionMode="BUSINESS_CONSTRUCTION";canonicalWriterKey="integration-queue-and-integration-branch";leaseRefs=[pscustomobject]@{canonicalWriter="LEASE-SERIAL-INTEGRATION-QUEUE"}}) "serial declaration fixture"
+    }
+    Assert-Rejected "validation Work Unit declares serial canonical writer" {
+      $null=Get-SerialCanonicalWriterDeclaration ([pscustomobject]@{role=$SerialCanonicalWriterRole;executionMode="VALIDATION_ONLY";canonicalWriterKey="integration-queue-and-integration-branch";leaseRefs=[pscustomobject]@{canonicalWriter="LEASE-SERIAL-INTEGRATION-QUEUE"}}) "serial declaration fixture"
+    }
+    Assert-Rejected "unsupported serial canonical writer key" {
+      $null=Get-SerialCanonicalWriterDeclaration ([pscustomobject]@{role=$SerialCanonicalWriterRole;executionMode="BUSINESS_CONSTRUCTION";canonicalWriterKey="current-state-phase-registry-lock-report-tag";leaseRefs=[pscustomobject]@{canonicalWriter="LEASE-SERIAL-GOVERNANCE-METADATA"}}) "serial declaration fixture"
+    }
+    $integrationLeaseSource=@($canonicalLeaseLedger.leases|Where-Object{$_.leaseId-eq"LEASE-SERIAL-INTEGRATION-QUEUE"})[0]
+    $integrationLease=[pscustomobject]@{Id=$integrationLeaseSource.leaseId;Type="CANONICAL_WRITER";Key=$integrationLeaseSource.key;TrainId=$integrationLeaseSource.trainId;WorkUnitId=$integrationLeaseSource.workUnitId;ProtectedPaths=@($integrationLeaseSource.protectedPaths)}
+    $serialRecord=[pscustomobject]@{IsSerialCanonicalWriter=$true;ExecutionMode="BUSINESS_CONSTRUCTION";CanonicalWriterLeaseId=$integrationLease.Id;CanonicalWriterKey=$integrationLease.Key;AllowedPaths=@("scripts/check-phase29-entry-boundaries.ps1");Manifest=[pscustomobject]@{owner="INTEGRATION-OWNER";role=$SerialCanonicalWriterRole}}
+    Assert-SerialCanonicalWriterBinding $serialRecord @($integrationLease)
+    Write-Host "self-test accepted: serial canonical writer exact binding"
+    Assert-Rejected "serial canonical writer owner mismatch" {
+      $bad=$serialRecord.PSObject.Copy();$bad.Manifest=[pscustomobject]@{owner="Construction Owner";role=$SerialCanonicalWriterRole};Assert-SerialCanonicalWriterBinding $bad @($integrationLease)
+    }
+    Assert-Rejected "serial canonical writer missing active writer lease" {
+      Assert-SerialCanonicalWriterBinding $serialRecord @()
+    }
+    Assert-Rejected "serial canonical writer path belongs to another writer" {
+      $bad=$serialRecord.PSObject.Copy();$bad.AllowedPaths=@("backend/src/order");$runtimeSource=@($canonicalLeaseLedger.leases|Where-Object{$_.leaseId-eq"LEASE-SERIAL-CANONICAL-RUNTIME"})[0];$runtime=[pscustomobject]@{Id=$runtimeSource.leaseId;Type="CANONICAL_WRITER";Key=$runtimeSource.key;TrainId=$runtimeSource.trainId;WorkUnitId=$runtimeSource.workUnitId;ProtectedPaths=@($runtimeSource.protectedPaths)};Assert-SerialCanonicalWriterBinding $bad @($integrationLease,$runtime)
+    }
+    Assert-Rejected "serial canonical writer governance self-modification" {
+      $bad=$serialRecord.PSObject.Copy();$bad.AllowedPaths=@("governance/execution/integration-queue.json");Assert-SerialCanonicalWriterBinding $bad @($integrationLease)
+    }
+    Assert-Rejected "serial canonical writer complete surface reservation" {
+      $bad=$serialRecord.PSObject.Copy();$bad.AllowedPaths=@($integrationLease.ProtectedPaths);Assert-SerialCanonicalWriterBinding $bad @($integrationLease)
+    }
+    Assert-Rejected "duplicate non-terminal serial canonical writer reservations" {
+      $one=[pscustomobject]@{Active=$true;IsSerialCanonicalWriter=$true;CanonicalWriterKey=$integrationLease.Key;WorkUnitId="WU-ONE"};$two=[pscustomobject]@{Active=$true;IsSerialCanonicalWriter=$true;CanonicalWriterKey=$integrationLease.Key;WorkUnitId="WU-TWO"};Assert-UniqueSerialCanonicalWriterReservations @($one,$two)
     }
 
     $currentContractPaths=@("docs/contracts")

@@ -215,6 +215,139 @@
       "status": "ACTIVE"
     },
     {
+      "leaseId": "LEASE-BASELINE-1A-WORKTREE-PATH",
+      "type": "WORKTREE_PATH",
+      "key": "G:\\xlb100-worktrees\\RT-BASELINE-REPAIR-001\\WU-BASELINE-1A-TEST-GATES",
+      "trainId": "RT-BASELINE-REPAIR-001",
+      "workUnitId": "WU-BASELINE-1A-TEST-GATES",
+      "status": "ACTIVE"
+    },
+    {
+      "leaseId": "LEASE-BASELINE-1A-SOURCE-PATH-SET",
+      "type": "SOURCE_PATH",
+      "key": "tests/unit/phase29MarketingSurfaces.test.tsx",
+      "paths": [
+        "tests/unit/phase29MarketingSurfaces.test.tsx",
+        "tests/security/phase29MarketingBoundaries.test.ts",
+        "scripts/check-phase29-entry-boundaries.ps1",
+        "scripts/check-phase29-marketing-coupon-boundaries.ps1"
+      ],
+      "trainId": "RT-BASELINE-REPAIR-001",
+      "workUnitId": "WU-BASELINE-1A-TEST-GATES",
+      "status": "ACTIVE"
+    },
+    {
+      "leaseId": "LEASE-BASELINE-1A-SOURCE-PATH-SECURITY",
+      "type": "SOURCE_PATH",
+      "key": "tests/security/phase29MarketingBoundaries.test.ts",
+      "paths": ["tests/security/phase29MarketingBoundaries.test.ts"],
+      "trainId": "RT-BASELINE-REPAIR-001",
+      "workUnitId": "WU-BASELINE-1A-TEST-GATES",
+      "status": "ACTIVE"
+    },
+    {
+      "leaseId": "LEASE-BASELINE-1A-SOURCE-PATH-ENTRY-GATE",
+      "type": "SOURCE_PATH",
+      "key": "scripts/check-phase29-entry-boundaries.ps1",
+      "paths": ["scripts/check-phase29-entry-boundaries.ps1"],
+      "trainId": "RT-BASELINE-REPAIR-001",
+      "workUnitId": "WU-BASELINE-1A-TEST-GATES",
+      "status": "ACTIVE"
+    },
+    {
+      "leaseId": "LEASE-BASELINE-1A-SOURCE-PATH-MARKETING-GATE",
+      "type": "SOURCE_PATH",
+      "key": "scripts/check-phase29-marketing-coupon-boundaries.ps1",
+      "paths": ["scripts/check-phase29-marketing-coupon-boundaries.ps1"],
+      "trainId": "RT-BASELINE-REPAIR-001",
+      "workUnitId": "WU-BASELINE-1A-TEST-GATES",
+      "status": "ACTIVE"
+    },
+    {
+      "leaseId": "LEASE-BASELINE-1A-ENVIRONMENT",
+      "type": "ENVIRONMENT",
+      "key": "xlb-rt-baseline-repair-001-wu-1a",
+      "resources": {
+        "composeProject": "xlb-rt-baseline-repair-001-wu-1a",
+        "mysqlDatabase": "xlb_rt_baseline_repair_001_wu_1a",
+        "redisNamespace": "rt-baseline-repair-001-wu-1a",
+        "mysqlVolume": "xlb-rt-baseline-repair-001-wu-1a_mysql-data",
+        "redisVolume": "xlb-rt-baseline-repair-001-wu-1a_redis-data",
+        "network": "xlb-rt-baseline-repair-001-wu-1a_worktree"
+      },
+      "trainId": "RT-BASELINE-REPAIR-001",
+      "workUnitId": "WU-BASELINE-1A-TEST-GATES",
+      "status": "ACTIVE"
+    },
+    {
+      "leaseId": "LEASE-BASELINE-1A-PORT-MYSQL",
+      "type": "PORT",
+      "key": "tcp:127.0.0.1:13309",
+      "portName": "mysql",
+      "port": 13309,
+      "trainId": "RT-BASELINE-REPAIR-001",
+      "workUnitId": "WU-BASELINE-1A-TEST-GATES",
+      "status": "ACTIVE"
+    },
+    {
+      "leaseId": "LEASE-BASELINE-1A-PORT-REDIS",
+      "type": "PORT",
+      "key": "tcp:127.0.0.1:16382",
+      "portName": "redis",
+      "port": 16382,
+      "trainId": "RT-BASELINE-REPAIR-001",
+      "workUnitId": "WU-BASELINE-1A-TEST-GATES",
+      "status": "ACTIVE"
+    },
+    {
+      "leaseId": "LEASE-BASELINE-1A-PORT-BACKEND",
+      "type": "PORT",
+      "key": "tcp:127.0.0.1:13003",
+      "portName": "backend",
+      "port": 13003,
+      "trainId": "RT-BASELINE-REPAIR-001",
+      "workUnitId": "WU-BASELINE-1A-TEST-GATES",
+      "status": "ACTIVE"
+    },
+    {
+      "leaseId": "LEASE-BASELINE-1A-PORT-CUSTOMER",
+      "type": "PORT",
+      "key": "tcp:127.0.0.1:14473",
+      "portName": "customer",
+      "port": 14473,
+      "trainId": "RT-BASELINE-REPAIR-001",
+      "workUnitId": "WU-BASELINE-1A-TEST-GATES",
+      "status": "ACTIVE"
+    },
+    {
+      "leaseId": "LEASE-BASELINE-1A-PORT-WORKER",
+      "type": "PORT",
+      "key": "tcp:127.0.0.1:14474",
+      "portName": "worker",
+      "port": 14474,
+      "trainId": "RT-BASELINE-REPAIR-001",
+      "workUnitId": "WU-BASELINE-1A-TEST-GATES",
+      "status": "ACTIVE"
+    },
+    {
+      "leaseId": "LEASE-BASELINE-1A-PORT-ADMIN",
+      "type": "PORT",
+      "key": "tcp:127.0.0.1:14475",
+      "portName": "admin",
+      "port": 14475,
+      "trainId": "RT-BASELINE-REPAIR-001",
+      "workUnitId": "WU-BASELINE-1A-TEST-GATES",
+      "status": "ACTIVE"
+    },
+    {
+      "leaseId": "LEASE-BASELINE-1A-SEMANTIC",
+      "type": "SEMANTIC",
+      "key": "engineering-baseline-test-gates-stage-1a",
+      "trainId": "RT-BASELINE-REPAIR-001",
+      "workUnitId": "WU-BASELINE-1A-TEST-GATES",
+      "status": "ACTIVE"
+    },
+    {
       "leaseId": "LEASE-SERIAL-SHARED-CONTRACT",
       "type": "CANONICAL_WRITER",
       "key": "shared-contract-types-validators-api-events",
@@ -279,6 +412,8 @@
         "packages/config/src/index.ts",
         "packages/module-loader/src/index.ts",
         "packages/ui/src/index.ts",
+        "tests/unit/phase29MarketingSurfaces.test.tsx",
+        "tests/security/phase29MarketingBoundaries.test.ts",
         "scripts"
       ],
       "trainId": "SYSTEM-SERIAL-LANES",

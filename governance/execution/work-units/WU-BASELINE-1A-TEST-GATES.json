@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 1,
+  "workUnitId": "WU-BASELINE-1A-TEST-GATES",
+  "trainId": "RT-BASELINE-REPAIR-001",
+  "targetPhase": "Engineering Baseline Repair — Stage 1A",
+  "owner": "INTEGRATION-OWNER",
+  "role": "SERIAL_CANONICAL_WRITER",
+  "status": "PLANNED",
+  "previousStatus": "NONE",
+  "statusChangedAt": "2026-07-15T16:39:39+08:00",
+  "transitionAuthorityRef": "governance/execution/transitions/TRANSITION-WU-BASELINE-1A-TEST-GATES-PLANNED.json",
+  "executionMode": "BUSINESS_CONSTRUCTION",
+  "worktreePath": "G:\\xlb100-worktrees\\RT-BASELINE-REPAIR-001\\WU-BASELINE-1A-TEST-GATES",
+  "branch": "codex/rt-baseline-repair-001-1a",
+  "baseCommit": "95743585bfaadb171fa8c463d3209cdce7851f9f",
+  "dependencies": [],
+  "allowedPaths": [
+    "tests/unit/phase29MarketingSurfaces.test.tsx",
+    "tests/security/phase29MarketingBoundaries.test.ts",
+    "scripts/check-phase29-entry-boundaries.ps1",
+    "scripts/check-phase29-marketing-coupon-boundaries.ps1"
+  ],
+  "forbiddenPaths": [
+    "apps",
+    "backend",
+    "packages",
+    "db",
+    "docs",
+    "governance",
+    ".github",
+    "package.json",
+    "pnpm-lock.yaml",
+    "pnpm-workspace.yaml",
+    "vitest.config.ts",
+    "vitest.phase22.workspace.ts",
+    "vitest.workspace.ts"
+  ],
+  "semanticOwnership": [
+    "engineering-baseline-test-gates-stage-1a"
+  ],
+  "canonicalWriterKey": "integration-queue-and-integration-branch",
+  "contractRevision": "PENDING",
+  "migrationReservation": "NONE",
+  "leaseRefs": {
+    "worktreePath": "LEASE-BASELINE-1A-WORKTREE-PATH",
+    "sourcePath": "LEASE-BASELINE-1A-SOURCE-PATH-SET",
+    "environment": "LEASE-BASELINE-1A-ENVIRONMENT",
+    "ports": {
+      "mysql": "LEASE-BASELINE-1A-PORT-MYSQL",
+      "redis": "LEASE-BASELINE-1A-PORT-REDIS",
+      "backend": "LEASE-BASELINE-1A-PORT-BACKEND",
+      "customer": "LEASE-BASELINE-1A-PORT-CUSTOMER",
+      "worker": "LEASE-BASELINE-1A-PORT-WORKER",
+      "admin": "LEASE-BASELINE-1A-PORT-ADMIN"
+    },
+    "canonicalWriter": "LEASE-SERIAL-INTEGRATION-QUEUE"
+  },
+  "environment": {
+    "slot": 4,
+    "envFileName": ".env.worktree.local",
+    "composeOverrideRef": "governance/execution/templates/docker-compose.worktree.yml",
+    "composeProject": "xlb-rt-baseline-repair-001-wu-1a",
+    "mysqlDatabase": "xlb_rt_baseline_repair_001_wu_1a",
+    "mysqlPort": 13309,
+    "redisNamespace": "rt-baseline-repair-001-wu-1a",
+    "redisPort": 16382,
+    "backendPort": 13003,
+    "customerPort": 14473,
+    "workerPort": 14474,
+    "adminPort": 14475
+  },
+  "evidencePlan": [
+    "focused Phase29 unit and security tests with reproducible command, count, duration, and rerun provenance",
+    "no new skip, todo, weak assertion, swallowed failure, or fake PASS",
+    "actual diff is a subset of the four exact allowed paths",
+    "clean immutable candidate bound to base, contract revision, and isolated environment digest",
+    "independent Package Audit with P0/P1/P2 closure before queue",
+    "serial Integration lane Phase29 gate, regression, build, typecheck, preflight, and Integration Audit"
+  ],
+  "auditRefs": [],
+  "businessWriteAuthorized": false,
+  "createdAt": "2026-07-15T16:39:39+08:00",
+  "expiresOrClosesAt": "CLOSE_AFTER_TRAIN_COMPLETION"
+}

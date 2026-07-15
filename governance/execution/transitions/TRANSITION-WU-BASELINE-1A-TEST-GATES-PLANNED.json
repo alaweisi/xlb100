@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "recordType": "TRANSITION",
+  "recordId": "TRANSITION-WU-BASELINE-1A-TEST-GATES-PLANNED",
+  "createdAt": "2026-07-15T16:39:39+08:00",
+  "subjectType": "WORK_UNIT",
+  "subjectId": "WU-BASELINE-1A-TEST-GATES",
+  "trainId": "RT-BASELINE-REPAIR-001",
+  "workUnitId": "WU-BASELINE-1A-TEST-GATES",
+  "previousStatus": "NONE",
+  "currentStatus": "PLANNED",
+  "changedAt": "2026-07-15T16:39:39+08:00",
+  "scope": "GOVERNANCE_EXECUTION_CONTROL",
+  "decision": "APPROVED",
+  "actorRole": "General Contractor Agent",
+  "checks": [
+    "LEGAL_STATUS_EDGE_VERIFIED"
+  ]
+}

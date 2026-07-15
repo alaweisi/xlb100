@@ -55,12 +55,13 @@
 2. 每个 Release Train 必须先有 Human 明确批准的 Train Charter；批准只覆盖章程内 local construction，不自动授权 main、Lock、push、deploy 或 production
 3. 每个 WRITE Work Unit 必须绑定唯一 owner、branch、managed worktree、immutable base、allowed/forbidden paths、semantic ownership、contract revision、migration reservation、隔离环境和 evidence plan
 4. 同一 Train 最多三个并行 WRITE Work Unit；shared contract finalization、canonical writer、migration ledger、integration queue、shared full replay、global gates、main、治理状态与 Lock 必须串行
-5. 实际 diff 必须是 path lease 子集；文件不同但改变同一金额、状态机、事件版本、数据库表或 canonical workflow 仍视为 semantic lease 冲突
-6. migration 必须先在 `governance/execution/migration-reservations.json` 预约；编号全局唯一，`ABANDONED` 永久留空，不得复用；已 Lock migration 永不修改
-7. 每个 WRITE 工棚必须使用独立 Compose project、MySQL database/volume/port 与独立 Redis instance/volume/port；禁止共享 local DB/Redis 并发写
-8. Work Unit candidate 只进入串行 Integration Queue；不得从 Work Unit branch 直接进入 main。base/contract/candidate 变化时旧 evidence 自动 `STALE`
-9. Package Audit 与 Integration/Phase Audit 都是独立只读审查；P0/P1/P2 必须修复并复审，Audit PASS 不产生 Human/merge/Lock authority
-10. 任何字段缺失、影响未知、lease/reservation 冲突、越 scope、环境不隔离或 evidence 过期，都必须 fail closed
+5. `SERIAL_CANONICAL_WRITER` Work Unit 不是并行豁免。当前只允许显式绑定 `LEASE-SERIAL-INTEGRATION-QUEUE` 的 `INTEGRATION-OWNER` 单占一个非终态 Work Unit；其路径必须是该 writer 保护面的严格子集，Gate 只能输出 `WORK_UNIT_SERIAL_CANONICAL_WRITER_ELIGIBLE`，不得同时输出 parallel eligibility
+6. 实际 diff 必须是 path lease 子集；文件不同但改变同一金额、状态机、事件版本、数据库表或 canonical workflow 仍视为 semantic lease 冲突
+7. migration 必须先在 `governance/execution/migration-reservations.json` 预约；编号全局唯一，`ABANDONED` 永久留空，不得复用；已 Lock migration 永不修改
+8. 每个 WRITE 工棚必须使用独立 Compose project、MySQL database/volume/port 与独立 Redis instance/volume/port；禁止共享 local DB/Redis 并发写
+9. Work Unit candidate 只进入串行 Integration Queue；不得从 Work Unit branch 直接进入 main。base/contract/candidate 变化时旧 evidence 自动 `STALE`
+10. Package Audit 与 Integration/Phase Audit 都是独立只读审查；P0/P1/P2 必须修复并复审，Audit PASS 不产生 Human/merge/Lock authority
+11. 任何字段缺失、影响未知、lease/reservation 冲突、越 scope、环境不隔离或 evidence 过期，都必须 fail closed
 
 ## Human Owner 交互式裁决
 
