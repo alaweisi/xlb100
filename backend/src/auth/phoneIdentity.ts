@@ -14,3 +14,10 @@ export function hashPhoneIdentity(phone: string): string {
     .update(`xlb:worker-phone:v1:${phone}`, "utf8")
     .digest("hex");
 }
+
+export function hashAuthAuditIdentity(scope: "customer" | "admin" | "worker", identifier: string): string {
+  return createHmac("sha256", loadEnv().authPhoneHashSecret)
+    .update(`xlb:auth-audit:v1:${scope}:${identifier}`, "utf8")
+    .digest("hex")
+    .slice(0, 24);
+}

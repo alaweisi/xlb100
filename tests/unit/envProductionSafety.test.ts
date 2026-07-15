@@ -6,6 +6,7 @@ function stubValidProductionEnv(): void {
   vi.stubEnv("JWT_SECRET", "jwt-production-secret-with-at-least-32-characters");
   vi.stubEnv("MYSQL_PASSWORD", "mysql-production-password-strong");
   vi.stubEnv("AUTH_PHONE_HASH_SECRET", "phone-hash-production-secret-at-least-32-chars");
+  vi.stubEnv("AUTH_OTP_PEPPER", "otp-pepper-production-secret-at-least-32-chars");
 }
 
 afterEach(() => {
@@ -64,13 +65,15 @@ describe("production environment safety", () => {
     ["MYSQL_PASSWORD", "REPLACE_WITH_SECRET_MANAGER_VALUE"],
     ["AUTH_PHONE_HASH_SECRET", "xlb-local-phone-hash-secret-change-before-production"],
     ["AUTH_PHONE_HASH_SECRET", "short"],
+    ["AUTH_OTP_PEPPER", "xlb-local-otp-pepper-change-before-production"],
+    ["AUTH_OTP_PEPPER", "short"],
   ])("rejects weak production %s", (name, value) => {
     stubValidProductionEnv();
     vi.stubEnv(name, value);
     expect(() => loadEnv()).toThrow(name);
   });
 
-  it.each(["JWT_SECRET", "MYSQL_PASSWORD", "AUTH_PHONE_HASH_SECRET"])(
+  it.each(["JWT_SECRET", "MYSQL_PASSWORD", "AUTH_PHONE_HASH_SECRET", "AUTH_OTP_PEPPER"])(
     "rejects missing production %s",
     (name) => {
       stubValidProductionEnv();

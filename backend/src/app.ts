@@ -1,4 +1,5 @@
 import Fastify from "fastify";
+import helmet from "@fastify/helmet";
 import websocket from "@fastify/websocket";
 import type { FastifyInstance } from "fastify";
 import { loadEnv } from "@xlb/config";
@@ -47,12 +48,43 @@ export type BuildAppOptions = {
 export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyInstance> {
   const env = loadEnv();
   const app = Fastify({
-    logger: env.nodeEnv === "test" ? false : true,
+    logger: env.nodeEnv === "test" ? false : {
+      redact: {
+        paths: [
+          "req.headers.authorization",
+          "req.headers.cookie",
+          "req.headers['x-xlb-api-key']",
+          "res.headers['set-cookie']",
+          "body.code",
+          "body.password",
+          "body.token",
+          "body.apiKey",
+          "body.secret",
+        ],
+        censor: "[REDACTED]",
+      },
+    },
     trustProxy: env.trustProxyHops > 0 ? env.trustProxyHops : false,
+    bodyLimit: 1_048_576,
+  });
+  await app.register(helmet, {
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false,
+    hsts: env.nodeEnv === "production"
+      ? { maxAge: 31_536_000, includeSubDomains: true, preload: true }
+      : false,
   });
   await app.register(websocket, { options: { maxPayload: 65_536, perMessageDeflate: false } });
 
   app.addHook("onRequest", createRateLimitGuard(options.rateLimit));
+  app.addHook("onSend", async (request, reply, payload) => {
+    const path = request.url.split("?", 1)[0] ?? request.url;
+    if (path.startsWith("/api/auth/")) {
+      reply.header("Cache-Control", "no-store");
+      reply.header("Pragma", "no-cache");
+    }
+    return payload;
+  });
   app.addHook("onResponse", async (request, reply) => {
     const route = request.routeOptions.url ?? request.url.split("?", 1)[0] ?? "unknown";
     recordHttpRequest({
@@ -70,6 +102,30 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       statusCode: reply.statusCode,
       durationMs: Number(reply.elapsedTime.toFixed(3)),
     }, "request completed");
+    if (
+      route.startsWith("/api/internal/") &&
+      request.method !== "GET" && request.method !== "HEAD" && request.method !== "OPTIONS"
+    ) {
+      request.log.info({
+        securityEvent: "admin_mutation",
+        traceId: request.xlbContext?.traceId ?? request.id,
+        actorId: request.xlbContext?.userId,
+        actorRole: request.xlbContext?.role,
+        cityCode: request.xlbContext?.cityCode,
+        method: request.method,
+        route,
+        statusCode: reply.statusCode,
+        succeeded: reply.statusCode >= 200 && reply.statusCode < 400,
+      }, "security audit event");
+    } else if (route.startsWith("/api/auth/") && request.method === "POST") {
+      request.log.info({
+        securityEvent: "authentication_attempt",
+        traceId: request.id,
+        route,
+        statusCode: reply.statusCode,
+        succeeded: reply.statusCode >= 200 && reply.statusCode < 400,
+      }, "security audit event");
+    }
   });
 
   app.get("/health", async () => ({

@@ -1,4 +1,4 @@
-﻿# syntax=docker/dockerfile:1.6
+# syntax=docker/dockerfile:1.6
 FROM node:20-alpine AS builder
 
 WORKDIR /app
@@ -19,7 +19,11 @@ COPY packages/types/package.json ./packages/types/package.json
 COPY packages/ui/package.json ./packages/ui/package.json
 COPY packages/validators/package.json ./packages/validators/package.json
 
-RUN pnpm install --frozen-lockfile --filter @xlb/backend...
+# The root prepare script configures local Git hooks. Docker build contexts do
+# not contain .git, so dependency installation must skip root lifecycle hooks.
+# Rebuild esbuild explicitly because tsx depends on its platform binary.
+RUN pnpm install --frozen-lockfile --ignore-scripts --filter @xlb/backend... \
+  && pnpm rebuild esbuild
 
 COPY . .
 

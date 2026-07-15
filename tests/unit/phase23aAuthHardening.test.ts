@@ -49,6 +49,7 @@ describe("Phase 23A authentication hardening", () => {
     process.env.JWT_SECRET = "production-jwt-secret-for-auth-route-test-123456";
     process.env.MYSQL_PASSWORD = "production-mysql-password-for-route-test";
     process.env.AUTH_PHONE_HASH_SECRET = "production-phone-hash-secret-for-route-test";
+    process.env.AUTH_OTP_PEPPER = "production-otp-pepper-for-route-test-123456";
     const app = await buildApp();
     try {
       expect((await app.inject({

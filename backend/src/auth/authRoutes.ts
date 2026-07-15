@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { loadEnv } from "@xlb/config";
-import { maskPhone } from "./phoneIdentity.js";
+import { hashAuthAuditIdentity, maskPhone } from "./phoneIdentity.js";
 import {
   adminLogin,
   customerLogin,
@@ -19,7 +19,8 @@ interface LoginBody {
   code?: string;
 }
 
-function sendError(reply: FastifyReply, result: { statusCode: number }) {
+function sendError(reply: FastifyReply, result: { statusCode: number; retryAfterSeconds?: number }) {
+  if (result.retryAfterSeconds) reply.header("Retry-After", result.retryAfterSeconds);
   return reply.status(result.statusCode).send(result);
 }
 
@@ -32,7 +33,13 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       const body = (request.body ?? {}) as LoginBody;
       const result = await requestCustomerLoginCode(body.phone ?? "");
       if (!result.ok) return sendError(reply, result);
-      app.log.info({ phoneMasked: maskPhone(body.phone ?? ""), expiresAt: result.expiresAt }, "customer login OTP issued");
+      request.log.info({
+        securityEvent: "otp_issued",
+        authScope: "customer",
+        identityRef: hashAuthAuditIdentity("customer", body.phone ?? ""),
+        phoneMasked: maskPhone(body.phone ?? ""),
+        expiresAt: result.expiresAt,
+      }, "customer login OTP issued");
       return result;
     },
   );
@@ -65,7 +72,12 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       const body = (request.body ?? {}) as LoginBody;
       const result = await requestAdminLoginCode(body.username ?? "");
       if (!result.ok) return sendError(reply, result);
-      app.log.info({ username: body.username, expiresAt: result.expiresAt }, "admin login OTP issued");
+      request.log.info({
+        securityEvent: "otp_issued",
+        authScope: "admin",
+        identityRef: hashAuthAuditIdentity("admin", body.username ?? ""),
+        expiresAt: result.expiresAt,
+      }, "admin login OTP issued");
       return result;
     },
   );
@@ -98,7 +110,13 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       const body = (request.body ?? {}) as LoginBody;
       const result = await requestWorkerLoginCode(body.phone ?? "");
       if (!result.ok) return sendError(reply, result);
-      app.log.info({ phoneMasked: maskPhone(body.phone ?? ""), expiresAt: result.expiresAt }, "worker login OTP issued");
+      request.log.info({
+        securityEvent: "otp_issued",
+        authScope: "worker",
+        identityRef: hashAuthAuditIdentity("worker", body.phone ?? ""),
+        phoneMasked: maskPhone(body.phone ?? ""),
+        expiresAt: result.expiresAt,
+      }, "worker login OTP issued");
       return result;
     },
   );

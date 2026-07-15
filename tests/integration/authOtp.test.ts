@@ -1,10 +1,18 @@
-import { describe, expect, it } from "vitest";
+import { createHash } from "node:crypto";
+import { afterEach, describe, expect, it } from "vitest";
 import { buildApp } from "../../backend/src/app.js";
 import { loginWorkerHeaders } from "./helpers/authTestHelper.js";
 import { getMysqlPool } from "../../backend/src/dal/mysqlPool.js";
+import { getRedisClient } from "../../backend/src/dal/redisClient.js";
+import { issueLoginOtp } from "../../backend/src/auth/otpService.js";
 
 const runDb = process.env.XLB_SKIP_DB_TESTS !== "1";
 let phoneSeq = 0;
+const originalEnv = { ...process.env };
+
+afterEach(() => {
+  process.env = { ...originalEnv };
+});
 
 function phone(): string {
   phoneSeq += 1;
@@ -82,6 +90,83 @@ describe.skipIf(!runDb)("auth OTP integration", { timeout: 20000 }, () => {
       expect(replay.json().ok).toBe(false);
     } finally {
       await app.close();
+    }
+  });
+
+  it("allows exactly one concurrent consumer for a valid login code", async () => {
+    const app = await buildApp();
+    try {
+      const loginPhone = phone();
+      expect((await app.inject({
+        method: "POST",
+        url: "/api/auth/customer/code",
+        payload: { phone: loginPhone },
+      })).statusCode).toBe(200);
+      const debug = await app.inject({
+        method: "GET",
+        url: `/api/auth/customer/debug-code?phone=${encodeURIComponent(loginPhone)}`,
+      });
+      const code = debug.json().code as string;
+
+      const responses = await Promise.all([1, 2].map(() => app.inject({
+        method: "POST",
+        url: "/api/auth/customer/login",
+        payload: { phone: loginPhone, code },
+      })));
+      expect(responses.map(response => response.statusCode).sort()).toEqual([200, 401]);
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("enforces a per-identity resend cooldown", async () => {
+    const app = await buildApp();
+    try {
+      const loginPhone = phone();
+      expect((await app.inject({
+        method: "POST",
+        url: "/api/auth/customer/code",
+        payload: { phone: loginPhone },
+      })).statusCode).toBe(200);
+      const repeated = await app.inject({
+        method: "POST",
+        url: "/api/auth/customer/code",
+        payload: { phone: loginPhone },
+      });
+      expect(repeated.statusCode).toBe(429);
+      expect(repeated.headers["retry-after"]).toBeTruthy();
+      expect(repeated.json().error).toContain("too recently");
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("stores only a peppered OTP digest when production debug readback is disabled", async () => {
+    process.env.NODE_ENV = "production";
+    process.env.JWT_SECRET = "stage2a-production-jwt-secret-at-least-32-characters";
+    process.env.MYSQL_PASSWORD = "stage2a-production-mysql-password";
+    process.env.AUTH_PHONE_HASH_SECRET = "stage2a-production-phone-hash-secret-0001";
+    process.env.AUTH_OTP_PEPPER = "stage2a-production-otp-pepper-secret-0001";
+    const loginPhone = phone();
+    const issued = await issueLoginOtp("customer", loginPhone);
+    expect(issued.ok).toBe(true);
+    if (!issued.ok) return;
+
+    const identity = createHash("sha256").update(`customer:${loginPhone}`).digest("hex");
+    const key = `xlb:auth:otp:customer:${identity}`;
+    const client = getRedisClient();
+    const raw = await client.get(key);
+    try {
+      expect(raw).not.toBeNull();
+      expect(raw).not.toContain(issued.code);
+      expect(JSON.parse(raw ?? "{}")).toMatchObject({ codeHash: expect.stringMatching(/^[a-f0-9]{64}$/) });
+      expect(JSON.parse(raw ?? "{}")).not.toHaveProperty("debugCode");
+    } finally {
+      await client.del(
+        key,
+        `xlb:auth:otp-cooldown:customer:${identity}`,
+        `xlb:auth:otp-lock:customer:${identity}`,
+      );
     }
   });
 

@@ -71,6 +71,7 @@ describe("Phase 23A boundary gates", () => {
     vi.stubEnv("JWT_SECRET", "phase23a-production-jwt-secret-0000000001");
     vi.stubEnv("MYSQL_PASSWORD", "phase23a-production-mysql-secret-000001");
     vi.stubEnv("AUTH_PHONE_HASH_SECRET", "phase23a-production-phone-hash-secret-01");
+    vi.stubEnv("AUTH_OTP_PEPPER", "phase23a-production-otp-pepper-secret-0001");
     let app: Awaited<ReturnType<typeof buildApp>> | undefined;
     try {
       app = await buildApp();
@@ -91,11 +92,13 @@ describe("Phase 23A boundary gates", () => {
     ["JWT_SECRET", "change-me-in-production"],
     ["MYSQL_PASSWORD", "xlb_local_password"],
     ["AUTH_PHONE_HASH_SECRET", "change-me-in-production"],
+    ["AUTH_OTP_PEPPER", "change-me-in-production"],
   ])("fails closed on weak production %s", (name, weakValue) => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("JWT_SECRET", "phase23a-production-jwt-secret-0000000001");
     vi.stubEnv("MYSQL_PASSWORD", "phase23a-production-mysql-secret-000001");
     vi.stubEnv("AUTH_PHONE_HASH_SECRET", "phase23a-production-phone-hash-secret-01");
+    vi.stubEnv("AUTH_OTP_PEPPER", "phase23a-production-otp-pepper-secret-0001");
     vi.stubEnv(name, weakValue);
     try {
       expect(() => loadEnv()).toThrow(new RegExp(name));

@@ -30,11 +30,23 @@ const otpCodeRoutes = new Set([
   "/api/auth/worker/code",
 ]);
 
+const authLoginRoutes = new Set([
+  "/api/auth/customer/login",
+  "/api/auth/admin/login",
+  "/api/auth/worker/login",
+]);
+
 const defaultRules: RateLimitRule[] = [
   {
     id: "otp",
     matches: path => otpCodeRoutes.has(path),
     limit: 10,
+    windowMs: 60_000,
+  },
+  {
+    id: "auth_login",
+    matches: path => authLoginRoutes.has(path),
+    limit: 20,
     windowMs: 60_000,
   },
   { id: "openapi", matches: path => path.startsWith("/openapi/"), limit: 120, windowMs: 60_000 },

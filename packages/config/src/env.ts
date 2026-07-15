@@ -14,15 +14,24 @@ export interface EnvConfig {
   rateLimitBackend: "memory" | "redis";
   trustProxyHops: number;
   jwtSecret: string;
+  jwtIssuer: string;
+  jwtAudience: string;
+  jwtActiveKeyId: string;
+  jwtKeys: Readonly<Record<string, string>>;
+  jwtTtlSeconds: number;
   authPhoneHashSecret: string;
+  authOtpPepper: string;
   authOtpTtlSeconds: number;
   authOtpMaxAttempts: number;
+  authOtpLockSeconds: number;
+  authOtpResendCooldownSeconds: number;
   authDebugCodeEnabled: boolean;
 }
 
 const LOCAL_JWT_SECRET = "change-me-in-production";
 const LOCAL_MYSQL_PASSWORD = "xlb_local_password";
 const LOCAL_PHONE_HASH_SECRET = "xlb-local-phone-hash-secret-change-before-production";
+const LOCAL_OTP_PEPPER = "xlb-local-otp-pepper-change-before-production";
 
 const WEAK_SECRET_VALUES = new Set([
   "change-me",
@@ -33,6 +42,7 @@ const WEAK_SECRET_VALUES = new Set([
   "secret",
   "xlb_local_password",
   LOCAL_PHONE_HASH_SECRET,
+  LOCAL_OTP_PEPPER,
 ]);
 
 function assertProductionSecret(name: string, value: string, minimumLength: number): void {
@@ -48,8 +58,18 @@ function validateProductionEnv(config: EnvConfig): void {
   if (config.nodeEnv !== "production") return;
 
   assertProductionSecret("JWT_SECRET", config.jwtSecret, 32);
+  for (const [keyId, secret] of Object.entries(config.jwtKeys)) {
+    assertProductionSecret(`JWT_KEYS_JSON[${keyId}]`, secret, 32);
+  }
   assertProductionSecret("MYSQL_PASSWORD", config.mysqlPassword, 16);
   assertProductionSecret("AUTH_PHONE_HASH_SECRET", config.authPhoneHashSecret, 32);
+  assertProductionSecret("AUTH_OTP_PEPPER", config.authOtpPepper, 32);
+  if (!config.jwtIssuer.trim() || !config.jwtAudience.trim()) {
+    throw new Error("JWT_ISSUER and JWT_AUDIENCE must be non-empty in production");
+  }
+  if (!Object.hasOwn(config.jwtKeys, config.jwtActiveKeyId)) {
+    throw new Error("JWT_ACTIVE_KID must exist in JWT_KEYS_JSON");
+  }
   if (config.rateLimitBackend !== "redis") {
     throw new Error("RATE_LIMIT_BACKEND must be redis in production");
   }
@@ -101,9 +121,47 @@ function readEnvList(key: string, fallback: string[]): string[] {
     .filter((item) => item.length > 0);
 }
 
+function readJwtKeys(activeKeyId: string, fallbackSecret: string): Readonly<Record<string, string>> {
+  const raw = process.env.JWT_KEYS_JSON;
+  if (raw === undefined || raw.trim() === "") {
+    return Object.freeze({ [activeKeyId]: fallbackSecret });
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error("JWT_KEYS_JSON must be a JSON object of key ids to secrets");
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("JWT_KEYS_JSON must be a JSON object of key ids to secrets");
+  }
+
+  const entries = Object.entries(parsed as Record<string, unknown>);
+  if (entries.length === 0 || entries.length > 5) {
+    throw new Error("JWT_KEYS_JSON must contain between 1 and 5 verification keys");
+  }
+  const keys: Record<string, string> = {};
+  for (const [keyId, secret] of entries) {
+    if (!/^[A-Za-z0-9._-]{1,64}$/u.test(keyId) || typeof secret !== "string" || !secret.trim()) {
+      throw new Error("JWT_KEYS_JSON contains an invalid key id or secret");
+    }
+    keys[keyId] = secret;
+  }
+  if (!Object.hasOwn(keys, activeKeyId)) {
+    throw new Error("JWT_ACTIVE_KID must exist in JWT_KEYS_JSON");
+  }
+  return Object.freeze(keys);
+}
+
 /** Load env with defaults aligned to deploy/compose/docker-compose.local.yml */
 export function loadEnv(): EnvConfig {
   const nodeEnv = readEnv("NODE_ENV", "development");
+  const jwtSecret = readEnv("JWT_SECRET", LOCAL_JWT_SECRET);
+  const jwtActiveKeyId = readEnv("JWT_ACTIVE_KID", "primary").trim();
+  if (!/^[A-Za-z0-9._-]{1,64}$/u.test(jwtActiveKeyId)) {
+    throw new Error("JWT_ACTIVE_KID must be a safe key identifier");
+  }
   const config: EnvConfig = {
     nodeEnv,
     backendPort: readEnvInt("BACKEND_PORT", 3000),
@@ -119,10 +177,21 @@ export function loadEnv(): EnvConfig {
     redisPort: readEnvInt("REDIS_PORT", 6379),
     rateLimitBackend: readRateLimitBackend(nodeEnv),
     trustProxyHops: readTrustProxyHops(nodeEnv),
-    jwtSecret: readEnv("JWT_SECRET", LOCAL_JWT_SECRET),
+    jwtSecret,
+    jwtIssuer: readEnv("JWT_ISSUER", "xlb-backend"),
+    jwtAudience: readEnv("JWT_AUDIENCE", "xlb-apps"),
+    jwtActiveKeyId,
+    jwtKeys: readJwtKeys(jwtActiveKeyId, jwtSecret),
+    jwtTtlSeconds: Math.max(300, readEnvInt("JWT_TTL_SECONDS", 86_400)),
     authPhoneHashSecret: readEnv("AUTH_PHONE_HASH_SECRET", LOCAL_PHONE_HASH_SECRET),
+    authOtpPepper: readEnv("AUTH_OTP_PEPPER", LOCAL_OTP_PEPPER),
     authOtpTtlSeconds: readEnvInt("AUTH_OTP_TTL_SECONDS", 300),
     authOtpMaxAttempts: readEnvInt("AUTH_OTP_MAX_ATTEMPTS", 5),
+    authOtpLockSeconds: Math.max(60, readEnvInt("AUTH_OTP_LOCK_SECONDS", 900)),
+    authOtpResendCooldownSeconds: Math.max(
+      1,
+      readEnvInt("AUTH_OTP_RESEND_COOLDOWN_SECONDS", 60),
+    ),
     authDebugCodeEnabled: readEnvBool(
       "AUTH_DEBUG_CODE_ENABLED",
       nodeEnv !== "production",

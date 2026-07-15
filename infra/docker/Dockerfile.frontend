@@ -23,7 +23,11 @@ COPY packages/types/package.json ./packages/types/package.json
 COPY packages/ui/package.json ./packages/ui/package.json
 COPY packages/validators/package.json ./packages/validators/package.json
 
-RUN pnpm install --frozen-lockfile --filter @xlb/$APP_NAME...
+# The root prepare script configures local Git hooks. Docker build contexts do
+# not contain .git, so dependency installation must skip root lifecycle hooks.
+# Vite requires the platform-specific esbuild binary, rebuilt explicitly here.
+RUN pnpm install --frozen-lockfile --ignore-scripts --filter @xlb/$APP_NAME... \
+  && pnpm rebuild esbuild
 
 COPY . .
 
