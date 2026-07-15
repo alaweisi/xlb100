@@ -6,8 +6,8 @@ import { CustomerCouponsPage } from "../../apps/customer/src/pages/CustomerCoupo
 import { MarketingOperationsPage } from "../../apps/admin/src/pages/MarketingOperationsPage";
 import { toCustomerCouponGrantViewModel } from "../../apps/customer/src/adapters/marketingAdapter";
 
-const now = "2026-07-14T02:00:00.000Z";
-const later = "2026-07-15T02:00:00.000Z";
+const now = new Date(Date.now() - 60_000).toISOString();
+const later = new Date(Date.now() + 86_400_000).toISOString();
 const grant = {
   couponGrantId: "grant-1", couponDefinitionId: "definition-1", marketingCampaignId: "campaign-1",
   ruleRevisionId: "revision-1", cityCode: "hangzhou" as const, customerId: "customer-1",

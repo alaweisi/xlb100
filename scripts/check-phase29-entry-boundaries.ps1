@@ -2,10 +2,12 @@ $ErrorActionPreference = 'Stop'
 
 Set-Location (Resolve-Path (Join-Path $PSScriptRoot '..'))
 
-function Require-File([string]$Path) {
-  if (-not (Test-Path -LiteralPath $Path)) {
-    throw "Phase29 entry artifact missing: $Path"
+function Read-FileAtRef([string]$Ref, [string]$Path) {
+  $content = @(git show "${Ref}:$Path")
+  if ($LASTEXITCODE -ne 0) {
+    throw "Phase29 entry artifact missing at ${Ref}: $Path"
   }
+  return $content -join "`n"
 }
 
 function Require-Contains([string]$Text, [string]$Needle, [string]$Label) {
@@ -14,21 +16,23 @@ function Require-Contains([string]$Text, [string]$Needle, [string]$Label) {
   }
 }
 
-$expectedBranch = 'codex/phase29-marketing-coupon'
-$branch = (git branch --show-current).Trim()
-if ($branch -ne $expectedBranch -and $branch -ne 'main') {
-  throw "Phase29 Gate must run on $expectedBranch or post-merge main; found $branch"
-}
-
 $phase28Tag = 'xlb-phase28-review-reputation'
-git rev-parse --verify "$phase28Tag^{}" *> $null
-if ($LASTEXITCODE -ne 0) {
-  throw "Phase29 requires immutable predecessor tag $phase28Tag"
+$phase29Tag = 'xlb-phase29-marketing-coupon'
+foreach ($tag in @($phase28Tag, $phase29Tag)) {
+  git rev-parse --verify "$tag^{}" *> $null
+  if ($LASTEXITCODE -ne 0) {
+    throw "Phase29 requires immutable tag $tag"
+  }
 }
 $phase28Commit = (git rev-list -n 1 $phase28Tag).Trim()
-$mergeBase = (git merge-base HEAD $phase28Commit).Trim()
-if ($LASTEXITCODE -ne 0 -or $mergeBase -ne $phase28Commit) {
-  throw "Phase29 HEAD must descend from the canonical Phase28 predecessor $phase28Commit; merge-base was $mergeBase"
+$phase29Commit = (git rev-list -n 1 $phase29Tag).Trim()
+$phase29MergeBase = (git merge-base $phase29Commit $phase28Commit).Trim()
+if ($LASTEXITCODE -ne 0 -or $phase29MergeBase -ne $phase28Commit) {
+  throw "Phase29 tag must descend from the canonical Phase28 predecessor $phase28Commit; merge-base was $phase29MergeBase"
+}
+$headMergeBase = (git merge-base HEAD $phase29Commit).Trim()
+if ($LASTEXITCODE -ne 0 -or $headMergeBase -ne $phase29Commit) {
+  throw "Current HEAD must descend from the canonical Phase29 tag $phase29Commit; merge-base was $headMergeBase"
 }
 
 $paths = @(
@@ -38,13 +42,14 @@ $paths = @(
   'docs/contracts/CONTRACT_MARKETING_COUPON.md',
   'docs/reports/PHASE29_MARKETING_COUPON_ENTRY_REPORT.md'
 )
-$paths | ForEach-Object { Require-File $_ }
 
-$state = Get-Content -Raw -Encoding UTF8 -LiteralPath 'docs/CURRENT_STATE.md'
-$architecture = Get-Content -Raw -Encoding UTF8 -LiteralPath 'docs/architecture/29_XLB_MARKETING_COUPON.md'
-$contract = Get-Content -Raw -Encoding UTF8 -LiteralPath 'docs/contracts/CONTRACT_MARKETING_COUPON.md'
-$report = Get-Content -Raw -Encoding UTF8 -LiteralPath 'docs/reports/PHASE29_MARKETING_COUPON_ENTRY_REPORT.md'
-$registry = Get-Content -Raw -Encoding UTF8 -LiteralPath 'docs/governance/phase-registry.json' | ConvertFrom-Json
+$artifacts = @{}
+$paths | ForEach-Object { $artifacts[$_] = Read-FileAtRef $phase29Commit $_ }
+$state = $artifacts['docs/CURRENT_STATE.md']
+$architecture = $artifacts['docs/architecture/29_XLB_MARKETING_COUPON.md']
+$contract = $artifacts['docs/contracts/CONTRACT_MARKETING_COUPON.md']
+$report = $artifacts['docs/reports/PHASE29_MARKETING_COUPON_ENTRY_REPORT.md']
+$registry = $artifacts['docs/governance/phase-registry.json'] | ConvertFrom-Json
 
 foreach ($required in @(
   'Marketing / Coupon MVP',
@@ -93,25 +98,34 @@ foreach ($required in @(
   }
 }
 
-$lockedMigrationChanges = @(git diff --name-only "$phase28Tag^{}" -- db/migrations | Where-Object {
+$phase29MigrationChanges = @(git diff --name-only "$phase28Tag^{}" "$phase29Tag^{}" -- db/migrations)
+$lockedMigrationChanges = @($phase29MigrationChanges | Where-Object {
   $_ -match '^db/migrations/(\d{3})_' -and [int]$Matches[1] -le 56
 })
 if ($lockedMigrationChanges.Count -gt 0) {
   throw "Phase29 must not modify locked migration(s): $($lockedMigrationChanges -join ', ')"
 }
 
-$futureMigrations = @(Get-ChildItem db/migrations -File | Where-Object {
-  $_.Name -match '^(\d{3})_' -and [int]$Matches[1] -gt 57
+$postLockMigrationChanges = @(git diff --name-only "$phase29Tag^{}" -- db/migrations | Where-Object {
+  $_ -match '^db/migrations/(\d{3})_' -and [int]$Matches[1] -le 57
 })
-if ($futureMigrations.Count -gt 0) {
-  throw "Phase29 forbids migration 058 or later: $($futureMigrations.Name -join ', ')"
+if ($postLockMigrationChanges.Count -gt 0) {
+  throw "Current worktree must not modify Phase29-locked migration(s): $($postLockMigrationChanges -join ', ')"
 }
 
-$migration057 = @(Get-ChildItem db/migrations -File | Where-Object { $_.Name -match '^057_' })
+$phase29MigrationFiles = @(git ls-tree -r --name-only "$phase29Tag^{}" -- db/migrations)
+$futureMigrations = @($phase29MigrationFiles | Where-Object {
+  $_ -match '^db/migrations/(\d{3})_' -and [int]$Matches[1] -gt 57
+})
+if ($futureMigrations.Count -gt 0) {
+  throw "Phase29 forbids migration 058 or later: $($futureMigrations -join ', ')"
+}
+
+$migration057 = @($phase29MigrationFiles | Where-Object { $_ -match '^db/migrations/057_' })
 if ($migration057.Count -gt 1) {
   throw "Phase29 permits exactly one migration number 057; found $($migration057.Count)"
 }
-if ($migration057.Count -eq 1 -and $migration057[0].Name -ne '057_phase29_marketing_coupon.sql') {
+if ($migration057.Count -eq 1 -and $migration057[0] -ne 'db/migrations/057_phase29_marketing_coupon.sql') {
   throw "Phase29 migration must be named 057_phase29_marketing_coupon.sql"
 }
 

@@ -92,7 +92,11 @@ if ($workerChanges.Count -gt 0) {
 }
 
 $entryGate = Get-Content -Raw -Encoding UTF8 -LiteralPath 'scripts/check-phase29-entry-boundaries.ps1'
-Require-Contains $entryGate 'git merge-base HEAD $phase28Commit' 'Phase28 predecessor ancestry verification'
+Require-Contains $entryGate 'git merge-base $phase29Commit $phase28Commit' 'Phase29 tag predecessor ancestry verification'
+Require-Contains $entryGate 'git merge-base HEAD $phase29Commit' 'current HEAD Phase29 ancestry verification'
+if ($entryGate.Contains('$expectedBranch')) {
+  throw 'Phase29 historical Gate must use immutable ancestry instead of a fixed branch name'
+}
 $preflight = Get-Content -Raw -Encoding UTF8 -LiteralPath 'scripts/preflight-architecture.ps1'
 foreach ($historicalGate in @(
   'check-phase27a-platform-delivery-boundaries.ps1',
