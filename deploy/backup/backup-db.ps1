@@ -5,7 +5,8 @@ param(
   [string]$Database = '',
   [string]$User = 'xlb',
   [string]$Password = '',
-  [string]$ArtifactPath = ''
+  [string]$ArtifactPath = '',
+  [switch]$ConfirmWritersQuiesced
 )
 
 $ErrorActionPreference = 'Stop'
@@ -66,7 +67,13 @@ try {
     sha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $artifact).Hash
     latestMigration = $latestMigration
     criticalTableCounts = $counts
-    consistency = 'mysqldump --single-transaction; writers should be quiesced for exact count comparison'
+    sourceWritersQuiesced = [bool]$ConfirmWritersQuiesced
+    countVerificationMode = if ($ConfirmWritersQuiesced) { 'exact_source_counts' } else { 'record_nonquiesced_drift' }
+    consistency = if ($ConfirmWritersQuiesced) {
+      'mysqldump --single-transaction with operator-confirmed writer quiescence; exact count comparison required'
+    } else {
+      'mysqldump --single-transaction snapshot; post-dump source counts are observational and may drift under concurrent writes'
+    }
   }
   $manifest | ConvertTo-Json -Depth 6 | Set-Content -Encoding UTF8 -LiteralPath $manifestPath
   Write-Output "BACKUP_PATH=$artifact"

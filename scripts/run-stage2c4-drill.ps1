@@ -9,6 +9,7 @@ param(
   [string]$AdminPassword = '',
   [int]$MaxBackupSeconds = 900,
   [int]$MaxRestoreSeconds = 1800,
+  [switch]$ConfirmWritersQuiesced,
   [switch]$KeepBackupArtifact
 )
 
@@ -42,7 +43,16 @@ $summaryPath = Join-Path $artifactDirectory "drill-$Environment-$stamp.json"
 $targetDatabase = "xlb_restore_drill_$($stamp.Replace('-', '').Replace('T', '_').Replace('Z', ''))"
 
 try {
-  & $backupScript -Environment $Environment -Container $MysqlContainer -Database $Database -User $MysqlUser -Password $MysqlPassword -ArtifactPath $backupPath
+  $backupArgs = @{
+    Environment = $Environment
+    Container = $MysqlContainer
+    Database = $Database
+    User = $MysqlUser
+    Password = $MysqlPassword
+    ArtifactPath = $backupPath
+    ConfirmWritersQuiesced = $ConfirmWritersQuiesced
+  }
+  & $backupScript @backupArgs
   if ($LASTEXITCODE -ne 0) { throw 'Stage 2C-4 backup failed' }
   & $restoreScript -Environment $Environment -Container $MysqlContainer -AdminPassword $AdminPassword -BackupPath $backupPath -TargetDatabase $targetDatabase -EvidencePath $restoreEvidencePath -ConfirmIsolatedRestore
   if ($LASTEXITCODE -ne 0) { throw 'Stage 2C-4 restore failed' }
@@ -86,6 +96,9 @@ try {
       maxSeconds = $MaxRestoreSeconds
       latestMigration = $restoreEvidence.latestMigration
       duplicateLedgerEntries = $restoreEvidence.duplicateLedgerEntries
+      exactSourceCountsRequired = $restoreEvidence.exactSourceCountsRequired
+      countVerificationMode = $restoreEvidence.countVerificationMode
+      criticalTableCountDeltas = $restoreEvidence.criticalTableCountDeltas
       passed = $restoreWithinRto
     }
     capacity = $capacityEvidence

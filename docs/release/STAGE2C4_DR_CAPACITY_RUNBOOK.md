@@ -43,7 +43,7 @@ are recorded in `STAGE2C4_LOCAL_DRILL_RESULT.md`.
 | Area | Automated evidence | Pass condition |
 | --- | --- | --- |
 | Backup | SHA-256 manifest, size, duration, critical-table counts | non-empty single-transaction dump within 900 seconds |
-| Restore | isolated target, hash verification, row-count comparison | exact critical counts and latest migration |
+| Restore | isolated target, hash verification, row-count observation | exact counts when writers are confirmed quiesced; otherwise drift is recorded and snapshot invariants are verified |
 | Ledger | restored duplicate scan | zero duplicate `(account, source type, source id, direction)` keys |
 | Cleanup | `finally` target removal | no retained target unless explicit `-KeepTarget` |
 | Capacity | Outbox rows/bytes and Redis XLEN | under configured storage envelopes |
@@ -77,6 +77,14 @@ service-owner approval and managed-database evidence.
 5. Rebuild each city stream from authoritative active `dispatch_tasks` with one
    stable runId; repeated execution is idempotent.
 6. Start Consumer Groups, inspect PEL/ACK/DLQ metrics, then resume traffic.
+
+When writer quiescence is confirmed, run the drill with
+`-ConfirmWritersQuiesced`; any critical-table count mismatch then fails closed.
+Without that switch, `mysqldump --single-transaction` still provides a
+consistent snapshot, while post-dump source counts are recorded only as
+observations because concurrent writes can legitimately change them. The
+restore must still pass artifact hash, schema version, table presence and
+ledger uniqueness checks.
 
 ## Production blockers intentionally left open
 

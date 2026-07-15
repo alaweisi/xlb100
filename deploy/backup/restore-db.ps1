@@ -36,6 +36,13 @@ $manifest = Get-Content -Raw -Encoding UTF8 -LiteralPath $manifestFile | Convert
 if ($manifest.sourceDatabase -eq $TargetDatabase) { throw 'restore target must differ from source database' }
 $actualHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $backup).Hash
 if ($actualHash -ne $manifest.sha256) { throw 'backup SHA-256 does not match manifest' }
+$sourceWritersQuiesced = if ($manifest.PSObject.Properties.Name -contains 'sourceWritersQuiesced') {
+  [bool]$manifest.sourceWritersQuiesced
+} else {
+  # Historical manifests predate the explicit mode and were produced only by
+  # the quiesced drill contract, so preserve their exact comparison behavior.
+  $true
+}
 if (-not $EvidencePath) { $EvidencePath = "$backup.restore.json" }
 $evidence = [IO.Path]::GetFullPath($EvidencePath)
 [IO.Directory]::CreateDirectory((Split-Path -Parent $evidence)) | Out-Null
@@ -55,13 +62,19 @@ try {
   )
 
   $restoredCounts = [ordered]@{}
+  $sourceObservedCounts = [ordered]@{}
+  $countDeltas = [ordered]@{}
   foreach ($property in $manifest.criticalTableCounts.PSObject.Properties) {
     $table = $property.Name
     if ($table -notmatch '^[a-z][a-z0-9_]{0,63}$') { throw "invalid manifest table name: $table" }
     $actual = [long](Invoke-MysqlScalar -Container $Container -Database $TargetDatabase -User $AdminUser -Password $AdminPassword -Sql "SELECT COUNT(*) FROM $table")
     $expected = [long]$property.Value
-    if ($actual -ne $expected) { throw "restored row count mismatch for ${table}: expected $expected, actual $actual" }
+    if ($sourceWritersQuiesced -and $actual -ne $expected) {
+      throw "restored row count mismatch for ${table}: expected $expected, actual $actual"
+    }
     $restoredCounts[$table] = $actual
+    $sourceObservedCounts[$table] = $expected
+    $countDeltas[$table] = $actual - $expected
   }
   $latestMigration = Invoke-MysqlScalar -Container $Container -Database $TargetDatabase -User $AdminUser -Password $AdminPassword -Sql 'SELECT version FROM schema_migrations ORDER BY id DESC LIMIT 1'
   if ($latestMigration -ne $manifest.latestMigration) {
@@ -82,6 +95,10 @@ try {
     durationSeconds = [Math]::Round(($completedAt - $startedAt).TotalSeconds, 3)
     latestMigration = $latestMigration
     criticalTableCounts = $restoredCounts
+    sourceObservedCriticalTableCounts = $sourceObservedCounts
+    criticalTableCountDeltas = $countDeltas
+    exactSourceCountsRequired = $sourceWritersQuiesced
+    countVerificationMode = if ($sourceWritersQuiesced) { 'exact_source_counts' } else { 'nonquiesced_drift_recorded' }
     duplicateLedgerEntries = $duplicateLedgerEntries
     targetCleanup = if ($KeepTarget) { 'retained by explicit operator switch' } else { 'dropped in finally' }
     result = 'PASS'

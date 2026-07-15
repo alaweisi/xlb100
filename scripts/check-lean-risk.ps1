@@ -67,6 +67,7 @@ function Read-ActiveApproval {
 
 $SensitiveRules = @(
   [pscustomobject]@{ Id="MIGRATION"; Pattern='^db/migrations(?:/|$)'; Reason="database migration" },
+  [pscustomobject]@{ Id="DATA_OPERATION"; Pattern='(?i)^(scripts|deploy)/(?:[^/]+/)*[^/]*(migrat|backup|restore|recovery|stage4a)[^/]*\.(ps1|mjs|ts)$'; Reason="database migration, backup, restore, recovery, or destructive validation operation" },
   [pscustomobject]@{ Id="AUTHORIZATION"; Pattern='(?i)(^|/)(auth|authentication|authorization|authz|permission|permissions|rbac)(/|[^/]*)'; Reason="authentication or authorization boundary" },
   [pscustomobject]@{ Id="MONEY"; Pattern='(?i)(^|/)(payment|payments|refund|refunds|ledger|settlement|payout|withdrawal)(/|[^/]*)'; Reason="payment, refund, ledger, settlement, payout, or withdrawal" },
   [pscustomobject]@{ Id="SHARED_CONTRACT"; Pattern='^packages/(types|api-client)(?:/|$)'; Reason="shared types or API client contract" },
