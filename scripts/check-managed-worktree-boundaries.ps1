@@ -2818,7 +2818,7 @@ function Invoke-NegativeSelfTests {
       $null=Get-SerialCanonicalWriterDeclaration ([pscustomobject]@{role=$SerialCanonicalWriterRole;executionMode="BUSINESS_CONSTRUCTION";canonicalWriterKey=42;leaseRefs=[pscustomobject]@{canonicalWriter="LEASE-SERIAL-INTEGRATION-QUEUE"}}) "serial declaration fixture"
     }
     Assert-Rejected "serial canonical writer lease ref must be a JSON string" {
-      $null=Get-SerialCanonicalWriterDeclaration ([pscustomobject]@{role=$SerialCanonicalWriterRole;executionMode="BUSINESS_CONSTRUCTION";canonicalWriterKey="integration-queue-and-integration-branch";leaseRefs=[pscustomobject]@{canonicalWriter=@("LEASE-SERIAL-INTEGRATION-QUEUE")}}) "serial declaration fixture"
+      $null=Get-SerialCanonicalWriterDeclaration ([pscustomobject]@{role=$SerialCanonicalWriterRole;executionMode="BUSINESS_CONSTRUCTION";canonicalWriterKey="integration-queue-and-integration-branch";leaseRefs=[pscustomobject]@{canonicalWriter=42}}) "serial declaration fixture"
     }
     $integrationLeaseSource=@($canonicalLeaseLedger.leases|Where-Object{$_.leaseId-eq"LEASE-SERIAL-INTEGRATION-QUEUE"})[0]
     $integrationLease=[pscustomobject]@{Id=$integrationLeaseSource.leaseId;Type="CANONICAL_WRITER";Key=$integrationLeaseSource.key;TrainId=$integrationLeaseSource.trainId;WorkUnitId=$integrationLeaseSource.workUnitId;ProtectedPaths=@($integrationLeaseSource.protectedPaths)}
