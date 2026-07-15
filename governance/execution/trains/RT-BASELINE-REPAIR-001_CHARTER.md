@@ -92,4 +92,8 @@ Shared contract freeze、canonical writer、migration ledger、Integration Queue
 
 ## Human 批准区
 
-2026-07-15 精简政策生效后，本 Charter 及 `WAITING_HUMAN_APPROVAL` 状态仅保留为历史记录，不再阻塞 1A 这类测试与脚本维修。Human 以自然语言要求执行即可开始普通本地施工，不需要固定句式、不可变 approval、逐状态 transition、Contract freeze 或 Queue。push、deploy、production 和真实 Provider 仍需执行前单独同意。
+1A 当前继续保持 `DRAFT / WAITING_HUMAN_APPROVAL / PLANNED`，`businessWriteAuthorized=false`；精简政策不追溯产生施工批准。
+
+1A 只允许修改两份 Phase 29 Marketing/Coupon 测试和两份对应的静态边界检查脚本，不包含 migration、认证授权、支付、退款、账本、生产配置、Provider 或外部操作，按现行精简政策属于普通测试维修。
+
+它最初等待批准，不是因为内容命中高风险类别，而是旧政策把所有 WRITE 都要求进入 Release Train，并把整个 `scripts/**` 归入 Integration Owner canonical writer，导致测试脚本维修也被统一套用业务施工批准。Human 后续以自然语言明确要求执行 1A 后即可开始；在此之前不得视为已批准。
