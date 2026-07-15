@@ -37,6 +37,7 @@ import { createRateLimitGuard, type RateLimitOptions } from "./security/rateLimi
 import { registerSupportModule } from "./support/supportModule.js";
 import { registerNotificationModule } from "./notification/notificationModule.js";
 import { registerMarketingModule } from "./marketing/marketingModule.js";
+import { XLB_RUNTIME_STATUS } from "./projectStatus.js";
 
 export type BuildAppOptions = {
   rateLimit?: RateLimitOptions;
@@ -69,17 +70,17 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   app.get("/health", async () => ({
     status: "ok",
     service: "xlb-backend",
-    phase: "8C",
+    phase: XLB_RUNTIME_STATUS.phase,
     brand: "喜乐帮 / XLB",
   }));
 
   app.get("/api/system/status", async () => ({
     ok: true,
     project: "XLB",
-    phase: "8C",
+    phase: XLB_RUNTIME_STATUS.phase,
     apps: ["customer", "worker", "admin"],
     backend: "ready",
-    foundation: "settlement-confirmation-foundation",
+    foundation: XLB_RUNTIME_STATUS.foundation,
   }));
 
   app.get("/api/system/db-health", async (_request, reply) => {
@@ -87,7 +88,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     if (!health.ok) {
       return reply.status(503).send(health);
     }
-    return { ...health, phase: "8C" };
+    return { ...health, phase: XLB_RUNTIME_STATUS.phase };
   });
 
   app.get("/metrics", async (_request, reply) => {

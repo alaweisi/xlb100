@@ -72,7 +72,7 @@ function sanitizeErrorBody(raw: string): string {
   return raw
     .slice(0, ERROR_BODY_LIMIT)
     .replace(/(authorization|token|password|secret|code)(["'\s:=]+)([^,}\s"]+)/gi, "$1$2[REDACTED]")
-    .replace(/Bearer\s+[A-Za-z0-9._~+\/-]+/gi, "Bearer [REDACTED]")
+    .replace(/Bearer\s+[A-Za-z0-9._~+/-]+/gi, "Bearer [REDACTED]")
     .replace(/(?<!\d)1[3-9]\d{9}(?!\d)/g, "[REDACTED_PHONE]")
     .slice(0, ERROR_BODY_LIMIT);
 }

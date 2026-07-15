@@ -7,10 +7,16 @@ export function retryDelaySeconds(attemptCount: number): number {
   return Math.min(300, 2 ** exponent);
 }
 
+function replaceControlCharacters(value: string): string {
+  return Array.from(value, (character) => {
+    const code = character.charCodeAt(0);
+    return code <= 0x1f || code === 0x7f ? " " : character;
+  }).join("");
+}
+
 export function sanitizeOutboxError(error: unknown): string {
   const raw = error instanceof Error ? error.message : String(error);
-  return raw
-    .replace(/[\u0000-\u001f\u007f]/g, " ")
+  return replaceControlCharacters(raw)
     .replace(/(password|secret|token|authorization)\s*[:=]\s*[^\s,;]+/gi, "$1=[redacted]")
     .replace(/\s+/g, " ")
     .trim()
