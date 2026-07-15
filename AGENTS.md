@@ -37,6 +37,13 @@
 - 并行写入必须使用不同分支/worktree，不共享 mutable branch。
 - 只有实际使用数据库或 Redis 的单元才需要独立实例/端口；纯代码、文档、单元测试和静态脚本不需要。
 
+## Integration Queue
+
+- 普通单元任务不需要 Integration Queue，可在相关测试通过后完成本地集成。
+- 高风险工程以及 Phase 最终候选必须进入 Integration Queue，由 Integration Owner 串行处理后才能正式合入本地 `main`。
+- “候选代码已在工作分支提交”“进入 Integration Queue”“由队列正式合入本地 main”是三个不同阶段，不得把工作分支提交或直接本地 merge 宣称为正式 Phase 完成。
+- Queue 只负责本地正式集成，不产生 push、deploy、production、Provider 或公开发布权限。
+
 ## 测试与审查
 
 - 默认只运行与改动直接相关的测试、类型检查和格式检查。
