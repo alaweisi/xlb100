@@ -1,5 +1,7 @@
 # XLB 项目工程治理宪法（正式版本控制候选）
 
+> **2026-07-15 精简修订：** 普通开发的现行规则已迁移到 [`00_LEAN_EXECUTION_POLICY.md`](./00_LEAN_EXECUTION_POLICY.md) 与根目录 `AGENTS.md`。本文件中的 Train、Work Unit、固定确认文字、两级审计、隔离环境和完整历史要求仅继续适用于精简政策定义的高风险工程、外部/生产操作；不得再阻塞普通开发。
+
 > 状态：Human Owner 已于 2026-07-14 授权把本宪法植入项目执行系统并纳入正式版本控制；当前 candidate 为 `BOOTSTRAP / NOT_ENABLED`，须经 immutable candidate、独立审计与 Human 确认后才能启用实际 Work Unit WRITE
 > 文件名说明：`_DRAFT` 是植入前遗留的稳定路径，保留以避免治理引用断裂；不表示本文件仍是草案，规范状态以上述状态行、Git commit 与 Human authority record 为准
 > 观察时间：2026-07-14（Asia/Shanghai）

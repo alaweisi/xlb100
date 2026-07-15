@@ -1,14 +1,18 @@
 ---
 name: xlb-phase-boundary
 description: >-
-  Resolves XLB Phase and Work Unit allow/forbid boundaries using canonical
-  control records plus the current worktree candidate. Use before implementing
-  a feature, changing a contract or migration, or running validation.
+  Resolves XLB boundaries for high-risk schema/migration, auth, money,
+  production, Lock, or explicitly phase-scoped work. Do not use for ordinary
+  development.
 ---
 
 # XLB Phase Boundary
 
-**Before writing:** run `xlb-session-sync`, classify the current root, then
+> 2026-07-15 lean policy: ordinary development proceeds under root `AGENTS.md`
+> without Train/WU/Lease eligibility. The procedure below is retained only for
+> high-risk or explicitly Phase/Lock-scoped work.
+
+**For high-risk writing:** run `xlb-session-sync`, classify the current root, then
 combine canonical Phase authority with the exact Work Unit scope. Neither one
 alone is permission.
 

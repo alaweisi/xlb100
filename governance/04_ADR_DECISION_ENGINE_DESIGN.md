@@ -1,5 +1,7 @@
 # XLB ADR Decision Engine Design
 
+> **2026-07-15 精简修订：** 本 Engine 不再是普通开发的必经流程。普通开发按 [`00_LEAN_EXECUTION_POLICY.md`](./00_LEAN_EXECUTION_POLICY.md) 直接执行；本文的等级、authority、evidence 和 fail-closed 状态机只用于高风险工程、外部/生产操作或 Human 明确指定的专项治理。
+
 > 状态：Human Owner 已接受 ADR Engine 与 P-01～P-18，并授权植入项目执行系统、纳入正式版本控制；当前为 `BOOTSTRAP / NOT_ENABLED` candidate
 > 输入：[正式项目工程治理宪法](./01_PROJECT_CONSTITUTION_DRAFT.md)、[当前工程施工模型](./02_CURRENT_ENGINEERING_EXECUTION_MODEL.md)、[治理差距分析](./03_GOVERNANCE_GAP_ANALYSIS.md)
 > 范围：设计并植入本地人工 ADR/并行治理控制；不修改业务 runtime、Phase 状态、hosted CI、Lock，不执行 merge

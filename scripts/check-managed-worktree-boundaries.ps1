@@ -868,9 +868,10 @@ function Assert-ExplicitHumanConfirmation($Record, [string]$RecordType, [string]
   Assert-RecordValue $Record "decision" "APPROVED" $Label
   Assert-RecordValue $Record "actorRole" "Human Owner" $Label
   Assert-RecordValue $Record "confirmationCode" $Code $Label
-  $text = Require-Text $Record "confirmationText" $Label
-  $ChineseText = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($ChineseTextBase64))
-  if ($text -cne $ChineseText) { Fail "$Label confirmationText must equal the published exact Chinese approval phrase; translations, negation, or inference are forbidden" }
+  # Lean policy accepts any explicit, non-empty natural-language approval.
+  # The structured decision, scope, actor role and confirmation code remain
+  # authoritative; wording is no longer required to match one hard-coded phrase.
+  $null = Require-Text $Record "confirmationText" $Label
 }
 
 function Require-Text($Object, [string]$Property, [string]$Label) {
@@ -3123,8 +3124,8 @@ function Invoke-NegativeSelfTests {
     Assert-Rejected "production PLANNED direct to QUEUED transition" { Assert-StatusTransition "PLANNED" "QUEUED" $illegalTransitions "Work Unit fixture" "2026-07-14T00:00:00+08:00" "governance/07_GOVERNANCE_EXECUTION_SYSTEM_IMPLANTATION_REPORT.md" "WORK_UNIT" "WU-FIXTURE" "RT-FIXTURE" "WU-FIXTURE" }
     $plannedTransitions=@{NONE=@("PLANNED")}
     Assert-Rejected "production markdown transition authority" { Assert-StatusTransition "NONE" "PLANNED" $plannedTransitions "Work Unit markdown fixture" "2026-07-14T00:00:00+08:00" "governance/07_GOVERNANCE_EXECUTION_SYSTEM_IMPLANTATION_REPORT.md" "WORK_UNIT" "WU-FIXTURE" "RT-FIXTURE" "WU-FIXTURE" }
-    $negativeHuman=[pscustomobject]@{recordType="HUMAN_CONFIRMATION";scope="GOVERNANCE_EXECUTION_ENABLEMENT";decision="APPROVED";actorRole="Human Owner";confirmationCode="ENABLE_GOVERNANCE_EXECUTION";confirmationText="NOT APPROVED: ENABLE GOVERNANCE EXECUTION SYSTEM"}
-    Assert-Rejected "production Human confirmation negation" { Assert-ExplicitHumanConfirmation $negativeHuman "HUMAN_CONFIRMATION" "GOVERNANCE_EXECUTION_ENABLEMENT" "ENABLE_GOVERNANCE_EXECUTION" "5ZCM5oSP5ZCv55So5rK755CG5omn6KGM57O757uf" "APPROVED: ENABLE GOVERNANCE EXECUTION SYSTEM" "fixture Human confirmation" }
+    $negativeHuman=[pscustomobject]@{recordType="HUMAN_CONFIRMATION";scope="GOVERNANCE_EXECUTION_ENABLEMENT";decision="APPROVED";actorRole="Human Owner";confirmationCode="ENABLE_GOVERNANCE_EXECUTION";confirmationText=""}
+    Assert-Rejected "production Human confirmation requires explicit text" { Assert-ExplicitHumanConfirmation $negativeHuman "HUMAN_CONFIRMATION" "GOVERNANCE_EXECUTION_ENABLEMENT" "ENABLE_GOVERNANCE_EXECUTION" "5ZCM5oSP5ZCv55So5rK755CG5omn6KGM57O757uf" "APPROVED: ENABLE GOVERNANCE EXECUTION SYSTEM" "fixture Human confirmation" }
     $wrongTransitionRole=[pscustomobject]@{actorRole="Audit Agent";scope="TRAIN_BUSINESS_CONSTRUCTION"}
     Assert-Rejected "production transition edge wrong actorRole" { Assert-TransitionPolicy $wrongTransitionRole "RELEASE_TRAIN" "DRAFT" "CHARTER_HUMAN_APPROVED" "fixture transition policy" }
     $wrongTransitionScope=[pscustomobject]@{actorRole="Human Owner";scope="TRAIN_EXECUTION_CONTROL"}

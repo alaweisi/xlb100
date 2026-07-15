@@ -1,19 +1,22 @@
 ---
 name: xlb-session-sync
 description: >-
-  Mandatory XLB session startup sync. Resolves the current Git worktree and
-  common directory before reading canonical control facts and current-worktree
-  branch facts. Use at the start of every XLB task, after context loss, or when
-  the user mentions a Phase, Release Train, Work Unit, Lock, or repository state.
+  Optional XLB repository-state sync for Phase, Lock, release, concurrent
+  worktree, or repository-state investigations. Ordinary development only
+  needs a normal git status check.
 ---
 
 # XLB Session Sync
+
+> 2026-07-15 lean policy: this Skill is no longer mandatory for every task.
+> Use it only when Phase/Lock/release facts, concurrent worktrees, or conflicting
+> repository state matter. See `governance/00_LEAN_EXECUTION_POLICY.md`.
 
 **Do not rely on conversation memory.** Git, the canonical control records, and
 the current worktree are the sources of truth, but they answer different
 questions.
 
-## Root model (mandatory)
+## Root model (when this Skill is used)
 
 - Canonical control / integration / main / Lock root: `G:\xlb100`.
 - Canonical committed control ref: `refs/heads/main`. Resolve it to one commit
@@ -34,10 +37,12 @@ questions.
 
 ## When to run
 
-- First message of any XLB session
-- User says "continue", "Lock", "Phase N", "Release Train", or "Work Unit"
+- User asks about Lock, release, Phase state, concurrent worktrees, or repository authority
 - Branch, tag, candidate, or worktree may have changed
 - Unsure whether a module is implemented, planned, or only present elsewhere
+
+Do not run this full procedure for ordinary code, documentation, tests, UI,
+refactors, or local scripts when a normal `git status` provides enough context.
 
 ## Steps (in order)
 

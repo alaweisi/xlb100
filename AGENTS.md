@@ -1,119 +1,69 @@
 # AGENTS.md — 喜乐帮 / XLB
 
-> **所有 AI Agent（Cursor / Codex / Claude Code 等）进入本项目必须先阅读本文件。**
+> 所有 Agent 进入项目先阅读本文件。本文件与 `governance/00_LEAN_EXECUTION_POLICY.md` 是当前有效执行规则；旧治理文档中与其冲突的流程降级为历史参考或高风险专项规则。
 
-> **最高工程治理依据：** `governance/01_PROJECT_CONSTITUTION_DRAFT.md` 是本项目正式工程施工宪法；`governance/04_ADR_DECISION_ENGINE_DESIGN.md` 与 `governance/06_PARALLEL_CONSTRUCTION_GOVERNANCE_DESIGN.md` 是其强制执行模型。任何 Agent、Skill、脚本、Train Charter 或 Phase Prompt 与宪法冲突时必须 fail closed，并提交 Human Owner 裁决。
+## 项目边界
 
-## 项目概述
+- Monorepo：`apps/customer`、`apps/worker`、`apps/admin`、`backend`、`packages`、`db`、`infra`、`deploy`、`tests`、`docs`。
+- 包名前缀使用 `@xlb/*`，不得引入旧项目 `@sdj99`/`sdj99` 命名或复制旧项目半成品。
+- 不得绕过 `packages/types`、`packages/validators` 和 `@xlb/api-client` 建立重复契约。
+- 未经用户确认，不得凭空生成正式服务类目；正式类目来源仍是 `docs/catalog/OFFICIAL_SERVICE_CATALOG_SOURCE.md`。
 
-**喜乐帮 / XLB** 是一个从 0 开始的三端 App Monorepo：
+## 默认执行方式
 
-- **apps/customer** — C 端：用户下单服务入口
-- **apps/worker** — W 端：师傅接单履约入口
-- **apps/admin** — A 端：运营审核管理入口
-- **backend** — 后端 API 服务
-- **packages/** — 共享类型、校验、配置、API Client、UI、模块加载器
-- **db/** — 数据库 schema、migrations、seed
-- **infra/** — Nginx、Docker、MySQL、Redis、OSS
-- **deploy/** — 部署脚本与 compose
-- **tests/** — 单元、集成、契约、E2E、安全测试
-- **docs/** — 架构、契约、模块文档
+用户要求实现、修复、整理或重构时，Agent 默认直接完成，不创建治理任务让用户操作。
 
-**包名前缀：** `@xlb/*`  
-**禁止：** `@sdj99`、`sdj99` 作为新项目命名（旧项目已废弃）
+普通任务包括文档、测试、页面、非敏感业务代码、重构、开发配置和局部脚本修改：
 
-## Canonical Root 与受管 Worktree Pool
+- 不要求 Release Train、Work Unit、Manifest、Lease、Integration Queue 或固定确认文字。
+- 不要求独立审计、完整 Git 历史扫描或全量治理 SelfTest。
+- 不使用运行环境时，不登记 Compose、MySQL、Redis、volume 或端口。
+- 单人施工可在当前分支完成；只有确实并行写入时才创建独立分支/worktree。
+- 用户说“按推荐执行”“A”“继续”“直接做”等明确表达，视为当前任务范围内的有效授权。
 
-- **唯一 canonical control / integration / main / Lock 根目录：** `G:\xlb100`
-- **唯一 committed control ref：** `refs/heads/main`。Phase、authority 与 execution records 必须从该 ref 的固定 commit 读取，不得从 `G:\xlb100` 当时碰巧检出的 branch/worktree 文件推断
-- **唯一获批的并行施工工棚池：** `G:\xlb100-worktrees\<train-id>\<work-unit-id>`
-- 受管 worktree 必须连接 `G:\xlb100` 的同一 Git common directory，并与已登记的 Train Charter、Work Unit Manifest、branch、base commit、lease、migration reservation 和隔离环境完全一致
-- 未登记目录、自由创建的第二仓库、共享 branch、共享数据库并发写一律禁止；历史目录 `G:\xlb100-p0-architecture-foundation` 不自动纳入受管池，也不构成授权先例
-- 迁移前旧盘仓库地址已废弃，禁止后续 Agent、脚本或施工命令引用或切换到旧仓库
-- control、integration、main、Lock、治理台账与串行队列命令必须在 `G:\xlb100` 执行；获批 Work Unit 的施工/局部验证命令只能在其 Manifest 指定的受管 worktree 执行
+## 仅三类风险
 
-## Phase 事实与基础禁区
+1. **普通开发**：Agent 直接实施、运行相关测试并提交本地结果。
+2. **高风险工程**：数据库 schema/migration、认证授权边界、支付/退款/账本、金额规则、破坏性数据操作、共享契约破坏性变更。开始写入前取得一次用户明确同意；一次同意覆盖已说明范围内的本地施工、测试和本地 main 集成。
+3. **外部或生产操作**：push、deploy、生产数据、真实 Provider、公开发布和不可逆外部操作，执行前必须单独取得明确同意。
 
-- 当前 Phase、tag、branch、Lock 的唯一事实源是 committed control ref 上的 `docs/CURRENT_STATE.md`；Bootstrap 治理 branch 中的同名文件和 registry 只属于候选证据，不产生 authority；本节保留的是 Phase 0 建基规则，不代表当前仍处于 Phase 0
-- 未获得当前 Phase/Train 明确授权时，禁止写任何真实业务逻辑
-- 未经对应 Phase 与 Authority 明确批准，禁止新增或扩大登录、JWT、city_code 路由、ScopedExecutor、订单、支付、派单、账本、资质、退款和真实 Provider
-- 禁止：迁移或复制旧 SDJ99 半成品代码
-- 禁止：新建未批准的一级目录
-- 禁止：把 `@xlb/types` 复制到三端 `apps/*` 内部
-- 三端未来必须通过 `@xlb/api-client` 访问后端
+自然语言明确同意即可，不要求逐字匹配固定句式。沉默仍不算授权。
 
-## 工程目录规则
+## 并行施工
 
-1. 不得绕过 `packages/types` 和 `packages/validators` 定义契约
-2. 业务模块必须进入 `backend/src/` 对应目录，不得旁路
-3. 后续 Phase 必须先走 **RequestContext → CityCode → Contract → Guard**
-4. CI 守门脚本失败 = 不得合并
+- 同时最多三个写入单元。
+- 只有修改同一文件，或改变同一数据库表、金额规则、状态机、事件版本、共享契约时才视为冲突。
+- `scripts/**` 不再整体串行；按实际修改文件判断。
+- 并行写入必须使用不同分支/worktree，不共享 mutable branch。
+- 只有实际使用数据库或 Redis 的单元才需要独立实例/端口；纯代码、文档、单元测试和静态脚本不需要。
 
-## 多工程队并行施工硬规则
+## 测试与审查
 
-1. Human Owner 是唯一 Human / Architecture / Financial / Security / Lock Authority；Agent 不得代替 Human 批准 L2–L4、main merge、Lock、push、production 或 Provider activation
-2. 每个 Release Train 必须先有 Human 明确批准的 Train Charter；批准只覆盖章程内 local construction，不自动授权 main、Lock、push、deploy 或 production
-3. 每个 WRITE Work Unit 必须绑定唯一 owner、branch、managed worktree、immutable base、allowed/forbidden paths、semantic ownership、contract revision、migration reservation、隔离环境和 evidence plan
-4. 同一 Train 最多三个并行 WRITE Work Unit；shared contract finalization、canonical writer、migration ledger、integration queue、shared full replay、global gates、main、治理状态与 Lock 必须串行
-5. `SERIAL_CANONICAL_WRITER` Work Unit 不是并行豁免。当前只允许显式绑定 `LEASE-SERIAL-INTEGRATION-QUEUE` 的 `INTEGRATION-OWNER` 单占一个非终态 Work Unit；其路径必须是该 writer 保护面的严格子集，Gate 只能输出 `WORK_UNIT_SERIAL_CANONICAL_WRITER_ELIGIBLE`，不得同时输出 parallel eligibility
-6. 实际 diff 必须是 path lease 子集；文件不同但改变同一金额、状态机、事件版本、数据库表或 canonical workflow 仍视为 semantic lease 冲突
-7. migration 必须先在 `governance/execution/migration-reservations.json` 预约；编号全局唯一，`ABANDONED` 永久留空，不得复用；已 Lock migration 永不修改
-8. 每个 WRITE 工棚必须使用独立 Compose project、MySQL database/volume/port 与独立 Redis instance/volume/port；禁止共享 local DB/Redis 并发写
-9. Work Unit candidate 只进入串行 Integration Queue；不得从 Work Unit branch 直接进入 main。base/contract/candidate 变化时旧 evidence 自动 `STALE`
-10. Package Audit 与 Integration/Phase Audit 都是独立只读审查；P0/P1/P2 必须修复并复审，Audit PASS 不产生 Human/merge/Lock authority
-11. 任何字段缺失、影响未知、lease/reservation 冲突、越 scope、环境不隔离或 evidence 过期，都必须 fail closed
+- 默认只运行与改动直接相关的测试、类型检查和格式检查。
+- 失败时先修复并重跑失败项；交付前再跑一次相关测试。
+- 全量回归只在 Phase 最终交付、高风险跨域改动或用户明确要求时运行一次。
+- 普通任务不要求独立审计。高风险变更或 Phase 最终候选最多进行一次独立审查。
+- 不因为本地 main 仍指向已经验证过的同一 commit 而重复全量测试。
 
-## Human Owner 交互式裁决
+## Git 与文件安全
 
-- 需要 Human 裁决时，Agent 必须先提供通俗、互斥、可比较的选择题，推荐项排第一并说明影响；不得只抛出专业术语要求 Human 猜测
-- L0 可由 Agent 自决；L1 可先执行后报告；L2 必须事先获得 Human 明确批准；L3 施工前必须获得 Human 明确批准，进入 `Verified` 前必须补齐完整测试与两级审计 evidence；L4 必须取得“同意执行”或“同意上线”等显式书面确认
-- 沉默、默认、历史批准和推断同意均不构成新的授权
+- 保留用户已有和无关改动；不得擅自删除、reset、覆盖或暂存。
+- 不读取、修改或提交用户明确要求忽略的 `audit_report.md`。
+- 不执行 push、deploy、tag、生产操作，除非用户在当前任务中明确要求。
+- migration 编号保持全局唯一；已发布/Lock 的 migration 不得改写。
+- 发现真正的路径或语义冲突时暂停冲突部分，其余独立工作继续。
 
-## Phase 3A 约束（正式类目导入协议）
+## 会话与事实来源
 
-- **禁止 Cursor 凭空生成正式 16 大类**
-- 正式类目必须用户在 `docs/catalog/OFFICIAL_SERVICE_CATALOG_SOURCE.md` 确认后导入
-- Phase 4 开工前必须运行 `scripts/check-official-catalog-ready.ps1` 并通过
-- `demo_cleaning_*` 仅用于 Phase 3 验证，不得作为订单 SKU 基础
+- 开始写入前只需确认当前分支、工作区状态和相关文件。
+- 只有 Phase/Lock/发布任务才必须读取 `docs/CURRENT_STATE.md`。
+- 只有高风险并行施工、migration、生产或 Lock 才使用旧的 managed-worktree/ledger/审计机制。
+- Skill 按任务需要使用，不再机械执行完整 Skill 链。
+- 当前代码、Git commit 和测试结果优先于旧报告；冲突只在会导致真实风险时阻塞。
 
-## 后续 Phase 预告
+## Human 交互
 
-- **Phase 3A-1：** 用户确认后导入正式 catalog / pricing seed
-- **Phase 4+：** Order、Payment、Dispatch、Ledger 等业务模块（须先完成正式 SKU 导入）
-
-## 必读文档
-
-- `docs/CURRENT_STATE.md` — **当前 Phase / tag / 分支唯一事实源（每次 Lock 更新）**
-- `docs/architecture/00_XLB_ENGINEERING_ARCHITECTURE_MANDATORY.md`
-- `docs/architecture/02_XLB_ENGINEERING_FOUNDATION.md`
-- `.cursor/rules/xlb-architecture-mandatory.mdc`
-- `governance/01_PROJECT_CONSTITUTION_DRAFT.md` — **正式工程施工宪法**
-- `governance/04_ADR_DECISION_ENGINE_DESIGN.md` — ADR Level、Authority、Evidence 与 Permission Engine
-- `governance/06_PARALLEL_CONSTRUCTION_GOVERNANCE_DESIGN.md` — Release Train、Work Unit、Lease、Queue 与 Lock closure
-- `governance/execution/README.md` — canonical 执行台账、状态和人工队列入口
-
-## Agent Skills（`.cursor/skills/`）
-
-**开工路由：**
-
-1. 所有任务必须先执行 `xlb-session-sync`，同步 Git 与 canonical `docs/CURRENT_STATE.md`，禁止依赖旧记忆。
-2. 当前根目录不是 canonical root，或任务涉及 Release Train、Work Unit、worktree、lease、migration reservation、Integration Queue、隔离环境时，继续执行 `xlb-managed-worktree`。
-3. 需要定位领域代码、契约、测试、migration 或 Gate 时，执行 `xlb-context-map`，只在当前 worktree 动态选择 3–5 个文件。
-4. 涉及 SDJ99、外部蓝图、历史目录、计划能力或“已实现 vs 已授权”判断时，执行 `xlb-current-vs-target`。
-5. 任何实现、契约或 migration 变更、业务验证前必须执行 `xlb-phase-boundary`。
-6. Lock 任务额外执行 `xlb-phase-lock`。
-
-不满足触发条件的 Skill 不得机械叠加；满足多个触发条件时按上述顺序执行。
-
-**事实优先级：** canonical Git `refs/heads/main` 的固定 commit/tag、该 commit 的 `CURRENT_STATE` 与 execution records 决定 Phase 和 authority；当前 worktree 的 Git 状态与实际代码决定候选实现。二者之后才是架构/契约/报告与 Gate，最后才是会话记忆和外部 prompt。若这些事实彼此冲突，必须 fail closed 并汇报，不得用当前 checkout、Bootstrap candidate 或静态 Skill 快照覆盖 committed control facts。
-
-| Skill | 用途 |
-|-------|------|
-| `xlb-session-sync` | git + CURRENT_STATE 同步，禁止依赖旧会话记忆 |
-| `xlb-managed-worktree` | 受管 Worktree / Work Unit 边界核验；缺失或冲突时 fail closed |
-| `xlb-context-map` | 按领域导航该读哪些文件，避免全库搜索 |
-| `xlb-current-vs-target` | SDJ99 蓝图 ≠ 当前实现 |
-| `xlb-phase-boundary` | 当前 Phase 允许 / 禁止做什么 |
-| `xlb-phase-lock` | Phase Lock 复验、合并 main、打 tag |
-
-快捷脚本：`powershell -File scripts/agent-context-snapshot.ps1`
+- Agent 应自行选择普通技术方案并继续施工，不把实现细节变成用户选择题。
+- 一次任务授权覆盖完成该任务所需的常规可逆操作。
+- 只有高风险范围扩大、不可逆操作、外部发布或缺少关键业务事实时才询问用户。
+- 汇报以结果、剩余真实风险和文件位置为主，不重复输出治理过程。

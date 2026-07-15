@@ -12,14 +12,17 @@ description: >-
 **Goal:** Dynamically select 3-5 relevant files from the correct root rather
 than trusting a checked-in snapshot of the monorepo.
 
-## Resolve roots first
+## Resolve roots when needed
 
-Run `xlb-session-sync` first and retain:
+For Phase/Lock/high-risk concurrent work, run `xlb-session-sync` first and retain:
 
 - `$CanonicalRoot = 'G:\xlb100'`
 - `$CanonicalControlCommit = refs/heads/main^{commit}` resolved by session sync
 - `$CurrentRoot = git rev-parse --show-toplevel`
 - the verified current/canonical Git common-directory identity
+
+For ordinary development, use the current repository and select the relevant
+source/tests directly; no control-plane sync is required.
 
 Use blobs at the pinned canonical control commit for control-plane facts. Use
 the current worktree for the source tree, tests, branch-local reports, and

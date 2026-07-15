@@ -1,5 +1,7 @@
 # XLB Release Train 人工执行台账
 
+> **现行用途（2026-07-15）：** 本目录降级为高风险工程、生产专项和历史审计台账。普通开发不登记 Train/WU/Lease/Queue/Transition，不执行本目录的固定确认文字或完整历史检查。现行规则见 [`../00_LEAN_EXECUTION_POLICY.md`](../00_LEAN_EXECUTION_POLICY.md)。
+
 本目录是 P-01～P-18 的人工可审计执行载体。当前统一状态是 `BOOTSTRAP / NOT_ENABLED`。所有登记均 fail closed：字段缺失、引用不存在、revision 过期或资源冲突时，不得推定授权。
 
 执行系统只有在以下三项全部完成后才可由 Human Owner 明确转换为 `ENABLED`：
@@ -51,7 +53,7 @@ Gate 还会把 `previousStatus`、`statusChangedAt` 与 `transitionAuthorityRef`
 
 ## Human machine confirmations
 
-以下中文是 Gate 接受的精确书面确认；同义改写、沉默或推断均不通过：
+以下句子仅作为清晰表达示例，不再要求逐字匹配。只要 Human 以自然语言明确表达同意，并由结构化记录绑定正确 scope/decision/actor，即可接受；沉默仍不构成授权：
 
 - 治理执行系统启用：`同意启用治理执行系统`
 - Release Train 业务施工：`同意执行该 Release Train 业务施工`

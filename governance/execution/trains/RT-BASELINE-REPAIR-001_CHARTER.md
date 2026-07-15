@@ -92,10 +92,4 @@ Shared contract freeze、canonical writer、migration ledger、Integration Queue
 
 ## Human 批准区
 
-当前保持 `WAITING_HUMAN_APPROVAL`。只有 Human Owner 在审阅本 Charter 后精确确认：
-
-```text
-同意执行该 Release Train 业务施工
-```
-
-并形成不可变 `TRAIN_BUSINESS_APPROVAL`、合法 Train transition、Contract freeze 与 Work Unit construction transition 后，1A 才可能获得施工资格。该批准仍不包含 main、Lock、push、production 或下一 Train。
+2026-07-15 精简政策生效后，本 Charter 及 `WAITING_HUMAN_APPROVAL` 状态仅保留为历史记录，不再阻塞 1A 这类测试与脚本维修。Human 以自然语言要求执行即可开始普通本地施工，不需要固定句式、不可变 approval、逐状态 transition、Contract freeze 或 Queue。push、deploy、production 和真实 Provider 仍需执行前单独同意。

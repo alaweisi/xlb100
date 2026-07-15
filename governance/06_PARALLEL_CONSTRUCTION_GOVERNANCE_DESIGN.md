@@ -1,5 +1,7 @@
 # XLB 多工程队并行施工治理设计
 
+> **2026-07-15 精简修订：** 普通任务不再要求 Release Train、Work Unit、Lease、Queue、两级审计或运行环境登记。并行只按真实文件/语义冲突隔离，`scripts/**` 不再整体串行。本文的完整模型仅用于高风险并行工程和生产专项，现行规则见 [`00_LEAN_EXECUTION_POLICY.md`](./00_LEAN_EXECUTION_POLICY.md)。
+
 > 状态：`FORMALLY ADOPTED — EXECUTION SYSTEM BOOTSTRAP / NOT_ENABLED`
 > 决策日期：2026-07-14（Asia/Shanghai）
 > Human 决策：P-01～P-18 全部选择 A；随后明确授权植入项目执行系统并纳入正式版本控制
