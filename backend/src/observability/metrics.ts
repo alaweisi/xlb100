@@ -5,6 +5,8 @@ import {
   OUTBOX_RELIABILITY_STATUSES,
   publishDataReliabilitySnapshot,
   publishJobWorkerHeartbeat,
+  readSharedDataReliabilitySnapshot,
+  readSharedJobWorkerHeartbeat,
   recordDataReliabilitySnapshot,
   resetDataReliabilityForTests,
   type DataReliabilitySnapshot,
@@ -216,6 +218,15 @@ export async function publishDataReliabilityMetrics(snapshot: DataReliabilitySna
 export async function publishJobWorkerMetricsHeartbeat(observedAt: Date = new Date()): Promise<void> {
   recordJobWorkerHeartbeat(observedAt);
   await publishJobWorkerHeartbeat(observedAt);
+}
+
+export async function hydrateSharedReliabilityMetrics(): Promise<void> {
+  const [snapshot, heartbeat] = await Promise.all([
+    readSharedDataReliabilitySnapshot(),
+    readSharedJobWorkerHeartbeat(),
+  ]);
+  if (snapshot) recordDataReliabilityMetrics(snapshot);
+  if (heartbeat) recordJobWorkerHeartbeat(new Date(heartbeat.observedAt));
 }
 
 export function renderPrometheusMetrics(): string {

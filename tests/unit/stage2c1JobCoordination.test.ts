@@ -77,6 +77,30 @@ function createDependencies(
     runLedger: vi.fn(async () => ({ processed: 0 })),
     prepareSettlement: vi.fn(async () => ({ processed: 0 })),
     runSupportSla: vi.fn(async () => ({ processed: 0 })),
+    collectReliabilitySnapshot: vi.fn(async (cityCodes: readonly string[]) => ({
+      observedAt: "2026-07-15T08:00:00.000Z",
+      cities: cityCodes.map((cityCode) => ({
+        cityCode,
+        outbox: {
+          statusCounts: {
+            pending: 0,
+            processing: 0,
+            retry_wait: 0,
+            published: 0,
+            dead_letter: 0,
+          },
+          oldestEligibleAgeSeconds: null,
+          expiredProcessingLeases: 0,
+        },
+        dispatchStream: { length: 0, consumerGroups: 0 },
+      })),
+      migrations: { appliedCount: 0, latestVersion: null },
+    })),
+    publishReliabilitySnapshot: vi.fn(async () => undefined),
+    publishHeartbeat: vi.fn(async () => undefined),
+    recordRun: vi.fn(),
+    recordReaped: vi.fn(),
+    now: () => new Date(),
     setInterval: vi.fn(() => 1 as unknown as ReturnType<typeof setInterval>),
     clearInterval: vi.fn(),
     ...overrides,
@@ -150,7 +174,7 @@ describe("Stage 2C-1 auto-run coordination", () => {
     const handle = startAutoRunJobs({ env, logger: createLogger(), dependencies });
 
     await handle.runOnce();
-    handle.stop();
+    await handle.stop();
 
     expect(order).toEqual([
       "hangzhou:outbox.reap",
@@ -160,7 +184,28 @@ describe("Stage 2C-1 auto-run coordination", () => {
       "hangzhou:ledger",
       "hangzhou:settlement.prepare",
       "hangzhou:support.sla",
+      "observability:snapshot",
     ]);
+    expect(dependencies.recordReaped).toHaveBeenCalledWith("hangzhou", 3);
+  });
+
+  it("publishes a shared heartbeat every tick and bounds reliability scans to once per minute", async () => {
+    const publishHeartbeat = vi.fn(async () => undefined);
+    const collectReliabilitySnapshot = vi.fn(async () => ({
+      observedAt: "2026-07-15T08:00:00.000Z",
+      cities: [],
+      migrations: { appliedCount: 0, latestVersion: null },
+    }));
+    const dependencies = createDependencies({ publishHeartbeat, collectReliabilitySnapshot });
+    const handle = startAutoRunJobs({ env, logger: createLogger(), dependencies });
+
+    await handle.runOnce();
+    await handle.runOnce();
+    await handle.stop();
+
+    expect(publishHeartbeat).toHaveBeenCalledTimes(2);
+    expect(collectReliabilitySnapshot).toHaveBeenCalledTimes(1);
+    expect(dependencies.publishReliabilitySnapshot).toHaveBeenCalledTimes(1);
   });
 
   it("skips a busy cross-instance step without invoking its consumer", async () => {
@@ -177,7 +222,7 @@ describe("Stage 2C-1 auto-run coordination", () => {
     const handle = startAutoRunJobs({ env, logger, dependencies });
 
     await handle.runOnce();
-    handle.stop();
+    await handle.stop();
 
     expect(runDispatch).not.toHaveBeenCalled();
     expect(logger.warn).toHaveBeenCalledWith(
@@ -204,6 +249,30 @@ describe("Stage 2C-1 auto-run coordination", () => {
 
     gate.resolve(0);
     await first;
-    handle.stop();
+    await handle.stop();
+  });
+
+  it("waits for the active cycle before completing shutdown", async () => {
+    const gate = deferred<number>();
+    const dependencies = createDependencies({
+      reapExpiredLeases: vi.fn(() => gate.promise),
+    });
+    const handle = startAutoRunJobs({ env, logger: createLogger(), dependencies });
+
+    const activeRun = handle.runOnce();
+    await Promise.resolve();
+    const stop = handle.stop();
+    let stopped = false;
+    void stop.then(() => {
+      stopped = true;
+    });
+    await Promise.resolve();
+    expect(stopped).toBe(false);
+
+    gate.resolve(0);
+    await activeRun;
+    await stop;
+    expect(stopped).toBe(true);
+    expect(dependencies.clearInterval).toHaveBeenCalledOnce();
   });
 });

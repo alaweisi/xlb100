@@ -41,8 +41,9 @@ function buildLogger(): JobWorkerLogger {
 
 describe("stage 2C-1 dedicated job worker", () => {
   it("starts auto-run once and closes both data clients on repeated shutdown", async () => {
-    const stop = vi.fn();
-    const startJobs = vi.fn().mockReturnValue({ stop });
+    const stop = vi.fn().mockResolvedValue(undefined);
+    const runOnce = vi.fn().mockResolvedValue(undefined);
+    const startJobs = vi.fn().mockReturnValue({ stop, runOnce });
     const closeMysql = vi.fn().mockResolvedValue(undefined);
     const closeRedis = vi.fn().mockResolvedValue(undefined);
     const worker = createJobWorker({
@@ -58,6 +59,7 @@ describe("stage 2C-1 dedicated job worker", () => {
     await Promise.all([worker.shutdown("SIGTERM"), worker.shutdown("SIGTERM")]);
 
     expect(startJobs).toHaveBeenCalledTimes(1);
+    expect(runOnce).toHaveBeenCalledTimes(1);
     expect(stop).toHaveBeenCalledTimes(1);
     expect(closeMysql).toHaveBeenCalledTimes(1);
     expect(closeRedis).toHaveBeenCalledTimes(1);
@@ -69,6 +71,9 @@ describe("stage 2C-1 dedicated job worker", () => {
 
     const withoutCities = createJobWorker({ env: buildEnv({ autoRunCityCodes: [] }) });
     expect(() => withoutCities.start()).toThrow("AUTO_RUN_CITY_CODES");
+
+    const invalidInterval = createJobWorker({ env: buildEnv({ autoRunIntervalMs: 0 }) });
+    expect(() => invalidInterval.start()).toThrow("AUTO_RUN_INTERVAL_MS");
   });
 
   it("attempts every resource cleanup and reports aggregate failure", async () => {
@@ -77,7 +82,10 @@ describe("stage 2C-1 dedicated job worker", () => {
     const worker = createJobWorker({
       env: buildEnv(),
       logger: buildLogger(),
-      startJobs: () => ({ stop: vi.fn() }),
+      startJobs: () => ({
+        stop: vi.fn().mockResolvedValue(undefined),
+        runOnce: vi.fn().mockResolvedValue(undefined),
+      }),
       closeMysql,
       closeRedis,
     });
@@ -99,7 +107,7 @@ describe("stage 2C-1 dedicated job worker", () => {
         listeners.delete(signal);
       }),
     };
-    const stop = vi.fn();
+    const stop = vi.fn().mockResolvedValue(undefined);
     const closeMysql = vi.fn().mockResolvedValue(undefined);
     const closeRedis = vi.fn().mockResolvedValue(undefined);
 
@@ -107,7 +115,7 @@ describe("stage 2C-1 dedicated job worker", () => {
       env: buildEnv(),
       logger: buildLogger(),
       processLike,
-      startJobs: () => ({ stop }),
+      startJobs: () => ({ stop, runOnce: vi.fn().mockResolvedValue(undefined) }),
       closeMysql,
       closeRedis,
     });

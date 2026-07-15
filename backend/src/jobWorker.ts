@@ -80,8 +80,18 @@ export function createJobWorker(dependencies: JobWorkerDependencies = {}): JobWo
       if (env.autoRunCityCodes.length === 0) {
         throw new Error("dedicated job worker requires at least one AUTO_RUN_CITY_CODES value");
       }
+      if (
+        !Number.isInteger(env.autoRunIntervalMs)
+        || env.autoRunIntervalMs < 1_000
+        || env.autoRunIntervalMs > 60_000
+      ) {
+        throw new Error("dedicated job worker requires AUTO_RUN_INTERVAL_MS between 1000 and 60000");
+      }
       jobs = startJobs({ env, logger });
       started = true;
+      void Promise.resolve(jobs.runOnce()).catch((error: unknown) => {
+        logger.error({ error }, "dedicated job worker initial cycle failed");
+      });
       logger.info(
         { intervalMs: env.autoRunIntervalMs, cityCodes: env.autoRunCityCodes },
         "dedicated job worker started",

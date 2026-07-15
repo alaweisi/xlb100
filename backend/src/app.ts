@@ -34,7 +34,11 @@ import { registerOrderReviewRoutes } from "./review/orderReviewRoutes.js";
 import { registerEnterpriseRoutes } from "./enterprise/enterpriseRoutes.js";
 import { registerCustomerOperationsRoutes } from "./customer/customerOperationsRoutes.js";
 import { registerAdminOperationsRoutes } from "./adminOperations/adminOperationsRoutes.js";
-import { recordHttpRequest, renderPrometheusMetrics } from "./observability/metrics.js";
+import {
+  hydrateSharedReliabilityMetrics,
+  recordHttpRequest,
+  renderPrometheusMetrics,
+} from "./observability/metrics.js";
 import { createRateLimitGuard, type RateLimitOptions } from "./security/rateLimit.js";
 import { registerSupportModule } from "./support/supportModule.js";
 import { registerNotificationModule } from "./notification/notificationModule.js";
@@ -153,6 +157,9 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   });
 
   app.get("/metrics", async (_request, reply) => {
+    if (process.env.NODE_ENV !== "test") {
+      await hydrateSharedReliabilityMetrics();
+    }
     return reply.type("text/plain; version=0.0.4; charset=utf-8").send(renderPrometheusMetrics());
   });
 

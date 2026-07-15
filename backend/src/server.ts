@@ -13,8 +13,8 @@ async function main() {
     if (shuttingDown) return;
     shuttingDown = true;
     app.log.info({ signal }, "backend shutdown requested");
-    autoRun?.stop();
     try {
+      await autoRun?.stop();
       await app.close();
       await closeRedisClient();
       app.log.info({ signal }, "backend shutdown completed");
@@ -37,7 +37,7 @@ async function main() {
     autoRun = startAutoRunJobs({ env, logger: app.log });
   } catch (err) {
     app.log.error(err);
-    autoRun?.stop();
+    await autoRun?.stop();
     process.exit(1);
   }
 }
