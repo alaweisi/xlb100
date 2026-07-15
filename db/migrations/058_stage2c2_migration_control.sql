@@ -121,7 +121,8 @@ VALUES
 ON DUPLICATE KEY UPDATE checksum_sha256 = VALUES(checksum_sha256);
 
 UPDATE schema_migrations AS applied
-JOIN migration_checksum_baselines AS baseline ON baseline.version = applied.version
+JOIN migration_checksum_baselines AS baseline
+  ON BINARY baseline.version = BINARY applied.version
 SET applied.checksum_sha256 = baseline.checksum_sha256
 WHERE applied.checksum_sha256 IS NULL;
 
