@@ -1,51 +1,63 @@
-﻿# Staging migration helper for Dockerized MySQL
+[CmdletBinding()]
+param()
+
 $ErrorActionPreference = "Stop"
+Set-StrictMode -Version Latest
 $Root = Split-Path -Parent $PSScriptRoot
-$ComposeFile = Join-Path $Root "deploy\compose\docker-compose.staging.yml"
-$EnvFile = Join-Path $Root ".env.staging.example"
 
-$mysqlPort = $env:MYSQL_PORT
-$mysqlDatabase = $env:MYSQL_DATABASE
-$mysqlUser = $env:MYSQL_USER
-$mysqlPassword = $env:MYSQL_PASSWORD
+$requiredEnvironment = @(
+  "MYSQL_HOST",
+  "MYSQL_PORT",
+  "MYSQL_DATABASE",
+  "MYSQL_USER",
+  "MYSQL_PASSWORD"
+)
 
-if (-not $mysqlPort) { $mysqlPort = "3306" }
-if (-not $mysqlDatabase) { $mysqlDatabase = "xlb_staging" }
-if (-not $mysqlUser) { $mysqlUser = "xlb" }
-if (-not $mysqlPassword) { $mysqlPassword = "change-me" }
-
-Write-Host "Running staging migrations via docker compose mysql service..."
-
-$mysqlContainer = (docker compose --env-file $EnvFile -f $ComposeFile ps -q mysql | Out-String).Trim()
-if (-not $mysqlContainer) { throw "staging mysql container is not running" }
-
-$migrationDir = Join-Path $Root "db\migrations"
-$files = Get-ChildItem -Path $migrationDir -Filter "*.sql" | Sort-Object Name
-
-foreach ($file in $files) {
-  $version = $file.BaseName
-  if ($version -eq "000_init") {
-    $exists = "0"
-  } else {
-    $existsRaw = docker compose --env-file $EnvFile -f $ComposeFile exec -e "MYSQL_PWD=$mysqlPassword" -T mysql mysql "-u$mysqlUser" $mysqlDatabase -N -e "SELECT COUNT(*) FROM schema_migrations WHERE version='$version'" 2>$null
-    if ($LASTEXITCODE -ne 0) {
-      $exists = "0"
-    } else {
-      $exists = ($existsRaw | Out-String).Trim()
-    }
+foreach ($name in $requiredEnvironment) {
+  $value = [Environment]::GetEnvironmentVariable($name, "Process")
+  if ([string]::IsNullOrWhiteSpace($value)) {
+    throw "$name is required; staging migrations never use example credentials or implicit database defaults"
   }
-  if ($exists -eq "1") {
-    Write-Host "SKIP $version (already applied)"
-    continue
-  }
+}
 
-  Write-Host "APPLY $version"
-  $containerPath = "/tmp/xlb_migration_$($file.Name)"
-  docker cp $file.FullName "${mysqlContainer}:${containerPath}" | Out-Null
-  if ($LASTEXITCODE -ne 0) { exit 1 }
-  docker compose --env-file $EnvFile -f $ComposeFile exec -e "MYSQL_PWD=$mysqlPassword" -T mysql mysql "-u$mysqlUser" --default-character-set=utf8mb4 $mysqlDatabase -e "source ${containerPath}" 2>$null
-  if ($LASTEXITCODE -ne 0) { exit 1 }
-  docker compose --env-file $EnvFile -f $ComposeFile exec -T mysql rm -f ${containerPath} 2>$null | Out-Null
+$weakPasswords = @(
+  "change-me",
+  "change-me-in-production",
+  "changeme",
+  "password",
+  "xlb_local_password"
+)
+$normalizedPassword = $env:MYSQL_PASSWORD.Trim().ToLowerInvariant()
+if ($normalizedPassword -in $weakPasswords) {
+  throw "MYSQL_PASSWORD is an example or local-only value; inject the staging migration credential explicitly"
+}
+
+if ($env:MYSQL_PORT -notmatch '^\d{1,5}$' -or [int]$env:MYSQL_PORT -lt 1 -or [int]$env:MYSQL_PORT -gt 65535) {
+  throw "MYSQL_PORT must be an integer between 1 and 65535"
+}
+if ($env:MYSQL_DATABASE -eq "xlb_local") {
+  throw "MYSQL_DATABASE points to xlb_local; refuse to run the staging migration helper against the local database"
+}
+
+$nodeEnv = [Environment]::GetEnvironmentVariable("NODE_ENV", "Process")
+if ([string]::IsNullOrWhiteSpace($nodeEnv)) {
+  $env:NODE_ENV = "staging"
+} elseif ($nodeEnv -ne "staging") {
+  throw "NODE_ENV must be staging when migrate-staging.ps1 is used"
+}
+
+Get-Command pnpm.cmd -ErrorAction Stop | Out-Null
+Write-Host "Running staging migrations through the canonical backend migration CLI..."
+Write-Host "Target: $($env:MYSQL_HOST):$($env:MYSQL_PORT)/$($env:MYSQL_DATABASE) user=$($env:MYSQL_USER)"
+
+Push-Location $Root
+try {
+  & pnpm.cmd run db:migrate
+  if ($LASTEXITCODE -ne 0) {
+    throw "canonical migration CLI failed with exit code $LASTEXITCODE"
+  }
+} finally {
+  Pop-Location
 }
 
 Write-Host "migrate-staging: passed"

@@ -4,6 +4,10 @@
   "private": true,
   "description": "喜乐帮 / XLB — 三端 App Monorepo",
   "scripts": {
+    "db:migrate": "pnpm --filter @xlb/backend exec tsx src/dal/migrateCli.ts",
+    "db:migrate:local": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/migrate-local.ps1",
+    "db:migrate:staging": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/migrate-staging.ps1",
+    "check:migration:runtime": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-stage2c2-migration-runtime.ps1",
     "test:migration:phase24f": "node scripts/run-phase24f-migration-gate.mjs",
     "gate:phase24f": "node scripts/run-phase24f-gates.mjs",
     "dev": "turbo run dev",

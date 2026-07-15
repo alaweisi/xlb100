@@ -1,27 +1,30 @@
-# Run db/migrations against local Docker MySQL (xlb_local)
+[CmdletBinding()]
+param()
+
 $ErrorActionPreference = "Stop"
+Set-StrictMode -Version Latest
 $Root = Split-Path -Parent $PSScriptRoot
 
-Write-Host "Running migrations via docker exec..."
+# This helper has one safe target: deploy/compose/docker-compose.local.yml.
+# Override inherited shell values so a developer cannot accidentally point it at staging.
+$env:NODE_ENV = "development"
+$env:MYSQL_HOST = "127.0.0.1"
+$env:MYSQL_PORT = "3306"
+$env:MYSQL_DATABASE = "xlb_local"
+$env:MYSQL_USER = "xlb"
+$env:MYSQL_PASSWORD = "xlb_local_password"
 
-$migrationDir = Join-Path $Root "db\migrations"
-$files = Get-ChildItem -Path $migrationDir -Filter "*.sql" | Sort-Object Name
+Get-Command pnpm.cmd -ErrorAction Stop | Out-Null
+Write-Host "Running local migrations through the canonical backend migration CLI..."
 
-foreach ($file in $files) {
-  $version = $file.BaseName
-  $existsRaw = cmd /c "docker exec xlb-mysql-local mysql -uxlb -pxlb_local_password xlb_local -N -e `"SELECT COUNT(*) FROM schema_migrations WHERE version='$version'`" 2>nul"
-  $exists = ($existsRaw | Out-String).Trim()
-  if ($exists -eq "1") {
-    Write-Host "SKIP $version (already applied)"
-    continue
+Push-Location $Root
+try {
+  & pnpm.cmd run db:migrate
+  if ($LASTEXITCODE -ne 0) {
+    throw "canonical migration CLI failed with exit code $LASTEXITCODE"
   }
-  Write-Host "APPLY $version"
-  $containerPath = "/tmp/xlb_migration_$($file.Name)"
-  docker cp $file.FullName "xlb-mysql-local:${containerPath}" | Out-Null
-  if ($LASTEXITCODE -ne 0) { exit 1 }
-  cmd /c "docker exec xlb-mysql-local mysql -uxlb -pxlb_local_password --default-character-set=utf8mb4 xlb_local -e `"source ${containerPath}`" 2>nul"
-  if ($LASTEXITCODE -ne 0) { exit 1 }
-  cmd /c "docker exec xlb-mysql-local rm -f ${containerPath} 2>nul" | Out-Null
+} finally {
+  Pop-Location
 }
 
 Write-Host "migrate-local: passed"
