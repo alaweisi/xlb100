@@ -1463,16 +1463,38 @@ function Get-GitBlobAtPath([string]$Commit,[string]$Path) {
   return $Matches[1]
 }
 
+function Get-MigrationRawHistory([string]$RevisionSpec) {
+  $events=@();$commit="";$parentCount=0
+  foreach($line in @(Invoke-Git $Root @(
+    "log","--format=@@COMMIT@@ %H %P","--raw","-m","--root","--full-history",
+    "--no-renames","--abbrev=40","--diff-filter=ADM",$RevisionSpec,"--","db/migrations"
+  ))){
+    if($line-match'^@@COMMIT@@\s+([0-9a-f]{40})(?:\s+(.*))?$'){
+      $commit=$Matches[1];$parents="$($Matches[2])".Trim()
+      $parentCount=if([string]::IsNullOrWhiteSpace($parents)){0}else{@($parents-split'\s+'|Where-Object{$_-match'^[0-9a-f]{40}$'}).Count}
+      continue
+    }
+    if($line-match'^:\d{6}\s+\d{6}\s+([0-9a-f]{40})\s+([0-9a-f]{40})\s+([ADM])\t(.+)$'){
+      if([string]::IsNullOrWhiteSpace($commit)){Fail "migration raw history entry is missing its commit header"}
+      $events+=[pscustomobject]@{Commit=$commit;ParentCount=$parentCount;OldBlob=$Matches[1];NewBlob=$Matches[2];Status=$Matches[3];Path=$Matches[4]}
+    }elseif($line.StartsWith(":")){Fail "unrecognized migration raw history entry: $line"}
+  }
+  return @($events)
+}
+
 function Assert-LockedMigrationDag([string]$BaseCommit) {
   $controlCommit=Get-ControlCommit;&git -C $Root merge-base --is-ancestor $BaseCommit $controlCommit *> $null;if($LASTEXITCODE-ne0){Fail "Phase29 locked migration base is not an ancestor of immutable control commit"}
-  $basePaths=@{};foreach($path in @(Invoke-Git $Root @("ls-tree","-r","--name-only",$BaseCommit,"--","db/migrations"))){if($path-match'^db/migrations/(\d{3})[_-][^/]+\.sql$'-and[int]$Matches[1]-le57){$number=$Matches[1];if($basePaths.ContainsKey($number)){Fail "Phase29 base has duplicate locked migration number $number"};$basePaths[$number]=$path}}
-  $commits=@(Invoke-Git $Root @("rev-list","$BaseCommit..$controlCommit"));$seenAdds=@{}
-  foreach($commit in $commits){
-    foreach($entry in @(Invoke-Git $Root @("diff-tree","--root","-m","--no-renames","--no-commit-id","--name-status","--diff-filter=AD","-r",$commit,"--","db/migrations"))){
-      if($entry-match'^[AD]\s+(db/migrations/(?:.*/)?(\d{3})[_-][^/]+)$'-and[int]$Matches[2]-le57){$path=$Matches[1];$number=$Matches[2];$key="$commit`:$path";if(-not$seenAdds.ContainsKey($key)){$seenAdds[$key]=$true;if(-not$basePaths.ContainsKey($number)-or$basePaths[$number]-ne$path){Fail "locked migration number $number gained alternate historical path after Phase29 Lock: $path at $commit"}}}
-    }
-    $line=(Invoke-Git $Root @("rev-list","--parents","-n","1",$commit)|Select-Object -First 1).Trim()-split'\s+';$parents=@($line|Select-Object -Skip 1)
-    foreach($number in $basePaths.Keys){$path=$basePaths[$number];$baseBlob=Get-GitBlobAtPath $BaseCommit $path;$blob=Get-GitBlobAtPath $commit $path;if(-not[string]::IsNullOrWhiteSpace($blob)-and$blob-ne$baseBlob){Fail "locked migration $path changed at reachable commit $commit"};if([string]::IsNullOrWhiteSpace($blob)){foreach($parent in $parents){if(-not[string]::IsNullOrWhiteSpace((Get-GitBlobAtPath $parent $path))){Fail "locked migration $path was deleted at reachable commit $commit"}}}}
+  $basePaths=@{};$baseBlobs=@{}
+  foreach($path in @(Invoke-Git $Root @("ls-tree","-r","--name-only",$BaseCommit,"--","db/migrations"))){
+    if($path-match'^db/migrations/(\d{3})[_-][^/]+\.sql$'-and[int]$Matches[1]-le57){$number=$Matches[1];if($basePaths.ContainsKey($number)){Fail "Phase29 base has duplicate locked migration number $number"};$basePaths[$number]=$path;$baseBlobs[$number]=Get-GitBlobAtPath $BaseCommit $path}
+  }
+  foreach($event in @(Get-MigrationRawHistory "$BaseCommit..$controlCommit")){
+    if($event.Path-notmatch'^db/migrations/(?:.*/)?(\d{3})[_-][^/]+$'-or[int]$Matches[1]-gt57){continue}
+    $number=$Matches[1]
+    if(-not$basePaths.ContainsKey($number)-or$basePaths[$number]-ne$event.Path){Fail "locked migration number $number gained alternate historical path after Phase29 Lock: $($event.Path) at $($event.Commit)"}
+    $expectedBlob=$baseBlobs[$number]
+    foreach($blob in @($event.OldBlob,$event.NewBlob)|Where-Object{$_-notmatch'^0+$'}){if($blob-ne$expectedBlob){Fail "locked migration $($event.Path) changed at reachable commit $($event.Commit)"}}
+    if($event.Status-eq"D"-or$event.NewBlob-match'^0+$'){Fail "locked migration $($event.Path) was deleted at reachable commit $($event.Commit)"}
   }
 }
 
@@ -1480,22 +1502,21 @@ function Assert-ReservationLedgerHistory($CurrentReservations) {
   $ledgerPath = "governance/execution/migration-reservations.json"
   $controlCommit=Get-ControlCommit
   $historyCommits = @(Invoke-Git $Root @("rev-list",$controlCommit,"--full-history","--",$ledgerPath) | Where-Object { $_ -match '^[0-9a-f]{40}$' })
-  $sqlIntroductions=@();$sqlDeletions=@();$sqlEventKeys=@{}
-  foreach($commit in @(Invoke-Git $Root @("rev-list",$controlCommit))){
-    $line=(Invoke-Git $Root @("rev-list","--parents","-n","1",$commit)|Select-Object -First 1).Trim()-split'\s+';$parents=@($line|Select-Object -Skip 1);$candidatePaths=@{}
-    foreach($entry in @(Invoke-Git $Root @("diff-tree","--root","-m","--no-renames","--no-commit-id","--name-status","--diff-filter=AD","-r",$commit,"--","db/migrations"))){
-      if($entry-match'(?i)^[AD]\s+(db/migrations/.+\.sql)$'){
-        $sqlPath=$Matches[1]
-        if($sqlPath-cmatch'^db/migrations/(\d{3})[_-][^/]+\.sql$'){$sqlNumber=$Matches[1]}else{Fail "noncanonical migration SQL path exists in reachable history at $commit`: $sqlPath"}
-        $candidatePaths[$sqlPath.ToLowerInvariant()]=[pscustomobject]@{Path=$sqlPath;Number=$sqlNumber}
-      }
-    }
-    foreach($candidate in $candidatePaths.Values){
-      $currentBlob=Get-GitBlobAtPath $commit $candidate.Path;$parentBlobs=@();foreach($parent in $parents){$parentBlobs+=Get-GitBlobAtPath $parent $candidate.Path}
-      $parentPresent=@($parentBlobs|Where-Object{-not[string]::IsNullOrWhiteSpace($_)}).Count
-      if(-not[string]::IsNullOrWhiteSpace($currentBlob)-and$parentPresent-eq0){$key="A:$commit`:$($candidate.Path)".ToLowerInvariant();if(-not$sqlEventKeys.ContainsKey($key)){$sqlEventKeys[$key]=$true;$sqlIntroductions+=[pscustomobject]@{Commit="$commit".Trim();Path=$candidate.Path;Number=$candidate.Number}}}
-      elseif([string]::IsNullOrWhiteSpace($currentBlob)-and$parentPresent-gt0){$key="D:$commit`:$($candidate.Path)".ToLowerInvariant();if(-not$sqlEventKeys.ContainsKey($key)){$sqlEventKeys[$key]=$true;$sqlDeletions+=[pscustomobject]@{Commit="$commit".Trim();Path=$candidate.Path;Number=$candidate.Number}}}
-    }
+  $sqlIntroductions=@();$sqlDeletions=@();$sqlBlobHistory=@{}
+  $migrationEvents=@(Get-MigrationRawHistory $controlCommit)
+  foreach($event in $migrationEvents){
+    if($event.Path-notmatch'(?i)^db/migrations/.+\.sql$'){continue}
+    if($event.Path-cmatch'^db/migrations/(\d{3})[_-][^/]+\.sql$'){$sqlNumber=$Matches[1]}else{Fail "noncanonical migration SQL path exists in reachable history at $($event.Commit)`: $($event.Path)"}
+    $pathKey=$event.Path.ToLowerInvariant();if(-not$sqlBlobHistory.ContainsKey($pathKey)){$sqlBlobHistory[$pathKey]=@{}}
+    foreach($blob in @($event.OldBlob,$event.NewBlob)|Where-Object{$_-notmatch'^0+$'}){$sqlBlobHistory[$pathKey][$blob]=$true}
+  }
+  foreach($group in @($migrationEvents|Where-Object{$_.Path-match'(?i)^db/migrations/.+\.sql$'}|Group-Object{"$($_.Commit):$($_.Path.ToLowerInvariant())"})){
+    $sample=$group.Group[0];$currentBlobs=@($group.Group.NewBlob|Sort-Object -Unique)
+    if($currentBlobs.Count-ne1){Fail "migration history has inconsistent merge result blobs for $($sample.Path) at $($sample.Commit)"}
+    $currentBlob=$currentBlobs[0];$addCount=@($group.Group|Where-Object Status -eq "A").Count
+    $isIntroduction=($currentBlob-notmatch'^0+$')-and(($sample.ParentCount-eq0-and$addCount-gt0)-or($sample.ParentCount-gt0-and$addCount-eq$sample.ParentCount))
+    if($isIntroduction){if($sample.Path-cmatch'^db/migrations/(\d{3})[_-][^/]+\.sql$'){$sqlIntroductions+=[pscustomobject]@{Commit=$sample.Commit;Path=$sample.Path;Number=$Matches[1]}}else{Fail "noncanonical migration SQL path exists in reachable history at $($sample.Commit)`: $($sample.Path)"}}
+    if(@($group.Group|Where-Object Status -eq "D").Count){if($sample.Path-cmatch'^db/migrations/(\d{3})[_-][^/]+\.sql$'){$sqlDeletions+=[pscustomobject]@{Commit=$sample.Commit;Path=$sample.Path;Number=$Matches[1]}}else{Fail "noncanonical migration SQL path exists in reachable history at $($sample.Commit)`: $($sample.Path)"}}
   }
   $currentByNumber = @{}
   foreach ($reservation in @($CurrentReservations)) { $currentByNumber["$($reservation.number)"] = $reservation }
@@ -1542,7 +1563,8 @@ function Assert-ReservationLedgerHistory($CurrentReservations) {
     }
     if([int]$number -gt 57 -and (Require-Text $current "status" "Current Migration Reservation").ToUpperInvariant() -eq "MERGED"){
       $expectedPath="db/migrations/$(Require-Text $current 'expectedFilename' "Migration reservation $number")";$headBlob=Get-GitBlobAtPath $controlCommit $expectedPath;if([string]::IsNullOrWhiteSpace($headBlob)){Fail "MERGED migration $number is missing its canonical SQL path $expectedPath"}
-      foreach($reachableCommit in @(Invoke-Git $Root @("rev-list",$controlCommit))){$blob=Get-GitBlobAtPath $reachableCommit $expectedPath;if(-not[string]::IsNullOrWhiteSpace($blob)-and$blob-ne$headBlob){Fail "MERGED migration $number SQL blob changed at reachable commit $reachableCommit"};$line=(Invoke-Git $Root @("rev-list","--parents","-n","1",$reachableCommit)|Select-Object -First 1).Trim()-split'\s+';$parents=@($line|Select-Object -Skip 1);if([string]::IsNullOrWhiteSpace($blob)-and@($parents|Where-Object{-not[string]::IsNullOrWhiteSpace((Get-GitBlobAtPath $_ $expectedPath))}).Count){Fail "MERGED migration $number SQL was deleted at reachable commit $reachableCommit"}}
+      $pathKey=$expectedPath.ToLowerInvariant();if(-not$sqlBlobHistory.ContainsKey($pathKey)){Fail "MERGED migration $number has no reachable SQL blob history for $expectedPath"}
+      foreach($blob in $sqlBlobHistory[$pathKey].Keys){if($blob-ne$headBlob){Fail "MERGED migration $number SQL blob changed in reachable history: $expectedPath"}}
     }
   }
   foreach ($commit in $historyCommits) {
