@@ -118,4 +118,31 @@ Assert-Passes "rollback defaults to dry-run" @(
   "-Action", "Rollback", "-Environment", "staging", "-Revision", "1"
 ) "dry-run only"
 
+$isWindowsHost = [Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT
+if ($isWindowsHost) {
+  $bootstrapOutput = @(& (Join-Path $repoRoot "deploy\tke\bootstrap-tools.ps1"))
+  if ($bootstrapOutput.Count -eq 0) { throw "TKE tool bootstrap produced no output" }
+  $helm = ($bootstrapOutput[-1] | ConvertFrom-Json).helm
+} else {
+  $helmCommand = Get-Command helm -ErrorAction SilentlyContinue
+  if (-not $helmCommand) { throw "Helm is required for the isolated migration rendering test" }
+  $helm = $helmCommand.Source
+}
+
+$chartRoot = Join-Path $repoRoot "deploy\helm\xlb"
+$values = Join-Path $repoRoot "deploy\environments\tke\values-staging.yaml"
+$rendered = @(& $helm template "xlb-staging" $chartRoot --namespace "xlb-staging" -f $values --set migration.enabled=true --set-string migration.runId=release-001 --show-only "templates/migration-job.yaml" 2>&1)
+if ($LASTEXITCODE -ne 0) { throw "isolated migration rendering failed: $($rendered -join [Environment]::NewLine)" }
+$manifest = $rendered -join [Environment]::NewLine
+if ([regex]::Matches($manifest, '(?m)^kind:\s+Job\s*$').Count -ne 1) {
+  throw "isolated migration rendering must contain exactly one Job"
+}
+if ($manifest -match '(?m)^kind:\s+(Deployment|Service|ConfigMap)\s*$') {
+  throw "isolated migration rendering must not contain application Deployments, Services or ConfigMaps"
+}
+if ($manifest -notmatch 'configMapRef:\s*[\r\n]+\s+name:\s+xlb-staging-xlb-backend') {
+  throw "migration Job must reference the installed release backend ConfigMap"
+}
+Write-Host "tke-tooling: isolated migration Job rendering passed"
+
 Write-Host "tke-tooling: PowerShell entry tests passed"

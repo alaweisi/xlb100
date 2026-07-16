@@ -92,6 +92,12 @@ export function checkRepository(root = repoRoot) {
   for (const marker of ["-Apply", "explicit confirmation required", "must exactly match", "migration.enabled=false"]) {
     if (!entry.includes(marker)) fail(`unified TKE entry is missing safety marker: ${marker}`);
   }
+  if (!entry.includes('template $releaseName') || !entry.includes('--show-only "templates/migration-job.yaml"')) {
+    fail("Migrate must render only the migration Job with the installed release name");
+  }
+  if (entry.includes('template "xlb-migration"')) {
+    fail("Migrate must not invent a second Helm release name");
+  }
 
   const manifest = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
   for (const script of ["tke:check", "tke:test", "tke:validate", "tke:gate"]) {

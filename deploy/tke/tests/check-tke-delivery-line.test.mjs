@@ -7,6 +7,7 @@ import { checkRepository, validateDeploymentValues } from "../../../scripts/chec
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 const production = readFileSync(path.join(root, "deploy/environments/tke/values-production.yaml"), "utf8");
+const entry = readFileSync(path.join(root, "deploy/tke/xlb-tke.ps1"), "utf8");
 const ready = production
   .replaceAll("xlb-placeholder", "xlb-approved")
   .replaceAll("mysql-production.placeholder.internal", "mysql-production.internal")
@@ -17,6 +18,12 @@ const ready = production
 
 test("repository TKE delivery artifacts obey static safety rules", () => {
   assert.doesNotThrow(() => checkRepository(root));
+});
+
+test("migration entry reuses the installed release and renders only its Job", () => {
+  assert.match(entry, /template \$releaseName/);
+  assert.match(entry, /--show-only "templates\/migration-job\.yaml"/);
+  assert.doesNotMatch(entry, /template "xlb-migration"/);
 });
 
 test("reviewed production values with immutable images pass", () => {
