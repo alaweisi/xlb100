@@ -39,6 +39,22 @@ node --test deploy/tke/tests/check-tke-delivery-line.test.mjs
 fmt/validate/mock tests. It does not run Terraform plan/apply or contact a
 Tencent Cloud account.
 
+## One-command release contract baseline
+
+Wave 0 freezes the machine-readable boundary used by the image factory, cloud
+bundle generator, safety guards, resumable orchestrator, cutover controller,
+and simulation workstreams:
+
+```powershell
+pnpm tke:contracts:check
+pnpm tke:contracts:test
+```
+
+Schemas and synthetic examples live in `deploy/tke/contracts`. The construction
+handoff, state machine and parallel directory ownership are recorded in
+`docs/operations/TKE_ONE_COMMAND_RELEASE_CONTRACT.md`. Real instances remain
+under `.artifacts/tke` and never persist credentials or execution approvals.
+
 ## N7 offline staging preparation
 
 N7 starts from the accepted N6 commit and prepares a review bundle before any

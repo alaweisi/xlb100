@@ -1,0 +1,55 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://xlb.local/schemas/tke/images-lock.schema.json",
+  "title": "XLB immutable image lock",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "releaseId", "sourceCommit", "createdAt", "images"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "releaseId": { "$ref": "#/definitions/releaseId" },
+    "sourceCommit": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+    "createdAt": { "$ref": "#/definitions/timestamp" },
+    "images": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["backend", "customer", "worker", "admin"],
+      "properties": {
+        "backend": { "$ref": "#/definitions/image" },
+        "customer": { "$ref": "#/definitions/image" },
+        "worker": { "$ref": "#/definitions/image" },
+        "admin": { "$ref": "#/definitions/image" }
+      }
+    }
+  },
+  "definitions": {
+    "releaseId": {
+      "type": "string",
+      "minLength": 6,
+      "maxLength": 63,
+      "pattern": "^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])$"
+    },
+    "timestamp": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+    },
+    "artifactPath": {
+      "type": "string",
+      "pattern": "^\\.artifacts/tke/[a-z0-9./-]+$"
+    },
+    "image": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "digest", "sbomFile", "scanEvidenceFile"],
+      "properties": {
+        "repository": {
+          "type": "string",
+          "pattern": "^(?:[a-z0-9.-]+(?::[0-9]+)?/)+[a-z0-9._/-]+$"
+        },
+        "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "sbomFile": { "$ref": "#/definitions/artifactPath" },
+        "scanEvidenceFile": { "$ref": "#/definitions/artifactPath" }
+      }
+    }
+  }
+}

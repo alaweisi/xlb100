@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "environment": "production",
+  "region": "ap-guangzhou",
+  "accountId": "100000000000",
+  "approvedKubeContext": "tke-production-reviewed-context",
+  "network": {
+    "vpcId": "vpc-contractsample",
+    "subnetIds": ["subnet-contractsample1", "subnet-contractsample2"]
+  },
+  "files": {
+    "terraformVarFile": ".artifacts/tke/production/production.tfvars",
+    "backendConfig": ".artifacts/tke/production/production.backend.hcl",
+    "valuesFile": ".artifacts/tke/production/values-production.yaml",
+    "imageLockFile": ".artifacts/tke/releases/release-20260716-001/images.lock.json"
+  },
+  "secretReferences": {
+    "runtimeSecretName": "xlb-production-runtime",
+    "tlsSecretName": "xlb-production-tls"
+  },
+  "costReview": {
+    "currency": "CNY",
+    "monthlyMin": 1,
+    "monthlyMax": 2,
+    "sourceUrl": "https://cloud.tencent.com/product/calculator",
+    "reviewedAt": "2026-07-16",
+    "owner": "cost-owner"
+  },
+  "bundleSha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+}

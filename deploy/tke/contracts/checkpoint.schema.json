@@ -1,0 +1,121 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://xlb.local/schemas/tke/checkpoint.schema.json",
+  "title": "XLB resumable release checkpoint",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "releaseId",
+    "environment",
+    "currentState",
+    "completedStages",
+    "artifactHashes",
+    "updatedAt",
+    "revision"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "releaseId": { "$ref": "#/definitions/releaseId" },
+    "environment": { "enum": ["staging", "production"] },
+    "currentState": { "$ref": "#/definitions/state" },
+    "completedStages": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/definitions/stage" }
+    },
+    "artifactHashes": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+    },
+    "updatedAt": { "$ref": "#/definitions/timestamp" },
+    "revision": { "type": "integer", "minimum": 1 },
+    "failure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["failedStage", "failedAt", "message", "retryable", "resumeState"],
+      "properties": {
+        "failedStage": { "$ref": "#/definitions/stage" },
+        "failedAt": { "$ref": "#/definitions/timestamp" },
+        "message": { "type": "string", "minLength": 1, "maxLength": 2000 },
+        "retryable": { "type": "boolean" },
+        "resumeState": { "$ref": "#/definitions/forwardState" }
+      }
+    }
+  },
+  "definitions": {
+    "releaseId": {
+      "type": "string",
+      "minLength": 6,
+      "maxLength": 63,
+      "pattern": "^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])$"
+    },
+    "timestamp": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+    },
+    "forwardState": {
+      "enum": [
+        "PREPARED",
+        "ARTIFACTS_READY",
+        "PLAN_REVIEWED",
+        "INFRA_READY",
+        "DEPLOYED_NO_TRAFFIC",
+        "BACKUP_VERIFIED",
+        "MIGRATED",
+        "SMOKE_PASS",
+        "JOBS_SWITCHED",
+        "TRAFFIC_5",
+        "TRAFFIC_25",
+        "TRAFFIC_50",
+        "TRAFFIC_100",
+        "OBSERVED",
+        "LIGHTHOUSE_RETIRED"
+      ]
+    },
+    "state": {
+      "enum": [
+        "PREPARED",
+        "ARTIFACTS_READY",
+        "PLAN_REVIEWED",
+        "INFRA_READY",
+        "DEPLOYED_NO_TRAFFIC",
+        "BACKUP_VERIFIED",
+        "MIGRATED",
+        "SMOKE_PASS",
+        "JOBS_SWITCHED",
+        "TRAFFIC_5",
+        "TRAFFIC_25",
+        "TRAFFIC_50",
+        "TRAFFIC_100",
+        "OBSERVED",
+        "LIGHTHOUSE_RETIRED",
+        "ROLLED_BACK",
+        "FAILED"
+      ]
+    },
+    "stage": {
+      "enum": [
+        "PREPARE",
+        "IMAGES_PUBLISHED",
+        "CLOUD_BUNDLE_READY",
+        "SAFETY_CONTRACT_READY",
+        "PLAN_INFRASTRUCTURE",
+        "APPLY_INFRASTRUCTURE",
+        "DEPLOY_NO_TRAFFIC",
+        "VERIFY_BACKUP",
+        "MIGRATE_DATA",
+        "SMOKE",
+        "SWITCH_JOBS",
+        "TRAFFIC_5",
+        "TRAFFIC_25",
+        "TRAFFIC_50",
+        "TRAFFIC_100",
+        "OBSERVE",
+        "RETIRE_LIGHTHOUSE",
+        "ROLLBACK"
+      ]
+    }
+  }
+}

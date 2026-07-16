@@ -32,6 +32,9 @@ importers:
       '@vitest/coverage-v8':
         specifier: 3.2.6
         version: 3.2.6(vitest@3.2.6(@types/node@22.20.0)(jsdom@29.1.1)(tsx@4.22.5))
+      ajv:
+        specifier: ^8.20.0
+        version: 8.20.0
       cross-env:
         specifier: 7.0.3
         version: 7.0.3

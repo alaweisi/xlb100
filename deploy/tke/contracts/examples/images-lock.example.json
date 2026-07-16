@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "releaseId": "release-20260716-001",
+  "sourceCommit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "createdAt": "2026-07-16T08:10:00Z",
+  "images": {
+    "backend": {
+      "repository": "ccr.ccs.tencentyun.com/xlb/backend",
+      "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sbomFile": ".artifacts/tke/releases/release-20260716-001/sbom/backend.cdx.json",
+      "scanEvidenceFile": ".artifacts/tke/releases/release-20260716-001/scans/backend.json"
+    },
+    "customer": {
+      "repository": "ccr.ccs.tencentyun.com/xlb/customer",
+      "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "sbomFile": ".artifacts/tke/releases/release-20260716-001/sbom/customer.cdx.json",
+      "scanEvidenceFile": ".artifacts/tke/releases/release-20260716-001/scans/customer.json"
+    },
+    "worker": {
+      "repository": "ccr.ccs.tencentyun.com/xlb/worker",
+      "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "sbomFile": ".artifacts/tke/releases/release-20260716-001/sbom/worker.cdx.json",
+      "scanEvidenceFile": ".artifacts/tke/releases/release-20260716-001/scans/worker.json"
+    },
+    "admin": {
+      "repository": "ccr.ccs.tencentyun.com/xlb/admin",
+      "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "sbomFile": ".artifacts/tke/releases/release-20260716-001/sbom/admin.cdx.json",
+      "scanEvidenceFile": ".artifacts/tke/releases/release-20260716-001/scans/admin.json"
+    }
+  }
+}
