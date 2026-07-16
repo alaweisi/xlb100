@@ -3,6 +3,7 @@ import type { CityCode, DispatchTask } from "@xlb/types";
 import {
   OUTBOX_EVENT_CATALOG,
   OUTBOX_EVENT_TYPES,
+  TRANSACTIONAL_OUTBOX_EVENT_TYPES,
   getOutboxEventCatalogEntry,
 } from "../../backend/src/streams/outboxEventCatalog.js";
 import { evaluateOutboxPurge } from "../../backend/src/streams/outboxRetentionPolicy.js";
@@ -32,6 +33,11 @@ describe("stage2c3 outbox event catalog", () => {
     expect(getOutboxEventCatalogEntry("conflict_audit")).toMatchObject({
       mode: "audit_record", owner: "data-governance", retentionClass: "financial_7y",
     });
+    expect(TRANSACTIONAL_OUTBOX_EVENT_TYPES).toEqual([
+      "order.created",
+      "fulfillment.completed",
+      "refund.approved",
+    ]);
   });
 
   it("never purges non-terminal, held, incomplete or in-retention records", () => {

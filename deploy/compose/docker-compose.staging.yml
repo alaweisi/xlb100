@@ -48,7 +48,7 @@ services:
       redis:
         condition: service_healthy
     environment:
-      NODE_ENV: ${NODE_ENV:-production}
+      NODE_ENV: ${NODE_ENV:-staging}
       BACKEND_PORT: ${BACKEND_PORT:-3000}
       MYSQL_HOST: mysql
       MYSQL_PORT: ${MYSQL_PORT:-3306}
@@ -92,7 +92,7 @@ services:
       redis:
         condition: service_healthy
     environment:
-      NODE_ENV: ${NODE_ENV:-production}
+      NODE_ENV: ${NODE_ENV:-staging}
       BACKEND_PORT: ${BACKEND_PORT:-3000}
       MYSQL_HOST: mysql
       MYSQL_PORT: ${MYSQL_PORT:-3306}
@@ -132,7 +132,7 @@ services:
     depends_on:
       - backend
     environment:
-      NODE_ENV: ${NODE_ENV:-production}
+      NODE_ENV: ${NODE_ENV:-staging}
     ports:
       - "127.0.0.1:4173:4173"
 
@@ -148,7 +148,7 @@ services:
     depends_on:
       - backend
     environment:
-      NODE_ENV: ${NODE_ENV:-production}
+      NODE_ENV: ${NODE_ENV:-staging}
     ports:
       - "127.0.0.1:4174:4173"
 
@@ -164,7 +164,7 @@ services:
     depends_on:
       - backend
     environment:
-      NODE_ENV: ${NODE_ENV:-production}
+      NODE_ENV: ${NODE_ENV:-staging}
     ports:
       - "127.0.0.1:4175:4173"
 

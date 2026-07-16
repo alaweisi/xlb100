@@ -50,6 +50,20 @@ describe("Platform Delivery versioned source selection", () => {
     expect(query.mock.calls[0]?.[1]).toContain(1);
   });
 
+  it("normalizes live-start cursors to the source Outbox second precision", async () => {
+    const query = vi.fn().mockResolvedValue([[]]);
+    const repository = new PlatformDeliveryRepository({ query } as never);
+    await repository.listCandidateSourceEvents({
+      ...subscription,
+      liveStartCreatedAt: new Date("2026-07-13T08:00:00.987Z"),
+      liveStartEventId: "!",
+    }, 10);
+    const params = query.mock.calls[0]?.[1] as unknown[];
+    const dates = params.filter((value): value is Date => value instanceof Date);
+    expect(dates).toHaveLength(2);
+    expect(dates.every((value) => value.toISOString() === "2026-07-13T08:00:00.000Z")).toBe(true);
+  });
+
   it.each([
     ["review.created", {
       reviewId: "review-1", orderId: "order-1", workerId: "worker-1", rating: 5,

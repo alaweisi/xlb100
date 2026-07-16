@@ -141,8 +141,9 @@ describe.skipIf(!runDb)("auth OTP integration", { timeout: 20000 }, () => {
     }
   });
 
-  it("stores only a peppered OTP digest when production debug readback is disabled", async () => {
-    process.env.NODE_ENV = "production";
+  it("stores only a peppered OTP digest when debug readback is disabled", async () => {
+    process.env.NODE_ENV = "test";
+    process.env.AUTH_DEBUG_CODE_ENABLED = "false";
     process.env.JWT_SECRET = "stage2a-production-jwt-secret-at-least-32-characters";
     process.env.MYSQL_PASSWORD = "stage2a-production-mysql-password";
     process.env.AUTH_PHONE_HASH_SECRET = "stage2a-production-phone-hash-secret-0001";

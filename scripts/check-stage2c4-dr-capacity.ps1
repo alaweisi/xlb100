@@ -28,7 +28,7 @@ foreach ($needle in @('--single-transaction', '--set-gtid-purged=OFF', 'sha256',
 foreach ($needle in @('ConfirmIsolatedRestore', 'xlb_restore_drill_', 'duplicateLedgerEntries', 'DROP DATABASE IF EXISTS', 'exactSourceCountsRequired', 'nonquiesced_drift_recorded')) {
   if (-not $restore.Contains($needle)) { throw "restore safety gate missing: $needle" }
 }
-foreach ($needle in @('MaxOutboxRows', 'MaxOutboxBytes', 'MaxRedisStreamLength', 'oldestEligibleAgeSeconds')) {
+foreach ($needle in @('MaxOutboxRows', 'MaxOutboxBytes', 'MaxRedisStreamLength', 'oldestEligibleAgeSeconds', 'transactionalPendingOrRetryRows', 'claimablePendingOrRetryRows', 'stalledTransactionalPendingOrRetryRows', 'projectionOrAuditPendingOrRetryRows', 'claimableBacklogHealthy', 'transactionalConsistencyHealthy', "o.status='pending_dispatch'", "f.status='completed'")) {
   if (-not $capacity.Contains($needle)) { throw "capacity gate missing: $needle" }
 }
 foreach ($needle in @('pitrScheduledAndProven = $false', 'productionReady = $false', 'MaxBackupSeconds', 'MaxRestoreSeconds')) {

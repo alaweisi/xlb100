@@ -10,6 +10,10 @@ export function createRedisClient(): Redis {
   return new Redis({
     host: env.redisHost,
     port: env.redisPort,
+    password: env.redisPassword || undefined,
+    tls: env.redisTlsEnabled
+      ? { ca: env.redisTlsCa, rejectUnauthorized: true, servername: env.redisHost }
+      : undefined,
     lazyConnect: true,
     maxRetriesPerRequest: 1,
   });

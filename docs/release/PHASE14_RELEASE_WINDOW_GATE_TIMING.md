@@ -8,7 +8,7 @@
 - Date: 2026-07-06
 - Scope: documentation only; no deploy, tag, CI gate, schema, business logic, or ledger/replay/audit logic change.
 
-This document tightens the release-window timing required to close `PROD-OPS-010`. It does not mark `PROD-OPS-010` PASS. Final PASS still requires isolated pre-cut and post-cut `npx pnpm preflight` evidence from the actual production release window.
+This document tightens the release-window timing required to close `PROD-OPS-010`. It does not mark `PROD-OPS-010` PASS. Final PASS requires isolated pre-cut and post-cut `deploy/production/check-release-window-data.ps1` evidence from the actual production release window. The dedicated command is read-only; full `preflight` is no longer permitted against production because it includes test paths that may write data.
 
 ## Why Isolation Is Required
 
@@ -23,12 +23,12 @@ That standalone PASS is acceptable for repo validation because the failed run wa
 
 ## Release-Window Rule
 
-The preflight/replay/immutability gate must run in a quiet release window:
+The replay/immutability gate must run in a quiet release window:
 
 - Do not run `npx pnpm test`, staging smoke, production smoke, manual UAT, seed scripts, migration drills, rollback drills, refund approval tests, ledger consumer runs, or ad hoc DB write checks concurrently with the replay gate.
 - Do not perform concurrent DB writes during the final release-window proof.
-- Do not start the deploy/cut step until the pre-cut preflight log is complete and PASS.
-- Do not mark the cut complete until the post-cut preflight log is complete and PASS.
+- Do not start the deploy/cut step until the pre-cut read-only gate log is complete and PASS.
+- Do not mark the cut complete until the post-cut read-only gate log is complete and PASS.
 - If any replay mismatch appears during the release window, production remains NO-GO until the mismatch is explained, evidence is attached, and the release owner explicitly approves the next action.
 
 ## Required Sequence
@@ -36,10 +36,10 @@ The preflight/replay/immutability gate must run in a quiet release window:
 | Step | Timing | Command/action | Required result |
 | --- | --- | --- | --- |
 | 1 | Before pre-cut gate | Freeze non-release DB writers and stop manual/UAT/test/smoke activity against the gate database. | Release owner confirms quiet window. |
-| 2 | Pre-cut gate | `npx pnpm preflight` | Full command exits 0 and logs replay and immutability PASS. |
+| 2 | Pre-cut gate | `check-release-window-data.ps1` | Read-only command exits 0 and logs replay and immutability PASS. |
 | 3 | Evidence capture | Save the complete pre-cut log. | Log includes commit hash, timestamp, operator, environment, and PASS output. |
 | 4 | Cut/deploy window | Execute only the approved production cut/deploy procedure. | No unrelated DB write workload is introduced. |
-| 5 | Post-cut gate | `npx pnpm preflight` | Full command exits 0 and logs replay and immutability PASS. |
+| 5 | Post-cut gate | `check-release-window-data.ps1` | Read-only command exits 0 and logs replay and immutability PASS. |
 | 6 | Evidence capture | Save the complete post-cut log. | Log includes commit hash, timestamp, operator, environment, and PASS output. |
 | 7 | Review | Release owner and Ledger owner review both logs. | `PROD-OPS-010` may be considered for PASS only after review. |
 
@@ -48,13 +48,13 @@ The preflight/replay/immutability gate must run in a quiet release window:
 Pre-cut:
 
 ```powershell
-npx pnpm preflight
+.\deploy\production\check-release-window-data.ps1 -EnvFile .env.production -ExpectedCommit <full-40-char-sha> -Confirmation RELEASE-WINDOW-READ-ONLY -QuietWindowConfirmed
 ```
 
 Post-cut:
 
 ```powershell
-npx pnpm preflight
+.\deploy\production\check-release-window-data.ps1 -EnvFile .env.production -ExpectedCommit <full-40-char-sha> -Confirmation RELEASE-WINDOW-READ-ONLY -QuietWindowConfirmed
 ```
 
 The logs must include these lines in both runs:
@@ -79,8 +79,8 @@ It must include:
 - Release owner, Ledger owner, and command executor.
 - Quiet-window start/end timestamp.
 - Explicit statement that no tests, smoke, manual UAT, seed, migration, rollback, or ad hoc DB write activity ran concurrently with the replay gate.
-- Full pre-cut `npx pnpm preflight` log.
-- Full post-cut `npx pnpm preflight` log.
+- Full pre-cut `check-release-window-data.ps1` log.
+- Full post-cut `check-release-window-data.ps1` log.
 - Evidence that both logs contain `check-ledger-replay: passed`.
 - Evidence that both logs contain `check-ledger-immutability: passed`.
 - Explanation and owner decision for any failed or retried release-window gate run.
@@ -89,8 +89,8 @@ It must include:
 
 | Condition | Required decision |
 | --- | --- |
-| Pre-cut preflight fails for replay or immutability | Production release is NO-GO; do not start cut/deploy. |
-| Post-cut preflight fails for replay or immutability | Production release remains NO-GO; follow rollback/forward-fix decision path with Release and Ledger owners. |
+| Pre-cut read-only gate fails for replay or immutability | Production release is NO-GO; do not start cut/deploy. |
+| Post-cut read-only gate fails for replay or immutability | Production release remains NO-GO; follow rollback/forward-fix decision path with Release and Ledger owners. |
 | Any replay mismatch occurs during the release window | Treat as production NO-GO until explained with evidence. |
 | Gate was run while tests/smoke/UAT or other DB writers were active | Evidence is invalid for `PROD-OPS-010`; rerun in a quiet window and document the invalidated run. |
 | Concurrent failure followed by standalone PASS | Acceptable only when the concurrent failure is documented, the rerun is isolated, and release owners agree it is not masking a real replay issue. |
@@ -99,8 +99,8 @@ It must include:
 
 `PROD-OPS-010` may be marked PASS only when all of the following exist:
 
-- Pre-cut `npx pnpm preflight` log from the actual release window.
-- Post-cut `npx pnpm preflight` log from the actual release window.
+- Pre-cut `check-release-window-data.ps1` log from the actual release window.
+- Post-cut `check-release-window-data.ps1` log from the actual release window.
 - Both logs are from the intended production release candidate and environment.
 - Both logs include replay and immutability PASS output.
 - Both runs were isolated from tests, smoke, manual UAT, and other DB writes.

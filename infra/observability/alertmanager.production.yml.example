@@ -1,0 +1,12 @@
+route:
+  receiver: xlb-oncall
+  group_by: [alertname, city]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 2h
+
+receivers:
+  - name: xlb-oncall
+    webhook_configs:
+      - url: REPLACE_WITH_SECRET_MANAGER_INJECTED_ONCALL_WEBHOOK
+        send_resolved: true

@@ -7,7 +7,7 @@ const vitest = path.join(root, "node_modules", "vitest", "vitest.mjs");
 const args = [
   vitest,
   "run",
-  "--workspace", "vitest.phase22.workspace.ts",
+  "--config", "vitest.phase22.config.ts",
   "--project", "phase22-coverage",
   "--coverage",
   "--coverage.provider", "v8",

@@ -89,6 +89,7 @@ function createDependencies(
             published: 0,
             dead_letter: 0,
           },
+          stalledTransactionalRows: 0,
           oldestEligibleAgeSeconds: null,
           expiredProcessingLeases: 0,
         },

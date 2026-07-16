@@ -36,6 +36,7 @@ describe("Stage 2C-1 cross-process reliability health", () => {
         cityCode: "hangzhou",
         outbox: {
           statusCounts: { pending: 0, processing: 0, retry_wait: 0, published: 1, dead_letter: 0 },
+          stalledTransactionalRows: 0,
           oldestEligibleAgeSeconds: null,
           expiredProcessingLeases: 0,
         },

@@ -15,6 +15,9 @@ async function executeSeedFile(filePath: string): Promise<void> {
     user: env.mysqlUser,
     password: env.mysqlPassword,
     database: env.mysqlDatabase,
+    ssl: env.mysqlTlsEnabled
+      ? { ca: env.mysqlTlsCa, rejectUnauthorized: true }
+      : undefined,
     multipleStatements: true,
   });
   try {

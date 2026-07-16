@@ -89,11 +89,11 @@ try {
 
   Invoke-PnpmStep -Label 'isolated database seed' -Arguments @('--filter', '@xlb/backend', 'exec', 'tsx', 'src/dal/seedCli.ts')
   Invoke-PnpmStep -Label 'isolated Redis Stream recovery test' -Arguments @(
-    'exec', 'vitest', 'run', '--workspace', 'vitest.workspace.ts', '--project', 'db-serial',
+    'exec', 'vitest', 'run', '--project', 'db-serial',
     'tests/integration/stage2c3RedisStreamReliability.test.ts'
   )
   Invoke-PnpmStep -Label 'isolated Outbox reliability tests' -Arguments @(
-    'exec', 'vitest', 'run', '--workspace', 'vitest.workspace.ts', '--project', 'db-serial',
+    'exec', 'vitest', 'run', '--project', 'db-serial',
     'tests/integration/outboxClaimConcurrency.test.ts',
     'tests/integration/orderPaymentOutbox.test.ts',
     'tests/integration/outboxToDispatchStream.test.ts'

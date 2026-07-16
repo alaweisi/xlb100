@@ -1,0 +1,53 @@
+groups:
+  - name: xlb-production-reliability
+    rules:
+      - alert: XlbJobWorkerHeartbeatMissing
+        expr: xlb_job_worker_heartbeat_age_seconds < 0 or xlb_job_worker_heartbeat_age_seconds > 120
+        for: 2m
+        labels: { severity: critical }
+        annotations: { summary: "Dedicated jobs worker heartbeat is missing or stale" }
+      - alert: XlbDataReliabilityNotReady
+        expr: xlb_data_reliability_ready == 0
+        for: 3m
+        labels: { severity: critical }
+        annotations: { summary: "Data reliability snapshot is not ready" }
+      - alert: XlbDataReliabilitySnapshotStale
+        expr: xlb_data_reliability_snapshot_age_seconds < 0 or xlb_data_reliability_snapshot_age_seconds > 120
+        for: 2m
+        labels: { severity: critical }
+        annotations: { summary: "Data reliability snapshot is missing or stale" }
+      - alert: XlbOutboxEligibleBacklogOld
+        expr: max(xlb_outbox_oldest_eligible_age_seconds) > 300
+        for: 5m
+        labels: { severity: critical }
+        annotations: { summary: "A genuinely claimable Outbox event is older than five minutes" }
+      - alert: XlbOutboxTransactionalRowsStalled
+        expr: max(xlb_outbox_stalled_transactional_events) > 0
+        for: 15m
+        labels: { severity: warning }
+        annotations: { summary: "Transactional Outbox rows no longer match consumer eligibility" }
+      - alert: XlbOutboxExpiredLeases
+        expr: sum(xlb_outbox_expired_processing_leases) > 0
+        for: 2m
+        labels: { severity: critical }
+        annotations: { summary: "Expired transactional Outbox leases await reaping" }
+      - alert: XlbOutboxDeadLetters
+        expr: sum(xlb_outbox_events{status="dead_letter"}) > 0
+        for: 2m
+        labels: { severity: critical }
+        annotations: { summary: "Transactional Outbox contains dead-letter events" }
+      - alert: XlbDispatchStreamHasNoConsumerGroup
+        expr: xlb_dispatch_stream_length > 0 and on(city) xlb_dispatch_stream_consumer_groups == 0
+        for: 5m
+        labels: { severity: critical }
+        annotations: { summary: "Dispatch stream contains entries but has no consumer group" }
+      - alert: XlbMigrationMetricMissing
+        expr: absent(xlb_schema_migration_latest_info)
+        for: 5m
+        labels: { severity: critical }
+        annotations: { summary: "Schema migration identity metric is missing" }
+      - alert: XlbRateLimitBackendFailure
+        expr: increase(xlb_rate_limit_backend_failures_total[5m]) > 0
+        for: 1m
+        labels: { severity: critical }
+        annotations: { summary: "Redis-backed production rate limiting is failing closed" }

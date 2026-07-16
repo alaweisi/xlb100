@@ -3,7 +3,7 @@
 param(
   [string]$EnvFile = ".env.production",
   [string]$ComposeFile = "deploy/compose/docker-compose.prod.yml",
-  [string]$PreviousImageTag = "",
+  [string]$PreviousImageDigest = "",
   [string]$Confirmation = "",
   [switch]$Apply
 )
@@ -41,12 +41,12 @@ if ($Confirmation -ne $requiredConfirmation) {
   Fail "explicit confirmation required: -Confirmation $requiredConfirmation"
 }
 
-if (-not $PreviousImageTag) {
-  Fail "previous image/git tag evidence is required: -PreviousImageTag <tag-or-commit>"
+if (-not $PreviousImageDigest -or $PreviousImageDigest -notmatch '@sha256:[a-fA-F0-9]{64}$') {
+  Fail "previous immutable image evidence is required: -PreviousImageDigest <registry/image@sha256:digest>"
 }
 
 Write-Host "rollback-prod: runbook: docs/release/PHASE14_CODE_DATA_ROLLBACK_RUNBOOK.md"
-Write-Host "rollback-prod: target previous image/git tag evidence: $PreviousImageTag"
+Write-Host "rollback-prod: target previous immutable image evidence: $PreviousImageDigest"
 Write-Host "rollback-prod: validating compose config"
 & docker compose --env-file $envPath -f $composePath config | Out-Host
 if ($LASTEXITCODE -ne 0) {
@@ -60,7 +60,13 @@ if (-not $Apply) {
   exit 0
 }
 
-Write-Host "rollback-prod: applying rollback compose using existing images"
+Write-Host "rollback-prod: pulling rollback image set"
+& docker compose --env-file $envPath -f $composePath pull
+if ($LASTEXITCODE -ne 0) {
+  Fail "docker compose rollback pull failed"
+}
+
+Write-Host "rollback-prod: applying rollback compose without local builds"
 & docker compose --env-file $envPath -f $composePath up -d --no-build
 if ($LASTEXITCODE -ne 0) {
   Fail "docker compose rollback up failed"

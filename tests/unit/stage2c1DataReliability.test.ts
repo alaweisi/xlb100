@@ -53,6 +53,7 @@ function snapshot(overrides: Partial<DataReliabilitySnapshot> = {}): DataReliabi
           published: 10,
           dead_letter: 0,
         },
+        stalledTransactionalRows: 0,
         oldestEligibleAgeSeconds: 30,
         expiredProcessingLeases: 0,
       },
@@ -76,10 +77,14 @@ describe("Stage 2C-1 data reliability observability", () => {
       if (sql.includes("GROUP BY status")) {
         return [{ status: "pending", total: 4 }, { status: "processing", total: 2 }];
       }
-      if (sql.includes("status=?")) {
-        return params[1] === "pending"
-          ? [{ created_at: new Date("2026-07-15T07:58:00.000Z") }]
-          : [{ created_at: new Date("2026-07-15T07:59:00.000Z") }];
+      if (sql.includes("e.event_type='order.created'")) {
+        return [{ state_eligible_total: 2, total: 2, created_at: new Date("2026-07-15T07:58:00.000Z") }];
+      }
+      if (sql.includes("e.event_type='fulfillment.completed'")) {
+        return [{ state_eligible_total: 1, total: 1, created_at: new Date("2026-07-15T07:59:00.000Z") }];
+      }
+      if (sql.includes("e.event_type='refund.approved'")) {
+        return [{ state_eligible_total: 0, total: 0, created_at: null }];
       }
       if (sql.includes("idx_event_outbox_lease_reaper")) return [{ total: 1 }];
       if (sql.includes("schema_migrations")) {
@@ -102,6 +107,7 @@ describe("Stage 2C-1 data reliability observability", () => {
         cityCode: "hangzhou",
         outbox: {
           statusCounts: { pending: 4, processing: 2, retry_wait: 0, published: 0, dead_letter: 0 },
+          stalledTransactionalRows: 1,
           oldestEligibleAgeSeconds: 120,
           expiredProcessingLeases: 1,
         },
@@ -111,8 +117,26 @@ describe("Stage 2C-1 data reliability observability", () => {
     expect(streamLength).toHaveBeenCalledWith("xlb:dispatch:hangzhou:orders");
     expect(streamConsumerGroups).toHaveBeenCalledWith("xlb:dispatch:hangzhou:orders");
     expect(queries.every(({ params }) => !params.includes("__global__"))).toBe(true);
-    expect(queries.some(({ sql }) => sql.includes("FORCE INDEX (idx_event_outbox_claim)"))).toBe(true);
+    expect(queries.some(({ sql }) => sql.includes("FORCE INDEX (idx_event_outbox_typed_claim)"))).toBe(true);
     expect(queries.some(({ sql }) => sql.includes("FORCE INDEX (idx_event_outbox_lease_reaper)"))).toBe(true);
+    expect(queries
+      .filter(({ sql }) => sql.includes("GROUP BY status") || sql.includes("lease_expires_at"))
+      .every(({ sql, params }) =>
+        sql.includes("event_type IN")
+        && params.includes("order.created")
+        && params.includes("fulfillment.completed")
+        && params.includes("refund.approved"),
+      )).toBe(true);
+    expect(queries.some(({ sql }) =>
+      sql.includes("e.event_type='order.created'")
+      && sql.includes("o.status='pending_dispatch'")
+      && sql.includes("idx_event_outbox_aggregate_id"),
+    )).toBe(true);
+    expect(queries.some(({ sql }) =>
+      sql.includes("e.event_type='fulfillment.completed'")
+      && sql.includes("f.status='completed'")
+      && sql.includes("p.status='paid'"),
+    )).toBe(true);
   });
 
   it("rejects unbounded configured-city cardinality", async () => {
@@ -136,6 +160,16 @@ describe("Stage 2C-1 data reliability observability", () => {
       state: "degraded",
       ready: false,
       reasons: ["hangzhou:expired_processing_leases"],
+    });
+    expect(assessDataReliability(snapshot({
+      cities: [{
+        ...snapshot().cities[0]!,
+        outbox: { ...snapshot().cities[0]!.outbox, stalledTransactionalRows: 2 },
+      }],
+    }), now)).toMatchObject({
+      state: "degraded",
+      ready: false,
+      reasons: ["hangzhou:stalled_transactional_outbox"],
     });
     expect(assessDataReliability(snapshot(), new Date("2026-07-15T08:03:00.001Z"))).toMatchObject({
       state: "stale",
@@ -195,6 +229,7 @@ describe("Stage 2C-1 data reliability observability", () => {
     expect(output).toContain('xlb_outbox_leases_reaped_total{city="hangzhou"} 3');
     expect(output).toContain("xlb_job_worker_last_heartbeat_timestamp_seconds 1784102400");
     expect(output).toContain('xlb_outbox_events{city="hangzhou",status="pending"} 3');
+    expect(output).toContain('xlb_outbox_stalled_transactional_events{city="hangzhou"} 0');
     expect(output).toContain('xlb_dispatch_stream_consumer_groups{city="hangzhou"} 1');
     expect(output).toContain('xlb_schema_migration_latest_info{version="058_stage2a"} 1');
     expect(getJobWorkerHeartbeatStatus(new Date("2026-07-15T08:01:00.000Z"))).toMatchObject({

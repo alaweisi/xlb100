@@ -27,7 +27,7 @@ const steps = [
   {
     name: "fault injection and existing identity/rate-limit regression",
     args: [
-      "exec", "vitest", "run", "--workspace", "vitest.workspace.ts", "--project", "unit-contract",
+      "exec", "vitest", "run", "--project", "unit-contract",
       "tests/unit/stage4cFaultInjection.test.ts",
       "tests/unit/stage2aIdentitySecurity.test.ts",
       "tests/unit/phase22Observability.test.ts",
@@ -36,14 +36,14 @@ const steps = [
   {
     name: "authorization and rate-limit matrix",
     args: [
-      "exec", "vitest", "run", "--workspace", "vitest.workspace.ts", "--project", "db-serial",
+      "exec", "vitest", "run", "--project", "db-serial",
       "tests/security/auth/stage4cAuthRateLimit.test.ts",
     ],
   },
   {
     name: "API-edge performance baseline",
     args: [
-      "exec", "vitest", "run", "--workspace", "vitest.workspace.ts", "--project", "performance-serial",
+      "exec", "vitest", "run", "--project", "performance-serial",
       "tests/performance/stage4cSecurityLoad.test.ts",
     ],
   },

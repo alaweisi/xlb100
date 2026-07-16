@@ -55,7 +55,7 @@ export async function registerSupportRealtimeGateway(app: FastifyInstance) {
   const subscriber = getSupportRedisSubscriber();
   let subscriberReady: Promise<void> | null = null;
 
-  subscriber.on("pmessage", (_pattern, _channel, message) => {
+  const handlePublishedMessage = (_pattern: string, _channel: string, message: string) => {
     const payload = parsePublishedMessage(message);
     if (!payload) return;
     for (const client of clients) {
@@ -71,7 +71,8 @@ export async function registerSupportRealtimeGateway(app: FastifyInstance) {
         }));
       }
     }
-  });
+  };
+  subscriber.on("pmessage", handlePublishedMessage);
 
   const ensureSubscriber = () => subscriberReady ??= (async () => {
     if (subscriber.status === "wait") await subscriber.connect();
@@ -176,6 +177,10 @@ export async function registerSupportRealtimeGateway(app: FastifyInstance) {
   });
 
   app.addHook("onClose", async () => {
+    // The Redis subscriber is a process-wide singleton. Each Fastify instance
+    // owns only its listener, so remove exactly that listener without issuing
+    // PUNSUBSCRIBE and disrupting another live app instance.
+    subscriber.off("pmessage", handlePublishedMessage);
     for (const client of clients) client.socket.close(1001, "server shutdown");
     clients.clear();
   });

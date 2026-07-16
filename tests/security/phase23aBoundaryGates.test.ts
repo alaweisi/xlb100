@@ -69,7 +69,16 @@ describe("Phase 23A boundary gates", () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("AUTH_DEBUG_CODE_ENABLED", "true");
     vi.stubEnv("JWT_SECRET", "phase23a-production-jwt-secret-0000000001");
+    vi.stubEnv("MYSQL_HOST", "mysql.prod.internal");
+    vi.stubEnv("MYSQL_DATABASE", "xlb_prod");
+    vi.stubEnv("MYSQL_USER", "xlb_prod_app");
     vi.stubEnv("MYSQL_PASSWORD", "phase23a-production-mysql-secret-000001");
+    vi.stubEnv("MYSQL_TLS_ENABLED", "true");
+    vi.stubEnv("MYSQL_TLS_CA", "test-mysql-ca");
+    vi.stubEnv("REDIS_HOST", "redis.prod.internal");
+    vi.stubEnv("REDIS_PASSWORD", "phase23a-production-redis-secret-000001");
+    vi.stubEnv("REDIS_TLS_ENABLED", "true");
+    vi.stubEnv("REDIS_TLS_CA", "test-redis-ca");
     vi.stubEnv("AUTH_PHONE_HASH_SECRET", "phase23a-production-phone-hash-secret-01");
     vi.stubEnv("AUTH_OTP_PEPPER", "phase23a-production-otp-pepper-secret-0001");
     let app: Awaited<ReturnType<typeof buildApp>> | undefined;
@@ -96,7 +105,16 @@ describe("Phase 23A boundary gates", () => {
   ])("fails closed on weak production %s", (name, weakValue) => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("JWT_SECRET", "phase23a-production-jwt-secret-0000000001");
+    vi.stubEnv("MYSQL_HOST", "mysql.prod.internal");
+    vi.stubEnv("MYSQL_DATABASE", "xlb_prod");
+    vi.stubEnv("MYSQL_USER", "xlb_prod_app");
     vi.stubEnv("MYSQL_PASSWORD", "phase23a-production-mysql-secret-000001");
+    vi.stubEnv("MYSQL_TLS_ENABLED", "true");
+    vi.stubEnv("MYSQL_TLS_CA", "test-mysql-ca");
+    vi.stubEnv("REDIS_HOST", "redis.prod.internal");
+    vi.stubEnv("REDIS_PASSWORD", "phase23a-production-redis-secret-000001");
+    vi.stubEnv("REDIS_TLS_ENABLED", "true");
+    vi.stubEnv("REDIS_TLS_CA", "test-redis-ca");
     vi.stubEnv("AUTH_PHONE_HASH_SECRET", "phase23a-production-phone-hash-secret-01");
     vi.stubEnv("AUTH_OTP_PEPPER", "phase23a-production-otp-pepper-secret-0001");
     vi.stubEnv(name, weakValue);

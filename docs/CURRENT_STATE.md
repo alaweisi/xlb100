@@ -19,7 +19,7 @@
 | Phase 11 | LOCKED | xlb-phase11-settlement-execution-dry-run-planner | Settlement execution dry-run planner |
 | Phase 12 | COMPLETE | - | Settlement execution preparation control envelope |
 | Phase 13 | COMPLETE | - | Final ledger replay / immutability proof CI gates |
-| Phase 14 | IN PROGRESS | - | Readiness diagnostics (64/100) |
+| Phase 14 | ENGINEERING REMEDIATION LOCKED / PRODUCTION BLOCKED | xlb-stage5-engineering-remediation-v1 | Repository engineering closure complete; external production prerequisites remain |
 | Phase 16 | COMPLETE | - | Competitive gap closure: SKU / pricing / fee items / installation standards |
 | Phase 17 | LOCKED | xlb-phase17-order-reverse-aftersale | Order reverse flow + aftersale complaints |
 | Phase 18 | LOCKED | xlb-phase18-fulfillment-evidence-oss-envelope | Fulfillment evidence + local/mock object storage envelope + customer confirmation |
@@ -431,12 +431,15 @@
 - **Status**: COMPLETE
 - **Boundary**: CI/scripts validation only; no schema changes, no runtime business logic changes
 
-## Phase 14 - Readiness Diagnostics (IN PROGRESS)
+## Phase 14 - Readiness Diagnostics (ENGINEERING REMEDIATION LOCKED / PRODUCTION BLOCKED)
 
-- **Readiness score**: 64/100
-- **Status**: IN PROGRESS
-- **Current recommendation**: NOT READY for staging
-- **Reference report**: `docs/release/PHASE14_READINESS_REPORT.md`
+- **Legacy readiness score**: 64/100. It is retained as historical evidence and was not converted into a fictitious production score.
+- **Engineering status**: Stage 0–5 remediation is LOCKED locally on 2026-07-16 under `xlb-stage5-engineering-remediation-v1`.
+- **Engineering verification**: `pnpm gate:stage5` PASS in 385.1 seconds, including disposable migrated/seeded DB regression, architecture preflight, security/performance/fault gates and cross-app browser E2E.
+- **Closed internal findings**: Outbox monitoring semantics and query cost, persistent-test DB pollution, Vitest workspace deprecation, Redis realtime listener lifecycle, fresh-database Phase 16 derived data, Platform Delivery timestamp precision, immutable production images, file-backed secrets, MySQL/Redis TLS, container hardening, strong smoke and observability templates.
+- **Production status**: `STAGING_RELEASE=NO_GO`, `PRODUCTION_RELEASE=NO_GO`, `PRODUCTION_ACTIVATION_ALLOWED=false`.
+- **Remaining blockers**: real Secret Manager values, DNS/certificates/ingress, managed MySQL/Redis and backup topology, deployed monitoring/alert routing/on-call ownership, company entity, ICP, real Provider accounts/contracts/credentials and production release ownership.
+- **Reference reports**: `docs/reports/STAGE5_ENGINEERING_AUDIT.md`, `docs/reports/OUTBOX_RELIABILITY_REMEDIATION.md`, `docs/reports/FRESH_DATABASE_BOOTSTRAP_REMEDIATION.md`, `docs/release/PRODUCTION_REPOSITORY_READINESS.md`.
 
 ## Phase 16 - SKU / Pricing / Fee Items / Installation Standards (COMPLETE)
 

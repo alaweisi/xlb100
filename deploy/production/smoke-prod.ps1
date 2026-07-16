@@ -46,11 +46,11 @@ function Get-ConfigValue([string]$Name) {
 }
 
 $checks = @(
-  @{ Name = "backend health"; Url = Get-ConfigValue "PROD_BACKEND_HEALTH_URL" },
-  @{ Name = "backend db-health"; Url = Get-ConfigValue "PROD_BACKEND_DB_HEALTH_URL" },
-  @{ Name = "customer"; Url = Get-ConfigValue "PROD_CUSTOMER_URL" },
-  @{ Name = "worker"; Url = Get-ConfigValue "PROD_WORKER_URL" },
-  @{ Name = "admin"; Url = Get-ConfigValue "PROD_ADMIN_URL" }
+  @{ Name = "backend health"; Kind = "health"; Url = Get-ConfigValue "PROD_BACKEND_HEALTH_URL" },
+  @{ Name = "backend db-health"; Kind = "db-health"; Url = Get-ConfigValue "PROD_BACKEND_DB_HEALTH_URL" },
+  @{ Name = "customer"; Kind = "frontend"; Url = Get-ConfigValue "PROD_CUSTOMER_URL" },
+  @{ Name = "worker"; Kind = "frontend"; Url = Get-ConfigValue "PROD_WORKER_URL" },
+  @{ Name = "admin"; Kind = "frontend"; Url = Get-ConfigValue "PROD_ADMIN_URL" }
 )
 
 foreach ($check in $checks) {
@@ -84,8 +84,24 @@ foreach ($check in $checks) {
   Write-Host "smoke-prod: checking $($check.Name) -> $($check.Url)"
   try {
     $resp = Invoke-WebRequest -Uri $check.Url -UseBasicParsing -TimeoutSec 15
-    if ($resp.StatusCode -lt 200 -or $resp.StatusCode -ge 400) {
+    if ($resp.StatusCode -ne 200) {
       throw "status $($resp.StatusCode)"
+    }
+    if ($check.Kind -eq "health") {
+      $payload = $resp.Content | ConvertFrom-Json
+      if ($payload.status -ne "ok" -or $payload.service -ne "xlb-backend") {
+        throw "backend health payload is not ready"
+      }
+    } elseif ($check.Kind -eq "db-health") {
+      $payload = $resp.Content | ConvertFrom-Json
+      if (-not $payload.ok -or $payload.mysql -ne "ok" -or $payload.redis -ne "ok") {
+        throw "database or Redis connectivity is not ready"
+      }
+      if (-not $payload.dataReliability.ready -or $payload.jobWorker.state -ne "fresh") {
+        throw "data reliability or dedicated jobs heartbeat is not ready"
+      }
+    } elseif ($resp.Content.Length -lt 100 -or $resp.Content -notmatch '<(html|!doctype)') {
+      throw "frontend response is not an application HTML document"
     }
   } catch {
     Write-Host "smoke-prod: FAILED ($($check.Name)): $($_.Exception.Message)"

@@ -49,4 +49,6 @@ COPY --from=builder /app /app
 
 EXPOSE 4173
 
+USER node
+
 CMD ["sh", "-c", "serve -s apps/$APP_NAME/dist -l 4173"]

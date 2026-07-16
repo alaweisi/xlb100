@@ -1,145 +1,154 @@
 name: xlb-production
 
-# Phase 14 production scaffold.
-# This file defines app services only and expects external production MySQL,
-# Redis, ingress, TLS, secrets, monitoring, and backups.
-# It is not production approval evidence by itself.
+# Repository production scaffold. Images must be immutable registry digests;
+# databases, Redis, secret objects, ingress/TLS and monitoring are external.
+
+x-backend-environment: &backend-environment
+  NODE_ENV: production
+  BACKEND_PORT: ${BACKEND_PORT:?BACKEND_PORT is required}
+  MYSQL_HOST: ${MYSQL_HOST:?MYSQL_HOST is required}
+  MYSQL_PORT: ${MYSQL_PORT:?MYSQL_PORT is required}
+  MYSQL_DATABASE: ${MYSQL_DATABASE:?MYSQL_DATABASE is required}
+  MYSQL_USER: ${MYSQL_USER:?MYSQL_USER is required}
+  MYSQL_PASSWORD_FILE: /run/secrets/mysql_password
+  MYSQL_TLS_ENABLED: "true"
+  MYSQL_TLS_CA_FILE: /run/secrets/mysql_tls_ca
+  REDIS_HOST: ${REDIS_HOST:?REDIS_HOST is required}
+  REDIS_PORT: ${REDIS_PORT:?REDIS_PORT is required}
+  REDIS_PASSWORD_FILE: /run/secrets/redis_password
+  REDIS_TLS_ENABLED: "true"
+  REDIS_TLS_CA_FILE: /run/secrets/redis_tls_ca
+  RATE_LIMIT_BACKEND: redis
+  TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-1}
+  JWT_SECRET_FILE: /run/secrets/jwt_secret
+  JWT_ACTIVE_KID: ${JWT_ACTIVE_KID:-primary}
+  JWT_KEYS_JSON_FILE: /run/secrets/jwt_keys_json
+  JWT_ISSUER: ${JWT_ISSUER:-xlb-backend}
+  JWT_AUDIENCE: ${JWT_AUDIENCE:-xlb-apps}
+  JWT_TTL_SECONDS: ${JWT_TTL_SECONDS:-86400}
+  AUTH_PHONE_HASH_SECRET_FILE: /run/secrets/auth_phone_hash_secret
+  AUTH_OTP_PEPPER_FILE: /run/secrets/auth_otp_pepper
+  AUTH_OTP_TTL_SECONDS: ${AUTH_OTP_TTL_SECONDS:-300}
+  AUTH_OTP_MAX_ATTEMPTS: ${AUTH_OTP_MAX_ATTEMPTS:-5}
+  AUTH_OTP_LOCK_SECONDS: ${AUTH_OTP_LOCK_SECONDS:-900}
+  AUTH_OTP_RESEND_COOLDOWN_SECONDS: ${AUTH_OTP_RESEND_COOLDOWN_SECONDS:-60}
+  AUTH_DEBUG_CODE_ENABLED: "false"
+
+x-backend-secrets: &backend-secrets
+  - mysql_password
+  - mysql_tls_ca
+  - redis_password
+  - redis_tls_ca
+  - jwt_secret
+  - jwt_keys_json
+  - auth_phone_hash_secret
+  - auth_otp_pepper
+
+x-service-hardening: &service-hardening
+  init: true
+  restart: unless-stopped
+  read_only: true
+  user: node
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  tmpfs:
+    - /tmp:size=64m,mode=1777
+  logging:
+    driver: json-file
+    options:
+      max-size: 20m
+      max-file: "5"
 
 services:
   backend:
-    image: ${PROD_BACKEND_IMAGE:-xlb/backend:phase14-placeholder}
-    build:
-      context: ../..
-      dockerfile: infra/docker/Dockerfile.backend
-    restart: unless-stopped
+    <<: *service-hardening
+    image: ${PROD_BACKEND_IMAGE:?PROD_BACKEND_IMAGE immutable digest is required}
     environment:
-      NODE_ENV: production
-      BACKEND_PORT: ${BACKEND_PORT:?BACKEND_PORT is required}
-      MYSQL_HOST: ${MYSQL_HOST:?MYSQL_HOST is required}
-      MYSQL_PORT: ${MYSQL_PORT:?MYSQL_PORT is required}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:?MYSQL_DATABASE is required}
-      MYSQL_USER: ${MYSQL_USER:?MYSQL_USER is required}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD is required}
-      REDIS_HOST: ${REDIS_HOST:?REDIS_HOST is required}
-      REDIS_PORT: ${REDIS_PORT:?REDIS_PORT is required}
-      RATE_LIMIT_BACKEND: redis
-      TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-1}
-      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
-      JWT_ACTIVE_KID: ${JWT_ACTIVE_KID:-primary}
-      JWT_KEYS_JSON: "${JWT_KEYS_JSON:?JWT_KEYS_JSON is required}"
-      JWT_ISSUER: ${JWT_ISSUER:-xlb-backend}
-      JWT_AUDIENCE: ${JWT_AUDIENCE:-xlb-apps}
-      JWT_TTL_SECONDS: ${JWT_TTL_SECONDS:-86400}
-      AUTH_PHONE_HASH_SECRET: ${AUTH_PHONE_HASH_SECRET:?AUTH_PHONE_HASH_SECRET is required}
-      AUTH_OTP_PEPPER: ${AUTH_OTP_PEPPER:?AUTH_OTP_PEPPER is required}
-      AUTH_OTP_TTL_SECONDS: ${AUTH_OTP_TTL_SECONDS:-300}
-      AUTH_OTP_MAX_ATTEMPTS: ${AUTH_OTP_MAX_ATTEMPTS:-5}
-      AUTH_OTP_LOCK_SECONDS: ${AUTH_OTP_LOCK_SECONDS:-900}
-      AUTH_OTP_RESEND_COOLDOWN_SECONDS: ${AUTH_OTP_RESEND_COOLDOWN_SECONDS:-60}
-      AUTH_DEBUG_CODE_ENABLED: "false"
+      <<: *backend-environment
       AUTO_RUN_ENABLED: "false"
-    expose:
-      - "${BACKEND_PORT:-3000}"
+    secrets: *backend-secrets
+    expose: ["${BACKEND_PORT:-3000}"]
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:${BACKEND_PORT:-3000}/health >/dev/null 2>&1 || exit 1"]
+      test: [CMD-SHELL, "wget -qO- http://127.0.0.1:${BACKEND_PORT:-3000}/health >/dev/null 2>&1 || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 5
       start_period: 30s
-    networks:
-      - xlb-production
+    deploy:
+      resources:
+        limits: { cpus: "2.0", memory: 2G }
+        reservations: { cpus: "0.25", memory: 256M }
+    networks: [xlb-production]
 
   jobs:
-    image: ${PROD_BACKEND_IMAGE:-xlb/backend:phase14-placeholder}
-    build:
-      context: ../..
-      dockerfile: infra/docker/Dockerfile.backend
-    restart: unless-stopped
+    <<: *service-hardening
+    image: ${PROD_BACKEND_IMAGE:?PROD_BACKEND_IMAGE immutable digest is required}
     stop_grace_period: 30s
     working_dir: /app/backend
-    command: ["node", "dist/jobWorker.js"]
+    command: [node, dist/jobWorker.js]
     environment:
-      NODE_ENV: production
-      BACKEND_PORT: ${BACKEND_PORT:?BACKEND_PORT is required}
-      MYSQL_HOST: ${MYSQL_HOST:?MYSQL_HOST is required}
-      MYSQL_PORT: ${MYSQL_PORT:?MYSQL_PORT is required}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:?MYSQL_DATABASE is required}
-      MYSQL_USER: ${MYSQL_USER:?MYSQL_USER is required}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD is required}
-      REDIS_HOST: ${REDIS_HOST:?REDIS_HOST is required}
-      REDIS_PORT: ${REDIS_PORT:?REDIS_PORT is required}
-      RATE_LIMIT_BACKEND: redis
-      TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-1}
-      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
-      JWT_ACTIVE_KID: ${JWT_ACTIVE_KID:-primary}
-      JWT_KEYS_JSON: "${JWT_KEYS_JSON:?JWT_KEYS_JSON is required}"
-      JWT_ISSUER: ${JWT_ISSUER:-xlb-backend}
-      JWT_AUDIENCE: ${JWT_AUDIENCE:-xlb-apps}
-      JWT_TTL_SECONDS: ${JWT_TTL_SECONDS:-86400}
-      AUTH_PHONE_HASH_SECRET: ${AUTH_PHONE_HASH_SECRET:?AUTH_PHONE_HASH_SECRET is required}
-      AUTH_OTP_PEPPER: ${AUTH_OTP_PEPPER:?AUTH_OTP_PEPPER is required}
-      AUTH_OTP_TTL_SECONDS: ${AUTH_OTP_TTL_SECONDS:-300}
-      AUTH_OTP_MAX_ATTEMPTS: ${AUTH_OTP_MAX_ATTEMPTS:-5}
-      AUTH_OTP_LOCK_SECONDS: ${AUTH_OTP_LOCK_SECONDS:-900}
-      AUTH_OTP_RESEND_COOLDOWN_SECONDS: ${AUTH_OTP_RESEND_COOLDOWN_SECONDS:-60}
-      AUTH_DEBUG_CODE_ENABLED: "false"
+      <<: *backend-environment
       AUTO_RUN_ENABLED: "true"
       AUTO_RUN_INTERVAL_MS: ${AUTO_RUN_INTERVAL_MS:-8000}
       AUTO_RUN_CITY_CODES: ${AUTO_RUN_CITY_CODES:?AUTO_RUN_CITY_CODES is required}
-    networks:
-      - xlb-production
+    secrets: *backend-secrets
+    deploy:
+      resources:
+        limits: { cpus: "2.0", memory: 2G }
+        reservations: { cpus: "0.25", memory: 256M }
+    networks: [xlb-production]
 
   customer:
-    image: ${PROD_CUSTOMER_IMAGE:-xlb/customer:phase14-placeholder}
-    build:
-      context: ../..
-      dockerfile: infra/docker/Dockerfile.frontend
-      args:
-        APP_NAME: customer
-    restart: unless-stopped
+    <<: *service-hardening
+    image: ${PROD_CUSTOMER_IMAGE:?PROD_CUSTOMER_IMAGE immutable digest is required}
     depends_on:
-      - backend
-    environment:
-      NODE_ENV: production
-    expose:
-      - "4173"
-    networks:
-      - xlb-production
+      backend: { condition: service_healthy }
+    expose: ["4173"]
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 256M }
+    networks: [xlb-production]
 
   worker:
-    image: ${PROD_WORKER_IMAGE:-xlb/worker:phase14-placeholder}
-    build:
-      context: ../..
-      dockerfile: infra/docker/Dockerfile.frontend
-      args:
-        APP_NAME: worker
-    restart: unless-stopped
+    <<: *service-hardening
+    image: ${PROD_WORKER_IMAGE:?PROD_WORKER_IMAGE immutable digest is required}
     depends_on:
-      - backend
-    environment:
-      NODE_ENV: production
-    expose:
-      - "4173"
-    networks:
-      - xlb-production
+      backend: { condition: service_healthy }
+    expose: ["4173"]
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 256M }
+    networks: [xlb-production]
 
   admin:
-    image: ${PROD_ADMIN_IMAGE:-xlb/admin:phase14-placeholder}
-    build:
-      context: ../..
-      dockerfile: infra/docker/Dockerfile.frontend
-      args:
-        APP_NAME: admin
-    restart: unless-stopped
+    <<: *service-hardening
+    image: ${PROD_ADMIN_IMAGE:?PROD_ADMIN_IMAGE immutable digest is required}
     depends_on:
-      - backend
-    environment:
-      NODE_ENV: production
-    expose:
-      - "4173"
-    networks:
-      - xlb-production
+      backend: { condition: service_healthy }
+    expose: ["4173"]
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 256M }
+    networks: [xlb-production]
 
 networks:
   xlb-production:
     driver: bridge
+
+secrets:
+  mysql_password:
+    file: ${MYSQL_PASSWORD_SECRET_FILE:?MYSQL_PASSWORD_SECRET_FILE is required}
+  mysql_tls_ca:
+    file: ${MYSQL_TLS_CA_SECRET_FILE:?MYSQL_TLS_CA_SECRET_FILE is required}
+  redis_password:
+    file: ${REDIS_PASSWORD_SECRET_FILE:?REDIS_PASSWORD_SECRET_FILE is required}
+  redis_tls_ca:
+    file: ${REDIS_TLS_CA_SECRET_FILE:?REDIS_TLS_CA_SECRET_FILE is required}
+  jwt_secret:
+    file: ${JWT_SECRET_FILE:?JWT_SECRET_FILE is required}
+  jwt_keys_json:
+    file: ${JWT_KEYS_JSON_SECRET_FILE:?JWT_KEYS_JSON_SECRET_FILE is required}
+  auth_phone_hash_secret:
+    file: ${AUTH_PHONE_HASH_SECRET_FILE:?AUTH_PHONE_HASH_SECRET_FILE is required}
+  auth_otp_pepper:
+    file: ${AUTH_OTP_PEPPER_SECRET_FILE:?AUTH_OTP_PEPPER_SECRET_FILE is required}

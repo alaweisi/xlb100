@@ -29,7 +29,7 @@ const apiSteps = [
   {
     name: "authenticated Customer/Worker/Admin core lifecycle",
     args: [
-      "exec", "vitest", "run", "--workspace", "vitest.workspace.ts", "--project", "db-serial",
+      "exec", "vitest", "run", "--project", "db-serial",
       "tests/integration/phase23dWorkerLifecycleE2E.test.ts",
       "tests/integration/mockPaymentWebhook.test.ts",
       "tests/integration/phase22CrossPhaseE2E.test.ts",

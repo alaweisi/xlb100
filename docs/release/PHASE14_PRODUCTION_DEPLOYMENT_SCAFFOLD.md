@@ -17,7 +17,7 @@ This scaffold creates a safe repo baseline for later production verification. It
 | `deploy/compose/docker-compose.prod.yml` | Production-intended app service compose scaffold for backend, customer, worker, and admin. It expects external production MySQL, Redis, ingress, TLS, secrets, monitoring, and backups. |
 | `deploy/production/deploy-prod.ps1` | Guarded production deploy wrapper. It refuses example env files and requires explicit confirmation before any run. Without `-Apply`, it performs a dry run. |
 | `deploy/production/smoke-prod.ps1` | Production smoke scaffold. It reads HTTPS production URLs from env/config and does not hardcode localhost. |
-| `deploy/production/rollback-prod.ps1` | Guarded production rollback wrapper. It requires explicit confirmation, a previous image/git tag reference, and points operators to the rollback runbook. |
+| `deploy/production/rollback-prod.ps1` | Guarded production rollback wrapper. It requires explicit confirmation, an immutable previous image digest, and points operators to the rollback runbook. |
 
 ## Safety Controls
 
@@ -30,7 +30,7 @@ This scaffold creates a safe repo baseline for later production verification. It
 - `smoke-prod.ps1` requires HTTPS URLs from env/config and rejects localhost unless `-AllowLocalhost` is explicitly passed for non-production diagnostics.
 - `rollback-prod.ps1` refuses to use `*.example` env files.
 - `rollback-prod.ps1` requires `-Confirmation ROLLBACK-PHASE14-PRODUCTION`.
-- `rollback-prod.ps1` requires `-PreviousImageTag` evidence.
+- `rollback-prod.ps1` requires `-PreviousImageDigest` evidence.
 - `rollback-prod.ps1` defaults to dry-run behavior unless `-Apply` is provided.
 
 ## Intended Future Commands
@@ -56,7 +56,7 @@ deploy\production\smoke-prod.ps1 -EnvFile .env.production
 Dry-run a rollback after release owner approval:
 
 ```powershell
-deploy\production\rollback-prod.ps1 -EnvFile .env.production -PreviousImageTag <previous-approved-tag-or-image> -Confirmation ROLLBACK-PHASE14-PRODUCTION
+deploy\production\rollback-prod.ps1 -EnvFile .env.production -PreviousImageDigest <registry/image@sha256:digest> -Confirmation ROLLBACK-PHASE14-PRODUCTION
 ```
 
 ## Non-Goals

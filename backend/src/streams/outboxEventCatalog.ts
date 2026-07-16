@@ -42,6 +42,16 @@ const transactionalConsumers: Partial<Record<OutboxEventType, string>> = {
   "refund.approved": "ledger-reversal",
 };
 
+/**
+ * Source records such as notifications, reviews and audit facts intentionally
+ * remain pending in event_outbox while their independent projection/delivery
+ * tables track downstream progress. Only these event types participate in the
+ * source Outbox claim lifecycle and therefore constitute an operational queue.
+ */
+export const TRANSACTIONAL_OUTBOX_EVENT_TYPES = Object.freeze(
+  Object.keys(transactionalConsumers) as OutboxEventType[],
+);
+
 const financialPrefixes = ["payment.", "settlement.", "refund.", "worker.receivable.", "marketing."];
 const customerPrefixes = ["aftersale.", "support.", "review.", "fulfillment.evidence."];
 

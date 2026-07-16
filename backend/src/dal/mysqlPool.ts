@@ -16,6 +16,9 @@ export function createMysqlPool(): Pool {
     user: env.mysqlUser,
     password: env.mysqlPassword,
     database: env.mysqlDatabase,
+    ssl: env.mysqlTlsEnabled
+      ? { ca: env.mysqlTlsCa, rejectUnauthorized: true }
+      : undefined,
     waitForConnections: true,
     connectionLimit: normalizedConnectionLimit,
     maxIdle: Number.isNaN(maxIdle) ? normalizedConnectionLimit : maxIdle,

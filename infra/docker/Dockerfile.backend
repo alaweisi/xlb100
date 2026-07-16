@@ -42,4 +42,6 @@ RUN mkdir -p node_modules/@shared/deterministic \
 
 EXPOSE 3000
 
+USER node
+
 CMD ["node", "backend/dist/server.js"]

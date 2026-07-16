@@ -1,0 +1,15 @@
+{
+  "title": "XLB Production Reliability",
+  "uid": "xlb-production-reliability",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "15s",
+  "panels": [
+    { "id": 1, "type": "stat", "title": "Data reliability", "targets": [{ "expr": "xlb_data_reliability_ready" }] },
+    { "id": 2, "type": "timeseries", "title": "Jobs heartbeat age", "targets": [{ "expr": "xlb_job_worker_heartbeat_age_seconds" }] },
+    { "id": 3, "type": "timeseries", "title": "Oldest claimable Outbox event", "targets": [{ "expr": "xlb_outbox_oldest_eligible_age_seconds" }] },
+    { "id": 4, "type": "timeseries", "title": "Stalled transactional Outbox", "targets": [{ "expr": "xlb_outbox_stalled_transactional_events" }] },
+    { "id": 5, "type": "timeseries", "title": "Dispatch stream length", "targets": [{ "expr": "xlb_dispatch_stream_length" }] },
+    { "id": 6, "type": "timeseries", "title": "HTTP 5xx rate", "targets": [{ "expr": "sum(rate(xlb_http_requests_total{status=~\"5..\"}[5m]))" }] }
+  ]
+}

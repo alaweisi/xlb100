@@ -2,6 +2,7 @@ import { cityCodeSchema } from "@xlb/validators";
 import { getMysqlPool } from "../dal/mysqlPool.js";
 import { getRedisClient } from "../dal/redisClient.js";
 import { getDispatchStreamName } from "../streams/cityStreamNames.js";
+import { TRANSACTIONAL_OUTBOX_EVENT_TYPES } from "../streams/outboxEventCatalog.js";
 
 export const OUTBOX_RELIABILITY_STATUSES = [
   "pending",
@@ -17,6 +18,7 @@ export type CityDataReliabilitySnapshot = {
   cityCode: string;
   outbox: {
     statusCounts: Record<OutboxReliabilityStatus, number>;
+    stalledTransactionalRows: number;
     oldestEligibleAgeSeconds: number | null;
     expiredProcessingLeases: number;
   };
@@ -39,6 +41,7 @@ export type DataReliabilityThresholds = {
   maxSnapshotAgeMs: number;
   maxOldestEligibleAgeSeconds: number;
   maxExpiredProcessingLeases: number;
+  maxStalledTransactionalRows: number;
 };
 
 export type DataReliabilityAssessment = {
@@ -53,6 +56,7 @@ export const DEFAULT_DATA_RELIABILITY_THRESHOLDS: DataReliabilityThresholds = {
   maxSnapshotAgeMs: 120_000,
   maxOldestEligibleAgeSeconds: 300,
   maxExpiredProcessingLeases: 0,
+  maxStalledTransactionalRows: 0,
 };
 
 export const MAX_RELIABILITY_CITIES = 32;
@@ -148,13 +152,14 @@ async function collectCitySnapshot(
   observedAt: Date,
   dependencies: Required<Omit<DataReliabilityCollectorDependencies, "now">>,
 ): Promise<CityDataReliabilitySnapshot> {
+  const transactionalPlaceholders = TRANSACTIONAL_OUTBOX_EVENT_TYPES.map(() => "?").join(",");
   const statusCounts = emptyStatusCounts();
   const statusRows = await dependencies.query(
     `SELECT status, COUNT(*) AS total
-       FROM event_outbox FORCE INDEX (idx_event_outbox_claim)
-      WHERE city_code=?
+       FROM event_outbox e FORCE INDEX (idx_event_outbox_typed_claim)
+      WHERE e.city_code=? AND e.event_type IN (${transactionalPlaceholders})
       GROUP BY status`,
-    [cityCode],
+    [cityCode, ...TRANSACTIONAL_OUTBOX_EVENT_TYPES],
   );
   for (const row of statusRows) {
     const status = String(row.status ?? "") as OutboxReliabilityStatus;
@@ -163,20 +168,65 @@ async function collectCitySnapshot(
     }
   }
 
-  // Two exact-status, LIMIT 1 reads preserve the claim index ordering. The
-  // health endpoint only reads the resulting snapshot; it never executes these
-  // potentially large queue queries itself.
+  // Keep these eligibility joins aligned with EventOutboxRepository.claim().
+  // Separate event-type reads avoid the former cross-type OR/EXISTS plan, which
+  // scanned the full source-record history on every snapshot. Aggregate-first
+  // dispatch lookup also skips historical order.created rows efficiently.
   const eligibleDates: Date[] = [];
-  for (const status of ["pending", "retry_wait"] as const) {
-    const rows = await dependencies.query(
-      `SELECT created_at
-         FROM event_outbox FORCE INDEX (idx_event_outbox_claim)
-        WHERE city_code=? AND status=? AND available_at<=CURRENT_TIMESTAMP(3)
-          AND attempt_count<max_attempts
-        ORDER BY available_at ASC, created_at ASC
-        LIMIT 1`,
-      [cityCode, status],
-    );
+  const eligibleQueries: ReadonlyArray<{ sql: string; params: readonly unknown[] }> = [
+    {
+      sql: `SELECT COUNT(*) AS state_eligible_total,
+                   SUM(CASE WHEN e.available_at<=CURRENT_TIMESTAMP(3)
+                                  AND e.attempt_count<e.max_attempts THEN 1 ELSE 0 END) AS total,
+                   MIN(CASE WHEN e.available_at<=CURRENT_TIMESTAMP(3)
+                                  AND e.attempt_count<e.max_attempts THEN e.created_at END) AS created_at
+              FROM orders o FORCE INDEX (idx_orders_status)
+              STRAIGHT_JOIN event_outbox e FORCE INDEX (idx_event_outbox_aggregate_id)
+                ON e.aggregate_id=o.order_id AND e.city_code=o.city_code
+               AND e.event_type='order.created'
+             WHERE o.city_code=? AND o.status='pending_dispatch'
+               AND e.status IN ('pending','retry_wait')
+            `,
+      params: [cityCode],
+    },
+    {
+      sql: `SELECT COUNT(*) AS state_eligible_total,
+                   SUM(CASE WHEN e.available_at<=CURRENT_TIMESTAMP(3)
+                                  AND e.attempt_count<e.max_attempts THEN 1 ELSE 0 END) AS total,
+                   MIN(CASE WHEN e.available_at<=CURRENT_TIMESTAMP(3)
+                                  AND e.attempt_count<e.max_attempts THEN e.created_at END) AS created_at
+              FROM event_outbox e FORCE INDEX (idx_event_outbox_typed_claim)
+              INNER JOIN fulfillments f
+                ON f.city_code=e.city_code AND f.fulfillment_id=e.aggregate_id
+              INNER JOIN orders o
+                ON o.city_code=f.city_code AND o.order_id=f.order_id
+              INNER JOIN payment_orders p FORCE INDEX (idx_payment_orders_city_order_status)
+                ON p.city_code=o.city_code AND p.order_id=o.order_id AND p.status='paid'
+             WHERE e.city_code=? AND e.event_type='fulfillment.completed'
+               AND e.status IN ('pending','retry_wait')
+               AND f.status='completed' AND o.status='paid'
+            `,
+      params: [cityCode],
+    },
+    {
+      sql: `SELECT COUNT(*) AS state_eligible_total,
+                   SUM(CASE WHEN e.available_at<=CURRENT_TIMESTAMP(3)
+                                  AND e.attempt_count<e.max_attempts THEN 1 ELSE 0 END) AS total,
+                   MIN(CASE WHEN e.available_at<=CURRENT_TIMESTAMP(3)
+                                  AND e.attempt_count<e.max_attempts THEN e.created_at END) AS created_at
+              FROM event_outbox e FORCE INDEX (idx_event_outbox_typed_claim)
+             WHERE e.city_code=? AND e.event_type='refund.approved'
+               AND e.status IN ('pending','retry_wait')
+            `,
+      params: [cityCode],
+    },
+  ];
+  let claimableRows = 0;
+  let stateEligibleRows = 0;
+  for (const eligibleQuery of eligibleQueries) {
+    const rows = await dependencies.query(eligibleQuery.sql, eligibleQuery.params);
+    claimableRows += safeNonNegativeNumber(rows[0]?.total);
+    stateEligibleRows += safeNonNegativeNumber(rows[0]?.state_eligible_total);
     const createdAt = parseDate(rows[0]?.created_at);
     if (createdAt) eligibleDates.push(createdAt);
   }
@@ -184,13 +234,18 @@ async function collectCitySnapshot(
   const oldestEligibleAgeSeconds = oldestEligible
     ? Math.max(0, Math.floor((observedAt.getTime() - oldestEligible.getTime()) / 1_000))
     : null;
+  const stalledTransactionalRows = Math.max(
+    0,
+    statusCounts.pending + statusCounts.retry_wait - stateEligibleRows,
+  );
 
   const expiredRows = await dependencies.query(
     `SELECT COUNT(*) AS total
-       FROM event_outbox FORCE INDEX (idx_event_outbox_lease_reaper)
+      FROM event_outbox FORCE INDEX (idx_event_outbox_lease_reaper)
       WHERE city_code=? AND status='processing'
-        AND lease_expires_at<=CURRENT_TIMESTAMP(3)`,
-    [cityCode],
+        AND lease_expires_at<=CURRENT_TIMESTAMP(3)
+        AND event_type IN (${transactionalPlaceholders})`,
+    [cityCode, ...TRANSACTIONAL_OUTBOX_EVENT_TYPES],
   );
   const streamName = getDispatchStreamName(cityCode);
   const [streamLength, consumerGroups] = await Promise.all([
@@ -202,6 +257,7 @@ async function collectCitySnapshot(
     cityCode,
     outbox: {
       statusCounts,
+      stalledTransactionalRows,
       oldestEligibleAgeSeconds,
       expiredProcessingLeases: safeNonNegativeNumber(expiredRows[0]?.total),
     },
@@ -264,6 +320,7 @@ export function recordDataReliabilitySnapshot(snapshot: DataReliabilitySnapshot)
             safeNonNegativeNumber(city.outbox.statusCounts[status]),
           ]),
         ) as Record<OutboxReliabilityStatus, number>,
+        stalledTransactionalRows: safeNonNegativeNumber(city.outbox.stalledTransactionalRows),
         oldestEligibleAgeSeconds: city.outbox.oldestEligibleAgeSeconds === null
           ? null
           : safeNonNegativeNumber(city.outbox.oldestEligibleAgeSeconds),
@@ -406,6 +463,9 @@ export function assessDataReliability(
     ) reasons.push(`${city.cityCode}:outbox_backlog_old`);
     if (city.outbox.expiredProcessingLeases > thresholds.maxExpiredProcessingLeases) {
       reasons.push(`${city.cityCode}:expired_processing_leases`);
+    }
+    if (city.outbox.stalledTransactionalRows > thresholds.maxStalledTransactionalRows) {
+      reasons.push(`${city.cityCode}:stalled_transactional_outbox`);
     }
   }
   return {

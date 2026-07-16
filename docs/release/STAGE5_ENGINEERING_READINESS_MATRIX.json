@@ -55,9 +55,27 @@
     },
     {
       "id": "CAP-001",
-      "category": "internal_blocker",
-      "status": "BLOCKED_INTERNAL",
-      "summary": "The observed local pending/retry Outbox backlog requires root-cause, cleanup and capacity evidence before a release candidate."
+      "category": "engineering_remediation",
+      "status": "PASS",
+      "summary": "Outbox claimability, retained source records and stalled transactional history are separated; monitoring and test isolation are repaired.",
+      "evidencePath": "docs/reports/OUTBOX_RELIABILITY_REMEDIATION.md",
+      "command": "pnpm check:dr:stage2c4"
+    },
+    {
+      "id": "OPS-PREP-001",
+      "category": "engineering_remediation",
+      "status": "PASS",
+      "summary": "Repository-side immutable images, file-backed secrets, transport TLS, container hardening, smoke assertions and observability templates are validated.",
+      "evidencePath": "docs/release/PRODUCTION_REPOSITORY_READINESS.md",
+      "command": "pnpm check:production-repository-readiness"
+    },
+    {
+      "id": "ENG-FRESHDB-001",
+      "category": "engineering_remediation",
+      "status": "PASS",
+      "summary": "Full DB regression uses a migrated and seeded disposable database; fresh-bootstrap derived pricing data and event cursor precision defects are repaired.",
+      "evidencePath": "docs/reports/FRESH_DATABASE_BOOTSTRAP_REMEDIATION.md",
+      "command": "pnpm gate:stage5"
     },
     {
       "id": "OPS-001",

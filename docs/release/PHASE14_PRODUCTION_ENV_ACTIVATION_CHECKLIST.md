@@ -128,13 +128,13 @@ deploy\production\check-prod-monitoring.ps1 -EnvFile .env.production -DryRun
 Required immediately before production cut:
 
 ```powershell
-npx pnpm preflight
+.\deploy\production\check-release-window-data.ps1 -EnvFile .env.production -ExpectedCommit <full-40-char-sha> -Confirmation RELEASE-WINDOW-READ-ONLY -QuietWindowConfirmed
 ```
 
 Required immediately after production cut:
 
 ```powershell
-npx pnpm preflight
+.\deploy\production\check-release-window-data.ps1 -EnvFile .env.production -ExpectedCommit <full-40-char-sha> -Confirmation RELEASE-WINDOW-READ-ONLY -QuietWindowConfirmed
 ```
 
 PASS evidence must show both `check-ledger-replay: passed` and `check-ledger-immutability: passed` in both logs. If an operator provides a production smoke command, attach that output as supporting evidence; the repository production smoke scaffold is `deploy/production/smoke-prod.ps1`.
@@ -164,7 +164,7 @@ The release owner may approve production only after every `PROD-OPS-001` through
 | PROD-OPS-007 | NOT RUN | SRE / Ops owner | `docs/release/evidence/PHASE14_PROD_MONITORING_ALERTING_<timestamp>.md` with dashboard/alert exports and notification test; scaffold: `docs/release/PHASE14_PRODUCTION_MONITORING_EVIDENCE.md`. | Dashboards and alerts cover availability, 5xx, outbox, refund, reversal, replay, immutability, and audit gaps; notification route tested. | Manual logs only, missing owner, missing financial/audit signal, untested notification, or staging-only dashboard. | Operator-only; Codex can inspect exported configs. |
 | PROD-OPS-008 | NOT RUN | SRE / Finance ops owner | `docs/release/evidence/PHASE14_PROD_DUPLICATE_MONITORING_<timestamp>.md` with SQL/dashboard/alert evidence; optional helper: `deploy/production/check-prod-monitoring.ps1`. | Duplicate refund and reversal queries run against production/read replica, baseline recorded, alerts configured, Finance/SRE approve escalation. | No duplicate query, UAT-only check, no alert, no owner, or duplicates found without accepted remediation. | Operator-only for production data; Codex can review query text and redacted outputs. |
 | PROD-OPS-009 | NOT RUN | SRE / Backend owner | `docs/release/evidence/PHASE14_PROD_EVENT_LAG_MONITORING_<timestamp>.md` with pending-age query, alert, notification test, and runbook; optional helper: `deploy/production/check-prod-monitoring.ps1`. | Pending `refund.approved` age is observable, alert threshold approved, owner and remediation path recorded. | No pending-age query, no alert, generic-only outbox alert, missing owner, or untested channel. | Operator-only for live alerting; Codex can review artifacts. |
-| PROD-OPS-010 | NOT RUN | Release owner / Ledger owner | `npx pnpm preflight` logs immediately before and after production cut, attached at `docs/release/evidence/PHASE14_PROD_RELEASE_GATE_<timestamp>.md`. | Both release-window preflight runs pass on the intended production release candidate and include replay and immutability PASS output. | Missing run, wrong timing, wrong commit/environment, failed run, or missing replay/immutability output. | Partially local; final PASS requires release-window operator evidence. |
+| PROD-OPS-010 | NOT RUN | Release owner / Ledger owner | Dedicated read-only release-window logs immediately before and after production cut, attached at `docs/release/evidence/PHASE14_PROD_RELEASE_GATE_<timestamp>.md`. | Both `check-release-window-data.ps1` runs pass on the intended production release candidate and include replay and immutability PASS output. | Missing run, wrong timing, wrong commit/environment, failed run, or missing replay/immutability output. | Partially local; final PASS requires release-window operator evidence. |
 | PROD-OPS-012 | NOT RUN | Product / Support / Compliance owners | `docs/release/evidence/PHASE14_PROD_OPERATOR_ONBOARDING_SIGNOFF_<timestamp>.md`. | All named owners approve onboarding, support, dispute, privacy, terms, and compliance readiness, or release owner explicitly accepts documented residual gaps. | Missing owner approval, missing support escalation, unresolved compliance/privacy blocker, or onboarding not reviewed. | Human approval only. |
 | PROD-OPS-013 | FAIL | Release owner | `docs/release/evidence/PHASE14_PROD_RELEASE_APPROVAL_<timestamp>.md`. | Every `PROD-OPS-*` row is PASS, final validation is green, deployment/rollback plan is approved, and release owner explicitly authorizes production deploy/tag. | Any `PROD-OPS-*` row remains FAIL/NOT RUN, validation fails, deploy/rollback plan missing, or release owner declines/defers. | Human release-owner approval only. |
 

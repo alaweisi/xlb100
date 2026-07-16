@@ -112,3 +112,13 @@ pnpm gate:stage5
 # 当前必须以非零退出并列出阻塞项
 pnpm check:production-readiness
 ```
+
+## 7. 2026-07-16 整改补充（覆盖旧的内部阻塞描述）
+
+本轮继续整改后，`CAP-001` 已关闭：Outbox 已按事务消费者、投影/审计保留事实和历史状态不一致记录拆分，真实 claimable backlog 为 0；测试数据库已隔离，Vitest 弃用配置和 Redis 监听器泄漏也已修复。详见 `docs/reports/OUTBOX_RELIABILITY_REMEDIATION.md`。
+
+仓库内可完成的生产准备也已补齐，包括不可变镜像、无构建部署、文件型密钥、MySQL/Redis TLS、非 root/只读容器、强 smoke、Ingress/TLS、Prometheus/Alertmanager/Grafana 模板。详见 `docs/release/PRODUCTION_REPOSITORY_READINESS.md`。
+
+因此当前已无已知的“可在本仓库内直接修复却尚未处理”的 Stage 5 内部缺陷。`OPS-001` 至 `OPS-003` 仍是未实际开通的生产环境证据，外加公司主体、ICP、真实 Provider 与生产责任人等外部前置条件；它们继续使 Staging/Production 保持 `NO_GO`，不影响本地工程整改收口。
+
+最终全量门禁进一步改为新鲜临时数据库，并修复了正式 seed 后 Phase 16 派生数据缺失、Platform Delivery 同秒 live-start 漏事件、生产安全测试环境不真实等问题。最终 `pnpm gate:stage5` 于 2026-07-16 通过，耗时 385.1 秒；详见 `docs/reports/FRESH_DATABASE_BOOTSTRAP_REMEDIATION.md`。

@@ -305,6 +305,8 @@ export function renderPrometheusMetrics(): string {
     lines.push("# TYPE xlb_outbox_events gauge");
     lines.push("# HELP xlb_outbox_oldest_eligible_age_seconds Age of the first eligible outbox row in claim order.");
     lines.push("# TYPE xlb_outbox_oldest_eligible_age_seconds gauge");
+    lines.push("# HELP xlb_outbox_stalled_transactional_events Transactional outbox rows no longer eligible for their consumer.");
+    lines.push("# TYPE xlb_outbox_stalled_transactional_events gauge");
     lines.push("# HELP xlb_outbox_expired_processing_leases Expired outbox processing leases awaiting reaping.");
     lines.push("# TYPE xlb_outbox_expired_processing_leases gauge");
     lines.push("# HELP xlb_dispatch_stream_length Redis dispatch stream entry count.");
@@ -318,6 +320,7 @@ export function renderPrometheusMetrics(): string {
         lines.push(`xlb_outbox_events{city="${cityLabel}",status="${status}"} ${count}`);
       }
       lines.push(`xlb_outbox_oldest_eligible_age_seconds{city="${cityLabel}"} ${city.outbox.oldestEligibleAgeSeconds ?? -1}`);
+      lines.push(`xlb_outbox_stalled_transactional_events{city="${cityLabel}"} ${city.outbox.stalledTransactionalRows}`);
       lines.push(`xlb_outbox_expired_processing_leases{city="${cityLabel}"} ${city.outbox.expiredProcessingLeases}`);
       lines.push(`xlb_dispatch_stream_length{city="${cityLabel}"} ${city.dispatchStream.length}`);
       lines.push(`xlb_dispatch_stream_consumer_groups{city="${cityLabel}"} ${city.dispatchStream.consumerGroups}`);

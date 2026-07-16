@@ -111,6 +111,12 @@ function parsePayload(value: unknown): unknown {
   return value;
 }
 
+// event_outbox.created_at is TIMESTAMP(0). A millisecond live-start cursor can
+// otherwise exclude every source event committed later in the same second.
+function normalizeOutboxCursorDate(value: Date): Date {
+  return new Date(Math.floor(value.getTime() / 1_000) * 1_000);
+}
+
 function mapSubscription(row: SubscriptionRow): PlatformEventSubscription {
   return {
     subscriptionId: row.subscription_id,
@@ -283,6 +289,7 @@ export class PlatformDeliveryRepository {
     subscription: PlatformEventSubscription & { liveStartCreatedAt: Date; liveStartEventId: string },
     limit: number,
   ): Promise<PlatformSourceEventRow[]> {
+    const liveStartCreatedAt = normalizeOutboxCursorDate(subscription.liveStartCreatedAt);
     const [rows] = await this.pool.query<PlatformSourceEventRow[]>(
       `SELECT e.event_id,e.event_type,e.event_major_version,e.aggregate_type,e.aggregate_id,e.city_code,e.payload_json,e.created_at
        FROM event_outbox e
@@ -299,8 +306,8 @@ export class PlatformDeliveryRepository {
         subscription.cityCode,
         subscription.eventType,
         subscription.eventMajorVersion,
-        subscription.liveStartCreatedAt,
-        subscription.liveStartCreatedAt,
+        liveStartCreatedAt,
+        liveStartCreatedAt,
         subscription.liveStartEventId,
         limit,
       ],
@@ -312,6 +319,7 @@ export class PlatformDeliveryRepository {
     subscription: PlatformEventSubscription & { liveStartCreatedAt: Date; liveStartEventId: string },
     limit: number,
   ): Promise<PlatformSourceEventRow[]> {
+    const liveStartCreatedAt = normalizeOutboxCursorDate(subscription.liveStartCreatedAt);
     const [rows] = await this.pool.query<PlatformSourceEventRow[]>(
       `SELECT e.event_id,e.event_type,e.event_major_version,e.aggregate_type,e.aggregate_id,e.city_code,e.payload_json,e.created_at,
          CASE WHEN c.candidate_created_at IS NOT NULL
@@ -341,8 +349,8 @@ export class PlatformDeliveryRepository {
         subscription.cityCode,
         subscription.eventType,
         subscription.eventMajorVersion,
-        subscription.liveStartCreatedAt,
-        subscription.liveStartCreatedAt,
+        liveStartCreatedAt,
+        liveStartCreatedAt,
         subscription.liveStartEventId,
         limit,
       ],
@@ -357,6 +365,7 @@ export class PlatformDeliveryRepository {
   async hasReconciliationGap(
     subscription: PlatformEventSubscription & { liveStartCreatedAt: Date; liveStartEventId: string },
   ): Promise<boolean> {
+    const liveStartCreatedAt = normalizeOutboxCursorDate(subscription.liveStartCreatedAt);
     const [rows] = await this.pool.query<RowDataPacket[]>(
       `SELECT e.event_id
        FROM event_outbox e
@@ -378,8 +387,8 @@ export class PlatformDeliveryRepository {
         subscription.cityCode,
         subscription.eventType,
         subscription.eventMajorVersion,
-        subscription.liveStartCreatedAt,
-        subscription.liveStartCreatedAt,
+        liveStartCreatedAt,
+        liveStartCreatedAt,
         subscription.liveStartEventId,
       ],
     );
