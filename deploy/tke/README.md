@@ -4,9 +4,38 @@
 delivery line. It composes the Helm Chart and Tencent Terraform contract but
 does not weaken their boundaries.
 
+## Wave 1 release prerequisites
+
+The unified entry exposes three repository-owned preparation actions. Real
+inputs and outputs must remain below the ignored `.artifacts/tke/` directory.
+
+```powershell
+# Safe default: writes a release plan and runs no Docker or registry command.
+pwsh deploy/tke/xlb-tke.ps1 -Action ReleaseImages -Environment staging `
+  -ReleaseInput .artifacts/tke/release-input.json
+
+# Offline cloud bundle generation; never runs Terraform or Kubernetes.
+pwsh deploy/tke/xlb-tke.ps1 -Action GenerateCloudBundle -Environment staging `
+  -CloudBundleInput .artifacts/tke/reviews/staging.reviewed.json
+
+# Offline jobs/backup/restore evidence verification.
+pwsh deploy/tke/xlb-tke.ps1 -Action VerifySafetyEvidence -Environment staging `
+  -ReleaseManifest .artifacts/tke/releases/<release-id>/release-manifest.json `
+  -GuardInput .artifacts/tke/releases/<release-id>/guard-input.json `
+  -GuardOutput .artifacts/tke/releases/<release-id>/evidence.json `
+  -GuardReport .artifacts/tke/releases/<release-id>/guard-report.json
+```
+
+`ReleaseImages` mode `publish` or `freeze` is an external registry operation
+and additionally requires `-Apply` plus the exact release-scoped confirmation
+enforced by the image factory. Cloud bundle and safety evidence actions are
+always offline and reject both `-Apply` and `-ExecutePlan`.
+
 ## Safe defaults
 
-- Every operational action is a dry-run unless `-Apply` is present.
+- Cloud and Kubernetes operational actions are dry-runs unless `-Apply` is
+  present. `ReleaseImages -ImageReleaseMode build` is an explicit local Docker
+  build and still performs no registry write.
 - An applied action also requires its exact confirmation token.
 - Cluster actions require `-KubeContext` to match both the environment-approved
   context variable and `kubectl config current-context` exactly.

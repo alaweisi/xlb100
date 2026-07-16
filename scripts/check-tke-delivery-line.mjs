@@ -67,6 +67,17 @@ export function checkRepository(root = repoRoot) {
     "scripts/check-tke-release-contracts.mjs",
     "deploy/tke/tests/release-contracts.test.mjs",
     "docs/operations/TKE_ONE_COMMAND_RELEASE_CONTRACT.md",
+    "deploy/tke/release/image-release.mjs",
+    "deploy/tke/release/release-input.example.json",
+    "deploy/tke/release/tests/image-release.test.mjs",
+    "deploy/tke/bundle/generate-cloud-bundle.mjs",
+    "deploy/tke/bundle/reviewed-cloud-input.schema.json",
+    "deploy/tke/bundle/reviewed-cloud-input.example.json",
+    "deploy/tke/bundle/tests/generate-cloud-bundle.test.mjs",
+    "deploy/tke/guards/safety-guard.mjs",
+    "deploy/tke/guards/guard-input.schema.json",
+    "deploy/tke/guards/guard-input.example.json",
+    "deploy/tke/guards/tests/safety-guard.test.mjs",
     ".github/workflows/tke-delivery-line.yml",
     "deploy/helm/xlb/Chart.yaml",
     "deploy/environments/tke/values-local.yaml",
@@ -101,7 +112,7 @@ export function checkRepository(root = repoRoot) {
   }
 
   const entry = readFileSync(path.join(root, "deploy/tke/xlb-tke.ps1"), "utf8");
-  for (const action of ["Validate", "PrepareStaging", "PrepareProduction", "PlanInfrastructure", "Deploy", "Migrate", "Smoke", "Rollback"]) {
+  for (const action of ["Validate", "ReleaseImages", "GenerateCloudBundle", "VerifySafetyEvidence", "PrepareStaging", "PrepareProduction", "PlanInfrastructure", "Deploy", "Migrate", "Smoke", "Rollback"]) {
     if (!entry.includes(`\"${action}\"`)) fail(`unified TKE entry is missing action ${action}`);
   }
   for (const marker of ["-Apply", "-ExecutePlan", "explicit confirmation required", "must exactly match", "migration.enabled=false"]) {

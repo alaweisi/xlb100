@@ -35,6 +35,9 @@ jobs:
         with:
           node-version: "20"
 
+      - name: Install workspace dependencies
+        run: corepack enable && pnpm install --frozen-lockfile
+
       - uses: azure/setup-helm@v4
         with:
           version: v3.21.1
@@ -56,6 +59,12 @@ jobs:
 
       - name: N7 offline staging-plan tests
         run: node --test deploy/tke/tests/prepare-staging-plan.test.mjs
+
+      - name: One-command release contract tests
+        run: node --test deploy/tke/tests/release-contracts.test.mjs
+
+      - name: Wave 1 release automation tests
+        run: node --test deploy/tke/release/tests/image-release.test.mjs deploy/tke/bundle/tests/generate-cloud-bundle.test.mjs deploy/tke/guards/tests/safety-guard.test.mjs
 
       - name: Helm lint and render gates
         shell: pwsh

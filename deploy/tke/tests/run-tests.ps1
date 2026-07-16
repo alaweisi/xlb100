@@ -96,6 +96,40 @@ Assert-Fails "production manifest required" @(
   "-Action", "PrepareProduction", "-Environment", "production"
 ) "requires an ignored -ProductionManifest"
 
+Assert-Fails "image release input required" @(
+  "-Action", "ReleaseImages", "-Environment", "staging"
+) "requires an ignored -ReleaseInput"
+
+Assert-Fails "image publish requires apply" @(
+  "-Action", "ReleaseImages", "-Environment", "staging",
+  "-ImageReleaseMode", "publish"
+) "requires -Apply"
+
+Assert-Fails "cloud bundle input required" @(
+  "-Action", "GenerateCloudBundle", "-Environment", "staging"
+) "requires an ignored -CloudBundleInput"
+
+Assert-Fails "cloud bundle rejects apply" @(
+  "-Action", "GenerateCloudBundle", "-Environment", "staging", "-Apply"
+) "always offline"
+
+Assert-Fails "safety evidence inputs required" @(
+  "-Action", "VerifySafetyEvidence", "-Environment", "staging"
+) "requires -ReleaseManifest"
+
+$wave1TestRoot = Join-Path $repoRoot ".artifacts\tke\tooling-tests"
+$environmentMismatch = Join-Path $wave1TestRoot "environment-mismatch.json"
+try {
+  [IO.Directory]::CreateDirectory($wave1TestRoot) | Out-Null
+  [IO.File]::WriteAllText($environmentMismatch, '{"environment":"staging"}', [Text.UTF8Encoding]::new($false))
+  Assert-Fails "Wave 1 input environment mismatch" @(
+    "-Action", "ReleaseImages", "-Environment", "production",
+    "-ReleaseInput", $environmentMismatch
+  ) "environment must exactly match"
+} finally {
+  Remove-Item -LiteralPath $environmentMismatch -Force -ErrorAction SilentlyContinue
+}
+
 Assert-Fails "production preparation rejects apply" @(
   "-Action", "PrepareProduction", "-Environment", "production", "-Apply"
 ) "always offline"

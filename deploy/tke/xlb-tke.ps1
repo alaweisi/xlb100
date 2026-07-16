@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
   [Parameter(Mandatory = $true)]
-  [ValidateSet("Validate", "PrepareStaging", "PrepareProduction", "PlanInfrastructure", "Deploy", "Migrate", "Smoke", "Rollback")]
+  [ValidateSet("Validate", "ReleaseImages", "GenerateCloudBundle", "VerifySafetyEvidence", "PrepareStaging", "PrepareProduction", "PlanInfrastructure", "Deploy", "Migrate", "Smoke", "Rollback")]
   [string]$Action,
 
   [Parameter(Mandatory = $true)]
@@ -13,6 +13,16 @@ param(
   [string]$BackendConfig = "",
   [string]$StagingManifest = "",
   [string]$ProductionManifest = "",
+  [string]$ReleaseInput = "",
+  [ValidateSet("plan", "build", "publish", "freeze")]
+  [string]$ImageReleaseMode = "plan",
+  [string]$CloudBundleInput = "",
+  [string]$CloudBundleOutput = "",
+  [string]$ReleaseManifest = "",
+  [string]$GuardInput = "",
+  [string]$GuardOutput = "",
+  [string]$GuardReport = "",
+  [string]$GuardNow = "",
   [string]$EvidenceRoot = "",
   [string]$KubeContext = "",
   [string]$Confirmation = "",
@@ -47,6 +57,17 @@ function Resolve-RepoFile([string]$Candidate, [string]$DefaultRelativePath) {
   return (Resolve-Path -LiteralPath $path).Path
 }
 
+function Assert-JsonEnvironment([string]$Path, [string]$Label) {
+  try {
+    $document = Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
+  } catch {
+    Fail "$Label must contain valid JSON"
+  }
+  if ([string]::IsNullOrWhiteSpace($document.environment) -or $document.environment -cne $Environment) {
+    Fail "$Label environment must exactly match -Environment $Environment"
+  }
+}
+
 function Get-ConfirmationToken([string]$RequestedAction, [string]$RequestedEnvironment) {
   $prefix = switch ($RequestedAction) {
     "PlanInfrastructure" { "PLAN-INFRASTRUCTURE" }
@@ -61,6 +82,15 @@ function Get-ConfirmationToken([string]$RequestedAction, [string]$RequestedEnvir
 
 function Assert-ApplyConfirmation {
   if (-not $Apply) { return }
+  if ($Action -eq "ReleaseImages") {
+    if ($ImageReleaseMode -notin @("publish", "freeze")) {
+      Fail "ReleaseImages -Apply is only valid for publish or freeze"
+    }
+    if ([string]::IsNullOrWhiteSpace($Confirmation)) {
+      Fail "ReleaseImages publish/freeze requires the release-scoped confirmation token"
+    }
+    return
+  }
   $required = Get-ConfirmationToken $Action $Environment
   if ($Confirmation -ne $required) {
     Fail "explicit confirmation required: -Confirmation $required"
@@ -210,8 +240,11 @@ if ($ExecutePlan -and $Action -ne "PlanInfrastructure") {
 if ($Apply -and $Action -eq "PlanInfrastructure") {
   Fail "PlanInfrastructure never accepts -Apply; use -ExecutePlan only after real-cloud plan authorization"
 }
-if (($Apply -or $ExecutePlan) -and $Action -in @("PrepareStaging", "PrepareProduction")) {
+if (($Apply -or $ExecutePlan) -and $Action -in @("GenerateCloudBundle", "VerifySafetyEvidence", "PrepareStaging", "PrepareProduction")) {
   Fail "$Action is always offline and never accepts -Apply or -ExecutePlan"
+}
+if ($Action -eq "ReleaseImages" -and $ImageReleaseMode -in @("publish", "freeze") -and -not $Apply) {
+  Fail "ReleaseImages $ImageReleaseMode requires -Apply and the release-scoped confirmation token"
 }
 Assert-ApplyConfirmation
 
@@ -222,6 +255,69 @@ switch ($Action) {
     Invoke-HelmValidation
     Invoke-TerraformValidation
     Write-Host "xlb-tke: validation passed"
+  }
+
+  "ReleaseImages" {
+    if ([string]::IsNullOrWhiteSpace($ReleaseInput)) {
+      Fail "ReleaseImages requires an ignored -ReleaseInput under .artifacts"
+    }
+    $inputFile = Resolve-RepoFile $ReleaseInput ""
+    Assert-JsonEnvironment $inputFile "ReleaseInput"
+    $arguments = @(
+      (Join-Path $repoRoot "deploy\tke\release\image-release.mjs"),
+      "--input", $inputFile,
+      "--mode", $ImageReleaseMode
+    )
+    if (-not [string]::IsNullOrWhiteSpace($Confirmation)) {
+      $arguments += @("--confirmation", $Confirmation)
+    }
+    & node @arguments
+    if ($LASTEXITCODE -ne 0) { Fail "image release factory failed" }
+  }
+
+  "GenerateCloudBundle" {
+    if ([string]::IsNullOrWhiteSpace($CloudBundleInput)) {
+      Fail "GenerateCloudBundle requires an ignored -CloudBundleInput under .artifacts"
+    }
+    $inputFile = Resolve-RepoFile $CloudBundleInput ""
+    Assert-JsonEnvironment $inputFile "CloudBundleInput"
+    $arguments = @(
+      (Join-Path $repoRoot "deploy\tke\bundle\generate-cloud-bundle.mjs"),
+      "--manifest", $inputFile
+    )
+    if (-not [string]::IsNullOrWhiteSpace($CloudBundleOutput)) {
+      $arguments += @("--output", $CloudBundleOutput)
+    }
+    & node @arguments
+    if ($LASTEXITCODE -ne 0) { Fail "cloud bundle generation failed" }
+  }
+
+  "VerifySafetyEvidence" {
+    foreach ($required in @(
+      @{ Name = "ReleaseManifest"; Value = $ReleaseManifest },
+      @{ Name = "GuardInput"; Value = $GuardInput },
+      @{ Name = "GuardOutput"; Value = $GuardOutput },
+      @{ Name = "GuardReport"; Value = $GuardReport }
+    )) {
+      if ([string]::IsNullOrWhiteSpace($required.Value)) {
+        Fail "VerifySafetyEvidence requires -$($required.Name) under .artifacts"
+      }
+    }
+    $manifestFile = Resolve-RepoFile $ReleaseManifest ""
+    Assert-JsonEnvironment $manifestFile "ReleaseManifest"
+    $inputFile = Resolve-RepoFile $GuardInput ""
+    $arguments = @(
+      (Join-Path $repoRoot "deploy\tke\guards\safety-guard.mjs"),
+      "--manifest", $manifestFile,
+      "--input", $inputFile,
+      "--output", $GuardOutput,
+      "--report", $GuardReport
+    )
+    if (-not [string]::IsNullOrWhiteSpace($GuardNow)) {
+      $arguments += @("--now", $GuardNow)
+    }
+    & node @arguments
+    if ($LASTEXITCODE -ne 0) { Fail "safety evidence verification failed" }
   }
 
   "PrepareStaging" {
