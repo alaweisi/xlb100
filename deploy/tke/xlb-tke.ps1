@@ -258,7 +258,7 @@ switch ($Action) {
     [IO.Directory]::CreateDirectory($artifactRoot) | Out-Null
     $manifest = Join-Path $artifactRoot "$Environment-$RunId.yaml"
     $tools = Get-ToolPaths
-    $rendered = @(& $tools.helm template "xlb-migration" $chartRoot --namespace $namespace -f $resolvedValues --set migration.enabled=true --set-string "migration.runId=$RunId" 2>&1)
+    $rendered = @(& $tools.helm template $releaseName $chartRoot --namespace $namespace -f $resolvedValues --set migration.enabled=true --set-string "migration.runId=$RunId" --show-only "templates/migration-job.yaml" 2>&1)
     if ($LASTEXITCODE -ne 0) { Fail "migration Job rendering failed: $($rendered -join [Environment]::NewLine)" }
     [IO.File]::WriteAllText($manifest, ($rendered -join [Environment]::NewLine), [Text.UTF8Encoding]::new($false))
     & kubectl --context $KubeContext --namespace $namespace apply -f $manifest
