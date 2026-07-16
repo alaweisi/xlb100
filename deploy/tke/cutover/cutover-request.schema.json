@@ -1,0 +1,72 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://xlb.local/schemas/tke/cutover-request.schema.json",
+  "title": "XLB provider-neutral traffic cutover request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "releaseId",
+    "environment",
+    "trafficProvider",
+    "files",
+    "expectedHashes",
+    "steps",
+    "rollbackTargetWeight"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "releaseId": {
+      "type": "string",
+      "minLength": 6,
+      "maxLength": 63,
+      "pattern": "^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])$"
+    },
+    "environment": { "enum": ["staging", "production"] },
+    "trafficProvider": { "enum": ["clb", "dns"] },
+    "files": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["releaseManifest", "cloudBundle", "evidenceBundle", "checkpoint"],
+      "properties": {
+        "releaseManifest": { "$ref": "#/definitions/artifactJsonPath" },
+        "cloudBundle": { "$ref": "#/definitions/artifactJsonPath" },
+        "evidenceBundle": { "$ref": "#/definitions/artifactJsonPath" },
+        "checkpoint": { "$ref": "#/definitions/artifactJsonPath" }
+      }
+    },
+    "expectedHashes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["releaseManifest", "cloudBundle", "evidenceBundle", "checkpoint"],
+      "properties": {
+        "releaseManifest": { "$ref": "#/definitions/sha256" },
+        "cloudBundle": { "$ref": "#/definitions/sha256" },
+        "evidenceBundle": { "$ref": "#/definitions/sha256" },
+        "checkpoint": { "$ref": "#/definitions/sha256" }
+      }
+    },
+    "steps": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["weight", "minimumObservationSeconds"],
+        "properties": {
+          "weight": { "enum": [5, 25, 50, 100] },
+          "minimumObservationSeconds": { "type": "integer", "minimum": 60, "maximum": 86400 }
+        }
+      }
+    },
+    "rollbackTargetWeight": { "const": 0 }
+  },
+  "definitions": {
+    "artifactJsonPath": {
+      "type": "string",
+      "pattern": "^\\.artifacts/tke/[a-z0-9./-]+\\.json$"
+    },
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+  }
+}
