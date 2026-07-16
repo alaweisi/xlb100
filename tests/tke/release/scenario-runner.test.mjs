@@ -12,6 +12,10 @@ const setup = options => {
   return { fixture, fake: createDeterministicProviderFakes(fixture, options) };
 };
 
+const providerCalls = (fake, stage) => fake.trace.filter(
+  item => item.operation === "provider.invoke" && item.stage === stage,
+).length;
+
 test("deterministic happy path reaches Lighthouse retirement in contract order", async () => {
   const { fixture, fake } = setup();
   const result = await runReleaseSimulation({ fixture, ports: fake.ports });
@@ -34,6 +38,15 @@ test("registry digest drift fails closed before Terraform plan review", async ()
   assert.equal(result.checkpoint.failure.failedStage, "IMAGES_PUBLISHED");
   assert.match(result.checkpoint.failure.message, /registry digest drift/);
   assert.equal(fake.trace.some(item => item.stage === "PLAN_INFRASTRUCTURE"), false);
+});
+
+test("registry inspection explicit FAIL blocks Terraform plan review", async () => {
+  const { fixture, fake } = setup({ stageResults: { INSPECT_IMAGE_DIGESTS: "FAIL" } });
+  const result = await runReleaseSimulation({ fixture, ports: fake.ports });
+
+  assert.equal(result.checkpoint.currentState, "FAILED");
+  assert.equal(result.checkpoint.failure.failedStage, "IMAGES_PUBLISHED");
+  assert.equal(providerCalls(fake, "PLAN_INFRASTRUCTURE"), 0);
 });
 
 test("rejected Terraform plan never reaches apply", async () => {
@@ -89,6 +102,32 @@ test("traffic cutover plan cannot skip a fixed staircase step", async () => {
   assert.equal(fake.trace.length, 0);
 });
 
+test("an explicit stage result FAIL is persisted and can never retire Lighthouse", async () => {
+  const { fixture, fake } = setup({ stageResults: { SMOKE: "FAIL" } });
+  const result = await runReleaseSimulation({ fixture, ports: fake.ports });
+
+  assert.equal(result.checkpoint.currentState, "FAILED");
+  assert.equal(result.checkpoint.failure.failedStage, "SMOKE");
+  assert.equal(result.evidence.smoke.result, "FAIL");
+  assert.equal(providerCalls(fake, "SWITCH_JOBS"), 0);
+  assert.equal(fake.snapshots.at(-1).checkpoint.currentState, "FAILED");
+  assert.equal(fake.snapshots.at(-1).evidence.smoke.result, "FAIL");
+});
+
+test("an explicit FAIL traffic observation blocks the next weight and retirement", async () => {
+  const { fixture, fake } = setup({ trafficResults: { 25: "FAIL" } });
+  const result = await runReleaseSimulation({ fixture, ports: fake.ports });
+
+  assert.equal(result.checkpoint.currentState, "FAILED");
+  assert.equal(result.checkpoint.failure.failedStage, "TRAFFIC_25");
+  assert.deepEqual(result.evidence.trafficObservations.map(item => [item.weight, item.result]), [
+    [5, "PASS"],
+    [25, "FAIL"],
+  ]);
+  assert.equal(providerCalls(fake, "TRAFFIC_50"), 0);
+  assert.equal(providerCalls(fake, "RETIRE_LIGHTHOUSE"), 0);
+});
+
 test("post-deployment smoke failure can execute deterministic rollback", async () => {
   const { fixture, fake } = setup({ failAt: "SMOKE" });
   const result = await runReleaseSimulation({
@@ -117,10 +156,85 @@ test("process interruption resumes from the saved checkpoint without repeating a
 
   const resumed = await runReleaseSimulation({ fixture, ports: fake.ports });
   assert.equal(resumed.checkpoint.currentState, "LIGHTHOUSE_RETIRED");
-  const providerCalls = stage => fake.trace.filter(
-    item => item.operation === "provider.invoke" && item.stage === stage,
-  ).length;
-  assert.equal(providerCalls("APPLY_INFRASTRUCTURE"), 1);
-  assert.equal(providerCalls("DEPLOY_NO_TRAFFIC"), 1);
-  assert.equal(providerCalls("VERIFY_BACKUP"), 1);
+  assert.equal(providerCalls(fake, "APPLY_INFRASTRUCTURE"), 1);
+  assert.equal(providerCalls(fake, "DEPLOY_NO_TRAFFIC"), 1);
+  assert.equal(providerCalls(fake, "VERIFY_BACKUP"), 1);
+});
+
+test("TRAFFIC_25 interruption restores evidence prefix before continuing at 50", async () => {
+  const { fixture, fake } = setup({ interruptAfter: "TRAFFIC_25" });
+  await assert.rejects(
+    runReleaseSimulation({ fixture, ports: fake.ports }),
+    error => error instanceof ProcessInterrupted && error.stage === "TRAFFIC_25",
+  );
+  assert.equal(fake.getCheckpoint().currentState, "TRAFFIC_25");
+  assert.deepEqual(fake.getEvidence().trafficObservations.map(item => item.weight), [5, 25]);
+
+  const resumed = await runReleaseSimulation({ fixture, ports: fake.ports });
+  assert.equal(resumed.checkpoint.currentState, "LIGHTHOUSE_RETIRED");
+  assert.deepEqual(resumed.evidence.trafficObservations.map(item => item.weight), [5, 25, 50, 100]);
+  assert.equal(providerCalls(fake, "TRAFFIC_5"), 1);
+  assert.equal(providerCalls(fake, "TRAFFIC_25"), 1);
+  assert.equal(providerCalls(fake, "TRAFFIC_50"), 1);
+});
+
+test("artifact hash drift creates durable FAILED evidence before any provider call", async () => {
+  const fixture = buildReleaseFixture();
+  const checkpoint = structuredClone(fixture.checkpoint);
+  checkpoint.artifactHashes.imageLock = "f".repeat(64);
+  const fake = createDeterministicProviderFakes(fixture, { checkpoint });
+  const result = await runReleaseSimulation({ fixture, ports: fake.ports });
+
+  assert.equal(result.checkpoint.currentState, "FAILED");
+  assert.equal(result.checkpoint.failure.failedStage, "PLAN_INFRASTRUCTURE");
+  assert.match(result.checkpoint.failure.message, /hash drift/);
+  assert.equal(fake.trace.some(item => item.operation === "provider.invoke"), false);
+  assert.equal(fake.snapshots.at(-1).checkpoint.currentState, "FAILED");
+});
+
+test("rollback provider failure persists FAILED checkpoint and FAIL rollback evidence", async () => {
+  const { fixture, fake } = setup({
+    failAt: "SMOKE",
+    stageResults: { ROLLBACK_TRAFFIC: "FAIL" },
+  });
+  const result = await runReleaseSimulation({
+    fixture,
+    ports: fake.ports,
+    rollbackOnFailure: true,
+  });
+
+  assert.equal(result.checkpoint.currentState, "FAILED");
+  assert.equal(result.checkpoint.failure.failedStage, "SMOKE");
+  assert.match(result.checkpoint.failure.message, /rollback failed/);
+  assert.equal(result.evidence.rollback.result, "FAIL");
+  assert.equal(fake.snapshots.at(-1).evidence.rollback.result, "FAIL");
+});
+
+test("repeating the same terminal release ID is idempotent", async () => {
+  const { fixture, fake } = setup();
+  const first = await runReleaseSimulation({ fixture, ports: fake.ports });
+  assert.equal(first.checkpoint.currentState, "LIGHTHOUSE_RETIRED");
+  const callsAfterFirst = fake.trace.filter(item => item.operation === "provider.invoke").length;
+
+  const repeated = await runReleaseSimulation({ fixture, ports: fake.ports });
+  assert.equal(repeated.checkpoint.currentState, "LIGHTHOUSE_RETIRED");
+  assert.equal(fake.trace.filter(item => item.operation === "provider.invoke").length, callsAfterFirst);
+});
+
+test("rollback evidence derives its release ID instead of using the sample ID", async () => {
+  const oldId = "release-20260716-001";
+  const newId = "release-custom-002";
+  const fixture = buildReleaseFixture(bundle => {
+    for (const key of Object.keys(bundle)) {
+      bundle[key] = JSON.parse(JSON.stringify(bundle[key]).replaceAll(oldId, newId));
+    }
+  });
+  const fake = createDeterministicProviderFakes(fixture, { failAt: "SMOKE" });
+  const result = await runReleaseSimulation({ fixture, ports: fake.ports, rollbackOnFailure: true });
+
+  assert.equal(result.checkpoint.currentState, "ROLLED_BACK");
+  assert.equal(result.evidence.rollback.runId, `rollback-${newId}`);
+  assert.match(result.evidence.rollback.evidenceRef, new RegExp(newId));
+  assert.equal(fake.snapshots.at(-1).checkpoint.currentState, "ROLLED_BACK");
+  assert.equal(fake.snapshots.at(-1).evidence.rollback.runId, `rollback-${newId}`);
 });

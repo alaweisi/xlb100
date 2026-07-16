@@ -13,18 +13,27 @@ const steps = Object.freeze([
   { state: "PLAN_REVIEWED", stage: "PLAN_INFRASTRUCTURE", run: async ports => {
     const plan = await ports.terraform.reviewPlan();
     if (!plan.approved) throw new ProviderFailure("PLAN_INFRASTRUCTURE", "Terraform plan was rejected");
+    assertStageResult("PLAN_INFRASTRUCTURE", plan);
   } },
-  { state: "INFRA_READY", stage: "APPLY_INFRASTRUCTURE", run: ports => ports.terraform.apply() },
-  { state: "DEPLOYED_NO_TRAFFIC", stage: "DEPLOY_NO_TRAFFIC", run: ports => ports.kubernetes.deployNoTraffic() },
-  { state: "BACKUP_VERIFIED", stage: "VERIFY_BACKUP", run: ports => ports.backup.verify() },
+  { state: "INFRA_READY", stage: "APPLY_INFRASTRUCTURE", run: async ports => {
+    assertStageResult("APPLY_INFRASTRUCTURE", await ports.terraform.apply());
+  } },
+  { state: "DEPLOYED_NO_TRAFFIC", stage: "DEPLOY_NO_TRAFFIC", run: async ports => {
+    assertStageResult("DEPLOY_NO_TRAFFIC", await ports.kubernetes.deployNoTraffic());
+  } },
+  { state: "BACKUP_VERIFIED", stage: "VERIFY_BACKUP", run: async ports => {
+    assertStageResult("VERIFY_BACKUP", await ports.backup.verify());
+  } },
   { state: "MIGRATED", stage: "MIGRATE_DATA", run: async (ports, context) => {
     context.evidence.migration = await ports.migration.run();
+    assertStageResult("MIGRATE_DATA", context.evidence.migration);
   } },
   { state: "SMOKE_PASS", stage: "SMOKE", run: async (ports, context) => {
     context.evidence.smoke = await ports.smoke.run();
+    assertStageResult("SMOKE", context.evidence.smoke);
   } },
   { state: "JOBS_SWITCHED", stage: "SWITCH_JOBS", run: async (ports, context) => {
-    await ports.jobs.switchToTke();
+    assertStageResult("SWITCH_JOBS", await ports.jobs.switchToTke());
     context.evidence.jobsSingleActive = await ports.jobs.observeSingleActive();
     try {
       validateEvidenceSemantics(context.evidence);
@@ -36,8 +45,13 @@ const steps = Object.freeze([
     state: `TRAFFIC_${weight}`,
     stage: `TRAFFIC_${weight}`,
     run: async (ports, context) => {
-      await ports.traffic.setWeight(weight);
-      context.evidence.trafficObservations.push(await ports.traffic.observe(weight));
+      context.evidence.trafficObservations = context.evidence.trafficObservations.filter(
+        item => item.weight < weight,
+      );
+      assertStageResult(`TRAFFIC_${weight}`, await ports.traffic.setWeight(weight));
+      const observation = await ports.traffic.observe(weight);
+      context.evidence.trafficObservations.push(observation);
+      assertStageResult(`TRAFFIC_${weight}`, observation);
       try {
         validateEvidenceSemantics(context.evidence);
       } catch (error) {
@@ -45,9 +59,20 @@ const steps = Object.freeze([
       }
     },
   })),
-  { state: "OBSERVED", stage: "OBSERVE", run: ports => ports.lifecycle.observe() },
-  { state: "LIGHTHOUSE_RETIRED", stage: "RETIRE_LIGHTHOUSE", run: ports => ports.lifecycle.retire() },
+  { state: "OBSERVED", stage: "OBSERVE", run: async ports => {
+    assertStageResult("OBSERVE", await ports.lifecycle.observe());
+  } },
+  { state: "LIGHTHOUSE_RETIRED", stage: "RETIRE_LIGHTHOUSE", run: async ports => {
+    assertStageResult("RETIRE_LIGHTHOUSE", await ports.lifecycle.retire());
+  } },
 ]);
+
+function assertStageResult(stage, result) {
+  if (result?.result === "FAIL") {
+    throw new ProviderFailure(stage, `${stage} returned explicit result=FAIL`);
+  }
+  return result;
+}
 
 function assertRegistryDigests(imageLock, actual) {
   const expected = lockedDigests(imageLock);
@@ -101,15 +126,15 @@ function stepStartIndex(checkpoint) {
 }
 
 async function rollback(checkpoint, evidence, ports) {
-  await ports.traffic.rollback();
-  await ports.jobs.returnToLighthouse();
-  await ports.kubernetes.rollback();
+  assertStageResult("ROLLBACK", await ports.traffic.rollback());
+  assertStageResult("ROLLBACK", await ports.jobs.returnToLighthouse());
+  assertStageResult("ROLLBACK", await ports.kubernetes.rollback());
   const completedAt = ports.clock.now();
   evidence.rollback = {
-    runId: "rollback-20260716-001",
+    runId: `rollback-${checkpoint.releaseId}`.slice(0, 63),
     completedAt,
     result: "PASS",
-    evidenceRef: ".artifacts/tke/releases/release-20260716-001/evidence/rollback.json",
+    evidenceRef: `.artifacts/tke/releases/${checkpoint.releaseId}/evidence/rollback.json`,
   };
   assertTransition(checkpoint.currentState, "ROLLED_BACK");
   const rolledBack = validateCheckpointSemantics({
@@ -119,8 +144,17 @@ async function rollback(checkpoint, evidence, ports) {
     updatedAt: completedAt,
     revision: checkpoint.revision + 1,
   });
-  await ports.checkpoint.save(rolledBack);
+  await ports.checkpoint.save(rolledBack, evidence);
   return rolledBack;
+}
+
+function assertArtifactHashes(checkpoint, expected) {
+  const names = new Set([...Object.keys(checkpoint.artifactHashes), ...Object.keys(expected)]);
+  for (const name of names) {
+    if (checkpoint.artifactHashes[name] !== expected[name]) {
+      throw new ProviderFailure("PREPARE", `${name} artifact hash drift detected; stale resume is blocked`);
+    }
+  }
 }
 
 export async function runReleaseSimulation({
@@ -133,9 +167,26 @@ export async function runReleaseSimulation({
   assertTrafficPlan(trafficPlan);
   const base = clone(fixture);
   validateContractBundle(base);
-  let checkpoint = await ports.checkpoint.load();
-  let evidence = base.evidenceBundle;
-  validateCheckpointSemantics(checkpoint);
+  const persisted = await ports.checkpoint.load();
+  if (!persisted?.checkpoint || !persisted?.evidence) {
+    throw new TypeError("checkpoint.load() must return checkpoint and evidence atomically");
+  }
+  let checkpoint = persisted.checkpoint;
+  let evidence = persisted.evidence;
+  validateContractBundle({ ...base, checkpoint, evidenceBundle: evidence });
+
+  try {
+    assertArtifactHashes(checkpoint, base.checkpoint.artifactHashes);
+  } catch (error) {
+    if (checkpoint.currentState === "FAILED" || ["LIGHTHOUSE_RETIRED", "ROLLED_BACK"].includes(checkpoint.currentState)) {
+      throw error;
+    }
+    const next = steps[stepStartIndex(checkpoint)];
+    const failure = new ProviderFailure(next.stage, error.message);
+    checkpoint = failedCheckpoint(checkpoint, next, failure, ports.clock.now());
+    await ports.checkpoint.save(checkpoint, evidence);
+    return { checkpoint, evidence, error: failure };
+  }
 
   const initialStepIndex = stepStartIndex(checkpoint);
   if (initialStepIndex < 0) {
@@ -145,20 +196,36 @@ export async function runReleaseSimulation({
   for (const step of steps.slice(initialStepIndex)) {
     try {
       if (step.state === "PLAN_REVIEWED") {
-        assertRegistryDigests(base.imageLock, await ports.registry.inspectDigests());
+        const registryResult = await ports.registry.inspectDigests();
+        assertStageResult("IMAGES_PUBLISHED", registryResult);
+        assertRegistryDigests(base.imageLock, registryResult);
       }
       await step.run(ports, { checkpoint, evidence });
       checkpoint = updateCheckpoint(checkpoint, step.state, step.stage, ports.clock.now());
-      await ports.checkpoint.save(checkpoint);
+      await ports.checkpoint.save(checkpoint, evidence);
       await ports.process.afterCheckpoint(step.stage);
     } catch (error) {
       if (!(error instanceof ProviderFailure)) throw error;
       if (rollbackOnFailure && FORWARD_STATES.indexOf(checkpoint.currentState) >= FORWARD_STATES.indexOf("DEPLOYED_NO_TRAFFIC")) {
-        checkpoint = await rollback(checkpoint, evidence, ports);
-        return { checkpoint, evidence, rolledBackFrom: step.state, error };
+        try {
+          checkpoint = await rollback(checkpoint, evidence, ports);
+          return { checkpoint, evidence, rolledBackFrom: step.state, error };
+        } catch (rollbackError) {
+          const failedAt = ports.clock.now();
+          evidence.rollback = {
+            runId: `rollback-${checkpoint.releaseId}`.slice(0, 63),
+            completedAt: failedAt,
+            result: "FAIL",
+            evidenceRef: `.artifacts/tke/releases/${checkpoint.releaseId}/evidence/rollback.json`,
+          };
+          const failure = new ProviderFailure(step.stage, `rollback failed: ${rollbackError.message}`);
+          checkpoint = failedCheckpoint(checkpoint, step, failure, failedAt);
+          await ports.checkpoint.save(checkpoint, evidence);
+          return { checkpoint, evidence, error: failure, rollbackError };
+        }
       }
       checkpoint = failedCheckpoint(checkpoint, step, error, ports.clock.now());
-      await ports.checkpoint.save(checkpoint);
+      await ports.checkpoint.save(checkpoint, evidence);
       return { checkpoint, evidence, error };
     }
   }

@@ -19,7 +19,9 @@ export class ProcessInterrupted extends Error {
 export function createDeterministicProviderFakes(fixture, options = {}) {
   const trace = [];
   const checkpoints = [];
+  const snapshots = [];
   let storedCheckpoint = clone(options.checkpoint ?? fixture.checkpoint);
+  let storedEvidence = clone(options.evidence ?? fixture.evidenceBundle);
   let interrupted = false;
   let clockTick = 0;
 
@@ -28,8 +30,10 @@ export function createDeterministicProviderFakes(fixture, options = {}) {
   };
   const invoke = (stage, result) => {
     record("provider.invoke", { stage });
-    if (options.failAt === stage) throw new ProviderFailure(stage);
-    return clone(result);
+    const failures = new Set(Array.isArray(options.failAt) ? options.failAt : [options.failAt].filter(Boolean));
+    if (failures.has(stage)) throw new ProviderFailure(stage);
+    const overriddenResult = options.stageResults?.[stage];
+    return clone(overriddenResult === undefined ? result : { ...result, result: overriddenResult });
   };
 
   const defaultJobs = {
@@ -85,7 +89,7 @@ export function createDeterministicProviderFakes(fixture, options = {}) {
       observe: weight => invoke(`OBSERVE_TRAFFIC_${weight}`, {
         weight,
         observedAt: `2026-07-16T${String(10 + Math.floor(weight / 25)).padStart(2, "0")}:00:00Z`,
-        result: "PASS",
+        result: options.trafficResults?.[weight] ?? "PASS",
         evidenceRef: `.artifacts/tke/releases/release-20260716-001/evidence/traffic-${weight}.json`,
       }),
       rollback: () => invoke("ROLLBACK_TRAFFIC", { lighthouseWeight: 100, tkeWeight: 0 }),
@@ -95,10 +99,12 @@ export function createDeterministicProviderFakes(fixture, options = {}) {
       retire: () => invoke("RETIRE_LIGHTHOUSE", { retired: true }),
     },
     checkpoint: {
-      load: () => clone(storedCheckpoint),
-      save: checkpoint => {
+      load: () => ({ checkpoint: clone(storedCheckpoint), evidence: clone(storedEvidence) }),
+      save: (checkpoint, evidence) => {
         storedCheckpoint = clone(checkpoint);
+        storedEvidence = clone(evidence);
         checkpoints.push(clone(checkpoint));
+        snapshots.push({ checkpoint: clone(checkpoint), evidence: clone(evidence) });
         record("checkpoint.save", { state: checkpoint.currentState, revision: checkpoint.revision });
       },
     },
@@ -124,6 +130,8 @@ export function createDeterministicProviderFakes(fixture, options = {}) {
     ports,
     trace,
     checkpoints,
+    snapshots,
     getCheckpoint: () => clone(storedCheckpoint),
+    getEvidence: () => clone(storedEvidence),
   };
 }
