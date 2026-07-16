@@ -43,20 +43,28 @@ durable `FAILED` checkpoint. Every nested `evidenceRef`, fake lease owner and
 fake run ID is bound to the fixture's release ID; cross-release evidence is
 rejected before the next state can advance.
 
-## Gate 2 wiring still required
+## Gate 2 integration hand-off
 
-- Adapt P4's checkpoint/state execution to these ports and compare checkpoint
-  transitions against this reference runner.
-- Adapt P5's CLB/DNS planner and rollback controller to the traffic port.
+`p4-p5-real-chain.test.mjs` now supplies the executable cross-module contract:
+it builds a complete temporary artifact tree, advances the real P4
+orchestrator through `JOBS_SWITCHED`, invokes the real P5 controller from the
+P4 `TRAFFIC_5` executor with raw evidence bytes and transient tokens, writes
+the resulting evidence and REAL provider receipt, and lets P4 re-hash and
+commit the checkpoint. It also covers P5 failure/resume, external weight
+drift, and P5 traffic rollback through P4's rollback-failure latch.
+The tests resolve P4/P5 from the current integrated checkout. Pre-integration
+branch validation may explicitly inject the two module files with
+`XLB_P4_ORCHESTRATOR_MODULE` and `XLB_P5_CUTOVER_MODULE`; no sibling-worktree
+path is inferred or persisted.
+
 - Replace selected fakes with the kind/local-registry/MySQL/Redis test harness
-  after P4/P5 integration; keep Tencent Cloud providers mocked.
-- Add failure injection at the merged P4/P5 command boundaries and compare
-  their persisted artifacts with the deterministic reference evidence.
+  when runtime-level coverage is scheduled; keep Tencent Cloud providers
+  mocked.
 - Run the aggregate delivery gate from the integration branch; shared package,
   CI and result-report changes remain the integration owner's responsibility.
 
 Run the foundation directly with:
 
 ```text
-node --test tests/tke/release/scenario-runner.test.mjs
+node --test tests/tke/release/*.test.mjs
 ```

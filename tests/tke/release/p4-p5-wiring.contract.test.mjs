@@ -8,12 +8,12 @@ import { createP4ExecutorAdapter, createP5ControllerBindings } from "./p4-p5-wir
 import { createDeterministicProviderFakes } from "./provider-fakes.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
-const resolveWave2Module = (relative, siblingWorktree) => {
+const resolveWave2Module = (relative, environmentVariable) => {
   const integrated = path.join(repoRoot, relative);
   if (existsSync(integrated)) return integrated;
-  const sibling = path.resolve(repoRoot, "..", siblingWorktree, relative);
-  if (existsSync(sibling)) return sibling;
-  throw new Error(`real Wave 2 module is unavailable: ${relative}`);
+  const explicitlyInjected = process.env[environmentVariable];
+  if (explicitlyInjected && existsSync(explicitlyInjected)) return path.resolve(explicitlyInjected);
+  throw new Error(`real Wave 2 module is unavailable in this checkout: ${relative}`);
 };
 
 const p4Context = stage => ({
@@ -62,11 +62,11 @@ test("simulation bindings implement the real P5 adapter observer and progress-st
 test("wiring loads the real P4/P5 modules and satisfies their public injection surfaces", async () => {
   const p4File = resolveWave2Module(
     "deploy/tke/orchestrator/orchestrator.mjs",
-    "tke-release-orchestrator",
+    "XLB_P4_ORCHESTRATOR_MODULE",
   );
   const p5File = resolveWave2Module(
     "deploy/tke/cutover/cutover-controller.mjs",
-    "tke-cutover-controller",
+    "XLB_P5_CUTOVER_MODULE",
   );
   const [p4, p5] = await Promise.all([
     import(pathToFileURL(p4File)),
