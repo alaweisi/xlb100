@@ -21,10 +21,14 @@ WAVE2_STATUS=BLOCKED_P4_REVIEW
 4. Long-running stage receipt freshness is measured against an unsuitable
    clock boundary, so a valid receipt can become stale before the stage
    commits.
+5. The P6 wiring candidate does not drive the actual P4 advance into the P5
+   advance path and does not round-trip real evidence, provider receipt hashes
+   and the resulting P4 checkpoint. Its passing wiring test therefore does not
+   yet prove the integrated failure, resume and rollback chain.
 
-Gate 2 remains blocked until a third P4 correction closes all four findings,
-adds regression coverage, passes the complete offline gate and receives a
-final integration review.
+Gate 2 remains blocked until the third P4 correction and the real P4/P5 wiring
+increment close all five findings, add regression coverage, pass the complete
+offline gate and receive a final integration review.
 
 ## Integrated baseline
 
