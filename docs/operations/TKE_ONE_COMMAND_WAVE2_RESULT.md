@@ -2,7 +2,7 @@
 
 Date: 2026-07-17 (Asia/Shanghai)
 
-WAVE2_STATUS=BLOCKED_P6_WIRING_REVIEW
+WAVE2_STATUS=BLOCKED_P4_FINAL_REVIEW
 
 > Correction: the earlier `5061892` acceptance candidate is superseded. A
 > later independent P4 review found four open fail-closed issues. Passing tests
@@ -21,15 +21,28 @@ WAVE2_STATUS=BLOCKED_P6_WIRING_REVIEW
 4. **Resolved by P4 third correction `8519a82`:** long-running stage receipt freshness is measured against an unsuitable
    clock boundary, so a valid receipt can become stale before the stage
    commits.
-5. **Open:** the P6 wiring candidate does not drive the actual P4 advance into the P5
-   advance path and does not round-trip real evidence, provider receipt hashes
-   and the resulting P4 checkpoint. Its passing wiring test therefore does not
-   yet prove the integrated failure, resume and rollback chain.
+5. **Resolved by P6 real-chain increment `cfa9221`:** the earlier P6 wiring
+   candidate did not drive the actual P4 advance into the P5 advance path and
+   did not round-trip real evidence, provider receipt hashes and the resulting
+   P4 checkpoint. The real-chain increment now covers success, failure/resume,
+   external drift and rollback/retry paths.
+6. **Open:** `LEASE_LOST` or fencing-owner mismatch can enter a generic catch
+   path and persist `FAILED` or `ROLLBACK_FAILED`. Under reverse interleaving,
+   the stale owner can claim revision + 1 before the new owner. Fencing failures
+   must rethrow without any persistent write.
+7. **Open:** an artifacts failure uses `SAFETY_EVIDENCE_READY` while the frozen
+   checkpoint schema permits `SAFETY_CONTRACT_READY`; a temporary mapping masks
+   an otherwise illegal persisted `failedStage`.
+8. **Open:** only provider-receipt validation uses a post-executor clock. Other
+   business evidence, rollback evidence, checkpoint and failure timestamps use
+   the entry clock, so a task longer than five minutes can incorrectly reject
+   fresh evidence as future-dated.
 
-P4 third-correction tests pass 26/26 and the aggregate root tests pass 142/142.
-Gate 2 remains blocked until the real P4/P5 wiring increment closes finding 5,
-adds regression coverage, passes the complete offline gate and receives a
-final independent integration review.
+P4 third-correction tests pass 26/26. The real P4/P5 chain passes 4/4, the Wave
+0 combined chain passes 56/56 and the aggregate root tests pass 146/146. Gate 2
+remains blocked until a fourth P4 correction closes findings 6-8, the real
+chain is rerun against that correction, the complete offline gate passes and a
+final independent integration review accepts the result.
 
 ## Integrated baseline
 
