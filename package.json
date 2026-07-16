@@ -123,6 +123,10 @@
     "gate:stage4c": "node scripts/run-stage4c-gates.mjs",
     "test:e2e:stage4b": "node scripts/run-stage4b-e2e.mjs",
     "gate:stage4d": "node scripts/run-stage4d-acceptance.mjs",
+    "test:stage5-audit": "node --test scripts/check-stage5-engineering-audit.test.mjs",
+    "check:stage5-audit": "node scripts/check-stage5-engineering-audit.mjs --mode audit",
+    "check:production-readiness": "node scripts/check-stage5-engineering-audit.mjs --mode release",
+    "gate:stage5": "node scripts/run-stage5-engineering-audit.mjs",
     "check:risk": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-lean-risk.ps1 -DiffMode WorkingTree",
     "check:migration-integrity": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-migration-integrity.ps1 -DiffMode WorkingTree",
     "preflight": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/preflight-architecture.ps1"

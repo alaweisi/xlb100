@@ -1,0 +1,115 @@
+{
+  "schemaVersion": 1,
+  "stage": "REPAIR_STAGE_5",
+  "updatedAt": "2026-07-16",
+  "baseline": {
+    "stage4Commit": "cc965ef0627cbce900b09e7f60837dc9beb0a7c2",
+    "stage4Report": "docs/reports/STAGE4_FINAL_ENGINEERING_AUDIT.md"
+  },
+  "decisions": {
+    "engineeringAudit": "PASS_WITH_BLOCKERS",
+    "localPreproductionSimulation": "PASS",
+    "stagingRelease": "NO_GO",
+    "productionRelease": "NO_GO",
+    "productionActivationAllowed": false
+  },
+  "evidence": [
+    {
+      "id": "ENG-001",
+      "category": "engineering",
+      "status": "PASS",
+      "summary": "Stage 4 unified local acceptance is committed and reproducible.",
+      "evidencePath": "docs/reports/STAGE4_FINAL_ENGINEERING_AUDIT.md",
+      "command": "pnpm gate:stage4d"
+    },
+    {
+      "id": "ENG-002",
+      "category": "engineering",
+      "status": "PASS",
+      "summary": "Provider adapters are closed to mock/local modes and external execution remains disabled.",
+      "evidencePath": "docs/operations/PROVIDER_INTEGRATION_READINESS_CHECKLIST.md",
+      "command": "pnpm gate:provider-readiness"
+    },
+    {
+      "id": "ENG-003",
+      "category": "engineering",
+      "status": "PASS",
+      "summary": "Migration replay, backup/restore and data recovery drills are automated.",
+      "evidencePath": "docs/release/STAGE4A_DATA_RELIABILITY_RUNBOOK.md",
+      "command": "pnpm gate:stage4a"
+    },
+    {
+      "id": "ENG-004",
+      "category": "engineering",
+      "status": "PASS",
+      "summary": "Identity, rate limiting, load baselines and deterministic fault injection are covered.",
+      "evidencePath": "docs/reports/STAGE4C_SECURITY_PERFORMANCE_FAULT_INJECTION_REPORT.md",
+      "command": "pnpm gate:stage4c"
+    },
+    {
+      "id": "ENG-005",
+      "category": "engineering",
+      "status": "PASS",
+      "summary": "Phase 14 production operations checklist is explicit and fail-closed.",
+      "evidencePath": "docs/release/PHASE14_PRODUCTION_OPS_READINESS.md"
+    },
+    {
+      "id": "CAP-001",
+      "category": "internal_blocker",
+      "status": "BLOCKED_INTERNAL",
+      "summary": "The observed local pending/retry Outbox backlog requires root-cause, cleanup and capacity evidence before a release candidate."
+    },
+    {
+      "id": "OPS-001",
+      "category": "production_blocker",
+      "status": "NOT_RUN",
+      "summary": "Production Secret Manager, credentials, rotation ownership and least-privilege inventory are unavailable."
+    },
+    {
+      "id": "OPS-002",
+      "category": "production_blocker",
+      "status": "NOT_RUN",
+      "summary": "Production DNS, TLS, ingress, MySQL, Redis and managed backup topology have not been provisioned or validated."
+    },
+    {
+      "id": "OPS-003",
+      "category": "production_blocker",
+      "status": "NOT_RUN",
+      "summary": "Production dashboards, alert routing, on-call ownership and release-window replay evidence do not exist."
+    },
+    {
+      "id": "EXT-001",
+      "category": "external_blocker",
+      "status": "BLOCKED_EXTERNAL",
+      "summary": "Company legal entity and commercial Provider accounts are not available.",
+      "source": "human-confirmed-2026-07-16"
+    },
+    {
+      "id": "EXT-002",
+      "category": "external_blocker",
+      "status": "BLOCKED_EXTERNAL",
+      "summary": "ICP and public release filing materials are not available.",
+      "source": "human-confirmed-2026-07-16"
+    },
+    {
+      "id": "EXT-003",
+      "category": "external_blocker",
+      "status": "BLOCKED_EXTERNAL",
+      "summary": "Real Payment, SMS, object storage and Geo Provider credentials and sandbox contracts are unavailable.",
+      "source": "human-confirmed-2026-07-16"
+    },
+    {
+      "id": "EXT-004",
+      "category": "external_blocker",
+      "status": "BLOCKED_EXTERNAL",
+      "summary": "Investor and production operating ownership have not been established.",
+      "source": "human-confirmed-2026-07-16"
+    },
+    {
+      "id": "SCOPE-001",
+      "category": "deferred_scope",
+      "status": "DEFERRED",
+      "summary": "OA and realtime Dashboard remain truthful readiness shells and are excluded from the three-app release candidate."
+    }
+  ]
+}
