@@ -1,0 +1,213 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://xlb.local/schemas/tke/reviewed-cloud-input.schema.json",
+  "title": "XLB reviewed non-secret cloud bundle input",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "releaseId", "sourceCommit", "environment", "region",
+    "accountId", "approvedKubeContext", "reviewedScope", "network", "registry",
+    "terraform", "dependencies", "stateBackend", "helm", "imageLockFile",
+    "secretReferences", "costReview", "tags"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "releaseId": { "$ref": "#/definitions/releaseId" },
+    "sourceCommit": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+    "environment": { "$ref": "#/definitions/environment" },
+    "region": { "$ref": "#/definitions/region" },
+    "accountId": { "type": "string", "pattern": "^[0-9]{6,20}$" },
+    "approvedKubeContext": { "$ref": "#/definitions/nonEmpty" },
+    "reviewedScope": {
+      "type": "object", "additionalProperties": false,
+      "required": ["environment", "region", "vpcId"],
+      "properties": {
+        "environment": { "$ref": "#/definitions/environment" },
+        "region": { "$ref": "#/definitions/region" },
+        "vpcId": { "$ref": "#/definitions/vpcId" }
+      }
+    },
+    "network": {
+      "type": "object", "additionalProperties": false,
+      "required": ["vpcId", "vpcCidr", "subnetIds"],
+      "properties": {
+        "vpcId": { "$ref": "#/definitions/vpcId" },
+        "vpcCidr": { "type": "string", "pattern": "^(?:10|172|192)\\.[0-9.]+/[0-9]{1,2}$" },
+        "subnetIds": {
+          "type": "array", "minItems": 1, "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^subnet-[A-Za-z0-9]+$" }
+        }
+      }
+    },
+    "registry": {
+      "type": "object", "additionalProperties": false,
+      "required": ["region", "host", "namespace"],
+      "properties": {
+        "region": { "$ref": "#/definitions/region" },
+        "host": { "$ref": "#/definitions/hostname" },
+        "namespace": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{1,62}$" }
+      }
+    },
+    "terraform": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "environment", "region", "vpcId", "deletionProtection",
+        "createTkeCluster", "existingTkeClusterId", "clusterVersion", "clusterLevel",
+        "clusterNetworkType", "podCidr", "serviceCidr", "clusterOs",
+        "createNodePool", "createNodeSecurityGroup", "existingNodeSecurityGroupIds",
+        "nodeInstanceType", "nodeSshKeyIds", "nodePoolMinSize",
+        "nodePoolDesiredCapacity", "nodePoolMaxSize", "nodePoolEnableAutoscaling",
+        "nodeSystemDiskType", "nodeSystemDiskSize", "createTcrInstance",
+        "existingTcrInstanceId", "existingTcrInternalEndpoint", "tcrInstanceType",
+        "manageTcrRepositories", "createCosBucket", "cosBucketName",
+        "existingCosBucketName"
+      ],
+      "properties": {
+        "environment": { "$ref": "#/definitions/environment" },
+        "region": { "$ref": "#/definitions/region" },
+        "vpcId": { "$ref": "#/definitions/vpcId" },
+        "deletionProtection": { "const": true },
+        "createTkeCluster": { "type": "boolean" },
+        "existingTkeClusterId": { "type": "string", "pattern": "^$|^cls-[A-Za-z0-9]+$" },
+        "clusterVersion": { "$ref": "#/definitions/nonEmpty" },
+        "clusterLevel": { "type": "string", "pattern": "^L[0-9]+$" },
+        "clusterNetworkType": { "enum": ["GR", "VPC-CNI", "CiliumOverlay"] },
+        "podCidr": { "$ref": "#/definitions/cidr" },
+        "serviceCidr": { "$ref": "#/definitions/cidr" },
+        "clusterOs": { "$ref": "#/definitions/nonEmpty" },
+        "createNodePool": { "type": "boolean" },
+        "createNodeSecurityGroup": { "type": "boolean" },
+        "existingNodeSecurityGroupIds": {
+          "type": "array", "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^sg-[A-Za-z0-9]+$" }
+        },
+        "nodeInstanceType": { "$ref": "#/definitions/nonEmpty" },
+        "nodeSshKeyIds": {
+          "type": "array", "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^skey-[A-Za-z0-9]+$" }
+        },
+        "nodePoolMinSize": { "type": "integer", "minimum": 1 },
+        "nodePoolDesiredCapacity": { "type": "integer", "minimum": 1 },
+        "nodePoolMaxSize": { "type": "integer", "minimum": 1 },
+        "nodePoolEnableAutoscaling": { "type": "boolean" },
+        "nodeSystemDiskType": { "$ref": "#/definitions/nonEmpty" },
+        "nodeSystemDiskSize": { "type": "integer", "minimum": 50 },
+        "createTcrInstance": { "type": "boolean" },
+        "existingTcrInstanceId": { "type": "string", "pattern": "^$|^tcr-[A-Za-z0-9]+$" },
+        "existingTcrInternalEndpoint": { "type": "string" },
+        "tcrInstanceType": { "enum": ["basic", "standard", "premium"] },
+        "manageTcrRepositories": { "type": "boolean" },
+        "createCosBucket": { "type": "boolean" },
+        "cosBucketName": { "type": "string" },
+        "existingCosBucketName": { "type": "string" }
+      }
+    },
+    "dependencies": {
+      "type": "object", "additionalProperties": false,
+      "required": ["mysql", "redis", "cosBucket"],
+      "properties": {
+        "mysql": {
+          "type": "object", "additionalProperties": false,
+          "required": ["instanceId", "host", "port", "database", "user"],
+          "properties": {
+            "instanceId": { "type": "string", "pattern": "^cdb-[A-Za-z0-9]+$" },
+            "host": { "$ref": "#/definitions/hostname" },
+            "port": { "$ref": "#/definitions/port" },
+            "database": { "$ref": "#/definitions/sqlName" },
+            "user": { "$ref": "#/definitions/sqlName" }
+          }
+        },
+        "redis": {
+          "type": "object", "additionalProperties": false,
+          "required": ["instanceId", "host", "port"],
+          "properties": {
+            "instanceId": { "type": "string", "pattern": "^crs-[A-Za-z0-9]+$" },
+            "host": { "$ref": "#/definitions/hostname" },
+            "port": { "$ref": "#/definitions/port" }
+          }
+        },
+        "cosBucket": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{4,48}-[0-9]{5,20}$" }
+      }
+    },
+    "stateBackend": {
+      "type": "object", "additionalProperties": false,
+      "required": ["region", "bucket", "prefix", "encrypt", "acl"],
+      "properties": {
+        "region": { "$ref": "#/definitions/region" },
+        "bucket": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{4,48}-[0-9]{5,20}$" },
+        "prefix": { "type": "string", "pattern": "^[a-z0-9][a-z0-9./_-]+$" },
+        "encrypt": { "const": true },
+        "acl": { "const": "private" }
+      }
+    },
+    "helm": {
+      "type": "object", "additionalProperties": false,
+      "required": ["environment", "region", "ingressClass", "hosts", "replicas"],
+      "properties": {
+        "environment": { "$ref": "#/definitions/environment" },
+        "region": { "$ref": "#/definitions/region" },
+        "ingressClass": { "$ref": "#/definitions/nonEmpty" },
+        "hosts": {
+          "type": "object", "additionalProperties": false,
+          "required": ["api", "customer", "worker", "admin"],
+          "properties": {
+            "api": { "$ref": "#/definitions/hostname" },
+            "customer": { "$ref": "#/definitions/hostname" },
+            "worker": { "$ref": "#/definitions/hostname" },
+            "admin": { "$ref": "#/definitions/hostname" }
+          }
+        },
+        "replicas": {
+          "type": "object", "additionalProperties": false,
+          "required": ["backend", "jobs", "customer", "worker", "admin"],
+          "properties": {
+            "backend": { "type": "integer", "minimum": 1 },
+            "jobs": { "const": 1 },
+            "customer": { "type": "integer", "minimum": 1 },
+            "worker": { "type": "integer", "minimum": 1 },
+            "admin": { "type": "integer", "minimum": 1 }
+          }
+        }
+      }
+    },
+    "imageLockFile": { "$ref": "#/definitions/artifactJsonPath" },
+    "secretReferences": {
+      "type": "object", "additionalProperties": false,
+      "required": ["runtimeSecretName", "tlsSecretName"],
+      "properties": {
+        "runtimeSecretName": { "$ref": "#/definitions/kubernetesName" },
+        "tlsSecretName": { "$ref": "#/definitions/kubernetesName" }
+      }
+    },
+    "costReview": {
+      "type": "object", "additionalProperties": false,
+      "required": ["currency", "monthlyMin", "monthlyMax", "sourceUrl", "reviewedAt", "owner"],
+      "properties": {
+        "currency": { "const": "CNY" },
+        "monthlyMin": { "type": "number", "minimum": 0 },
+        "monthlyMax": { "type": "number", "exclusiveMinimum": 0 },
+        "sourceUrl": { "type": "string", "pattern": "^https://" },
+        "reviewedAt": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+        "owner": { "$ref": "#/definitions/nonEmpty" }
+      }
+    },
+    "tags": {
+      "type": "object", "minProperties": 1, "maxProperties": 20,
+      "propertyNames": { "pattern": "^[a-z][a-z0-9-]{0,31}$" },
+      "additionalProperties": { "type": "string", "minLength": 1, "maxLength": 128 }
+    }
+  },
+  "definitions": {
+    "releaseId": { "type": "string", "minLength": 6, "maxLength": 63, "pattern": "^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])$" },
+    "environment": { "enum": ["staging", "production"] },
+    "region": { "type": "string", "pattern": "^[a-z]{2}-[a-z]+(?:-[0-9]+)?$" },
+    "vpcId": { "type": "string", "pattern": "^vpc-[A-Za-z0-9]+$" },
+    "cidr": { "type": "string", "pattern": "^[0-9.]+/[0-9]{1,2}$" },
+    "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+    "sqlName": { "type": "string", "pattern": "^[A-Za-z0-9_]{1,64}$" },
+    "hostname": { "type": "string", "minLength": 3, "maxLength": 253, "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])$" },
+    "nonEmpty": { "type": "string", "minLength": 1, "maxLength": 253 },
+    "kubernetesName": { "type": "string", "minLength": 1, "maxLength": 253, "pattern": "^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$" },
+    "artifactJsonPath": { "type": "string", "pattern": "^\\.artifacts/tke/[a-z0-9./-]+\\.json$" }
+  }
+}

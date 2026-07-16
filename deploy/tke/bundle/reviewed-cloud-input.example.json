@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "releaseId": "release-20260717-001",
+  "sourceCommit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "environment": "production",
+  "region": "ap-guangzhou",
+  "accountId": "100000000000",
+  "approvedKubeContext": "tke-production-reviewed-context",
+  "reviewedScope": { "environment": "production", "region": "ap-guangzhou", "vpcId": "vpc-contractsample" },
+  "network": { "vpcId": "vpc-contractsample", "vpcCidr": "10.10.0.0/16", "subnetIds": ["subnet-contractsample1", "subnet-contractsample2"] },
+  "registry": { "region": "ap-guangzhou", "host": "ccr.ccs.tencentyun.com", "namespace": "xlb" },
+  "terraform": {
+    "environment": "production", "region": "ap-guangzhou", "vpcId": "vpc-contractsample", "deletionProtection": true,
+    "createTkeCluster": true, "existingTkeClusterId": "", "clusterVersion": "1.32.2", "clusterLevel": "L20", "clusterNetworkType": "CiliumOverlay",
+    "podCidr": "172.24.0.0/16", "serviceCidr": "172.25.0.0/20", "clusterOs": "tlinux4_x86_64",
+    "createNodePool": true, "createNodeSecurityGroup": true, "existingNodeSecurityGroupIds": [], "nodeInstanceType": "SA5.MEDIUM4",
+    "nodeSshKeyIds": ["skey-contractsample"], "nodePoolMinSize": 2, "nodePoolDesiredCapacity": 2, "nodePoolMaxSize": 6,
+    "nodePoolEnableAutoscaling": false, "nodeSystemDiskType": "CLOUD_PREMIUM", "nodeSystemDiskSize": 100,
+    "createTcrInstance": true, "existingTcrInstanceId": "", "existingTcrInternalEndpoint": "", "tcrInstanceType": "standard", "manageTcrRepositories": true,
+    "createCosBucket": true, "cosBucketName": "xlb-production-objects-100000000000", "existingCosBucketName": ""
+  },
+  "dependencies": {
+    "mysql": { "instanceId": "cdb-contractsample", "host": "mysql.internal.xlb.test", "port": 3306, "database": "xlb_production", "user": "xlb_production" },
+    "redis": { "instanceId": "crs-contractsample", "host": "redis.internal.xlb.test", "port": 6379 },
+    "cosBucket": "xlb-production-objects-100000000000"
+  },
+  "stateBackend": { "region": "ap-guangzhou", "bucket": "xlb-terraform-state-100000000000", "prefix": "xlb/production/tke-infra", "encrypt": true, "acl": "private" },
+  "helm": {
+    "environment": "production", "region": "ap-guangzhou", "ingressClass": "qcloud",
+    "hosts": { "api": "api.xlb.test", "customer": "customer.xlb.test", "worker": "worker.xlb.test", "admin": "admin.xlb.test" },
+    "replicas": { "backend": 2, "jobs": 1, "customer": 2, "worker": 2, "admin": 2 }
+  },
+  "imageLockFile": ".artifacts/tke/releases/release-20260717-001/images.lock.json",
+  "secretReferences": { "runtimeSecretName": "xlb-production-runtime", "tlsSecretName": "xlb-production-tls" },
+  "costReview": { "currency": "CNY", "monthlyMin": 1000, "monthlyMax": 3000, "sourceUrl": "https://cloud.tencent.com/product/calculator", "reviewedAt": "2026-07-17", "owner": "cost-owner" },
+  "tags": { "owner": "release-owner", "cost-center": "xlb" }
+}
