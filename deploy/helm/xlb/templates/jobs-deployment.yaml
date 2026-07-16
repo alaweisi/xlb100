@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "xlb.fullname" . }}-jobs
+  labels:
+    {{- include "xlb.componentLabels" (dict "root" . "component" "jobs") | nindent 4 }}
+spec:
+  replicas: {{ .Values.jobs.replicaCount }}
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "xlb.selectorLabels" (dict "root" . "component" "jobs") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "xlb.selectorLabels" (dict "root" . "component" "jobs") | nindent 8 }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with .Values.jobs.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "xlb.serviceAccountName" . }}
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: {{ .Values.jobs.terminationGracePeriodSeconds }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: jobs
+          image: {{ include "xlb.jobsImage" . | quote }}
+          imagePullPolicy: {{ .Values.jobs.image.pullPolicy }}
+          command: ["node", "backend/dist/jobWorker.js"]
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "xlb.fullname" . }}-backend
+          env:
+            - name: AUTO_RUN_ENABLED
+              value: "true"
+            - name: AUTO_RUN_INTERVAL_MS
+              value: {{ .Values.config.jobs.intervalMs | quote }}
+            - name: AUTO_RUN_CITY_CODES
+              value: {{ .Values.config.jobs.cityCodes | quote }}
+            {{- include "xlb.backendSecretEnv" . | nindent 12 }}
+          resources:
+            {{- toYaml .Values.jobs.resources | nindent 12 }}
+          volumeMounts:
+            {{- include "xlb.runtimeVolumeMounts" . | nindent 12 }}
+      volumes:
+        {{- include "xlb.runtimeVolumes" . | nindent 8 }}

@@ -1,0 +1,9 @@
+apiVersion: v2
+name: xlb
+description: XLB application workloads for local Kubernetes and Tencent Cloud TKE
+type: application
+version: 0.1.0
+appVersion: "0.0.0"
+kubeVersion: ">=1.28.0-0"
+annotations:
+  xlb.openai.com/deployment-contract: lighthouse-to-tke-v1

@@ -1,0 +1,185 @@
+global:
+  environment: local
+  imagePullSecrets: []
+  commonLabels: {}
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+runtimeSecrets:
+  existingSecret: xlb-local-runtime-secrets
+
+backend:
+  replicaCount: 1
+  image:
+    repository: xlb/backend
+    tag: local
+    digest: ""
+    pullPolicy: IfNotPresent
+  port: 3000
+  terminationGracePeriodSeconds: 45
+  podAnnotations: {}
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { cpu: "1", memory: 1Gi }
+  probes:
+    startup:
+      path: /health/live
+      failureThreshold: 30
+      periodSeconds: 2
+    liveness:
+      path: /health/live
+      initialDelaySeconds: 10
+      periodSeconds: 15
+      timeoutSeconds: 3
+      failureThreshold: 3
+    readiness:
+      path: /health/ready
+      initialDelaySeconds: 5
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 3
+
+jobs:
+  replicaCount: 1
+  image:
+    repository: ""
+    tag: ""
+    digest: ""
+    pullPolicy: IfNotPresent
+  terminationGracePeriodSeconds: 60
+  podAnnotations: {}
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { cpu: "1", memory: 1Gi }
+
+frontends:
+  customer:
+    replicaCount: 1
+    image:
+      repository: xlb/customer
+      tag: local
+      digest: ""
+      pullPolicy: IfNotPresent
+    resources:
+      requests: { cpu: 25m, memory: 64Mi }
+      limits: { cpu: 250m, memory: 256Mi }
+  worker:
+    replicaCount: 1
+    image:
+      repository: xlb/worker
+      tag: local
+      digest: ""
+      pullPolicy: IfNotPresent
+    resources:
+      requests: { cpu: 25m, memory: 64Mi }
+      limits: { cpu: 250m, memory: 256Mi }
+  admin:
+    replicaCount: 1
+    image:
+      repository: xlb/admin
+      tag: local
+      digest: ""
+      pullPolicy: IfNotPresent
+    resources:
+      requests: { cpu: 25m, memory: 64Mi }
+      limits: { cpu: 250m, memory: 256Mi }
+
+config:
+  nodeEnv: development
+  mysql:
+    host: host.docker.internal
+    port: 3306
+    database: xlb_local
+    user: xlb
+    tlsEnabled: false
+  redis:
+    host: host.docker.internal
+    port: 6379
+    tlsEnabled: false
+  rateLimitBackend: memory
+  trustProxyHops: 1
+  jwt:
+    activeKid: primary
+    issuer: xlb-backend
+    audience: xlb-apps
+    ttlSeconds: 86400
+  auth:
+    otpTtlSeconds: 300
+    otpMaxAttempts: 5
+    otpLockSeconds: 900
+    otpResendCooldownSeconds: 60
+    debugCodeEnabled: false
+  jobs:
+    intervalMs: 8000
+    cityCodes: hangzhou
+  objectStorage:
+    provider: local
+    localRoot: /tmp/xlb-object-storage
+    cos:
+      bucket: ""
+      region: ""
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations: {}
+  tls:
+    enabled: false
+    secretName: ""
+  hosts:
+    api: api.xlb.local
+    customer: customer.xlb.local
+    worker: worker.xlb.local
+    admin: admin.xlb.local
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  fsGroupChangePolicy: OnRootMismatch
+  seccompProfile:
+    type: RuntimeDefault
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: ["ALL"]
+
+networkPolicy:
+  enabled: false
+  ingressNamespaceSelector:
+    matchLabels:
+      kubernetes.io/metadata.name: ingress-nginx
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+autoscaling:
+  backend:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 6
+    targetCPUUtilizationPercentage: 70
+  frontends:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 4
+    targetCPUUtilizationPercentage: 70
+
+serviceMonitor:
+  enabled: false
+  interval: 30s
+  labels: {}
+
+migration:
+  enabled: false
+  runId: ""
+  backoffLimit: 0
+  activeDeadlineSeconds: 900
+  ttlSecondsAfterFinished: 86400

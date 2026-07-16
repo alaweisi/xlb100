@@ -1,0 +1,62 @@
+global:
+  environment: local
+
+runtimeSecrets:
+  existingSecret: xlb-local-runtime-secrets
+
+backend:
+  replicaCount: 1
+  image:
+    repository: xlb/backend
+    tag: local
+    digest: ""
+    pullPolicy: IfNotPresent
+
+jobs:
+  replicaCount: 1
+
+frontends:
+  customer:
+    replicaCount: 1
+    image: { repository: xlb/customer, tag: local, digest: "", pullPolicy: IfNotPresent }
+  worker:
+    replicaCount: 1
+    image: { repository: xlb/worker, tag: local, digest: "", pullPolicy: IfNotPresent }
+  admin:
+    replicaCount: 1
+    image: { repository: xlb/admin, tag: local, digest: "", pullPolicy: IfNotPresent }
+
+config:
+  nodeEnv: development
+  mysql:
+    host: host.docker.internal
+    port: 3306
+    database: xlb_local
+    user: xlb
+    tlsEnabled: false
+  redis:
+    host: host.docker.internal
+    port: 6379
+    tlsEnabled: false
+  rateLimitBackend: memory
+  trustProxyHops: 1
+  objectStorage:
+    provider: local
+    localRoot: /tmp/xlb-object-storage
+    cos: { bucket: "", region: "" }
+
+ingress:
+  enabled: true
+  className: nginx
+  tls: { enabled: false, secretName: "" }
+  hosts:
+    api: api.xlb.local
+    customer: customer.xlb.local
+    worker: worker.xlb.local
+    admin: admin.xlb.local
+
+networkPolicy:
+  enabled: false
+
+serviceMonitor:
+  enabled: false

@@ -1,0 +1,29 @@
+{{- if and .Values.podDisruptionBudget.enabled (gt (int .Values.backend.replicaCount) 1) }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "xlb.fullname" . }}-backend
+  labels:
+    {{- include "xlb.componentLabels" (dict "root" . "component" "backend") | nindent 4 }}
+spec:
+  minAvailable: {{ .Values.podDisruptionBudget.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "xlb.selectorLabels" (dict "root" . "component" "backend") | nindent 6 }}
+{{- end }}
+{{- range $name, $frontend := .Values.frontends }}
+{{- if and $.Values.podDisruptionBudget.enabled (gt (int $frontend.replicaCount) 1) }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "xlb.fullname" $ }}-{{ $name }}
+  labels:
+    {{- include "xlb.componentLabels" (dict "root" $ "component" $name) | nindent 4 }}
+spec:
+  minAvailable: {{ $.Values.podDisruptionBudget.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "xlb.selectorLabels" (dict "root" $ "component" $name) | nindent 6 }}
+{{- end }}
+{{- end }}

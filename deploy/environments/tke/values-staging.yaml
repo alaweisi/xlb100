@@ -1,0 +1,82 @@
+# Shape-valid staging placeholders. N4 deployment tooling must reject every
+# value containing "placeholder" or the all-zero digest before any apply.
+global:
+  environment: staging
+
+runtimeSecrets:
+  existingSecret: xlb-staging-runtime-secrets
+
+backend:
+  replicaCount: 1
+  image:
+    repository: ccr.ccs.tencentyun.com/xlb-placeholder/backend
+    tag: ""
+    digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+    pullPolicy: IfNotPresent
+
+jobs:
+  replicaCount: 1
+
+frontends:
+  customer:
+    replicaCount: 1
+    image:
+      repository: ccr.ccs.tencentyun.com/xlb-placeholder/customer
+      tag: ""
+      digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+      pullPolicy: IfNotPresent
+  worker:
+    replicaCount: 1
+    image:
+      repository: ccr.ccs.tencentyun.com/xlb-placeholder/worker
+      tag: ""
+      digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+      pullPolicy: IfNotPresent
+  admin:
+    replicaCount: 1
+    image:
+      repository: ccr.ccs.tencentyun.com/xlb-placeholder/admin
+      tag: ""
+      digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+      pullPolicy: IfNotPresent
+
+config:
+  nodeEnv: production
+  mysql:
+    host: mysql-staging.placeholder.internal
+    port: 3306
+    database: xlb_staging
+    user: xlb_staging
+    tlsEnabled: true
+  redis:
+    host: redis-staging.placeholder.internal
+    port: 6379
+    tlsEnabled: true
+  rateLimitBackend: redis
+  trustProxyHops: 1
+  objectStorage:
+    provider: cos
+    localRoot: /tmp/xlb-object-storage
+    cos:
+      bucket: xlb-staging-placeholder-0000000000
+      region: ap-guangzhou
+
+ingress:
+  enabled: true
+  className: qcloud
+  annotations: {}
+  tls:
+    enabled: true
+    secretName: xlb-staging-tls
+  hosts:
+    api: api.staging.example.invalid
+    customer: customer.staging.example.invalid
+    worker: worker.staging.example.invalid
+    admin: admin.staging.example.invalid
+
+networkPolicy:
+  # Enable only after TKE ingress source behavior is verified in N7.
+  enabled: false
+
+serviceMonitor:
+  enabled: false
