@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "applicationMetricSource": "backend/src/observability/metrics.ts",
+  "applicationMetricPrefix": "xlb_",
+  "platformMetrics": [
+    "container_cpu_usage_seconds_total",
+    "container_memory_working_set_bytes",
+    "kube_deployment_spec_replicas",
+    "kube_deployment_status_replicas_available",
+    "kube_job_status_failed",
+    "kube_node_status_condition",
+    "kube_pod_container_resource_limits",
+    "kube_pod_container_resource_requests",
+    "kube_pod_container_status_restarts_total"
+  ],
+  "platformMetricSources": {
+    "kube-state-metrics": [
+      "kube_deployment_spec_replicas",
+      "kube_deployment_status_replicas_available",
+      "kube_job_status_failed",
+      "kube_node_status_condition",
+      "kube_pod_container_resource_limits",
+      "kube_pod_container_resource_requests",
+      "kube_pod_container_status_restarts_total"
+    ],
+    "kubelet-cadvisor": [
+      "container_cpu_usage_seconds_total",
+      "container_memory_working_set_bytes"
+    ]
+  },
+  "requiredRunbooks": [
+    "docs/operations/TKE_RELEASE_ROLLBACK_RUNBOOK.md",
+    "docs/operations/TKE_NODE_FAILURE_RUNBOOK.md",
+    "docs/operations/TKE_DATABASE_RECOVERY_RUNBOOK.md",
+    "docs/operations/TKE_COST_ANOMALY_RUNBOOK.md"
+  ],
+  "ruleMetricReferences": {
+    "XlbBackendMetricsMissing": ["xlb_job_worker_last_heartbeat_timestamp_seconds"],
+    "XlbJobWorkerHeartbeatStale": ["xlb_job_worker_heartbeat_age_seconds"],
+    "XlbReliabilitySnapshotStale": ["xlb_data_reliability_snapshot_age_seconds"],
+    "XlbDataReliabilityDegraded": ["xlb_data_reliability_ready"],
+    "XlbOutboxBacklogOld": ["xlb_outbox_oldest_eligible_age_seconds"],
+    "XlbDispatchStreamBacklogHigh": ["xlb_dispatch_stream_length"],
+    "XlbOutboxLeaseExpired": ["xlb_outbox_expired_processing_leases"],
+    "XlbOutboxTransactionalRowsStalled": ["xlb_outbox_stalled_transactional_events"],
+    "XlbHttp5xxRatioHigh": ["xlb_http_requests_total"],
+    "XlbHttpAverageLatencyHigh": ["xlb_http_request_duration_ms_sum", "xlb_http_request_duration_ms_count"],
+    "XlbDeploymentReplicasUnavailable": ["kube_deployment_spec_replicas", "kube_deployment_status_replicas_available"],
+    "XlbPodRestartBurst": ["kube_pod_container_status_restarts_total"],
+    "XlbContainerCpuNearRequest": ["container_cpu_usage_seconds_total", "kube_pod_container_resource_requests"],
+    "XlbContainerMemoryNearLimit": ["container_memory_working_set_bytes", "kube_pod_container_resource_limits"],
+    "XlbMigrationJobFailed": ["kube_job_status_failed"],
+    "XlbTkeNodeNotReady": ["kube_node_status_condition"]
+  }
+}

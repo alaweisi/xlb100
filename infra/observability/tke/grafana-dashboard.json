@@ -1,0 +1,141 @@
+{
+  "annotations": {"list": []},
+  "editable": false,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Data reliability ready",
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "targets": [{"refId": "A", "expr": "min(xlb_data_reliability_ready{namespace=~\"$namespace\"})", "legendFormat": "ready"}],
+      "fieldConfig": {"defaults": {"mappings": [{"type": "value", "options": {"0": {"text": "DEGRADED", "color": "red"}, "1": {"text": "READY", "color": "green"}}}], "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]}}, "overrides": []},
+      "options": {"colorMode": "background", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "gridPos": {"h": 5, "w": 6, "x": 0, "y": 0}
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Jobs heartbeat age (seconds)",
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "targets": [{"refId": "A", "expr": "max(xlb_job_worker_heartbeat_age_seconds{namespace=~\"$namespace\"})", "legendFormat": "age"}],
+      "fieldConfig": {"defaults": {"unit": "s", "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "orange", "value": 120}, {"color": "red", "value": 180}]}}, "overrides": []},
+      "options": {"colorMode": "background", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "gridPos": {"h": 5, "w": 6, "x": 6, "y": 0}
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Unavailable deployment replicas",
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "targets": [{"refId": "A", "expr": "sum(kube_deployment_spec_replicas{namespace=~\"$namespace\",deployment=~\".*-xlb-(backend|jobs|customer|worker|admin)\"} - kube_deployment_status_replicas_available{namespace=~\"$namespace\",deployment=~\".*-xlb-(backend|jobs|customer|worker|admin)\"})", "legendFormat": "unavailable"}],
+      "fieldConfig": {"defaults": {"thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]}}, "overrides": []},
+      "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "gridPos": {"h": 5, "w": 6, "x": 12, "y": 0}
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Backend HTTP 5xx ratio",
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "targets": [{"refId": "A", "expr": "sum(rate(xlb_http_requests_total{namespace=~\"$namespace\",status=\"5xx\"}[5m])) / clamp_min(sum(rate(xlb_http_requests_total{namespace=~\"$namespace\"}[5m])), 0.001)", "legendFormat": "5xx"}],
+      "fieldConfig": {"defaults": {"unit": "percentunit", "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "orange", "value": 0.02}, {"color": "red", "value": 0.05}]}}, "overrides": []},
+      "options": {"colorMode": "background", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "gridPos": {"h": 5, "w": 6, "x": 18, "y": 0}
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Backend request rate by status",
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "targets": [{"refId": "A", "expr": "sum by (status) (rate(xlb_http_requests_total{namespace=~\"$namespace\"}[5m]))", "legendFormat": "{{status}}"}],
+      "fieldConfig": {"defaults": {"unit": "reqps"}, "overrides": []},
+      "options": {"legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 5}
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Backend average latency",
+      "description": "Mean only. The application does not export histogram buckets, so p95/p99 are not available.",
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "targets": [{"refId": "A", "expr": "sum by (route) (rate(xlb_http_request_duration_ms_sum{namespace=~\"$namespace\"}[5m])) / clamp_min(sum by (route) (rate(xlb_http_request_duration_ms_count{namespace=~\"$namespace\"}[5m])), 0.001)", "legendFormat": "{{route}}"}],
+      "fieldConfig": {"defaults": {"unit": "ms"}, "overrides": []},
+      "options": {"legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 5}
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Outbox oldest eligible age",
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "targets": [{"refId": "A", "expr": "max by (city) (xlb_outbox_oldest_eligible_age_seconds{namespace=~\"$namespace\"})", "legendFormat": "{{city}}"}],
+      "fieldConfig": {"defaults": {"unit": "s", "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 300}]}}, "overrides": []},
+      "options": {"legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 13}
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Dispatch stream length",
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "targets": [{"refId": "A", "expr": "max by (city) (xlb_dispatch_stream_length{namespace=~\"$namespace\"})", "legendFormat": "{{city}}"}],
+      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+      "options": {"legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 13}
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Pod restarts in 15 minutes",
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "targets": [{"refId": "A", "expr": "sum by (pod, container) (increase(kube_pod_container_status_restarts_total{namespace=~\"$namespace\",pod=~\".*-xlb-(backend|jobs|customer|worker|admin)-.*\"}[15m]))", "legendFormat": "{{pod}} / {{container}}"}],
+      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+      "options": {"legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 13}
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "Outbox exception signals",
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "targets": [
+        {"refId": "A", "expr": "max by (city) (xlb_outbox_expired_processing_leases{namespace=~\"$namespace\"})", "legendFormat": "expired lease / {{city}}"},
+        {"refId": "B", "expr": "max by (city) (xlb_outbox_stalled_transactional_events{namespace=~\"$namespace\"})", "legendFormat": "stalled / {{city}}"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+      "options": {"legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 21}
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "Container CPU / request",
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "targets": [{"refId": "A", "expr": "sum by (pod, container) (rate(container_cpu_usage_seconds_total{namespace=~\"$namespace\",pod=~\".*-xlb-(backend|jobs|customer|worker|admin)-.*\",container!=\"\",image!=\"\"}[5m])) / clamp_min(sum by (pod, container) (kube_pod_container_resource_requests{namespace=~\"$namespace\",pod=~\".*-xlb-(backend|jobs|customer|worker|admin)-.*\",resource=\"cpu\",unit=\"core\"}), 0.001)", "legendFormat": "{{pod}} / {{container}}"}],
+      "fieldConfig": {"defaults": {"unit": "percentunit"}, "overrides": []},
+      "options": {"legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 21}
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": ["xlb", "tke", "operations"],
+  "templating": {
+    "list": [
+      {"name": "DS_PROMETHEUS", "label": "Prometheus", "type": "datasource", "query": "prometheus", "current": {}},
+      {"name": "namespace", "label": "Namespace", "type": "query", "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"}, "query": {"query": "label_values(kube_deployment_spec_replicas{deployment=~\".*-xlb-.*\"}, namespace)", "refId": "StandardVariableQuery"}, "refresh": 1, "includeAll": true, "allValue": ".*", "multi": true, "current": {}}
+    ]
+  },
+  "time": {"from": "now-6h", "to": "now"},
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "XLB TKE service and reliability",
+  "uid": "xlb-tke-operations",
+  "version": 1,
+  "weekStart": ""
+}
