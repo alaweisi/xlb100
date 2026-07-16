@@ -1,0 +1,128 @@
+{
+  "groups": [
+    {
+      "name": "xlb.application",
+      "interval": "30s",
+      "rules": [
+        {
+          "alert": "XlbBackendMetricsMissing",
+          "expr": "absent(xlb_job_worker_last_heartbeat_timestamp_seconds)",
+          "for": "5m",
+          "labels": {"severity": "critical", "owner": "application-platform"},
+          "annotations": {"summary": "XLB backend metrics are absent", "description": "The always-rendered jobs heartbeat metric has disappeared. Check ServiceMonitor selection, backend Service endpoints, and /metrics before assuming an application failure.", "runbook": "docs/operations/TKE_NODE_FAILURE_RUNBOOK.md"}
+        },
+        {
+          "alert": "XlbJobWorkerHeartbeatStale",
+          "expr": "xlb_job_worker_heartbeat_age_seconds < 0 or xlb_job_worker_heartbeat_age_seconds > 180",
+          "for": "3m",
+          "labels": {"severity": "critical", "owner": "application-platform"},
+          "annotations": {"summary": "XLB jobs heartbeat is missing or stale", "description": "The jobs worker has not published a fresh shared heartbeat for more than three minutes.", "runbook": "docs/operations/TKE_NODE_FAILURE_RUNBOOK.md"}
+        },
+        {
+          "alert": "XlbReliabilitySnapshotStale",
+          "expr": "xlb_data_reliability_snapshot_age_seconds < 0 or xlb_data_reliability_snapshot_age_seconds > 180",
+          "for": "3m",
+          "labels": {"severity": "critical", "owner": "application-platform"},
+          "annotations": {"summary": "XLB reliability snapshot is unavailable or stale", "description": "The bounded MySQL/Redis reliability snapshot has not refreshed within three minutes.", "runbook": "docs/operations/TKE_DATABASE_RECOVERY_RUNBOOK.md"}
+        },
+        {
+          "alert": "XlbDataReliabilityDegraded",
+          "expr": "xlb_data_reliability_ready == 0",
+          "for": "5m",
+          "labels": {"severity": "warning", "owner": "application-platform"},
+          "annotations": {"summary": "XLB data reliability is degraded", "description": "At least one bounded reliability condition is failing. Inspect backlog, stalled rows, expired leases, and snapshot freshness.", "runbook": "docs/operations/TKE_DATABASE_RECOVERY_RUNBOOK.md"}
+        },
+        {
+          "alert": "XlbOutboxBacklogOld",
+          "expr": "max by (city) (xlb_outbox_oldest_eligible_age_seconds) > 300",
+          "for": "5m",
+          "labels": {"severity": "warning", "owner": "application-platform"},
+          "annotations": {"summary": "XLB outbox backlog is old", "description": "City {{ $labels.city }} has an eligible outbox row older than five minutes.", "runbook": "docs/operations/TKE_DATABASE_RECOVERY_RUNBOOK.md"}
+        },
+        {
+          "alert": "XlbDispatchStreamBacklogHigh",
+          "expr": "max by (city) (xlb_dispatch_stream_length) > 10000",
+          "for": "10m",
+          "labels": {"severity": "warning", "owner": "application-platform"},
+          "annotations": {"summary": "XLB dispatch stream backlog is high", "description": "City {{ $labels.city }} has more than 10,000 stream entries. This initial threshold must be tuned with N7 traffic evidence.", "runbook": "docs/operations/TKE_DATABASE_RECOVERY_RUNBOOK.md"}
+        },
+        {
+          "alert": "XlbOutboxLeaseExpired",
+          "expr": "max by (city) (xlb_outbox_expired_processing_leases) > 0",
+          "for": "3m",
+          "labels": {"severity": "warning", "owner": "application-platform"},
+          "annotations": {"summary": "XLB outbox processing lease expired", "description": "City {{ $labels.city }} has an expired processing lease awaiting safe reaping.", "runbook": "docs/operations/TKE_DATABASE_RECOVERY_RUNBOOK.md"}
+        },
+        {
+          "alert": "XlbOutboxTransactionalRowsStalled",
+          "expr": "max by (city) (xlb_outbox_stalled_transactional_events) > 0",
+          "for": "3m",
+          "labels": {"severity": "critical", "owner": "application-platform"},
+          "annotations": {"summary": "XLB transactional outbox rows are stalled", "description": "City {{ $labels.city }} has transactional rows that are no longer eligible for their consumer.", "runbook": "docs/operations/TKE_DATABASE_RECOVERY_RUNBOOK.md"}
+        },
+        {
+          "alert": "XlbHttp5xxRatioHigh",
+          "expr": "sum(rate(xlb_http_requests_total{status=\"5xx\"}[5m])) / clamp_min(sum(rate(xlb_http_requests_total[5m])), 0.001) > 0.05 and sum(rate(xlb_http_requests_total[5m])) > 0.1",
+          "for": "10m",
+          "labels": {"severity": "critical", "owner": "application-platform"},
+          "annotations": {"summary": "XLB backend HTTP 5xx ratio is high", "description": "More than 5% of backend requests are 5xx at sustained non-trivial traffic.", "runbook": "docs/operations/TKE_RELEASE_ROLLBACK_RUNBOOK.md"}
+        },
+        {
+          "alert": "XlbHttpAverageLatencyHigh",
+          "expr": "sum(rate(xlb_http_request_duration_ms_sum[5m])) / clamp_min(sum(rate(xlb_http_request_duration_ms_count[5m])), 0.001) > 1000 and sum(rate(xlb_http_request_duration_ms_count[5m])) > 0.1",
+          "for": "10m",
+          "labels": {"severity": "warning", "owner": "application-platform"},
+          "annotations": {"summary": "XLB backend average latency is high", "description": "Mean backend request latency is above one second. Percentiles are unavailable because the application exports sum/count rather than histogram buckets.", "runbook": "docs/operations/TKE_RELEASE_ROLLBACK_RUNBOOK.md"}
+        }
+      ]
+    },
+    {
+      "name": "xlb.kubernetes",
+      "interval": "30s",
+      "rules": [
+        {
+          "alert": "XlbDeploymentReplicasUnavailable",
+          "expr": "kube_deployment_spec_replicas{deployment=~\".*-xlb-(backend|jobs|customer|worker|admin)\"} - kube_deployment_status_replicas_available{deployment=~\".*-xlb-(backend|jobs|customer|worker|admin)\"} > 0",
+          "for": "5m",
+          "labels": {"severity": "critical", "owner": "application-platform"},
+          "annotations": {"summary": "XLB Deployment has unavailable replicas", "description": "Deployment {{ $labels.namespace }}/{{ $labels.deployment }} has fewer available replicas than requested.", "runbook": "docs/operations/TKE_NODE_FAILURE_RUNBOOK.md"}
+        },
+        {
+          "alert": "XlbPodRestartBurst",
+          "expr": "sum by (namespace, pod, container) (increase(kube_pod_container_status_restarts_total{pod=~\".*-xlb-(backend|jobs|customer|worker|admin)-.*\"}[15m])) > 3",
+          "for": "2m",
+          "labels": {"severity": "warning", "owner": "application-platform"},
+          "annotations": {"summary": "XLB Pod is restarting repeatedly", "description": "Container {{ $labels.namespace }}/{{ $labels.pod }}/{{ $labels.container }} restarted more than three times in 15 minutes.", "runbook": "docs/operations/TKE_NODE_FAILURE_RUNBOOK.md"}
+        },
+        {
+          "alert": "XlbContainerCpuNearRequest",
+          "expr": "sum by (namespace, pod, container) (rate(container_cpu_usage_seconds_total{pod=~\".*-xlb-(backend|jobs|customer|worker|admin)-.*\",container!=\"\",image!=\"\"}[5m])) / clamp_min(sum by (namespace, pod, container) (kube_pod_container_resource_requests{pod=~\".*-xlb-(backend|jobs|customer|worker|admin)-.*\",resource=\"cpu\",unit=\"core\"}), 0.001) > 0.9",
+          "for": "15m",
+          "labels": {"severity": "warning", "owner": "application-platform"},
+          "annotations": {"summary": "XLB container CPU is near its request", "description": "Container {{ $labels.namespace }}/{{ $labels.pod }}/{{ $labels.container }} is using more than 90% of its requested CPU for 15 minutes.", "runbook": "docs/operations/TKE_NODE_FAILURE_RUNBOOK.md"}
+        },
+        {
+          "alert": "XlbContainerMemoryNearLimit",
+          "expr": "sum by (namespace, pod, container) (container_memory_working_set_bytes{pod=~\".*-xlb-(backend|jobs|customer|worker|admin)-.*\",container!=\"\",image!=\"\"}) / clamp_min(sum by (namespace, pod, container) (kube_pod_container_resource_limits{pod=~\".*-xlb-(backend|jobs|customer|worker|admin)-.*\",resource=\"memory\",unit=\"byte\"}), 1) > 0.9",
+          "for": "10m",
+          "labels": {"severity": "critical", "owner": "application-platform"},
+          "annotations": {"summary": "XLB container memory is near its limit", "description": "Container {{ $labels.namespace }}/{{ $labels.pod }}/{{ $labels.container }} is above 90% of its memory limit.", "runbook": "docs/operations/TKE_NODE_FAILURE_RUNBOOK.md"}
+        },
+        {
+          "alert": "XlbMigrationJobFailed",
+          "expr": "kube_job_status_failed{job_name=~\".*-xlb-migration-.*\"} > 0",
+          "for": "1m",
+          "labels": {"severity": "critical", "owner": "data-platform"},
+          "annotations": {"summary": "XLB migration Job failed", "description": "Migration Job {{ $labels.namespace }}/{{ $labels.job_name }} failed. Do not retry until logs and database state are reviewed.", "runbook": "docs/operations/TKE_DATABASE_RECOVERY_RUNBOOK.md"}
+        },
+        {
+          "alert": "XlbTkeNodeNotReady",
+          "expr": "kube_node_status_condition{condition=\"Ready\",status=\"true\"} == 0",
+          "for": "10m",
+          "labels": {"severity": "critical", "owner": "application-platform"},
+          "annotations": {"summary": "A Kubernetes node is not Ready", "description": "Node {{ $labels.node }} has not reported Ready for ten minutes. Confirm workload impact before any cordon, drain, or replacement.", "runbook": "docs/operations/TKE_NODE_FAILURE_RUNBOOK.md"}
+        }
+      ]
+    }
+  ]
+}

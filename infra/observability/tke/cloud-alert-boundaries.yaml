@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "mode": "contract-only-no-cloud-policy-created",
+  "notes": [
+    "Metric identifiers differ by Tencent Cloud product and must be verified in N7 against the approved account and region.",
+    "These boundaries are review inputs, not credentials, provider configuration, or an apply plan."
+  ],
+  "services": {
+    "mysql": {
+      "owner": "data-platform",
+      "requiredSignals": ["availability", "cpu", "connections", "storage", "replica-delay", "backup-success"],
+      "initialBoundaries": {"cpuPercent": 80, "connectionsPercent": 80, "storagePercent": 75, "replicaDelaySeconds": 30},
+      "currentGap": "The application readiness endpoint aggregates MySQL and Redis; no dedicated MySQL Prometheus metric exists."
+    },
+    "redis": {
+      "owner": "data-platform",
+      "requiredSignals": ["availability", "cpu", "memory", "connections", "evictions", "replica-delay"],
+      "initialBoundaries": {"cpuPercent": 80, "memoryPercent": 75, "connectionsPercent": 80, "evictionsPerFiveMinutes": 1},
+      "currentGap": "The application readiness endpoint aggregates MySQL and Redis; no dedicated Redis Prometheus metric exists."
+    },
+    "cos": {
+      "owner": "application-platform",
+      "requiredSignals": ["4xx", "5xx", "requests", "storage", "internet-egress"],
+      "initialBoundaries": {"serverErrorPercent": 1, "dailyEgressGrowthPercent": 50, "monthlyStorageGrowthPercent": 30},
+      "currentGap": "No COS request metric is exported by the application; configure Cloud Monitor after bucket creation."
+    },
+    "clb": {
+      "owner": "application-platform",
+      "requiredSignals": ["unhealthy-backends", "5xx", "connections", "bandwidth", "internet-egress"],
+      "initialBoundaries": {"unhealthyBackends": 1, "serverErrorPercent": 5, "bandwidthPercent": 80},
+      "currentGap": "CLB is created by the approved TKE Ingress later, so the listener and Cloud Monitor dimensions do not exist yet."
+    },
+    "tke": {
+      "owner": "application-platform",
+      "requiredSignals": ["node-ready", "node-cpu", "node-memory", "pod-restarts", "pending-pods", "control-plane"],
+      "initialBoundaries": {"nodeCpuPercent": 80, "nodeMemoryPercent": 80, "pendingPodMinutes": 10},
+      "currentGap": "Prometheus rules cover workload and node readiness; Tencent-managed control-plane metric names require N7 verification."
+    },
+    "logs": {
+      "owner": "security-observability",
+      "requiredSignals": ["daily-ingest-bytes", "indexed-bytes", "stored-bytes", "retention-days", "query-errors"],
+      "initialBoundaries": {"dailyIngestGrowthPercent": 50, "defaultRetentionDays": 14, "debugRetentionDays": 3},
+      "currentGap": "No CLS topic, index, retention policy, or billing dimension exists before cloud provisioning."
+    },
+    "cost": {
+      "owner": "service-owner",
+      "requiredSignals": ["monthly-budget", "forecast", "day-over-day", "unallocated-resources"],
+      "initialBoundaries": {"budgetNoticePercent": 50, "budgetWarningPercent": 80, "budgetCriticalPercent": 100, "dailyGrowthPercent": 30},
+      "currentGap": "A currency amount is intentionally not guessed; the Human owner must approve the monthly budget before N7."
+    }
+  }
+}
