@@ -5,6 +5,7 @@ import { loadProviderReadinessConfig } from "@xlb/config";
 import type { ObjectStorageProviderEnvelope, ObjectStorageProviderKind } from "@xlb/types";
 import type { ProviderFaultPlan } from "../providerSimulation.js";
 import { applyProviderFault } from "../providerSimulation.js";
+import { assertSafeObjectKey } from "./objectStorageKey.js";
 
 export interface PutObjectInput {
   objectKey: string;
@@ -23,12 +24,6 @@ export interface ObjectStorageProvider {
   putObject(input: PutObjectInput): Promise<ObjectStorageProviderEnvelope>;
   getObject(objectKey: string, contentType: StoredObject["contentType"]): Promise<StoredObject>;
   deleteObject(objectKey: string): Promise<void>;
-}
-
-function assertSafeObjectKey(objectKey: string): void {
-  if (!/^[a-z0-9][a-z0-9/_-]*\.(?:jpg|png|webp)$/.test(objectKey) || objectKey.includes("..")) {
-    throw new Error("unsafe object storage key");
-  }
 }
 
 export class LocalObjectStorageProvider implements ObjectStorageProvider {

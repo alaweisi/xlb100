@@ -21,6 +21,35 @@ export type DbHealthStatus = {
   jobWorker: ReturnType<typeof assessJobWorkerHeartbeat>;
 };
 
+export type LiveHealthStatus = {
+  ok: true;
+  status: "live";
+  service: "xlb-backend";
+  phase: string;
+};
+
+export type ReadyHealthStatus = DbHealthStatus & {
+  status: "ready" | "not_ready";
+  service: "xlb-backend";
+};
+
+export function getLiveHealthStatus(): LiveHealthStatus {
+  return {
+    ok: true,
+    status: "live",
+    service: "xlb-backend",
+    phase: XLB_RUNTIME_STATUS.phase,
+  };
+}
+
+export function toReadyHealthStatus(health: DbHealthStatus): ReadyHealthStatus {
+  return {
+    ...health,
+    status: health.ok ? "ready" : "not_ready",
+    service: "xlb-backend",
+  };
+}
+
 async function safePing(check: () => Promise<boolean>): Promise<boolean> {
   try {
     return await check();
@@ -52,4 +81,8 @@ export async function checkDbHealth(): Promise<DbHealthStatus> {
     dataReliability: assessDataReliability(sharedSnapshot ?? getDataReliabilitySnapshot()),
     jobWorker: assessJobWorkerHeartbeat(sharedHeartbeat),
   };
+}
+
+export async function checkReadyHealth(): Promise<ReadyHealthStatus> {
+  return toReadyHealthStatus(await checkDbHealth());
 }
