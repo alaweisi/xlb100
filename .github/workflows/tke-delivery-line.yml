@@ -62,6 +62,9 @@ jobs:
       - name: N7 offline staging-plan tests
         run: node --test deploy/tke/tests/prepare-staging-plan.test.mjs
 
+      - name: N8 offline production-plan tests
+        run: node --test deploy/tke/tests/prepare-production-plan.test.mjs
+
       - name: One-command release contract tests
         run: node --test deploy/tke/tests/release-contracts.test.mjs
 
