@@ -54,6 +54,9 @@ jobs:
       - name: Values safety tests
         run: node --test deploy/tke/tests/check-tke-delivery-line.test.mjs
 
+      - name: N7 offline staging-plan tests
+        run: node --test deploy/tke/tests/prepare-staging-plan.test.mjs
+
       - name: Helm lint and render gates
         shell: pwsh
         run: ./deploy/helm/xlb/scripts/validate.ps1

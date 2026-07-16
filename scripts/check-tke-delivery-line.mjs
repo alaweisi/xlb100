@@ -52,6 +52,9 @@ export function checkRepository(root = repoRoot) {
     "deploy/tke/tool-versions.json",
     "deploy/tke/tests/run-tests.ps1",
     "deploy/tke/tests/check-tke-delivery-line.test.mjs",
+    "deploy/tke/prepare-staging-plan.mjs",
+    "deploy/tke/staging/staging-plan.example.json",
+    "deploy/tke/tests/prepare-staging-plan.test.mjs",
     ".github/workflows/tke-delivery-line.yml",
     "deploy/helm/xlb/Chart.yaml",
     "deploy/environments/tke/values-local.yaml",
@@ -86,10 +89,10 @@ export function checkRepository(root = repoRoot) {
   }
 
   const entry = readFileSync(path.join(root, "deploy/tke/xlb-tke.ps1"), "utf8");
-  for (const action of ["Validate", "PlanInfrastructure", "Deploy", "Migrate", "Smoke", "Rollback"]) {
+  for (const action of ["Validate", "PrepareStaging", "PlanInfrastructure", "Deploy", "Migrate", "Smoke", "Rollback"]) {
     if (!entry.includes(`\"${action}\"`)) fail(`unified TKE entry is missing action ${action}`);
   }
-  for (const marker of ["-Apply", "explicit confirmation required", "must exactly match", "migration.enabled=false"]) {
+  for (const marker of ["-Apply", "-ExecutePlan", "explicit confirmation required", "must exactly match", "migration.enabled=false"]) {
     if (!entry.includes(marker)) fail(`unified TKE entry is missing safety marker: ${marker}`);
   }
   if (!entry.includes('template $releaseName') || !entry.includes('--show-only "templates/migration-job.yaml"')) {

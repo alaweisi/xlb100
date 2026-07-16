@@ -88,13 +88,26 @@ Assert-Fails "rollback revision required" @(
   "-Action", "Rollback", "-Environment", "staging"
 ) "Revision greater than zero"
 
+Assert-Fails "staging manifest required" @(
+  "-Action", "PrepareStaging", "-Environment", "staging"
+) "requires an ignored -StagingManifest"
+
+Assert-Fails "infrastructure plan rejects apply switch" @(
+  "-Action", "PlanInfrastructure", "-Environment", "staging", "-Apply",
+  "-Confirmation", "PLAN-INFRASTRUCTURE-STAGING"
+) "never accepts -Apply"
+
+Assert-Fails "infrastructure plan execution requires confirmation" @(
+  "-Action", "PlanInfrastructure", "-Environment", "staging", "-ExecutePlan"
+) "explicit confirmation required"
+
 $tempVarFile = [IO.Path]::GetTempFileName()
 $tempBackend = [IO.Path]::GetTempFileName()
 try {
   Copy-Item -LiteralPath (Join-Path $repoRoot "infra\tencent\terraform\environments\staging.tfvars.example") -Destination $tempVarFile -Force
   Copy-Item -LiteralPath (Join-Path $repoRoot "infra\tencent\terraform\environments\staging.backend.hcl.example") -Destination $tempBackend -Force
   Assert-Fails "infrastructure placeholder content rejected" @(
-    "-Action", "PlanInfrastructure", "-Environment", "staging", "-Apply",
+    "-Action", "PlanInfrastructure", "-Environment", "staging", "-ExecutePlan",
     "-TerraformVarFile", $tempVarFile, "-BackendConfig", $tempBackend,
     "-Confirmation", "PLAN-INFRASTRUCTURE-STAGING"
   ) "placeholder marker"
@@ -107,7 +120,7 @@ Assert-Passes "deploy defaults to dry-run" @(
 ) "dry-run only"
 Assert-Passes "infrastructure plan defaults to dry-run" @(
   "-Action", "PlanInfrastructure", "-Environment", "staging"
-) "dry-run only"
+) "dry-run only[\s\S]*-ExecutePlan"
 Assert-Passes "migration defaults to dry-run" @(
   "-Action", "Migrate", "-Environment", "staging", "-RunId", "release-001"
 ) "dry-run only"

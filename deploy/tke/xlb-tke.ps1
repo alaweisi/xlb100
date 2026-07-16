@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
   [Parameter(Mandatory = $true)]
-  [ValidateSet("Validate", "PlanInfrastructure", "Deploy", "Migrate", "Smoke", "Rollback")]
+  [ValidateSet("Validate", "PrepareStaging", "PlanInfrastructure", "Deploy", "Migrate", "Smoke", "Rollback")]
   [string]$Action,
 
   [Parameter(Mandatory = $true)]
@@ -11,11 +11,14 @@ param(
   [string]$ValuesFile = "",
   [string]$TerraformVarFile = "",
   [string]$BackendConfig = "",
+  [string]$StagingManifest = "",
+  [string]$EvidenceRoot = "",
   [string]$KubeContext = "",
   [string]$Confirmation = "",
   [string]$RunId = "",
   [int]$Revision = 0,
   [switch]$BackupConfirmed,
+  [switch]$ExecutePlan,
   [switch]$Apply
 )
 
@@ -58,6 +61,14 @@ function Get-ConfirmationToken([string]$RequestedAction, [string]$RequestedEnvir
 function Assert-ApplyConfirmation {
   if (-not $Apply) { return }
   $required = Get-ConfirmationToken $Action $Environment
+  if ($Confirmation -ne $required) {
+    Fail "explicit confirmation required: -Confirmation $required"
+  }
+}
+
+function Assert-PlanExecutionConfirmation {
+  if (-not $ExecutePlan) { return }
+  $required = Get-ConfirmationToken "PlanInfrastructure" $Environment
   if ($Confirmation -ne $required) {
     Fail "explicit confirmation required: -Confirmation $required"
   }
@@ -136,9 +147,9 @@ function Assert-PlanInputs {
   }
 }
 
-function Write-DryRun([string]$Description) {
+function Write-DryRun([string]$Description, [string]$ExecutionSwitch = "-Apply") {
   Write-Host "xlb-tke: dry-run only - $Description"
-  Write-Host "xlb-tke: add -Apply and the action-specific confirmation only in an explicitly authorized window"
+  Write-Host "xlb-tke: add $ExecutionSwitch and the action-specific confirmation only in an explicitly authorized window"
 }
 
 function Get-ToolPaths {
@@ -192,6 +203,15 @@ function Invoke-TerraformValidation {
 $defaultValues = "deploy\environments\tke\values-$Environment.yaml"
 $resolvedValues = Resolve-RepoFile $ValuesFile $defaultValues
 
+if ($ExecutePlan -and $Action -ne "PlanInfrastructure") {
+  Fail "-ExecutePlan is only valid with PlanInfrastructure"
+}
+if ($Apply -and $Action -eq "PlanInfrastructure") {
+  Fail "PlanInfrastructure never accepts -Apply; use -ExecutePlan only after real-cloud plan authorization"
+}
+if (($Apply -or $ExecutePlan) -and $Action -eq "PrepareStaging") {
+  Fail "PrepareStaging is always offline and never accepts -Apply or -ExecutePlan"
+}
 Assert-ApplyConfirmation
 
 switch ($Action) {
@@ -203,11 +223,29 @@ switch ($Action) {
     Write-Host "xlb-tke: validation passed"
   }
 
+  "PrepareStaging" {
+    if ($Environment -ne "staging") { Fail "PrepareStaging is only supported for staging" }
+    if ([string]::IsNullOrWhiteSpace($StagingManifest)) {
+      Fail "PrepareStaging requires an ignored -StagingManifest under .artifacts"
+    }
+    $manifest = Resolve-RepoFile $StagingManifest ""
+    $arguments = @(
+      (Join-Path $repoRoot "deploy\tke\prepare-staging-plan.mjs"),
+      "--manifest", $manifest
+    )
+    if (-not [string]::IsNullOrWhiteSpace($EvidenceRoot)) {
+      $arguments += @("--output", $EvidenceRoot)
+    }
+    & node @arguments
+    if ($LASTEXITCODE -ne 0) { Fail "N7 offline staging preparation failed" }
+  }
+
   "PlanInfrastructure" {
-    if (-not $Apply) {
-      Write-DryRun "would validate reviewed backend/tfvars inputs and run an infrastructure plan for $Environment"
+    if (-not $ExecutePlan) {
+      Write-DryRun "would validate reviewed backend/tfvars inputs and run an infrastructure plan for $Environment" "-ExecutePlan"
       break
     }
+    Assert-PlanExecutionConfirmation
     Assert-PlanInputs
     $varFile = Resolve-RepoFile $TerraformVarFile ""
     $backend = Resolve-RepoFile $BackendConfig ""

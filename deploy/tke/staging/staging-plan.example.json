@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "environment": "staging",
+  "executionMode": "offline-preparation",
+  "n6AcceptanceCommit": "cfcfc2e21c2570f6b33abf2f654d373870643fb6",
+  "owner": "REPLACE_WITH_STAGING_OWNER",
+  "costOwner": "REPLACE_WITH_COST_OWNER",
+  "changeWindow": "REPLACE_WITH_APPROVED_STAGING_WINDOW",
+  "approvedKubeContext": "REPLACE_WITH_EXACT_STAGING_CONTEXT",
+  "terraformVarFile": ".artifacts/tke/staging/staging.tfvars",
+  "backendConfig": ".artifacts/tke/staging/staging.backend.hcl",
+  "valuesFile": ".artifacts/tke/staging/values-staging.yaml",
+  "costReview": {
+    "currency": "CNY",
+    "monthlyMin": 0,
+    "monthlyMax": 0,
+    "sourceUrl": "REPLACE_WITH_TENCENT_PRICING_OR_CALCULATOR_URL",
+    "reviewedAt": "REPLACE_WITH_ISO_DATE",
+    "owner": "REPLACE_WITH_COST_REVIEWER"
+  },
+  "authorizations": {
+    "realCloudPlan": false,
+    "terraformApply": false,
+    "cloudDeploy": false,
+    "dataMigration": false,
+    "trafficCutover": false
+  }
+}
