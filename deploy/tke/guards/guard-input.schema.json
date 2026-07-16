@@ -1,0 +1,144 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://xlb.local/schemas/tke/safety-guard-input.schema.json",
+  "title": "XLB offline release safety guard input",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "releaseId",
+    "environment",
+    "phase",
+    "policy",
+    "backup",
+    "jobsSingleActive",
+    "migration",
+    "rollbackReadiness"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "releaseId": { "$ref": "#/definitions/releaseId" },
+    "environment": { "enum": ["staging", "production"] },
+    "phase": { "enum": ["PRE_MIGRATION", "POST_MIGRATION", "POST_SWITCH", "POST_ROLLBACK"] },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["backupMaxAgeHours", "restoreDrillMaxAgeHours", "jobsObservationMaxAgeMinutes", "rollbackReviewMaxAgeHours"],
+      "properties": {
+        "backupMaxAgeHours": { "type": "integer", "minimum": 1, "maximum": 168 },
+        "restoreDrillMaxAgeHours": { "type": "integer", "minimum": 1, "maximum": 2160 },
+        "jobsObservationMaxAgeMinutes": { "type": "integer", "minimum": 1, "maximum": 60 },
+        "rollbackReviewMaxAgeHours": { "type": "integer", "minimum": 1, "maximum": 168 }
+      }
+    },
+    "backup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["backupId", "createdAt", "verifiedAt", "restoreDrill"],
+      "properties": {
+        "backupId": { "type": "string", "minLength": 6, "maxLength": 253 },
+        "createdAt": { "$ref": "#/definitions/timestamp" },
+        "verifiedAt": { "$ref": "#/definitions/timestamp" },
+        "restoreDrill": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["performedAt", "result", "evidenceRef"],
+          "properties": {
+            "performedAt": { "$ref": "#/definitions/timestamp" },
+            "result": { "const": "PASS" },
+            "evidenceRef": { "$ref": "#/definitions/artifactPath" }
+          }
+        }
+      }
+    },
+    "jobsSingleActive": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lighthouseState",
+        "tkeState",
+        "activeSide",
+        "leaseBackend",
+        "leaseOwner",
+        "expectedLeaseOwner",
+        "fencingToken",
+        "previousFencingToken",
+        "observedAt",
+        "leaseExpiresAt",
+        "evidenceRef"
+      ],
+      "properties": {
+        "lighthouseState": { "enum": ["ACTIVE", "STOPPED"] },
+        "tkeState": { "enum": ["ACTIVE", "STOPPED"] },
+        "activeSide": { "enum": ["LIGHTHOUSE", "TKE"] },
+        "leaseBackend": { "const": "redis" },
+        "leaseOwner": { "$ref": "#/definitions/nonEmpty" },
+        "expectedLeaseOwner": { "$ref": "#/definitions/nonEmpty" },
+        "fencingToken": { "type": "integer", "minimum": 1 },
+        "previousFencingToken": { "type": "integer", "minimum": 0 },
+        "observedAt": { "$ref": "#/definitions/timestamp" },
+        "leaseExpiresAt": { "$ref": "#/definitions/timestamp" },
+        "evidenceRef": { "$ref": "#/definitions/artifactPath" }
+      }
+    },
+    "migration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["plannedRunId", "conflictingRunIds"],
+      "properties": {
+        "plannedRunId": { "$ref": "#/definitions/runId" },
+        "conflictingRunIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/definitions/runId" }
+        },
+        "execution": { "$ref": "#/definitions/executionEvidence" }
+      }
+    },
+    "rollbackReadiness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reviewedAt", "result", "evidenceRef"],
+      "properties": {
+        "reviewedAt": { "$ref": "#/definitions/timestamp" },
+        "result": { "const": "PASS" },
+        "evidenceRef": { "$ref": "#/definitions/artifactPath" },
+        "execution": { "$ref": "#/definitions/executionEvidence" }
+      }
+    }
+  },
+  "definitions": {
+    "releaseId": {
+      "type": "string",
+      "minLength": 6,
+      "maxLength": 63,
+      "pattern": "^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])$"
+    },
+    "runId": {
+      "type": "string",
+      "minLength": 6,
+      "maxLength": 63,
+      "pattern": "^[a-z0-9][a-z0-9-]{5,62}$"
+    },
+    "nonEmpty": { "type": "string", "minLength": 1, "maxLength": 253 },
+    "timestamp": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+    },
+    "artifactPath": {
+      "type": "string",
+      "pattern": "^\\.artifacts/tke/[a-z0-9./-]+$"
+    },
+    "executionEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["runId", "completedAt", "result", "evidenceRef"],
+      "properties": {
+        "runId": { "$ref": "#/definitions/runId" },
+        "completedAt": { "$ref": "#/definitions/timestamp" },
+        "result": { "const": "PASS" },
+        "evidenceRef": { "$ref": "#/definitions/artifactPath" }
+      }
+    }
+  }
+}
