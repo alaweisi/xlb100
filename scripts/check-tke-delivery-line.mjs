@@ -79,6 +79,12 @@ export function checkRepository(root = repoRoot) {
     "deploy/tke/guards/guard-input.schema.json",
     "deploy/tke/guards/guard-input.example.json",
     "deploy/tke/guards/tests/safety-guard.test.mjs",
+    "tests/tke/release/README.md",
+    "tests/tke/release/fixture-builder.mjs",
+    "tests/tke/release/ports.mjs",
+    "tests/tke/release/provider-fakes.mjs",
+    "tests/tke/release/scenario-runner.mjs",
+    "tests/tke/release/scenario-runner.test.mjs",
     ".github/workflows/tke-delivery-line.yml",
     "deploy/helm/xlb/Chart.yaml",
     "deploy/environments/tke/values-local.yaml",
@@ -127,7 +133,7 @@ export function checkRepository(root = repoRoot) {
   }
 
   const manifest = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
-  for (const script of ["tke:check", "tke:test", "tke:validate", "tke:gate"]) {
+  for (const script of ["tke:check", "tke:test", "tke:validate", "tke:gate", "tke:wave2:simulation:test", "tke:wave2:test"]) {
     if (!manifest.scripts?.[script]) fail(`package.json is missing ${script}`);
   }
 
