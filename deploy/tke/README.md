@@ -89,3 +89,37 @@ the approved kube-context and an action-specific confirmation. A real Terraform
 plan uses the dedicated `-ExecutePlan` switch; it never accepts `-Apply`.
 Cluster mutations use `-Apply`. Production migration, traffic cutover and
 resource destruction are not hidden inside `Deploy`.
+
+## N8 offline production preparation
+
+N8 is allowed to prepare only after a real N7 result reports `PASS`. An N7
+`PREPARED_OFFLINE` result is intentionally rejected. Production inputs live
+under the ignored `.artifacts/tke/production` directory:
+
+```powershell
+New-Item -ItemType Directory -Force .artifacts/tke/production | Out-Null
+Copy-Item infra/tencent/terraform/environments/production.tfvars.example `
+  .artifacts/tke/production/production.tfvars
+Copy-Item infra/tencent/terraform/environments/production.backend.hcl.example `
+  .artifacts/tke/production/production.backend.hcl
+Copy-Item deploy/environments/tke/values-production.yaml `
+  .artifacts/tke/production/values-production.yaml
+Copy-Item deploy/tke/production/production-plan.example.json `
+  .artifacts/tke/production/manifest.json
+```
+
+Add the real N7 PASS evidence as
+`.artifacts/tke/production/n7-staging-pass.json`, replace every non-secret
+placeholder, keep all authorization fields `false`, and run:
+
+```powershell
+pwsh deploy/tke/xlb-tke.ps1 -Action PrepareProduction -Environment production `
+  -ProductionManifest .artifacts/tke/production/manifest.json
+```
+
+The gate requires exact reuse of all four N7-validated image digests, verified
+backup/restore and object-sync evidence, a jobs single-active procedure, a
+Lighthouse rollback endpoint and the fixed 5/25/50/100 weighted rollout. It
+writes only ignored plan evidence. Infrastructure apply, no-traffic deploy,
+migration, traffic cutover and Lighthouse decommission remain separate Human
+authorization gates.

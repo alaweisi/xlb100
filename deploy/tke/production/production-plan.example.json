@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "environment": "production",
+  "executionMode": "offline-preparation",
+  "n7EvidenceFile": ".artifacts/tke/production/n7-staging-pass.json",
+  "valuesFile": ".artifacts/tke/production/values-production.yaml",
+  "terraformVarFile": ".artifacts/tke/production/production.tfvars",
+  "backendConfig": ".artifacts/tke/production/production.backend.hcl",
+  "owner": "REPLACE_WITH_OVERALL_OWNER",
+  "releaseOwner": "REPLACE_WITH_RELEASE_OWNER",
+  "dataOwner": "REPLACE_WITH_DATA_OWNER",
+  "onCallOwner": "REPLACE_WITH_ONCALL_OWNER",
+  "changeWindow": "REPLACE_WITH_APPROVED_PRODUCTION_WINDOW",
+  "approvedKubeContext": "REPLACE_WITH_EXACT_PRODUCTION_CONTEXT",
+  "dataReadiness": {
+    "backupId": "REPLACE_WITH_VERIFIED_BACKUP_ID",
+    "backupVerifiedAt": "REPLACE_WITH_ISO_TIMESTAMP",
+    "restoreDrillEvidence": "REPLACE_WITH_N7_RESTORE_EVIDENCE",
+    "objectSyncEvidence": "REPLACE_WITH_OBJECT_SYNC_EVIDENCE",
+    "migrationRunId": "REPLACE_WITH_UNIQUE_RUN_ID"
+  },
+  "jobsSingleActive": {
+    "lighthouseStopProcedure": "REPLACE_WITH_LIGHTHOUSE_JOBS_STOP_PROCEDURE",
+    "tkeStartProcedure": "REPLACE_WITH_TKE_JOBS_START_PROCEDURE",
+    "rollbackProcedure": "REPLACE_WITH_JOBS_ROLLBACK_PROCEDURE"
+  },
+  "rollback": {
+    "lighthouseHealthUrl": "https://REPLACE_WITH_LIGHTHOUSE_ROLLBACK_HOST/health",
+    "lighthouseReadinessEvidence": "REPLACE_WITH_LIGHTHOUSE_READINESS_EVIDENCE",
+    "previousHelmRevision": 1,
+    "dnsTtlSeconds": 60
+  },
+  "traffic": {
+    "strategy": "weighted",
+    "steps": [5, 25, 50, 100],
+    "observationMinutesPerStep": 30,
+    "stopConditions": "REPLACE_WITH_ERROR_LATENCY_AND_DATA_STOP_CONDITIONS",
+    "operatorProcedure": "REPLACE_WITH_APPROVED_CLB_OR_DNS_WEIGHT_PROCEDURE"
+  },
+  "costReview": {
+    "currency": "CNY",
+    "monthlyMax": 0,
+    "sourceUrl": "REPLACE_WITH_TENCENT_PRICING_OR_CALCULATOR_URL",
+    "reviewedAt": "REPLACE_WITH_ISO_DATE",
+    "owner": "REPLACE_WITH_COST_REVIEWER"
+  },
+  "authorizations": {
+    "realCloudPlan": false,
+    "terraformApply": false,
+    "cloudDeploy": false,
+    "dataMigration": false,
+    "trafficCutover": false,
+    "lighthouseDecommission": false
+  }
+}
+

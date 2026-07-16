@@ -355,6 +355,31 @@ admin.<domain>     -> admin Service
 
 Production 数据迁移和切流仍是 N7 之后的单独生产操作，不因 Staging 通过而自动授权。
 
+### N8：TKE Production 部署、灰度切流与 Lighthouse 退场
+
+建议分支：`codex/tke-production-cutover`
+
+依赖：N7 必须有真实 TKE Staging `PASS` 证据；`PREPARED_OFFLINE` 不满足入口条件。
+
+独占路径：
+
+- `deploy/tke/prepare-production-plan.mjs`
+- `deploy/tke/production/**`
+- `deploy/tke/tests/prepare-production-plan.test.mjs`
+- `docs/operations/TKE_PRODUCTION_CUTOVER_*.md`
+
+施工内容：
+
+1. 复用 N7 验证过的四个不可变镜像 digest。
+2. Production Terraform plan/apply、无流量 Helm 部署分门控制。
+3. 数据备份、恢复、对象同步和唯一 migration run id。
+4. Lighthouse/TKE jobs 单活切换。
+5. 固定 `5/25/50/100` 灰度流量和逐级停止条件。
+6. Helm、流量、jobs 和 Lighthouse 四层回滚。
+7. 观察期结束后才允许单独授权 Lighthouse 下线。
+
+N8 仓库工程可以在 N7 离线准备后提前建设，但真实生产执行必须等待 N7 PASS。
+
 ## 6. 并行波次
 
 遵守仓库“最多三个并行写入单元”的约束。
@@ -383,6 +408,10 @@ Wave 3（串行）
                        v
 Wave 4（未来、需外部授权）
   N7 TKE Staging 验证
+                       |
+                       v
+Wave 5（未来、需生产授权）
+  N8 Production 部署与灰度切流
 ```
 
 并行不等于同时修改共享文件。各节点只写自己的独占路径；跨节点需求先更新契约或在集成点处理。

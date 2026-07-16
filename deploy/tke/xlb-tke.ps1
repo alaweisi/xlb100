@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
   [Parameter(Mandatory = $true)]
-  [ValidateSet("Validate", "PrepareStaging", "PlanInfrastructure", "Deploy", "Migrate", "Smoke", "Rollback")]
+  [ValidateSet("Validate", "PrepareStaging", "PrepareProduction", "PlanInfrastructure", "Deploy", "Migrate", "Smoke", "Rollback")]
   [string]$Action,
 
   [Parameter(Mandatory = $true)]
@@ -12,6 +12,7 @@ param(
   [string]$TerraformVarFile = "",
   [string]$BackendConfig = "",
   [string]$StagingManifest = "",
+  [string]$ProductionManifest = "",
   [string]$EvidenceRoot = "",
   [string]$KubeContext = "",
   [string]$Confirmation = "",
@@ -209,8 +210,8 @@ if ($ExecutePlan -and $Action -ne "PlanInfrastructure") {
 if ($Apply -and $Action -eq "PlanInfrastructure") {
   Fail "PlanInfrastructure never accepts -Apply; use -ExecutePlan only after real-cloud plan authorization"
 }
-if (($Apply -or $ExecutePlan) -and $Action -eq "PrepareStaging") {
-  Fail "PrepareStaging is always offline and never accepts -Apply or -ExecutePlan"
+if (($Apply -or $ExecutePlan) -and $Action -in @("PrepareStaging", "PrepareProduction")) {
+  Fail "$Action is always offline and never accepts -Apply or -ExecutePlan"
 }
 Assert-ApplyConfirmation
 
@@ -238,6 +239,23 @@ switch ($Action) {
     }
     & node @arguments
     if ($LASTEXITCODE -ne 0) { Fail "N7 offline staging preparation failed" }
+  }
+
+  "PrepareProduction" {
+    if ($Environment -ne "production") { Fail "PrepareProduction is only supported for production" }
+    if ([string]::IsNullOrWhiteSpace($ProductionManifest)) {
+      Fail "PrepareProduction requires an ignored -ProductionManifest under .artifacts"
+    }
+    $manifest = Resolve-RepoFile $ProductionManifest ""
+    $arguments = @(
+      (Join-Path $repoRoot "deploy\tke\prepare-production-plan.mjs"),
+      "--manifest", $manifest
+    )
+    if (-not [string]::IsNullOrWhiteSpace($EvidenceRoot)) {
+      $arguments += @("--output", $EvidenceRoot)
+    }
+    & node @arguments
+    if ($LASTEXITCODE -ne 0) { Fail "N8 offline production preparation failed" }
   }
 
   "PlanInfrastructure" {

@@ -55,6 +55,9 @@ export function checkRepository(root = repoRoot) {
     "deploy/tke/prepare-staging-plan.mjs",
     "deploy/tke/staging/staging-plan.example.json",
     "deploy/tke/tests/prepare-staging-plan.test.mjs",
+    "deploy/tke/prepare-production-plan.mjs",
+    "deploy/tke/production/production-plan.example.json",
+    "deploy/tke/tests/prepare-production-plan.test.mjs",
     ".github/workflows/tke-delivery-line.yml",
     "deploy/helm/xlb/Chart.yaml",
     "deploy/environments/tke/values-local.yaml",
@@ -89,7 +92,7 @@ export function checkRepository(root = repoRoot) {
   }
 
   const entry = readFileSync(path.join(root, "deploy/tke/xlb-tke.ps1"), "utf8");
-  for (const action of ["Validate", "PrepareStaging", "PlanInfrastructure", "Deploy", "Migrate", "Smoke", "Rollback"]) {
+  for (const action of ["Validate", "PrepareStaging", "PrepareProduction", "PlanInfrastructure", "Deploy", "Migrate", "Smoke", "Rollback"]) {
     if (!entry.includes(`\"${action}\"`)) fail(`unified TKE entry is missing action ${action}`);
   }
   for (const marker of ["-Apply", "-ExecutePlan", "explicit confirmation required", "must exactly match", "migration.enabled=false"]) {

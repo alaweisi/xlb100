@@ -92,6 +92,14 @@ Assert-Fails "staging manifest required" @(
   "-Action", "PrepareStaging", "-Environment", "staging"
 ) "requires an ignored -StagingManifest"
 
+Assert-Fails "production manifest required" @(
+  "-Action", "PrepareProduction", "-Environment", "production"
+) "requires an ignored -ProductionManifest"
+
+Assert-Fails "production preparation rejects apply" @(
+  "-Action", "PrepareProduction", "-Environment", "production", "-Apply"
+) "always offline"
+
 Assert-Fails "infrastructure plan rejects apply switch" @(
   "-Action", "PlanInfrastructure", "-Environment", "staging", "-Apply",
   "-Confirmation", "PLAN-INFRASTRUCTURE-STAGING"
