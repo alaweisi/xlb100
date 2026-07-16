@@ -1,0 +1,71 @@
+name: TKE delivery line
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    paths:
+      - "deploy/helm/**"
+      - "deploy/environments/tke/**"
+      - "deploy/tke/**"
+      - "infra/tencent/**"
+      - "scripts/check-tke-delivery-line.mjs"
+      - ".github/workflows/tke-delivery-line.yml"
+      - "package.json"
+  push:
+    branches: [main, master]
+    paths:
+      - "deploy/helm/**"
+      - "deploy/environments/tke/**"
+      - "deploy/tke/**"
+      - "infra/tencent/**"
+      - "scripts/check-tke-delivery-line.mjs"
+      - ".github/workflows/tke-delivery-line.yml"
+      - "package.json"
+
+jobs:
+  offline-gates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.21.1
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.15.8
+          terraform_wrapper: false
+
+      - name: Repository safety gate
+        run: node scripts/check-tke-delivery-line.mjs
+
+      - name: Tooling negative tests
+        shell: pwsh
+        run: ./deploy/tke/tests/run-tests.ps1
+
+      - name: Values safety tests
+        run: node --test deploy/tke/tests/check-tke-delivery-line.test.mjs
+
+      - name: Helm lint and render gates
+        shell: pwsh
+        run: ./deploy/helm/xlb/scripts/validate.ps1
+
+      - name: Terraform format
+        run: terraform -chdir=infra/tencent/terraform fmt -check -recursive
+
+      - name: Terraform offline init
+        run: terraform -chdir=infra/tencent/terraform init -backend=false -input=false -no-color
+
+      - name: Terraform validate
+        run: terraform -chdir=infra/tencent/terraform validate -no-color
+
+      - name: Terraform mocked tests
+        run: terraform -chdir=infra/tencent/terraform test -no-color
