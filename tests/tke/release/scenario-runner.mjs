@@ -12,34 +12,40 @@ import { assertSimulationPorts, assertTrafficPlan, TRAFFIC_STEPS } from "./ports
 const steps = Object.freeze([
   { state: "PLAN_REVIEWED", stage: "PLAN_INFRASTRUCTURE", run: async ports => {
     const plan = await ports.terraform.reviewPlan();
-    if (!plan.approved) throw new ProviderFailure("PLAN_INFRASTRUCTURE", "Terraform plan was rejected");
-    assertStageResult("PLAN_INFRASTRUCTURE", plan);
+    assertTrueField("PLAN_INFRASTRUCTURE", plan, "approved");
   } },
   { state: "INFRA_READY", stage: "APPLY_INFRASTRUCTURE", run: async ports => {
-    assertStageResult("APPLY_INFRASTRUCTURE", await ports.terraform.apply());
+    assertTrueField("APPLY_INFRASTRUCTURE", await ports.terraform.apply(), "applied");
   } },
   { state: "DEPLOYED_NO_TRAFFIC", stage: "DEPLOY_NO_TRAFFIC", run: async ports => {
-    assertStageResult("DEPLOY_NO_TRAFFIC", await ports.kubernetes.deployNoTraffic());
+    const result = await ports.kubernetes.deployNoTraffic();
+    assertTrueField("DEPLOY_NO_TRAFFIC", result, "ready");
+    assertExactField("DEPLOY_NO_TRAFFIC", result, "publicTrafficWeight", 0);
   } },
   { state: "BACKUP_VERIFIED", stage: "VERIFY_BACKUP", run: async ports => {
-    assertStageResult("VERIFY_BACKUP", await ports.backup.verify());
+    assertTrueField("VERIFY_BACKUP", await ports.backup.verify(), "verified");
   } },
   { state: "MIGRATED", stage: "MIGRATE_DATA", run: async (ports, context) => {
     context.evidence.migration = await ports.migration.run();
-    assertStageResult("MIGRATE_DATA", context.evidence.migration);
+    assertExecutionEvidence("MIGRATE_DATA", context.evidence.migration, context.releaseId);
   } },
   { state: "SMOKE_PASS", stage: "SMOKE", run: async (ports, context) => {
     context.evidence.smoke = await ports.smoke.run();
-    assertStageResult("SMOKE", context.evidence.smoke);
+    assertExecutionEvidence("SMOKE", context.evidence.smoke, context.releaseId);
   } },
   { state: "JOBS_SWITCHED", stage: "SWITCH_JOBS", run: async (ports, context) => {
-    assertStageResult("SWITCH_JOBS", await ports.jobs.switchToTke());
+    assertTrueField("SWITCH_JOBS", await ports.jobs.switchToTke(), "switched");
     context.evidence.jobsSingleActive = await ports.jobs.observeSingleActive();
     try {
       validateEvidenceSemantics(context.evidence);
     } catch (error) {
       throw new ProviderFailure("SWITCH_JOBS", error.message);
     }
+    const jobs = context.evidence.jobsSingleActive;
+    assertExactField("SWITCH_JOBS", jobs, "lighthouseState", "STOPPED");
+    assertExactField("SWITCH_JOBS", jobs, "tkeState", "ACTIVE");
+    assertExactField("SWITCH_JOBS", jobs, "leaseOwner", `tke-jobs-${context.releaseId}`.slice(0, 253));
+    assertEvidenceRef("SWITCH_JOBS", jobs.evidenceRef, context.releaseId);
   } },
   ...TRAFFIC_STEPS.map(weight => ({
     state: `TRAFFIC_${weight}`,
@@ -48,10 +54,12 @@ const steps = Object.freeze([
       context.evidence.trafficObservations = context.evidence.trafficObservations.filter(
         item => item.weight < weight,
       );
-      assertStageResult(`TRAFFIC_${weight}`, await ports.traffic.setWeight(weight));
+      assertExactField(`TRAFFIC_${weight}`, await ports.traffic.setWeight(weight), "weight", weight);
       const observation = await ports.traffic.observe(weight);
       context.evidence.trafficObservations.push(observation);
-      assertStageResult(`TRAFFIC_${weight}`, observation);
+      assertExactField(`TRAFFIC_${weight}`, observation, "weight", weight);
+      assertExactField(`TRAFFIC_${weight}`, observation, "result", "PASS");
+      assertEvidenceRef(`TRAFFIC_${weight}`, observation.evidenceRef, context.releaseId);
       try {
         validateEvidenceSemantics(context.evidence);
       } catch (error) {
@@ -60,18 +68,64 @@ const steps = Object.freeze([
     },
   })),
   { state: "OBSERVED", stage: "OBSERVE", run: async ports => {
-    assertStageResult("OBSERVE", await ports.lifecycle.observe());
+    assertTrueField("OBSERVE", await ports.lifecycle.observe(), "passed");
   } },
   { state: "LIGHTHOUSE_RETIRED", stage: "RETIRE_LIGHTHOUSE", run: async ports => {
-    assertStageResult("RETIRE_LIGHTHOUSE", await ports.lifecycle.retire());
+    assertTrueField("RETIRE_LIGHTHOUSE", await ports.lifecycle.retire(), "retired");
   } },
 ]);
 
 function assertStageResult(stage, result) {
+  if (!result || typeof result !== "object" || Array.isArray(result)) {
+    throw new ProviderFailure(stage, `${stage} returned no structured result`);
+  }
   if (result?.result === "FAIL") {
     throw new ProviderFailure(stage, `${stage} returned explicit result=FAIL`);
   }
   return result;
+}
+
+function assertExactField(stage, result, field, expected) {
+  assertStageResult(stage, result);
+  if (!(field in result)) throw new ProviderFailure(stage, `${stage} result.${field} is required`);
+  if (result[field] !== expected) {
+    throw new ProviderFailure(stage, `${stage} result.${field} must be ${JSON.stringify(expected)}`);
+  }
+  return result;
+}
+
+function assertTrueField(stage, result, field) {
+  return assertExactField(stage, result, field, true);
+}
+
+function assertEvidenceRef(stage, reference, releaseId) {
+  const prefix = `.artifacts/tke/releases/${releaseId}/`;
+  if (typeof reference !== "string" || !reference.startsWith(prefix)) {
+    throw new ProviderFailure(stage, `${stage} evidenceRef must belong to ${prefix}`);
+  }
+}
+
+function assertExecutionEvidence(stage, result, releaseId) {
+  assertExactField(stage, result, "result", "PASS");
+  if (typeof result.runId !== "string" || result.runId.length < 6 || result.runId.length > 63) {
+    throw new ProviderFailure(stage, `${stage} result.runId is required`);
+  }
+  if (!Number.isFinite(Date.parse(result.completedAt))) {
+    throw new ProviderFailure(stage, `${stage} result.completedAt is required`);
+  }
+  assertEvidenceRef(stage, result.evidenceRef, releaseId);
+}
+
+function assertEvidenceOwnership(evidence, releaseId, stage) {
+  const visit = value => {
+    if (Array.isArray(value)) return value.forEach(visit);
+    if (!value || typeof value !== "object") return;
+    for (const [key, child] of Object.entries(value)) {
+      if (key === "evidenceRef") assertEvidenceRef(stage, child, releaseId);
+      else visit(child);
+    }
+  };
+  visit(evidence);
 }
 
 function assertRegistryDigests(imageLock, actual) {
@@ -126,9 +180,11 @@ function stepStartIndex(checkpoint) {
 }
 
 async function rollback(checkpoint, evidence, ports) {
-  assertStageResult("ROLLBACK", await ports.traffic.rollback());
-  assertStageResult("ROLLBACK", await ports.jobs.returnToLighthouse());
-  assertStageResult("ROLLBACK", await ports.kubernetes.rollback());
+  const traffic = await ports.traffic.rollback();
+  assertExactField("ROLLBACK", traffic, "lighthouseWeight", 100);
+  assertExactField("ROLLBACK", traffic, "tkeWeight", 0);
+  assertExactField("ROLLBACK", await ports.jobs.returnToLighthouse(), "activeSide", "LIGHTHOUSE");
+  assertTrueField("ROLLBACK", await ports.kubernetes.rollback(), "rolledBack");
   const completedAt = ports.clock.now();
   evidence.rollback = {
     runId: `rollback-${checkpoint.releaseId}`.slice(0, 63),
@@ -136,6 +192,7 @@ async function rollback(checkpoint, evidence, ports) {
     result: "PASS",
     evidenceRef: `.artifacts/tke/releases/${checkpoint.releaseId}/evidence/rollback.json`,
   };
+  assertEvidenceOwnership(evidence, checkpoint.releaseId, "ROLLBACK");
   assertTransition(checkpoint.currentState, "ROLLED_BACK");
   const rolledBack = validateCheckpointSemantics({
     ...checkpoint,
@@ -177,6 +234,7 @@ export async function runReleaseSimulation({
 
   try {
     assertArtifactHashes(checkpoint, base.checkpoint.artifactHashes);
+    assertEvidenceOwnership(evidence, checkpoint.releaseId, "PREPARE");
   } catch (error) {
     if (checkpoint.currentState === "FAILED" || ["LIGHTHOUSE_RETIRED", "ROLLED_BACK"].includes(checkpoint.currentState)) {
       throw error;
@@ -197,10 +255,14 @@ export async function runReleaseSimulation({
     try {
       if (step.state === "PLAN_REVIEWED") {
         const registryResult = await ports.registry.inspectDigests();
-        assertStageResult("IMAGES_PUBLISHED", registryResult);
-        assertRegistryDigests(base.imageLock, registryResult);
+        assertTrueField("IMAGES_PUBLISHED", registryResult, "published");
+        if (!registryResult.digests || typeof registryResult.digests !== "object") {
+          throw new ProviderFailure("IMAGES_PUBLISHED", "IMAGES_PUBLISHED result.digests is required");
+        }
+        assertRegistryDigests(base.imageLock, registryResult.digests);
       }
-      await step.run(ports, { checkpoint, evidence });
+      await step.run(ports, { checkpoint, evidence, releaseId: checkpoint.releaseId });
+      assertEvidenceOwnership(evidence, checkpoint.releaseId, step.stage);
       checkpoint = updateCheckpoint(checkpoint, step.state, step.stage, ports.clock.now());
       await ports.checkpoint.save(checkpoint, evidence);
       await ports.process.afterCheckpoint(step.stage);

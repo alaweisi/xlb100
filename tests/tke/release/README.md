@@ -35,6 +35,14 @@ process interruption and makes failed or rolled-back evidence inspectable.
 `p4-p5-wiring.mjs` exposes adapters matching P4's injected executor and P5's
 adapter/observer/progress-store contracts for Gate 2 composition.
 
+Every simulated stage has a structured success contract. Boolean success
+flags must be exactly `true`, execution evidence must be `PASS` with a run ID,
+and registry digests, zero-traffic readiness, Jobs ownership and retirement
+must all be explicit. Missing fields, false flags and `FAIL` results create a
+durable `FAILED` checkpoint. Every nested `evidenceRef`, fake lease owner and
+fake run ID is bound to the fixture's release ID; cross-release evidence is
+rejected before the next state can advance.
+
 ## Gate 2 wiring still required
 
 - Adapt P4's checkpoint/state execution to these ports and compare checkpoint

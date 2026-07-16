@@ -17,6 +17,8 @@ export class ProcessInterrupted extends Error {
 }
 
 export function createDeterministicProviderFakes(fixture, options = {}) {
+  const releaseId = fixture.releaseManifest.releaseId;
+  const evidenceRoot = `.artifacts/tke/releases/${releaseId}/evidence`;
   const trace = [];
   const checkpoints = [];
   const snapshots = [];
@@ -32,24 +34,34 @@ export function createDeterministicProviderFakes(fixture, options = {}) {
     record("provider.invoke", { stage });
     const failures = new Set(Array.isArray(options.failAt) ? options.failAt : [options.failAt].filter(Boolean));
     if (failures.has(stage)) throw new ProviderFailure(stage);
+    if (Object.hasOwn(options.stageResponses ?? {}, stage)) return clone(options.stageResponses[stage]);
+    const structuredOverride = options.stageOverrides?.[stage];
     const overriddenResult = options.stageResults?.[stage];
-    return clone(overriddenResult === undefined ? result : { ...result, result: overriddenResult });
+    return clone({
+      ...result,
+      ...structuredOverride,
+      ...(overriddenResult === undefined ? {} : { result: overriddenResult }),
+    });
   };
 
   const defaultJobs = {
     lighthouseState: "STOPPED",
     tkeState: "ACTIVE",
-    leaseOwner: "tke-jobs-release-20260716-001",
+    leaseOwner: `tke-jobs-${releaseId}`.slice(0, 253),
     fencingToken: 42,
     observedAt: "2026-07-16T09:30:00Z",
-    evidenceRef: ".artifacts/tke/releases/release-20260716-001/evidence/jobs-tke.json",
+    evidenceRef: `${evidenceRoot}/jobs-tke.json`,
   };
 
   const ports = {
+    metadata: { releaseId },
     registry: {
       inspectDigests: () => invoke(
         "INSPECT_IMAGE_DIGESTS",
-        options.registryDigests ?? lockedDigests(fixture.imageLock),
+        {
+          published: true,
+          digests: options.registryDigests ?? lockedDigests(fixture.imageLock),
+        },
       ),
     },
     terraform: {
@@ -65,18 +77,18 @@ export function createDeterministicProviderFakes(fixture, options = {}) {
     },
     migration: {
       run: () => invoke("MIGRATE_DATA", {
-        runId: "migration-20260716-001",
+        runId: `migration-${releaseId}`.slice(0, 63),
         completedAt: "2026-07-16T09:10:00Z",
         result: "PASS",
-        evidenceRef: ".artifacts/tke/releases/release-20260716-001/evidence/migration.json",
+        evidenceRef: `${evidenceRoot}/migration.json`,
       }),
     },
     smoke: {
       run: () => invoke("SMOKE", {
-        runId: "smoke-20260716-001",
+        runId: `smoke-${releaseId}`.slice(0, 63),
         completedAt: "2026-07-16T09:20:00Z",
         result: "PASS",
-        evidenceRef: ".artifacts/tke/releases/release-20260716-001/evidence/smoke.json",
+        evidenceRef: `${evidenceRoot}/smoke.json`,
       }),
     },
     jobs: {
@@ -90,7 +102,7 @@ export function createDeterministicProviderFakes(fixture, options = {}) {
         weight,
         observedAt: `2026-07-16T${String(10 + Math.floor(weight / 25)).padStart(2, "0")}:00:00Z`,
         result: options.trafficResults?.[weight] ?? "PASS",
-        evidenceRef: `.artifacts/tke/releases/release-20260716-001/evidence/traffic-${weight}.json`,
+        evidenceRef: `${evidenceRoot}/traffic-${weight}.json`,
       }),
       rollback: () => invoke("ROLLBACK_TRAFFIC", { lighthouseWeight: 100, tkeWeight: 0 }),
     },

@@ -16,6 +16,29 @@ const providerCalls = (fake, stage) => fake.trace.filter(
   item => item.operation === "provider.invoke" && item.stage === stage,
 ).length;
 
+const fixtureWithReleaseId = newId => {
+  const oldId = "release-20260716-001";
+  return buildReleaseFixture(bundle => {
+    for (const key of Object.keys(bundle)) {
+      bundle[key] = JSON.parse(JSON.stringify(bundle[key]).replaceAll(oldId, newId));
+    }
+  });
+};
+
+const collectEvidenceRefs = value => {
+  const references = [];
+  const visit = current => {
+    if (Array.isArray(current)) return current.forEach(visit);
+    if (!current || typeof current !== "object") return;
+    for (const [key, child] of Object.entries(current)) {
+      if (key === "evidenceRef") references.push(child);
+      else visit(child);
+    }
+  };
+  visit(value);
+  return references;
+};
+
 test("deterministic happy path reaches Lighthouse retirement in contract order", async () => {
   const { fixture, fake } = setup();
   const result = await runReleaseSimulation({ fixture, ports: fake.ports });
@@ -57,6 +80,49 @@ test("rejected Terraform plan never reaches apply", async () => {
   assert.equal(result.checkpoint.failure.failedStage, "PLAN_INFRASTRUCTURE");
   assert.equal(fake.trace.some(item => item.stage === "APPLY_INFRASTRUCTURE"), false);
 });
+
+for (const [stage, field, failedStage] of [
+  ["INSPECT_IMAGE_DIGESTS", "published", "IMAGES_PUBLISHED"],
+  ["PLAN_INFRASTRUCTURE", "approved", "PLAN_INFRASTRUCTURE"],
+  ["APPLY_INFRASTRUCTURE", "applied", "APPLY_INFRASTRUCTURE"],
+  ["DEPLOY_NO_TRAFFIC", "ready", "DEPLOY_NO_TRAFFIC"],
+  ["VERIFY_BACKUP", "verified", "VERIFY_BACKUP"],
+  ["SWITCH_JOBS", "switched", "SWITCH_JOBS"],
+  ["OBSERVE", "passed", "OBSERVE"],
+  ["RETIRE_LIGHTHOUSE", "retired", "RETIRE_LIGHTHOUSE"],
+]) {
+  test(`${stage} structured false result is durable FAILED evidence`, async () => {
+    const { fixture, fake } = setup({ stageOverrides: { [stage]: { [field]: false } } });
+    const result = await runReleaseSimulation({ fixture, ports: fake.ports });
+    assert.equal(result.checkpoint.currentState, "FAILED");
+    assert.equal(result.checkpoint.failure.failedStage, failedStage);
+    assert.match(result.checkpoint.failure.message, new RegExp(field));
+    assert.equal(fake.snapshots.at(-1).checkpoint.currentState, "FAILED");
+  });
+}
+
+for (const [stage, failedStage] of [
+  ["INSPECT_IMAGE_DIGESTS", "IMAGES_PUBLISHED"],
+  ["PLAN_INFRASTRUCTURE", "PLAN_INFRASTRUCTURE"],
+  ["APPLY_INFRASTRUCTURE", "APPLY_INFRASTRUCTURE"],
+  ["DEPLOY_NO_TRAFFIC", "DEPLOY_NO_TRAFFIC"],
+  ["VERIFY_BACKUP", "VERIFY_BACKUP"],
+  ["MIGRATE_DATA", "MIGRATE_DATA"],
+  ["SMOKE", "SMOKE"],
+  ["SWITCH_JOBS", "SWITCH_JOBS"],
+  ["OBSERVE_JOBS", "SWITCH_JOBS"],
+  ["TRAFFIC_5", "TRAFFIC_5"],
+  ["OBSERVE", "OBSERVE"],
+  ["RETIRE_LIGHTHOUSE", "RETIRE_LIGHTHOUSE"],
+]) {
+  test(`${stage} missing structured success fields fail closed`, async () => {
+    const { fixture, fake } = setup({ stageResponses: { [stage]: {} } });
+    const result = await runReleaseSimulation({ fixture, ports: fake.ports });
+    assert.equal(result.checkpoint.currentState, "FAILED");
+    assert.equal(result.checkpoint.failure.failedStage, failedStage);
+    assert.equal(fake.snapshots.at(-1).checkpoint.currentState, "FAILED");
+  });
+}
 
 for (const [stage, expectedState] of [
   ["DEPLOY_NO_TRAFFIC", "DEPLOYED_NO_TRAFFIC"],
@@ -222,13 +288,8 @@ test("repeating the same terminal release ID is idempotent", async () => {
 });
 
 test("rollback evidence derives its release ID instead of using the sample ID", async () => {
-  const oldId = "release-20260716-001";
   const newId = "release-custom-002";
-  const fixture = buildReleaseFixture(bundle => {
-    for (const key of Object.keys(bundle)) {
-      bundle[key] = JSON.parse(JSON.stringify(bundle[key]).replaceAll(oldId, newId));
-    }
-  });
+  const fixture = fixtureWithReleaseId(newId);
   const fake = createDeterministicProviderFakes(fixture, { failAt: "SMOKE" });
   const result = await runReleaseSimulation({ fixture, ports: fake.ports, rollbackOnFailure: true });
 
@@ -237,4 +298,34 @@ test("rollback evidence derives its release ID instead of using the sample ID", 
   assert.match(result.evidence.rollback.evidenceRef, new RegExp(newId));
   assert.equal(fake.snapshots.at(-1).checkpoint.currentState, "ROLLED_BACK");
   assert.equal(fake.snapshots.at(-1).evidence.rollback.runId, `rollback-${newId}`);
+});
+
+test("a changed release ID completes the full chain with only release-scoped fake evidence", async () => {
+  const releaseId = "release-full-chain-777";
+  const fixture = fixtureWithReleaseId(releaseId);
+  const fake = createDeterministicProviderFakes(fixture);
+  const result = await runReleaseSimulation({ fixture, ports: fake.ports });
+
+  assert.equal(result.checkpoint.currentState, "LIGHTHOUSE_RETIRED");
+  assert.equal(result.evidence.migration.runId, `migration-${releaseId}`);
+  assert.equal(result.evidence.smoke.runId, `smoke-${releaseId}`);
+  assert.equal(result.evidence.jobsSingleActive.leaseOwner, `tke-jobs-${releaseId}`);
+  const prefix = `.artifacts/tke/releases/${releaseId}/`;
+  assert.ok(collectEvidenceRefs(result.evidence).length > 0);
+  assert.equal(collectEvidenceRefs(result.evidence).every(reference => reference.startsWith(prefix)), true);
+});
+
+test("cross-release evidenceRef becomes durable FAILED before the next stage", async () => {
+  const { fixture, fake } = setup({
+    stageOverrides: {
+      SMOKE: { evidenceRef: ".artifacts/tke/releases/release-other-999/evidence/smoke.json" },
+    },
+  });
+  const result = await runReleaseSimulation({ fixture, ports: fake.ports });
+
+  assert.equal(result.checkpoint.currentState, "FAILED");
+  assert.equal(result.checkpoint.failure.failedStage, "SMOKE");
+  assert.match(result.checkpoint.failure.message, /evidenceRef must belong/);
+  assert.equal(providerCalls(fake, "SWITCH_JOBS"), 0);
+  assert.equal(fake.snapshots.at(-1).evidence.smoke.evidenceRef.includes("release-other-999"), true);
 });

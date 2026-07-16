@@ -44,6 +44,9 @@ export function createP4ExecutorAdapter(ports) {
 
 export function createP5ControllerBindings(ports, type = "clb") {
   if (!new Set(["clb", "dns"]).has(type)) throw new TypeError("P5 provider type must be clb or dns");
+  const releaseId = ports.metadata?.releaseId;
+  if (!releaseId) throw new TypeError("P5 bindings require ports.metadata.releaseId");
+  const evidenceRoot = `.artifacts/tke/releases/${releaseId}/evidence`;
   let currentWeight = 0;
   let progress;
   return {
@@ -52,7 +55,7 @@ export function createP5ControllerBindings(ports, type = "clb") {
       readWeights: async () => ({
         tkeWeight: currentWeight,
         lighthouseWeight: 100 - currentWeight,
-        evidenceRef: `.artifacts/tke/simulation/${type}-weights-${currentWeight}.json`,
+        evidenceRef: `${evidenceRoot}/${type}-weights-${currentWeight}.json`,
       }),
       applyWeights: async ({ toWeight }) => {
         await ports.traffic.setWeight(toWeight);
@@ -60,7 +63,7 @@ export function createP5ControllerBindings(ports, type = "clb") {
         return {
           tkeWeight: currentWeight,
           lighthouseWeight: 100 - currentWeight,
-          evidenceRef: `.artifacts/tke/simulation/${type}-weights-${currentWeight}.json`,
+          evidenceRef: `${evidenceRoot}/${type}-weights-${currentWeight}.json`,
         };
       },
     },

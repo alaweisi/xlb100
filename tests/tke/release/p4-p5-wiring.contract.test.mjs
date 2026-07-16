@@ -47,7 +47,7 @@ test("simulation bindings implement the real P5 adapter observer and progress-st
   assert.deepEqual(await bindings.adapter.readWeights({}), {
     tkeWeight: 0,
     lighthouseWeight: 100,
-    evidenceRef: ".artifacts/tke/simulation/clb-weights-0.json",
+    evidenceRef: ".artifacts/tke/releases/release-20260716-001/evidence/clb-weights-0.json",
   });
   const applied = await bindings.adapter.applyWeights({ fromWeight: 0, toWeight: 5 });
   assert.equal(applied.tkeWeight, 5);
