@@ -2,7 +2,7 @@
 
 Date: 2026-07-17 (Asia/Shanghai)
 
-WAVE2_STATUS=BLOCKED_P4_FINAL_REVIEW
+WAVE2_STATUS=BLOCKED_FINAL_REVIEW
 
 > Correction: the earlier `5061892` acceptance candidate is superseded. A
 > later independent P4 review found four open fail-closed issues. Passing tests
@@ -26,23 +26,29 @@ WAVE2_STATUS=BLOCKED_P4_FINAL_REVIEW
    did not round-trip real evidence, provider receipt hashes and the resulting
    P4 checkpoint. The real-chain increment now covers success, failure/resume,
    external drift and rollback/retry paths.
-6. **Open:** `LEASE_LOST` or fencing-owner mismatch can enter a generic catch
+6. **Resolved by P4 fourth correction `a5dda43`:** `LEASE_LOST` or fencing-owner mismatch can enter a generic catch
    path and persist `FAILED` or `ROLLBACK_FAILED`. Under reverse interleaving,
    the stale owner can claim revision + 1 before the new owner. Fencing failures
    must rethrow without any persistent write.
-7. **Open:** an artifacts failure uses `SAFETY_EVIDENCE_READY` while the frozen
+7. **Resolved by P4 fourth correction `a5dda43`:** an artifacts failure uses `SAFETY_EVIDENCE_READY` while the frozen
    checkpoint schema permits `SAFETY_CONTRACT_READY`; a temporary mapping masks
    an otherwise illegal persisted `failedStage`.
-8. **Open:** only provider-receipt validation uses a post-executor clock. Other
+8. **Resolved by P4 fourth correction `a5dda43`:** only provider-receipt validation uses a post-executor clock. Other
    business evidence, rollback evidence, checkpoint and failure timestamps use
    the entry clock, so a task longer than five minutes can incorrectly reject
    fresh evidence as future-dated.
+9. **Open:** the fourth P4 correction has not yet completed the required final
+   independent review.
+10. **Open:** the real P4/P5 chain currently proves the first `TRAFFIC_5` step,
+    failure/resume, external drift and rollback/retry. It still needs the full
+    `5 -> 25 -> 50 -> 100` staircase and cross-process/cross-instance durable
+    resume coverage against the fourth P4 correction.
 
-P4 third-correction tests pass 26/26. The real P4/P5 chain passes 4/4, the Wave
-0 combined chain passes 56/56 and the aggregate root tests pass 146/146. Gate 2
-remains blocked until a fourth P4 correction closes findings 6-8, the real
-chain is rerun against that correction, the complete offline gate passes and a
-final independent integration review accepts the result.
+P4 fourth-correction tests pass 29/29. The real P4/P5 chain passes 4/4 against
+that correction and the aggregate root tests pass 149/149. Gate 2 remains
+blocked until findings 9-10 close, the expanded real chain passes, the complete
+offline gate passes and a final independent integration review accepts the
+result.
 
 ## Integrated baseline
 
