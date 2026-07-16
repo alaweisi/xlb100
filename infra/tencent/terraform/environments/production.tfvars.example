@@ -1,0 +1,43 @@
+environment = "production"
+region      = "ap-guangzhou"
+
+enable_billable_resources          = true
+billable_resources_acknowledgement = "CREATE-TKE-PRODUCTION"
+deletion_protection                = true
+
+create_tke_cluster      = true
+existing_tke_cluster_id = ""
+vpc_id                  = "vpc-REPLACE"
+vpc_cidr                = "10.10.0.0/16"
+subnet_ids              = ["subnet-REPLACE_A", "subnet-REPLACE_B"]
+cluster_version         = "1.32.2"
+cluster_level           = "L20"
+cluster_network_type    = "CiliumOverlay"
+pod_cidr                = "172.24.0.0/16"
+service_cidr            = "172.25.0.0/20"
+
+create_node_pool           = true
+node_instance_type         = "REPLACE_WITH_AVAILABLE_CVM_TYPE"
+node_ssh_key_ids           = ["skey-REPLACE"]
+node_pool_min_size         = 2
+node_pool_desired_capacity = 2
+node_pool_max_size         = 6
+
+create_tcr_instance     = true
+manage_tcr_repositories = true
+tcr_instance_type       = "standard"
+
+create_cos_bucket        = true
+cos_bucket_name          = "xlb-production-objects-REPLACE_APPID"
+existing_cos_bucket_name = ""
+
+mysql_instance_id   = "cdb-REPLACE"
+mysql_internal_host = "REPLACE.mysql.tencentcdb.com"
+redis_instance_id   = "crs-REPLACE"
+redis_internal_host = "REPLACE.redis.tencentcdb.com"
+runtime_secret_name = "xlb-production-runtime-secrets"
+
+tags = {
+  owner       = "REPLACE_WITH_OWNER"
+  cost-center = "REPLACE_WITH_COST_CENTER"
+}

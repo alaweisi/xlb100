@@ -1,0 +1,5 @@
+region  = "ap-guangzhou"
+bucket  = "REPLACE_WITH_EXISTING_TERRAFORM_STATE_BUCKET_APPID"
+prefix  = "xlb/staging/tke-infra"
+encrypt = true
+acl     = "private"
