@@ -15,7 +15,9 @@ provider.
   blocks execution.
 - A renewable release lease serializes runners before an executor starts. The
   provider idempotency key is `<releaseId>:<revision>:<targetState>` and remains
-  stable across a failed-stage retry.
+  stable across a failed-stage retry. Lease owner and monotonically increasing
+  fencing token are verified before renewal and after provider return, and are
+  required in the provider receipt.
 - Forward transitions are adjacent and ordered. `runRelease` reaches a later
   target only by executing every intermediate transition.
 - Failures persist the failed stage and exact resume state. `resumeRelease`
@@ -30,6 +32,12 @@ provider.
 - Every external stage requires a matching, fresh provider receipt and evidence
   hash. Mock/offline/no-op receipts are accepted only with the explicit library
   simulation context, never in normal execution.
+- Simulation requires
+  `.artifacts/tke/simulations/<releaseId>/simulation-manifest.json`, cannot use
+  a production manifest, and persists `simulation: true` in both its extended
+  checkpoint and receipts. Real advance/resume rejects that path and marker.
+- `ARTIFACTS_READY` failures identify exactly `IMAGES_PUBLISHED`,
+  `CLOUD_BUNDLE_READY`, or `SAFETY_EVIDENCE_READY`.
 - Traffic authority names one exact step (`TRAFFIC_5`, `TRAFFIC_25`,
   `TRAFFIC_50`, or `TRAFFIC_100`) and cannot authorize the next step.
 - The default injected executor is `OFFLINE_FAKE`; it never connects to an

@@ -140,6 +140,12 @@ function assertFreshTimestamp(value, now, maximumAgeMs, label) {
   if (now.getTime() - timestamp > maximumAgeMs) fail(`${label} is stale`);
 }
 
+function asClockDate(value) {
+  const result = value instanceof Date ? value : new Date(value);
+  if (!Number.isFinite(result.getTime())) fail("runtime clock returned an invalid timestamp");
+  return result;
+}
+
 function artifactReference(repoRoot, file, label) {
   const absolute = path.resolve(file);
   const relative = normalize(path.relative(repoRoot, absolute));
@@ -182,7 +188,7 @@ function assertNoSensitiveMaterial(value, label, location = "$") {
   }
 }
 
-function assertCrossContractConsistency(bundle) {
+function assertCrossContractConsistency(bundle, simulation) {
   const { manifest, imageLock, cloudBundle, evidenceBundle } = bundle;
   if (imageLock.releaseId !== manifest.releaseId) fail("image lock releaseId drifted from release manifest");
   if (imageLock.sourceCommit !== manifest.sourceCommit) fail("image lock sourceCommit drifted from release manifest");
@@ -193,7 +199,9 @@ function assertCrossContractConsistency(bundle) {
   if (Date.parse(manifest.changeWindow.endsAt) <= Date.parse(manifest.changeWindow.startsAt)) {
     fail("release change window must end after it starts");
   }
-  const releasePrefix = `.artifacts/tke/releases/${manifest.releaseId}/`;
+  const releasePrefix = simulation
+    ? `.artifacts/tke/simulations/${manifest.releaseId}/`
+    : `.artifacts/tke/releases/${manifest.releaseId}/`;
   for (const [label, reference] of [
     ["imageLockFile", manifest.imageLockFile],
     ["evidenceFile", manifest.evidenceFile],
@@ -225,15 +233,29 @@ function collectEvidenceReferences(evidence) {
   return entries;
 }
 
+const artifactFailureStages = new Set(["IMAGES_PUBLISHED", "CLOUD_BUNDLE_READY", "SAFETY_EVIDENCE_READY"]);
+
+function artifactStage(stage, callback) {
+  try {
+    return callback();
+  } catch (error) {
+    error.failedStage = stage;
+    throw error;
+  }
+}
+
 function validatePayloadFiles(bundle, repoRoot) {
   const hashes = bundle.hashes;
-  for (const [component, image] of Object.entries(bundle.imageLock.images)) {
-    const sbom = requireArtifactFile(repoRoot, image.sbomFile, `${component} SBOM`, hashes, `image.${component}.sbom`);
-    const scan = requireArtifactFile(repoRoot, image.scanEvidenceFile, `${component} scan evidence`, hashes, `image.${component}.scan`);
-    readJson(sbom.absolute, `${component} SBOM`);
-    readJson(scan.absolute, `${component} scan evidence`);
-  }
+  artifactStage("IMAGES_PUBLISHED", () => {
+    for (const [component, image] of Object.entries(bundle.imageLock.images)) {
+      const sbom = requireArtifactFile(repoRoot, image.sbomFile, `${component} SBOM`, hashes, `image.${component}.sbom`);
+      const scan = requireArtifactFile(repoRoot, image.scanEvidenceFile, `${component} scan evidence`, hashes, `image.${component}.scan`);
+      readJson(sbom.absolute, `${component} SBOM`);
+      readJson(scan.absolute, `${component} scan evidence`);
+    }
+  });
 
+  artifactStage("CLOUD_BUNDLE_READY", () => {
   const cloudDirectory = path.dirname(bundle.paths.cloudBundle.absolute);
   const inventoryFile = path.join(cloudDirectory, "bundle-files.json");
   const digestFile = path.join(cloudDirectory, "bundle.sha256");
@@ -272,10 +294,13 @@ function validatePayloadFiles(bundle, repoRoot) {
   if (readFileSync(digestFile, "utf8").trim() !== bundle.cloudBundle.bundleSha256) fail("bundle.sha256 drifted from cloud bundle");
   hashes.cloudPayloadInventory = sha256File(inventoryFile);
   hashes.cloudPayloadDigest = sha256File(digestFile);
+  });
 
+  artifactStage("SAFETY_EVIDENCE_READY", () => {
   for (const [label, reference] of collectEvidenceReferences(bundle.evidenceBundle)) {
     requireArtifactFile(repoRoot, reference, `${label} evidenceRef`, hashes, `evidence.${label}`);
   }
+  });
 
   const receiptDirectory = path.join(path.dirname(bundle.paths.releaseManifest.absolute), "receipts");
   if (!existsSync(receiptDirectory)) return;
@@ -330,7 +355,7 @@ function assertEvidenceForState(state, evidence, now) {
   }
 }
 
-export function loadReleaseBundle({ repoRoot = defaultRepoRoot, contractRoot = defaultContractRoot, manifestFile }) {
+export function loadReleaseBundle({ repoRoot = defaultRepoRoot, contractRoot = defaultContractRoot, manifestFile, simulation = false, verifyPayloads = true }) {
   const validators = compileValidators(contractRoot);
   const manifestRef = artifactReference(repoRoot, manifestFile, "manifestFile");
   const paths = { releaseManifest: resolveArtifact(repoRoot, manifestRef, "manifestFile") };
@@ -357,8 +382,16 @@ export function loadReleaseBundle({ repoRoot = defaultRepoRoot, contractRoot = d
     hashes: Object.fromEntries(Object.entries(paths).map(([name, item]) => [name, sha256File(item.absolute)])),
     validators,
   };
-  assertCrossContractConsistency(bundle);
-  validatePayloadFiles(bundle, repoRoot);
+  const manifestRelative = paths.releaseManifest.relative;
+  if (simulation) {
+    const expected = `.artifacts/tke/simulations/${manifest.releaseId}/simulation-manifest.json`;
+    if (manifestRelative !== expected) fail(`simulation manifest must be stored at ${expected}`);
+    if (manifest.environment === "production") fail("production gated-release manifest cannot enter simulation");
+  } else if (manifestRelative.startsWith(".artifacts/tke/simulations/")) {
+    fail("simulation manifest cannot be used by a real release operation");
+  }
+  assertCrossContractConsistency(bundle, simulation);
+  if (verifyPayloads) validatePayloadFiles(bundle, repoRoot);
   return bundle;
 }
 
@@ -405,10 +438,10 @@ function assertCheckpointSemantics(checkpoint) {
     if (!sameArray(checkpoint.completedStages, requiredStagesThrough(predecessor))) {
       fail("FAILED checkpoint completedStages do not match the recorded resumeState predecessor");
     }
-    const expectedFailedStage = checkpoint.failure.resumeState === "ARTIFACTS_READY"
-      ? "IMAGES_PUBLISHED"
-      : stageForState[checkpoint.failure.resumeState];
-    if (checkpoint.failure.failedStage !== expectedFailedStage) {
+    const validFailedStages = checkpoint.failure.resumeState === "ARTIFACTS_READY"
+      ? artifactFailureStages
+      : new Set([stageForState[checkpoint.failure.resumeState]]);
+    if (!validFailedStages.has(checkpoint.failure.failedStage)) {
       fail("FAILED checkpoint failedStage does not match resumeState");
     }
     return;
@@ -439,11 +472,25 @@ function assertHashes(checkpoint, bundle) {
   }
 }
 
-function readCheckpoint(bundle) {
+function assertCheckpointSchema(validate, checkpoint, simulation) {
+  const normalized = checkpoint.failure?.failedStage === "SAFETY_EVIDENCE_READY"
+    ? { ...checkpoint, failure: { ...checkpoint.failure, failedStage: "SAFETY_CONTRACT_READY" } }
+    : checkpoint;
+  if (simulation) {
+    if (normalized.simulation !== true) fail("simulation checkpoint must persist simulation=true");
+    const { simulation: ignoredSimulationMarker, ...frozenCheckpoint } = normalized;
+    assertSchema(validate, frozenCheckpoint, "checkpoint");
+  } else {
+    if (normalized.simulation !== undefined) fail("simulation checkpoint cannot be used by a real release operation");
+    assertSchema(validate, normalized, "checkpoint");
+  }
+}
+
+function readCheckpoint(bundle, simulation = false) {
   const corrected = resolveArtifact(bundle.repoRoot, bundle.manifest.checkpointFile, "release manifest checkpointFile", { mustExist: false });
   if (!existsSync(corrected.absolute)) return { checkpoint: undefined, checkpointPath: corrected };
   const checkpoint = readJson(corrected.absolute, "checkpoint");
-  assertSchema(bundle.validators.checkpoint, checkpoint, "checkpoint");
+  assertCheckpointSchema(bundle.validators.checkpoint, checkpoint, simulation);
   assertCheckpointSafe(checkpoint);
   assertCheckpointIdentity(checkpoint, bundle);
   assertCheckpointSemantics(checkpoint);
@@ -481,30 +528,59 @@ function atomicWriteJsonFile(file, value) {
 
 function leasePaths(checkpointFile) {
   const directory = `${checkpointFile}.release-lease`;
-  return { directory, record: path.join(directory, "lease.json") };
+  return { directory, record: path.join(directory, "lease.json"), fence: `${checkpointFile}.release-fence.json` };
 }
 
-function acquireReleaseLease(checkpointFile, releaseId, leaseDurationMs = 30_000) {
+function acquireReleaseLease(checkpointFile, releaseId, leaseDurationMs = 30_000, heartbeatEnabled = true) {
   const paths = leasePaths(checkpointFile);
-  const create = () => {
+  const create = previousToken => {
     mkdirSync(paths.directory);
     const leaseId = `${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-    const renew = () => atomicWriteJsonFile(paths.record, {
-      schemaVersion: 1,
-      releaseId,
-      leaseId,
-      processId: process.pid,
+    const owner = `runner-${process.pid}-${leaseId.slice(-8)}`;
+    const fenceRecord = existsSync(paths.fence) ? readJson(paths.fence, "release fence") : undefined;
+    if (fenceRecord && (fenceRecord.releaseId !== releaseId || !Number.isInteger(fenceRecord.lastFencingToken))) {
+      throw orchestrationError("release fence record is invalid", { code: "FENCE_INVALID" });
+    }
+    const fencingToken = Math.max(previousToken ?? 0, fenceRecord?.lastFencingToken ?? 0) + 1;
+    atomicWriteJsonFile(paths.fence, { schemaVersion: 1, releaseId, lastFencingToken: fencingToken });
+    const record = () => ({
+      schemaVersion: 1, releaseId, leaseId, owner, fencingToken, processId: process.pid,
       expiresAt: new Date(Date.now() + leaseDurationMs).toISOString(),
     });
-    renew();
-    const heartbeat = setInterval(renew, Math.max(1_000, Math.floor(leaseDurationMs / 3)));
-    heartbeat.unref();
+    writeFileSync(paths.record, jsonLine(record()), { encoding: "utf8", flag: "wx" });
+    let heartbeatError;
+    const assertOwned = () => {
+      if (heartbeatError) throw heartbeatError;
+      const current = readJson(paths.record, "release lease");
+      const fence = readJson(paths.fence, "release fence");
+      if (current.leaseId !== leaseId || current.owner !== owner || current.fencingToken !== fencingToken) {
+        throw orchestrationError("release lease ownership changed", { code: "LEASE_LOST" });
+      }
+      if (fence.releaseId !== releaseId || fence.lastFencingToken !== fencingToken) {
+        throw orchestrationError("release fencing token is no longer current", { code: "LEASE_LOST" });
+      }
+      if (Date.parse(current.expiresAt) <= Date.now()) throw orchestrationError("release lease expired", { code: "LEASE_LOST" });
+      return current;
+    };
+    const renew = () => {
+      assertOwned();
+      const temporary = path.join(paths.directory, `lease.${leaseId}.tmp`);
+      writeFileSync(temporary, jsonLine(record()), { encoding: "utf8", flag: "wx" });
+      renameSync(temporary, paths.record);
+    };
+    const heartbeat = heartbeatEnabled ? setInterval(() => {
+      try { renew(); } catch (error) { heartbeatError = error; }
+    }, Math.max(10, Math.floor(leaseDurationMs / 3))) : undefined;
+    heartbeat?.unref();
     return {
+      leaseId,
+      owner,
+      fencingToken,
+      assertOwned,
       release() {
-        clearInterval(heartbeat);
+        if (heartbeat) clearInterval(heartbeat);
         try {
-          const current = readJson(paths.record, "release lease");
-          if (current.leaseId !== leaseId) throw orchestrationError("release lease ownership changed", { code: "LEASE_LOST" });
+          assertOwned();
           rmSync(paths.directory, { recursive: true, force: true });
         } catch (error) {
           if (error.code !== "ENOENT") throw error;
@@ -524,6 +600,9 @@ function acquireReleaseLease(checkpointFile, releaseId, leaseDurationMs = 30_000
     throw orchestrationError("release is locked and its lease record cannot be verified", { code: "RELEASE_LOCKED", retryable: true });
   }
   if (existing.releaseId !== releaseId) fail("release lease identity drift detected");
+  if (typeof existing.leaseId !== "string" || typeof existing.owner !== "string" || !Number.isInteger(existing.fencingToken) || existing.fencingToken < 1) {
+    fail("release lease owner or fencing token is invalid");
+  }
   if (Date.parse(existing.expiresAt) > Date.now()) {
     throw orchestrationError("another runner holds the release lease", { code: "RELEASE_LOCKED", retryable: true });
   }
@@ -531,16 +610,16 @@ function acquireReleaseLease(checkpointFile, releaseId, leaseDurationMs = 30_000
   try {
     renameSync(paths.directory, quarantine);
     rmSync(quarantine, { recursive: true, force: true });
-    return create();
+    return create(existing.fencingToken);
   } catch {
     throw orchestrationError("stale release lease takeover lost a race", { code: "RELEASE_LOCKED", retryable: true });
   }
 }
 
-async function withReleaseLease(checkpointFile, releaseId, callback) {
-  const lease = acquireReleaseLease(checkpointFile, releaseId);
+async function withReleaseLease(checkpointFile, releaseId, callback, leaseDurationMs, heartbeatEnabled) {
+  const lease = acquireReleaseLease(checkpointFile, releaseId, leaseDurationMs, heartbeatEnabled);
   try {
-    return await callback();
+    return await callback(lease);
   } finally {
     lease.release();
   }
@@ -572,9 +651,9 @@ const isoNow = now => {
   return result.toISOString();
 };
 
-export function prepareRelease({ repoRoot = defaultRepoRoot, contractRoot = defaultContractRoot, manifestFile, now = new Date() }) {
-  const bundle = loadReleaseBundle({ repoRoot, contractRoot, manifestFile });
-  const { checkpoint, checkpointPath } = readCheckpoint(bundle);
+export function prepareRelease({ repoRoot = defaultRepoRoot, contractRoot = defaultContractRoot, manifestFile, now = new Date(), simulation = false }) {
+  const bundle = loadReleaseBundle({ repoRoot, contractRoot, manifestFile, simulation });
+  const { checkpoint, checkpointPath } = readCheckpoint(bundle, simulation);
   if (checkpoint) {
     assertHashes(checkpoint, bundle);
     return { status: "ALREADY_PREPARED", checkpoint, checkpointFile: checkpointPath.absolute };
@@ -588,8 +667,9 @@ export function prepareRelease({ repoRoot = defaultRepoRoot, contractRoot = defa
     artifactHashes: bundle.hashes,
     updatedAt: isoNow(now),
     revision: 1,
+    ...(simulation ? { simulation: true } : {}),
   };
-  assertSchema(bundle.validators.checkpoint, created, "checkpoint");
+  assertCheckpointSchema(bundle.validators.checkpoint, created, simulation);
   assertCheckpointSemantics(created);
   atomicWriteCheckpoint(checkpointPath.absolute, created, 0);
   return { status: "PREPARED", checkpoint: created, checkpointFile: checkpointPath.absolute };
@@ -650,22 +730,26 @@ function providerIdempotencyKey(checkpoint, targetState, operationRevision = che
   return `${checkpoint.releaseId}:${operationRevision}:${targetState}`;
 }
 
-function validateProviderReceipt({ receipt, checkpoint, targetState, stage, repoRoot, now, simulation, operationRevision }) {
+function validateProviderReceipt({ receipt, checkpoint, targetState, stage, repoRoot, receiptNow, simulation, operationRevision, lease }) {
   if (!receipt || typeof receipt !== "object" || Array.isArray(receipt)) fail(`${stage} requires a provider receipt`);
-  const allowed = ["schemaVersion", "provider", "mode", "operation", "idempotencyKey", "completedAt", "result", "evidenceRef", "evidenceSha256"];
+  const allowed = ["schemaVersion", "provider", "mode", "simulation", "operation", "idempotencyKey", "completedAt", "result", "evidenceRef", "evidenceSha256", "leaseOwner", "fencingToken"];
   if (Object.keys(receipt).some(key => !allowed.includes(key))) fail(`${stage} provider receipt contains an unsupported field`);
   if (receipt.schemaVersion !== 1 || receipt.operation !== stage || receipt.result !== "PASS") fail(`${stage} provider receipt does not match the completed operation`);
   if (receipt.idempotencyKey !== providerIdempotencyKey(checkpoint, targetState, operationRevision)) fail(`${stage} provider receipt idempotency key mismatch`);
+  if (receipt.leaseOwner !== lease.owner || receipt.fencingToken !== lease.fencingToken) fail(`${stage} provider receipt lease owner or fencing token mismatch`);
   if (!/^[a-z][a-z0-9.-]{1,63}$/.test(receipt.provider ?? "")) fail(`${stage} provider receipt provider is invalid`);
   const fakeProvider = /(?:^|[.-])(?:mock|noop|no-op|offline|fake)(?:$|[.-])/i.test(receipt.provider);
   if (simulation) {
-    if (receipt.mode !== "SIMULATION") fail(`${stage} simulation receipt must use SIMULATION mode`);
-  } else if (receipt.mode !== "REAL" || fakeProvider) {
+    if (receipt.mode !== "SIMULATION" || receipt.simulation !== true) fail(`${stage} simulation receipt must persist simulation=true`);
+  } else if (receipt.mode !== "REAL" || receipt.simulation === true || fakeProvider) {
     fail(`${stage} refuses mock, no-op, offline, or fake provider receipt outside simulation`);
   }
-  assertFreshTimestamp(receipt.completedAt, now, providerReceiptMaxAgeMs, `${stage} provider receipt completedAt`);
+  assertFreshTimestamp(receipt.completedAt, receiptNow, providerReceiptMaxAgeMs, `${stage} provider receipt completedAt`);
   if (!/^[a-f0-9]{64}$/.test(receipt.evidenceSha256 ?? "")) fail(`${stage} provider receipt evidenceSha256 is invalid`);
-  if (!receipt.evidenceRef?.startsWith(`.artifacts/tke/releases/${checkpoint.releaseId}/`)) {
+  const receiptPrefix = simulation
+    ? `.artifacts/tke/simulations/${checkpoint.releaseId}/`
+    : `.artifacts/tke/releases/${checkpoint.releaseId}/`;
+  if (!receipt.evidenceRef?.startsWith(receiptPrefix)) {
     fail(`${stage} provider evidenceRef must stay within the release ID directory`);
   }
   const evidence = resolveArtifact(repoRoot, receipt.evidenceRef, `${stage} provider evidenceRef`);
@@ -724,17 +808,21 @@ async function executeOne({
   simulation,
   pausedCheckpoint = checkpoint,
   operationRevision = checkpoint.revision,
+  lease,
+  clock,
 }) {
   const expected = nextForwardState(checkpoint.currentState);
   if (targetState !== expected) fail(`illegal state transition ${checkpoint.currentState} -> ${targetState}; expected ${expected ?? "no successor"}`);
-  const bundleBefore = loadReleaseBundle({ repoRoot, contractRoot, manifestFile });
-  assertHashes(checkpoint, bundleBefore);
   const requiredAuthority = authorityForState[targetState];
   if (requiredAuthority && !hasRuntimeGrant(authorities, requiredAuthority, targetState)) {
     return { status: "PAUSED_AUTHORITY", requiredAuthority, checkpoint: pausedCheckpoint };
   }
   const stage = targetState === "ARTIFACTS_READY" ? "ARTIFACTS_READY" : stageForState[targetState];
+  let bundleBefore;
   try {
+    bundleBefore = loadReleaseBundle({ repoRoot, contractRoot, manifestFile, simulation });
+    assertHashes(checkpoint, bundleBefore);
+    lease.assertOwned();
     const executorResult = await executor({
       releaseId: checkpoint.releaseId,
       environment: checkpoint.environment,
@@ -743,24 +831,29 @@ async function executeOne({
       stage,
       idempotencyKey: providerIdempotencyKey(checkpoint, targetState, operationRevision),
       runtimeAuthorityGranted: requiredAuthority ? true : false,
+      leaseOwner: lease.owner,
+      fencingToken: lease.fencingToken,
       artifactPaths: Object.fromEntries(Object.entries(bundleBefore.paths).map(([name, item]) => [name, item.relative])),
     });
+    lease.assertOwned();
+    const receiptNow = asClockDate(clock());
     const validatedResult = validateExecutorResult(executorResult, {
       checkpoint,
       targetState,
       stage,
       repoRoot,
-      now: now instanceof Date ? now : new Date(now),
+      receiptNow,
       simulation,
       operationRevision,
+      lease,
     });
     const declaredChanges = validatedResult.changed;
-    const bundleAfter = loadReleaseBundle({ repoRoot, contractRoot, manifestFile });
+    const bundleAfter = loadReleaseBundle({ repoRoot, contractRoot, manifestFile, simulation });
     assertDeclaredArtifactChanges(bundleBefore.hashes, bundleAfter.hashes, declaredChanges, "executor");
     assertEvidenceForState(targetState, bundleAfter.evidenceBundle, now instanceof Date ? now : new Date(now));
     if (validatedResult.receipt) persistProviderReceipt(bundleAfter, stage, validatedResult.receipt);
     const finalBundle = validatedResult.receipt
-      ? loadReleaseBundle({ repoRoot, contractRoot, manifestFile })
+      ? loadReleaseBundle({ repoRoot, contractRoot, manifestFile, simulation })
       : bundleAfter;
     const updated = {
       ...checkpoint,
@@ -771,7 +864,7 @@ async function executeOne({
       revision: checkpoint.revision + 1,
     };
     delete updated.failure;
-    assertSchema(bundleAfter.validators.checkpoint, updated, "checkpoint");
+    assertCheckpointSchema(bundleAfter.validators.checkpoint, updated, simulation);
     assertCheckpointSemantics(updated);
     atomicWriteCheckpoint(checkpointFile, updated, checkpoint.revision);
     return { status: targetState, checkpoint: updated };
@@ -782,14 +875,14 @@ async function executeOne({
       updatedAt: isoNow(now),
       revision: checkpoint.revision + 1,
       failure: {
-        failedStage: stage === "ARTIFACTS_READY" ? "IMAGES_PUBLISHED" : stage,
+        failedStage: stage === "ARTIFACTS_READY" ? (error.failedStage ?? "IMAGES_PUBLISHED") : stage,
         failedAt: isoNow(now),
         message: failureMessage(stage, error),
         retryable: classifyRetryable(error),
         resumeState: targetState,
       },
     };
-    assertSchema(bundleBefore.validators.checkpoint, failed, "checkpoint");
+    assertCheckpointSchema((bundleBefore?.validators ?? compileValidators(contractRoot)).checkpoint, failed, simulation);
     assertCheckpointSemantics(failed);
     atomicWriteCheckpoint(checkpointFile, failed, checkpoint.revision);
     return { status: "FAILED", checkpoint: failed, error };
@@ -805,24 +898,28 @@ export async function advanceRelease({
   executor = offlineExecutor,
   now = new Date(),
   simulation = false,
+  clock = () => new Date(),
+  leaseDurationMs = 30_000,
+  leaseHeartbeat = true,
 }) {
   validateAuthorities(authorities);
-  const initialBundle = loadReleaseBundle({ repoRoot, contractRoot, manifestFile });
-  const initial = readCheckpoint(initialBundle);
+  const initialBundle = loadReleaseBundle({ repoRoot, contractRoot, manifestFile, simulation, verifyPayloads: false });
+  const initial = readCheckpoint(initialBundle, simulation);
   if (!initial.checkpoint) fail("release is not prepared");
-  return withReleaseLease(initial.checkpointPath.absolute, initial.checkpoint.releaseId, async () => {
-    const bundle = loadReleaseBundle({ repoRoot, contractRoot, manifestFile });
-    const { checkpoint, checkpointPath } = readCheckpoint(bundle);
+  return withReleaseLease(initial.checkpointPath.absolute, initial.checkpoint.releaseId, async lease => {
+    const bundle = loadReleaseBundle({ repoRoot, contractRoot, manifestFile, simulation, verifyPayloads: false });
+    const { checkpoint, checkpointPath } = readCheckpoint(bundle, simulation);
     if (!checkpoint) fail("release is not prepared");
     assertNoRollbackLatch(checkpointPath.absolute);
     if (checkpoint.currentState === targetState) {
-      assertHashes(checkpoint, bundle);
+      const verified = loadReleaseBundle({ repoRoot, contractRoot, manifestFile, simulation });
+      assertHashes(checkpoint, verified);
       return { status: "ALREADY_AT_TARGET", checkpoint };
     }
     if (checkpoint.currentState === "FAILED") fail("FAILED release must use resumeRelease");
     if (TERMINAL_STATES.includes(checkpoint.currentState)) fail(`${checkpoint.currentState} is terminal; use a new release ID`);
-    return executeOne({ repoRoot, contractRoot, manifestFile, checkpoint, checkpointFile: checkpointPath.absolute, targetState, authorities, executor, now, simulation });
-  });
+    return executeOne({ repoRoot, contractRoot, manifestFile, checkpoint, checkpointFile: checkpointPath.absolute, targetState, authorities, executor, now, simulation, lease, clock });
+  }, leaseDurationMs, leaseHeartbeat);
 }
 
 export async function resumeRelease({
@@ -833,14 +930,17 @@ export async function resumeRelease({
   executor = offlineExecutor,
   now = new Date(),
   simulation = false,
+  clock = () => new Date(),
+  leaseDurationMs = 30_000,
+  leaseHeartbeat = true,
 }) {
   validateAuthorities(authorities);
-  const initialBundle = loadReleaseBundle({ repoRoot, contractRoot, manifestFile });
-  const initial = readCheckpoint(initialBundle);
+  const initialBundle = loadReleaseBundle({ repoRoot, contractRoot, manifestFile, simulation });
+  const initial = readCheckpoint(initialBundle, simulation);
   if (!initial.checkpoint) fail("release is not prepared");
-  return withReleaseLease(initial.checkpointPath.absolute, initial.checkpoint.releaseId, async () => {
-    const bundle = loadReleaseBundle({ repoRoot, contractRoot, manifestFile });
-    const { checkpoint, checkpointPath } = readCheckpoint(bundle);
+  return withReleaseLease(initial.checkpointPath.absolute, initial.checkpoint.releaseId, async lease => {
+    const bundle = loadReleaseBundle({ repoRoot, contractRoot, manifestFile, simulation });
+    const { checkpoint, checkpointPath } = readCheckpoint(bundle, simulation);
     if (!checkpoint) fail("release is not prepared");
     assertNoRollbackLatch(checkpointPath.absolute);
     if (checkpoint.currentState !== "FAILED" || !checkpoint.failure) fail("resume requires a FAILED checkpoint");
@@ -865,8 +965,10 @@ export async function resumeRelease({
       simulation,
       pausedCheckpoint: checkpoint,
       operationRevision: checkpoint.revision - 1,
+      lease,
+      clock,
     });
-  });
+  }, leaseDurationMs, leaseHeartbeat);
 }
 
 export async function rollbackRelease({
@@ -876,13 +978,16 @@ export async function rollbackRelease({
   executor = offlineExecutor,
   now = new Date(),
   simulation = false,
+  clock = () => new Date(),
+  leaseDurationMs = 30_000,
+  leaseHeartbeat = true,
 }) {
-  const initialBundle = loadReleaseBundle({ repoRoot, contractRoot, manifestFile });
-  const initial = readCheckpoint(initialBundle);
+  const initialBundle = loadReleaseBundle({ repoRoot, contractRoot, manifestFile, simulation });
+  const initial = readCheckpoint(initialBundle, simulation);
   if (!initial.checkpoint) fail("release is not prepared");
-  return withReleaseLease(initial.checkpointPath.absolute, initial.checkpoint.releaseId, async () => {
-    const bundleBefore = loadReleaseBundle({ repoRoot, contractRoot, manifestFile });
-    const { checkpoint, checkpointPath } = readCheckpoint(bundleBefore);
+  return withReleaseLease(initial.checkpointPath.absolute, initial.checkpoint.releaseId, async lease => {
+    const bundleBefore = loadReleaseBundle({ repoRoot, contractRoot, manifestFile, simulation });
+    const { checkpoint, checkpointPath } = readCheckpoint(bundleBefore, simulation);
     if (!checkpoint) fail("release is not prepared");
     const existingLatch = readRollbackLatch(checkpointPath.absolute);
     const rollbackFromState = existingLatch?.rollbackFromState ?? checkpoint.currentState;
@@ -902,22 +1007,26 @@ export async function rollbackRelease({
         stage: "ROLLBACK",
         idempotencyKey,
         runtimeAuthorityGranted: false,
+        leaseOwner: lease.owner,
+        fencingToken: lease.fencingToken,
         artifactPaths: Object.fromEntries(Object.entries(bundleBefore.paths).map(([name, item]) => [name, item.relative])),
       });
+      lease.assertOwned();
       const validatedResult = validateExecutorResult(result, {
         checkpoint,
         targetState: "ROLLED_BACK",
         stage: "ROLLBACK",
         repoRoot,
-        now: now instanceof Date ? now : new Date(now),
+        receiptNow: asClockDate(clock()),
         simulation,
+        lease,
       });
-      const bundleAfter = loadReleaseBundle({ repoRoot, contractRoot, manifestFile });
+      const bundleAfter = loadReleaseBundle({ repoRoot, contractRoot, manifestFile, simulation });
       assertDeclaredArtifactChanges(bundleBefore.hashes, bundleAfter.hashes, validatedResult.changed, "rollback executor");
       if (bundleAfter.evidenceBundle.rollback?.result !== "PASS") fail("rollback requires passing rollback evidence");
       assertFreshTimestamp(bundleAfter.evidenceBundle.rollback.completedAt, now instanceof Date ? now : new Date(now), evidenceFreshness.executionMs, "rollback.completedAt");
       persistProviderReceipt(bundleAfter, "ROLLBACK", validatedResult.receipt);
-      const finalBundle = loadReleaseBundle({ repoRoot, contractRoot, manifestFile });
+      const finalBundle = loadReleaseBundle({ repoRoot, contractRoot, manifestFile, simulation });
       const rolledBack = {
         ...checkpoint,
         currentState: "ROLLED_BACK",
@@ -926,7 +1035,7 @@ export async function rollbackRelease({
         updatedAt: isoNow(now),
         revision: checkpoint.revision + 1,
       };
-      assertSchema(finalBundle.validators.checkpoint, rolledBack, "checkpoint");
+      assertCheckpointSchema(finalBundle.validators.checkpoint, rolledBack, simulation);
       assertCheckpointSemantics(rolledBack);
       atomicWriteCheckpoint(checkpointPath.absolute, rolledBack, checkpoint.revision);
       if (existingLatch) unlinkSync(rollbackLatchFile(checkpointPath.absolute));
@@ -947,7 +1056,7 @@ export async function rollbackRelease({
       atomicWriteJsonFile(rollbackLatchFile(checkpointPath.absolute), latch);
       return { status: "ROLLBACK_FAILED", checkpoint, latch, error };
     }
-  });
+  }, leaseDurationMs, leaseHeartbeat);
 }
 
 export async function clearRollbackFailure({
@@ -983,14 +1092,17 @@ export async function runRelease({
   now = new Date(),
   resume = false,
   simulation = false,
+  clock = () => new Date(),
+  leaseDurationMs = 30_000,
+  leaseHeartbeat = true,
 }) {
   if (!FORWARD_STATES.includes(targetState)) fail(`unknown forward target state: ${targetState}`);
   validateAuthorities(authorities);
-  let prepared = prepareRelease({ repoRoot, contractRoot, manifestFile, now });
+  let prepared = prepareRelease({ repoRoot, contractRoot, manifestFile, now, simulation });
   let checkpoint = prepared.checkpoint;
   if (checkpoint.currentState === "FAILED") {
     if (!resume) return { status: "PAUSED_FAILED", checkpoint };
-    const resumed = await resumeRelease({ repoRoot, contractRoot, manifestFile, authorities, executor, now, simulation });
+    const resumed = await resumeRelease({ repoRoot, contractRoot, manifestFile, authorities, executor, now, simulation, clock, leaseDurationMs, leaseHeartbeat });
     if (resumed.status === "FAILED" || resumed.status === "PAUSED_AUTHORITY") return resumed;
     checkpoint = resumed.checkpoint;
   }
@@ -999,7 +1111,7 @@ export async function runRelease({
   if (currentIndex > targetIndex) fail(`target ${targetState} is behind current state ${checkpoint.currentState}`);
   while (checkpoint.currentState !== targetState) {
     const next = nextForwardState(checkpoint.currentState);
-    const result = await advanceRelease({ repoRoot, contractRoot, manifestFile, targetState: next, authorities, executor, now, simulation });
+    const result = await advanceRelease({ repoRoot, contractRoot, manifestFile, targetState: next, authorities, executor, now, simulation, clock, leaseDurationMs, leaseHeartbeat });
     if (result.status === "FAILED" || result.status === "PAUSED_AUTHORITY") return result;
     checkpoint = result.checkpoint;
   }

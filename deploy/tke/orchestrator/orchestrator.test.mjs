@@ -32,12 +32,14 @@ const writeJson = (file, value) => {
   writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`, "utf8");
 };
 
-function fixture() {
+function fixture({ simulation = false } = {}) {
   const repoRoot = mkdtempSync(path.join(os.tmpdir(), "xlb-p4-"));
   temporaryRoots.push(repoRoot);
-  const releaseRoot = path.join(repoRoot, ".artifacts", "tke", "releases", releaseId);
-  const environmentRoot = path.join(repoRoot, ".artifacts", "tke", "production");
-  const ref = name => `.artifacts/tke/releases/${releaseId}/${name}`;
+  const releaseRelative = simulation ? `.artifacts/tke/simulations/${releaseId}` : `.artifacts/tke/releases/${releaseId}`;
+  const releaseRoot = path.join(repoRoot, releaseRelative);
+  const environmentRoot = simulation ? path.join(releaseRoot, "cloud") : path.join(repoRoot, ".artifacts", "tke", "production");
+  const environment = simulation ? "staging" : "production";
+  const ref = name => `${releaseRelative}/${name}`;
   const digest = letter => `sha256:${letter.repeat(64)}`;
   const image = (name, letter) => ({
     repository: `ccr.ccs.tencentyun.com/xlb/${name}`,
@@ -48,14 +50,14 @@ function fixture() {
   const manifest = {
     schemaVersion: 1,
     releaseId,
-    environment: "production",
+    environment,
     executionMode: "gated-release",
     sourceCommit: "a".repeat(40),
     createdAt: "2026-07-16T08:00:00Z",
     owners: { release: "release-owner", data: "data-owner", onCall: "oncall-owner", cost: "cost-owner" },
     changeWindow: { startsAt: "2026-07-18T01:00:00Z", endsAt: "2026-07-18T05:00:00Z", timezone: "Asia/Shanghai" },
     imageLockFile: ref("images.lock.json"),
-    cloudBundleFile: ".artifacts/tke/production/cloud-bundle.json",
+    cloudBundleFile: simulation ? `${releaseRelative}/cloud/cloud-bundle.json` : ".artifacts/tke/production/cloud-bundle.json",
     evidenceFile: ref("evidence.json"),
     checkpointFile: ref("checkpoint.json"),
     trafficProvider: "clb",
@@ -74,15 +76,15 @@ function fixture() {
   };
   const cloudBundle = {
     schemaVersion: 1,
-    environment: "production",
+    environment,
     region: "ap-guangzhou",
     accountId: "100000000000",
     approvedKubeContext: "tke-production-reviewed-context",
     network: { vpcId: "vpc-testsample", subnetIds: ["subnet-testsample1"] },
     files: {
-      terraformVarFile: ".artifacts/tke/production/production.tfvars",
-      backendConfig: ".artifacts/tke/production/production.backend.hcl",
-      valuesFile: ".artifacts/tke/production/values-production.yaml",
+      terraformVarFile: simulation ? `${releaseRelative}/cloud/simulation.tfvars` : ".artifacts/tke/production/production.tfvars",
+      backendConfig: simulation ? `${releaseRelative}/cloud/simulation.backend.hcl` : ".artifacts/tke/production/production.backend.hcl",
+      valuesFile: simulation ? `${releaseRelative}/cloud/values-simulation.yaml` : ".artifacts/tke/production/values-production.yaml",
       imageLockFile: manifest.imageLockFile,
     },
     secretReferences: { runtimeSecretName: "xlb-production-runtime", tlsSecretName: "xlb-production-tls" },
@@ -105,7 +107,7 @@ function fixture() {
   const evidence = {
     schemaVersion: 1,
     releaseId,
-    environment: "production",
+    environment,
     updatedAt: "2026-07-16T08:55:00Z",
     backup: {
       backupId: "backup-test-sample",
@@ -132,7 +134,7 @@ function fixture() {
     rollback: execution("rollback", "55"),
   };
   const files = {
-    manifest: path.join(releaseRoot, "release-manifest.json"),
+    manifest: path.join(releaseRoot, simulation ? "simulation-manifest.json" : "release-manifest.json"),
     imageLock: path.join(releaseRoot, "images.lock.json"),
     cloudBundle: path.join(environmentRoot, "cloud-bundle.json"),
     evidence: path.join(releaseRoot, "evidence.json"),
@@ -147,9 +149,9 @@ function fixture() {
     writeJson(path.join(repoRoot, imageValue.scanEvidenceFile), { component: name, high: 0, critical: 0 });
   }
   const cloudPayloads = {
-    [cloudBundle.files.terraformVarFile]: "environment = \"production\"\n",
+    [cloudBundle.files.terraformVarFile]: `environment = \"${environment}\"\n`,
     [cloudBundle.files.backendConfig]: "encrypt = true\n",
-    [cloudBundle.files.valuesFile]: "global:\n  environment: production\n",
+    [cloudBundle.files.valuesFile]: `global:\n  environment: ${environment}\n`,
   };
   for (const [reference, content] of Object.entries(cloudPayloads)) {
     const file = path.join(repoRoot, reference);
@@ -174,7 +176,7 @@ function fixture() {
     schemaVersion: 1,
     releaseId,
     sourceCommit: manifest.sourceCommit,
-    environment: "production",
+    environment,
     region: "ap-guangzhou",
     bundleSha256: cloudBundle.bundleSha256,
     files: inventoryFiles,
@@ -189,7 +191,7 @@ function fixture() {
     ...evidence.trafficObservations.map(item => item.evidenceRef),
   ];
   for (const reference of evidenceRefs) writeJson(path.join(repoRoot, reference), { result: "PASS", reference });
-  return { repoRoot, contractRoot, manifestFile: files.manifest, files, ref };
+  return { repoRoot, contractRoot, manifestFile: files.manifest, files, ref, clock: () => fixedNow, simulation };
 }
 
 const allAuthorities = {
@@ -211,12 +213,15 @@ function providerResult(input, context, { provider = "reviewed-provider", mode =
       schemaVersion: 1,
       provider,
       mode,
+      ...(mode === "SIMULATION" ? { simulation: true } : {}),
       operation: context.stage,
       idempotencyKey: context.idempotencyKey,
       completedAt: fixedNow.toISOString(),
       result: "PASS",
       evidenceRef,
       evidenceSha256: createHash("sha256").update(readFileSync(evidenceFile)).digest("hex"),
+      leaseOwner: context.leaseOwner,
+      fencingToken: context.fencingToken,
     },
   };
 }
@@ -350,10 +355,9 @@ test("blocks stale resume when a source artifact changes", async () => {
   const evidence = JSON.parse(readFileSync(input.files.evidence, "utf8"));
   evidence.updatedAt = "2026-07-16T08:56:00Z";
   writeJson(input.files.evidence, evidence);
-  await assert.rejects(
-    advanceRelease({ ...input, targetState: "PLAN_REVIEWED", authorities: allAuthorities, now: fixedNow }),
-    /evidenceBundle hash drift detected/,
-  );
+  const stale = await advanceRelease({ ...input, targetState: "PLAN_REVIEWED", authorities: allAuthorities, now: fixedNow });
+  assert.equal(stale.status, "FAILED");
+  assert.match(stale.checkpoint.failure.message, /evidenceBundle hash drift detected/);
 });
 
 test("blocks a concurrent checkpoint revision change", async () => {
@@ -455,6 +459,32 @@ test("requires every SBOM, scan, cloud payload, and evidence reference", () => {
   assert.throws(() => prepareRelease({ ...input, now: fixedNow }), /backend SBOM not found/);
 });
 
+test("ARTIFACTS_READY records the exact structured failing prerequisite", async () => {
+  const cases = [
+    ["IMAGES_PUBLISHED", input => path.join(input.repoRoot, input.ref("sbom/backend.cdx.json"))],
+    ["CLOUD_BUNDLE_READY", input => path.join(path.dirname(input.files.cloudBundle), "bundle.sha256")],
+    ["SAFETY_EVIDENCE_READY", input => path.join(input.repoRoot, input.ref("evidence/jobs.json"))],
+  ];
+  for (const [expectedStage, selectFile] of cases) {
+    const input = fixture();
+    prepareRelease({ ...input, now: fixedNow });
+    unlinkSync(selectFile(input));
+    const failed = await advanceRelease({ ...input, targetState: "ARTIFACTS_READY", now: fixedNow });
+    assert.equal(failed.status, "FAILED");
+    assert.equal(failed.checkpoint.failure.failedStage, expectedStage);
+  }
+});
+
+test("rejects an illegal persisted failedStage value", async () => {
+  const input = fixture();
+  const failed = await runRelease({ ...input, targetState: "PLAN_REVIEWED", authorities: { terraformPlan: true }, now: fixedNow });
+  assert.equal(failed.status, "FAILED");
+  const checkpoint = JSON.parse(readFileSync(input.files.checkpoint, "utf8"));
+  checkpoint.failure.failedStage = "ILLEGAL_STAGE";
+  writeJson(input.files.checkpoint, checkpoint);
+  await assert.rejects(resumeRelease({ ...input, authorities: { terraformPlan: true }, now: fixedNow }), /schema validation failed/);
+});
+
 test("rejects mock provider receipts outside explicit simulation", async () => {
   const input = fixture();
   const executor = async context => providerResult(input, context, { provider: "mock-provider", mode: "SIMULATION" });
@@ -462,7 +492,7 @@ test("rejects mock provider receipts outside explicit simulation", async () => {
   assert.equal(result.status, "FAILED");
   assert.match(result.checkpoint.failure.message, /refuses mock, no-op, offline, or fake/);
 
-  const simulationInput = fixture();
+  const simulationInput = fixture({ simulation: true });
   const simulationExecutor = async context => providerResult(simulationInput, context, { provider: "mock-provider", mode: "SIMULATION" });
   const simulated = await runRelease({
     ...simulationInput,
@@ -473,6 +503,13 @@ test("rejects mock provider receipts outside explicit simulation", async () => {
     simulation: true,
   });
   assert.equal(simulated.status, "TARGET_REACHED");
+  assert.equal(simulated.checkpoint.simulation, true);
+  const receipt = JSON.parse(readFileSync(path.join(path.dirname(simulationInput.files.manifest), "receipts", "plan-infrastructure.json"), "utf8"));
+  assert.equal(receipt.simulation, true);
+  await assert.rejects(
+    runRelease({ ...simulationInput, simulation: false, targetState: "PLAN_REVIEWED", now: fixedNow }),
+    /simulation manifest cannot be used by a real release operation/,
+  );
 });
 
 test("serializes two runners with a release-level lease and stable idempotency key", async () => {
@@ -505,6 +542,85 @@ test("serializes two runners with a release-level lease and stable idempotency k
   const completed = await first;
   assert.equal(completed.status, "PLAN_REVIEWED");
   assert.equal(observedKey, `${releaseId}:2:PLAN_REVIEWED`);
+});
+
+test("expired owner cannot overwrite a newer fencing owner after takeover", async () => {
+  const input = fixture();
+  await runRelease({ ...input, targetState: "ARTIFACTS_READY", now: fixedNow });
+  let enteredResolve;
+  let finishResolve;
+  const entered = new Promise(resolve => { enteredResolve = resolve; });
+  const finish = new Promise(resolve => { finishResolve = resolve; });
+  let oldFence;
+  const oldExecutor = async context => {
+    oldFence = context.fencingToken;
+    const receipt = providerResult(input, context);
+    enteredResolve();
+    await finish;
+    return receipt;
+  };
+  const oldRun = advanceRelease({
+    ...input,
+    targetState: "PLAN_REVIEWED",
+    authorities: { terraformPlan: true },
+    executor: oldExecutor,
+    leaseDurationMs: 40,
+    leaseHeartbeat: false,
+    now: fixedNow,
+  });
+  await entered;
+  await new Promise(resolve => setTimeout(resolve, 70));
+  let newFence;
+  const newExecutor = async context => {
+    newFence = context.fencingToken;
+    return providerResult(input, context);
+  };
+  const newer = await advanceRelease({
+    ...input,
+    targetState: "PLAN_REVIEWED",
+    authorities: { terraformPlan: true },
+    executor: newExecutor,
+    leaseDurationMs: 1_000,
+    now: fixedNow,
+  });
+  assert.equal(newer.status, "PLAN_REVIEWED");
+  finishResolve();
+  await assert.rejects(oldRun, /lease|revision changed/i);
+  assert.ok(newFence > oldFence);
+  const disk = JSON.parse(readFileSync(input.files.checkpoint, "utf8"));
+  assert.equal(disk.currentState, "PLAN_REVIEWED");
+  const receipt = JSON.parse(readFileSync(path.join(path.dirname(input.files.manifest), "receipts", "plan-infrastructure.json"), "utf8"));
+  assert.equal(receipt.fencingToken, newFence);
+});
+
+test("validates provider receipt against a fresh post-executor clock", async () => {
+  const input = fixture();
+  let clockNow = new Date(fixedNow);
+  input.clock = () => new Date(clockNow);
+  const executor = async context => {
+    if (context.stage === "ARTIFACTS_READY") return providerResult(input, context);
+    clockNow = new Date(fixedNow.getTime() + 10 * 60 * 1000);
+    const result = providerResult(input, context);
+    result.providerReceipt.completedAt = clockNow.toISOString();
+    return result;
+  };
+  const result = await runRelease({ ...input, targetState: "PLAN_REVIEWED", authorities: { terraformPlan: true }, executor, now: fixedNow });
+  assert.equal(result.status, "TARGET_REACHED", result.error?.message);
+});
+
+test("post-executor clock still rejects future and stale receipts", async () => {
+  for (const [offsetMinutes, expected] of [[6, /is in the future/], [-16, /is stale/]]) {
+    const input = fixture();
+    const executor = async context => {
+      if (context.stage === "ARTIFACTS_READY") return providerResult(input, context);
+      const result = providerResult(input, context);
+      result.providerReceipt.completedAt = new Date(fixedNow.getTime() + offsetMinutes * 60_000).toISOString();
+      return result;
+    };
+    const result = await runRelease({ ...input, targetState: "PLAN_REVIEWED", authorities: { terraformPlan: true }, executor, now: fixedNow });
+    assert.equal(result.status, "FAILED");
+    assert.match(result.checkpoint.failure.message, expected);
+  }
 });
 
 test("persists rollback failure latch and blocks forward/resume until rollback retry", async () => {
