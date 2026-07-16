@@ -183,4 +183,57 @@ describe.skipIf(!runDb)("Phase 18 fulfillment evidence and customer confirmation
       await app.close();
     }
   });
+
+  it("accepts truthful COS rows while rejecting provider and execution mismatches", async () => {
+    const app = await buildApp();
+    const mediaAssetId = `med_cos_${Date.now()}`;
+    try {
+      const { fulfillmentId, orderId } = await createAcceptedFulfillment(app);
+      const objectKey = `hangzhou/${orderId}/${fulfillmentId}/${mediaAssetId}.png`;
+      const parameters = [
+        mediaAssetId,
+        orderId,
+        fulfillmentId,
+        "a".repeat(64),
+        objectKey,
+        `cos://xlb-evidence-123456/${objectKey}`,
+      ];
+      await expect(getMysqlPool().query(
+        `INSERT INTO media_assets (
+           media_asset_id,city_code,order_id,fulfillment_id,complaint_id,uploaded_by_type,uploaded_by_id,
+           original_file_name,content_type,size_bytes,checksum_sha256,signature_validated,security_scan_status,
+           storage_provider,storage_provider_name,storage_provider_status,external_provider_executed,
+           object_key,storage_uri,public_url,stored_at
+         ) VALUES (?, 'hangzhou', ?, ?, NULL, 'worker', 'worker-demo-hangzhou', 'cos.png',
+           'image/png', 9, ?, 1, 'not_malware_scanned_local', 'cos', 'tencent-cos', 'stored_cos',
+           1, ?, ?, NULL, CURRENT_TIMESTAMP)`,
+        parameters,
+      )).resolves.toBeDefined();
+
+      const [rows] = await getMysqlPool().query<(RowDataPacket & {
+        storage_provider: string; storage_provider_status: string; external_provider_executed: number; public_url: null;
+      })[]>("SELECT storage_provider,storage_provider_status,external_provider_executed,public_url FROM media_assets WHERE media_asset_id=?", [mediaAssetId]);
+      expect(rows).toEqual([expect.objectContaining({
+        storage_provider: "cos",
+        storage_provider_status: "stored_cos",
+        external_provider_executed: 1,
+        public_url: null,
+      })]);
+
+      await expect(getMysqlPool().query(
+        `INSERT INTO media_assets (
+           media_asset_id,city_code,order_id,fulfillment_id,complaint_id,uploaded_by_type,uploaded_by_id,
+           original_file_name,content_type,size_bytes,checksum_sha256,signature_validated,security_scan_status,
+           storage_provider,storage_provider_name,storage_provider_status,external_provider_executed,
+           object_key,storage_uri,public_url,stored_at
+         ) VALUES (?, 'hangzhou', ?, ?, NULL, 'worker', 'worker-demo-hangzhou', 'cos-invalid.png',
+           'image/png', 9, ?, 1, 'not_malware_scanned_local', 'cos', 'tencent-cos', 'stored_cos',
+           0, ?, ?, NULL, CURRENT_TIMESTAMP)`,
+        [`${mediaAssetId}_invalid`,orderId,fulfillmentId,"b".repeat(64),`${objectKey}.invalid`,`cos://xlb-evidence-123456/${objectKey}.invalid`],
+      )).rejects.toThrow(/check constraint/i);
+    } finally {
+      await getMysqlPool().query("DELETE FROM media_assets WHERE media_asset_id IN (?, ?)", [mediaAssetId, `${mediaAssetId}_invalid`]);
+      await app.close();
+    }
+  });
 });

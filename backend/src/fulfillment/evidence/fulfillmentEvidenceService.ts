@@ -84,7 +84,8 @@ export class FulfillmentEvidenceService {
         await this.outbox.insertEvent(connection,{eventId:generateEventId(),eventType:"fulfillment.evidence.created",
           aggregateType:"fulfillment",aggregateId:fulfillmentId,cityCode,payload:{evidenceId,mediaAssetId,fulfillmentId,
             orderId:locked.orderId,complaintId:parsed.data.complaintId??null,evidenceType:parsed.data.evidenceType,
-            storageProvider:envelope.provider,providerStatus:envelope.providerStatus,externalProviderExecuted:false}});
+            storageProvider:envelope.provider,providerStatus:envelope.providerStatus,
+            externalProviderExecuted:envelope.externalProviderExecuted}});
       });
     }catch(error){await this.storage.deleteObject(objectKey);throw error;}
     const created=(await this.repository.listEvidence(cityCode,fulfillmentId)).find((item)=>item.evidenceId===evidenceId);

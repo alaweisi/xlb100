@@ -2,14 +2,14 @@ import type { CityCode } from "./city.js";
 
 export const FULFILLMENT_EVIDENCE_MAX_BYTES = 5 * 1024 * 1024;
 
-export type ObjectStorageProviderKind = "local" | "mock";
-export type ObjectStorageProviderStatus = "stored_local" | "stored_mock";
+export type ObjectStorageProviderKind = "local" | "mock" | "cos";
+export type ObjectStorageProviderStatus = "stored_local" | "stored_mock" | "stored_cos";
 
 export interface ObjectStorageProviderEnvelope {
   provider: ObjectStorageProviderKind;
-  providerName: "xlb-local-filesystem" | "xlb-memory-mock";
+  providerName: "xlb-local-filesystem" | "xlb-memory-mock" | "tencent-cos";
   providerStatus: ObjectStorageProviderStatus;
-  externalProviderExecuted: false;
+  externalProviderExecuted: boolean;
   objectKey: string;
   storageUri: string;
   publicUrl: null;

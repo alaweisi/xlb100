@@ -15,8 +15,9 @@ type MediaRow = RowDataPacket & {
   uploaded_by_type: "worker"; uploaded_by_id: string; original_file_name: string;
   content_type: "image/jpeg" | "image/png" | "image/webp"; size_bytes: number; checksum_sha256: string;
   signature_validated: number; security_scan_status: "not_malware_scanned_local";
-  storage_provider: "local" | "mock"; storage_provider_name: "xlb-local-filesystem" | "xlb-memory-mock";
-  storage_provider_status: "stored_local" | "stored_mock"; external_provider_executed: number;
+  storage_provider: "local" | "mock" | "cos";
+  storage_provider_name: "xlb-local-filesystem" | "xlb-memory-mock" | "tencent-cos";
+  storage_provider_status: "stored_local" | "stored_mock" | "stored_cos"; external_provider_executed: number;
   object_key: string; storage_uri: string; public_url: null; stored_at: Date; created_at: Date;
 };
 
@@ -45,7 +46,7 @@ function mapMedia(row: MediaRow): MediaAsset {
     provider: row.storage_provider,
     providerName: row.storage_provider_name,
     providerStatus: row.storage_provider_status,
-    externalProviderExecuted: false,
+    externalProviderExecuted: row.external_provider_executed === 1,
     objectKey: row.object_key,
     storageUri: row.storage_uri,
     publicUrl: null,
@@ -128,10 +129,10 @@ export class FulfillmentEvidenceRepository extends RepositoryBase {
          size_bytes, checksum_sha256, signature_validated, security_scan_status,
          storage_provider, storage_provider_name, storage_provider_status,
          external_provider_executed, object_key, storage_uri, public_url, stored_at
-       ) VALUES (?, ?, ?, ?, ?, 'worker', ?, ?, ?, ?, ?, 1, 'not_malware_scanned_local', ?, ?, ?, 0, ?, ?, NULL, ?)`,
+       ) VALUES (?, ?, ?, ?, ?, 'worker', ?, ?, ?, ?, ?, 1, 'not_malware_scanned_local', ?, ?, ?, ?, ?, ?, NULL, ?)`,
       [input.mediaAssetId,input.cityCode,input.orderId,input.fulfillmentId,input.complaintId,input.workerId,
        input.originalFileName,e.contentType,e.sizeBytes,e.checksumSha256,e.provider,e.providerName,
-       e.providerStatus,e.objectKey,e.storageUri,new Date(e.storedAt)],
+       e.providerStatus,e.externalProviderExecuted ? 1 : 0,e.objectKey,e.storageUri,new Date(e.storedAt)],
     );
   }
 

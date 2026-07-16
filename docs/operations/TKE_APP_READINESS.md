@@ -27,25 +27,15 @@
 
 应用不得把凭据、COS 请求 URL 或原始 SDK 错误对象写入日志。当前适配器只向上返回清洗后的错误码、HTTP 状态码和 RequestId。
 
-## 当前不能打开的开关
+## COS 双开关与持久化契约
 
-本分支故意不允许 `XLB_OBJECT_STORAGE_PROVIDER=cos`，也不把 COS 适配器接入现有工厂。原因不是代码未写，而是现有持久化契约仍硬性限制为：
+增量 migration `059_tke_cos_object_storage` 在不改写 035 的前提下扩展了持久化约束。现有 `local|mock` 行继续有效；COS 行必须同时满足 `tencent-cos`、`stored_cos`、`external_provider_executed=1`、私有 `cos://` URI 和 `public_url IS NULL`。
 
-- provider 只能是 `local` 或 `mock`；
-- status 只能是 `stored_local` 或 `stored_mock`；
-- `external_provider_executed` 必须为 0；
-- storage URI 只能使用 `xlb-local://` 或 `xlb-mock://`。
+COS factory 只有在以下两个配置同时存在时才会启动：
 
-直接打开 COS 会造成数据库写入失败或证据链语义不一致。
+- `XLB_OBJECT_STORAGE_PROVIDER=cos`；
+- `XLB_EXTERNAL_PROVIDER_EXECUTION_ENABLED=true`。
 
-## 后续施工节点：`codex/tke-cos-schema`
+只打开其中一个会启动失败。Docker Compose 默认继续使用 `local` 且外部执行关闭。TKE staging/production values 显式使用双开关，但占位仓库、digest、域名和 Bucket 仍必须由后续部署门禁拒绝。
 
-该节点属于数据库/共享契约高风险工程，应单独确认、单独验收，至少包括：
-
-1. 新增不可改写旧 migration 的增量 migration，扩展 provider、status、执行标记和 URI 约束；
-2. 扩展 `packages/types`、`packages/validators` 与 repository 行类型；
-3. 将 COS 适配器接入工厂，并设置显式的双重生产开关；
-4. 验证 local/mock 历史数据兼容、COS 写入、失败重试、回滚和审计字段；
-5. 在获得真实 Provider 操作授权后，才执行测试 Bucket 冒烟验证。
-
-完成该节点之前，Docker Compose 继续使用 `local/mock`，TKE 清单也必须保持 COS Provider 开关关闭。
+本地和 CI 验收只使用注入式假 COS 客户端，不允许真实腾讯云请求。测试 Bucket 冒烟仍需单独的外部 Provider 操作授权。

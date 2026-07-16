@@ -64,6 +64,7 @@ config:
     debugCodeEnabled: false
   objectStorage:
     provider: cos
+    externalExecutionEnabled: true
     localRoot: /tmp/xlb-object-storage
     cos:
       bucket: xlb-production-placeholder-0000000000

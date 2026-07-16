@@ -117,6 +117,7 @@ config:
     cityCodes: hangzhou
   objectStorage:
     provider: local
+    externalExecutionEnabled: false
     localRoot: /tmp/xlb-object-storage
     cos:
       bucket: ""

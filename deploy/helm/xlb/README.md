@@ -84,7 +84,9 @@ This Chart deliberately targets the frozen N2 application contract:
 - liveness: `/health/live`;
 - readiness: `/health/ready`;
 - production object storage: `cos`;
+- COS external execution: explicitly enabled only with the COS provider;
 - COS credentials through `_FILE` variables.
 
-Until N2 is integrated, the Chart can be linted and rendered but the backend
-Pods will not pass the new probes or start in COS mode.
+The backend rejects either half of the COS double switch. Local values keep
+external execution disabled; staging and production values select COS and
+explicitly enable external execution.

@@ -24,11 +24,12 @@ try {
 
   Assert-Equal "migration 035 applied once" "1" (Invoke-Scalar "SELECT COUNT(*) FROM schema_migrations WHERE version='035_phase18_fulfillment_evidence_object_storage'")
   Assert-Equal "migration 036 applied once" "1" (Invoke-Scalar "SELECT COUNT(*) FROM schema_migrations WHERE version='036_phase18_city_reference_hardening'")
+  Assert-Equal "migration 059 applied once" "1" (Invoke-Scalar "SELECT COUNT(*) FROM schema_migrations WHERE version='059_tke_cos_object_storage'")
   Assert-Equal "Phase 18 table count" "3" (Invoke-Scalar "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name IN ('media_assets','fulfillment_evidence','fulfillment_customer_confirmations')")
   Assert-Equal "Phase 18 global city rows" "0" (Invoke-Scalar "SELECT (SELECT COUNT(*) FROM media_assets WHERE city_code='__global__')+(SELECT COUNT(*) FROM fulfillment_evidence WHERE city_code='__global__')+(SELECT COUNT(*) FROM fulfillment_customer_confirmations WHERE city_code='__global__')")
   Assert-Equal "external provider executions" "0" (Invoke-Scalar "SELECT COUNT(*) FROM media_assets WHERE external_provider_executed<>0")
   Assert-Equal "public evidence URLs" "0" (Invoke-Scalar "SELECT COUNT(*) FROM media_assets WHERE public_url IS NOT NULL")
-  Assert-Equal "unsupported storage providers" "0" (Invoke-Scalar "SELECT COUNT(*) FROM media_assets WHERE storage_provider NOT IN ('local','mock')")
+  Assert-Equal "unsupported storage providers" "0" (Invoke-Scalar "SELECT COUNT(*) FROM media_assets WHERE storage_provider NOT IN ('local','mock','cos')")
   Assert-Equal "invalid evidence sizes or MIME types" "0" (Invoke-Scalar "SELECT COUNT(*) FROM media_assets WHERE size_bytes NOT BETWEEN 1 AND 5242880 OR content_type NOT IN ('image/jpeg','image/png','image/webp')")
   Assert-Equal "Phase 18 composite city foreign keys" "7" (Invoke-Scalar "SELECT COUNT(*) FROM information_schema.referential_constraints WHERE constraint_schema=DATABASE() AND constraint_name IN ('fk_media_city_order_fulfillment','fk_media_city_order_complaint','fk_evidence_city_order_fulfillment','fk_evidence_city_order_media','fk_evidence_city_order_complaint','fk_confirmation_city_order_fulfillment','fk_confirmation_city_order_complaint')")
 

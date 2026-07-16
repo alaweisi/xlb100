@@ -1,6 +1,11 @@
 import COS from "cos-nodejs-sdk-v5";
 import type { CosObjectStorageConfig } from "@xlb/config";
-import type { PutObjectInput, StoredObject } from "./objectStorageProvider.js";
+import type { ObjectStorageProviderEnvelope } from "@xlb/types";
+import type {
+  ObjectStorageProvider,
+  PutObjectInput,
+  StoredObject,
+} from "./objectStorageProvider.js";
 import { assertSafeObjectKey } from "./objectStorageKey.js";
 
 export interface CosClient {
@@ -9,19 +14,12 @@ export interface CosClient {
   deleteObject(params: COS.DeleteObjectParams): Promise<COS.DeleteObjectResult>;
 }
 
-export interface TencentCosObjectReceipt {
+export type TencentCosObjectReceipt = ObjectStorageProviderEnvelope & {
   provider: "cos";
   providerName: "tencent-cos";
   providerStatus: "stored_cos";
   externalProviderExecuted: true;
-  objectKey: string;
-  storageUri: string;
-  publicUrl: null;
-  checksumSha256: string;
-  sizeBytes: number;
-  contentType: PutObjectInput["contentType"];
-  storedAt: string;
-}
+};
 
 export class TencentCosOperationError extends Error {
   readonly code: string;
@@ -39,7 +37,8 @@ export class TencentCosOperationError extends Error {
   }
 }
 
-export class TencentCosObjectStorageAdapter {
+export class TencentCosObjectStorageAdapter implements ObjectStorageProvider {
+  readonly kind = "cos" as const;
   private readonly client: CosClient;
 
   constructor(

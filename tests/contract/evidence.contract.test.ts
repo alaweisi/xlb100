@@ -19,10 +19,19 @@ const envelope = {
 };
 
 describe("Phase 18 evidence contracts", () => {
-  it("accepts only an honest local/mock provider envelope", () => {
+  it("accepts honest private local, mock, and COS provider envelopes", () => {
     expect(objectStorageProviderEnvelopeSchema.safeParse(envelope).success).toBe(true);
+    expect(objectStorageProviderEnvelopeSchema.safeParse({
+      ...envelope,
+      provider: "cos",
+      providerName: "tencent-cos",
+      providerStatus: "stored_cos",
+      externalProviderExecuted: true,
+      storageUri: `cos://xlb-evidence-123456/${envelope.objectKey}`,
+    }).success).toBe(true);
     expect(objectStorageProviderEnvelopeSchema.safeParse({ ...envelope, provider: "oss" }).success).toBe(false);
     expect(objectStorageProviderEnvelopeSchema.safeParse({ ...envelope, externalProviderExecuted: true }).success).toBe(false);
+    expect(objectStorageProviderEnvelopeSchema.safeParse({ ...envelope, provider: "cos" }).success).toBe(false);
     expect(objectStorageProviderEnvelopeSchema.safeParse({ ...envelope, publicUrl: "https://oss.example/proof.png" }).success).toBe(false);
   });
 
