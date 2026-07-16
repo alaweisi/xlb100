@@ -117,6 +117,14 @@ Assert-Fails "safety evidence inputs required" @(
   "-Action", "VerifySafetyEvidence", "-Environment", "staging"
 ) "requires -ReleaseManifest"
 
+Assert-Fails "cutover inputs required" @(
+  "-Action", "PrepareCutover", "-Environment", "staging"
+) "requires -CutoverRequest and -CutoverPlanOutput"
+
+Assert-Fails "cutover preparation rejects apply" @(
+  "-Action", "PrepareCutover", "-Environment", "production", "-Apply"
+) "always offline"
+
 $wave1TestRoot = Join-Path $repoRoot ".artifacts\tke\tooling-tests"
 $environmentMismatch = Join-Path $wave1TestRoot "environment-mismatch.json"
 try {

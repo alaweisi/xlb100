@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
   [Parameter(Mandatory = $true)]
-  [ValidateSet("Validate", "ReleaseImages", "GenerateCloudBundle", "VerifySafetyEvidence", "PrepareStaging", "PrepareProduction", "PlanInfrastructure", "Deploy", "Migrate", "Smoke", "Rollback")]
+  [ValidateSet("Validate", "ReleaseImages", "GenerateCloudBundle", "VerifySafetyEvidence", "PrepareCutover", "PrepareStaging", "PrepareProduction", "PlanInfrastructure", "Deploy", "Migrate", "Smoke", "Rollback")]
   [string]$Action,
 
   [Parameter(Mandatory = $true)]
@@ -23,6 +23,8 @@ param(
   [string]$GuardOutput = "",
   [string]$GuardReport = "",
   [string]$GuardNow = "",
+  [string]$CutoverRequest = "",
+  [string]$CutoverPlanOutput = "",
   [string]$EvidenceRoot = "",
   [string]$KubeContext = "",
   [string]$Confirmation = "",
@@ -240,7 +242,7 @@ if ($ExecutePlan -and $Action -ne "PlanInfrastructure") {
 if ($Apply -and $Action -eq "PlanInfrastructure") {
   Fail "PlanInfrastructure never accepts -Apply; use -ExecutePlan only after real-cloud plan authorization"
 }
-if (($Apply -or $ExecutePlan) -and $Action -in @("GenerateCloudBundle", "VerifySafetyEvidence", "PrepareStaging", "PrepareProduction")) {
+if (($Apply -or $ExecutePlan) -and $Action -in @("GenerateCloudBundle", "VerifySafetyEvidence", "PrepareCutover", "PrepareStaging", "PrepareProduction")) {
   Fail "$Action is always offline and never accepts -Apply or -ExecutePlan"
 }
 if ($Action -eq "ReleaseImages" -and $ImageReleaseMode -in @("publish", "freeze") -and -not $Apply) {
@@ -318,6 +320,19 @@ switch ($Action) {
     }
     & node @arguments
     if ($LASTEXITCODE -ne 0) { Fail "safety evidence verification failed" }
+  }
+
+  "PrepareCutover" {
+    if ($Environment -eq "local") { Fail "PrepareCutover is only supported for staging or production" }
+    if ([string]::IsNullOrWhiteSpace($CutoverRequest) -or [string]::IsNullOrWhiteSpace($CutoverPlanOutput)) {
+      Fail "PrepareCutover requires -CutoverRequest and -CutoverPlanOutput under .artifacts"
+    }
+    $requestFile = Resolve-RepoFile $CutoverRequest ""
+    Assert-JsonEnvironment $requestFile "CutoverRequest"
+    & node (Join-Path $repoRoot "deploy\tke\cutover\cutover-controller.mjs") `
+      "--request" $requestFile `
+      "--output" $CutoverPlanOutput
+    if ($LASTEXITCODE -ne 0) { Fail "offline traffic cutover plan preparation failed" }
   }
 
   "PrepareStaging" {

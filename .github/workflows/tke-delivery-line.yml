@@ -9,6 +9,7 @@ on:
       - "deploy/helm/**"
       - "deploy/environments/tke/**"
       - "deploy/tke/**"
+      - "tests/tke/release/**"
       - "infra/tencent/**"
       - "scripts/check-tke-delivery-line.mjs"
       - ".github/workflows/tke-delivery-line.yml"
@@ -19,6 +20,7 @@ on:
       - "deploy/helm/**"
       - "deploy/environments/tke/**"
       - "deploy/tke/**"
+      - "tests/tke/release/**"
       - "infra/tencent/**"
       - "scripts/check-tke-delivery-line.mjs"
       - ".github/workflows/tke-delivery-line.yml"
@@ -65,6 +67,9 @@ jobs:
 
       - name: Wave 1 release automation tests
         run: node --test deploy/tke/release/tests/image-release.test.mjs deploy/tke/bundle/tests/generate-cloud-bundle.test.mjs deploy/tke/guards/tests/safety-guard.test.mjs
+
+      - name: Wave 2 cutover and simulation tests
+        run: node --test deploy/tke/cutover/tests/cutover-controller.test.mjs tests/tke/release/scenario-runner.test.mjs
 
       - name: Helm lint and render gates
         shell: pwsh
