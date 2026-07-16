@@ -1,0 +1,46 @@
+{{- if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "xlb.fullname" . }}
+  labels:
+    {{- include "xlb.labels" . | nindent 4 }}
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  ingressClassName: {{ .Values.ingress.className | quote }}
+  {{- if .Values.ingress.tls.enabled }}
+  tls:
+    - secretName: {{ required "ingress.tls.secretName is required when TLS is enabled" .Values.ingress.tls.secretName }}
+      hosts:
+        - {{ .Values.ingress.hosts.api | quote }}
+        - {{ .Values.ingress.hosts.customer | quote }}
+        - {{ .Values.ingress.hosts.worker | quote }}
+        - {{ .Values.ingress.hosts.admin | quote }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.ingress.hosts.api | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "xlb.fullname" . }}-backend
+                port:
+                  name: http
+    {{- range $name := list "customer" "worker" "admin" }}
+    - host: {{ index $.Values.ingress.hosts $name | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "xlb.fullname" $ }}-{{ $name }}
+                port:
+                  name: http
+    {{- end }}
+{{- end }}

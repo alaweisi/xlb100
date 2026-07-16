@@ -1,0 +1,47 @@
+{{- if .Values.autoscaling.backend.enabled }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "xlb.fullname" . }}-backend
+  labels:
+    {{- include "xlb.componentLabels" (dict "root" . "component" "backend") | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "xlb.fullname" . }}-backend
+  minReplicas: {{ .Values.autoscaling.backend.minReplicas }}
+  maxReplicas: {{ .Values.autoscaling.backend.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.autoscaling.backend.targetCPUUtilizationPercentage }}
+{{- end }}
+{{- if .Values.autoscaling.frontends.enabled }}
+{{- range $name, $frontend := .Values.frontends }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "xlb.fullname" $ }}-{{ $name }}
+  labels:
+    {{- include "xlb.componentLabels" (dict "root" $ "component" $name) | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "xlb.fullname" $ }}-{{ $name }}
+  minReplicas: {{ $.Values.autoscaling.frontends.minReplicas }}
+  maxReplicas: {{ $.Values.autoscaling.frontends.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ $.Values.autoscaling.frontends.targetCPUUtilizationPercentage }}
+{{- end }}
+{{- end }}

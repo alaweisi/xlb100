@@ -1,0 +1,11 @@
+XLB release {{ .Release.Name }} rendered for {{ .Values.global.environment }}.
+
+The Chart never creates runtime credentials. Before installation, create or
+materialize Secret {{ .Values.runtimeSecrets.existingSecret }} with the keys
+documented in deploy/helm/xlb/README.md.
+
+Ingress hosts:
+  api: {{ .Values.ingress.hosts.api }}
+  customer: {{ .Values.ingress.hosts.customer }}
+  worker: {{ .Values.ingress.hosts.worker }}
+  admin: {{ .Values.ingress.hosts.admin }}

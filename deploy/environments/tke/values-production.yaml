@@ -1,0 +1,101 @@
+# Shape-valid production placeholders. This file is intentionally not directly
+# deployable: N4 must reject "placeholder", example.invalid, and zero digests.
+global:
+  environment: production
+
+runtimeSecrets:
+  existingSecret: xlb-production-runtime-secrets
+
+backend:
+  replicaCount: 2
+  image:
+    repository: ccr.ccs.tencentyun.com/xlb-placeholder/backend
+    tag: ""
+    digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+    pullPolicy: IfNotPresent
+  resources:
+    requests: { cpu: 250m, memory: 512Mi }
+    limits: { cpu: "2", memory: 2Gi }
+
+jobs:
+  replicaCount: 1
+  resources:
+    requests: { cpu: 250m, memory: 512Mi }
+    limits: { cpu: "2", memory: 2Gi }
+
+frontends:
+  customer:
+    replicaCount: 2
+    image:
+      repository: ccr.ccs.tencentyun.com/xlb-placeholder/customer
+      tag: ""
+      digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+      pullPolicy: IfNotPresent
+  worker:
+    replicaCount: 2
+    image:
+      repository: ccr.ccs.tencentyun.com/xlb-placeholder/worker
+      tag: ""
+      digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+      pullPolicy: IfNotPresent
+  admin:
+    replicaCount: 2
+    image:
+      repository: ccr.ccs.tencentyun.com/xlb-placeholder/admin
+      tag: ""
+      digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+      pullPolicy: IfNotPresent
+
+config:
+  nodeEnv: production
+  mysql:
+    host: mysql-production.placeholder.internal
+    port: 3306
+    database: xlb_production
+    user: xlb_production
+    tlsEnabled: true
+  redis:
+    host: redis-production.placeholder.internal
+    port: 6379
+    tlsEnabled: true
+  rateLimitBackend: redis
+  trustProxyHops: 1
+  auth:
+    debugCodeEnabled: false
+  objectStorage:
+    provider: cos
+    localRoot: /tmp/xlb-object-storage
+    cos:
+      bucket: xlb-production-placeholder-0000000000
+      region: ap-guangzhou
+
+ingress:
+  enabled: true
+  className: qcloud
+  annotations: {}
+  tls:
+    enabled: true
+    secretName: xlb-production-tls
+  hosts:
+    api: api.example.invalid
+    customer: customer.example.invalid
+    worker: worker.example.invalid
+    admin: admin.example.invalid
+
+networkPolicy:
+  # Enable only after TKE ingress source behavior is verified in N7.
+  enabled: false
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+autoscaling:
+  # Start with fixed replicas. Enable only after metrics and capacity tests.
+  backend:
+    enabled: false
+  frontends:
+    enabled: false
+
+serviceMonitor:
+  enabled: false
