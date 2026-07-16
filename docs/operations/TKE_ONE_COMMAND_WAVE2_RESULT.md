@@ -2,33 +2,34 @@
 
 Date: 2026-07-17 (Asia/Shanghai)
 
-WAVE2_STATUS=BLOCKED_P4_REVIEW
+WAVE2_STATUS=BLOCKED_P6_WIRING_REVIEW
 
 > Correction: the earlier `5061892` acceptance candidate is superseded. A
 > later independent P4 review found four open fail-closed issues. Passing tests
 > from that candidate are retained below as historical evidence only and do
 > not constitute Gate 2 acceptance.
 
-## Open P4 review findings
+## Review findings
 
-1. An expired release lease can be taken over while the previous runner's
+1. **Resolved by P4 third correction `8519a82`:** an expired release lease can be taken over while the previous runner's
    heartbeat is still alive, allowing the old runner to overwrite the new
    lease record.
-2. Explicit simulation execution can write mock-provider receipts into the
+2. **Resolved by P4 third correction `8519a82`:** explicit simulation execution can write mock-provider receipts into the
    same formal checkpoint/evidence path used by a non-simulation release.
-3. An `ARTIFACTS_READY` failure records the wrong `failedStage`, weakening
+3. **Resolved by P4 third correction `8519a82`:** an `ARTIFACTS_READY` failure records the wrong `failedStage`, weakening
    exact resume and failure attribution.
-4. Long-running stage receipt freshness is measured against an unsuitable
+4. **Resolved by P4 third correction `8519a82`:** long-running stage receipt freshness is measured against an unsuitable
    clock boundary, so a valid receipt can become stale before the stage
    commits.
-5. The P6 wiring candidate does not drive the actual P4 advance into the P5
+5. **Open:** the P6 wiring candidate does not drive the actual P4 advance into the P5
    advance path and does not round-trip real evidence, provider receipt hashes
    and the resulting P4 checkpoint. Its passing wiring test therefore does not
    yet prove the integrated failure, resume and rollback chain.
 
-Gate 2 remains blocked until the third P4 correction and the real P4/P5 wiring
-increment close all five findings, add regression coverage, pass the complete
-offline gate and receive a final integration review.
+P4 third-correction tests pass 26/26 and the aggregate root tests pass 142/142.
+Gate 2 remains blocked until the real P4/P5 wiring increment closes finding 5,
+adds regression coverage, passes the complete offline gate and receives a
+final independent integration review.
 
 ## Integrated baseline
 
