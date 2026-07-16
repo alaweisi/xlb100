@@ -68,6 +68,7 @@ export function checkRepository(root = repoRoot) {
     "deploy/tke/tests/release-contracts.test.mjs",
     "docs/operations/TKE_ONE_COMMAND_RELEASE_CONTRACT.md",
     "docs/operations/TKE_ONE_COMMAND_WAVE1_RESULT.md",
+    "docs/operations/TKE_ONE_COMMAND_WAVE2_RESULT.md",
     "deploy/tke/release/image-release.mjs",
     "deploy/tke/release/release-input.example.json",
     "deploy/tke/release/tests/image-release.test.mjs",
