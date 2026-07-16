@@ -1,0 +1,14 @@
+{
+  "helm": {
+    "version": "3.21.1",
+    "windowsAmd64Url": "https://get.helm.sh/helm-v3.21.1-windows-amd64.zip",
+    "executableSha256": "b425fa9c20f210bfe6ca5ce2db48fb977800d054c5f238659fb539956cd541ce"
+  },
+  "terraform": "1.15.8",
+  "kubeconform": {
+    "version": "0.8.0",
+    "windowsAmd64Url": "https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-windows-amd64.zip",
+    "executableSha256": "642bf8ea0d614a8c75d2bd012eb6042a90589ff846c69f04863afa446b30f2c1"
+  },
+  "node": "20"
+}
