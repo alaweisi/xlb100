@@ -37,8 +37,8 @@ WAVE2_STATUS=BLOCKED_FINAL_REVIEW
    business evidence, rollback evidence, checkpoint and failure timestamps use
    the entry clock, so a task longer than five minutes can incorrectly reject
    fresh evidence as future-dated.
-9. **Open:** the fourth P4 correction has not yet completed the required final
-   independent review.
+9. **Resolved:** the fourth P4 correction completed independent final review
+   with 29/29 tests passing and no remaining P4 findings.
 10. **Open:** the real P4/P5 chain currently proves the first `TRAFFIC_5` step,
     failure/resume, external drift and rollback/retry. It still needs the full
     `5 -> 25 -> 50 -> 100` staircase and cross-process/cross-instance durable
@@ -46,7 +46,7 @@ WAVE2_STATUS=BLOCKED_FINAL_REVIEW
 
 P4 fourth-correction tests pass 29/29. The real P4/P5 chain passes 4/4 against
 that correction and the aggregate root tests pass 149/149. Gate 2 remains
-blocked until findings 9-10 close, the expanded real chain passes, the complete
+blocked until finding 10 closes, the expanded real chain passes, the complete
 offline gate passes and a final independent integration review accepts the
 result.
 
