@@ -83,6 +83,7 @@ export function checkRepository(root = repoRoot) {
     "deploy/tke/cutover/cutover-controller.mjs",
     "deploy/tke/cutover/cutover-request.example.json",
     "deploy/tke/cutover/cutover-request.schema.json",
+    "deploy/tke/cutover/cutover-progress.schema.json",
     "deploy/tke/cutover/tests/cutover-controller.test.mjs",
     "tests/tke/release/README.md",
     "tests/tke/release/fixture-builder.mjs",
