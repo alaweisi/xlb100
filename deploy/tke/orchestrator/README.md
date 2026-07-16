@@ -51,9 +51,8 @@ executor.
 
 The standalone entry also rejects rollback. Rollback is available only through
 the library API with a reviewed executor capable of returning a real provider
-receipt. Wave 1 currently declares `cloud-bundle.json` while its generator
-writes `manifest.json`; P4 accepts that exact compatibility pair. The shared
-contract filename should be normalized by the Gate 2 integration owner.
+receipt. Wave 1 emits the exact `cloud-bundle.json` path declared by the release
+manifest; undeclared compatibility filenames are rejected.
 
 The integration owner will connect this API to the shared entry point and to
 real provider adapters only after P4/P5/P6 integration and separate external

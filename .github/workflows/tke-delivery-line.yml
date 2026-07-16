@@ -69,7 +69,7 @@ jobs:
         run: node --test deploy/tke/release/tests/image-release.test.mjs deploy/tke/bundle/tests/generate-cloud-bundle.test.mjs deploy/tke/guards/tests/safety-guard.test.mjs
 
       - name: Wave 2 cutover and simulation tests
-        run: node --test deploy/tke/cutover/tests/cutover-controller.test.mjs tests/tke/release/scenario-runner.test.mjs tests/tke/release/p4-p5-wiring.contract.test.mjs
+        run: node --test deploy/tke/orchestrator/orchestrator.test.mjs deploy/tke/cutover/tests/cutover-controller.test.mjs tests/tke/release/scenario-runner.test.mjs tests/tke/release/p4-p5-wiring.contract.test.mjs
 
       - name: Helm lint and render gates
         shell: pwsh

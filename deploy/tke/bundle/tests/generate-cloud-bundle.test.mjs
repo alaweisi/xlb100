@@ -75,7 +75,7 @@ test("writer persists only the reviewed payload and hash inventory below an isol
   const bundle = buildCloudBundle({ repoRoot: isolatedRoot, input });
   writeCloudBundle(bundle);
 
-  for (const file of ["manifest.json", "production.tfvars", "production.backend.hcl", "values-production.yaml", "bundle-files.json", "bundle.sha256"]) {
+  for (const file of ["cloud-bundle.json", "production.tfvars", "production.backend.hcl", "values-production.yaml", "bundle-files.json", "bundle.sha256"]) {
     assert.equal(existsSync(path.join(isolatedRoot, ".artifacts/tke/production", file)), true, `${file} should exist`);
   }
   assert.equal(readFileSync(path.join(isolatedRoot, ".artifacts/tke/production/bundle.sha256"), "utf8").trim(), bundle.manifest.bundleSha256);

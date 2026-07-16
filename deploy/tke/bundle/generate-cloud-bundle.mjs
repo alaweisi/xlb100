@@ -380,7 +380,7 @@ export function writeCloudBundle(bundle) {
   for (const [relative, content] of Object.entries(bundle.rendered)) {
     writeFileSync(path.resolve(bundle.repoRoot, relative), content, "utf8");
   }
-  writeFileSync(path.join(bundle.output.absolute, "manifest.json"), jsonLine(bundle.manifest), "utf8");
+  writeFileSync(path.join(bundle.output.absolute, "cloud-bundle.json"), jsonLine(bundle.manifest), "utf8");
   writeFileSync(path.join(bundle.output.absolute, "bundle-files.json"), jsonLine(bundle.inventory), "utf8");
   writeFileSync(path.join(bundle.output.absolute, "bundle.sha256"), `${bundle.manifest.bundleSha256}\n`, "utf8");
 }

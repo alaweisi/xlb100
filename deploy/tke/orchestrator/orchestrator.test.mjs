@@ -134,7 +134,7 @@ function fixture() {
   const files = {
     manifest: path.join(releaseRoot, "release-manifest.json"),
     imageLock: path.join(releaseRoot, "images.lock.json"),
-    cloudBundle: path.join(environmentRoot, "manifest.json"),
+    cloudBundle: path.join(environmentRoot, "cloud-bundle.json"),
     evidence: path.join(releaseRoot, "evidence.json"),
     checkpoint: path.join(releaseRoot, "checkpoint.json"),
   };

@@ -126,16 +126,6 @@ function resolveArtifact(repoRoot, reference, label, { mustExist = true } = {}) 
   return { absolute: resolved, relative: normalize(path.relative(repoRoot, resolved)) };
 }
 
-function resolveCloudBundleCompatibility(repoRoot, declaredReference) {
-  try {
-    return resolveArtifact(repoRoot, declaredReference, "release manifest cloudBundleFile");
-  } catch (error) {
-    if (!declaredReference.endsWith("/cloud-bundle.json") || !/not found/.test(error.message)) throw error;
-    const compatible = declaredReference.replace(/cloud-bundle\.json$/, "manifest.json");
-    return resolveArtifact(repoRoot, compatible, "Wave 1 cloud bundle manifest.json compatibility path");
-  }
-}
-
 function requireArtifactFile(repoRoot, reference, label, hashes, hashKey) {
   const resolved = resolveArtifact(repoRoot, reference, label);
   if (readFileSync(resolved.absolute).length === 0) fail(`${label} must not be empty`);
@@ -351,7 +341,7 @@ export function loadReleaseBundle({ repoRoot = defaultRepoRoot, contractRoot = d
   for (const [name, definition] of Object.entries(artifactDefinitions)) {
     if (name === "releaseManifest") continue;
     paths[name] = name === "cloudBundle"
-      ? resolveCloudBundleCompatibility(repoRoot, manifest[definition.manifestKey])
+      ? resolveArtifact(repoRoot, manifest[definition.manifestKey], "release manifest cloudBundleFile")
       : resolveArtifact(repoRoot, manifest[definition.manifestKey], `release manifest ${definition.manifestKey}`);
     values[name] = readJson(paths[name].absolute, name);
     assertSchema(validators[name], values[name], name);

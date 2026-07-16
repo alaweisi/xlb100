@@ -85,6 +85,11 @@ export function checkRepository(root = repoRoot) {
     "deploy/tke/cutover/cutover-request.schema.json",
     "deploy/tke/cutover/cutover-progress.schema.json",
     "deploy/tke/cutover/tests/cutover-controller.test.mjs",
+    "deploy/tke/orchestrator/README.md",
+    "deploy/tke/orchestrator/checkpoint.example.json",
+    "deploy/tke/orchestrator/orchestrator.mjs",
+    "deploy/tke/orchestrator/orchestrator.test.mjs",
+    "deploy/tke/orchestrator/xlb-release.mjs",
     "tests/tke/release/README.md",
     "tests/tke/release/fixture-builder.mjs",
     "tests/tke/release/ports.mjs",
@@ -127,7 +132,7 @@ export function checkRepository(root = repoRoot) {
   }
 
   const entry = readFileSync(path.join(root, "deploy/tke/xlb-tke.ps1"), "utf8");
-  for (const action of ["Validate", "ReleaseImages", "GenerateCloudBundle", "VerifySafetyEvidence", "PrepareCutover", "PrepareStaging", "PrepareProduction", "PlanInfrastructure", "Deploy", "Migrate", "Smoke", "Rollback"]) {
+  for (const action of ["Validate", "ReleaseImages", "GenerateCloudBundle", "VerifySafetyEvidence", "PrepareCutover", "RunRelease", "PrepareStaging", "PrepareProduction", "PlanInfrastructure", "Deploy", "Migrate", "Smoke", "Rollback"]) {
     if (!entry.includes(`\"${action}\"`)) fail(`unified TKE entry is missing action ${action}`);
   }
   for (const marker of ["-Apply", "-ExecutePlan", "explicit confirmation required", "must exactly match", "migration.enabled=false"]) {
@@ -141,7 +146,7 @@ export function checkRepository(root = repoRoot) {
   }
 
   const manifest = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
-  for (const script of ["tke:check", "tke:test", "tke:validate", "tke:gate", "tke:wave2:simulation:test", "tke:wave2:cutover:test", "tke:wave2:test"]) {
+  for (const script of ["tke:check", "tke:test", "tke:validate", "tke:gate", "tke:wave2:simulation:test", "tke:wave2:orchestrator:test", "tke:wave2:cutover:test", "tke:wave2:test"]) {
     if (!manifest.scripts?.[script]) fail(`package.json is missing ${script}`);
   }
 

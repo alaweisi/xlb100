@@ -19,7 +19,7 @@ node deploy/tke/bundle/generate-cloud-bundle.mjs `
 
 For `production`, the output directory is exactly `.artifacts/tke/production/`:
 
-- `manifest.json` — Wave 0 `cloud-bundle.schema.json` contract;
+- `cloud-bundle.json` — Wave 0 `cloud-bundle.schema.json` contract and the exact file referenced by `release-manifest.json`;
 - `production.tfvars` — reviewed Terraform inputs;
 - `production.backend.hcl` — private and encrypted remote-state coordinates;
 - `values-production.yaml` — immutable Helm image values and Secret names only;

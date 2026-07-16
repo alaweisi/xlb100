@@ -125,6 +125,14 @@ Assert-Fails "cutover preparation rejects apply" @(
   "-Action", "PrepareCutover", "-Environment", "production", "-Apply"
 ) "always offline"
 
+Assert-Fails "release orchestration inputs required" @(
+  "-Action", "RunRelease", "-Environment", "staging"
+) "requires -ReleaseManifest and -ReleaseTarget"
+
+Assert-Fails "release orchestration rejects apply" @(
+  "-Action", "RunRelease", "-Environment", "production", "-Apply"
+) "always offline"
+
 $wave1TestRoot = Join-Path $repoRoot ".artifacts\tke\tooling-tests"
 $environmentMismatch = Join-Path $wave1TestRoot "environment-mismatch.json"
 try {

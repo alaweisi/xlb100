@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
   [Parameter(Mandatory = $true)]
-  [ValidateSet("Validate", "ReleaseImages", "GenerateCloudBundle", "VerifySafetyEvidence", "PrepareCutover", "PrepareStaging", "PrepareProduction", "PlanInfrastructure", "Deploy", "Migrate", "Smoke", "Rollback")]
+  [ValidateSet("Validate", "ReleaseImages", "GenerateCloudBundle", "VerifySafetyEvidence", "PrepareCutover", "RunRelease", "PrepareStaging", "PrepareProduction", "PlanInfrastructure", "Deploy", "Migrate", "Smoke", "Rollback")]
   [string]$Action,
 
   [Parameter(Mandatory = $true)]
@@ -25,6 +25,8 @@ param(
   [string]$GuardNow = "",
   [string]$CutoverRequest = "",
   [string]$CutoverPlanOutput = "",
+  [string]$ReleaseTarget = "",
+  [switch]$ResumeRelease,
   [string]$EvidenceRoot = "",
   [string]$KubeContext = "",
   [string]$Confirmation = "",
@@ -242,7 +244,7 @@ if ($ExecutePlan -and $Action -ne "PlanInfrastructure") {
 if ($Apply -and $Action -eq "PlanInfrastructure") {
   Fail "PlanInfrastructure never accepts -Apply; use -ExecutePlan only after real-cloud plan authorization"
 }
-if (($Apply -or $ExecutePlan) -and $Action -in @("GenerateCloudBundle", "VerifySafetyEvidence", "PrepareCutover", "PrepareStaging", "PrepareProduction")) {
+if (($Apply -or $ExecutePlan) -and $Action -in @("GenerateCloudBundle", "VerifySafetyEvidence", "PrepareCutover", "RunRelease", "PrepareStaging", "PrepareProduction")) {
   Fail "$Action is always offline and never accepts -Apply or -ExecutePlan"
 }
 if ($Action -eq "ReleaseImages" -and $ImageReleaseMode -in @("publish", "freeze") -and -not $Apply) {
@@ -333,6 +335,22 @@ switch ($Action) {
       "--request" $requestFile `
       "--output" $CutoverPlanOutput
     if ($LASTEXITCODE -ne 0) { Fail "offline traffic cutover plan preparation failed" }
+  }
+
+  "RunRelease" {
+    if ([string]::IsNullOrWhiteSpace($ReleaseManifest) -or [string]::IsNullOrWhiteSpace($ReleaseTarget)) {
+      Fail "RunRelease requires -ReleaseManifest and -ReleaseTarget"
+    }
+    $manifestFile = Resolve-RepoFile $ReleaseManifest ""
+    Assert-JsonEnvironment $manifestFile "ReleaseManifest"
+    $arguments = @(
+      (Join-Path $repoRoot "deploy\tke\orchestrator\xlb-release.mjs"),
+      "--manifest", $manifestFile,
+      "--target", $ReleaseTarget
+    )
+    if ($ResumeRelease) { $arguments += "--resume" }
+    & node @arguments
+    if ($LASTEXITCODE -ne 0) { Fail "offline resumable release orchestration failed" }
   }
 
   "PrepareStaging" {
