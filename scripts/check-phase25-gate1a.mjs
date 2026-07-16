@@ -85,7 +85,7 @@ for (const file of requiredFiles) {
 
 const packageManifest = read("package.json");
 for (const script of ["test:phase25:gate1a", "gate:phase25:gate1a"]) {
-  if (!packageManifest.includes(`\"${script}\"`)) fail(`package script missing ${script}`);
+  if (!packageManifest.includes(`"${script}"`)) fail(`package script missing ${script}`);
 }
 if (!read("scripts/preflight-architecture.ps1").includes("check-phase25-gate1a.mjs")) {
   fail("architecture preflight does not execute Gate 1A");
@@ -145,7 +145,7 @@ if (existsSync(join(root, "packages/types/src/runtimeTheme.ts"))) {
     "campaign.navigation.accent",
   ];
   for (const path of runtimePaths) {
-    if (!contract.includes(`\"${path}\"`) || !tokenSource.includes(`\"${path}\"`)) {
+    if (!contract.includes(`"${path}"`) || !tokenSource.includes(`"${path}"`)) {
       fail(`runtime/UI campaign token path drift: ${path}`);
     }
   }
@@ -267,6 +267,18 @@ const phase29Migrations = [
   ...phase28Migrations,
   phase29MigrationPath,
 ];
+const postPhase29Migrations = laterMigrations.slice(phase29Migrations.length);
+const phase29AndPostLockMigrationsAuthorized =
+  phase29Authorized &&
+  JSON.stringify(laterMigrations.slice(0, phase29Migrations.length)) ===
+    JSON.stringify(phase29Migrations) &&
+  postPhase29Migrations.every((file, index) => {
+    const match = /^db\/migrations\/(\d{3})_[^/]+\.sql$/i.exec(file);
+    if (!match || Number(match[1]) <= 57) return false;
+    if (index === 0) return true;
+    const previous = /\/(\d{3})_/.exec(postPhase29Migrations[index - 1]);
+    return Boolean(previous) && Number(match[1]) > Number(previous[1]);
+  });
 if (laterMigrations.length > 0 && !(
   (phase27aAuthorized && laterMigrations.length === 1 &&
     laterMigrations[0] === "db/migrations/054_phase27a_platform_delivery_foundation.sql") ||
@@ -275,9 +287,10 @@ if (laterMigrations.length > 0 && !(
   (phase28Authorized &&
     JSON.stringify([...laterMigrations].sort()) === JSON.stringify(phase28Migrations)) ||
   (phase29Authorized &&
-    JSON.stringify([...laterMigrations].sort()) === JSON.stringify(phase29Migrations))
+    JSON.stringify([...laterMigrations].sort()) === JSON.stringify(phase29Migrations)) ||
+  phase29AndPostLockMigrationsAuthorized
 )) {
-  fail(`Gate 1A migration 054+ boundary permits only the exact explicitly authorized chain through the active formal Phase; found ${laterMigrations.join(", ")}`);
+  fail(`Gate 1A migration 054+ boundary requires the locked Phase 27-29 chain followed only by canonical append-only migrations; found ${laterMigrations.join(", ")}`);
 }
 
 for (const [tag, migration] of [

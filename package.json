@@ -119,6 +119,10 @@
     "check:provider-readiness": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-provider-readiness.ps1",
     "test:provider-readiness": "vitest run --workspace vitest.workspace.ts --project unit-contract tests/unit/providerReadinessConfig.test.ts tests/unit/providerSimulation.test.ts tests/unit/paymentProvider.test.ts tests/unit/smsProvider.test.ts tests/unit/objectStorageProvider.test.ts tests/unit/geoProvider.test.ts tests/unit/enterpriseWebhookProvider.test.ts",
     "gate:provider-readiness": "pnpm check:provider-readiness && pnpm test:provider-readiness && pnpm --filter @xlb/config build && pnpm --filter @xlb/backend typecheck",
+    "check:workspace-links": "node scripts/check-workspace-links.mjs",
+    "gate:stage4c": "node scripts/run-stage4c-gates.mjs",
+    "test:e2e:stage4b": "node scripts/run-stage4b-e2e.mjs",
+    "gate:stage4d": "node scripts/run-stage4d-acceptance.mjs",
     "check:risk": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-lean-risk.ps1 -DiffMode WorkingTree",
     "check:migration-integrity": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-migration-integrity.ps1 -DiffMode WorkingTree",
     "preflight": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/preflight-architecture.ps1"
