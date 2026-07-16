@@ -51,7 +51,11 @@ orchestrator through `JOBS_SWITCHED`, invokes the real P5 controller from the
 P4 `TRAFFIC_5` executor with raw evidence bytes and transient tokens, writes
 the resulting evidence and REAL provider receipt, and lets P4 re-hash and
 commit the checkpoint. It also covers P5 failure/resume, external weight
-drift, and P5 traffic rollback through P4's rollback-failure latch.
+drift, and P5 traffic rollback through P4's rollback-failure latch. The full
+Gate 2 acceptance continues through `5/25/50/100`, rejects skipped levels,
+reloads P4 plus a disk-backed P5 CAS store after process restart, resumes a
+50-percent observation failure without replaying apply, and reverses the
+complete `100/50/25/5/0` rollback prefix.
 The tests resolve P4/P5 from the current integrated checkout. Pre-integration
 branch validation may explicitly inject the two module files with
 `XLB_P4_ORCHESTRATOR_MODULE` and `XLB_P5_CUTOVER_MODULE`; no sibling-worktree

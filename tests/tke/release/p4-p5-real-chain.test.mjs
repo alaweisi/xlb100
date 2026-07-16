@@ -27,16 +27,20 @@ const resolveWave2Module = (relative, environmentVariable) => {
   throw new Error(`real Wave 2 module is unavailable in this checkout: ${relative}`);
 };
 
+const p4ModuleFile = resolveWave2Module(
+  "deploy/tke/orchestrator/orchestrator.mjs",
+  "XLB_P4_ORCHESTRATOR_MODULE",
+);
+const p5ModuleFile = resolveWave2Module(
+  "deploy/tke/cutover/cutover-controller.mjs",
+  "XLB_P5_CUTOVER_MODULE",
+);
 const [p4, p5] = await Promise.all([
-  import(pathToFileURL(resolveWave2Module(
-    "deploy/tke/orchestrator/orchestrator.mjs",
-    "XLB_P4_ORCHESTRATOR_MODULE",
-  ))),
-  import(pathToFileURL(resolveWave2Module(
-    "deploy/tke/cutover/cutover-controller.mjs",
-    "XLB_P5_CUTOVER_MODULE",
-  ))),
+  import(pathToFileURL(p4ModuleFile)),
+  import(pathToFileURL(p5ModuleFile)),
 ]);
+let restartSequence = 0;
+const reloadP4 = () => import(`${pathToFileURL(p4ModuleFile).href}?restart=${restartSequence += 1}`);
 
 afterEach(() => {
   while (temporaryRoots.length) rmSync(temporaryRoots.pop(), { recursive: true, force: true });
@@ -370,7 +374,7 @@ function p5Runtime(input, plan, { initialWeight = plan.initialWeight, failOnce =
   return { controller, transport, observer, store };
 }
 
-function p4TrafficExecutor(input, plan, runtime, { rollback = false } = {}) {
+function p4TrafficExecutor(input, plan, runtime, { rollback = false, targetWeight = 5 } = {}) {
   const contexts = [];
   const executor = async context => {
     contexts.push(structuredClone(context));
@@ -385,8 +389,8 @@ function p4TrafficExecutor(input, plan, runtime, { rollback = false } = {}) {
       : await runtime.controller.advance({
         plan,
         evidenceSource: { bytes: evidenceBytes },
-        targetWeight: 5,
-        executionToken: { action: "ADVANCE", planSha256: plan.planSha256, releaseId, targetWeight: 5 },
+        targetWeight,
+        executionToken: { action: "ADVANCE", planSha256: plan.planSha256, releaseId, targetWeight },
       });
     const evidence = JSON.parse(evidenceBytes.toString("utf8"));
     if (rollback) {
@@ -399,13 +403,16 @@ function p4TrafficExecutor(input, plan, runtime, { rollback = false } = {}) {
       };
       if (!transition) writeJson(input.absolute(evidence.rollback.evidenceRef), { result: "PASS" });
     } else {
-      const observation = operation.progress.observations.find(item => item.weight === 5);
-      evidence.trafficObservations = [{
-        weight: 5,
-        observedAt: observation.observedAt,
-        result: "PASS",
-        evidenceRef: observation.observationEvidenceRef,
-      }];
+      const observation = operation.progress.observations.find(item => item.weight === targetWeight);
+      evidence.trafficObservations = [
+        ...(evidence.trafficObservations ?? []).filter(item => item.weight < targetWeight),
+        {
+          weight: targetWeight,
+          observedAt: observation.observedAt,
+          result: "PASS",
+          evidenceRef: observation.observationEvidenceRef,
+        },
+      ];
     }
     evidence.updatedAt = fixedNow.toISOString();
     writeJson(input.files.evidence, evidence);
@@ -417,6 +424,156 @@ function p4TrafficExecutor(input, plan, runtime, { rollback = false } = {}) {
     });
   };
   return { executor, contexts };
+}
+
+class FileCasProgressStore {
+  constructor(file) {
+    this.file = file;
+  }
+
+  load() {
+    return existsSync(this.file) ? readJson(this.file) : undefined;
+  }
+
+  compareAndSwap(expectedRevision, next) {
+    const actualRevision = this.load()?.revision ?? 0;
+    if (actualRevision !== expectedRevision) return false;
+    writeJson(this.file, next);
+    return true;
+  }
+}
+
+class PersistentTrafficTransport {
+  constructor(input, file, initialWeight) {
+    this.input = input;
+    this.file = file;
+    if (!existsSync(file)) writeJson(file, { weight: initialWeight, applies: [], completed: {} });
+  }
+
+  state() { return readJson(this.file); }
+
+  proof(kind, weight, idempotencyKey) {
+    const evidenceRef = this.input.ref(`evidence/p5-persistent-${kind}-${weight}.json`);
+    writeJson(this.input.absolute(evidenceRef), { kind, weight, idempotencyKey, result: "PASS" });
+    return { tkeWeight: weight, lighthouseWeight: 100 - weight, evidenceRef };
+  }
+
+  async readWeights() {
+    const state = this.state();
+    return this.proof("read", state.weight);
+  }
+
+  async applyWeights({ toWeight, idempotencyKey }) {
+    const state = this.state();
+    if (state.completed[idempotencyKey] !== undefined) {
+      return this.proof("apply", state.completed[idempotencyKey], idempotencyKey);
+    }
+    state.applies.push({ fromWeight: state.weight, toWeight, idempotencyKey });
+    state.weight = toWeight;
+    state.completed[idempotencyKey] = toWeight;
+    writeJson(this.file, state);
+    return this.proof("apply", toWeight, idempotencyKey);
+  }
+}
+
+class PersistentTrafficObserver {
+  constructor(input, file, { failOnceAt, failDirection = "forward" } = {}) {
+    this.input = input;
+    this.file = file;
+    this.failOnceAt = failOnceAt;
+    this.failDirection = failDirection;
+    if (!existsSync(file)) writeJson(file, { calls: [], failedKeys: [] });
+  }
+
+  state() { return readJson(this.file); }
+
+  async observe({ direction, weight, minimumObservationSeconds }) {
+    const state = this.state();
+    const key = `${direction}-${weight}`;
+    state.calls.push({ direction, weight, minimumObservationSeconds });
+    if (direction === this.failDirection && weight === this.failOnceAt && !state.failedKeys.includes(key)) {
+      state.failedKeys.push(key);
+      writeJson(this.file, state);
+      const error = new Error(`injected persistent ${key} timeout`);
+      error.retryable = true;
+      throw error;
+    }
+    writeJson(this.file, state);
+    const evidenceRef = this.input.ref(`evidence/p5-persistent-observe-${direction}-${weight}.json`);
+    writeJson(this.input.absolute(evidenceRef), {
+      direction,
+      weight,
+      durationSeconds: minimumObservationSeconds,
+      result: "PASS",
+    });
+    return {
+      weight,
+      result: "PASS",
+      durationSeconds: minimumObservationSeconds,
+      observedAt: fixedNow.toISOString(),
+      evidenceRef,
+    };
+  }
+}
+
+function persistentRuntime(input, plan, {
+  progressFile,
+  transportFile,
+  observerFile,
+  failOnceAt,
+  initialWeight = plan.initialWeight,
+} = {}) {
+  const store = new FileCasProgressStore(progressFile);
+  const transport = new PersistentTrafficTransport(input, transportFile, initialWeight);
+  const observer = new PersistentTrafficObserver(input, observerFile, { failOnceAt });
+  const controller = new p5.CutoverController({
+    adapter: p5.createClbAdapter(transport),
+    observer,
+    store,
+    now: input.clock,
+  });
+  return { controller, transport, observer, store };
+}
+
+function persistentFiles(input, plan, name = plan.planSha256.slice(0, 12)) {
+  const root = input.absolute(input.ref("progress"));
+  return {
+    progressFile: path.join(root, `${name}-progress.json`),
+    transportFile: path.join(root, "provider-state.json"),
+    observerFile: path.join(root, "observer-state.json"),
+  };
+}
+
+async function advancePersistentWeight(input, weight, {
+  p4Module = p4,
+  plan = buildPlan(input),
+  files = persistentFiles(input, plan),
+  failOnceAt,
+} = {}) {
+  const runtime = persistentRuntime(input, plan, { ...files, failOnceAt });
+  const wired = p4TrafficExecutor(input, plan, runtime, { targetWeight: weight });
+  const result = await p4Module.advanceRelease({
+    ...input,
+    targetState: `TRAFFIC_${weight}`,
+    authorities: { trafficCutover: `TRAFFIC_${weight}` },
+    executor: wired.executor,
+    now: fixedNow,
+    clock: input.clock,
+  });
+  return { result, runtime, wired, plan, files };
+}
+
+function assertCommittedTrafficStep(input, step, weight) {
+  assert.equal(step.result.status, `TRAFFIC_${weight}`);
+  assert.equal(step.result.checkpoint.currentState, `TRAFFIC_${weight}`);
+  assert.equal(step.result.checkpoint.artifactHashes.evidenceBundle, sha256File(input.files.evidence));
+  assert.deepEqual(readJson(input.files.evidence).trafficObservations.map(item => item.weight),
+    [5, 25, 50, 100].filter(candidate => candidate <= weight));
+  assert.equal(step.runtime.observer.state().calls.at(-1).minimumObservationSeconds, 900);
+  const receipt = readJson(path.join(path.dirname(input.files.manifest), "receipts", `traffic-${weight}.json`));
+  assert.equal(receipt.mode, "REAL");
+  assert.equal(receipt.idempotencyKey, step.wired.contexts.at(-1).idempotencyKey);
+  assert.equal(receipt.fencingToken, step.wired.contexts.at(-1).fencingToken);
 }
 
 test("real P4 TRAFFIC_5 executor runs real P5, updates evidence hash, and commits a REAL receipt", async () => {
@@ -562,6 +719,145 @@ test("real P5 traffic rollback drives P4 rollback latch and retry recovery", asy
   assert.equal(existsSync(latchFile), false);
   assert.equal(rollbackRuntime.transport.applies.length, 1);
   assert.equal(rollbackRuntime.observer.calls.length, 2);
+  assert.equal(readJson(input.files.evidence).rollback.result, "PASS");
+  assert.equal(readJson(input.files.checkpoint).currentState, "ROLLED_BACK");
+});
+
+test("real P4 and P5 complete 5/25/50/100 with exact gates and reject skips", async () => {
+  const input = fixture();
+  await prepareJobsSwitched(input);
+
+  const five = await advancePersistentWeight(input, 5);
+  assertCommittedTrafficStep(input, five, 5);
+
+  await assert.rejects(
+    p4.advanceRelease({
+      ...input,
+      targetState: "TRAFFIC_50",
+      authorities: { trafficCutover: "TRAFFIC_50" },
+      executor: async () => { throw new Error("skip must fail before executor"); },
+      now: fixedNow,
+      clock: input.clock,
+    }),
+    /illegal state transition TRAFFIC_5 -> TRAFFIC_50/,
+  );
+  const skipPlan = buildPlan(input);
+  const skipFiles = persistentFiles(input, skipPlan, "skip-probe");
+  const skipRuntime = persistentRuntime(input, skipPlan, skipFiles);
+  await assert.rejects(
+    skipRuntime.controller.advance({
+      plan: skipPlan,
+      evidenceSource: { bytes: readFileSync(input.files.evidence) },
+      targetWeight: 50,
+      executionToken: { action: "ADVANCE", planSha256: skipPlan.planSha256, releaseId, targetWeight: 50 },
+    }),
+    /next traffic weight must be 25/,
+  );
+
+  for (const weight of [25, 50, 100]) {
+    const step = await advancePersistentWeight(input, weight);
+    assertCommittedTrafficStep(input, step, weight);
+  }
+  const providerState = readJson(five.files.transportFile);
+  assert.deepEqual(providerState.applies.map(item => item.toWeight), [5, 25, 50, 100]);
+  assert.equal(readJson(input.files.checkpoint).currentState, "TRAFFIC_100");
+});
+
+test("process restart after 25 reloads disk checkpoint evidence and CAS progress before 50/100", async () => {
+  const input = fixture();
+  await prepareJobsSwitched(input);
+  const five = await advancePersistentWeight(input, 5);
+  assertCommittedTrafficStep(input, five, 5);
+  const twentyFive = await advancePersistentWeight(input, 25);
+  assertCommittedTrafficStep(input, twentyFive, 25);
+
+  const plan50 = buildPlan(input);
+  const files50 = persistentFiles(input, plan50);
+  const seededStore = new FileCasProgressStore(files50.progressFile);
+  assert.equal(seededStore.compareAndSwap(0, p5.createInitialProgress(plan50, fixedNow)), true);
+  assert.deepEqual(seededStore.load().completedWeights, [5, 25]);
+
+  const restartedP4For50 = await reloadP4();
+  const fifty = await advancePersistentWeight(input, 50, {
+    p4Module: restartedP4For50,
+    plan: plan50,
+    files: files50,
+  });
+  assertCommittedTrafficStep(input, fifty, 50);
+  assert.ok(fifty.runtime.store.load().revision > 1);
+
+  const restartedP4For100 = await reloadP4();
+  const hundred = await advancePersistentWeight(input, 100, { p4Module: restartedP4For100 });
+  assertCommittedTrafficStep(input, hundred, 100);
+  const providerState = readJson(five.files.transportFile);
+  assert.deepEqual(providerState.applies.map(item => item.toWeight), [5, 25, 50, 100]);
+  assert.equal(new Set(providerState.applies.map(item => item.idempotencyKey)).size, 4);
+});
+
+test("50 failure resumes across instances then 100 rollback restores the full reverse prefix", async () => {
+  const input = fixture();
+  await prepareJobsSwitched(input);
+  const five = await advancePersistentWeight(input, 5);
+  assertCommittedTrafficStep(input, five, 5);
+  const twentyFive = await advancePersistentWeight(input, 25);
+  assertCommittedTrafficStep(input, twentyFive, 25);
+
+  const plan50 = buildPlan(input);
+  const files50 = persistentFiles(input, plan50);
+  const failingRuntime = persistentRuntime(input, plan50, { ...files50, failOnceAt: 50 });
+  const failingWired = p4TrafficExecutor(input, plan50, failingRuntime, { targetWeight: 50 });
+  const failed = await p4.advanceRelease({
+    ...input,
+    targetState: "TRAFFIC_50",
+    authorities: { trafficCutover: "TRAFFIC_50" },
+    executor: failingWired.executor,
+    now: fixedNow,
+    clock: input.clock,
+  });
+  assert.equal(failed.status, "FAILED");
+  assert.equal(failed.checkpoint.failure.resumeState, "TRAFFIC_50");
+  assert.equal(failingRuntime.store.load().status, "OBSERVATION_FAILED");
+
+  const restartedP4 = await reloadP4();
+  const resumedRuntime = persistentRuntime(input, plan50, { ...files50, failOnceAt: 50 });
+  const resumedWired = p4TrafficExecutor(input, plan50, resumedRuntime, { targetWeight: 50 });
+  const resumed = await restartedP4.resumeRelease({
+    ...input,
+    authorities: { trafficCutover: "TRAFFIC_50" },
+    executor: resumedWired.executor,
+    now: fixedNow,
+    clock: input.clock,
+  });
+  const fifty = { result: resumed, runtime: resumedRuntime, wired: resumedWired, plan: plan50, files: files50 };
+  assertCommittedTrafficStep(input, fifty, 50);
+  assert.equal(failingWired.contexts[0].idempotencyKey, resumedWired.contexts[0].idempotencyKey);
+
+  const hundred = await advancePersistentWeight(input, 100, { p4Module: await reloadP4() });
+  assertCommittedTrafficStep(input, hundred, 100);
+  const forwardState = readJson(five.files.transportFile);
+  assert.deepEqual(forwardState.applies.map(item => item.toWeight), [5, 25, 50, 100]);
+  assert.equal(forwardState.applies.filter(item => item.toWeight === 50).length, 1);
+
+  const rollbackPlan = buildPlan(input);
+  const rollbackFiles = persistentFiles(input, rollbackPlan, `rollback-${rollbackPlan.planSha256.slice(0, 12)}`);
+  const rollbackRuntime = persistentRuntime(input, rollbackPlan, rollbackFiles);
+  const rollbackWired = p4TrafficExecutor(input, rollbackPlan, rollbackRuntime, { rollback: true });
+  const rolledBack = await (await reloadP4()).rollbackRelease({
+    ...input,
+    executor: rollbackWired.executor,
+    now: fixedNow,
+    clock: input.clock,
+  });
+
+  assert.equal(rolledBack.status, "ROLLED_BACK");
+  assert.deepEqual(rollbackRuntime.store.load().rollback.transitions.map(item => [item.fromWeight, item.toWeight]), [
+    [100, 50],
+    [50, 25],
+    [25, 5],
+    [5, 0],
+  ]);
+  const finalProviderState = readJson(five.files.transportFile);
+  assert.deepEqual(finalProviderState.applies.map(item => item.toWeight), [5, 25, 50, 100, 50, 25, 5, 0]);
   assert.equal(readJson(input.files.evidence).rollback.result, "PASS");
   assert.equal(readJson(input.files.checkpoint).currentState, "ROLLED_BACK");
 });
