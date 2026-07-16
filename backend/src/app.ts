@@ -10,7 +10,11 @@ import {
 } from "./context/requestContextMiddleware.js";
 import { authorizeRequest } from "./gateway/authz.js";
 import { cityRouter } from "./city/cityRouter.js";
-import { checkDbHealth } from "./observability/health.js";
+import {
+  checkDbHealth,
+  checkReadyHealth,
+  getLiveHealthStatus,
+} from "./observability/health.js";
 import { registerCityConfigModule } from "./cityConfig/cityConfigModule.js";
 import { registerCatalogModule } from "./catalog/catalogModule.js";
 import { registerPricingModule } from "./pricing/pricingModule.js";
@@ -138,6 +142,18 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     phase: XLB_RUNTIME_STATUS.phase,
     brand: "喜乐帮 / XLB",
   }));
+
+  // Kubernetes liveness must not restart healthy processes merely because a
+  // downstream dependency is temporarily unavailable.
+  app.get("/health/live", async () => getLiveHealthStatus());
+
+  // Readiness removes the Pod from Service endpoints while MySQL or Redis is
+  // unavailable, without creating a restart loop.
+  app.get("/health/ready", async (_request, reply) => {
+    const health = await checkReadyHealth();
+    if (!health.ok) return reply.status(503).send(health);
+    return health;
+  });
 
   app.get("/api/system/status", async () => ({
     ok: true,

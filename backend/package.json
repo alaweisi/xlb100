@@ -19,6 +19,7 @@
     "@xlb/shared": "workspace:*",
     "@xlb/types": "workspace:*",
     "@xlb/validators": "workspace:*",
+    "cos-nodejs-sdk-v5": "3.0.0",
     "fastify": "^5.2.0",
     "ioredis": "^5.4.2",
     "jsonwebtoken": "^9.0.3",

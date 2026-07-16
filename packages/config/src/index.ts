@@ -2,6 +2,10 @@ export { loadEnv, type EnvConfig } from "./env.js";
 export { SEEDED_CITY_CODES, isKnownCityCode } from "./cities.js";
 export { featureFlags } from "./featureFlags.js";
 export {
+  loadCosObjectStorageConfig,
+  type CosObjectStorageConfig,
+} from "./cosObjectStorage.js";
+export {
   loadProviderReadinessConfig,
   type EnterpriseWebhookProviderMode,
   type GeoProviderMode,
