@@ -87,6 +87,8 @@ export function checkRepository(root = repoRoot) {
     "tests/tke/release/README.md",
     "tests/tke/release/fixture-builder.mjs",
     "tests/tke/release/ports.mjs",
+    "tests/tke/release/p4-p5-wiring.mjs",
+    "tests/tke/release/p4-p5-wiring.contract.test.mjs",
     "tests/tke/release/provider-fakes.mjs",
     "tests/tke/release/scenario-runner.mjs",
     "tests/tke/release/scenario-runner.test.mjs",
