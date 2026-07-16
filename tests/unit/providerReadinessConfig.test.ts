@@ -18,6 +18,17 @@ describe("provider readiness configuration", () => {
       .toMatchObject({ objectStorageProvider: "mock", externalExecutionEnabled: false });
   });
 
+  it("requires both COS selection and explicit external execution", () => {
+    expect(loadProviderReadinessConfig({
+      XLB_OBJECT_STORAGE_PROVIDER: "cos",
+      XLB_EXTERNAL_PROVIDER_EXECUTION_ENABLED: "true",
+    })).toMatchObject({ objectStorageProvider: "cos", externalExecutionEnabled: true });
+    expect(() => loadProviderReadinessConfig({ XLB_OBJECT_STORAGE_PROVIDER: "cos" }))
+      .toThrow("Tencent COS requires XLB_EXTERNAL_PROVIDER_EXECUTION_ENABLED=true");
+    expect(() => loadProviderReadinessConfig({ XLB_EXTERNAL_PROVIDER_EXECUTION_ENABLED: "true" }))
+      .toThrow("requires XLB_OBJECT_STORAGE_PROVIDER=cos");
+  });
+
   it.each([
     ["XLB_EXTERNAL_PROVIDER_EXECUTION_ENABLED", "true"],
     ["XLB_PAYMENT_PROVIDER", "wechat"],

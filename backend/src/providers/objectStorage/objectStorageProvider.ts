@@ -1,11 +1,15 @@
 import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve, sep } from "node:path";
-import { loadProviderReadinessConfig } from "@xlb/config";
+import { loadCosObjectStorageConfig, loadProviderReadinessConfig } from "@xlb/config";
 import type { ObjectStorageProviderEnvelope, ObjectStorageProviderKind } from "@xlb/types";
 import type { ProviderFaultPlan } from "../providerSimulation.js";
 import { applyProviderFault } from "../providerSimulation.js";
 import { assertSafeObjectKey } from "./objectStorageKey.js";
+import {
+  TencentCosObjectStorageAdapter,
+  type CosClient,
+} from "./tencentCosObjectStorageAdapter.js";
 
 export interface PutObjectInput {
   objectKey: string;
@@ -117,11 +121,28 @@ export class MockObjectStorageProvider implements ObjectStorageProvider {
   }
 }
 
-export function createObjectStorageProvider(): ObjectStorageProvider {
-  const configured = loadProviderReadinessConfig().objectStorageProvider;
-  if (configured === "local") return new LocalObjectStorageProvider();
+type ObjectStorageEnvironment = Readonly<Record<string, string | undefined>>;
+
+export interface ObjectStorageProviderDependencies {
+  cosClient?: CosClient;
+}
+
+export function createObjectStorageProvider(
+  environment: ObjectStorageEnvironment = process.env,
+  dependencies: ObjectStorageProviderDependencies = {},
+): ObjectStorageProvider {
+  const configured = loadProviderReadinessConfig(environment).objectStorageProvider;
+  if (configured === "local") {
+    return new LocalObjectStorageProvider(environment.XLB_OBJECT_STORAGE_ROOT);
+  }
   if (configured === "mock") return new MockObjectStorageProvider();
-  throw new Error(`Unsupported XLB_OBJECT_STORAGE_PROVIDER: ${configured}. Only local or mock is allowed.`);
+  if (configured === "cos") {
+    return new TencentCosObjectStorageAdapter(
+      loadCosObjectStorageConfig(environment),
+      dependencies.cosClient,
+    );
+  }
+  throw new Error(`Unsupported XLB_OBJECT_STORAGE_PROVIDER: ${configured}`);
 }
 
 export const objectStorageProvider = createObjectStorageProvider();

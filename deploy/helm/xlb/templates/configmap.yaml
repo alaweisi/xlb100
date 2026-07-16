@@ -27,6 +27,7 @@ data:
   AUTH_OTP_RESEND_COOLDOWN_SECONDS: {{ .Values.config.auth.otpResendCooldownSeconds | quote }}
   AUTH_DEBUG_CODE_ENABLED: {{ .Values.config.auth.debugCodeEnabled | quote }}
   XLB_OBJECT_STORAGE_PROVIDER: {{ .Values.config.objectStorage.provider | quote }}
+  XLB_EXTERNAL_PROVIDER_EXECUTION_ENABLED: {{ .Values.config.objectStorage.externalExecutionEnabled | quote }}
   XLB_OBJECT_STORAGE_ROOT: {{ .Values.config.objectStorage.localRoot | quote }}
   XLB_COS_BUCKET: {{ .Values.config.objectStorage.cos.bucket | quote }}
   XLB_COS_REGION: {{ .Values.config.objectStorage.cos.region | quote }}

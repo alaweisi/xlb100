@@ -2,8 +2,8 @@ import { z } from "zod";
 import { FULFILLMENT_EVIDENCE_MAX_BYTES } from "@xlb/types";
 import { cityCodeSchema } from "./cityCodeSchema.js";
 
-export const objectStorageProviderKindSchema = z.enum(["local", "mock"]);
-export const objectStorageProviderStatusSchema = z.enum(["stored_local", "stored_mock"]);
+export const objectStorageProviderKindSchema = z.enum(["local", "mock", "cos"]);
+export const objectStorageProviderStatusSchema = z.enum(["stored_local", "stored_mock", "stored_cos"]);
 export const fulfillmentEvidenceTypeSchema = z.enum([
   "arrival",
   "before_service",
@@ -16,9 +16,9 @@ export const evidenceContentTypeSchema = z.enum(["image/jpeg", "image/png", "ima
 
 export const objectStorageProviderEnvelopeSchema = z.object({
   provider: objectStorageProviderKindSchema,
-  providerName: z.enum(["xlb-local-filesystem", "xlb-memory-mock"]),
+  providerName: z.enum(["xlb-local-filesystem", "xlb-memory-mock", "tencent-cos"]),
   providerStatus: objectStorageProviderStatusSchema,
-  externalProviderExecuted: z.literal(false),
+  externalProviderExecuted: z.boolean(),
   objectKey: z.string().min(1).max(255),
   storageUri: z.string().min(1).max(512),
   publicUrl: z.null(),
@@ -26,6 +26,43 @@ export const objectStorageProviderEnvelopeSchema = z.object({
   sizeBytes: z.number().int().positive().max(FULFILLMENT_EVIDENCE_MAX_BYTES),
   contentType: evidenceContentTypeSchema,
   storedAt: z.string().datetime(),
+}).superRefine((value, context) => {
+  const expected = {
+    local: {
+      providerName: "xlb-local-filesystem",
+      providerStatus: "stored_local",
+      externalProviderExecuted: false,
+      storageUriPrefix: "xlb-local://",
+    },
+    mock: {
+      providerName: "xlb-memory-mock",
+      providerStatus: "stored_mock",
+      externalProviderExecuted: false,
+      storageUriPrefix: "xlb-mock://",
+    },
+    cos: {
+      providerName: "tencent-cos",
+      providerStatus: "stored_cos",
+      externalProviderExecuted: true,
+      storageUriPrefix: "cos://",
+    },
+  } as const;
+  const contract = expected[value.provider];
+  if (value.providerName !== contract.providerName) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["providerName"], message: "providerName must match provider" });
+  }
+  if (value.providerStatus !== contract.providerStatus) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["providerStatus"], message: "providerStatus must match provider" });
+  }
+  if (value.externalProviderExecuted !== contract.externalProviderExecuted) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["externalProviderExecuted"], message: "external execution flag must match provider" });
+  }
+  if (!value.storageUri.startsWith(contract.storageUriPrefix)) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["storageUri"], message: "storage URI must match provider" });
+  }
+  if (value.provider === "cos" && !/^cos:\/\/[^/]+\/.+/.test(value.storageUri)) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["storageUri"], message: "COS URI must include bucket and object key" });
+  }
 });
 
 export const createFulfillmentEvidenceMetadataSchema = z.object({

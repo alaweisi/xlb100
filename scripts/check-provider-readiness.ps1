@@ -8,6 +8,7 @@ try {
     "backend/src/providers/payment/mockPaymentProvider.ts",
     "backend/src/providers/sms/mockSmsProvider.ts",
     "backend/src/providers/objectStorage/objectStorageProvider.ts",
+    "backend/src/providers/objectStorage/tencentCosObjectStorageAdapter.ts",
     "backend/src/dispatch/geoProvider.ts",
     "docs/operations/PROVIDER_INTEGRATION_READINESS_CHECKLIST.md"
   )
@@ -19,7 +20,10 @@ try {
 
   $config = Get-Content -Raw -Encoding UTF8 "packages/config/src/providerReadiness.ts"
   foreach ($truth in @(
-    'externalExecutionEnabled\s*:\s*false',
+    'XLB_OBJECT_STORAGE_PROVIDER',
+    'XLB_EXTERNAL_PROVIDER_EXECUTION_ENABLED',
+    'Tencent COS requires XLB_EXTERNAL_PROVIDER_EXECUTION_ENABLED=true',
+    'XLB_EXTERNAL_PROVIDER_EXECUTION_ENABLED=true requires XLB_OBJECT_STORAGE_PROVIDER=cos',
     'XLB_PAYMENT_PROVIDER"\s*,\s*\["mock"\]',
     'XLB_SMS_PROVIDER"\s*,\s*\["mock"\]',
     'XLB_GEO_PROVIDER"\s*,\s*\["local_mock"\]',

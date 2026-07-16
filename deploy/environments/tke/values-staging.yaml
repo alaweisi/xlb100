@@ -56,6 +56,7 @@ config:
   trustProxyHops: 1
   objectStorage:
     provider: cos
+    externalExecutionEnabled: true
     localRoot: /tmp/xlb-object-storage
     cos:
       bucket: xlb-staging-placeholder-0000000000

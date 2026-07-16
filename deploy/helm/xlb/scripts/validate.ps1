@@ -101,6 +101,10 @@ Assert-NotContains $rendered.production 'image:\s+[^\r\n]+:latest' `
   "production render must not contain latest tags"
 Assert-Contains $rendered.production 'XLB_COS_SECRET_ID_FILE' `
   "production render must mount COS credentials by file"
+Assert-Contains $rendered.production 'XLB_EXTERNAL_PROVIDER_EXECUTION_ENABLED:\s+"true"' `
+  "production render must explicitly enable external COS execution"
+Assert-Contains $rendered.local 'XLB_EXTERNAL_PROVIDER_EXECUTION_ENABLED:\s+"false"' `
+  "local render must keep external provider execution disabled"
 
 $pdbCount = [regex]::Matches($rendered.production, '(?m)^kind:\s+PodDisruptionBudget\s*$').Count
 if ($pdbCount -ne 4) {
@@ -167,6 +171,9 @@ Assert-TemplateFails "production frontend high availability required" @(
 )
 Assert-TemplateFails "production COS required" @(
   "--set-string", "config.objectStorage.provider=local"
+)
+Assert-TemplateFails "production COS external execution switch required" @(
+  "--set", "config.objectStorage.externalExecutionEnabled=false"
 )
 Assert-TemplateFails "production jobs singleton required" @(
   "--set", "jobs.replicaCount=2"

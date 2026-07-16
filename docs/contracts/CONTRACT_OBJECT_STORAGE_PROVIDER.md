@@ -13,11 +13,11 @@ Every successful envelope must state:
 
 - `externalProviderExecuted: false`
 - `publicUrl: null`
-- provider name `xlb-local-filesystem` or `xlb-memory-mock`
-- private `xlb-local://` or `xlb-mock://` storage URI
+- provider name `xlb-local-filesystem`, `xlb-memory-mock`, or `tencent-cos`
+- private `xlb-local://`, `xlb-mock://`, or `cos://<bucket>/<key>` storage URI
 - SHA-256 checksum, byte size, MIME type, object key, and stored timestamp
 
-An unsupported `XLB_OBJECT_STORAGE_PROVIDER` value fails application startup. There is no Alibaba OSS, S3, COS, Qiniu, or other cloud-provider client in Phase 18.
+An unsupported `XLB_OBJECT_STORAGE_PROVIDER` value fails application startup. Tencent COS is the only external object-storage mode and requires both `XLB_OBJECT_STORAGE_PROVIDER=cos` and `XLB_EXTERNAL_PROVIDER_EXECUTION_ENABLED=true`. Either switch on its own fails startup. Alibaba OSS, S3, Qiniu, and other cloud-provider clients remain unsupported.
 
 ## Object Safety
 

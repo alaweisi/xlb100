@@ -77,9 +77,10 @@
         "trustProxyHops": { "type": "integer", "minimum": 0, "maximum": 10 },
         "objectStorage": {
           "type": "object",
-          "required": ["provider", "localRoot", "cos"],
+          "required": ["provider", "externalExecutionEnabled", "localRoot", "cos"],
           "properties": {
             "provider": { "enum": ["local", "mock", "cos"] },
+            "externalExecutionEnabled": { "type": "boolean" },
             "localRoot": { "type": "string" },
             "cos": {
               "type": "object",
@@ -99,9 +100,19 @@
                     "properties": {
                       "bucket": { "minLength": 3 },
                       "region": { "pattern": "^[a-z]+-[a-z]+(-[a-z]+)?$" }
-                    }
-                  }
-                }
+              }
+            }
+          },
+          "allOf": [
+            {
+              "if": { "properties": { "provider": { "const": "cos" } } },
+              "then": { "properties": { "externalExecutionEnabled": { "const": true } } }
+            },
+            {
+              "if": { "properties": { "externalExecutionEnabled": { "const": true } } },
+              "then": { "properties": { "provider": { "const": "cos" } } }
+            }
+          ]
               }
             }
           ]

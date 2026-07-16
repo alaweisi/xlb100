@@ -8,12 +8,16 @@ import { createAcceptedFulfillment } from "../integration/helpers/fulfillmentTes
 const runDb = process.env.XLB_SKIP_DB_TESTS !== "1";
 
 describe("Phase 18 evidence security boundaries", () => {
-  it("contains no real cloud provider implementation or public URL success path", async () => {
-    const source = await readFile(new URL("../../backend/src/providers/objectStorage/objectStorageProvider.ts", import.meta.url), "utf8");
-    expect(source).not.toMatch(/aliyun|amazon|aws-sdk|putObjectResult|https:\/\//i);
-    expect(source).toContain("Only local or mock is allowed");
-    expect(source).toContain("externalProviderExecuted: false");
-    expect(source).toContain("publicUrl: null");
+  it("keeps COS private and guarded by two explicit runtime switches", async () => {
+    const factory = await readFile(new URL("../../backend/src/providers/objectStorage/objectStorageProvider.ts", import.meta.url), "utf8");
+    const adapter = await readFile(new URL("../../backend/src/providers/objectStorage/tencentCosObjectStorageAdapter.ts", import.meta.url), "utf8");
+    const readiness = await readFile(new URL("../../packages/config/src/providerReadiness.ts", import.meta.url), "utf8");
+    expect(factory).toContain("loadCosObjectStorageConfig");
+    expect(readiness).toContain("XLB_OBJECT_STORAGE_PROVIDER");
+    expect(readiness).toContain("XLB_EXTERNAL_PROVIDER_EXECUTION_ENABLED");
+    expect(adapter).toContain('ACL: "private"');
+    expect(adapter).toContain("publicUrl: null");
+    expect(adapter).not.toMatch(/console\.|logger\.|https?:\/\/[^"'`\s]+/i);
   });
 
   it.skipIf(!runDb)("enforces the HTTP upload size ceiling", async () => {
