@@ -34,10 +34,11 @@ provider.
   simulation context, never in normal execution.
 - Simulation requires
   `.artifacts/tke/simulations/<releaseId>/simulation-manifest.json`, cannot use
-  a production manifest, and persists `simulation: true` in both its extended
-  checkpoint and receipts. Real advance/resume rejects that path and marker.
+  a production manifest, and persists a `simulation=true` marker hash in its
+  frozen-schema checkpoint plus `simulation: true` in receipts. Real
+  advance/resume rejects that path and marker.
 - `ARTIFACTS_READY` failures identify exactly `IMAGES_PUBLISHED`,
-  `CLOUD_BUNDLE_READY`, or `SAFETY_EVIDENCE_READY`.
+  `CLOUD_BUNDLE_READY`, or `SAFETY_CONTRACT_READY`.
 - Traffic authority names one exact step (`TRAFFIC_5`, `TRAFFIC_25`,
   `TRAFFIC_50`, or `TRAFFIC_100`) and cannot authorize the next step.
 - The default injected executor is `OFFLINE_FAKE`; it never connects to an

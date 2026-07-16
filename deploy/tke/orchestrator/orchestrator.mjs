@@ -113,6 +113,10 @@ function orchestrationError(message, { code = "ORCHESTRATION_BLOCKED", retryable
   return error;
 }
 
+function isLeaseOrFenceLoss(error) {
+  return ["LEASE_LOST", "FENCING_MISMATCH"].includes(error?.code);
+}
+
 function resolveArtifact(repoRoot, reference, label, { mustExist = true } = {}) {
   if (typeof reference !== "string" || !reference.startsWith(".artifacts/tke/")) {
     fail(`${label} must remain below .artifacts/tke/`);
@@ -233,7 +237,7 @@ function collectEvidenceReferences(evidence) {
   return entries;
 }
 
-const artifactFailureStages = new Set(["IMAGES_PUBLISHED", "CLOUD_BUNDLE_READY", "SAFETY_EVIDENCE_READY"]);
+const artifactFailureStages = new Set(["IMAGES_PUBLISHED", "CLOUD_BUNDLE_READY", "SAFETY_CONTRACT_READY"]);
 
 function artifactStage(stage, callback) {
   try {
@@ -296,7 +300,7 @@ function validatePayloadFiles(bundle, repoRoot) {
   hashes.cloudPayloadDigest = sha256File(digestFile);
   });
 
-  artifactStage("SAFETY_EVIDENCE_READY", () => {
+  artifactStage("SAFETY_CONTRACT_READY", () => {
   for (const [label, reference] of collectEvidenceReferences(bundle.evidenceBundle)) {
     requireArtifactFile(repoRoot, reference, `${label} evidenceRef`, hashes, `evidence.${label}`);
   }
@@ -387,6 +391,12 @@ export function loadReleaseBundle({ repoRoot = defaultRepoRoot, contractRoot = d
     const expected = `.artifacts/tke/simulations/${manifest.releaseId}/simulation-manifest.json`;
     if (manifestRelative !== expected) fail(`simulation manifest must be stored at ${expected}`);
     if (manifest.environment === "production") fail("production gated-release manifest cannot enter simulation");
+    const markerFile = path.join(path.dirname(paths.releaseManifest.absolute), "simulation.json");
+    const marker = readJson(markerFile, "simulation marker");
+    if (marker?.schemaVersion !== 1 || marker?.simulation !== true || marker?.releaseId !== manifest.releaseId) {
+      fail("simulation marker must persist simulation=true for the same release ID");
+    }
+    bundle.hashes["simulation=true"] = sha256File(markerFile);
   } else if (manifestRelative.startsWith(".artifacts/tke/simulations/")) {
     fail("simulation manifest cannot be used by a real release operation");
   }
@@ -473,16 +483,12 @@ function assertHashes(checkpoint, bundle) {
 }
 
 function assertCheckpointSchema(validate, checkpoint, simulation) {
-  const normalized = checkpoint.failure?.failedStage === "SAFETY_EVIDENCE_READY"
-    ? { ...checkpoint, failure: { ...checkpoint.failure, failedStage: "SAFETY_CONTRACT_READY" } }
-    : checkpoint;
-  if (simulation) {
-    if (normalized.simulation !== true) fail("simulation checkpoint must persist simulation=true");
-    const { simulation: ignoredSimulationMarker, ...frozenCheckpoint } = normalized;
-    assertSchema(validate, frozenCheckpoint, "checkpoint");
-  } else {
-    if (normalized.simulation !== undefined) fail("simulation checkpoint cannot be used by a real release operation");
-    assertSchema(validate, normalized, "checkpoint");
+  assertSchema(validate, checkpoint, "checkpoint");
+  if (simulation && !checkpoint.artifactHashes["simulation=true"]) {
+    fail("simulation checkpoint must persist the simulation=true marker hash");
+  }
+  if (!simulation && checkpoint.artifactHashes["simulation=true"]) {
+    fail("simulation checkpoint cannot be used by a real release operation");
   }
 }
 
@@ -667,7 +673,6 @@ export function prepareRelease({ repoRoot = defaultRepoRoot, contractRoot = defa
     artifactHashes: bundle.hashes,
     updatedAt: isoNow(now),
     revision: 1,
-    ...(simulation ? { simulation: true } : {}),
   };
   assertCheckpointSchema(bundle.validators.checkpoint, created, simulation);
   assertCheckpointSemantics(created);
@@ -736,7 +741,9 @@ function validateProviderReceipt({ receipt, checkpoint, targetState, stage, repo
   if (Object.keys(receipt).some(key => !allowed.includes(key))) fail(`${stage} provider receipt contains an unsupported field`);
   if (receipt.schemaVersion !== 1 || receipt.operation !== stage || receipt.result !== "PASS") fail(`${stage} provider receipt does not match the completed operation`);
   if (receipt.idempotencyKey !== providerIdempotencyKey(checkpoint, targetState, operationRevision)) fail(`${stage} provider receipt idempotency key mismatch`);
-  if (receipt.leaseOwner !== lease.owner || receipt.fencingToken !== lease.fencingToken) fail(`${stage} provider receipt lease owner or fencing token mismatch`);
+  if (receipt.leaseOwner !== lease.owner || receipt.fencingToken !== lease.fencingToken) {
+    throw orchestrationError(`${stage} provider receipt lease owner or fencing token mismatch`, { code: "FENCING_MISMATCH" });
+  }
   if (!/^[a-z][a-z0-9.-]{1,63}$/.test(receipt.provider ?? "")) fail(`${stage} provider receipt provider is invalid`);
   const fakeProvider = /(?:^|[.-])(?:mock|noop|no-op|offline|fake)(?:$|[.-])/i.test(receipt.provider);
   if (simulation) {
@@ -819,6 +826,7 @@ async function executeOne({
   }
   const stage = targetState === "ARTIFACTS_READY" ? "ARTIFACTS_READY" : stageForState[targetState];
   let bundleBefore;
+  let receiptNow;
   try {
     bundleBefore = loadReleaseBundle({ repoRoot, contractRoot, manifestFile, simulation });
     assertHashes(checkpoint, bundleBefore);
@@ -836,7 +844,7 @@ async function executeOne({
       artifactPaths: Object.fromEntries(Object.entries(bundleBefore.paths).map(([name, item]) => [name, item.relative])),
     });
     lease.assertOwned();
-    const receiptNow = asClockDate(clock());
+    receiptNow = asClockDate(clock());
     const validatedResult = validateExecutorResult(executorResult, {
       checkpoint,
       targetState,
@@ -850,7 +858,7 @@ async function executeOne({
     const declaredChanges = validatedResult.changed;
     const bundleAfter = loadReleaseBundle({ repoRoot, contractRoot, manifestFile, simulation });
     assertDeclaredArtifactChanges(bundleBefore.hashes, bundleAfter.hashes, declaredChanges, "executor");
-    assertEvidenceForState(targetState, bundleAfter.evidenceBundle, now instanceof Date ? now : new Date(now));
+    assertEvidenceForState(targetState, bundleAfter.evidenceBundle, receiptNow);
     if (validatedResult.receipt) persistProviderReceipt(bundleAfter, stage, validatedResult.receipt);
     const finalBundle = validatedResult.receipt
       ? loadReleaseBundle({ repoRoot, contractRoot, manifestFile, simulation })
@@ -860,7 +868,7 @@ async function executeOne({
       currentState: targetState,
       completedStages: [...checkpoint.completedStages, ...completedStagesForState(targetState)],
       artifactHashes: finalBundle.hashes,
-      updatedAt: isoNow(now),
+      updatedAt: receiptNow.toISOString(),
       revision: checkpoint.revision + 1,
     };
     delete updated.failure;
@@ -869,14 +877,16 @@ async function executeOne({
     atomicWriteCheckpoint(checkpointFile, updated, checkpoint.revision);
     return { status: targetState, checkpoint: updated };
   } catch (error) {
+    if (isLeaseOrFenceLoss(error)) throw error;
+    const failureNow = receiptNow ?? asClockDate(clock());
     const failed = {
       ...checkpoint,
       currentState: "FAILED",
-      updatedAt: isoNow(now),
+      updatedAt: failureNow.toISOString(),
       revision: checkpoint.revision + 1,
       failure: {
         failedStage: stage === "ARTIFACTS_READY" ? (error.failedStage ?? "IMAGES_PUBLISHED") : stage,
-        failedAt: isoNow(now),
+        failedAt: failureNow.toISOString(),
         message: failureMessage(stage, error),
         retryable: classifyRetryable(error),
         resumeState: targetState,
@@ -998,6 +1008,7 @@ export async function rollbackRelease({
     if (stateIndex < first || stateIndex > last) fail(`rollback is not legal from ${rollbackFromState}`);
     assertHashes(checkpoint, bundleBefore);
     const idempotencyKey = providerIdempotencyKey(checkpoint, "ROLLED_BACK");
+    let receiptNow;
     try {
       const result = await executor({
         releaseId: checkpoint.releaseId,
@@ -1012,19 +1023,20 @@ export async function rollbackRelease({
         artifactPaths: Object.fromEntries(Object.entries(bundleBefore.paths).map(([name, item]) => [name, item.relative])),
       });
       lease.assertOwned();
+      receiptNow = asClockDate(clock());
       const validatedResult = validateExecutorResult(result, {
         checkpoint,
         targetState: "ROLLED_BACK",
         stage: "ROLLBACK",
         repoRoot,
-        receiptNow: asClockDate(clock()),
+        receiptNow,
         simulation,
         lease,
       });
       const bundleAfter = loadReleaseBundle({ repoRoot, contractRoot, manifestFile, simulation });
       assertDeclaredArtifactChanges(bundleBefore.hashes, bundleAfter.hashes, validatedResult.changed, "rollback executor");
       if (bundleAfter.evidenceBundle.rollback?.result !== "PASS") fail("rollback requires passing rollback evidence");
-      assertFreshTimestamp(bundleAfter.evidenceBundle.rollback.completedAt, now instanceof Date ? now : new Date(now), evidenceFreshness.executionMs, "rollback.completedAt");
+      assertFreshTimestamp(bundleAfter.evidenceBundle.rollback.completedAt, receiptNow, evidenceFreshness.executionMs, "rollback.completedAt");
       persistProviderReceipt(bundleAfter, "ROLLBACK", validatedResult.receipt);
       const finalBundle = loadReleaseBundle({ repoRoot, contractRoot, manifestFile, simulation });
       const rolledBack = {
@@ -1032,7 +1044,7 @@ export async function rollbackRelease({
         currentState: "ROLLED_BACK",
         completedStages: [...checkpoint.completedStages, "ROLLBACK"],
         artifactHashes: finalBundle.hashes,
-        updatedAt: isoNow(now),
+        updatedAt: receiptNow.toISOString(),
         revision: checkpoint.revision + 1,
       };
       assertCheckpointSchema(finalBundle.validators.checkpoint, rolledBack, simulation);
@@ -1041,13 +1053,15 @@ export async function rollbackRelease({
       if (existingLatch) unlinkSync(rollbackLatchFile(checkpointPath.absolute));
       return { status: "ROLLED_BACK", checkpoint: rolledBack };
     } catch (error) {
+      if (isLeaseOrFenceLoss(error)) throw error;
+      const failureNow = receiptNow ?? asClockDate(clock());
       const latch = {
         schemaVersion: 1,
         status: "ROLLBACK_FAILED",
         releaseId: checkpoint.releaseId,
         rollbackFromState,
         failedStage: "ROLLBACK",
-        failedAt: isoNow(now),
+        failedAt: failureNow.toISOString(),
         retryable: classifyRetryable(error),
         message: failureMessage("ROLLBACK", error),
         idempotencyKey,
