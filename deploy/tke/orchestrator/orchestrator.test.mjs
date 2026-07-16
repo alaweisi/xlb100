@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, test } from "node:test";
@@ -10,6 +10,7 @@ import Ajv from "ajv";
 
 import {
   advanceRelease,
+  clearRollbackFailure,
   prepareRelease,
   resumeRelease,
   rollbackRelease,
@@ -133,7 +134,7 @@ function fixture() {
   const files = {
     manifest: path.join(releaseRoot, "release-manifest.json"),
     imageLock: path.join(releaseRoot, "images.lock.json"),
-    cloudBundle: path.join(environmentRoot, "cloud-bundle.json"),
+    cloudBundle: path.join(environmentRoot, "manifest.json"),
     evidence: path.join(releaseRoot, "evidence.json"),
     checkpoint: path.join(releaseRoot, "checkpoint.json"),
   };
@@ -141,7 +142,54 @@ function fixture() {
   writeJson(files.imageLock, imageLock);
   writeJson(files.cloudBundle, cloudBundle);
   writeJson(files.evidence, evidence);
-  return { repoRoot, contractRoot, manifestFile: files.manifest, files };
+  for (const [name, imageValue] of Object.entries(imageLock.images)) {
+    writeJson(path.join(repoRoot, imageValue.sbomFile), { bomFormat: "CycloneDX", component: name });
+    writeJson(path.join(repoRoot, imageValue.scanEvidenceFile), { component: name, high: 0, critical: 0 });
+  }
+  const cloudPayloads = {
+    [cloudBundle.files.terraformVarFile]: "environment = \"production\"\n",
+    [cloudBundle.files.backendConfig]: "encrypt = true\n",
+    [cloudBundle.files.valuesFile]: "global:\n  environment: production\n",
+  };
+  for (const [reference, content] of Object.entries(cloudPayloads)) {
+    const file = path.join(repoRoot, reference);
+    mkdirSync(path.dirname(file), { recursive: true });
+    writeFileSync(file, content, "utf8");
+  }
+  const inventoryFiles = [...Object.keys(cloudPayloads), cloudBundle.files.imageLockFile]
+    .sort()
+    .map(reference => ({
+      file: reference,
+      sha256: createHash("sha256").update(readFileSync(path.join(repoRoot, reference))).digest("hex"),
+    }));
+  const { bundleSha256: ignoredBundleDigest, ...cloudManifestCore } = cloudBundle;
+  cloudBundle.bundleSha256 = createHash("sha256").update(JSON.stringify({
+    releaseId,
+    sourceCommit: manifest.sourceCommit,
+    cloudBundle: cloudManifestCore,
+    payloadFiles: inventoryFiles,
+  })).digest("hex");
+  writeJson(files.cloudBundle, cloudBundle);
+  writeJson(path.join(environmentRoot, "bundle-files.json"), {
+    schemaVersion: 1,
+    releaseId,
+    sourceCommit: manifest.sourceCommit,
+    environment: "production",
+    region: "ap-guangzhou",
+    bundleSha256: cloudBundle.bundleSha256,
+    files: inventoryFiles,
+  });
+  writeFileSync(path.join(environmentRoot, "bundle.sha256"), `${cloudBundle.bundleSha256}\n`, "utf8");
+  const evidenceRefs = [
+    evidence.backup.restoreDrill.evidenceRef,
+    evidence.jobsSingleActive.evidenceRef,
+    evidence.migration.evidenceRef,
+    evidence.smoke.evidenceRef,
+    evidence.rollback.evidenceRef,
+    ...evidence.trafficObservations.map(item => item.evidenceRef),
+  ];
+  for (const reference of evidenceRefs) writeJson(path.join(repoRoot, reference), { result: "PASS", reference });
+  return { repoRoot, contractRoot, manifestFile: files.manifest, files, ref };
 }
 
 const allAuthorities = {
@@ -149,16 +197,38 @@ const allAuthorities = {
   terraformApply: true,
   cloudDeploy: true,
   dataMigration: true,
-  trafficCutover: true,
   lighthouseRetirement: true,
 };
+
+function providerResult(input, context, { provider = "reviewed-provider", mode = "REAL", artifactsChanged = [] } = {}) {
+  if (context.stage === "ARTIFACTS_READY") return { artifactsChanged };
+  const evidenceRef = input.ref(`evidence/provider-${context.stage.toLowerCase().replaceAll("_", "-")}.json`);
+  const evidenceFile = path.join(input.repoRoot, evidenceRef);
+  writeJson(evidenceFile, { operation: context.stage, idempotencyKey: context.idempotencyKey, result: "PASS" });
+  return {
+    artifactsChanged,
+    providerReceipt: {
+      schemaVersion: 1,
+      provider,
+      mode,
+      operation: context.stage,
+      idempotencyKey: context.idempotencyKey,
+      completedAt: fixedNow.toISOString(),
+      result: "PASS",
+      evidenceRef,
+      evidenceSha256: createHash("sha256").update(readFileSync(evidenceFile)).digest("hex"),
+    },
+  };
+}
 
 test("prepares a schema-valid checkpoint with real artifact hashes", () => {
   const input = fixture();
   const result = prepareRelease({ ...input, now: fixedNow });
   assert.equal(result.status, "PREPARED");
   assert.equal(result.checkpoint.revision, 1);
-  assert.deepEqual(Object.keys(result.checkpoint.artifactHashes).sort(), ["cloudBundle", "evidenceBundle", "imageLock", "releaseManifest"]);
+  for (const required of ["cloudBundle", "evidenceBundle", "imageLock", "releaseManifest", "image.backend.sbom", "image.backend.scan", "cloudPayloadInventory", "evidence.jobsSingleActive"]) {
+    assert.ok(result.checkpoint.artifactHashes[required], `missing hash ${required}`);
+  }
   assert.equal(result.checkpoint.artifactHashes.imageLock, createHash("sha256").update(readFileSync(input.files.imageLock)).digest("hex"));
   assert.doesNotMatch(readFileSync(input.files.checkpoint, "utf8"), /authorit|approval|credential/i);
 });
@@ -181,11 +251,22 @@ test("runs every adjacent state in order with an injected executor", async () =>
       const evidence = JSON.parse(readFileSync(input.files.evidence, "utf8"));
       evidence.trafficObservations = trafficObservations.slice(0, trafficCount);
       writeJson(input.files.evidence, evidence);
-      return { artifactsChanged: ["evidenceBundle"] };
+      return providerResult(input, context, { artifactsChanged: ["evidenceBundle"] });
     }
-    return { artifactsChanged: [] };
+    return providerResult(input, context);
   };
-  const result = await runRelease({ ...input, targetState: "LIGHTHOUSE_RETIRED", authorities: allAuthorities, executor, now: fixedNow });
+  await runRelease({ ...input, targetState: "JOBS_SWITCHED", authorities: allAuthorities, executor, now: fixedNow });
+  for (const targetState of ["TRAFFIC_5", "TRAFFIC_25", "TRAFFIC_50", "TRAFFIC_100"]) {
+    const step = await runRelease({ ...input, targetState, authorities: { trafficCutover: targetState }, executor, now: fixedNow });
+    assert.equal(step.status, "TARGET_REACHED", step.error?.message);
+    if (targetState === "TRAFFIC_5") {
+      const reused = await runRelease({ ...input, targetState: "TRAFFIC_25", authorities: { trafficCutover: "TRAFFIC_5" }, executor, now: fixedNow });
+      assert.equal(reused.status, "PAUSED_AUTHORITY");
+      assert.equal(reused.checkpoint.currentState, "TRAFFIC_5");
+    }
+  }
+  await runRelease({ ...input, targetState: "OBSERVED", executor, now: fixedNow });
+  const result = await runRelease({ ...input, targetState: "LIGHTHOUSE_RETIRED", authorities: { lighthouseRetirement: true }, executor, now: fixedNow });
   assert.equal(result.status, "TARGET_REACHED", result.error?.message);
   assert.equal(result.checkpoint.currentState, "LIGHTHOUSE_RETIRED");
   assert.equal(calls.length, 14);
@@ -213,6 +294,8 @@ test("default offline executor never completes a fake external stage", async () 
   });
   assert.equal(result.status, "FAILED");
   assert.equal(result.checkpoint.failure.resumeState, "PLAN_REVIEWED");
+  assert.equal(result.checkpoint.failure.failedStage, "PLAN_INFRASTRUCTURE");
+  assert.equal(result.checkpoint.failure.retryable, false);
   assert.match(result.checkpoint.failure.message, /OFFLINE_FAKE has no provider adapter/);
 });
 
@@ -228,23 +311,37 @@ test("rejects an illegal forward jump", async () => {
 test("records a failure and resumes only the recorded state", async () => {
   const input = fixture();
   let failApply = true;
+  const applyKeys = [];
   const executor = async context => {
     if (context.targetState === "INFRA_READY" && failApply) {
+      applyKeys.push(context.idempotencyKey);
       failApply = false;
-      throw new Error("provider token=do-not-persist");
+      const error = new Error("provider token=do-not-persist authority=do-not-persist");
+      error.retryable = true;
+      throw error;
     }
-    return { artifactsChanged: [] };
+    if (context.targetState === "INFRA_READY") applyKeys.push(context.idempotencyKey);
+    return providerResult(input, context);
   };
   const failed = await runRelease({ ...input, targetState: "INFRA_READY", authorities: allAuthorities, executor, now: fixedNow });
   assert.equal(failed.status, "FAILED");
   assert.equal(failed.checkpoint.failure.resumeState, "INFRA_READY");
+  assert.equal(failed.checkpoint.failure.failedStage, "APPLY_INFRASTRUCTURE");
+  assert.equal(failed.checkpoint.failure.retryable, true);
   assert.match(failed.checkpoint.failure.message, /token=\[REDACTED\]/);
+  assert.match(failed.checkpoint.failure.message, /runtime-grant=\[REDACTED\]/);
+  assert.doesNotMatch(failed.checkpoint.failure.message, /authority|approval/i);
   assert.doesNotMatch(failed.checkpoint.failure.message, /do-not-persist/);
   await assert.rejects(advanceRelease({ ...input, targetState: "INFRA_READY", authorities: allAuthorities }), /must use resumeRelease/);
+  const paused = await resumeRelease({ ...input, executor, now: fixedNow });
+  assert.equal(paused.status, "PAUSED_AUTHORITY");
+  assert.equal(paused.checkpoint.currentState, "FAILED");
+  assert.equal(JSON.parse(readFileSync(input.files.checkpoint, "utf8")).currentState, "FAILED");
   const resumed = await resumeRelease({ ...input, authorities: allAuthorities, executor, now: fixedNow });
   assert.equal(resumed.status, "INFRA_READY");
   assert.equal(resumed.checkpoint.currentState, "INFRA_READY");
   assert.equal(resumed.checkpoint.failure, undefined);
+  assert.deepEqual(applyKeys, [`${releaseId}:3:INFRA_READY`, `${releaseId}:3:INFRA_READY`]);
 });
 
 test("blocks stale resume when a source artifact changes", async () => {
@@ -262,11 +359,11 @@ test("blocks stale resume when a source artifact changes", async () => {
 test("blocks a concurrent checkpoint revision change", async () => {
   const input = fixture();
   await runRelease({ ...input, targetState: "ARTIFACTS_READY", now: fixedNow });
-  const executor = async () => {
+  const executor = async context => {
     const checkpoint = JSON.parse(readFileSync(input.files.checkpoint, "utf8"));
     checkpoint.revision += 1;
     writeJson(input.files.checkpoint, checkpoint);
-    return { artifactsChanged: [] };
+    return providerResult(input, context);
   };
   await assert.rejects(
     advanceRelease({ ...input, targetState: "PLAN_REVIEWED", authorities: { terraformPlan: true }, executor, now: fixedNow }),
@@ -298,14 +395,15 @@ test("is idempotent when already at the requested state", async () => {
 });
 
 test("allows evidence-backed rollback only in the frozen rollback range", async () => {
-  const executor = async () => ({ artifactsChanged: [] });
   const beforeDeploy = fixture();
-  await runRelease({ ...beforeDeploy, targetState: "INFRA_READY", authorities: allAuthorities, executor, now: fixedNow });
+  const beforeExecutor = async context => providerResult(beforeDeploy, context);
+  await runRelease({ ...beforeDeploy, targetState: "INFRA_READY", authorities: allAuthorities, executor: beforeExecutor, now: fixedNow });
   await assert.rejects(rollbackRelease({ ...beforeDeploy, now: fixedNow }), /rollback is not legal from INFRA_READY/);
 
   const deployed = fixture();
-  await runRelease({ ...deployed, targetState: "DEPLOYED_NO_TRAFFIC", authorities: allAuthorities, executor, now: fixedNow });
-  const rolledBack = await rollbackRelease({ ...deployed, executor, now: fixedNow });
+  const deployedExecutor = async context => providerResult(deployed, context);
+  await runRelease({ ...deployed, targetState: "DEPLOYED_NO_TRAFFIC", authorities: allAuthorities, executor: deployedExecutor, now: fixedNow });
+  const rolledBack = await rollbackRelease({ ...deployed, executor: deployedExecutor, now: fixedNow });
   assert.equal(rolledBack.status, "ROLLED_BACK");
   assert.equal(rolledBack.checkpoint.completedStages.at(-1), "ROLLBACK");
   await assert.rejects(
@@ -337,6 +435,10 @@ test("rejects unknown and non-boolean runtime authority input", async () => {
     runRelease({ ...input, targetState: "ARTIFACTS_READY", authorities: { cloudDeploy: "yes" } }),
     /must be boolean/,
   );
+  await assert.rejects(
+    runRelease({ ...input, targetState: "ARTIFACTS_READY", authorities: { trafficCutover: true } }),
+    /must name exactly one traffic state/,
+  );
 });
 
 test("rejects credential-like material even when an artifact remains schema-valid", () => {
@@ -345,4 +447,104 @@ test("rejects credential-like material even when an artifact remains schema-vali
   manifest.owners.release = "token=credential-like-value";
   writeJson(input.files.manifest, manifest);
   assert.throws(() => prepareRelease({ ...input, now: fixedNow }), /contains credential-like material/);
+});
+
+test("requires every SBOM, scan, cloud payload, and evidence reference", () => {
+  const input = fixture();
+  unlinkSync(path.join(input.repoRoot, input.ref("sbom/backend.cdx.json")));
+  assert.throws(() => prepareRelease({ ...input, now: fixedNow }), /backend SBOM not found/);
+});
+
+test("rejects mock provider receipts outside explicit simulation", async () => {
+  const input = fixture();
+  const executor = async context => providerResult(input, context, { provider: "mock-provider", mode: "SIMULATION" });
+  const result = await runRelease({ ...input, targetState: "PLAN_REVIEWED", authorities: { terraformPlan: true }, executor, now: fixedNow });
+  assert.equal(result.status, "FAILED");
+  assert.match(result.checkpoint.failure.message, /refuses mock, no-op, offline, or fake/);
+
+  const simulationInput = fixture();
+  const simulationExecutor = async context => providerResult(simulationInput, context, { provider: "mock-provider", mode: "SIMULATION" });
+  const simulated = await runRelease({
+    ...simulationInput,
+    targetState: "PLAN_REVIEWED",
+    authorities: { terraformPlan: true },
+    executor: simulationExecutor,
+    now: fixedNow,
+    simulation: true,
+  });
+  assert.equal(simulated.status, "TARGET_REACHED");
+});
+
+test("serializes two runners with a release-level lease and stable idempotency key", async () => {
+  const input = fixture();
+  await runRelease({ ...input, targetState: "ARTIFACTS_READY", now: fixedNow });
+  let enteredResolve;
+  let finishResolve;
+  const entered = new Promise(resolve => { enteredResolve = resolve; });
+  const finish = new Promise(resolve => { finishResolve = resolve; });
+  let observedKey;
+  const executor = async context => {
+    observedKey = context.idempotencyKey;
+    enteredResolve();
+    await finish;
+    return providerResult(input, context);
+  };
+  const first = advanceRelease({
+    ...input,
+    targetState: "PLAN_REVIEWED",
+    authorities: { terraformPlan: true },
+    executor,
+    now: fixedNow,
+  });
+  await entered;
+  await assert.rejects(
+    advanceRelease({ ...input, targetState: "PLAN_REVIEWED", authorities: { terraformPlan: true }, executor, now: fixedNow }),
+    /another runner holds the release lease/,
+  );
+  finishResolve();
+  const completed = await first;
+  assert.equal(completed.status, "PLAN_REVIEWED");
+  assert.equal(observedKey, `${releaseId}:2:PLAN_REVIEWED`);
+});
+
+test("persists rollback failure latch and blocks forward/resume until rollback retry", async () => {
+  const input = fixture();
+  const executor = async context => providerResult(input, context);
+  await runRelease({ ...input, targetState: "DEPLOYED_NO_TRAFFIC", authorities: allAuthorities, executor, now: fixedNow });
+  const failedRollback = await rollbackRelease({
+    ...input,
+    executor: async () => { const error = new Error("temporary rollback timeout"); error.retryable = true; throw error; },
+    now: fixedNow,
+  });
+  assert.equal(failedRollback.status, "ROLLBACK_FAILED");
+  assert.equal(JSON.parse(readFileSync(`${input.files.checkpoint}.rollback-failed.json`, "utf8")).status, "ROLLBACK_FAILED");
+  await assert.rejects(
+    advanceRelease({ ...input, targetState: "BACKUP_VERIFIED", executor, now: fixedNow }),
+    /rollback-failed latch blocks forward and resume/,
+  );
+  await assert.rejects(resumeRelease({ ...input, executor, now: fixedNow }), /rollback-failed latch blocks forward and resume/);
+  const retried = await rollbackRelease({ ...input, executor, now: fixedNow });
+  assert.equal(retried.status, "ROLLED_BACK");
+  assert.equal(rmSync(`${input.files.checkpoint}.rollback-failed.json`, { force: true }), undefined);
+});
+
+test("requires release-scoped confirmation for manual rollback-latch handling", async () => {
+  const input = fixture();
+  const executor = async context => providerResult(input, context);
+  await runRelease({ ...input, targetState: "DEPLOYED_NO_TRAFFIC", authorities: allAuthorities, executor, now: fixedNow });
+  await rollbackRelease({ ...input, executor: async () => { throw new Error("nonretryable rollback failure"); }, now: fixedNow });
+  await assert.rejects(clearRollbackFailure({ ...input, confirmation: "yes" }), /explicit release-scoped/);
+  const cleared = await clearRollbackFailure({ ...input, confirmation: `ACKNOWLEDGE-ROLLBACK-FAILURE:${releaseId}` });
+  assert.equal(cleared.status, "ROLLBACK_LATCH_CLEARED");
+});
+
+test("rejects stale stage evidence before committing the state", async () => {
+  const input = fixture();
+  const evidence = JSON.parse(readFileSync(input.files.evidence, "utf8"));
+  evidence.jobsSingleActive.observedAt = "2026-07-16T07:00:00Z";
+  writeJson(input.files.evidence, evidence);
+  const executor = async context => providerResult(input, context);
+  const result = await runRelease({ ...input, targetState: "JOBS_SWITCHED", authorities: allAuthorities, executor, now: fixedNow });
+  assert.equal(result.status, "FAILED");
+  assert.match(result.checkpoint.failure.message, /jobsSingleActive\.observedAt is stale/);
 });

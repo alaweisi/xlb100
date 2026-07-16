@@ -2,8 +2,10 @@ import { createHash } from "node:crypto";
 import {
   existsSync,
   mkdirSync,
+  readdirSync,
   readFileSync,
   renameSync,
+  rmSync,
   unlinkSync,
   writeFileSync,
 } from "node:fs";
@@ -15,6 +17,14 @@ import Ajv from "ajv";
 const sourceRoot = path.dirname(fileURLToPath(import.meta.url));
 const defaultRepoRoot = path.resolve(sourceRoot, "../../..");
 const defaultContractRoot = path.resolve(sourceRoot, "../contracts");
+const providerReceiptMaxAgeMs = 15 * 60 * 1000;
+const evidenceFreshness = Object.freeze({
+  backupMs: 24 * 60 * 60 * 1000,
+  restoreDrillMs: 30 * 24 * 60 * 60 * 1000,
+  jobsMs: 15 * 60 * 1000,
+  executionMs: 24 * 60 * 60 * 1000,
+  trafficMs: 30 * 60 * 1000,
+});
 
 export const FORWARD_STATES = Object.freeze([
   "PREPARED",
@@ -85,6 +95,7 @@ const fail = message => {
 };
 const normalize = value => value.replaceAll("\\", "/");
 const jsonLine = value => `${JSON.stringify(value, null, 2)}\n`;
+const sha256Content = value => createHash("sha256").update(value).digest("hex");
 const sha256File = file => createHash("sha256").update(readFileSync(file)).digest("hex");
 const readJson = (file, label) => {
   try {
@@ -94,6 +105,13 @@ const readJson = (file, label) => {
     throw error;
   }
 };
+
+function orchestrationError(message, { code = "ORCHESTRATION_BLOCKED", retryable = false } = {}) {
+  const error = new Error(message);
+  error.code = code;
+  error.retryable = retryable;
+  return error;
+}
 
 function resolveArtifact(repoRoot, reference, label, { mustExist = true } = {}) {
   if (typeof reference !== "string" || !reference.startsWith(".artifacts/tke/")) {
@@ -106,6 +124,30 @@ function resolveArtifact(repoRoot, reference, label, { mustExist = true } = {}) 
   }
   if (mustExist && !existsSync(resolved)) fail(`${label} not found: ${reference}`);
   return { absolute: resolved, relative: normalize(path.relative(repoRoot, resolved)) };
+}
+
+function resolveCloudBundleCompatibility(repoRoot, declaredReference) {
+  try {
+    return resolveArtifact(repoRoot, declaredReference, "release manifest cloudBundleFile");
+  } catch (error) {
+    if (!declaredReference.endsWith("/cloud-bundle.json") || !/not found/.test(error.message)) throw error;
+    const compatible = declaredReference.replace(/cloud-bundle\.json$/, "manifest.json");
+    return resolveArtifact(repoRoot, compatible, "Wave 1 cloud bundle manifest.json compatibility path");
+  }
+}
+
+function requireArtifactFile(repoRoot, reference, label, hashes, hashKey) {
+  const resolved = resolveArtifact(repoRoot, reference, label);
+  if (readFileSync(resolved.absolute).length === 0) fail(`${label} must not be empty`);
+  hashes[hashKey] = sha256File(resolved.absolute);
+  return resolved;
+}
+
+function assertFreshTimestamp(value, now, maximumAgeMs, label) {
+  const timestamp = Date.parse(value);
+  if (!Number.isFinite(timestamp)) fail(`${label} must be a valid timestamp`);
+  if (timestamp > now.getTime() + 5 * 60 * 1000) fail(`${label} is in the future`);
+  if (now.getTime() - timestamp > maximumAgeMs) fail(`${label} is stale`);
 }
 
 function artifactReference(repoRoot, file, label) {
@@ -145,7 +187,7 @@ function assertNoSensitiveMaterial(value, label, location = "$") {
     return;
   }
   if (typeof value !== "string") return;
-  if (/-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|(?:^|\W)AKID[A-Za-z0-9]{12,}(?:$|\W)|\bbearer\s+[A-Za-z0-9._~+/=-]{8,}|(?:password|secret|token|credential)\s*[=:]\s*\S+/i.test(value)) {
+  if (/-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|(?:^|\W)AKID[A-Za-z0-9]{12,}(?:$|\W)|\bbearer\s+[A-Za-z0-9._~+/=-]{8,}|(?:password|secret|token|credential)\s*[=:]\s*(?!\[REDACTED\])\S+/i.test(value)) {
     fail(`${label} ${location} contains credential-like material`);
   }
 }
@@ -161,22 +203,123 @@ function assertCrossContractConsistency(bundle) {
   if (Date.parse(manifest.changeWindow.endsAt) <= Date.parse(manifest.changeWindow.startsAt)) {
     fail("release change window must end after it starts");
   }
+  const releasePrefix = `.artifacts/tke/releases/${manifest.releaseId}/`;
+  for (const [label, reference] of [
+    ["imageLockFile", manifest.imageLockFile],
+    ["evidenceFile", manifest.evidenceFile],
+    ["checkpointFile", manifest.checkpointFile],
+  ]) {
+    if (!reference.startsWith(releasePrefix)) fail(`release manifest ${label} must stay within its release ID directory`);
+  }
+  for (const [component, image] of Object.entries(imageLock.images)) {
+    if (!image.sbomFile.startsWith(releasePrefix) || !image.scanEvidenceFile.startsWith(releasePrefix)) {
+      fail(`${component} SBOM and scan evidence must stay within the release ID directory`);
+    }
+  }
+  for (const [label, reference] of collectEvidenceReferences(evidenceBundle)) {
+    if (!reference.startsWith(releasePrefix)) fail(`${label} evidence must stay within the release ID directory`);
+  }
 }
 
-function assertEvidenceForState(state, evidence) {
+function collectEvidenceReferences(evidence) {
+  const entries = [
+    ["backup.restoreDrill", evidence.backup.restoreDrill.evidenceRef],
+    ["jobsSingleActive", evidence.jobsSingleActive.evidenceRef],
+  ];
+  for (const name of ["migration", "smoke", "rollback"]) {
+    if (evidence[name]?.evidenceRef) entries.push([name, evidence[name].evidenceRef]);
+  }
+  for (const observation of evidence.trafficObservations ?? []) {
+    entries.push([`traffic.${observation.weight}`, observation.evidenceRef]);
+  }
+  return entries;
+}
+
+function validatePayloadFiles(bundle, repoRoot) {
+  const hashes = bundle.hashes;
+  for (const [component, image] of Object.entries(bundle.imageLock.images)) {
+    const sbom = requireArtifactFile(repoRoot, image.sbomFile, `${component} SBOM`, hashes, `image.${component}.sbom`);
+    const scan = requireArtifactFile(repoRoot, image.scanEvidenceFile, `${component} scan evidence`, hashes, `image.${component}.scan`);
+    readJson(sbom.absolute, `${component} SBOM`);
+    readJson(scan.absolute, `${component} scan evidence`);
+  }
+
+  const cloudDirectory = path.dirname(bundle.paths.cloudBundle.absolute);
+  const inventoryFile = path.join(cloudDirectory, "bundle-files.json");
+  const digestFile = path.join(cloudDirectory, "bundle.sha256");
+  if (!existsSync(inventoryFile) || !existsSync(digestFile)) fail("cloud bundle payload inventory or bundle.sha256 is missing");
+  const inventory = readJson(inventoryFile, "cloud bundle payload inventory");
+  if (inventory.releaseId !== bundle.manifest.releaseId || inventory.sourceCommit !== bundle.manifest.sourceCommit) {
+    fail("cloud bundle payload inventory drifted from release identity");
+  }
+  if (inventory.environment !== bundle.manifest.environment || inventory.bundleSha256 !== bundle.cloudBundle.bundleSha256) {
+    fail("cloud bundle payload inventory drifted from cloud bundle");
+  }
+  if (!Array.isArray(inventory.files) || inventory.files.length < 4) fail("cloud bundle payload inventory is incomplete");
+  const expectedPayloads = new Set([
+    bundle.cloudBundle.files.terraformVarFile,
+    bundle.cloudBundle.files.backendConfig,
+    bundle.cloudBundle.files.valuesFile,
+    bundle.cloudBundle.files.imageLockFile,
+  ]);
+  for (const item of inventory.files) {
+    if (!item || typeof item.file !== "string" || !/^[a-f0-9]{64}$/.test(item.sha256 ?? "")) {
+      fail("cloud bundle payload inventory contains an invalid entry");
+    }
+    const resolved = requireArtifactFile(repoRoot, item.file, `cloud payload ${item.file}`, hashes, `cloudPayload.${item.file}`);
+    if (sha256File(resolved.absolute) !== item.sha256) fail(`cloud payload hash mismatch: ${item.file}`);
+    expectedPayloads.delete(item.file);
+  }
+  if (expectedPayloads.size) fail(`cloud bundle payload inventory is missing: ${[...expectedPayloads].join(", ")}`);
+  const { bundleSha256: ignoredBundleDigest, ...cloudManifestCore } = bundle.cloudBundle;
+  const computedBundleDigest = sha256Content(JSON.stringify({
+    releaseId: bundle.manifest.releaseId,
+    sourceCommit: bundle.manifest.sourceCommit,
+    cloudBundle: cloudManifestCore,
+    payloadFiles: inventory.files,
+  }));
+  if (computedBundleDigest !== bundle.cloudBundle.bundleSha256) fail("cloud bundle semantic digest mismatch");
+  if (readFileSync(digestFile, "utf8").trim() !== bundle.cloudBundle.bundleSha256) fail("bundle.sha256 drifted from cloud bundle");
+  hashes.cloudPayloadInventory = sha256File(inventoryFile);
+  hashes.cloudPayloadDigest = sha256File(digestFile);
+
+  for (const [label, reference] of collectEvidenceReferences(bundle.evidenceBundle)) {
+    requireArtifactFile(repoRoot, reference, `${label} evidenceRef`, hashes, `evidence.${label}`);
+  }
+
+  const receiptDirectory = path.join(path.dirname(bundle.paths.releaseManifest.absolute), "receipts");
+  if (!existsSync(receiptDirectory)) return;
+  for (const name of readdirSync(receiptDirectory).filter(item => item.endsWith(".json")).sort()) {
+    const receiptFile = path.join(receiptDirectory, name);
+    const receipt = readJson(receiptFile, `provider receipt ${name}`);
+    assertNoSensitiveMaterial(receipt, `provider receipt ${name}`);
+    hashes[`providerReceipt.${name}`] = sha256File(receiptFile);
+    if (receipt.evidenceRef) {
+      requireArtifactFile(repoRoot, receipt.evidenceRef, `provider receipt ${name} evidenceRef`, hashes, `providerEvidence.${name}`);
+    }
+  }
+}
+
+function assertEvidenceForState(state, evidence, now) {
   if (FORWARD_STATES.indexOf(state) >= FORWARD_STATES.indexOf("BACKUP_VERIFIED")) {
     if (evidence.backup.restoreDrill.result !== "PASS") fail(`${state} requires passing backup restore evidence`);
+    assertFreshTimestamp(evidence.backup.verifiedAt, now, evidenceFreshness.backupMs, "backup.verifiedAt");
+    assertFreshTimestamp(evidence.backup.restoreDrill.performedAt, now, evidenceFreshness.restoreDrillMs, "backup.restoreDrill.performedAt");
+    assertFreshTimestamp(evidence.updatedAt, now, evidenceFreshness.backupMs, "evidence.updatedAt");
   }
   if (FORWARD_STATES.indexOf(state) >= FORWARD_STATES.indexOf("MIGRATED")) {
     if (evidence.migration?.result !== "PASS") fail(`${state} requires passing migration evidence`);
+    assertFreshTimestamp(evidence.migration.completedAt, now, evidenceFreshness.executionMs, "migration.completedAt");
   }
   if (FORWARD_STATES.indexOf(state) >= FORWARD_STATES.indexOf("SMOKE_PASS")) {
     if (evidence.smoke?.result !== "PASS") fail(`${state} requires passing smoke evidence`);
+    assertFreshTimestamp(evidence.smoke.completedAt, now, evidenceFreshness.executionMs, "smoke.completedAt");
   }
   if (FORWARD_STATES.indexOf(state) >= FORWARD_STATES.indexOf("JOBS_SWITCHED")) {
     if (evidence.jobsSingleActive.lighthouseState !== "STOPPED" || evidence.jobsSingleActive.tkeState !== "ACTIVE") {
       fail(`${state} requires Lighthouse jobs STOPPED and TKE jobs ACTIVE`);
     }
+    assertFreshTimestamp(evidence.jobsSingleActive.observedAt, now, evidenceFreshness.jobsMs, "jobsSingleActive.observedAt");
   }
   const expectedTraffic = {
     TRAFFIC_5: [5],
@@ -191,6 +334,9 @@ function assertEvidenceForState(state, evidence) {
     if (actual.length !== expectedTraffic.length || actual.some((item, index) => item.weight !== expectedTraffic[index] || item.result !== "PASS")) {
       fail(`${state} requires ordered passing traffic observations ${expectedTraffic.join("/")}`);
     }
+    for (const observation of actual) {
+      assertFreshTimestamp(observation.observedAt, now, evidenceFreshness.trafficMs, `traffic.${observation.weight}.observedAt`);
+    }
   }
 }
 
@@ -204,7 +350,9 @@ export function loadReleaseBundle({ repoRoot = defaultRepoRoot, contractRoot = d
   const values = { releaseManifest: manifest };
   for (const [name, definition] of Object.entries(artifactDefinitions)) {
     if (name === "releaseManifest") continue;
-    paths[name] = resolveArtifact(repoRoot, manifest[definition.manifestKey], `release manifest ${definition.manifestKey}`);
+    paths[name] = name === "cloudBundle"
+      ? resolveCloudBundleCompatibility(repoRoot, manifest[definition.manifestKey])
+      : resolveArtifact(repoRoot, manifest[definition.manifestKey], `release manifest ${definition.manifestKey}`);
     values[name] = readJson(paths[name].absolute, name);
     assertSchema(validators[name], values[name], name);
     assertNoSensitiveMaterial(values[name], name);
@@ -220,6 +368,7 @@ export function loadReleaseBundle({ repoRoot = defaultRepoRoot, contractRoot = d
     validators,
   };
   assertCrossContractConsistency(bundle);
+  validatePayloadFiles(bundle, repoRoot);
   return bundle;
 }
 
@@ -329,6 +478,104 @@ function atomicWriteCheckpoint(file, checkpoint, expectedRevision) {
   }
 }
 
+function atomicWriteJsonFile(file, value) {
+  mkdirSync(path.dirname(file), { recursive: true });
+  const temporary = `${file}.${process.pid}.${Date.now()}.tmp`;
+  try {
+    writeFileSync(temporary, jsonLine(value), "utf8");
+    renameSync(temporary, file);
+  } finally {
+    if (existsSync(temporary)) unlinkSync(temporary);
+  }
+}
+
+function leasePaths(checkpointFile) {
+  const directory = `${checkpointFile}.release-lease`;
+  return { directory, record: path.join(directory, "lease.json") };
+}
+
+function acquireReleaseLease(checkpointFile, releaseId, leaseDurationMs = 30_000) {
+  const paths = leasePaths(checkpointFile);
+  const create = () => {
+    mkdirSync(paths.directory);
+    const leaseId = `${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const renew = () => atomicWriteJsonFile(paths.record, {
+      schemaVersion: 1,
+      releaseId,
+      leaseId,
+      processId: process.pid,
+      expiresAt: new Date(Date.now() + leaseDurationMs).toISOString(),
+    });
+    renew();
+    const heartbeat = setInterval(renew, Math.max(1_000, Math.floor(leaseDurationMs / 3)));
+    heartbeat.unref();
+    return {
+      release() {
+        clearInterval(heartbeat);
+        try {
+          const current = readJson(paths.record, "release lease");
+          if (current.leaseId !== leaseId) throw orchestrationError("release lease ownership changed", { code: "LEASE_LOST" });
+          rmSync(paths.directory, { recursive: true, force: true });
+        } catch (error) {
+          if (error.code !== "ENOENT") throw error;
+        }
+      },
+    };
+  };
+  try {
+    return create();
+  } catch (error) {
+    if (error.code !== "EEXIST") throw error;
+  }
+  let existing;
+  try {
+    existing = readJson(paths.record, "release lease");
+  } catch {
+    throw orchestrationError("release is locked and its lease record cannot be verified", { code: "RELEASE_LOCKED", retryable: true });
+  }
+  if (existing.releaseId !== releaseId) fail("release lease identity drift detected");
+  if (Date.parse(existing.expiresAt) > Date.now()) {
+    throw orchestrationError("another runner holds the release lease", { code: "RELEASE_LOCKED", retryable: true });
+  }
+  const quarantine = `${paths.directory}.stale-${process.pid}-${Date.now()}`;
+  try {
+    renameSync(paths.directory, quarantine);
+    rmSync(quarantine, { recursive: true, force: true });
+    return create();
+  } catch {
+    throw orchestrationError("stale release lease takeover lost a race", { code: "RELEASE_LOCKED", retryable: true });
+  }
+}
+
+async function withReleaseLease(checkpointFile, releaseId, callback) {
+  const lease = acquireReleaseLease(checkpointFile, releaseId);
+  try {
+    return await callback();
+  } finally {
+    lease.release();
+  }
+}
+
+function rollbackLatchFile(checkpointFile) {
+  return `${checkpointFile}.rollback-failed.json`;
+}
+
+function readRollbackLatch(checkpointFile) {
+  const file = rollbackLatchFile(checkpointFile);
+  if (!existsSync(file)) return undefined;
+  const latch = readJson(file, "rollback-failed latch");
+  if (latch?.schemaVersion !== 1 || latch?.status !== "ROLLBACK_FAILED" || !FORWARD_STATES.includes(latch?.rollbackFromState)) {
+    fail("rollback-failed latch is invalid");
+  }
+  assertNoSensitiveMaterial(latch, "rollback-failed latch");
+  return latch;
+}
+
+function assertNoRollbackLatch(checkpointFile) {
+  const latch = readRollbackLatch(checkpointFile);
+  if (latch) fail("rollback-failed latch blocks forward and resume operations; retry rollback or perform explicit manual handling");
+}
+
 const isoNow = now => {
   const result = now instanceof Date ? now : new Date(now);
   if (!Number.isFinite(result.getTime())) fail("now must be a valid timestamp");
@@ -373,9 +620,16 @@ function failureMessage(stage, error) {
   const raw = error instanceof Error ? error.message : String(error);
   const redacted = raw
     .replace(/(?:bearer\s+)[^\s]+/gi, "Bearer [REDACTED]")
-    .replace(/(password|secret|token|credential)\s*[=:]\s*[^\s,;]+/gi, "$1=[REDACTED]")
+    .replace(/(password|secret|token|credential|authority|approval)\s*[=:]\s*[^\s,;]+/gi, "$1=[REDACTED]")
+    .replace(/\b(?:authority|approval)s?\b/gi, "runtime-grant")
     .slice(0, 1900);
   return `${stage} failed: ${redacted}`;
+}
+
+function classifyRetryable(error) {
+  if (typeof error?.retryable === "boolean") return error.retryable;
+  if (["ETIMEDOUT", "ECONNRESET", "EAI_AGAIN", "RELEASE_LOCKED"].includes(error?.code)) return true;
+  return /\b(?:timeout|timed out|temporar|try again|connection reset|rate limit)\b/i.test(error?.message ?? "");
 }
 
 export async function offlineExecutor({ stage, targetState }) {
@@ -388,18 +642,83 @@ export async function offlineExecutor({ stage, targetState }) {
 function validateAuthorities(authorities) {
   for (const [name, granted] of Object.entries(authorities)) {
     if (!RUNTIME_AUTHORITIES.includes(name)) fail(`unknown runtime authority: ${name}`);
-    if (granted !== true && granted !== false) fail(`runtime authority ${name} must be boolean`);
+    if (name === "trafficCutover") {
+      if (granted !== false && !["TRAFFIC_5", "TRAFFIC_25", "TRAFFIC_50", "TRAFFIC_100"].includes(granted)) {
+        fail("trafficCutover runtime grant must name exactly one traffic state");
+      }
+    } else if (granted !== true && granted !== false) fail(`runtime grant ${name} must be boolean`);
   }
 }
 
-function validateExecutorResult(result) {
-  if (result === undefined) return [];
+function hasRuntimeGrant(authorities, required, targetState) {
+  return required === "trafficCutover"
+    ? authorities.trafficCutover === targetState
+    : authorities[required] === true;
+}
+
+function providerIdempotencyKey(checkpoint, targetState, operationRevision = checkpoint.revision) {
+  return `${checkpoint.releaseId}:${operationRevision}:${targetState}`;
+}
+
+function validateProviderReceipt({ receipt, checkpoint, targetState, stage, repoRoot, now, simulation, operationRevision }) {
+  if (!receipt || typeof receipt !== "object" || Array.isArray(receipt)) fail(`${stage} requires a provider receipt`);
+  const allowed = ["schemaVersion", "provider", "mode", "operation", "idempotencyKey", "completedAt", "result", "evidenceRef", "evidenceSha256"];
+  if (Object.keys(receipt).some(key => !allowed.includes(key))) fail(`${stage} provider receipt contains an unsupported field`);
+  if (receipt.schemaVersion !== 1 || receipt.operation !== stage || receipt.result !== "PASS") fail(`${stage} provider receipt does not match the completed operation`);
+  if (receipt.idempotencyKey !== providerIdempotencyKey(checkpoint, targetState, operationRevision)) fail(`${stage} provider receipt idempotency key mismatch`);
+  if (!/^[a-z][a-z0-9.-]{1,63}$/.test(receipt.provider ?? "")) fail(`${stage} provider receipt provider is invalid`);
+  const fakeProvider = /(?:^|[.-])(?:mock|noop|no-op|offline|fake)(?:$|[.-])/i.test(receipt.provider);
+  if (simulation) {
+    if (receipt.mode !== "SIMULATION") fail(`${stage} simulation receipt must use SIMULATION mode`);
+  } else if (receipt.mode !== "REAL" || fakeProvider) {
+    fail(`${stage} refuses mock, no-op, offline, or fake provider receipt outside simulation`);
+  }
+  assertFreshTimestamp(receipt.completedAt, now, providerReceiptMaxAgeMs, `${stage} provider receipt completedAt`);
+  if (!/^[a-f0-9]{64}$/.test(receipt.evidenceSha256 ?? "")) fail(`${stage} provider receipt evidenceSha256 is invalid`);
+  if (!receipt.evidenceRef?.startsWith(`.artifacts/tke/releases/${checkpoint.releaseId}/`)) {
+    fail(`${stage} provider evidenceRef must stay within the release ID directory`);
+  }
+  const evidence = resolveArtifact(repoRoot, receipt.evidenceRef, `${stage} provider evidenceRef`);
+  if (sha256File(evidence.absolute) !== receipt.evidenceSha256) fail(`${stage} provider receipt evidence hash mismatch`);
+  assertNoSensitiveMaterial(receipt, `${stage} provider receipt`);
+  return receipt;
+}
+
+function providerReceiptFile(bundle, stage) {
+  return path.join(path.dirname(bundle.paths.releaseManifest.absolute), "receipts", `${stage.toLowerCase().replaceAll("_", "-")}.json`);
+}
+
+function persistProviderReceipt(bundle, stage, receipt) {
+  const file = providerReceiptFile(bundle, stage);
+  if (existsSync(file)) {
+    const current = readJson(file, `${stage} provider receipt`);
+    if (JSON.stringify(current) !== JSON.stringify(receipt)) fail(`${stage} provider receipt conflicts with an existing idempotent receipt`);
+    return;
+  }
+  atomicWriteJsonFile(file, receipt);
+}
+
+function validateExecutorResult(result, receiptContext) {
+  if (result === undefined) fail(`${receiptContext.stage} executor result is required`);
   if (!result || typeof result !== "object" || Array.isArray(result)) fail("executor result must be an object");
   const changed = result.artifactsChanged ?? [];
   if (!Array.isArray(changed) || changed.some(name => name !== "evidenceBundle") || new Set(changed).size !== changed.length) {
     fail("executor may declare only evidenceBundle in artifactsChanged");
   }
-  return changed;
+  const receipt = receiptContext.stage === "ARTIFACTS_READY"
+    ? undefined
+    : validateProviderReceipt({ receipt: result.providerReceipt, ...receiptContext });
+  return { changed, receipt };
+}
+
+function assertDeclaredArtifactChanges(beforeHashes, afterHashes, declaredChanges, label) {
+  const keys = new Set([...Object.keys(beforeHashes), ...Object.keys(afterHashes)]);
+  const changed = [...keys].filter(name => beforeHashes[name] !== afterHashes[name]);
+  const allowed = name => declaredChanges.includes(name)
+    || (declaredChanges.includes("evidenceBundle") && name.startsWith("evidence."));
+  if (changed.some(name => !allowed(name)) || declaredChanges.some(name => !changed.includes(name))) {
+    fail(`${label} artifact changes differ from declaration; changed=${changed.join(",") || "none"}, declared=${declaredChanges.join(",") || "none"}`);
+  }
 }
 
 async function executeOne({
@@ -412,14 +731,17 @@ async function executeOne({
   authorities,
   executor,
   now,
+  simulation,
+  pausedCheckpoint = checkpoint,
+  operationRevision = checkpoint.revision,
 }) {
   const expected = nextForwardState(checkpoint.currentState);
   if (targetState !== expected) fail(`illegal state transition ${checkpoint.currentState} -> ${targetState}; expected ${expected ?? "no successor"}`);
   const bundleBefore = loadReleaseBundle({ repoRoot, contractRoot, manifestFile });
   assertHashes(checkpoint, bundleBefore);
   const requiredAuthority = authorityForState[targetState];
-  if (requiredAuthority && authorities[requiredAuthority] !== true) {
-    return { status: "PAUSED_AUTHORITY", requiredAuthority, checkpoint };
+  if (requiredAuthority && !hasRuntimeGrant(authorities, requiredAuthority, targetState)) {
+    return { status: "PAUSED_AUTHORITY", requiredAuthority, checkpoint: pausedCheckpoint };
   }
   const stage = targetState === "ARTIFACTS_READY" ? "ARTIFACTS_READY" : stageForState[targetState];
   try {
@@ -429,21 +751,32 @@ async function executeOne({
       currentState: checkpoint.currentState,
       targetState,
       stage,
+      idempotencyKey: providerIdempotencyKey(checkpoint, targetState, operationRevision),
       runtimeAuthorityGranted: requiredAuthority ? true : false,
       artifactPaths: Object.fromEntries(Object.entries(bundleBefore.paths).map(([name, item]) => [name, item.relative])),
     });
-    const declaredChanges = validateExecutorResult(executorResult);
+    const validatedResult = validateExecutorResult(executorResult, {
+      checkpoint,
+      targetState,
+      stage,
+      repoRoot,
+      now: now instanceof Date ? now : new Date(now),
+      simulation,
+      operationRevision,
+    });
+    const declaredChanges = validatedResult.changed;
     const bundleAfter = loadReleaseBundle({ repoRoot, contractRoot, manifestFile });
-    const changed = Object.keys(bundleBefore.hashes).filter(name => bundleBefore.hashes[name] !== bundleAfter.hashes[name]);
-    if (changed.some(name => !declaredChanges.includes(name)) || declaredChanges.some(name => !changed.includes(name))) {
-      fail(`executor artifact changes differ from declaration; changed=${changed.join(",") || "none"}, declared=${declaredChanges.join(",") || "none"}`);
-    }
-    assertEvidenceForState(targetState, bundleAfter.evidenceBundle);
+    assertDeclaredArtifactChanges(bundleBefore.hashes, bundleAfter.hashes, declaredChanges, "executor");
+    assertEvidenceForState(targetState, bundleAfter.evidenceBundle, now instanceof Date ? now : new Date(now));
+    if (validatedResult.receipt) persistProviderReceipt(bundleAfter, stage, validatedResult.receipt);
+    const finalBundle = validatedResult.receipt
+      ? loadReleaseBundle({ repoRoot, contractRoot, manifestFile })
+      : bundleAfter;
     const updated = {
       ...checkpoint,
       currentState: targetState,
       completedStages: [...checkpoint.completedStages, ...completedStagesForState(targetState)],
-      artifactHashes: bundleAfter.hashes,
+      artifactHashes: finalBundle.hashes,
       updatedAt: isoNow(now),
       revision: checkpoint.revision + 1,
     };
@@ -462,7 +795,7 @@ async function executeOne({
         failedStage: stage === "ARTIFACTS_READY" ? "IMAGES_PUBLISHED" : stage,
         failedAt: isoNow(now),
         message: failureMessage(stage, error),
-        retryable: true,
+        retryable: classifyRetryable(error),
         resumeState: targetState,
       },
     };
@@ -481,18 +814,25 @@ export async function advanceRelease({
   authorities = {},
   executor = offlineExecutor,
   now = new Date(),
+  simulation = false,
 }) {
   validateAuthorities(authorities);
-  const bundle = loadReleaseBundle({ repoRoot, contractRoot, manifestFile });
-  const { checkpoint, checkpointPath } = readCheckpoint(bundle);
-  if (!checkpoint) fail("release is not prepared");
-  if (checkpoint.currentState === targetState) {
-    assertHashes(checkpoint, bundle);
-    return { status: "ALREADY_AT_TARGET", checkpoint };
-  }
-  if (checkpoint.currentState === "FAILED") fail("FAILED release must use resumeRelease");
-  if (TERMINAL_STATES.includes(checkpoint.currentState)) fail(`${checkpoint.currentState} is terminal; use a new release ID`);
-  return executeOne({ repoRoot, contractRoot, manifestFile, checkpoint, checkpointFile: checkpointPath.absolute, targetState, authorities, executor, now });
+  const initialBundle = loadReleaseBundle({ repoRoot, contractRoot, manifestFile });
+  const initial = readCheckpoint(initialBundle);
+  if (!initial.checkpoint) fail("release is not prepared");
+  return withReleaseLease(initial.checkpointPath.absolute, initial.checkpoint.releaseId, async () => {
+    const bundle = loadReleaseBundle({ repoRoot, contractRoot, manifestFile });
+    const { checkpoint, checkpointPath } = readCheckpoint(bundle);
+    if (!checkpoint) fail("release is not prepared");
+    assertNoRollbackLatch(checkpointPath.absolute);
+    if (checkpoint.currentState === targetState) {
+      assertHashes(checkpoint, bundle);
+      return { status: "ALREADY_AT_TARGET", checkpoint };
+    }
+    if (checkpoint.currentState === "FAILED") fail("FAILED release must use resumeRelease");
+    if (TERMINAL_STATES.includes(checkpoint.currentState)) fail(`${checkpoint.currentState} is terminal; use a new release ID`);
+    return executeOne({ repoRoot, contractRoot, manifestFile, checkpoint, checkpointFile: checkpointPath.absolute, targetState, authorities, executor, now, simulation });
+  });
 }
 
 export async function resumeRelease({
@@ -502,26 +842,40 @@ export async function resumeRelease({
   authorities = {},
   executor = offlineExecutor,
   now = new Date(),
+  simulation = false,
 }) {
   validateAuthorities(authorities);
-  const bundle = loadReleaseBundle({ repoRoot, contractRoot, manifestFile });
-  const { checkpoint, checkpointPath } = readCheckpoint(bundle);
-  if (!checkpoint) fail("release is not prepared");
-  if (checkpoint.currentState !== "FAILED" || !checkpoint.failure) fail("resume requires a FAILED checkpoint");
-  if (!checkpoint.failure.retryable) fail("failed stage is not retryable");
-  assertHashes(checkpoint, bundle);
-  const synthetic = { ...checkpoint, currentState: FORWARD_STATES[FORWARD_STATES.indexOf(checkpoint.failure.resumeState) - 1] };
-  delete synthetic.failure;
-  return executeOne({
-    repoRoot,
-    contractRoot,
-    manifestFile,
-    checkpoint: synthetic,
-    checkpointFile: checkpointPath.absolute,
-    targetState: checkpoint.failure.resumeState,
-    authorities,
-    executor,
-    now,
+  const initialBundle = loadReleaseBundle({ repoRoot, contractRoot, manifestFile });
+  const initial = readCheckpoint(initialBundle);
+  if (!initial.checkpoint) fail("release is not prepared");
+  return withReleaseLease(initial.checkpointPath.absolute, initial.checkpoint.releaseId, async () => {
+    const bundle = loadReleaseBundle({ repoRoot, contractRoot, manifestFile });
+    const { checkpoint, checkpointPath } = readCheckpoint(bundle);
+    if (!checkpoint) fail("release is not prepared");
+    assertNoRollbackLatch(checkpointPath.absolute);
+    if (checkpoint.currentState !== "FAILED" || !checkpoint.failure) fail("resume requires a FAILED checkpoint");
+    if (!checkpoint.failure.retryable) fail("failed stage is not retryable");
+    assertHashes(checkpoint, bundle);
+    const requiredAuthority = authorityForState[checkpoint.failure.resumeState];
+    if (requiredAuthority && !hasRuntimeGrant(authorities, requiredAuthority, checkpoint.failure.resumeState)) {
+      return { status: "PAUSED_AUTHORITY", requiredAuthority, checkpoint };
+    }
+    const synthetic = { ...checkpoint, currentState: FORWARD_STATES[FORWARD_STATES.indexOf(checkpoint.failure.resumeState) - 1] };
+    delete synthetic.failure;
+    return executeOne({
+      repoRoot,
+      contractRoot,
+      manifestFile,
+      checkpoint: synthetic,
+      checkpointFile: checkpointPath.absolute,
+      targetState: checkpoint.failure.resumeState,
+      authorities,
+      executor,
+      now,
+      simulation,
+      pausedCheckpoint: checkpoint,
+      operationRevision: checkpoint.revision - 1,
+    });
   });
 }
 
@@ -531,47 +885,102 @@ export async function rollbackRelease({
   manifestFile,
   executor = offlineExecutor,
   now = new Date(),
+  simulation = false,
 }) {
-  const bundleBefore = loadReleaseBundle({ repoRoot, contractRoot, manifestFile });
-  const { checkpoint, checkpointPath } = readCheckpoint(bundleBefore);
-  if (!checkpoint) fail("release is not prepared");
-  const stateIndex = FORWARD_STATES.indexOf(checkpoint.currentState);
-  const first = FORWARD_STATES.indexOf("DEPLOYED_NO_TRAFFIC");
-  const last = FORWARD_STATES.indexOf("OBSERVED");
-  if (stateIndex < first || stateIndex > last) fail(`rollback is not legal from ${checkpoint.currentState}`);
-  assertHashes(checkpoint, bundleBefore);
-  try {
-    const result = await executor({
-      releaseId: checkpoint.releaseId,
-      environment: checkpoint.environment,
-      currentState: checkpoint.currentState,
-      targetState: "ROLLED_BACK",
-      stage: "ROLLBACK",
-      runtimeAuthorityGranted: false,
-      artifactPaths: Object.fromEntries(Object.entries(bundleBefore.paths).map(([name, item]) => [name, item.relative])),
-    });
-    const declaredChanges = validateExecutorResult(result);
-    const bundleAfter = loadReleaseBundle({ repoRoot, contractRoot, manifestFile });
-    const changed = Object.keys(bundleBefore.hashes).filter(name => bundleBefore.hashes[name] !== bundleAfter.hashes[name]);
-    if (changed.some(name => !declaredChanges.includes(name)) || declaredChanges.some(name => !changed.includes(name))) {
-      fail("rollback artifact changes differ from executor declaration");
+  const initialBundle = loadReleaseBundle({ repoRoot, contractRoot, manifestFile });
+  const initial = readCheckpoint(initialBundle);
+  if (!initial.checkpoint) fail("release is not prepared");
+  return withReleaseLease(initial.checkpointPath.absolute, initial.checkpoint.releaseId, async () => {
+    const bundleBefore = loadReleaseBundle({ repoRoot, contractRoot, manifestFile });
+    const { checkpoint, checkpointPath } = readCheckpoint(bundleBefore);
+    if (!checkpoint) fail("release is not prepared");
+    const existingLatch = readRollbackLatch(checkpointPath.absolute);
+    const rollbackFromState = existingLatch?.rollbackFromState ?? checkpoint.currentState;
+    if (existingLatch && rollbackFromState !== checkpoint.currentState) fail("rollback-failed latch state drifted from checkpoint");
+    const stateIndex = FORWARD_STATES.indexOf(rollbackFromState);
+    const first = FORWARD_STATES.indexOf("DEPLOYED_NO_TRAFFIC");
+    const last = FORWARD_STATES.indexOf("OBSERVED");
+    if (stateIndex < first || stateIndex > last) fail(`rollback is not legal from ${rollbackFromState}`);
+    assertHashes(checkpoint, bundleBefore);
+    const idempotencyKey = providerIdempotencyKey(checkpoint, "ROLLED_BACK");
+    try {
+      const result = await executor({
+        releaseId: checkpoint.releaseId,
+        environment: checkpoint.environment,
+        currentState: checkpoint.currentState,
+        targetState: "ROLLED_BACK",
+        stage: "ROLLBACK",
+        idempotencyKey,
+        runtimeAuthorityGranted: false,
+        artifactPaths: Object.fromEntries(Object.entries(bundleBefore.paths).map(([name, item]) => [name, item.relative])),
+      });
+      const validatedResult = validateExecutorResult(result, {
+        checkpoint,
+        targetState: "ROLLED_BACK",
+        stage: "ROLLBACK",
+        repoRoot,
+        now: now instanceof Date ? now : new Date(now),
+        simulation,
+      });
+      const bundleAfter = loadReleaseBundle({ repoRoot, contractRoot, manifestFile });
+      assertDeclaredArtifactChanges(bundleBefore.hashes, bundleAfter.hashes, validatedResult.changed, "rollback executor");
+      if (bundleAfter.evidenceBundle.rollback?.result !== "PASS") fail("rollback requires passing rollback evidence");
+      assertFreshTimestamp(bundleAfter.evidenceBundle.rollback.completedAt, now instanceof Date ? now : new Date(now), evidenceFreshness.executionMs, "rollback.completedAt");
+      persistProviderReceipt(bundleAfter, "ROLLBACK", validatedResult.receipt);
+      const finalBundle = loadReleaseBundle({ repoRoot, contractRoot, manifestFile });
+      const rolledBack = {
+        ...checkpoint,
+        currentState: "ROLLED_BACK",
+        completedStages: [...checkpoint.completedStages, "ROLLBACK"],
+        artifactHashes: finalBundle.hashes,
+        updatedAt: isoNow(now),
+        revision: checkpoint.revision + 1,
+      };
+      assertSchema(finalBundle.validators.checkpoint, rolledBack, "checkpoint");
+      assertCheckpointSemantics(rolledBack);
+      atomicWriteCheckpoint(checkpointPath.absolute, rolledBack, checkpoint.revision);
+      if (existingLatch) unlinkSync(rollbackLatchFile(checkpointPath.absolute));
+      return { status: "ROLLED_BACK", checkpoint: rolledBack };
+    } catch (error) {
+      const latch = {
+        schemaVersion: 1,
+        status: "ROLLBACK_FAILED",
+        releaseId: checkpoint.releaseId,
+        rollbackFromState,
+        failedStage: "ROLLBACK",
+        failedAt: isoNow(now),
+        retryable: classifyRetryable(error),
+        message: failureMessage("ROLLBACK", error),
+        idempotencyKey,
+      };
+      assertNoSensitiveMaterial(latch, "rollback-failed latch");
+      atomicWriteJsonFile(rollbackLatchFile(checkpointPath.absolute), latch);
+      return { status: "ROLLBACK_FAILED", checkpoint, latch, error };
     }
-    if (bundleAfter.evidenceBundle.rollback?.result !== "PASS") fail("rollback requires passing rollback evidence");
-    const rolledBack = {
-      ...checkpoint,
-      currentState: "ROLLED_BACK",
-      completedStages: [...checkpoint.completedStages, "ROLLBACK"],
-      artifactHashes: bundleAfter.hashes,
-      updatedAt: isoNow(now),
-      revision: checkpoint.revision + 1,
-    };
-    assertSchema(bundleAfter.validators.checkpoint, rolledBack, "checkpoint");
-    assertCheckpointSemantics(rolledBack);
-    atomicWriteCheckpoint(checkpointPath.absolute, rolledBack, checkpoint.revision);
-    return { status: "ROLLED_BACK", checkpoint: rolledBack };
-  } catch (error) {
-    return { status: "FAILED", checkpoint, error };
-  }
+  });
+}
+
+export async function clearRollbackFailure({
+  repoRoot = defaultRepoRoot,
+  contractRoot = defaultContractRoot,
+  manifestFile,
+  confirmation,
+}) {
+  const initialBundle = loadReleaseBundle({ repoRoot, contractRoot, manifestFile });
+  const initial = readCheckpoint(initialBundle);
+  if (!initial.checkpoint) fail("release is not prepared");
+  return withReleaseLease(initial.checkpointPath.absolute, initial.checkpoint.releaseId, async () => {
+    const bundle = loadReleaseBundle({ repoRoot, contractRoot, manifestFile });
+    const { checkpoint, checkpointPath } = readCheckpoint(bundle);
+    if (!checkpoint) fail("release is not prepared");
+    const latch = readRollbackLatch(checkpointPath.absolute);
+    if (!latch) return { status: "NO_ROLLBACK_LATCH", checkpoint };
+    if (confirmation !== `ACKNOWLEDGE-ROLLBACK-FAILURE:${checkpoint.releaseId}`) {
+      fail("explicit release-scoped manual handling confirmation is required");
+    }
+    unlinkSync(rollbackLatchFile(checkpointPath.absolute));
+    return { status: "ROLLBACK_LATCH_CLEARED", checkpoint };
+  });
 }
 
 export async function runRelease({
@@ -583,6 +992,7 @@ export async function runRelease({
   executor = offlineExecutor,
   now = new Date(),
   resume = false,
+  simulation = false,
 }) {
   if (!FORWARD_STATES.includes(targetState)) fail(`unknown forward target state: ${targetState}`);
   validateAuthorities(authorities);
@@ -590,7 +1000,7 @@ export async function runRelease({
   let checkpoint = prepared.checkpoint;
   if (checkpoint.currentState === "FAILED") {
     if (!resume) return { status: "PAUSED_FAILED", checkpoint };
-    const resumed = await resumeRelease({ repoRoot, contractRoot, manifestFile, authorities, executor, now });
+    const resumed = await resumeRelease({ repoRoot, contractRoot, manifestFile, authorities, executor, now, simulation });
     if (resumed.status === "FAILED" || resumed.status === "PAUSED_AUTHORITY") return resumed;
     checkpoint = resumed.checkpoint;
   }
@@ -599,7 +1009,7 @@ export async function runRelease({
   if (currentIndex > targetIndex) fail(`target ${targetState} is behind current state ${checkpoint.currentState}`);
   while (checkpoint.currentState !== targetState) {
     const next = nextForwardState(checkpoint.currentState);
-    const result = await advanceRelease({ repoRoot, contractRoot, manifestFile, targetState: next, authorities, executor, now });
+    const result = await advanceRelease({ repoRoot, contractRoot, manifestFile, targetState: next, authorities, executor, now, simulation });
     if (result.status === "FAILED" || result.status === "PAUSED_AUTHORITY") return result;
     checkpoint = result.checkpoint;
   }
