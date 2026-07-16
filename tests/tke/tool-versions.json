@@ -1,0 +1,25 @@
+{
+  "kind": {
+    "version": "v0.32.0",
+    "assets": {
+      "windows-amd64": {
+        "name": "kind-windows-amd64",
+        "sha256": "0bcb2d1cfedc1912d664014db716937e8a0e843e91c6807b4db2025dbc8989fa"
+      },
+      "linux-amd64": {
+        "name": "kind-linux-amd64",
+        "sha256": "50030de23cf40a18505f20426f6a8506bedf13c6e509244bd1fa9463721b0f54"
+      },
+      "darwin-amd64": {
+        "name": "kind-darwin-amd64",
+        "sha256": "295ac6d0d634c9819c9907df45e3017d1f13166bd13c3404c45e79f7faa47498"
+      },
+      "darwin-arm64": {
+        "name": "kind-darwin-arm64",
+        "sha256": "dca67911095a110c2b5c36e26df6cac860c602033e456c0db47be498cdef1ebb"
+      }
+    }
+  },
+  "nodeImage": "kindest/node:v1.34.8@sha256:02722c2dedddcfc00febf5d27fbeb9b7b2c14294c82109ff4a85d89ac9ba3256",
+  "prometheusImage": "prom/prometheus@sha256:63805ebb8d2b3920190daf1cb14a60871b16fd38bed42b857a3182bc621f4996"
+}
