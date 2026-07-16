@@ -1,0 +1,18 @@
+{
+  "releaseId": "release-20260716-001",
+  "environment": "production",
+  "repositoryPrefix": "ccr.ccs.tencentyun.com/xlb",
+  "sourceCommit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "owners": {
+    "release": "release-owner",
+    "data": "data-owner",
+    "onCall": "oncall-owner",
+    "cost": "cost-owner"
+  },
+  "changeWindow": {
+    "startsAt": "2026-07-18T01:00:00Z",
+    "endsAt": "2026-07-18T05:00:00Z",
+    "timezone": "Asia/Shanghai"
+  },
+  "trafficProvider": "clb"
+}
