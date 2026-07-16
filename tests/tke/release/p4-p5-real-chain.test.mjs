@@ -151,7 +151,7 @@ function fixture() {
   const files = {
     manifest: path.join(releaseRoot, "release-manifest.json"),
     imageLock: path.join(releaseRoot, "images.lock.json"),
-    cloudBundle: path.join(environmentRoot, "manifest.json"),
+    cloudBundle: path.join(environmentRoot, "cloud-bundle.json"),
     evidence: path.join(releaseRoot, "evidence.json"),
     checkpoint: path.join(releaseRoot, "checkpoint.json"),
   };
@@ -280,7 +280,7 @@ function buildPlan(input) {
     trafficProvider: "clb",
     files: {
       releaseManifest: input.ref("release-manifest.json"),
-      cloudBundle: ".artifacts/tke/production/manifest.json",
+      cloudBundle: ".artifacts/tke/production/cloud-bundle.json",
       evidenceBundle: input.ref("evidence.json"),
       checkpoint: input.ref("checkpoint.json"),
     },
