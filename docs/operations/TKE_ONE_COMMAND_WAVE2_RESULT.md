@@ -39,16 +39,39 @@ WAVE2_STATUS=BLOCKED_FINAL_REVIEW
    fresh evidence as future-dated.
 9. **Resolved:** the fourth P4 correction completed independent final review
    with 29/29 tests passing and no remaining P4 findings.
-10. **Open:** the real P4/P5 chain currently proves the first `TRAFFIC_5` step,
-    failure/resume, external drift and rollback/retry. It still needs the full
-    `5 -> 25 -> 50 -> 100` staircase and cross-process/cross-instance durable
-    resume coverage against the fourth P4 correction.
+10. **Resolved by P6 child-process increment `bd9674a`:** the real P4/P5 chain
+    now covers the full `5 -> 25 -> 50 -> 100` staircase, separate-process
+    restart, both P5/P4 commit crash windows, reverse rollback, concurrent CAS,
+    live-owner rejection, confirmed dead-owner recovery and corrupt-main
+    fail-closed behavior against the fourth P4 correction.
+11. **Open (P0):** the production `createFileProgressStore` still has no
+    product runtime factory or release-entry wiring. It is currently consumed
+    only by tests and documentation.
+12. **Open (P0):** the earlier in-process persistent real-chain path still
+    defines and injects its own non-atomic `FileCasProgressStore`; its green
+    restart cases therefore do not prove the production store boundary.
+13. **Open (P0):** abandoned-lock recovery has a double-recovery/ABA window.
+    Owner validation and the quarantine rename are not serialized by a
+    recovery mutex with a nonce re-check immediately before the rename.
+14. **Open (P1):** the recovery confirmation is not bound to
+    `minimumAgeMs`, and callers can reduce the requested age to zero after a
+    prior rejection. The token must include an immutable recovery-age floor.
+15. **Open (P1):** the quarantine directory is not physically revalidated
+    against symlink/junction escape before each rename. On Windows, a prepared
+    junction can move an orphan outside the artifact root while CAS succeeds.
+16. **Open (P2):** persisted progress validation does not reject a recursive
+    `confirmation` field even though the component documentation says
+    confirmations are never persisted. This requires a strict allowlist or,
+    at minimum, recursive rejection of confirmation/decision/grant fields.
 
-P4 fourth-correction tests pass 29/29. The real P4/P5 chain passes 4/4 against
-that correction and the aggregate root tests pass 149/149. Gate 2 remains
-blocked until finding 10 closes, the expanded real chain passes, the complete
-offline gate passes and a final independent integration review accepts the
-result.
+P4 fourth-correction tests pass 29/29. The expanded real-chain suite passes
+12/12, the P6 release suite passes 55/55, and the integrated Wave 2 core suite
+passes 114/114. Static delivery/release-contract checks and the N5 offline
+validation also pass. These results close the missing child-process coverage
+but do not close findings 11-16. Gate 2 remains blocked
+until the P5 store is product-wired, its recovery and path boundaries are
+hardened, the adversarial tests pass, the complete offline gate passes and a
+final independent integration review reports no open finding.
 
 ## Integrated baseline
 
@@ -56,7 +79,7 @@ result.
 - P4 resumable orchestrator source: `dd8ad25`, hardened by `77b3b86`
 - P5 traffic cutover source: `94f8979`, hardened by `efe3a93`
 - P6 deterministic simulation source: `dab4c39`, hardened by `0aebc80`
-  and `b4f69df`
+  and `b4f69df`; child-process recovery increment: `bd9674a`
 - Gate 2 integration branch: `codex/tke-wave2-integration`
 - Gate 2 integration commit: use this document's containing commit
 
@@ -109,8 +132,8 @@ runtime authority.
 
 ## Blocked next gate
 
-N7 TKE Staging cannot start from this candidate. After P4 is corrected and
-Gate 2 is accepted, N7 must provide reviewed cloud inputs, real immutable TCR
-digests, separately authorized provider operations and a complete staging
-evidence bundle. N8 production remains blocked until N7 has the real `PASS`
-result required by the production-plan gate.
+N7 TKE Staging cannot start from this candidate. After findings 11-16 are
+closed and Gate 2 is independently accepted, N7 must provide reviewed cloud
+inputs, real immutable TCR digests, separately authorized provider operations
+and a complete staging evidence bundle. N8 production remains blocked until
+N7 has the real `PASS` result required by the production-plan gate.
