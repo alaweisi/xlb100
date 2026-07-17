@@ -56,7 +56,7 @@ let restartSequence = 0;
 const reloadP4 = () => import(`${pathToFileURL(p4ModuleFile).href}?restart=${restartSequence += 1}`);
 const processWorkerFile = path.join(path.dirname(fileURLToPath(import.meta.url)), "p4-p5-process-worker.mjs");
 
-function runWorker(operation, root, argument) {
+function runWorker(operation, root, argument, extraEnvironment = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [processWorkerFile, operation, root, String(argument)], {
       env: {
@@ -65,6 +65,7 @@ function runWorker(operation, root, argument) {
         XLB_P5_CUTOVER_MODULE: p5ModuleFile,
         XLB_P5_PROGRESS_STORE_MODULE: progressStoreModuleFile,
         XLB_P5_RUNTIME_MODULE: runtimeModuleFile,
+        ...extraEnvironment,
       },
       stdio: ["ignore", "pipe", "pipe"],
     });
@@ -82,7 +83,7 @@ function runWorker(operation, root, argument) {
   });
 }
 
-function startWorker(operation, root, argument = "") {
+function startWorker(operation, root, argument = "", extraEnvironment = {}) {
   const child = spawn(process.execPath, [processWorkerFile, operation, root, String(argument)], {
     env: {
       ...process.env,
@@ -90,6 +91,7 @@ function startWorker(operation, root, argument = "") {
       XLB_P5_CUTOVER_MODULE: p5ModuleFile,
       XLB_P5_PROGRESS_STORE_MODULE: progressStoreModuleFile,
       XLB_P5_RUNTIME_MODULE: runtimeModuleFile,
+      ...extraEnvironment,
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -121,6 +123,21 @@ function processStore(root, overrides = {}) {
     retryDelayMs: 5,
     ...overrides,
   });
+}
+
+const processStorePlanSha256 = "c".repeat(64);
+
+function recoveryRequest({
+  targetNonce,
+  recoveryNonce,
+  minimumAgeMs = 900_000,
+}) {
+  return {
+    expectedNonce: targetNonce,
+    recoveryNonce,
+    minimumAgeMs,
+    confirmation: `RECOVER_ABANDONED_LOCK:${releaseId}:${processStorePlanSha256}:${targetNonce}:${recoveryNonce}:${minimumAgeMs}:RECOVER`,
+  };
 }
 
 function initialStoreProgress(overrides = {}) {
@@ -475,8 +492,6 @@ function p5Runtime(input, plan, { initialWeight = plan.initialWeight, failOnce =
     artifactRoot: input.absolute(".artifacts/tke"),
     transport,
     observer,
-    mode: "production",
-    now: input.clock,
   });
   return { ...runtime, transport, observer };
 }
@@ -619,8 +634,6 @@ function persistentRuntime(input, plan, {
     artifactRoot: input.absolute(".artifacts/tke"),
     transport,
     observer,
-    mode: "production",
-    now: input.clock,
   });
   return { ...runtime, transport, observer };
 }
@@ -866,7 +879,6 @@ test("process restart after 25 reloads disk checkpoint evidence and CAS progress
     artifactRoot: input.absolute(".artifacts/tke"),
     releaseId,
     planSha256: plan50.planSha256,
-    now: input.clock,
   });
   assert.equal(seededStore.compareAndSwap(0, p5.createInitialProgress(plan50, fixedNow)), true);
   assert.deepEqual(seededStore.load().completedWeights, [5, 25]);
@@ -1080,24 +1092,38 @@ test("production file store has exactly one child-process CAS winner", async () 
 test("production file store recovers only a confirmed dead child lock", async () => {
   const root = mkdtempSync(path.join(os.tmpdir(), "xlb-p5-store-lock-"));
   temporaryRoots.push(root);
-  const held = startWorker("store-hold", root);
+  const held = startWorker("store-aged-hold", root);
   const owner = await held.firstLine;
   const minimumAgeMs = 900_000;
-  const store = processStore(root, { now: () => new Date(Date.now() + minimumAgeMs + 60_000) });
-  const confirmation = `RECOVER_ABANDONED_LOCK:${releaseId}:${"c".repeat(64)}:${owner.nonce}:${minimumAgeMs}:RECOVER`;
+  const store = processStore(root);
+  const request = recoveryRequest({
+    targetNonce: owner.nonce,
+    recoveryNonce: "1".repeat(32),
+    minimumAgeMs,
+  });
 
   assert.throws(
-    () => store.recoverAbandonedLock({ expectedNonce: owner.nonce, minimumAgeMs, confirmation }),
+    () => store.recoverAbandonedLock({
+      expectedNonce: request.expectedNonce,
+      recoveryNonce: request.recoveryNonce,
+      minimumAgeMs,
+      confirmation: request.confirmation,
+    }),
     /still alive; recovery denied/,
   );
   assert.throws(
-    () => store.recoverAbandonedLock({ expectedNonce: owner.nonce, minimumAgeMs, confirmation: `${confirmation}-wrong` }),
+    () => store.recoverAbandonedLock({
+      expectedNonce: request.expectedNonce,
+      recoveryNonce: request.recoveryNonce,
+      minimumAgeMs,
+      confirmation: `${request.confirmation}-wrong`,
+    }),
     /not exactly bound/,
   );
 
   held.child.kill("SIGKILL");
   await held.exited;
-  const recovered = store.recoverAbandonedLock({ expectedNonce: owner.nonce, minimumAgeMs, confirmation });
+  const recovered = store.recoverAbandonedLock(request);
   assert.equal(recovered.recoveredNonce, owner.nonce);
   assert.match(recovered.quarantined, /quarantine/);
   const cas = await runWorker("store-cas", root, "after-dead-owner");
@@ -1105,17 +1131,20 @@ test("production file store recovers only a confirmed dead child lock", async ()
   assert.equal(cas.payload.won, true);
 });
 
-test("two child recoverers produce one winner and the old confirmation cannot isolate a new owner", async () => {
+test("two child recoverers produce one winner and an exact replay cannot isolate a new owner", async () => {
   const root = mkdtempSync(path.join(os.tmpdir(), "xlb-p5-recover-race-"));
   temporaryRoots.push(root);
-  const held = startWorker("store-hold", root);
+  const held = startWorker("store-aged-hold", root);
   const owner = await held.firstLine;
   held.child.kill("SIGKILL");
   await held.exited;
 
   const minimumAgeMs = 900_000;
-  const confirmation = `RECOVER_ABANDONED_LOCK:${releaseId}:${"c".repeat(64)}:${owner.nonce}:${minimumAgeMs}:RECOVER`;
-  const recovery = { expectedNonce: owner.nonce, minimumAgeMs, confirmation, now: new Date(Date.now() + minimumAgeMs + 60_000).toISOString() };
+  const recovery = recoveryRequest({
+    targetNonce: owner.nonce,
+    recoveryNonce: "2".repeat(32),
+    minimumAgeMs,
+  });
   const outcomes = await Promise.all([
     runWorker("store-recover", root, JSON.stringify(recovery)),
     runWorker("store-recover", root, JSON.stringify(recovery)),
@@ -1124,16 +1153,16 @@ test("two child recoverers produce one winner and the old confirmation cannot is
   assert.equal(outcomes.filter(result => result.code !== 0).length, 1);
 
   const newOwner = startWorker("store-hold", root);
-  const newIdentity = await newOwner.firstLine;
-  assert.notEqual(newIdentity.nonce, owner.nonce);
-  const store = processStore(root, { now: () => new Date(Date.now() + minimumAgeMs + 120_000) });
-  assert.throws(
-    () => store.recoverAbandonedLock({ expectedNonce: owner.nonce, minimumAgeMs, confirmation }),
-    /nonce|owner|recovery/i,
-  );
-  assert.equal(newOwner.child.exitCode, null);
-  newOwner.child.kill("SIGKILL");
-  await newOwner.exited;
+  try {
+    const newIdentity = await newOwner.firstLine;
+    assert.notEqual(newIdentity.nonce, owner.nonce);
+    const replayed = processStore(root).recoverAbandonedLock(recovery);
+    assert.equal(replayed.recoveredNonce, owner.nonce);
+    assert.equal(newOwner.child.exitCode, null);
+  } finally {
+    if (newOwner.child.exitCode === null) newOwner.child.kill("SIGKILL");
+    await newOwner.exited;
+  }
 });
 
 test("a recovered stale owner is fenced before it can write after a new owner starts", async () => {
@@ -1142,9 +1171,13 @@ test("a recovered stale owner is fenced before it can write after a new owner st
   const stale = startWorker("store-stale-owner", root);
   const oldIdentity = await stale.firstLine;
   const minimumAgeMs = 900_000;
-  const confirmation = `RECOVER_ABANDONED_LOCK:${releaseId}:${"c".repeat(64)}:${oldIdentity.nonce}:${minimumAgeMs}:RECOVER`;
-  const store = processStore(root, { now: () => new Date("2026-07-17T00:00:00Z") });
-  const recovered = store.recoverAbandonedLock({ expectedNonce: oldIdentity.nonce, minimumAgeMs, confirmation });
+  const request = recoveryRequest({
+    targetNonce: oldIdentity.nonce,
+    recoveryNonce: "3".repeat(32),
+    minimumAgeMs,
+  });
+  const store = processStore(root);
+  const recovered = store.recoverAbandonedLock(request);
   assert.equal(recovered.recoveredNonce, oldIdentity.nonce);
 
   const replacement = startWorker("store-hold", root);
@@ -1162,18 +1195,27 @@ test("a recovered stale owner is fenced before it can write after a new owner st
 test("lock recovery confirmation cannot be replayed with a lower minimum age", async () => {
   const root = mkdtempSync(path.join(os.tmpdir(), "xlb-p5-recover-age-"));
   temporaryRoots.push(root);
-  const held = startWorker("store-hold", root);
+  const held = startWorker("store-aged-hold", root);
   const owner = await held.firstLine;
   held.child.kill("SIGKILL");
   await held.exited;
   const approvedAgeMs = 1_800_000;
-  const confirmation = `RECOVER_ABANDONED_LOCK:${releaseId}:${"c".repeat(64)}:${owner.nonce}:${approvedAgeMs}:RECOVER`;
-  const store = processStore(root, { now: () => new Date(Date.now() + approvedAgeMs + 120_000) });
+  const request = recoveryRequest({
+    targetNonce: owner.nonce,
+    recoveryNonce: "4".repeat(32),
+    minimumAgeMs: approvedAgeMs,
+  });
+  const store = processStore(root);
   assert.throws(
-    () => store.recoverAbandonedLock({ expectedNonce: owner.nonce, minimumAgeMs: 900_000, confirmation }),
+    () => store.recoverAbandonedLock({
+      expectedNonce: request.expectedNonce,
+      recoveryNonce: request.recoveryNonce,
+      minimumAgeMs: 900_000,
+      confirmation: request.confirmation,
+    }),
     /confirmation|bound/i,
   );
-  const recovered = store.recoverAbandonedLock({ expectedNonce: owner.nonce, minimumAgeMs: approvedAgeMs, confirmation });
+  const recovered = store.recoverAbandonedLock(request);
   assert.equal(recovered.recoveredNonce, owner.nonce);
 });
 

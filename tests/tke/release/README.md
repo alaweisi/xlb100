@@ -72,8 +72,18 @@ branch validation may explicitly inject the two module files with
 `XLB_P5_PROGRESS_STORE_MODULE`, plus `XLB_P5_RUNTIME_MODULE`; no sibling-worktree path is inferred or
 persisted.
 
-The final pre-integration child-process run was explicitly pinned to P4
-`a5dda43` and the hardened P5 store/runtime candidate `77061bc`. This suite
+The third-round pre-integration child-process run was explicitly pinned to P4
+`a5dda43` and the fenced P5 store/runtime candidate `bad72e09`. The original
+60-test baseline remains intact, including the 17-test real P4/P5 staircase
+and cross-process suite. `p5-third-round-acceptance.test.mjs` adds five
+adversarial checks: product plans cannot relabel themselves as simulation to
+select memory progress; the product store cannot export a recovery-age-floor
+override; and a second child can take over the exact recovery claim after a
+crash at claim creation, target quarantine, or claim release while preserving
+a replacement canonical owner and fencing the recovered owner from all writes.
+The fixed candidate passed the complete 65-test aggregate.
+
+This suite
 proves the listed process-boundary integration and adversarial store scenarios;
 the aggregate Gate 2 result is still owned by the integration branch.
 

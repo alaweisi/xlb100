@@ -88,13 +88,26 @@ async function runStoreOperation() {
     setInterval(() => {}, 60_000);
     return true;
   }
+  if (operation === "store-aged-hold") {
+    const store = createProcessStore();
+    const lock = store.acquireLock();
+    const ownerFile = path.join(store.lockDirectory, "owner.json");
+    const owner = readJson(ownerFile);
+    writeJson(ownerFile, { ...owner, acquiredAt: "2026-07-16T00:00:00Z" });
+    writePayload({
+      ready: true,
+      pid: process.pid,
+      nonce: lock.nonce,
+      releaseId: lock.releaseId,
+      planSha256: lock.planSha256,
+      acquiredAt: "2026-07-16T00:00:00Z",
+    });
+    setInterval(() => {}, 60_000);
+    return true;
+  }
   if (operation === "store-recover") {
     const options = JSON.parse(argument);
-    const store = createProcessStore({
-      now: () => new Date(options.now),
-      lockTimeoutMs: 25,
-      retryDelayMs: 2,
-    });
+    const store = createProcessStore({ lockTimeoutMs: 25, retryDelayMs: 2 });
     writePayload(store.recoverAbandonedLock(options));
     return true;
   }
@@ -274,8 +287,6 @@ async function runP4P5() {
     artifactRoot: input.absolute(".artifacts/tke"),
     transport,
     observer,
-    mode: "production",
-    now: input.clock,
   });
   const contexts = [];
   const executor = async context => {
