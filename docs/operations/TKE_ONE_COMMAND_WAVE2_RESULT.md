@@ -2,7 +2,7 @@
 
 Date: 2026-07-17 (Asia/Shanghai)
 
-WAVE2_STATUS=BLOCKED_FINAL_REVIEW
+WAVE2_STATUS=SUCCESS
 
 > Correction: the earlier `5061892` acceptance candidate is superseded. A
 > later independent P4 review found four open fail-closed issues. Passing tests
@@ -68,21 +68,29 @@ WAVE2_STATUS=BLOCKED_FINAL_REVIEW
 19. **Candidate-resolved by P5 third correction `4518fd4`:** the product
     module no longer exports a constructor capable of lowering the recovery
     floor. P6 acceptance `f3bc334` tests the public export surface.
+20. **Independently resolved by P4 fifth correction `e8226be`:** forward and
+    rollback persistence now use owner-specific pending receipts and a fenced
+    commit guard with ownership checks around durable writes. Deterministic
+    short-lease and cross-process tests cover takeover before receipt, after
+    pending receipt, after durable receipt, rollback persistence, live-owner
+    refusal, dead-owner recovery and guard ABA protection. Independent directed
+    review reports `P4_REAUDIT=CLOSED` with no P0-P3 finding.
 
-The current candidate passes P4 29/29, P5 35/35, P6 65/65 and the serialized
-complete offline gate 187/187. PowerShell safety entry tests, Helm lint/render,
+The accepted candidate passes P4 35/35, P5 35/35, P6 65/65 and the serialized
+complete offline gate 193/193. PowerShell safety entry tests, Helm lint/render,
 kubeconform (21 valid, 0 invalid), Terraform offline tests (3/3), static
 delivery/release-contract checks and N5 offline validation also pass. Test
 files run serially in the aggregate gate so cross-file CPU contention cannot
 invalidate the deliberately short P4 fencing-window test; concurrency remains
-exercised inside its dedicated process and lease tests. Findings 11-19 are
-candidate-resolved, but Gate 2 remains blocked until an independent final
-integration review reports no open finding.
+exercised inside its dedicated process and lease tests. Findings 11-20 are
+closed, the complete gate passes, and independent final plus directed P4
+reviews report no remaining open finding. Gate 2 is accepted.
 
 ## Integrated baseline
 
 - Gate 1 baseline: `ad44833`
-- P4 resumable orchestrator source: `dd8ad25`, hardened by `77b3b86`
+- P4 resumable orchestrator source: `dd8ad25`, hardened by `77b3b86` and
+  fifth-correction integration `e8226be`
 - P5 traffic cutover source: `94f8979`, hardened by `efe3a93`
 - P6 deterministic simulation source: `dab4c39`, hardened by `0aebc80`
   and `b4f69df`; child-process and recovery increments: `bd9674a`, `a98cee6`
@@ -138,10 +146,10 @@ traffic cutover or Lighthouse operation occurred. Gate 2 accepts repository
 automation and deterministic offline evidence only. It grants no N7 or N8
 runtime authority.
 
-## Blocked next gate
+## Next gate
 
-N7 TKE Staging cannot start from this candidate. After Gate 2 is independently
-accepted, N7 must provide reviewed cloud
-inputs, real immutable TCR digests, separately authorized provider operations
-and a complete staging evidence bundle. N8 production remains blocked until
-N7 has the real `PASS` result required by the production-plan gate.
+N7 TKE Staging repository work may start from this candidate. Real cloud work
+still requires reviewed inputs, immutable TCR digests and separate external
+operation authorization before any billable or provider action. N7 must produce
+a complete staging evidence bundle and real `PASS`; N8 production remains
+blocked until that result satisfies the production-plan gate.
