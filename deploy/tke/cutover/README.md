@@ -44,3 +44,38 @@ node deploy/tke/cutover/cutover-controller.mjs `
 
 The integration owner wires this library to the P4 orchestrator and chooses a
 real provider transport only during a separately authorized N7/N8 execution.
+
+## Cross-process progress store
+
+`file-progress-store.mjs` is the production file-backed implementation of the
+controller's synchronous progress-store contract:
+
+```js
+const store = createFileProgressStore({
+  artifactRoot: absoluteArtifactDirectory,
+  releaseId,
+  planSha256,
+});
+```
+
+It places a release/plan-isolated JSON checkpoint and exclusive lock below the
+given artifact root. `compareAndSwap(expectedRevision, next)` acquires a
+`mkdir` lock, rereads revision and identity inside the lock, flushes a unique
+temporary file, and atomically renames it. Corrupt main JSON is fail-closed and
+orphan temporary files are quarantined rather than promoted.
+
+`recoverAbandonedLock` is deliberately separate from normal CAS. It requires a
+dead owner PID, a caller-selected minimum lock age, the exact current nonce,
+and this exact transient confirmation string:
+
+```text
+RECOVER_ABANDONED_LOCK:<releaseId>:<planSha256>:<ownerNonce>
+```
+
+Recovery quarantines the canonical lock directory. The old owner can no longer
+pass the canonical nonce check and therefore cannot commit progress after it
+resumes. Owner metadata also records the host name. Automatic recovery is
+allowed only for a dead PID on the same host; a lock from another host fails
+closed and requires external storage/provider fencing. Neither checkpoints nor
+lock metadata may contain credentials, authorizations, approvals,
+confirmations, or execution tokens.
