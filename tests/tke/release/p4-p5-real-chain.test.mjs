@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
   existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -35,12 +37,83 @@ const p5ModuleFile = resolveWave2Module(
   "deploy/tke/cutover/cutover-controller.mjs",
   "XLB_P5_CUTOVER_MODULE",
 );
-const [p4, p5] = await Promise.all([
+const progressStoreModuleFile = resolveWave2Module(
+  "deploy/tke/cutover/file-progress-store.mjs",
+  "XLB_P5_PROGRESS_STORE_MODULE",
+);
+const [p4, p5, progressStoreModule] = await Promise.all([
   import(pathToFileURL(p4ModuleFile)),
   import(pathToFileURL(p5ModuleFile)),
+  import(pathToFileURL(progressStoreModuleFile)),
 ]);
 let restartSequence = 0;
 const reloadP4 = () => import(`${pathToFileURL(p4ModuleFile).href}?restart=${restartSequence += 1}`);
+const processWorkerFile = path.join(path.dirname(fileURLToPath(import.meta.url)), "p4-p5-process-worker.mjs");
+
+function runWorker(operation, root, argument) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [processWorkerFile, operation, root, String(argument)], {
+      env: {
+        ...process.env,
+        XLB_P4_ORCHESTRATOR_MODULE: p4ModuleFile,
+        XLB_P5_CUTOVER_MODULE: p5ModuleFile,
+        XLB_P5_PROGRESS_STORE_MODULE: progressStoreModuleFile,
+      },
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", chunk => { stdout += chunk; });
+    child.stderr.on("data", chunk => { stderr += chunk; });
+    child.on("error", reject);
+    child.on("close", code => {
+      const result = { code, stderr, stdout, pid: child.pid };
+      if (code !== 0) return resolve(result);
+      try { result.payload = JSON.parse(stdout.trim()); } catch (error) { return reject(error); }
+      resolve(result);
+    });
+  });
+}
+
+function startWorker(operation, root, argument = "") {
+  const child = spawn(process.execPath, [processWorkerFile, operation, root, String(argument)], {
+    env: {
+      ...process.env,
+      XLB_P4_ORCHESTRATOR_MODULE: p4ModuleFile,
+      XLB_P5_CUTOVER_MODULE: p5ModuleFile,
+      XLB_P5_PROGRESS_STORE_MODULE: progressStoreModuleFile,
+    },
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  const firstLine = new Promise((resolve, reject) => {
+    let pending = "";
+    child.stdout.setEncoding("utf8");
+    child.stdout.on("data", chunk => {
+      pending += chunk;
+      const newline = pending.indexOf("\n");
+      if (newline >= 0) {
+        try { resolve(JSON.parse(pending.slice(0, newline))); } catch (error) { reject(error); }
+      }
+    });
+    child.once("error", reject);
+  });
+  const exited = new Promise((resolve, reject) => {
+    child.once("exit", (code, signal) => resolve({ code, signal }));
+    child.once("error", reject);
+  });
+  return { child, firstLine, exited };
+}
+
+function processStore(root, overrides = {}) {
+  return progressStoreModule.createFileProgressStore({
+    artifactRoot: path.resolve(root),
+    releaseId,
+    planSha256: "c".repeat(64),
+    lockTimeoutMs: 100,
+    retryDelayMs: 5,
+    ...overrides,
+  });
+}
 
 afterEach(() => {
   while (temporaryRoots.length) rmSync(temporaryRoots.pop(), { recursive: true, force: true });
@@ -860,4 +933,181 @@ test("50 failure resumes across instances then 100 rollback restores the full re
   assert.deepEqual(finalProviderState.applies.map(item => item.toWeight), [5, 25, 50, 100, 50, 25, 5, 0]);
   assert.equal(readJson(input.files.evidence).rollback.result, "PASS");
   assert.equal(readJson(input.files.checkpoint).currentState, "ROLLED_BACK");
+});
+
+test("independent child processes persist 25/50/100 and resume a failed 50 observation", async () => {
+  const input = fixture();
+  await prepareJobsSwitched(input);
+
+  const five = await runWorker("advance", input.repoRoot, 5);
+  assert.equal(five.code, 0, five.stderr);
+  assert.equal(five.payload.checkpointState, "TRAFFIC_5");
+
+  const twentyFive = await runWorker("advance", input.repoRoot, 25);
+  assert.equal(twentyFive.code, 0, twentyFive.stderr);
+  assert.equal(twentyFive.payload.checkpointState, "TRAFFIC_25");
+
+  const failedFifty = await runWorker("fail", input.repoRoot, 50);
+  assert.equal(failedFifty.code, 0, failedFifty.stderr);
+  assert.equal(failedFifty.payload.status, "FAILED");
+  assert.equal(failedFifty.payload.failure.resumeState, "TRAFFIC_50");
+  assert.equal(failedFifty.payload.progress.status, "OBSERVATION_FAILED");
+
+  const resumedFifty = await runWorker("resume", input.repoRoot, 50);
+  assert.equal(resumedFifty.code, 0, resumedFifty.stderr);
+  assert.equal(resumedFifty.payload.checkpointState, "TRAFFIC_50");
+  assert.equal(resumedFifty.payload.progress.status, "READY");
+
+  const hundred = await runWorker("advance", input.repoRoot, 100);
+  assert.equal(hundred.code, 0, hundred.stderr);
+  assert.equal(hundred.payload.checkpointState, "TRAFFIC_100");
+  assert.equal(hundred.payload.progress.status, "CUTOVER_COMPLETE");
+
+  assert.equal(new Set([five.pid, twentyFive.pid, failedFifty.pid, resumedFifty.pid, hundred.pid]).size, 5);
+  assert.deepEqual(hundred.payload.provider.applies.map(item => item.toWeight), [5, 25, 50, 100]);
+  assert.equal(hundred.payload.provider.applies.filter(item => item.toWeight === 50).length, 1);
+  assert.ok(hundred.payload.observer.calls.every(item => item.minimumObservationSeconds === 900));
+  assert.equal(failedFifty.payload.contexts[0].idempotencyKey, resumedFifty.payload.contexts[0].idempotencyKey);
+  assert.ok(resumedFifty.payload.contexts[0].fencingToken > failedFifty.payload.contexts[0].fencingToken);
+  assert.equal(readJson(input.files.checkpoint).artifactHashes.evidenceBundle, sha256File(input.files.evidence));
+  const receipt = readJson(path.join(path.dirname(input.files.manifest), "receipts", "traffic-100.json"));
+  assert.equal(receipt.mode, "REAL");
+  assert.equal(receipt.fencingToken, hundred.payload.contexts[0].fencingToken);
+
+  const rolledBack = await runWorker("rollback", input.repoRoot, 0);
+  assert.equal(rolledBack.code, 0, rolledBack.stderr);
+  assert.equal(rolledBack.payload.status, "ROLLED_BACK");
+  assert.equal(rolledBack.payload.checkpointState, "ROLLED_BACK");
+  assert.deepEqual(rolledBack.payload.progress.rollback.transitions.map(item => [item.fromWeight, item.toWeight]), [
+    [100, 50],
+    [50, 25],
+    [25, 5],
+    [5, 0],
+  ]);
+  assert.deepEqual(rolledBack.payload.provider.applies.map(item => item.toWeight), [5, 25, 50, 100, 50, 25, 5, 0]);
+  assert.notEqual(rolledBack.pid, hundred.pid);
+});
+
+test("child crashes on both P5/P4 commit boundaries recover without replaying provider apply", async () => {
+  const input = fixture();
+  await prepareJobsSwitched(input);
+  for (const weight of [5, 25]) {
+    const step = await runWorker("advance", input.repoRoot, weight);
+    assert.equal(step.code, 0, step.stderr);
+  }
+
+  const providerCrash = await runWorker("crash-after-provider-apply", input.repoRoot, 50);
+  assert.equal(providerCrash.code, 91, providerCrash.stderr);
+  assert.equal(readJson(input.files.checkpoint).currentState, "TRAFFIC_25");
+  let provider = readJson(input.absolute(input.ref("progress/process-provider.json")));
+  assert.deepEqual(provider.applies.map(item => item.toWeight), [5, 25, 50]);
+  let plan50 = readJson(input.absolute(input.ref("process-plan-50.json")));
+  let progress = progressStoreModule.createFileProgressStore({
+    artifactRoot: input.absolute(".artifacts/tke"), releaseId, planSha256: plan50.planSha256,
+  }).load();
+  assert.equal(progress.currentWeight, 25);
+  assert.equal(progress.pendingOperation.phase, "APPLY");
+  assert.equal(progress.pendingOperation.toWeight, 50);
+  await new Promise(resolve => setTimeout(resolve, 1_050));
+
+  const recoveredFifty = await runWorker("advance", input.repoRoot, 50);
+  assert.equal(recoveredFifty.code, 0, recoveredFifty.stderr);
+  assert.equal(recoveredFifty.payload.checkpointState, "TRAFFIC_50");
+  provider = recoveredFifty.payload.provider;
+  assert.equal(provider.applies.filter(item => item.toWeight === 50).length, 1);
+  plan50 = readJson(input.absolute(input.ref("process-plan-50.json")));
+  assert.equal(provider.applies.find(item => item.toWeight === 50).idempotencyKey,
+    `${releaseId}:${plan50.planSha256.slice(0, 12)}:forward:25-50`);
+
+  const progressCrash = await runWorker("crash-after-progress-commit", input.repoRoot, 100);
+  assert.equal(progressCrash.code, 92, progressCrash.stderr);
+  assert.equal(readJson(input.files.checkpoint).currentState, "TRAFFIC_50");
+  provider = readJson(input.absolute(input.ref("progress/process-provider.json")));
+  assert.deepEqual(provider.applies.map(item => item.toWeight), [5, 25, 50, 100]);
+  const plan100 = readJson(input.absolute(input.ref("process-plan-100.json")));
+  progress = progressStoreModule.createFileProgressStore({
+    artifactRoot: input.absolute(".artifacts/tke"), releaseId, planSha256: plan100.planSha256,
+  }).load();
+  assert.equal(progress.currentWeight, 100);
+  assert.equal(progress.status, "CUTOVER_COMPLETE");
+  assert.equal(progress.pendingOperation, undefined);
+  await new Promise(resolve => setTimeout(resolve, 1_050));
+
+  const recoveredHundred = await runWorker("advance", input.repoRoot, 100);
+  assert.equal(recoveredHundred.code, 0, recoveredHundred.stderr);
+  assert.equal(recoveredHundred.payload.checkpointState, "TRAFFIC_100");
+  assert.equal(recoveredHundred.payload.provider.applies.filter(item => item.toWeight === 100).length, 1);
+  assert.equal(recoveredHundred.payload.provider.applies.find(item => item.toWeight === 100).idempotencyKey,
+    `${releaseId}:${plan100.planSha256.slice(0, 12)}:forward:50-100`);
+});
+
+test("production file store has exactly one child-process CAS winner", async () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "xlb-p5-store-race-"));
+  temporaryRoots.push(root);
+  const outcomes = await Promise.all([
+    runWorker("store-cas", root, "contender-a"),
+    runWorker("store-cas", root, "contender-b"),
+  ]);
+  assert.ok(outcomes.every(result => result.code === 0), outcomes.map(result => result.stderr).join("\n"));
+  assert.deepEqual(outcomes.map(result => result.payload.won).sort(), [false, true]);
+  assert.equal(new Set(outcomes.map(result => result.pid)).size, 2);
+  const winner = outcomes.find(result => result.payload.won).payload.contender;
+  const persisted = processStore(root).load();
+  assert.equal(persisted.revision, 1);
+  assert.equal(persisted.contender, winner);
+});
+
+test("production file store recovers only a confirmed dead child lock", async () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "xlb-p5-store-lock-"));
+  temporaryRoots.push(root);
+  const held = startWorker("store-hold", root);
+  const owner = await held.firstLine;
+  const store = processStore(root, { now: () => new Date(Date.now() + 60_000) });
+  const confirmation = `RECOVER_ABANDONED_LOCK:${releaseId}:${"c".repeat(64)}:${owner.nonce}`;
+
+  assert.throws(
+    () => store.recoverAbandonedLock({ expectedNonce: owner.nonce, minimumAgeMs: 1, confirmation }),
+    /still alive; recovery denied/,
+  );
+  assert.throws(
+    () => store.recoverAbandonedLock({ expectedNonce: owner.nonce, minimumAgeMs: 1, confirmation: `${confirmation}-wrong` }),
+    /not exactly bound/,
+  );
+
+  held.child.kill("SIGKILL");
+  await held.exited;
+  const recovered = store.recoverAbandonedLock({ expectedNonce: owner.nonce, minimumAgeMs: 1, confirmation });
+  assert.equal(recovered.recoveredNonce, owner.nonce);
+  assert.match(recovered.quarantined, /quarantine/);
+  const cas = await runWorker("store-cas", root, "after-dead-owner");
+  assert.equal(cas.code, 0, cas.stderr);
+  assert.equal(cas.payload.won, true);
+});
+
+test("production file store fails closed on corrupt main and never promotes orphan temp", async () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "xlb-p5-store-corrupt-"));
+  temporaryRoots.push(root);
+  const store = processStore(root);
+  mkdirSync(path.dirname(store.file), { recursive: true });
+  writeFileSync(store.file, "{not-json", "utf8");
+  const orphan = path.join(path.dirname(store.file), `${"c".repeat(64)}.tmp-orphan`);
+  writeJson(orphan, {
+    releaseId,
+    planSha256: "c".repeat(64),
+    revision: 99,
+    status: "READY",
+  });
+
+  const load = await runWorker("store-load", root, "");
+  assert.notEqual(load.code, 0);
+  assert.match(load.stderr, /corrupt JSON; refusing temp-file recovery/);
+  assert.equal(readFileSync(store.file, "utf8"), "{not-json");
+
+  const cas = await runWorker("store-cas", root, "must-not-win");
+  assert.notEqual(cas.code, 0);
+  assert.match(cas.stderr, /corrupt JSON/);
+  assert.equal(readFileSync(store.file, "utf8"), "{not-json");
+  const quarantined = readdirSync(path.join(path.dirname(store.file), "quarantine"));
+  assert.equal(quarantined.length, 1);
+  assert.match(quarantined[0], /\.tmp-orphan\.orphan-/);
 });

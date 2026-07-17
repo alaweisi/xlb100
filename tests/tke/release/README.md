@@ -56,10 +56,26 @@ Gate 2 acceptance continues through `5/25/50/100`, rejects skipped levels,
 reloads P4 plus a disk-backed P5 CAS store after process restart, resumes a
 50-percent observation failure without replaying apply, and reverses the
 complete `100/50/25/5/0` rollback prefix.
+Gate 2 also launches separate Node child processes for the 25/50/100 stages.
+Those processes use the production P5 file progress-store implementation,
+and exercise both crash windows: provider apply before progress commit and P5
+progress commit before P4 checkpoint commit. Recovery must keep the same
+idempotency key without replaying provider apply. The P5 product-store suite
+separately proves single-winner concurrent CAS, corrupt-main fail-closed,
+orphan-temp isolation, and dead-owner recovery without time-based live-owner
+takeover.
 The tests resolve P4/P5 from the current integrated checkout. Pre-integration
 branch validation may explicitly inject the two module files with
-`XLB_P4_ORCHESTRATOR_MODULE` and `XLB_P5_CUTOVER_MODULE`; no sibling-worktree
-path is inferred or persisted.
+`XLB_P4_ORCHESTRATOR_MODULE`, `XLB_P5_CUTOVER_MODULE`, and
+`XLB_P5_PROGRESS_STORE_MODULE`; no sibling-worktree path is inferred or
+persisted.
+
+The final pre-integration child-process run was explicitly pinned to P4
+`a5dda43` and P5 `d89a895` (which contains `efe3a93`). This suite proves the
+listed process-boundary integration scenarios only. Gate 2 still requires the
+P5 product-store review to close its separate path-confinement, recovery-token,
+and double-recovery findings before the integrated line can be declared
+successful.
 
 - Replace selected fakes with the kind/local-registry/MySQL/Redis test harness
   when runtime-level coverage is scheduled; keep Tencent Cloud providers
