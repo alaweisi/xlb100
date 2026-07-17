@@ -45,6 +45,21 @@ node deploy/tke/cutover/cutover-controller.mjs `
 The integration owner wires this library to the P4 orchestrator and chooses a
 real provider transport only during a separately authorized N7/N8 execution.
 
+`runtime.mjs` is the product composition root. Production and staging default
+to the durable file store; they cannot select or inject memory progress.
+Simulation must opt into memory explicitly:
+
+```js
+const { controller, store, adapter } = createCutoverRuntime({
+  plan, artifactRoot, transport, observer, mode: "production", now,
+});
+
+const simulation = createCutoverRuntime({
+  plan, artifactRoot, transport, observer,
+  mode: "simulation", storeType: "memory",
+});
+```
+
 ## Cross-process progress store
 
 `file-progress-store.mjs` is the production file-backed implementation of the
@@ -65,16 +80,23 @@ temporary file, and atomically renames it. Corrupt main JSON is fail-closed and
 orphan temporary files are quarantined rather than promoted.
 
 `recoverAbandonedLock` is deliberately separate from normal CAS. It requires a
-dead owner PID, a caller-selected minimum lock age, the exact current nonce,
+dead owner PID, a minimum lock age that cannot go below the production
+15-minute safety floor, the exact current nonce,
 and this exact transient confirmation string:
 
 ```text
-RECOVER_ABANDONED_LOCK:<releaseId>:<planSha256>:<ownerNonce>
+RECOVER_ABANDONED_LOCK:<releaseId>:<planSha256>:<ownerNonce>:<minimumAgeMs>:RECOVER
 ```
 
-Recovery quarantines the canonical lock directory. The old owner can no longer
+Recovery first acquires a separate nonce-owned recovery mutex, then rereads the
+canonical owner and verifies its nonce immediately before quarantine. Two
+recoverers therefore cannot quarantine the same owner, and an ABA replacement
+owner cannot be isolated by stale recovery intent. Recovery quarantines the
+canonical lock directory. The old owner can no longer
 pass the canonical nonce check and therefore cannot commit progress after it
-resumes. Owner metadata also records the host name. Automatic recovery is
+resumes. Every load, quarantine, and recovery operation rechecks `lstat`,
+physical containment, and rejects symlinks/junctions/reparse aliases. Owner
+metadata also records the host name. Automatic recovery is
 allowed only for a dead PID on the same host; a lock from another host fails
 closed and requires external storage/provider fencing. Neither checkpoints nor
 lock metadata may contain credentials, authorizations, approvals,

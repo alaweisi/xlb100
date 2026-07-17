@@ -7,6 +7,8 @@ function parseEnvironment(name) {
 
 const command = process.argv[2];
 const options = parseEnvironment("XLB_FILE_STORE_OPTIONS");
+const recoveryRequest = process.env.XLB_FILE_STORE_RECOVERY ? parseEnvironment("XLB_FILE_STORE_RECOVERY") : undefined;
+if (recoveryRequest?.nowIso) options.now = () => new Date(recoveryRequest.nowIso);
 const store = createFileProgressStore(options);
 
 if (command === "cas") {
@@ -26,6 +28,15 @@ if (command === "cas") {
   // Deliberately do not install a signal cleanup handler: killing this fixture
   // simulates a crashed owner and leaves the exclusive directory for recovery.
   setInterval(() => {}, 60_000);
+} else if (command === "recover") {
+  const { nowIso: _nowIso, ...request } = recoveryRequest;
+  try {
+    const result = store.recoverAbandonedLock(request);
+    process.stdout.write(`${JSON.stringify({ recovered: true, result })}\n`);
+  } catch (error) {
+    process.stderr.write(`${error.message}\n`);
+    process.exitCode = 1;
+  }
 } else {
   throw new Error(`unknown child fixture command: ${command}`);
 }

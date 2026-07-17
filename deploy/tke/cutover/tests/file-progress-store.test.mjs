@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
-import { createFileProgressStore } from "../file-progress-store.mjs";
+import { createFileProgressStore, PRODUCTION_RECOVERY_MINIMUM_AGE_MS } from "../file-progress-store.mjs";
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
 const childFixture = path.join(directory, "file-progress-store-child.mjs");
@@ -19,7 +19,26 @@ function temporaryRoot(t) {
 }
 
 function progress(revision, extra = {}) {
-  return { releaseId, planSha256, revision, status: "READY", ...extra };
+  return {
+    schemaVersion: 1,
+    releaseId,
+    environment: "production",
+    trafficProvider: "clb",
+    planSha256,
+    artifactHashes: {
+      releaseManifest: "b".repeat(64), cloudBundle: "c".repeat(64),
+      evidenceBundle: "d".repeat(64), checkpoint: "e".repeat(64),
+    },
+    initialWeight: 0,
+    status: "READY",
+    currentWeight: 0,
+    completedWeights: [],
+    observations: [],
+    rollback: { status: "NOT_STARTED", transitions: [] },
+    revision,
+    updatedAt: "2026-07-17T01:00:00Z",
+    ...extra,
+  };
 }
 
 function create(root, overrides = {}) {
@@ -113,6 +132,8 @@ test("rejects traversal identities, revision jumps, and persisted decisions or s
   const store = create(root);
   assert.throws(() => store.compareAndSwap(0, progress(2)), /increment expectedRevision/);
   assert.throws(() => store.compareAndSwap(0, progress(1, { authorization: true })), /forbidden/);
+  assert.throws(() => store.compareAndSwap(0, progress(1, { nested: { releaseConfirmation: "yes" } })), /forbidden/);
+  assert.throws(() => store.compareAndSwap(0, progress(1, { unexpected: true })), /not allowed/);
   assert.equal(store.load(), undefined);
 });
 
@@ -156,16 +177,132 @@ test("abandoned lock recovery requires dead owner, age, nonce, and exact confirm
     stdio: ["ignore", "pipe", "pipe"],
   });
   const owner = JSON.parse(await waitForLine(child.stdout));
-  const clock = new Date(Date.now() + 60_000);
+  const clock = new Date(Date.now() + PRODUCTION_RECOVERY_MINIMUM_AGE_MS + 60_000);
   const store = create(root, { now: () => clock });
-  const exact = `RECOVER_ABANDONED_LOCK:${releaseId}:${planSha256}:${owner.nonce}`;
-  assert.throws(() => store.recoverAbandonedLock({ expectedNonce: owner.nonce, minimumAgeMs: 1, confirmation: exact }), /still alive/);
-  assert.throws(() => store.recoverAbandonedLock({ expectedNonce: owner.nonce, minimumAgeMs: 1, confirmation: `${exact}-wrong` }), /not exactly bound/);
+  const minimumAgeMs = PRODUCTION_RECOVERY_MINIMUM_AGE_MS;
+  const exact = `RECOVER_ABANDONED_LOCK:${releaseId}:${planSha256}:${owner.nonce}:${minimumAgeMs}:RECOVER`;
+  assert.throws(() => store.recoverAbandonedLock({ expectedNonce: owner.nonce, minimumAgeMs, confirmation: exact }), /still alive/);
+  assert.throws(() => store.recoverAbandonedLock({ expectedNonce: owner.nonce, minimumAgeMs, confirmation: `${exact}-wrong` }), /not exactly bound/);
 
   child.kill("SIGKILL");
   await waitForExit(child);
-  const recovered = store.recoverAbandonedLock({ expectedNonce: owner.nonce, minimumAgeMs: 1, confirmation: exact });
+  const recovered = store.recoverAbandonedLock({ expectedNonce: owner.nonce, minimumAgeMs, confirmation: exact });
   assert.equal(recovered.recoveredNonce, owner.nonce);
   assert.ok(recovered.quarantined.includes("quarantine"));
   assert.equal(store.compareAndSwap(0, progress(1)), true);
 });
+
+test("production recovery minimum age is an immutable floor bound into confirmation", t => {
+  const root = temporaryRoot(t);
+  const store = create(root);
+  const nonce = "1".repeat(32);
+  const lowered = PRODUCTION_RECOVERY_MINIMUM_AGE_MS - 1;
+  const confirmation = `RECOVER_ABANDONED_LOCK:${releaseId}:${planSha256}:${nonce}:${lowered}:RECOVER`;
+  assert.throws(
+    () => store.recoverAbandonedLock({ expectedNonce: nonce, minimumAgeMs: lowered, confirmation }),
+    /cannot be lower.*safety floor/,
+  );
+});
+
+test("recovery rejects a junction or symlink before reading or quarantining its owner", t => {
+  const root = temporaryRoot(t);
+  const outside = temporaryRoot(t);
+  const store = create(root);
+  mkdirSync(outside, { recursive: true });
+  symlinkSync(outside, store.lockDirectory, process.platform === "win32" ? "junction" : "dir");
+  const nonce = "2".repeat(32);
+  const minimumAgeMs = PRODUCTION_RECOVERY_MINIMUM_AGE_MS;
+  const confirmation = `RECOVER_ABANDONED_LOCK:${releaseId}:${planSha256}:${nonce}:${minimumAgeMs}:RECOVER`;
+  assert.throws(
+    () => store.recoverAbandonedLock({ expectedNonce: nonce, minimumAgeMs, confirmation }),
+    /symbolic link, junction, or reparse point|resolves through/,
+  );
+  assert.ok(readdirSync(outside).length === 0);
+});
+
+test("orphan quarantine rejects a symlink instead of following it outside artifactRoot", t => {
+  const root = temporaryRoot(t);
+  const outside = temporaryRoot(t);
+  const store = create(root);
+  const outsideFile = path.join(outside, "outside.json");
+  writeFileSync(outsideFile, `${JSON.stringify(progress(99))}\n`, "utf8");
+  const orphan = path.join(path.dirname(store.file), `${planSha256}.tmp-malicious`);
+  symlinkSync(outside, orphan, process.platform === "win32" ? "junction" : "dir");
+  assert.throws(() => store.compareAndSwap(0, progress(1)), /symbolic link, junction, or reparse point|resolves through/);
+  assert.equal(JSON.parse(readFileSync(outsideFile, "utf8")).revision, 99);
+  assert.equal(store.load(), undefined);
+});
+
+test("two recovery workers cannot both quarantine the same abandoned owner", async t => {
+  const root = temporaryRoot(t);
+  const child = spawn(process.execPath, [childFixture, "hold"], {
+    env: childEnvironment(root),
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  const owner = JSON.parse(await waitForLine(child.stdout));
+  child.kill("SIGKILL");
+  await waitForExit(child);
+
+  const minimumAgeMs = PRODUCTION_RECOVERY_MINIMUM_AGE_MS;
+  const confirmation = `RECOVER_ABANDONED_LOCK:${releaseId}:${planSha256}:${owner.nonce}:${minimumAgeMs}:RECOVER`;
+  const recovery = {
+    expectedNonce: owner.nonce,
+    minimumAgeMs,
+    confirmation,
+    nowIso: new Date(Date.now() + minimumAgeMs + 60_000).toISOString(),
+  };
+  const run = () => new Promise(resolve => {
+    const worker = spawn(process.execPath, [childFixture, "recover"], {
+      env: { ...childEnvironment(root), XLB_FILE_STORE_RECOVERY: JSON.stringify(recovery) },
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let stdout = "";
+    worker.stdout.on("data", chunk => { stdout += chunk; });
+    worker.on("exit", code => resolve({ code, stdout }));
+  });
+  const results = await Promise.all([run(), run()]);
+  assert.equal(results.filter(item => item.code === 0).length, 1);
+  assert.equal(results.filter(item => item.code !== 0).length, 1);
+  assert.equal(readdirSync(path.join(path.dirname(create(root).file), "quarantine")).filter(name => name.includes(".abandoned-")).length, 1);
+});
+
+test("recovery re-reads owner nonce and never quarantines an ABA replacement", t => {
+  const root = temporaryRoot(t);
+  const bootstrap = create(root);
+  mkdirSync(bootstrap.lockDirectory);
+  const oldNonce = "3".repeat(32);
+  const newNonce = "4".repeat(32);
+  const acquiredAt = new Date(Date.now() - PRODUCTION_RECOVERY_MINIMUM_AGE_MS - 60_000).toISOString();
+  const ownerFile = path.join(bootstrap.lockDirectory, "owner.json");
+  const owner = nonce => ({
+    schemaVersion: 1, releaseId, planSha256, nonce, pid: 2_000_000_000,
+    hostname: os.hostname(), acquiredAt,
+  });
+  writeFileSync(ownerFile, `${JSON.stringify(owner(oldNonce))}\n`, "utf8");
+  let clockReads = 0;
+  const store = create(root, {
+    now: () => {
+      clockReads += 1;
+      // First call timestamps the recovery mutex. Replace the canonical owner
+      // at the age-check boundary to model a lock ABA race.
+      if (clockReads === 2) writeFileSync(ownerFile, `${JSON.stringify(owner(newNonce))}\n`, "utf8");
+      return new Date();
+    },
+  });
+  const minimumAgeMs = PRODUCTION_RECOVERY_MINIMUM_AGE_MS;
+  const confirmation = `RECOVER_ABANDONED_LOCK:${releaseId}:${planSha256}:${oldNonce}:${minimumAgeMs}:RECOVER`;
+  assert.throws(
+    () => store.recoverAbandonedLock({ expectedNonce: oldNonce, minimumAgeMs, confirmation }),
+    /owner changed|nonce does not match/,
+  );
+  assert.equal(JSON.parse(readFileSync(ownerFile, "utf8")).nonce, newNonce);
+  assert.ok(lstatExists(bootstrap.lockDirectory));
+});
+
+function lstatExists(candidate) {
+  try {
+    return Boolean(readFileSync(path.join(candidate, "owner.json")));
+  } catch {
+    return false;
+  }
+}
