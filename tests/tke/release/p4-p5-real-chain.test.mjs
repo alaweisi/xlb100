@@ -8,6 +8,7 @@ import {
   readFileSync,
   readdirSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import os from "node:os";
@@ -41,10 +42,15 @@ const progressStoreModuleFile = resolveWave2Module(
   "deploy/tke/cutover/file-progress-store.mjs",
   "XLB_P5_PROGRESS_STORE_MODULE",
 );
-const [p4, p5, progressStoreModule] = await Promise.all([
+const runtimeModuleFile = resolveWave2Module(
+  "deploy/tke/cutover/runtime.mjs",
+  "XLB_P5_RUNTIME_MODULE",
+);
+const [p4, p5, progressStoreModule, runtimeModule] = await Promise.all([
   import(pathToFileURL(p4ModuleFile)),
   import(pathToFileURL(p5ModuleFile)),
   import(pathToFileURL(progressStoreModuleFile)),
+  import(pathToFileURL(runtimeModuleFile)),
 ]);
 let restartSequence = 0;
 const reloadP4 = () => import(`${pathToFileURL(p4ModuleFile).href}?restart=${restartSequence += 1}`);
@@ -58,6 +64,7 @@ function runWorker(operation, root, argument) {
         XLB_P4_ORCHESTRATOR_MODULE: p4ModuleFile,
         XLB_P5_CUTOVER_MODULE: p5ModuleFile,
         XLB_P5_PROGRESS_STORE_MODULE: progressStoreModuleFile,
+        XLB_P5_RUNTIME_MODULE: runtimeModuleFile,
       },
       stdio: ["ignore", "pipe", "pipe"],
     });
@@ -82,6 +89,7 @@ function startWorker(operation, root, argument = "") {
       XLB_P4_ORCHESTRATOR_MODULE: p4ModuleFile,
       XLB_P5_CUTOVER_MODULE: p5ModuleFile,
       XLB_P5_PROGRESS_STORE_MODULE: progressStoreModuleFile,
+      XLB_P5_RUNTIME_MODULE: runtimeModuleFile,
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -113,6 +121,31 @@ function processStore(root, overrides = {}) {
     retryDelayMs: 5,
     ...overrides,
   });
+}
+
+function initialStoreProgress(overrides = {}) {
+  return {
+    schemaVersion: 1,
+    releaseId,
+    environment: "production",
+    trafficProvider: "clb",
+    planSha256: "c".repeat(64),
+    artifactHashes: {
+      releaseManifest: "a".repeat(64),
+      cloudBundle: "b".repeat(64),
+      evidenceBundle: "d".repeat(64),
+      checkpoint: "e".repeat(64),
+    },
+    initialWeight: 0,
+    status: "READY",
+    currentWeight: 0,
+    completedWeights: [],
+    observations: [],
+    rollback: { status: "NOT_STARTED", transitions: [] },
+    revision: 1,
+    updatedAt: fixedNow.toISOString(),
+    ...overrides,
+  };
 }
 
 afterEach(() => {
@@ -437,14 +470,15 @@ class FileTrafficObserver {
 function p5Runtime(input, plan, { initialWeight = plan.initialWeight, failOnce = false } = {}) {
   const transport = new FileTrafficTransport(input, initialWeight);
   const observer = new FileTrafficObserver(input, { failOnce });
-  const store = p5.createMemoryProgressStore();
-  const controller = new p5.CutoverController({
-    adapter: p5.createClbAdapter(transport),
+  const runtime = runtimeModule.createCutoverRuntime({
+    plan,
+    artifactRoot: input.absolute(".artifacts/tke"),
+    transport,
     observer,
-    store,
+    mode: "production",
     now: input.clock,
   });
-  return { controller, transport, observer, store };
+  return { ...runtime, transport, observer };
 }
 
 function p4TrafficExecutor(input, plan, runtime, { rollback = false, targetWeight = 5 } = {}) {
@@ -497,23 +531,6 @@ function p4TrafficExecutor(input, plan, runtime, { rollback = false, targetWeigh
     });
   };
   return { executor, contexts };
-}
-
-class FileCasProgressStore {
-  constructor(file) {
-    this.file = file;
-  }
-
-  load() {
-    return existsSync(this.file) ? readJson(this.file) : undefined;
-  }
-
-  compareAndSwap(expectedRevision, next) {
-    const actualRevision = this.load()?.revision ?? 0;
-    if (actualRevision !== expectedRevision) return false;
-    writeJson(this.file, next);
-    return true;
-  }
 }
 
 class PersistentTrafficTransport {
@@ -590,28 +607,27 @@ class PersistentTrafficObserver {
 }
 
 function persistentRuntime(input, plan, {
-  progressFile,
   transportFile,
   observerFile,
   failOnceAt,
   initialWeight = plan.initialWeight,
 } = {}) {
-  const store = new FileCasProgressStore(progressFile);
   const transport = new PersistentTrafficTransport(input, transportFile, initialWeight);
   const observer = new PersistentTrafficObserver(input, observerFile, { failOnceAt });
-  const controller = new p5.CutoverController({
-    adapter: p5.createClbAdapter(transport),
+  const runtime = runtimeModule.createCutoverRuntime({
+    plan,
+    artifactRoot: input.absolute(".artifacts/tke"),
+    transport,
     observer,
-    store,
+    mode: "production",
     now: input.clock,
   });
-  return { controller, transport, observer, store };
+  return { ...runtime, transport, observer };
 }
 
 function persistentFiles(input, plan, name = plan.planSha256.slice(0, 12)) {
   const root = input.absolute(input.ref("progress"));
   return {
-    progressFile: path.join(root, `${name}-progress.json`),
     transportFile: path.join(root, "provider-state.json"),
     observerFile: path.join(root, "observer-state.json"),
   };
@@ -846,7 +862,12 @@ test("process restart after 25 reloads disk checkpoint evidence and CAS progress
 
   const plan50 = buildPlan(input);
   const files50 = persistentFiles(input, plan50);
-  const seededStore = new FileCasProgressStore(files50.progressFile);
+  const seededStore = progressStoreModule.createFileProgressStore({
+    artifactRoot: input.absolute(".artifacts/tke"),
+    releaseId,
+    planSha256: plan50.planSha256,
+    now: input.clock,
+  });
   assert.equal(seededStore.compareAndSwap(0, p5.createInitialProgress(plan50, fixedNow)), true);
   assert.deepEqual(seededStore.load().completedWeights, [5, 25]);
 
@@ -1051,10 +1072,9 @@ test("production file store has exactly one child-process CAS winner", async () 
   assert.ok(outcomes.every(result => result.code === 0), outcomes.map(result => result.stderr).join("\n"));
   assert.deepEqual(outcomes.map(result => result.payload.won).sort(), [false, true]);
   assert.equal(new Set(outcomes.map(result => result.pid)).size, 2);
-  const winner = outcomes.find(result => result.payload.won).payload.contender;
   const persisted = processStore(root).load();
   assert.equal(persisted.revision, 1);
-  assert.equal(persisted.contender, winner);
+  assert.equal(persisted.status, "READY");
 });
 
 test("production file store recovers only a confirmed dead child lock", async () => {
@@ -1062,26 +1082,136 @@ test("production file store recovers only a confirmed dead child lock", async ()
   temporaryRoots.push(root);
   const held = startWorker("store-hold", root);
   const owner = await held.firstLine;
-  const store = processStore(root, { now: () => new Date(Date.now() + 60_000) });
-  const confirmation = `RECOVER_ABANDONED_LOCK:${releaseId}:${"c".repeat(64)}:${owner.nonce}`;
+  const minimumAgeMs = 900_000;
+  const store = processStore(root, { now: () => new Date(Date.now() + minimumAgeMs + 60_000) });
+  const confirmation = `RECOVER_ABANDONED_LOCK:${releaseId}:${"c".repeat(64)}:${owner.nonce}:${minimumAgeMs}:RECOVER`;
 
   assert.throws(
-    () => store.recoverAbandonedLock({ expectedNonce: owner.nonce, minimumAgeMs: 1, confirmation }),
+    () => store.recoverAbandonedLock({ expectedNonce: owner.nonce, minimumAgeMs, confirmation }),
     /still alive; recovery denied/,
   );
   assert.throws(
-    () => store.recoverAbandonedLock({ expectedNonce: owner.nonce, minimumAgeMs: 1, confirmation: `${confirmation}-wrong` }),
+    () => store.recoverAbandonedLock({ expectedNonce: owner.nonce, minimumAgeMs, confirmation: `${confirmation}-wrong` }),
     /not exactly bound/,
   );
 
   held.child.kill("SIGKILL");
   await held.exited;
-  const recovered = store.recoverAbandonedLock({ expectedNonce: owner.nonce, minimumAgeMs: 1, confirmation });
+  const recovered = store.recoverAbandonedLock({ expectedNonce: owner.nonce, minimumAgeMs, confirmation });
   assert.equal(recovered.recoveredNonce, owner.nonce);
   assert.match(recovered.quarantined, /quarantine/);
   const cas = await runWorker("store-cas", root, "after-dead-owner");
   assert.equal(cas.code, 0, cas.stderr);
   assert.equal(cas.payload.won, true);
+});
+
+test("two child recoverers produce one winner and the old confirmation cannot isolate a new owner", async () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "xlb-p5-recover-race-"));
+  temporaryRoots.push(root);
+  const held = startWorker("store-hold", root);
+  const owner = await held.firstLine;
+  held.child.kill("SIGKILL");
+  await held.exited;
+
+  const minimumAgeMs = 900_000;
+  const confirmation = `RECOVER_ABANDONED_LOCK:${releaseId}:${"c".repeat(64)}:${owner.nonce}:${minimumAgeMs}:RECOVER`;
+  const recovery = { expectedNonce: owner.nonce, minimumAgeMs, confirmation, now: new Date(Date.now() + minimumAgeMs + 60_000).toISOString() };
+  const outcomes = await Promise.all([
+    runWorker("store-recover", root, JSON.stringify(recovery)),
+    runWorker("store-recover", root, JSON.stringify(recovery)),
+  ]);
+  assert.equal(outcomes.filter(result => result.code === 0).length, 1, outcomes.map(result => result.stderr).join("\n"));
+  assert.equal(outcomes.filter(result => result.code !== 0).length, 1);
+
+  const newOwner = startWorker("store-hold", root);
+  const newIdentity = await newOwner.firstLine;
+  assert.notEqual(newIdentity.nonce, owner.nonce);
+  const store = processStore(root, { now: () => new Date(Date.now() + minimumAgeMs + 120_000) });
+  assert.throws(
+    () => store.recoverAbandonedLock({ expectedNonce: owner.nonce, minimumAgeMs, confirmation }),
+    /nonce|owner|recovery/i,
+  );
+  assert.equal(newOwner.child.exitCode, null);
+  newOwner.child.kill("SIGKILL");
+  await newOwner.exited;
+});
+
+test("a recovered stale owner is fenced before it can write after a new owner starts", async () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "xlb-p5-stale-owner-"));
+  temporaryRoots.push(root);
+  const stale = startWorker("store-stale-owner", root);
+  const oldIdentity = await stale.firstLine;
+  const minimumAgeMs = 900_000;
+  const confirmation = `RECOVER_ABANDONED_LOCK:${releaseId}:${"c".repeat(64)}:${oldIdentity.nonce}:${minimumAgeMs}:RECOVER`;
+  const store = processStore(root, { now: () => new Date("2026-07-17T00:00:00Z") });
+  const recovered = store.recoverAbandonedLock({ expectedNonce: oldIdentity.nonce, minimumAgeMs, confirmation });
+  assert.equal(recovered.recoveredNonce, oldIdentity.nonce);
+
+  const replacement = startWorker("store-hold", root);
+  const replacementIdentity = await replacement.firstLine;
+  assert.notEqual(replacementIdentity.nonce, oldIdentity.nonce);
+  writeFileSync(path.join(root, "resume-old-owner"), "resume\n", "utf8");
+  const staleExit = await stale.exited;
+  assert.notEqual(staleExit.code, 0);
+  assert.equal(existsSync(path.join(root, "old-owner-write.json")), false);
+  assert.equal(replacement.child.exitCode, null);
+  replacement.child.kill("SIGKILL");
+  await replacement.exited;
+});
+
+test("lock recovery confirmation cannot be replayed with a lower minimum age", async () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "xlb-p5-recover-age-"));
+  temporaryRoots.push(root);
+  const held = startWorker("store-hold", root);
+  const owner = await held.firstLine;
+  held.child.kill("SIGKILL");
+  await held.exited;
+  const approvedAgeMs = 1_800_000;
+  const confirmation = `RECOVER_ABANDONED_LOCK:${releaseId}:${"c".repeat(64)}:${owner.nonce}:${approvedAgeMs}:RECOVER`;
+  const store = processStore(root, { now: () => new Date(Date.now() + approvedAgeMs + 120_000) });
+  assert.throws(
+    () => store.recoverAbandonedLock({ expectedNonce: owner.nonce, minimumAgeMs: 900_000, confirmation }),
+    /confirmation|bound/i,
+  );
+  const recovered = store.recoverAbandonedLock({ expectedNonce: owner.nonce, minimumAgeMs: approvedAgeMs, confirmation });
+  assert.equal(recovered.recoveredNonce, owner.nonce);
+});
+
+test("quarantine junction cannot redirect orphan files outside the artifact root", () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "xlb-p5-junction-root-"));
+  const outside = mkdtempSync(path.join(os.tmpdir(), "xlb-p5-junction-outside-"));
+  temporaryRoots.push(root, outside);
+  const store = processStore(root);
+  const storeDirectory = path.dirname(store.file);
+  const quarantine = path.join(storeDirectory, "quarantine");
+  symlinkSync(outside, quarantine, "junction");
+  writeJson(path.join(storeDirectory, `${"c".repeat(64)}.tmp-junction-probe`), {
+    releaseId,
+    planSha256: "c".repeat(64),
+    revision: 99,
+  });
+  assert.throws(
+    () => store.compareAndSwap(0, initialStoreProgress()),
+    /junction|reparse|symbolic|quarantine/i,
+  );
+  assert.deepEqual(readdirSync(outside), []);
+});
+
+test("production file store rejects authorization material at any recursive depth", () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "xlb-p5-recursive-auth-"));
+  temporaryRoots.push(root);
+  const store = processStore(root);
+  assert.throws(
+    () => store.compareAndSwap(0, {
+      releaseId,
+      planSha256: "c".repeat(64),
+      revision: 1,
+      status: "READY",
+      metadata: { harmless: [{ nested: { trafficAuthorization: "TRAFFIC_100" } }] },
+    }),
+    /forbidden|authorization/i,
+  );
+  assert.equal(store.load(), undefined);
 });
 
 test("production file store fails closed on corrupt main and never promotes orphan temp", async () => {

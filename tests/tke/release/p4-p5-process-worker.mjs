@@ -20,8 +20,33 @@ const progressStoreFile = process.env.XLB_P5_PROGRESS_STORE_MODULE
   ?? path.join(repoRoot, "deploy/tke/cutover/file-progress-store.mjs");
 if (!existsSync(progressStoreFile)) throw new Error("production P5 progress store module is required");
 const storeModule = await import(pathToFileURL(progressStoreFile));
+const runtimeFile = process.env.XLB_P5_RUNTIME_MODULE
+  ?? path.join(repoRoot, "deploy/tke/cutover/runtime.mjs");
+if (!existsSync(runtimeFile)) throw new Error("production P5 runtime factory module is required");
+const runtimeModule = await import(pathToFileURL(runtimeFile));
 
 const processStorePlanSha256 = "c".repeat(64);
+const initialStoreProgress = () => ({
+  schemaVersion: 1,
+  releaseId,
+  environment: "production",
+  trafficProvider: "clb",
+  planSha256: processStorePlanSha256,
+  artifactHashes: {
+    releaseManifest: "a".repeat(64),
+    cloudBundle: "b".repeat(64),
+    evidenceBundle: "d".repeat(64),
+    checkpoint: "e".repeat(64),
+  },
+  initialWeight: 0,
+  status: "READY",
+  currentWeight: 0,
+  completedWeights: [],
+  observations: [],
+  rollback: { status: "NOT_STARTED", transitions: [] },
+  revision: 1,
+  updatedAt: fixedNow.toISOString(),
+});
 
 function createProcessStore(overrides = {}) {
   return storeModule.createFileProgressStore({
@@ -42,13 +67,7 @@ async function runStoreOperation() {
   if (operation === "store-cas") {
     const contender = argument;
     const store = createProcessStore();
-    const won = store.compareAndSwap(0, {
-      releaseId,
-      planSha256: processStorePlanSha256,
-      revision: 1,
-      status: "READY",
-      contender,
-    });
+    const won = store.compareAndSwap(0, initialStoreProgress());
     writePayload({ won, contender, value: store.load() });
     return true;
   }
@@ -67,6 +86,33 @@ async function runStoreOperation() {
       acquiredAt: lock.acquiredAt,
     });
     setInterval(() => {}, 60_000);
+    return true;
+  }
+  if (operation === "store-recover") {
+    const options = JSON.parse(argument);
+    const store = createProcessStore({
+      now: () => new Date(options.now),
+      lockTimeoutMs: 25,
+      retryDelayMs: 2,
+    });
+    writePayload(store.recoverAbandonedLock(options));
+    return true;
+  }
+  if (operation === "store-stale-owner") {
+    const store = createProcessStore();
+    const lock = store.acquireLock();
+    const ownerFile = path.join(store.lockDirectory, "owner.json");
+    const owner = readJson(ownerFile);
+    writeJson(ownerFile, { ...owner, pid: 2_147_483_647, acquiredAt: "2026-07-16T00:00:00Z" });
+    writePayload({ ready: true, nonce: lock.nonce });
+    const resumeFile = path.join(root, "resume-old-owner");
+    const deadline = Date.now() + 10_000;
+    while (!existsSync(resumeFile) && Date.now() < deadline) {
+      await new Promise(resolve => setTimeout(resolve, 10));
+    }
+    lock.assertOwnership();
+    writeJson(path.join(root, "old-owner-write.json"), { forbidden: true });
+    lock.release();
     return true;
   }
   return false;
@@ -221,14 +267,16 @@ async function runP4P5() {
   if (!existsSync(planFile)) writeJson(planFile, plan);
   const transportFile = input.absolute(input.ref("progress/process-provider.json"));
   const observerFile = input.absolute(input.ref("progress/process-observer.json"));
-  const store = storeModule.createFileProgressStore({
-    artifactRoot: input.absolute(".artifacts/tke"),
-    releaseId,
-    planSha256: plan.planSha256,
-  });
   const transport = new DiskTransport(input, transportFile, plan.initialWeight);
   const observer = new DiskObserver(input, observerFile, operation === "fail" ? targetWeight : undefined);
-  const controller = new p5.CutoverController({ adapter: p5.createClbAdapter(transport), observer, store, now: input.clock });
+  const { controller, store } = runtimeModule.createCutoverRuntime({
+    plan,
+    artifactRoot: input.absolute(".artifacts/tke"),
+    transport,
+    observer,
+    mode: "production",
+    now: input.clock,
+  });
   const contexts = [];
   const executor = async context => {
     contexts.push(structuredClone(context));
