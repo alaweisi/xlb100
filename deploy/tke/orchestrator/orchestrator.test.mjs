@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
+import { spawn } from "node:child_process";
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, test } from "node:test";
@@ -226,6 +227,12 @@ function providerResult(input, context, { provider = "reviewed-provider", mode =
     },
   };
 }
+
+const receiptFile = (input, stage) => path.join(path.dirname(input.files.manifest), "receipts", `${stage.toLowerCase().replaceAll("_", "-")}.json`);
+const pendingReceiptFiles = input => {
+  const directory = path.join(path.dirname(input.files.manifest), "receipts", ".pending");
+  return existsSync(directory) ? readdirSync(directory) : [];
+};
 
 test("prepares a schema-valid checkpoint with real artifact hashes", () => {
   const input = fixture();
@@ -671,6 +678,185 @@ test("fencing receipt mismatch never writes FAILED checkpoint or rollback latch"
   }, now: fixedNow }), /fencing token mismatch/);
   assert.equal(JSON.parse(readFileSync(deployed.files.checkpoint, "utf8")).currentState, "DEPLOYED_NO_TRAFFIC");
   assert.equal(existsSync(`${deployed.files.checkpoint}.rollback-failed.json`), false);
+});
+
+test("real releases reject simulation-only persistence and commit hooks", async () => {
+  const input = fixture();
+  await runRelease({ ...input, targetState: "ARTIFACTS_READY", now: fixedNow });
+  await assert.rejects(
+    advanceRelease({ ...input, targetState: "PLAN_REVIEWED", authorities: { terraformPlan: true }, persistenceHook: async () => {} }),
+    /simulation\/test-only/,
+  );
+  await assert.rejects(
+    advanceRelease({ ...input, targetState: "PLAN_REVIEWED", authorities: { terraformPlan: true }, commitHook: () => {} }),
+    /simulation\/test-only/,
+  );
+});
+
+for (const phase of ["forward-before-receipt-write", "forward-after-pending-receipt-write-before-commit"]) {
+  test(`new fencing owner wins deterministic forward takeover at ${phase}`, async () => {
+    const input = fixture({ simulation: true });
+    await runRelease({ ...input, targetState: "ARTIFACTS_READY", now: fixedNow });
+    let newer;
+    const oldRun = advanceRelease({
+      ...input,
+      targetState: "PLAN_REVIEWED",
+      authorities: { terraformPlan: true },
+      executor: async context => providerResult(input, context, { mode: "SIMULATION" }),
+      leaseDurationMs: 500,
+      leaseHeartbeat: false,
+      persistenceHook: async observedPhase => {
+        if (observedPhase !== phase) return;
+        await new Promise(resolve => setTimeout(resolve, 600));
+        newer = await advanceRelease({
+          ...input,
+          targetState: "PLAN_REVIEWED",
+          authorities: { terraformPlan: true },
+          executor: async context => providerResult(input, context, { mode: "SIMULATION" }),
+          leaseDurationMs: 1_000,
+          now: fixedNow,
+        });
+      },
+      now: fixedNow,
+    });
+    await assert.rejects(oldRun, error => error.code === "LEASE_LOST");
+    assert.equal(newer.status, "PLAN_REVIEWED");
+    const checkpoint = JSON.parse(readFileSync(input.files.checkpoint, "utf8"));
+    const receipt = JSON.parse(readFileSync(receiptFile(input, "PLAN_INFRASTRUCTURE"), "utf8"));
+    assert.equal(checkpoint.currentState, "PLAN_REVIEWED");
+    assert.equal(receipt.fencingToken, JSON.parse(readFileSync(`${input.files.checkpoint}.release-fence.json`, "utf8")).lastFencingToken);
+    assert.deepEqual(pendingReceiptFiles(input), []);
+  });
+}
+
+test("new fencing owner wins deterministic rollback takeover before receipt persistence", async () => {
+  const input = fixture({ simulation: true });
+  const executor = async context => providerResult(input, context, { mode: "SIMULATION" });
+  await runRelease({ ...input, targetState: "DEPLOYED_NO_TRAFFIC", authorities: allAuthorities, executor, now: fixedNow });
+  let newer;
+  const oldRun = rollbackRelease({
+    ...input,
+    executor,
+    leaseDurationMs: 40,
+    leaseHeartbeat: false,
+    persistenceHook: async phase => {
+      if (phase !== "rollback-before-receipt-write") return;
+      await new Promise(resolve => setTimeout(resolve, 70));
+      newer = await rollbackRelease({ ...input, executor, leaseDurationMs: 1_000, now: fixedNow });
+    },
+    now: fixedNow,
+  });
+  await assert.rejects(oldRun, error => error.code === "LEASE_LOST");
+  assert.equal(newer.status, "ROLLED_BACK");
+  const checkpoint = JSON.parse(readFileSync(input.files.checkpoint, "utf8"));
+  const receipt = JSON.parse(readFileSync(receiptFile(input, "ROLLBACK"), "utf8"));
+  assert.equal(checkpoint.currentState, "ROLLED_BACK");
+  assert.equal(receipt.fencingToken, JSON.parse(readFileSync(`${input.files.checkpoint}.release-fence.json`, "utf8")).lastFencingToken);
+  assert.equal(existsSync(`${input.files.checkpoint}.rollback-failed.json`), false);
+  assert.deepEqual(pendingReceiptFiles(input), []);
+});
+
+test("live cross-process commit guard blocks short-lease takeover and crashed owner is recoverable", async () => {
+  const input = fixture({ simulation: true });
+  await runRelease({ ...input, targetState: "ARTIFACTS_READY", now: fixedNow });
+  const signalFile = path.join(input.repoRoot, "commit-guard-entered");
+  const resultFile = path.join(input.repoRoot, "old-run-result");
+  const moduleUrl = new URL("./orchestrator.mjs", import.meta.url).href;
+  const childCode = `
+    import { advanceRelease } from ${JSON.stringify(moduleUrl)};
+    import { createHash } from "node:crypto";
+    import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+    import path from "node:path";
+    const input = ${JSON.stringify({ repoRoot: input.repoRoot, contractRoot, manifestFile: input.manifestFile })};
+    const signalFile = ${JSON.stringify(signalFile)};
+    const resultFile = ${JSON.stringify(resultFile)};
+    const executor = async context => {
+      const evidenceRef = ".artifacts/tke/simulations/${releaseId}/evidence/provider-plan-infrastructure.json";
+      const evidenceFile = path.join(input.repoRoot, evidenceRef);
+      mkdirSync(path.dirname(evidenceFile), { recursive: true });
+      writeFileSync(evidenceFile, JSON.stringify({ operation: context.stage, idempotencyKey: context.idempotencyKey, result: "PASS" }) + "\\n");
+      return { artifactsChanged: [], providerReceipt: { schemaVersion: 1, provider: "reviewed-provider", mode: "SIMULATION", simulation: true, operation: context.stage, idempotencyKey: context.idempotencyKey, completedAt: "2026-07-16T09:00:00.000Z", result: "PASS", evidenceRef, evidenceSha256: createHash("sha256").update(readFileSync(evidenceFile)).digest("hex"), leaseOwner: context.leaseOwner, fencingToken: context.fencingToken } };
+    };
+    try {
+      await advanceRelease({ ...input, simulation: true, targetState: "PLAN_REVIEWED", authorities: { terraformPlan: true }, executor, clock: () => new Date("2026-07-16T09:00:00Z"), leaseDurationMs: 200, commitHook: phase => { if (phase === "forward-after-durable-receipt-before-checkpoint") { writeFileSync(signalFile, "entered"); Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 600); } } });
+      writeFileSync(resultFile, "UNEXPECTED_SUCCESS");
+    } catch (error) {
+      writeFileSync(resultFile, String(error.code ?? error.message));
+    }
+  `;
+  const child = spawn(process.execPath, ["--input-type=module", "-e", childCode], { stdio: ["ignore", "pipe", "pipe"] });
+  let childStderr = "";
+  const childExit = new Promise((resolve, reject) => {
+    child.stderr.on("data", chunk => { childStderr += chunk; });
+    child.on("error", reject);
+    child.on("exit", (code, signal) => signal || code === 0 ? resolve({ code, signal }) : reject(new Error(`child exited ${code}: ${childStderr}`)));
+  });
+  for (let attempt = 0; attempt < 400 && !existsSync(signalFile); attempt += 1) await new Promise(resolve => setTimeout(resolve, 5));
+  if (!existsSync(signalFile)) {
+    await childExit;
+    assert.fail(`child never entered the commit guard; result=${existsSync(resultFile) ? readFileSync(resultFile, "utf8") : "missing"}; stderr=${childStderr}`);
+  }
+  await new Promise(resolve => setTimeout(resolve, 300));
+  await assert.rejects(
+    advanceRelease({ ...input, targetState: "PLAN_REVIEWED", authorities: { terraformPlan: true }, executor: async context => providerResult(input, context, { mode: "SIMULATION" }), leaseDurationMs: 1_000, now: fixedNow }),
+    /commit guard|takeover lost a race/,
+  );
+  assert.equal(child.kill(), true, "failed to terminate guarded child owner");
+  await childExit;
+  assert.equal(JSON.parse(readFileSync(input.files.checkpoint, "utf8")).currentState, "ARTIFACTS_READY");
+  const staleReceipt = JSON.parse(readFileSync(receiptFile(input, "PLAN_INFRASTRUCTURE"), "utf8"));
+  assert.deepEqual(pendingReceiptFiles(input), []);
+  const recovered = await advanceRelease({ ...input, targetState: "PLAN_REVIEWED", authorities: { terraformPlan: true }, executor: async context => providerResult(input, context, { mode: "SIMULATION" }), leaseDurationMs: 1_000, now: fixedNow });
+  assert.equal(recovered.status, "PLAN_REVIEWED");
+  assert.deepEqual(pendingReceiptFiles(input), []);
+  const currentReceipt = JSON.parse(readFileSync(receiptFile(input, "PLAN_INFRASTRUCTURE"), "utf8"));
+  assert.ok(currentReceipt.fencingToken > staleReceipt.fencingToken);
+  assert.equal(readdirSync(path.join(path.dirname(input.files.manifest), "receipts", "quarantine")).some(name => name.includes(`fence-${staleReceipt.fencingToken}`)), true);
+});
+
+test("crashed rollback owner quarantines its durable receipt before the new owner commits", async () => {
+  const input = fixture({ simulation: true });
+  const executor = async context => providerResult(input, context, { mode: "SIMULATION" });
+  await runRelease({ ...input, targetState: "DEPLOYED_NO_TRAFFIC", authorities: allAuthorities, executor, now: fixedNow });
+  const signalFile = path.join(input.repoRoot, "rollback-durable-receipt-written");
+  const moduleUrl = new URL("./orchestrator.mjs", import.meta.url).href;
+  const childCode = `
+    import { rollbackRelease } from ${JSON.stringify(moduleUrl)};
+    import { createHash } from "node:crypto";
+    import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+    import path from "node:path";
+    const input = ${JSON.stringify({ repoRoot: input.repoRoot, contractRoot, manifestFile: input.manifestFile })};
+    const signalFile = ${JSON.stringify(signalFile)};
+    const executor = async context => {
+      const evidenceRef = ".artifacts/tke/simulations/${releaseId}/evidence/provider-rollback.json";
+      const evidenceFile = path.join(input.repoRoot, evidenceRef);
+      mkdirSync(path.dirname(evidenceFile), { recursive: true });
+      writeFileSync(evidenceFile, JSON.stringify({ operation: context.stage, idempotencyKey: context.idempotencyKey, result: "PASS" }) + "\\n");
+      return { artifactsChanged: [], providerReceipt: { schemaVersion: 1, provider: "reviewed-provider", mode: "SIMULATION", simulation: true, operation: context.stage, idempotencyKey: context.idempotencyKey, completedAt: "2026-07-16T09:00:00.000Z", result: "PASS", evidenceRef, evidenceSha256: createHash("sha256").update(readFileSync(evidenceFile)).digest("hex"), leaseOwner: context.leaseOwner, fencingToken: context.fencingToken } };
+    };
+    await rollbackRelease({ ...input, simulation: true, executor, clock: () => new Date("2026-07-16T09:00:00Z"), leaseDurationMs: 200, commitHook: phase => { if (phase === "rollback-after-durable-receipt-before-checkpoint") { writeFileSync(signalFile, "entered"); Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 600); } } });
+  `;
+  const child = spawn(process.execPath, ["--input-type=module", "-e", childCode], { stdio: ["ignore", "pipe", "pipe"] });
+  let stderr = "";
+  child.stderr.on("data", chunk => { stderr += chunk; });
+  const childExit = new Promise((resolve, reject) => {
+    child.on("error", reject);
+    child.on("exit", (code, signal) => signal || code === 0 ? resolve() : reject(new Error(`rollback child exited ${code}: ${stderr}`)));
+  });
+  for (let attempt = 0; attempt < 400 && !existsSync(signalFile); attempt += 1) await new Promise(resolve => setTimeout(resolve, 5));
+  assert.equal(existsSync(signalFile), true, `rollback child never persisted durable receipt: ${stderr}`);
+  await new Promise(resolve => setTimeout(resolve, 300));
+  await assert.rejects(rollbackRelease({ ...input, executor, leaseDurationMs: 1_000, now: fixedNow }), /commit guard|takeover lost a race/);
+  assert.equal(child.kill(), true);
+  await childExit;
+  assert.equal(JSON.parse(readFileSync(input.files.checkpoint, "utf8")).currentState, "DEPLOYED_NO_TRAFFIC");
+  const staleReceipt = JSON.parse(readFileSync(receiptFile(input, "ROLLBACK"), "utf8"));
+  const recovered = await rollbackRelease({ ...input, executor, leaseDurationMs: 1_000, now: fixedNow });
+  assert.equal(recovered.status, "ROLLED_BACK");
+  const currentReceipt = JSON.parse(readFileSync(receiptFile(input, "ROLLBACK"), "utf8"));
+  assert.ok(currentReceipt.fencingToken > staleReceipt.fencingToken);
+  assert.equal(readdirSync(path.join(path.dirname(input.files.manifest), "receipts", "quarantine")).some(name => name.includes(`rollback.json.fence-${staleReceipt.fencingToken}`)), true);
+  assert.equal(existsSync(`${input.files.checkpoint}.rollback-failed.json`), false);
 });
 
 test("validates provider receipt against a fresh post-executor clock", async () => {

@@ -10,6 +10,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import path from "node:path";
+import { hostname } from "node:os";
 import { fileURLToPath } from "node:url";
 
 import Ajv from "ajv";
@@ -503,8 +504,9 @@ function readCheckpoint(bundle, simulation = false) {
   return { checkpoint, checkpointPath: corrected };
 }
 
-function atomicWriteCheckpoint(file, checkpoint, expectedRevision) {
+function atomicWriteCheckpoint(file, checkpoint, expectedRevision, assertCommitOwner = () => {}) {
   assertCheckpointSafe(checkpoint);
+  assertCommitOwner();
   if (existsSync(file)) {
     const disk = readJson(file, "checkpoint");
     if (disk.revision !== expectedRevision) fail(`checkpoint revision changed from ${expectedRevision} to ${disk.revision}; concurrent or stale write blocked`);
@@ -515,6 +517,7 @@ function atomicWriteCheckpoint(file, checkpoint, expectedRevision) {
   const temporary = `${file}.${process.pid}.${Date.now()}.tmp`;
   try {
     writeFileSync(temporary, jsonLine(checkpoint), "utf8");
+    assertCommitOwner();
     renameSync(temporary, file);
   } finally {
     if (existsSync(temporary)) unlinkSync(temporary);
@@ -534,13 +537,98 @@ function atomicWriteJsonFile(file, value) {
 
 function leasePaths(checkpointFile) {
   const directory = `${checkpointFile}.release-lease`;
-  return { directory, record: path.join(directory, "lease.json"), fence: `${checkpointFile}.release-fence.json` };
+  return {
+    directory,
+    record: path.join(directory, "lease.json"),
+    fence: `${checkpointFile}.release-fence.json`,
+    commitGuard: `${checkpointFile}.release-commit-guard`,
+  };
+}
+
+function withLeaseCommitGuard(paths, callback, guardOwner = {}) {
+  const guardId = `${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const recordFile = path.join(paths.commitGuard, "guard.json");
+  const host = hostname();
+  try {
+    mkdirSync(paths.commitGuard);
+    writeFileSync(recordFile, jsonLine({ schemaVersion: 1, guardId, hostname: host, processId: process.pid, ...guardOwner }), { encoding: "utf8", flag: "wx" });
+  } catch (error) {
+    if (error.code === "EEXIST") {
+      throw orchestrationError("release lease commit guard is held by another runner", { code: "RELEASE_LOCKED", retryable: true });
+    }
+    throw error;
+  }
+  const assertGuardOwned = () => {
+    const current = readJson(recordFile, "release lease commit guard");
+    if (current.guardId !== guardId || current.hostname !== host || current.processId !== process.pid) {
+      throw orchestrationError("release lease commit guard ownership changed", { code: "LEASE_LOST" });
+    }
+  };
+  try {
+    assertGuardOwned();
+    return callback(assertGuardOwned);
+  } finally {
+    try {
+      const current = readJson(recordFile, "release lease commit guard");
+      if (current.guardId === guardId) rmSync(paths.commitGuard, { recursive: true, force: true });
+    } catch (error) {
+      if (error.code !== "ENOENT") throw error;
+    }
+  }
+}
+
+function recoverExpiredCommitGuard(paths, expectedLease) {
+  if (!existsSync(paths.commitGuard)) return;
+  const guard = readJson(path.join(paths.commitGuard, "guard.json"), "release lease commit guard");
+  const currentLease = readJson(paths.record, "release lease");
+  if (currentLease.leaseId !== expectedLease.leaseId || currentLease.fencingToken !== expectedLease.fencingToken) {
+    throw orchestrationError("release lease changed while recovering commit guard", { code: "RELEASE_LOCKED", retryable: true });
+  }
+  if (Date.parse(currentLease.expiresAt) > Date.now()) {
+    throw orchestrationError("active release lease still owns the commit guard", { code: "RELEASE_LOCKED", retryable: true });
+  }
+  if (guard.hostname !== hostname() || !Number.isInteger(guard.processId) || guard.processId < 1) {
+    throw orchestrationError("expired release commit guard owner cannot be proven dead on this host", { code: "RELEASE_LOCKED", retryable: true });
+  }
+  try {
+    process.kill(guard.processId, 0);
+    throw orchestrationError("expired release commit guard owner is still alive", { code: "RELEASE_LOCKED", retryable: true });
+  } catch (error) {
+    if (error.code !== "ESRCH") throw error;
+  }
+  const quarantine = `${paths.commitGuard}.stale-${process.pid}-${Date.now()}`;
+  renameSync(paths.commitGuard, quarantine);
+  rmSync(quarantine, { recursive: true, force: true });
+}
+
+function recoverOrphanedCommitGuard(paths) {
+  if (!existsSync(paths.commitGuard)) return;
+  const guard = readJson(path.join(paths.commitGuard, "guard.json"), "orphaned release lease commit guard");
+  if (guard.hostname !== hostname() || !Number.isInteger(guard.processId) || guard.processId < 1) {
+    throw orchestrationError("orphaned release commit guard owner cannot be proven dead on this host", { code: "RELEASE_LOCKED", retryable: true });
+  }
+  try {
+    process.kill(guard.processId, 0);
+    throw orchestrationError("orphaned release commit guard owner is still alive", { code: "RELEASE_LOCKED", retryable: true });
+  } catch (error) {
+    if (error.code !== "ESRCH") throw error;
+  }
+  const quarantine = `${paths.commitGuard}.orphaned-${process.pid}-${Date.now()}`;
+  renameSync(paths.commitGuard, quarantine);
+  rmSync(quarantine, { recursive: true, force: true });
 }
 
 function acquireReleaseLease(checkpointFile, releaseId, leaseDurationMs = 30_000, heartbeatEnabled = true) {
   const paths = leasePaths(checkpointFile);
-  const create = previousToken => {
+  const create = (previousToken, heldGuardAssert) => {
     mkdirSync(paths.directory);
+    try {
+      if (heldGuardAssert) heldGuardAssert();
+      else recoverOrphanedCommitGuard(paths);
+    } catch (error) {
+      rmSync(paths.directory, { recursive: true, force: true });
+      throw error;
+    }
     const leaseId = `${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
     const owner = `runner-${process.pid}-${leaseId.slice(-8)}`;
     const fenceRecord = existsSync(paths.fence) ? readJson(paths.fence, "release fence") : undefined;
@@ -548,7 +636,9 @@ function acquireReleaseLease(checkpointFile, releaseId, leaseDurationMs = 30_000
       throw orchestrationError("release fence record is invalid", { code: "FENCE_INVALID" });
     }
     const fencingToken = Math.max(previousToken ?? 0, fenceRecord?.lastFencingToken ?? 0) + 1;
+    heldGuardAssert?.();
     atomicWriteJsonFile(paths.fence, { schemaVersion: 1, releaseId, lastFencingToken: fencingToken });
+    heldGuardAssert?.();
     const record = () => ({
       schemaVersion: 1, releaseId, leaseId, owner, fencingToken, processId: process.pid,
       expiresAt: new Date(Date.now() + leaseDurationMs).toISOString(),
@@ -557,8 +647,14 @@ function acquireReleaseLease(checkpointFile, releaseId, leaseDurationMs = 30_000
     let heartbeatError;
     const assertOwned = () => {
       if (heartbeatError) throw heartbeatError;
-      const current = readJson(paths.record, "release lease");
-      const fence = readJson(paths.fence, "release fence");
+      let current;
+      let fence;
+      try {
+        current = readJson(paths.record, "release lease");
+        fence = readJson(paths.fence, "release fence");
+      } catch {
+        throw orchestrationError("release lease ownership record disappeared or became unreadable", { code: "LEASE_LOST" });
+      }
       if (current.leaseId !== leaseId || current.owner !== owner || current.fencingToken !== fencingToken) {
         throw orchestrationError("release lease ownership changed", { code: "LEASE_LOST" });
       }
@@ -568,12 +664,23 @@ function acquireReleaseLease(checkpointFile, releaseId, leaseDurationMs = 30_000
       if (Date.parse(current.expiresAt) <= Date.now()) throw orchestrationError("release lease expired", { code: "LEASE_LOST" });
       return current;
     };
-    const renew = () => {
+    const renewWithinGuard = (assertGuardOwned = () => {}) => {
+      assertGuardOwned();
       assertOwned();
       const temporary = path.join(paths.directory, `lease.${leaseId}.tmp`);
-      writeFileSync(temporary, jsonLine(record()), { encoding: "utf8", flag: "wx" });
-      renameSync(temporary, paths.record);
+      try {
+        writeFileSync(temporary, jsonLine(record()), { encoding: "utf8", flag: "wx" });
+        assertGuardOwned();
+        assertOwned();
+        renameSync(temporary, paths.record);
+        assertGuardOwned();
+        assertOwned();
+      } finally {
+        if (existsSync(temporary)) unlinkSync(temporary);
+      }
     };
+    const guardOwner = { releaseId, leaseId, owner, fencingToken };
+    const renew = () => withLeaseCommitGuard(paths, assertGuardOwned => renewWithinGuard(assertGuardOwned), guardOwner);
     const heartbeat = heartbeatEnabled ? setInterval(() => {
       try { renew(); } catch (error) { heartbeatError = error; }
     }, Math.max(10, Math.floor(leaseDurationMs / 3))) : undefined;
@@ -583,6 +690,18 @@ function acquireReleaseLease(checkpointFile, releaseId, leaseDurationMs = 30_000
       owner,
       fencingToken,
       assertOwned,
+      renew,
+      commit(callback) {
+        return withLeaseCommitGuard(paths, assertGuardOwned => {
+          const assertCommitOwned = () => {
+            assertGuardOwned();
+            assertOwned();
+          };
+          renewWithinGuard(assertGuardOwned);
+          assertCommitOwned();
+          return callback({ assertOwned: assertCommitOwned, renew: () => renewWithinGuard(assertGuardOwned) });
+        }, guardOwner);
+      },
       release() {
         if (heartbeat) clearInterval(heartbeat);
         try {
@@ -614,9 +733,23 @@ function acquireReleaseLease(checkpointFile, releaseId, leaseDurationMs = 30_000
   }
   const quarantine = `${paths.directory}.stale-${process.pid}-${Date.now()}`;
   try {
-    renameSync(paths.directory, quarantine);
-    rmSync(quarantine, { recursive: true, force: true });
-    return create(existing.fencingToken);
+    recoverExpiredCommitGuard(paths, existing);
+    return withLeaseCommitGuard(paths, assertGuardOwned => {
+      assertGuardOwned();
+      const current = readJson(paths.record, "release lease");
+      if (current.leaseId !== existing.leaseId || current.fencingToken !== existing.fencingToken) {
+        throw orchestrationError("stale release lease takeover lost a race", { code: "RELEASE_LOCKED", retryable: true });
+      }
+      if (Date.parse(current.expiresAt) > Date.now()) {
+        throw orchestrationError("another runner renewed the release lease", { code: "RELEASE_LOCKED", retryable: true });
+      }
+      renameSync(paths.directory, quarantine);
+      assertGuardOwned();
+      rmSync(quarantine, { recursive: true, force: true });
+      quarantineStalePendingReceipts(checkpointFile, current.leaseId);
+      assertGuardOwned();
+      return create(current.fencingToken, assertGuardOwned);
+    }, { releaseId, takeoverOfLeaseId: existing.leaseId, takeoverOfFencingToken: existing.fencingToken });
   } catch {
     throw orchestrationError("stale release lease takeover lost a race", { code: "RELEASE_LOCKED", retryable: true });
   }
@@ -725,6 +858,15 @@ function validateAuthorities(authorities) {
   }
 }
 
+function validateSimulationHooks(simulation, persistenceHook, commitHook) {
+  if ((persistenceHook !== undefined && typeof persistenceHook !== "function") || (commitHook !== undefined && typeof commitHook !== "function")) {
+    fail("orchestration hooks must be functions");
+  }
+  if (!simulation && (persistenceHook !== undefined || commitHook !== undefined)) {
+    fail("persistenceHook and commitHook are simulation/test-only and are forbidden for real releases");
+  }
+}
+
 function hasRuntimeGrant(authorities, required, targetState) {
   return required === "trafficCutover"
     ? authorities.trafficCutover === targetState
@@ -769,14 +911,94 @@ function providerReceiptFile(bundle, stage) {
   return path.join(path.dirname(bundle.paths.releaseManifest.absolute), "receipts", `${stage.toLowerCase().replaceAll("_", "-")}.json`);
 }
 
-function persistProviderReceipt(bundle, stage, receipt) {
+function providerReceiptHashEntries(bundle, stage, receipt) {
   const file = providerReceiptFile(bundle, stage);
+  const name = path.basename(file);
+  return {
+    [`providerReceipt.${name}`]: sha256Content(jsonLine(receipt)),
+    [`providerEvidence.${name}`]: receipt.evidenceSha256,
+  };
+}
+
+function prepareProviderReceipt(bundle, stage, receipt, lease) {
+  if (!receipt) return undefined;
+  const file = providerReceiptFile(bundle, stage);
+  const pendingDirectory = path.join(path.dirname(file), ".pending");
+  mkdirSync(pendingDirectory, { recursive: true });
+  const pending = path.join(pendingDirectory, `${path.basename(file)}.${lease.leaseId}.${Date.now()}.pending`);
+  writeFileSync(pending, jsonLine(receipt), { encoding: "utf8", flag: "wx" });
+  return { file, pending, receipt };
+}
+
+function cleanupPendingReceipt(preparedReceipt) {
+  if (preparedReceipt?.pending && existsSync(preparedReceipt.pending)) unlinkSync(preparedReceipt.pending);
+}
+
+function quarantineStalePendingReceipts(checkpointFile, staleLeaseId) {
+  const receiptDirectory = path.join(path.dirname(checkpointFile), "receipts");
+  const pendingDirectory = path.join(receiptDirectory, ".pending");
+  if (!existsSync(pendingDirectory)) return;
+  const matches = readdirSync(pendingDirectory).filter(name => name.includes(`.${staleLeaseId}.`) && name.endsWith(".pending"));
+  if (!matches.length) return;
+  const quarantineDirectory = path.join(receiptDirectory, "quarantine");
+  mkdirSync(quarantineDirectory, { recursive: true });
+  for (const name of matches) renameSync(path.join(pendingDirectory, name), path.join(quarantineDirectory, `${name}.stale`));
+}
+
+function quarantineUncommittedDurableReceipts(bundle, checkpoint, lease) {
+  const receiptDirectory = path.join(path.dirname(bundle.paths.releaseManifest.absolute), "receipts");
+  if (!existsSync(receiptDirectory)) return false;
+  const stale = readdirSync(receiptDirectory).filter(name => name.endsWith(".json")).filter(name => {
+    if (checkpoint.artifactHashes[`providerReceipt.${name}`]) return false;
+    const receipt = readJson(path.join(receiptDirectory, name), `uncommitted provider receipt ${name}`);
+    if (!Number.isInteger(receipt.fencingToken) || receipt.fencingToken >= lease.fencingToken) {
+      fail(`uncommitted provider receipt ${name} is not owned by an older fencing token`);
+    }
+    return true;
+  });
+  if (!stale.length) return false;
+  lease.commit(leaseGuard => {
+    const quarantineDirectory = path.join(receiptDirectory, "quarantine");
+    mkdirSync(quarantineDirectory, { recursive: true });
+    for (const name of stale) {
+      leaseGuard.assertOwned();
+      const file = path.join(receiptDirectory, name);
+      const receipt = readJson(file, `uncommitted provider receipt ${name}`);
+      if (receipt.fencingToken >= lease.fencingToken) fail(`uncommitted provider receipt ${name} fencing token changed during quarantine`);
+      renameSync(file, path.join(quarantineDirectory, `${name}.fence-${receipt.fencingToken}.${Date.now()}.json`));
+      leaseGuard.assertOwned();
+    }
+  });
+  return true;
+}
+
+function commitProviderReceipt(preparedReceipt, stage, leaseGuard) {
+  if (!preparedReceipt) return;
+  const { file, pending, receipt } = preparedReceipt;
+  leaseGuard.assertOwned();
   if (existsSync(file)) {
     const current = readJson(file, `${stage} provider receipt`);
-    if (JSON.stringify(current) !== JSON.stringify(receipt)) fail(`${stage} provider receipt conflicts with an existing idempotent receipt`);
-    return;
+    if (JSON.stringify(current) === JSON.stringify(receipt)) {
+      cleanupPendingReceipt(preparedReceipt);
+      leaseGuard.assertOwned();
+      return;
+    }
+    if (!Number.isInteger(current.fencingToken) || current.fencingToken >= receipt.fencingToken) {
+      fail(`${stage} provider receipt conflicts with an existing idempotent receipt`);
+    }
+    const quarantineDirectory = path.join(path.dirname(file), "quarantine");
+    mkdirSync(quarantineDirectory, { recursive: true });
+    renameSync(file, path.join(quarantineDirectory, `${path.basename(file)}.fence-${current.fencingToken}.${Date.now()}.json`));
+    leaseGuard.assertOwned();
   }
-  atomicWriteJsonFile(file, receipt);
+  renameSync(pending, file);
+  leaseGuard.assertOwned();
+}
+
+async function pulseReleaseLease(lease) {
+  lease.renew();
+  await new Promise(resolve => setImmediate(resolve));
+  lease.renew();
 }
 
 function validateExecutorResult(result, receiptContext) {
@@ -817,6 +1039,8 @@ async function executeOne({
   operationRevision = checkpoint.revision,
   lease,
   clock,
+  persistenceHook = async () => {},
+  commitHook = () => {},
 }) {
   const expected = nextForwardState(checkpoint.currentState);
   if (targetState !== expected) fail(`illegal state transition ${checkpoint.currentState} -> ${targetState}; expected ${expected ?? "no successor"}`);
@@ -827,6 +1051,7 @@ async function executeOne({
   const stage = targetState === "ARTIFACTS_READY" ? "ARTIFACTS_READY" : stageForState[targetState];
   let bundleBefore;
   let receiptNow;
+  let preparedReceipt;
   try {
     bundleBefore = loadReleaseBundle({ repoRoot, contractRoot, manifestFile, simulation });
     assertHashes(checkpoint, bundleBefore);
@@ -844,6 +1069,8 @@ async function executeOne({
       artifactPaths: Object.fromEntries(Object.entries(bundleBefore.paths).map(([name, item]) => [name, item.relative])),
     });
     lease.assertOwned();
+    await persistenceHook("forward-after-executor-assert", { stage, targetState, lease });
+    await pulseReleaseLease(lease);
     receiptNow = asClockDate(clock());
     const validatedResult = validateExecutorResult(executorResult, {
       checkpoint,
@@ -855,28 +1082,48 @@ async function executeOne({
       operationRevision,
       lease,
     });
+    await pulseReleaseLease(lease);
     const declaredChanges = validatedResult.changed;
     const bundleAfter = loadReleaseBundle({ repoRoot, contractRoot, manifestFile, simulation });
+    await pulseReleaseLease(lease);
     assertDeclaredArtifactChanges(bundleBefore.hashes, bundleAfter.hashes, declaredChanges, "executor");
     assertEvidenceForState(targetState, bundleAfter.evidenceBundle, receiptNow);
-    if (validatedResult.receipt) persistProviderReceipt(bundleAfter, stage, validatedResult.receipt);
-    const finalBundle = validatedResult.receipt
-      ? loadReleaseBundle({ repoRoot, contractRoot, manifestFile, simulation })
-      : bundleAfter;
+    await persistenceHook("forward-before-receipt-write", { stage, targetState, lease });
+    await pulseReleaseLease(lease);
+    preparedReceipt = prepareProviderReceipt(bundleAfter, stage, validatedResult.receipt, lease);
+    lease.assertOwned();
+    if (preparedReceipt) {
+      await persistenceHook("forward-after-pending-receipt-write-before-commit", { stage, targetState, lease, pendingReceipt: preparedReceipt.pending });
+      await pulseReleaseLease(lease);
+    }
+    const finalHashes = validatedResult.receipt
+      ? { ...bundleAfter.hashes, ...providerReceiptHashEntries(bundleAfter, stage, validatedResult.receipt) }
+      : bundleAfter.hashes;
     const updated = {
       ...checkpoint,
       currentState: targetState,
       completedStages: [...checkpoint.completedStages, ...completedStagesForState(targetState)],
-      artifactHashes: finalBundle.hashes,
+      artifactHashes: finalHashes,
       updatedAt: receiptNow.toISOString(),
       revision: checkpoint.revision + 1,
     };
     delete updated.failure;
     assertCheckpointSchema(bundleAfter.validators.checkpoint, updated, simulation);
     assertCheckpointSemantics(updated);
-    atomicWriteCheckpoint(checkpointFile, updated, checkpoint.revision);
+    lease.commit(leaseGuard => {
+      leaseGuard.assertOwned();
+      commitHook("forward-commit-guard-acquired", { stage, targetState, lease });
+      leaseGuard.assertOwned();
+      commitProviderReceipt(preparedReceipt, stage, leaseGuard);
+      leaseGuard.assertOwned();
+      commitHook("forward-after-durable-receipt-before-checkpoint", { stage, targetState, lease, receiptFile: preparedReceipt?.file });
+      leaseGuard.assertOwned();
+      atomicWriteCheckpoint(checkpointFile, updated, checkpoint.revision, leaseGuard.assertOwned);
+      leaseGuard.assertOwned();
+    });
     return { status: targetState, checkpoint: updated };
   } catch (error) {
+    cleanupPendingReceipt(preparedReceipt);
     if (isLeaseOrFenceLoss(error)) throw error;
     const failureNow = receiptNow ?? asClockDate(clock());
     const failed = {
@@ -894,7 +1141,7 @@ async function executeOne({
     };
     assertCheckpointSchema((bundleBefore?.validators ?? compileValidators(contractRoot)).checkpoint, failed, simulation);
     assertCheckpointSemantics(failed);
-    atomicWriteCheckpoint(checkpointFile, failed, checkpoint.revision);
+    lease.commit(leaseGuard => atomicWriteCheckpoint(checkpointFile, failed, checkpoint.revision, leaseGuard.assertOwned));
     return { status: "FAILED", checkpoint: failed, error };
   }
 }
@@ -911,15 +1158,21 @@ export async function advanceRelease({
   clock = () => new Date(),
   leaseDurationMs = 30_000,
   leaseHeartbeat = true,
+  persistenceHook,
+  commitHook,
 }) {
+  validateSimulationHooks(simulation, persistenceHook, commitHook);
   validateAuthorities(authorities);
   const initialBundle = loadReleaseBundle({ repoRoot, contractRoot, manifestFile, simulation, verifyPayloads: false });
   const initial = readCheckpoint(initialBundle, simulation);
   if (!initial.checkpoint) fail("release is not prepared");
   return withReleaseLease(initial.checkpointPath.absolute, initial.checkpoint.releaseId, async lease => {
-    const bundle = loadReleaseBundle({ repoRoot, contractRoot, manifestFile, simulation, verifyPayloads: false });
+    let bundle = loadReleaseBundle({ repoRoot, contractRoot, manifestFile, simulation, verifyPayloads: false });
     const { checkpoint, checkpointPath } = readCheckpoint(bundle, simulation);
     if (!checkpoint) fail("release is not prepared");
+    if (quarantineUncommittedDurableReceipts(bundle, checkpoint, lease)) {
+      bundle = loadReleaseBundle({ repoRoot, contractRoot, manifestFile, simulation, verifyPayloads: false });
+    }
     assertNoRollbackLatch(checkpointPath.absolute);
     if (checkpoint.currentState === targetState) {
       const verified = loadReleaseBundle({ repoRoot, contractRoot, manifestFile, simulation });
@@ -928,7 +1181,7 @@ export async function advanceRelease({
     }
     if (checkpoint.currentState === "FAILED") fail("FAILED release must use resumeRelease");
     if (TERMINAL_STATES.includes(checkpoint.currentState)) fail(`${checkpoint.currentState} is terminal; use a new release ID`);
-    return executeOne({ repoRoot, contractRoot, manifestFile, checkpoint, checkpointFile: checkpointPath.absolute, targetState, authorities, executor, now, simulation, lease, clock });
+    return executeOne({ repoRoot, contractRoot, manifestFile, checkpoint, checkpointFile: checkpointPath.absolute, targetState, authorities, executor, now, simulation, lease, clock, persistenceHook, commitHook });
   }, leaseDurationMs, leaseHeartbeat);
 }
 
@@ -943,15 +1196,21 @@ export async function resumeRelease({
   clock = () => new Date(),
   leaseDurationMs = 30_000,
   leaseHeartbeat = true,
+  persistenceHook,
+  commitHook,
 }) {
+  validateSimulationHooks(simulation, persistenceHook, commitHook);
   validateAuthorities(authorities);
   const initialBundle = loadReleaseBundle({ repoRoot, contractRoot, manifestFile, simulation });
   const initial = readCheckpoint(initialBundle, simulation);
   if (!initial.checkpoint) fail("release is not prepared");
   return withReleaseLease(initial.checkpointPath.absolute, initial.checkpoint.releaseId, async lease => {
-    const bundle = loadReleaseBundle({ repoRoot, contractRoot, manifestFile, simulation });
+    let bundle = loadReleaseBundle({ repoRoot, contractRoot, manifestFile, simulation });
     const { checkpoint, checkpointPath } = readCheckpoint(bundle, simulation);
     if (!checkpoint) fail("release is not prepared");
+    if (quarantineUncommittedDurableReceipts(bundle, checkpoint, lease)) {
+      bundle = loadReleaseBundle({ repoRoot, contractRoot, manifestFile, simulation });
+    }
     assertNoRollbackLatch(checkpointPath.absolute);
     if (checkpoint.currentState !== "FAILED" || !checkpoint.failure) fail("resume requires a FAILED checkpoint");
     if (!checkpoint.failure.retryable) fail("failed stage is not retryable");
@@ -977,6 +1236,8 @@ export async function resumeRelease({
       operationRevision: checkpoint.revision - 1,
       lease,
       clock,
+      persistenceHook,
+      commitHook,
     });
   }, leaseDurationMs, leaseHeartbeat);
 }
@@ -991,14 +1252,22 @@ export async function rollbackRelease({
   clock = () => new Date(),
   leaseDurationMs = 30_000,
   leaseHeartbeat = true,
+  persistenceHook,
+  commitHook,
 }) {
+  validateSimulationHooks(simulation, persistenceHook, commitHook);
+  persistenceHook ??= async () => {};
+  commitHook ??= () => {};
   const initialBundle = loadReleaseBundle({ repoRoot, contractRoot, manifestFile, simulation });
   const initial = readCheckpoint(initialBundle, simulation);
   if (!initial.checkpoint) fail("release is not prepared");
   return withReleaseLease(initial.checkpointPath.absolute, initial.checkpoint.releaseId, async lease => {
-    const bundleBefore = loadReleaseBundle({ repoRoot, contractRoot, manifestFile, simulation });
+    let bundleBefore = loadReleaseBundle({ repoRoot, contractRoot, manifestFile, simulation });
     const { checkpoint, checkpointPath } = readCheckpoint(bundleBefore, simulation);
     if (!checkpoint) fail("release is not prepared");
+    if (quarantineUncommittedDurableReceipts(bundleBefore, checkpoint, lease)) {
+      bundleBefore = loadReleaseBundle({ repoRoot, contractRoot, manifestFile, simulation });
+    }
     const existingLatch = readRollbackLatch(checkpointPath.absolute);
     const rollbackFromState = existingLatch?.rollbackFromState ?? checkpoint.currentState;
     if (existingLatch && rollbackFromState !== checkpoint.currentState) fail("rollback-failed latch state drifted from checkpoint");
@@ -1009,6 +1278,7 @@ export async function rollbackRelease({
     assertHashes(checkpoint, bundleBefore);
     const idempotencyKey = providerIdempotencyKey(checkpoint, "ROLLED_BACK");
     let receiptNow;
+    let preparedReceipt;
     try {
       const result = await executor({
         releaseId: checkpoint.releaseId,
@@ -1023,6 +1293,8 @@ export async function rollbackRelease({
         artifactPaths: Object.fromEntries(Object.entries(bundleBefore.paths).map(([name, item]) => [name, item.relative])),
       });
       lease.assertOwned();
+      await persistenceHook("rollback-after-executor-assert", { stage: "ROLLBACK", targetState: "ROLLED_BACK", lease });
+      await pulseReleaseLease(lease);
       receiptNow = asClockDate(clock());
       const validatedResult = validateExecutorResult(result, {
         checkpoint,
@@ -1033,26 +1305,45 @@ export async function rollbackRelease({
         simulation,
         lease,
       });
+      await pulseReleaseLease(lease);
       const bundleAfter = loadReleaseBundle({ repoRoot, contractRoot, manifestFile, simulation });
+      await pulseReleaseLease(lease);
       assertDeclaredArtifactChanges(bundleBefore.hashes, bundleAfter.hashes, validatedResult.changed, "rollback executor");
       if (bundleAfter.evidenceBundle.rollback?.result !== "PASS") fail("rollback requires passing rollback evidence");
       assertFreshTimestamp(bundleAfter.evidenceBundle.rollback.completedAt, receiptNow, evidenceFreshness.executionMs, "rollback.completedAt");
-      persistProviderReceipt(bundleAfter, "ROLLBACK", validatedResult.receipt);
-      const finalBundle = loadReleaseBundle({ repoRoot, contractRoot, manifestFile, simulation });
+      await persistenceHook("rollback-before-receipt-write", { stage: "ROLLBACK", targetState: "ROLLED_BACK", lease });
+      await pulseReleaseLease(lease);
+      preparedReceipt = prepareProviderReceipt(bundleAfter, "ROLLBACK", validatedResult.receipt, lease);
+      lease.assertOwned();
+      await persistenceHook("rollback-after-pending-receipt-write-before-commit", { stage: "ROLLBACK", targetState: "ROLLED_BACK", lease, pendingReceipt: preparedReceipt.pending });
+      await pulseReleaseLease(lease);
+      const finalHashes = { ...bundleAfter.hashes, ...providerReceiptHashEntries(bundleAfter, "ROLLBACK", validatedResult.receipt) };
       const rolledBack = {
         ...checkpoint,
         currentState: "ROLLED_BACK",
         completedStages: [...checkpoint.completedStages, "ROLLBACK"],
-        artifactHashes: finalBundle.hashes,
+        artifactHashes: finalHashes,
         updatedAt: receiptNow.toISOString(),
         revision: checkpoint.revision + 1,
       };
-      assertCheckpointSchema(finalBundle.validators.checkpoint, rolledBack, simulation);
+      assertCheckpointSchema(bundleAfter.validators.checkpoint, rolledBack, simulation);
       assertCheckpointSemantics(rolledBack);
-      atomicWriteCheckpoint(checkpointPath.absolute, rolledBack, checkpoint.revision);
-      if (existingLatch) unlinkSync(rollbackLatchFile(checkpointPath.absolute));
+      lease.commit(leaseGuard => {
+        leaseGuard.assertOwned();
+        commitHook("rollback-commit-guard-acquired", { stage: "ROLLBACK", targetState: "ROLLED_BACK", lease });
+        leaseGuard.assertOwned();
+        commitProviderReceipt(preparedReceipt, "ROLLBACK", leaseGuard);
+        leaseGuard.assertOwned();
+        commitHook("rollback-after-durable-receipt-before-checkpoint", { stage: "ROLLBACK", targetState: "ROLLED_BACK", lease, receiptFile: preparedReceipt.file });
+        leaseGuard.assertOwned();
+        atomicWriteCheckpoint(checkpointPath.absolute, rolledBack, checkpoint.revision, leaseGuard.assertOwned);
+        leaseGuard.assertOwned();
+        if (existingLatch) unlinkSync(rollbackLatchFile(checkpointPath.absolute));
+        leaseGuard.assertOwned();
+      });
       return { status: "ROLLED_BACK", checkpoint: rolledBack };
     } catch (error) {
+      cleanupPendingReceipt(preparedReceipt);
       if (isLeaseOrFenceLoss(error)) throw error;
       const failureNow = receiptNow ?? asClockDate(clock());
       const latch = {
@@ -1067,7 +1358,11 @@ export async function rollbackRelease({
         idempotencyKey,
       };
       assertNoSensitiveMaterial(latch, "rollback-failed latch");
-      atomicWriteJsonFile(rollbackLatchFile(checkpointPath.absolute), latch);
+      lease.commit(leaseGuard => {
+        leaseGuard.assertOwned();
+        atomicWriteJsonFile(rollbackLatchFile(checkpointPath.absolute), latch);
+        leaseGuard.assertOwned();
+      });
       return { status: "ROLLBACK_FAILED", checkpoint, latch, error };
     }
   }, leaseDurationMs, leaseHeartbeat);
@@ -1109,14 +1404,17 @@ export async function runRelease({
   clock = () => new Date(),
   leaseDurationMs = 30_000,
   leaseHeartbeat = true,
+  persistenceHook,
+  commitHook,
 }) {
+  validateSimulationHooks(simulation, persistenceHook, commitHook);
   if (!FORWARD_STATES.includes(targetState)) fail(`unknown forward target state: ${targetState}`);
   validateAuthorities(authorities);
   let prepared = prepareRelease({ repoRoot, contractRoot, manifestFile, now, simulation });
   let checkpoint = prepared.checkpoint;
   if (checkpoint.currentState === "FAILED") {
     if (!resume) return { status: "PAUSED_FAILED", checkpoint };
-    const resumed = await resumeRelease({ repoRoot, contractRoot, manifestFile, authorities, executor, now, simulation, clock, leaseDurationMs, leaseHeartbeat });
+    const resumed = await resumeRelease({ repoRoot, contractRoot, manifestFile, authorities, executor, now, simulation, clock, leaseDurationMs, leaseHeartbeat, persistenceHook, commitHook });
     if (resumed.status === "FAILED" || resumed.status === "PAUSED_AUTHORITY") return resumed;
     checkpoint = resumed.checkpoint;
   }
@@ -1125,7 +1423,7 @@ export async function runRelease({
   if (currentIndex > targetIndex) fail(`target ${targetState} is behind current state ${checkpoint.currentState}`);
   while (checkpoint.currentState !== targetState) {
     const next = nextForwardState(checkpoint.currentState);
-    const result = await advanceRelease({ repoRoot, contractRoot, manifestFile, targetState: next, authorities, executor, now, simulation, clock, leaseDurationMs, leaseHeartbeat });
+    const result = await advanceRelease({ repoRoot, contractRoot, manifestFile, targetState: next, authorities, executor, now, simulation, clock, leaseDurationMs, leaseHeartbeat, persistenceHook, commitHook });
     if (result.status === "FAILED" || result.status === "PAUSED_AUTHORITY") return result;
     checkpoint = result.checkpoint;
   }
