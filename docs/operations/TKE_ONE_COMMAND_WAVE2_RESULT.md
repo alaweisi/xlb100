@@ -44,34 +44,40 @@ WAVE2_STATUS=BLOCKED_FINAL_REVIEW
     restart, both P5/P4 commit crash windows, reverse rollback, concurrent CAS,
     live-owner rejection, confirmed dead-owner recovery and corrupt-main
     fail-closed behavior against the fourth P4 correction.
-11. **Open (P0):** the production `createFileProgressStore` still has no
-    product runtime factory or release-entry wiring. It is currently consumed
-    only by tests and documentation.
-12. **Open (P0):** the earlier in-process persistent real-chain path still
-    defines and injects its own non-atomic `FileCasProgressStore`; its green
-    restart cases therefore do not prove the production store boundary.
-13. **Open (P0):** abandoned-lock recovery has a double-recovery/ABA window.
-    Owner validation and the quarantine rename are not serialized by a
-    recovery mutex with a nonce re-check immediately before the rename.
-14. **Open (P1):** the recovery confirmation is not bound to
-    `minimumAgeMs`, and callers can reduce the requested age to zero after a
-    prior rejection. The token must include an immutable recovery-age floor.
-15. **Open (P1):** the quarantine directory is not physically revalidated
-    against symlink/junction escape before each rename. On Windows, a prepared
-    junction can move an orphan outside the artifact root while CAS succeeds.
-16. **Open (P2):** persisted progress validation does not reject a recursive
-    `confirmation` field even though the component documentation says
-    confirmations are never persisted. This requires a strict allowlist or,
-    at minimum, recursive rejection of confirmation/decision/grant fields.
+11. **Candidate-resolved by P5 runtime increment `e1062b4`:** production and
+    staging compose the product file store through a runtime factory.
+12. **Candidate-resolved by P6 increments `a98cee6` and `f3bc334`:** the
+    in-process fake store was removed and real/child chains use the product
+    runtime and file store.
+13. **Candidate-resolved by P5 increments `e1062b4` and `4518fd4`:** recovery
+    uses fenced claims, exact nonce revalidation and adversarial ABA tests.
+14. **Candidate-resolved by P5 third correction `4518fd4`:** confirmation is
+    bound to a non-downgradable 15-minute production recovery floor.
+15. **Candidate-resolved by P5 second correction `e1062b4`:** quarantine and
+    recovery paths reject symlink/junction escape and revalidate physical
+    containment before rename.
+16. **Candidate-resolved by P5 second correction `e1062b4`:** persisted
+    progress recursively rejects confirmation, approval, decision, grant,
+    token and secret material.
+17. **Candidate-resolved by P5 third correction `4518fd4`:** a dead recovery
+    owner can be fenced and its exact claim resumed after each recorded crash
+    window without isolating a newly acquired canonical owner.
+18. **Candidate-resolved by P5 third correction `4518fd4`:** production and
+    staging runtime reject simulation/memory/custom-store/mode/fake-clock
+    options; simulation is a separate manifest-only entry.
+19. **Candidate-resolved by P5 third correction `4518fd4`:** the product
+    module no longer exports a constructor capable of lowering the recovery
+    floor. P6 acceptance `f3bc334` tests the public export surface.
 
-P4 fourth-correction tests pass 29/29. The expanded real-chain suite passes
-12/12, the P6 release suite passes 55/55, and the integrated Wave 2 core suite
-passes 114/114. Static delivery/release-contract checks and the N5 offline
-validation also pass. These results close the missing child-process coverage
-but do not close findings 11-16. Gate 2 remains blocked
-until the P5 store is product-wired, its recovery and path boundaries are
-hardened, the adversarial tests pass, the complete offline gate passes and a
-final independent integration review reports no open finding.
+The current candidate passes P4 29/29, P5 35/35, P6 65/65 and the serialized
+complete offline gate 187/187. PowerShell safety entry tests, Helm lint/render,
+kubeconform (21 valid, 0 invalid), Terraform offline tests (3/3), static
+delivery/release-contract checks and N5 offline validation also pass. Test
+files run serially in the aggregate gate so cross-file CPU contention cannot
+invalidate the deliberately short P4 fencing-window test; concurrency remains
+exercised inside its dedicated process and lease tests. Findings 11-19 are
+candidate-resolved, but Gate 2 remains blocked until an independent final
+integration review reports no open finding.
 
 ## Integrated baseline
 
@@ -79,7 +85,9 @@ final independent integration review reports no open finding.
 - P4 resumable orchestrator source: `dd8ad25`, hardened by `77b3b86`
 - P5 traffic cutover source: `94f8979`, hardened by `efe3a93`
 - P6 deterministic simulation source: `dab4c39`, hardened by `0aebc80`
-  and `b4f69df`; child-process recovery increment: `bd9674a`
+  and `b4f69df`; child-process and recovery increments: `bd9674a`, `a98cee6`
+  and `f3bc334`
+- P5 durable-store corrections: `e1062b4` and `4518fd4`
 - Gate 2 integration branch: `codex/tke-wave2-integration`
 - Gate 2 integration commit: use this document's containing commit
 
@@ -132,8 +140,8 @@ runtime authority.
 
 ## Blocked next gate
 
-N7 TKE Staging cannot start from this candidate. After findings 11-16 are
-closed and Gate 2 is independently accepted, N7 must provide reviewed cloud
+N7 TKE Staging cannot start from this candidate. After Gate 2 is independently
+accepted, N7 must provide reviewed cloud
 inputs, real immutable TCR digests, separately authorized provider operations
 and a complete staging evidence bundle. N8 production remains blocked until
 N7 has the real `PASS` result required by the production-plan gate.
