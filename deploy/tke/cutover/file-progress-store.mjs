@@ -39,6 +39,10 @@ const nestedProgressKeys = Object.freeze({
   rollbackTransition: new Set(["fromWeight", "toWeight", "providerEvidenceRef", "observationEvidenceRef", "observedAt", "durationSeconds", "result"]),
 });
 const lockOwnerKeys = new Set(["schemaVersion", "releaseId", "planSha256", "nonce", "pid", "hostname", "acquiredAt"]);
+const recoveryOwnerKeys = new Set([
+  "schemaVersion", "releaseId", "planSha256", "targetNonce", "recoveryNonce", "fencingNonce",
+  "minimumAgeMs", "pid", "hostname", "acquiredAt",
+]);
 
 const fail = message => { throw new Error(message); };
 const sleep = milliseconds => {
@@ -122,6 +126,21 @@ function validateLockOwnerShape(owner, releaseId, planSha256, label) {
   return owner;
 }
 
+function validateRecoveryOwnerShape(owner, releaseId, planSha256, label) {
+  inspectPersistedValue(owner, `$${label}`);
+  assertAllowedKeys(owner, recoveryOwnerKeys, `$${label}`);
+  if (owner.schemaVersion !== 1 || owner.releaseId !== releaseId || owner.planSha256 !== planSha256 ||
+      typeof owner.targetNonce !== "string" || owner.targetNonce.length < 16 ||
+      typeof owner.recoveryNonce !== "string" || owner.recoveryNonce.length < 16 ||
+      typeof owner.fencingNonce !== "string" || owner.fencingNonce.length < 16 ||
+      !Number.isInteger(owner.minimumAgeMs) || owner.minimumAgeMs < PRODUCTION_RECOVERY_MINIMUM_AGE_MS ||
+      !Number.isInteger(owner.pid) || owner.pid <= 0 || typeof owner.hostname !== "string" || owner.hostname.length === 0 ||
+      typeof owner.acquiredAt !== "string" || !Number.isFinite(Date.parse(owner.acquiredAt))) {
+    fail(`${label} identity is corrupt or does not match this store`);
+  }
+  return owner;
+}
+
 function parseJsonFile(file, label) {
   let bytes;
   try {
@@ -190,23 +209,24 @@ function isProcessAlive(pid) {
   }
 }
 
-function createFileProgressStoreInternal({
+function createFileProgressStoreInternal(options) {
+  if (!options || typeof options !== "object" || Array.isArray(options)) fail("file progress store options must be an object");
+  const {
   artifactRoot,
   releaseId,
   planSha256,
   lockTimeoutMs = 5_000,
   retryDelayMs = 25,
-  now = () => new Date(),
-}, recoveryMinimumAgeFloorMs) {
+  ...unsupportedOptions
+  } = options;
+  if (Object.keys(unsupportedOptions).length > 0) {
+    fail(`unsupported file progress store option: ${Object.keys(unsupportedOptions).sort()[0]}`);
+  }
   if (typeof artifactRoot !== "string" || !path.isAbsolute(artifactRoot)) fail("artifactRoot must be an absolute path");
   if (!releasePattern.test(releaseId)) fail("releaseId is invalid");
   if (!sha256Pattern.test(planSha256)) fail("planSha256 must be a lowercase SHA-256");
   if (!Number.isInteger(lockTimeoutMs) || lockTimeoutMs < 0) fail("lockTimeoutMs must be a non-negative integer");
   if (!Number.isInteger(retryDelayMs) || retryDelayMs < 1) fail("retryDelayMs must be a positive integer");
-  if (typeof now !== "function") fail("now must be a function");
-  if (!Number.isInteger(recoveryMinimumAgeFloorMs) || recoveryMinimumAgeFloorMs < 0) {
-    fail("recovery minimum-age floor must be a non-negative integer");
-  }
 
   const root = path.resolve(artifactRoot);
   const releaseDirectory = assertContained(root, path.resolve(root, "releases", releaseId), "release directory");
@@ -214,8 +234,8 @@ function createFileProgressStoreInternal({
   const file = assertContained(root, path.resolve(storeDirectory, `${planSha256}.json`), "progress file");
   const lockDirectory = assertContained(root, path.resolve(storeDirectory, `${planSha256}.lock`), "lock directory");
   const ownerFile = path.join(lockDirectory, "owner.json");
-  const recoveryMutexDirectory = assertContained(root, path.resolve(storeDirectory, `${planSha256}.recovery.lock`), "recovery mutex");
-  const recoveryOwnerFile = path.join(recoveryMutexDirectory, "owner.json");
+  const recoveryClaimDirectory = assertContained(root, path.resolve(storeDirectory, `${planSha256}.recovery.lock`), "recovery claim");
+  const recoveryOwnerFile = path.join(recoveryClaimDirectory, "owner.json");
   const quarantineDirectory = assertContained(root, path.resolve(storeDirectory, "quarantine"), "quarantine directory");
   const tempPrefix = `${planSha256}.tmp-`;
 
@@ -293,7 +313,7 @@ function createFileProgressStoreInternal({
           nonce: randomUUID(),
           pid: process.pid,
           hostname: hostname(),
-          acquiredAt: now().toISOString(),
+          acquiredAt: new Date().toISOString(),
         };
         const temporaryOwner = path.join(lockDirectory, `owner.tmp-${owner.nonce}`);
         durableWrite(temporaryOwner, owner);
@@ -390,116 +410,194 @@ function createFileProgressStoreInternal({
     }
   };
 
-  const acquireRecoveryMutex = () => {
+  const readRecoveryOwner = () => {
     assertStorePath();
-    try {
-      mkdirSync(recoveryMutexDirectory);
-    } catch (error) {
-      if (error.code === "EEXIST") fail("lock recovery is already in progress");
-      throw error;
-    }
-    assertPhysical(recoveryMutexDirectory, "recovery mutex", "directory");
+    if (!entryExists(recoveryClaimDirectory)) fail("recovery claim ownership was lost");
+    assertPhysical(recoveryClaimDirectory, "recovery claim", "directory");
+    if (!entryExists(recoveryOwnerFile)) fail("recovery claim owner metadata is missing; fail-closed manual inspection is required");
+    assertPhysical(recoveryOwnerFile, "recovery claim owner metadata", "file");
+    return validateRecoveryOwnerShape(
+      parseJsonFile(recoveryOwnerFile, "recovery claim owner metadata"), releaseId, planSha256, "recovery claim owner",
+    );
+  };
+
+  const createRecoveryClaim = ({ targetNonce, recoveryNonce, minimumAgeMs }) => {
+    assertStorePath();
+    mkdirSync(recoveryClaimDirectory);
+    assertPhysical(recoveryClaimDirectory, "recovery claim", "directory");
     const owner = {
       schemaVersion: 1,
       releaseId,
       planSha256,
-      nonce: randomUUID(),
+      targetNonce,
+      recoveryNonce,
+      fencingNonce: randomUUID(),
+      minimumAgeMs,
       pid: process.pid,
       hostname: hostname(),
-      acquiredAt: now().toISOString(),
+      acquiredAt: new Date().toISOString(),
     };
-    const temporaryOwner = path.join(recoveryMutexDirectory, `owner.tmp-${owner.nonce}`);
+    const temporaryOwner = path.join(recoveryClaimDirectory, `owner.tmp-${owner.fencingNonce}`);
     durableWrite(temporaryOwner, owner);
-    assertPhysical(temporaryOwner, "temporary recovery owner metadata", "file");
+    assertPhysical(temporaryOwner, "temporary recovery claim owner metadata", "file");
     renameSync(temporaryOwner, recoveryOwnerFile);
-    assertPhysical(recoveryOwnerFile, "recovery owner metadata", "file");
-    syncDirectory(recoveryMutexDirectory);
+    assertPhysical(recoveryOwnerFile, "recovery claim owner metadata", "file");
+    syncDirectory(recoveryClaimDirectory);
 
     let released = false;
     const assertOwnership = () => {
-      if (released) fail("recovery mutex has already been released");
-      assertPhysical(recoveryMutexDirectory, "recovery mutex", "directory");
-      assertPhysical(recoveryOwnerFile, "recovery owner metadata", "file");
-      const current = validateLockOwnerShape(
-        parseJsonFile(recoveryOwnerFile, "recovery owner metadata"), releaseId, planSha256, "recovery owner",
-      );
-      if (current.releaseId !== releaseId || current.planSha256 !== planSha256 || current.nonce !== owner.nonce) {
-        fail("recovery mutex nonce changed; stale recovery worker is fenced");
+      if (released) fail("recovery claim has already been released");
+      const current = readRecoveryOwner();
+      if (current.targetNonce !== owner.targetNonce || current.recoveryNonce !== owner.recoveryNonce ||
+          current.fencingNonce !== owner.fencingNonce) {
+        fail("recovery claim fencing nonce changed; stale recovery worker is fenced");
       }
       return current;
     };
     const release = () => {
       assertOwnership();
-      rmSync(recoveryMutexDirectory, { recursive: true, force: false });
+      rmSync(recoveryClaimDirectory, { recursive: true, force: false });
       released = true;
       syncDirectory(storeDirectory);
     };
     return Object.freeze({ ...owner, assertOwnership, release });
   };
 
-  const recoverAbandonedLock = ({ expectedNonce, minimumAgeMs = recoveryMinimumAgeFloorMs, confirmation } = {}) => {
-    if (typeof expectedNonce !== "string" || expectedNonce.length < 16) fail("expectedNonce is required for lock recovery");
-    if (!Number.isInteger(minimumAgeMs) || minimumAgeMs < 0) fail("minimumAgeMs must be a non-negative integer");
-    if (minimumAgeMs < recoveryMinimumAgeFloorMs) {
-      fail(`minimumAgeMs cannot be lower than the ${recoveryMinimumAgeFloorMs}ms recovery safety floor`);
-    }
-    const expectedConfirmation = `RECOVER_ABANDONED_LOCK:${releaseId}:${planSha256}:${expectedNonce}:${minimumAgeMs}:RECOVER`;
-    if (confirmation !== expectedConfirmation) {
-      fail("lock recovery confirmation is not exactly bound to releaseId, planSha256, lockNonce, minimumAgeMs, and action");
-    }
-
-    const recovery = acquireRecoveryMutex();
+  const acquireOrResumeRecoveryClaim = request => {
     try {
+      return createRecoveryClaim(request);
+    } catch (error) {
+      if (error.code !== "EEXIST") throw error;
+    }
+
+    const stale = readRecoveryOwner();
+    if (stale.targetNonce !== request.targetNonce || stale.recoveryNonce !== request.recoveryNonce ||
+        stale.minimumAgeMs !== request.minimumAgeMs) {
+      fail("another recovery claim is bound to a different target, recovery nonce, or safety age");
+    }
+    if (stale.hostname !== hostname()) fail(`recovery claim host ${stale.hostname} differs from this host; external fencing is required`);
+    const claimAgeMs = Date.now() - Date.parse(stale.acquiredAt);
+    if (claimAgeMs < request.minimumAgeMs) {
+      fail(`recovery claim age ${claimAgeMs}ms is below required ${request.minimumAgeMs}ms`);
+    }
+    if (isProcessAlive(stale.pid)) fail(`recovery claim owner process ${stale.pid} is still alive; recovery denied`);
+
+    ensureQuarantineDirectory();
+    const finalStale = readRecoveryOwner();
+    if (finalStale.fencingNonce !== stale.fencingNonce || finalStale.targetNonce !== request.targetNonce ||
+        finalStale.recoveryNonce !== request.recoveryNonce) {
+      fail("recovery claim changed during takeover; stale recovery worker is fenced");
+    }
+    const abandonedClaim = path.join(
+      quarantineDirectory,
+      `${path.basename(recoveryClaimDirectory)}.abandoned-claim-${stale.recoveryNonce}-${stale.fencingNonce}`,
+    );
+    renameSync(recoveryClaimDirectory, abandonedClaim);
+    assertPhysical(abandonedClaim, "quarantined abandoned recovery claim", "directory");
+    syncDirectory(storeDirectory);
+    try {
+      return createRecoveryClaim(request);
+    } catch (error) {
+      if (error.code === "EEXIST") fail("another recovery worker won the abandoned claim takeover");
+      throw error;
+    }
+  };
+
+  const crashAtRecoveryStageForTest = (stage, recovery) => {
+    if (process.env.XLB_FILE_STORE_RECOVERY_CRASH_AT !== stage) return;
+    process.stdout.write(`${JSON.stringify({ stage, recoveryNonce: recovery.recoveryNonce, fencingNonce: recovery.fencingNonce })}\n`);
+    process.exit(86);
+  };
+
+  const recoverAbandonedLock = ({
+    expectedNonce,
+    recoveryNonce,
+    minimumAgeMs = PRODUCTION_RECOVERY_MINIMUM_AGE_MS,
+    confirmation,
+  } = {}) => {
+    if (typeof expectedNonce !== "string" || expectedNonce.length < 16) fail("expectedNonce is required for lock recovery");
+    if (typeof recoveryNonce !== "string" || recoveryNonce.length < 16) fail("recoveryNonce is required for lock recovery");
+    if (!Number.isInteger(minimumAgeMs) || minimumAgeMs < PRODUCTION_RECOVERY_MINIMUM_AGE_MS) {
+      fail(`minimumAgeMs cannot be lower than the ${PRODUCTION_RECOVERY_MINIMUM_AGE_MS}ms recovery safety floor`);
+    }
+    const expectedConfirmation = `RECOVER_ABANDONED_LOCK:${releaseId}:${planSha256}:${expectedNonce}:${recoveryNonce}:${minimumAgeMs}:RECOVER`;
+    if (confirmation !== expectedConfirmation) {
+      fail("lock recovery confirmation is not exactly bound to releaseId, planSha256, targetNonce, recoveryNonce, minimumAgeMs, and action");
+    }
+
+    const recovery = acquireOrResumeRecoveryClaim({ targetNonce: expectedNonce, recoveryNonce, minimumAgeMs });
+    try {
+      crashAtRecoveryStageForTest("after-claim-owner", recovery);
       recovery.assertOwnership();
-      // Everything affecting the canonical owner is deliberately repeated
-      // inside the exclusive recovery mutex. This closes double-recovery and
-      // owner replacement (ABA) races.
-      const owner = readOwner();
-      if (owner.nonce !== expectedNonce) fail("lock recovery nonce does not match the current owner");
-      if (owner.hostname !== hostname()) {
-        fail(`lock owner host ${owner.hostname} differs from this host; external fencing is required`);
+      ensureQuarantineDirectory();
+      const quarantined = path.join(
+        quarantineDirectory,
+        `${path.basename(lockDirectory)}.abandoned-${expectedNonce}-recovery-${recoveryNonce}`,
+      );
+      let ageMs;
+
+      if (entryExists(lockDirectory)) {
+        const owner = readOwner();
+        if (owner.nonce !== expectedNonce) {
+          // A crash may occur after the old target was quarantined and before
+          // the recovery claim was released. A new canonical owner is valid in
+          // that state: preserve it and finish solely from the exact,
+          // recovery-bound quarantine evidence below.
+          if (!entryExists(quarantined)) {
+            fail("lock owner changed during recovery and no matching target quarantine evidence exists");
+          }
+          ageMs = minimumAgeMs;
+        } else {
+          if (owner.hostname !== hostname()) fail(`lock owner host ${owner.hostname} differs from this host; external fencing is required`);
+          ageMs = Date.now() - Date.parse(owner.acquiredAt);
+          if (ageMs < minimumAgeMs) fail(`lock age ${ageMs}ms is below required ${minimumAgeMs}ms`);
+          if (isProcessAlive(owner.pid)) fail(`lock owner process ${owner.pid} is still alive; recovery denied`);
+
+          recovery.assertOwnership();
+          const finalOwner = readOwner();
+          if (finalOwner.nonce !== expectedNonce) fail("lock owner changed immediately before quarantine; refusing to isolate a new owner");
+          recovery.assertOwnership();
+          if (entryExists(quarantined)) fail("target quarantine evidence already exists while the canonical lock still exists");
+          renameSync(lockDirectory, quarantined);
+          assertPhysical(quarantined, "quarantined abandoned lock", "directory");
+          syncDirectory(storeDirectory);
+        }
+      } else {
+        if (!entryExists(quarantined)) fail("target lock and matching recovery evidence are both missing; refusing ambiguous recovery");
+        ageMs = minimumAgeMs;
       }
-      const acquiredAt = Date.parse(owner.acquiredAt);
-      if (!Number.isFinite(acquiredAt)) fail("lock owner acquiredAt is invalid");
-      const ageMs = now().getTime() - acquiredAt;
-      if (ageMs < minimumAgeMs) fail(`lock age ${ageMs}ms is below required ${minimumAgeMs}ms`);
-      if (isProcessAlive(owner.pid)) fail(`lock owner process ${owner.pid} is still alive; recovery denied`);
 
       recovery.assertOwnership();
-      assertPhysical(lockDirectory, "lock directory", "directory");
-      assertPhysical(ownerFile, "lock owner metadata", "file");
-      const targetOwner = readOwner();
-      if (targetOwner.nonce !== expectedNonce) fail("lock owner changed during recovery; refusing to quarantine a new owner");
-      ensureQuarantineDirectory();
-      recovery.assertOwnership();
-      const finalOwner = readOwner();
-      if (finalOwner.nonce !== expectedNonce) fail("lock owner changed immediately before quarantine; refusing to isolate it");
-      recovery.assertOwnership();
-      const quarantined = path.join(quarantineDirectory, `${path.basename(lockDirectory)}.abandoned-${expectedNonce}-${randomUUID()}`);
-      renameSync(lockDirectory, quarantined);
       assertPhysical(quarantined, "quarantined abandoned lock", "directory");
       const quarantinedOwner = path.join(quarantined, "owner.json");
       assertPhysical(quarantinedOwner, "quarantined lock owner metadata", "file");
-      if (parseJsonFile(quarantinedOwner, "quarantined lock owner metadata").nonce !== expectedNonce) {
-        fail("quarantined lock owner nonce drift detected");
-      }
-      syncDirectory(storeDirectory);
-      return Object.freeze({ releaseId, planSha256, recoveredNonce: expectedNonce, ageMs, minimumAgeMs, quarantined });
+      const recoveredOwner = validateLockOwnerShape(
+        parseJsonFile(quarantinedOwner, "quarantined lock owner metadata"), releaseId, planSha256, "quarantined lock owner",
+      );
+      if (recoveredOwner.nonce !== expectedNonce) fail("quarantined lock owner nonce drift detected");
+      crashAtRecoveryStageForTest("after-target-quarantine", recovery);
+      recovery.assertOwnership();
+      crashAtRecoveryStageForTest("before-claim-release", recovery);
+      return Object.freeze({
+        releaseId, planSha256, recoveredNonce: expectedNonce, recoveryNonce, ageMs, minimumAgeMs, quarantined,
+      });
     } finally {
       recovery.release();
     }
   };
 
-  return Object.freeze({ file, lockDirectory, recoveryMutexDirectory, load, compareAndSwap, acquireLock, recoverAbandonedLock });
+  return Object.freeze({
+    file,
+    lockDirectory,
+    recoveryClaimDirectory,
+    recoveryMutexDirectory: recoveryClaimDirectory,
+    load,
+    compareAndSwap,
+    acquireLock,
+    recoverAbandonedLock,
+  });
 }
 
 export function createFileProgressStore(options) {
-  return createFileProgressStoreInternal(options, PRODUCTION_RECOVERY_MINIMUM_AGE_MS);
-}
-
-// The production constructor above has an immutable safety floor. Tests may
-// use this explicitly named constructor to exercise age boundaries without a
-// real fifteen-minute wait; product runtime code must never import it.
-export function createFileProgressStoreForTest(options, { minimumRecoveryAgeFloorMs = 0 } = {}) {
-  return createFileProgressStoreInternal(options, minimumRecoveryAgeFloorMs);
+  return createFileProgressStoreInternal(options);
 }

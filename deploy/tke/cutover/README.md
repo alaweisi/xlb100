@@ -45,18 +45,25 @@ node deploy/tke/cutover/cutover-controller.mjs `
 The integration owner wires this library to the P4 orchestrator and chooses a
 real provider transport only during a separately authorized N7/N8 execution.
 
-`runtime.mjs` is the product composition root. Production and staging default
-to the durable file store; they cannot select or inject memory progress.
-Simulation must opt into memory explicitly:
+`runtime.mjs` is the production/staging composition root. It always selects the
+durable file store and rejects mode, memory/custom-store, simulation-manifest,
+and fake-clock options. `simulation-runtime.mjs` is a separate local-only
+entry and accepts only an `XlbCutoverSimulation` manifest:
 
 ```js
 const { controller, store, adapter } = createCutoverRuntime({
-  plan, artifactRoot, transport, observer, mode: "production", now,
+  plan, artifactRoot, transport, observer,
 });
 
-const simulation = createCutoverRuntime({
-  plan, artifactRoot, transport, observer,
-  mode: "simulation", storeType: "memory",
+const simulation = createSimulationCutoverRuntime({
+  manifest: {
+    schemaVersion: 1,
+    kind: "XlbCutoverSimulation",
+    environment: "simulation",
+    plan,
+  },
+  transport,
+  observer,
 });
 ```
 
@@ -81,18 +88,22 @@ orphan temporary files are quarantined rather than promoted.
 
 `recoverAbandonedLock` is deliberately separate from normal CAS. It requires a
 dead owner PID, a minimum lock age that cannot go below the production
-15-minute safety floor, the exact current nonce,
+15-minute safety floor, exact target/recovery nonces,
 and this exact transient confirmation string:
 
 ```text
-RECOVER_ABANDONED_LOCK:<releaseId>:<planSha256>:<ownerNonce>:<minimumAgeMs>:RECOVER
+RECOVER_ABANDONED_LOCK:<releaseId>:<planSha256>:<targetNonce>:<recoveryNonce>:<minimumAgeMs>:RECOVER
 ```
 
-Recovery first acquires a separate nonce-owned recovery mutex, then rereads the
-canonical owner and verifies its nonce immediately before quarantine. Two
-recoverers therefore cannot quarantine the same owner, and an ABA replacement
-owner cannot be isolated by stale recovery intent. Recovery quarantines the
-canonical lock directory. The old owner can no longer
+Recovery first acquires a target-bound claim with a unique fencing nonce, then
+rereads the canonical owner immediately before moving it to a deterministic
+quarantine path. A dead recovery-claim owner may itself be taken over only after
+the same 15-minute floor and with the same confirmation-bound recovery nonce;
+the replacement claim receives a new fencing nonce. This makes every crash
+after claim creation or target quarantine safely resumable while permanently
+fencing the prior recovery worker. Two recoverers cannot quarantine the same
+owner, and an ABA replacement owner cannot be isolated by stale recovery
+intent. The old primary owner can no longer
 pass the canonical nonce check and therefore cannot commit progress after it
 resumes. Every load, quarantine, and recovery operation rechecks `lstat`,
 physical containment, and rejects symlinks/junctions/reparse aliases. Owner
