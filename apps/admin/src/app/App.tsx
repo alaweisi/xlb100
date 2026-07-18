@@ -27,7 +27,7 @@ const ADMIN_ALLOWED_ROLES = new Set(["admin", "operator", "auditor"]);
 const ADMIN_CITY_SCOPE_STORAGE_KEY = "xlb.admin.cityCode";
 
 function adminRoleLabel(role: string): string {
-  if (role === "admin") return "后台管理员";
+  if (role === "admin") return "平台管理员";
   if (role === "operator") return "运营人员";
   if (role === "auditor") return "审计人员";
   return "未识别角色";
@@ -105,7 +105,7 @@ export function App() {
       const next = await loginAdminWithCode(loginUsername, loginCode);
       setSession(next);
     } catch (error) {
-      setAuthError(presentFailure(error, "后台登录").detail);
+      setAuthError(presentFailure(error, "运营应用登录").detail);
     } finally {
       setAuthLoading(false);
     }
@@ -220,13 +220,13 @@ export function App() {
       <main className="admin-mobile-gate admin-mobile-gate--identity">
       <IdentityGate
         visualRole="admin"
-        title="后台身份验证"
+        title="运营身份验证"
         description="验证账号与角色后进入受控运营工作台。"
         recoveryTarget={`目标工作台：${viewTitle}`}
         status={<StatusTag tone={authLoading ? "warning" : "primary"}>{authLoading ? "验证中" : "需要令牌"}</StatusTag>}
         form={
           <>
-              <FormField label="后台账号">
+              <FormField label="运营账号">
                 <Input value={loginUsername} onChange={(event) => setLoginUsername(event.target.value)} />
               </FormField>
               <FormField label="短信验证码">
@@ -252,8 +252,8 @@ export function App() {
       <main className="admin-mobile-gate admin-mobile-gate--permission">
         <PermissionState
           style={{ width: "100%" }}
-          title="当前角色无权进入后台"
-          description="系统不会透露任何业务对象是否存在。请切换到已授权的后台账号。"
+          title="当前角色无权进入运营应用"
+          description="系统不会透露任何业务对象是否存在。请切换到已授权的运营账号。"
           facts={`当前角色：${adminRoleLabel(session.role)}`}
           action={<Button onClick={handleLogout}>退出登录</Button>}
         />
@@ -269,7 +269,7 @@ export function App() {
           title="无权进入派单工作台"
           description="该工作台当前仅允许运营人员访问。"
           facts={`当前角色：${adminRoleLabel(session.role)}`}
-          action={<Button onClick={navigateToDashboard}>返回后台首页</Button>}
+          action={<Button onClick={navigateToDashboard}>返回运营首页</Button>}
           secondaryAction={<Button onClick={handleLogout}>退出登录</Button>}
         />
       </main>
@@ -280,8 +280,8 @@ export function App() {
     return (
       <main className="admin-mobile-gate admin-mobile-gate--city">
       <CityScopeGate
-        title="选择后台工作城市"
-        description="后台数据、操作权限和审计记录都按城市隔离。"
+        title="选择运营城市"
+        description="运营数据、操作权限和审计记录都按城市隔离。"
         currentScope="尚未选择城市范围"
         recoveryTarget={`确认后返回：${viewTitle}`}
         selector={

@@ -78,7 +78,7 @@ const BUSINESS_LABELS: Record<string, string> = {
   customer: "客户",
   worker: "师傅",
   enterprise: "企业客户",
-  admin: "后台人员",
+  admin: "运营人员",
   system: "系统",
   low: "低",
   normal: "普通",

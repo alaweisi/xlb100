@@ -74,7 +74,7 @@ describe("Phase 9B — Drilldown / Detail Foundation", () => {
       window.localStorage.removeItem("xlb.admin.cityCode");
       render(<App />);
 
-      expect(screen.getByRole("heading", { name: "选择后台工作城市" })).toBeTruthy();
+      expect(screen.getByRole("heading", { name: "选择运营城市" })).toBeTruthy();
       fireEvent.click(screen.getByRole("button", { name: "进入该城市工作台" }));
 
       await waitFor(() => { expect(window.location.hash).toContain("cityCode=hangzhou"); });
@@ -85,7 +85,7 @@ describe("Phase 9B — Drilldown / Detail Foundation", () => {
       window.localStorage.setItem("xlb.admin.role", "viewer");
       render(<App />);
 
-      expect(screen.getByText("当前角色无权进入后台")).toBeTruthy();
+      expect(screen.getByText("当前角色无权进入运营应用")).toBeTruthy();
       expect(screen.queryByText("结算运营台")).toBeNull();
     });
 

@@ -25,7 +25,7 @@ vi.mock("../../apps/admin/src/adminAuth", () => ({
 
 import { App } from "../../apps/admin/src/app/App";
 
-describe("后台手机运营 App 外壳", () => {
+describe("手机运营 App 外壳", () => {
   beforeEach(() => {
     window.localStorage.clear();
     window.localStorage.setItem("xlb.admin.cityCode", "hangzhou");
@@ -78,7 +78,7 @@ describe("后台手机运营 App 外壳", () => {
   it("未知角色仍在移动全屏门禁中拒绝访问", async () => {
     auth.session = { ...auth.session, role: "customer" };
     const { container } = render(<App />);
-    expect(await screen.findByText("当前角色无权进入后台")).toBeTruthy();
+    expect(await screen.findByText("当前角色无权进入运营应用")).toBeTruthy();
     expect(container.querySelector(".admin-mobile-gate--permission")).toBeTruthy();
     expect(container.querySelector(".admin-mobile-shell")).toBeNull();
   });

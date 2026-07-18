@@ -57,7 +57,7 @@ export async function requestAdminLoginCode(username = "admin_hz") {
 export async function loginAdminWithCode(username: string, code: string): Promise<AdminSession> {
   const auth = createAuthApi(createApiClient({ baseUrl: API_BASE }));
   const result = await auth.adminLogin(username, code);
-  if (!result.ok) throw new Error(adminAuthErrorMessage(result.error, "后台登录失败，请核对验证码"));
+  if (!result.ok) throw new Error(adminAuthErrorMessage(result.error, "运营应用登录失败，请核对验证码"));
   const session: AdminSession = {
     token: result.token,
     userId: result.userId,
@@ -69,8 +69,8 @@ export async function loginAdminWithCode(username: string, code: string): Promis
 }
 
 function adminAuthErrorMessage(error: string, fallback: string): string {
-  if (/invalid username/i.test(error)) return "请输入正确的后台账号";
-  if (/not found/i.test(error)) return "后台账号不存在或无权登录";
+  if (/invalid username/i.test(error)) return "请输入正确的运营账号";
+  if (/not found/i.test(error)) return "运营账号不存在或无权登录";
   if (/too recently|cooldown/i.test(error)) return "验证码发送过于频繁，请稍后再试";
   if (/invalid|expired|verification code|otp/i.test(error)) return "验证码无效或已过期，请重新获取";
   return fallback;
