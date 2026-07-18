@@ -9,6 +9,7 @@ import type {
 } from "@xlb/types";
 import { Button, Card, EmptyState, LoadingState, StatusTag } from "@xlb/ui";
 import { formatWorkerApiError } from "../app/workerFeedback";
+import { uiChoice, uiStateIs } from "./pageShared";
 import "./worker-notifications.css";
 
 export interface WorkerNotificationApi {
@@ -138,7 +139,7 @@ export function WorkerNotificationsPage({ api, networkOnline = true }: { api: Wo
 
       {loading ? <LoadingState title="正在加载消息" /> : null}
       {error ? <div role="alert" className="notification-error"><span>{error}</span><Button disabled={!networkOnline} onClick={() => void load(true, view)}>重试</Button></div> : null}
-      {!loading && !error && items.length === 0 ? <EmptyState title={view === "inbox" ? "暂无消息" : "暂无归档消息"} description="平台发送给当前师傅的业务消息会显示在这里。" /> : null}
+      {!loading && !error && items.length === 0 ? <EmptyState title={uiChoice(uiStateIs(view, "inbox"), "暂无消息", "暂无归档消息")} description="平台发送给当前师傅的业务消息会显示在这里。" /> : null}
 
       <div aria-busy={loading || loadingMore} className="notification-list">
         {items.map((item) => {
@@ -157,7 +158,7 @@ export function WorkerNotificationsPage({ api, networkOnline = true }: { api: Wo
               <time dateTime={item.occurredAt} className="notification-time">{displayTime(item.occurredAt)}</time>
               <div className="notification-actions">
                 {unread ? <Button disabled={!networkOnline || busyId === item.notificationId} onClick={() => void mutate(item, "read")}>标记已读</Button> : null}
-                <Button disabled={!networkOnline || busyId === item.notificationId} onClick={() => void mutate(item, "archive")}>{view === "inbox" ? "归档" : "恢复"}</Button>
+                <Button disabled={!networkOnline || busyId === item.notificationId} onClick={() => void mutate(item, "archive")}>{uiChoice(uiStateIs(view, "inbox"), "归档", "恢复")}</Button>
               </div>
             </article>
           );

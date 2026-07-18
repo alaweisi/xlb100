@@ -4,7 +4,7 @@ import type {
   WorkerWithdrawalResponse,
 } from "@xlb/api-client";
 import { Button, Card, EmptyState, FormField, Input, Select, StatusTag } from "@xlb/ui";
-import { formatAmount, formatDateTime, helperText, mutedBoxStyle, statusTone, workerPanelStyle } from "./pageShared";
+import { formatAmount, formatDateTime, helperText, mutedBoxStyle, statusTone, uiChoice, uiStateIs, workerPanelStyle } from "./pageShared";
 
 const withdrawalLabels: Record<WorkerWithdrawalResponse["status"], string> = {
   requested: "待审核", approved: "已审核", rejected: "已拒绝", marked_paid: "已标记打款", cancelled: "已取消",
@@ -44,7 +44,7 @@ export function WalletPage({
 
     <Card title="收款账户" actions={<StatusTag tone="primary">{bankAccounts.length} 个</StatusTag>} style={workerPanelStyle}>
       <div className="worker-stack-list">
-        {bankAccounts.map((account) => <article key={account.bankAccountId} style={mutedBoxStyle}><div className="worker-card-actions"><strong>{account.bankName} · {account.bankCardMasked}</strong><StatusTag tone={account.status === "active" ? "success" : "muted"}>{account.status === "active" ? "可用" : "停用"}</StatusTag></div><span style={helperText}>户名：{account.accountHolder}</span></article>)}
+        {bankAccounts.map((account) => <article key={account.bankAccountId} style={mutedBoxStyle}><div className="worker-card-actions"><strong>{account.bankName} · {account.bankCardMasked}</strong><StatusTag tone={uiChoice(uiStateIs(account.status, "active"), "success", "muted")}>{uiChoice(uiStateIs(account.status, "active"), "可用", "停用")}</StatusTag></div><span style={helperText}>户名：{account.accountHolder}</span></article>)}
         {bankAccounts.length === 0 && <EmptyState title="尚未添加收款账户" description="账户由平台安全保存；页面只回显掩码卡号。" />}
         <FormField label="账户姓名（最多 128 字）"><Input maxLength={128} value={accountHolder} onChange={(event) => onAccountHolderChange(event.target.value)} /></FormField>
         <FormField label="开户银行（最多 128 字）"><Input maxLength={128} value={bankName} onChange={(event) => onBankNameChange(event.target.value)} /></FormField>

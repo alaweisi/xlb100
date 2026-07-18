@@ -28,6 +28,18 @@ export function formatAmount(amount: number): string {
   return `¥${amount.toFixed(2)}`;
 }
 
+export function uiStateIs(value: string | null | undefined, expected: string): boolean {
+  return value === expected;
+}
+
+export function uiStateIn(value: string | null | undefined, expected: readonly string[]): boolean {
+  return expected.includes(value ?? "");
+}
+
+export function uiChoice<T>(condition: boolean, whenTrue: T, whenFalse: T): T {
+  return condition ? whenTrue : whenFalse;
+}
+
 export function statusTone(status: string): "primary" | "success" | "warning" | "danger" | "muted" {
   if (status === "completed") return "success";
   if (status === "in_progress") return "primary";

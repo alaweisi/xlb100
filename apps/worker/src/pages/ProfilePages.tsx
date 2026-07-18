@@ -1,6 +1,6 @@
 import type { WorkerCertification, WorkerLocation } from "@xlb/types";
 import { Button, Card, FormField, Input, StatusTag } from "@xlb/ui";
-import { formatDateTime, helperText, mutedBoxStyle, statusTone, workerPanelStyle } from "./pageShared";
+import { formatDateTime, helperText, mutedBoxStyle, statusTone, uiChoice, uiStateIs, workerPanelStyle } from "./pageShared";
 
 type QueryParams = { cityCode: string };
 const certStatusLabels: Record<WorkerCertification["status"], string> = { pending: "待审核", approved: "已通过", rejected: "已拒绝", expired: "已过期" };
@@ -20,9 +20,9 @@ export function WorkerLocationPage({ location, busy, error, notice, networkOnlin
     {!networkOnline && <div className="worker-state-banner worker-state-banner--danger" role="status"><strong>当前网络已断开</strong><span>位置更新已关闭。恢复网络后先刷新，避免覆盖其他设备上的新状态。</span></div>}
     {error && <Card title="位置状态暂不可用" actions={<StatusTag tone="danger">请核对</StatusTag>} style={workerPanelStyle}><p className="worker-error-copy">{error}</p></Card>}
     {notice && <Card title="位置设置已同步" actions={<StatusTag tone="success">已保存</StatusTag>} style={workerPanelStyle}><p style={helperText}>{notice}</p></Card>}
-    <Card title="位置共享与接单半径" actions={<StatusTag tone={location?.freshness === "fresh" ? "success" : "warning"}>{location?.freshness === "fresh" ? "位置有效" : location ? "位置已过期" : "尚未上报"}</StatusTag>} style={workerPanelStyle}>
+    <Card title="位置共享与接单半径" actions={<StatusTag tone={uiChoice(uiStateIs(location?.freshness, "fresh"), "success", "warning")}>{uiChoice(uiStateIs(location?.freshness, "fresh"), "位置有效", location ? "位置已过期" : "尚未上报")}</StatusTag>} style={workerPanelStyle}>
       <div className="worker-stack-list">
-        {location && <div style={mutedBoxStyle}><div className="worker-card-actions"><strong>{location.locationSharingEnabled ? "位置共享已开启" : "位置共享已关闭"}</strong><StatusTag tone={location.freshness === "fresh" ? "success" : "warning"}>{location.freshness === "fresh" ? "新鲜" : "陈旧"}</StatusTag></div><span style={helperText}>精确坐标：{location.latitude}, {location.longitude}</span><span style={helperText}>有效至：{formatDateTime(location.expiresAt)} · 服务半径 {location.serviceRadiusKm} 公里</span></div>}
+        {location && <div style={mutedBoxStyle}><div className="worker-card-actions"><strong>{location.locationSharingEnabled ? "位置共享已开启" : "位置共享已关闭"}</strong><StatusTag tone={uiChoice(uiStateIs(location.freshness, "fresh"), "success", "warning")}>{uiChoice(uiStateIs(location.freshness, "fresh"), "新鲜", "陈旧")}</StatusTag></div><span style={helperText}>精确坐标：{location.latitude}, {location.longitude}</span><span style={helperText}>有效至：{formatDateTime(location.expiresAt)} · 服务半径 {location.serviceRadiusKm} 公里</span></div>}
         <FormField label="纬度（-90～90）"><Input step="any" type="number" value={latitude} onChange={(event) => onLatitudeChange(event.target.value)} /></FormField>
         <FormField label="经度（-180～180）"><Input step="any" type="number" value={longitude} onChange={(event) => onLongitudeChange(event.target.value)} /></FormField>
         <FormField label="服务半径（1～50 公里）"><Input min="1" max="50" type="number" value={radius} onChange={(event) => onRadiusChange(event.target.value)} /></FormField>

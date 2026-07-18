@@ -7,6 +7,7 @@ import type {
 } from "@xlb/types";
 import { Button, Card, EmptyState, ErrorState, LoadingState, StatusTag, Textarea } from "@xlb/ui";
 import { formatWorkerApiError } from "../app/workerFeedback";
+import { uiChoice, uiStateIs } from "./pageShared";
 import "./worker-reputation.css";
 
 export interface WorkerReputationApi {
@@ -185,11 +186,11 @@ export function WorkerReputationPage({ api, networkOnline = true }: { api: Worke
             {appealTargets.map((target) => (
               <div key={`${target.reviewId}:${target.moderationVersion}`} className="worker-reputation-appeal">
                 <div className="worker-reputation-actions">
-                  <StatusTag tone={target.visibility === "visible" ? "success" : "warning"}>{target.visibility === "visible" ? "可见" : "隐藏"}</StatusTag>
+                  <StatusTag tone={uiChoice(uiStateIs(target.visibility, "visible"), "success", "warning")}>{uiChoice(uiStateIs(target.visibility, "visible"), "可见", "隐藏")}</StatusTag>
                   <StatusTag tone="muted">决定版本 {target.moderationVersion}</StatusTag>
                   <StatusTag tone="muted">{new Date(target.decidedAt).toLocaleString()}</StatusTag>
-                  {target.activeAppealStatus && <StatusTag tone="warning">申诉 {target.activeAppealStatus === "open" ? "处理中" : target.activeAppealStatus === "withdrawn" ? "已撤回" : "状态未知"}</StatusTag>}
-                  {target.activeAppealStatus === "open" && (
+                  {target.activeAppealStatus && <StatusTag tone="warning">申诉 {uiChoice(uiStateIs(target.activeAppealStatus, "open"), "处理中", uiChoice(uiStateIs(target.activeAppealStatus, "withdrawn"), "已撤回", "状态未知"))}</StatusTag>}
+                  {uiStateIs(target.activeAppealStatus, "open") && (
                     <Button
                       disabled={!networkOnline || busyAppeal !== null}
                       onClick={() => void withdrawAppeal(target)}

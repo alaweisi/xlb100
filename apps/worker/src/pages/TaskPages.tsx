@@ -9,6 +9,9 @@ import {
   fulfillmentStatusLabel,
   helperText,
   statusTone,
+  uiChoice,
+  uiStateIn,
+  uiStateIs,
   workerPanelStyle,
 } from "./pageShared";
 
@@ -182,18 +185,18 @@ export function HallPage({
                       <div><dt>派单编号</dt><dd>{task.dispatchTaskId}</dd></div>
                     </dl>
                     {blockReasons.length > 0 && <div className="worker-block-reason" role="note"><strong>暂不可接</strong><span>{blockReasons.join("；")}</span><a href="/worker/certification">查看服务资格</a></div>}
-                    {eligibility?.status === "loading" && <p className="worker-inline-note">正在向平台核验此服务资格，完成前不会开放接单。</p>}
+                    {uiStateIs(eligibility?.status, "loading") && <p className="worker-inline-note">正在向平台核验此服务资格，完成前不会开放接单。</p>}
                     {unknownReason && <div className="worker-block-reason worker-block-reason--warning"><strong>资格结果未知</strong><span>{unknownReason}</span><button onClick={onRefresh} type="button">重新核验</button></div>}
                     <div className="worker-card-actions">
                       <Button disabled={!canAccept} onClick={() => onAccept(task.dispatchTaskId)} variant="primary">
                         {acceptingDispatchTaskId === task.dispatchTaskId ? "正在确认接单" : paused ? "已暂停接单" : !networkOnline ? "网络离线" : "立即接单"}
                       </Button>
                       <Button disabled={!canReject} onClick={() => onReject(task.dispatchTaskId)}>
-                        {simulationAction?.type === "reject" && simulationAction.dispatchTaskId === task.dispatchTaskId ? "正在放弃" : "放弃邀约"}
+                        {uiChoice(uiStateIs(simulationAction?.type, "reject") && simulationAction?.dispatchTaskId === task.dispatchTaskId, "正在放弃", "放弃邀约")}
                       </Button>
                     </div>
-                    {simulationControlsEnabled && task.status === "offering" && (
-                      <details className="worker-dev-controls"><summary>开发状态验证</summary><Button disabled={!canReject} onClick={() => onSimulateTimeout(task.dispatchTaskId)}>{simulationAction?.type === "timeout" ? "正在模拟" : "模拟邀约超时"}</Button></details>
+                    {simulationControlsEnabled && uiStateIs(task.status, "offering") && (
+                      <details className="worker-dev-controls"><summary>开发状态验证</summary><Button disabled={!canReject} onClick={() => onSimulateTimeout(task.dispatchTaskId)}>{uiChoice(uiStateIs(simulationAction?.type, "timeout"), "正在模拟", "模拟邀约超时")}</Button></details>
                     )}
                   </article>
                 );
@@ -220,6 +223,7 @@ export function TasksPage({ fulfillments, loading, error, networkOnline = true, 
   const counts = useMemo(() => ({
     active: fulfillments.filter((item) => item.status === "accepted" || item.status === "in_progress").length,
     accepted: fulfillments.filter((item) => item.status === "accepted").length,
+    inProgress: fulfillments.filter((item) => item.status === "in_progress").length,
     history: fulfillments.filter((item) => item.status === "completed" || item.status === "cancelled").length,
   }), [fulfillments]);
   const filtered = fulfillments.filter((item) => filter === "active"
@@ -229,7 +233,7 @@ export function TasksPage({ fulfillments, loading, error, networkOnline = true, 
   return (
     <>
       <Card title="任务总览" actions={<StatusTag tone={counts.active > 0 ? "warning" : "success"}>{counts.active} 个进行中</StatusTag>} style={workerPanelStyle}>
-        <div className="worker-summary-metrics"><div><strong>{counts.accepted}</strong><span>待开始</span></div><div><strong>{fulfillments.filter((item) => item.status === "in_progress").length}</strong><span>服务中</span></div><div><strong>{counts.history}</strong><span>已结束</span></div></div>
+        <div className="worker-summary-metrics"><div><strong>{counts.accepted}</strong><span>待开始</span></div><div><strong>{counts.inProgress}</strong><span>服务中</span></div><div><strong>{counts.history}</strong><span>已结束</span></div></div>
       </Card>
       {!networkOnline && <div className="worker-state-banner worker-state-banner--danger" role="status"><strong>当前网络已断开</strong><span>列表可能不是最新状态，恢复后请刷新。</span></div>}
       {loading && <LoadingState title="正在加载我的任务" description="正在读取已承接的真实履约任务。" />}
@@ -243,10 +247,10 @@ export function TasksPage({ fulfillments, loading, error, networkOnline = true, 
           {filtered.length === 0 ? <Card style={workerPanelStyle}><EmptyState title={fulfillments.length === 0 ? "暂无履约任务" : "当前筛选下没有任务"} description={fulfillments.length === 0 ? "接单成功后，待服务、服务中和已完成任务会显示在这里。" : "可切换上方状态查看其他任务。"} /></Card> : (
             <div className="worker-task-list">
               {filtered.map((item) => <article className={`worker-task-card worker-task-card--${item.status}`} key={item.fulfillmentId}>
-                <div className="worker-task-card__topline"><div><span>{item.status === "in_progress" ? "当前作业" : "履约任务"}</span><strong>{item.skuId}</strong></div><StatusTag tone={statusTone(item.status)}>{fulfillmentStatusLabel(item.status)}</StatusTag></div>
-                <p className="worker-next-step">{item.status === "accepted" ? "下一步：到达现场后开始服务并记录证据" : item.status === "in_progress" ? "下一步：补齐服务证据并登记完工" : item.status === "completed" ? "服务已完工，打开查看顾客确认或争议结果" : "该任务已取消，仅可查看记录"}</p>
+                <div className="worker-task-card__topline"><div><span>{uiChoice(uiStateIs(item.status, "in_progress"), "当前作业", "履约任务")}</span><strong>{item.skuId}</strong></div><StatusTag tone={statusTone(item.status)}>{fulfillmentStatusLabel(item.status)}</StatusTag></div>
+                <p className="worker-next-step">{uiChoice(uiStateIs(item.status, "accepted"), "下一步：到达现场后开始服务并记录证据", uiChoice(uiStateIs(item.status, "in_progress"), "下一步：补齐服务证据并登记完工", uiChoice(uiStateIs(item.status, "completed"), "服务已完工，打开查看顾客确认或争议结果", "该任务已取消，仅可查看记录")))}</p>
                 <dl className="worker-fact-grid"><div><dt>订单编号</dt><dd>{item.orderId}</dd></div><div><dt>更新时间</dt><dd>{formatDateTime(item.updatedAt)}</dd></div><div><dt>履约编号</dt><dd>{item.fulfillmentId}</dd></div></dl>
-                <Button onClick={() => onOpenDetail(item.fulfillmentId)} variant={item.status === "accepted" || item.status === "in_progress" ? "primary" : undefined}>{item.status === "accepted" ? "去开始服务" : item.status === "in_progress" ? "继续履约" : "查看详情"}</Button>
+                <Button onClick={() => onOpenDetail(item.fulfillmentId)} variant={uiStateIn(item.status, ["accepted", "in_progress"]) ? "primary" : undefined}>{uiChoice(uiStateIs(item.status, "accepted"), "去开始服务", uiChoice(uiStateIs(item.status, "in_progress"), "继续履约", "查看详情"))}</Button>
               </article>)}
             </div>
           )}
