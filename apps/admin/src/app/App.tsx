@@ -396,7 +396,9 @@ export function App() {
     { key: "workerWithdrawals", label: "师傅提现", description: "审核与付款标记", active: view.page === "workerWithdrawals", onClick: navigateToWorkerWithdrawals },
     { key: "aftersale", label: "售后运营", description: "投诉、返工与补偿", active: view.page === "aftersale", onClick: navigateToAftersale },
     { key: "enterprise", label: "企业客户", description: "客户、凭据与账单", active: view.page === "enterprise", onClick: navigateToEnterprise },
-    { key: "dispatch", label: "城市派单", description: "任务与候选师傅", active: view.page === "dispatch", onClick: navigateToDispatch },
+    ...(session.role === "operator"
+      ? [{ key: "dispatch", label: "城市派单", description: "任务与候选师傅", active: view.page === "dispatch", onClick: navigateToDispatch }]
+      : []),
     { key: "platformOperations", label: "平台运营", description: "订单、服务与师傅", active: view.page === "platformOperations", onClick: navigateToPlatformOperations },
     { key: "support", label: "客服工作台", description: "工单、会话与路由", active: view.page === "support", onClick: navigateToSupport },
     { key: "supportQuality", label: "客服质量", description: "质检量表与评分", active: view.page === "supportQuality", onClick: navigateToSupportQuality },
@@ -422,6 +424,7 @@ export function App() {
         isDetail={view.page !== "dashboard"}
         toolPanelOpen={toolPanelOpen}
         tools={tools}
+        ordersLabel={session.role === "operator" ? "订单派单" : "订单追踪"}
         activeNav={activeNav}
         accountLabel={`${adminRoleLabel(session.role)} · ${session.username}`}
         onBack={navigateToDashboard}

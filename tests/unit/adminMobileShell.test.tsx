@@ -27,6 +27,7 @@ import { App } from "../../apps/admin/src/app/App";
 
 describe("手机运营 App 外壳", () => {
   beforeEach(() => {
+    Object.defineProperty(window.navigator, "onLine", { configurable: true, value: true });
     window.localStorage.clear();
     window.localStorage.setItem("xlb.admin.cityCode", "hangzhou");
     window.location.hash = "";
@@ -63,6 +64,20 @@ describe("手机运营 App 外壳", () => {
     ];
     for (const label of labels) expect(within(dialog).getByRole("button", { name: new RegExp(label) })).toBeTruthy();
     expect(labels).toHaveLength(14);
+
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "关闭全部工具" }));
+    fireEvent.keyDown(dialog, { key: "Escape" });
+    expect(screen.queryByRole("dialog", { name: "全部工作台" })).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "我的/更多" }));
+  });
+
+  it("依据真实网络状态显示在线或离线", async () => {
+    render(<App />);
+    await screen.findByText("业务在线");
+    Object.defineProperty(window.navigator, "onLine", { configurable: true, value: false });
+    fireEvent(window, new Event("offline"));
+    expect(await screen.findByText("当前离线")).toBeTruthy();
+    expect(screen.queryByText("业务在线")).toBeNull();
   });
 
   it("详情工作台显示返回入口与移动标题", async () => {
@@ -89,5 +104,20 @@ describe("手机运营 App 外壳", () => {
     const { container } = render(<App />);
     expect(await screen.findByText("无权进入派单工作台")).toBeTruthy();
     expect(container.querySelector(".admin-mobile-gate--permission")).toBeTruthy();
+  });
+
+  it("审计人员只看到订单追踪入口，不显示城市派单", async () => {
+    auth.session = { ...auth.session, role: "auditor" };
+    render(<App />);
+    expect((await screen.findAllByRole("heading", { name: "运营总览", level: 1 })).length).toBeGreaterThan(0);
+
+    const navigation = screen.getByRole("navigation", { name: "运营应用主导航" });
+    expect(within(navigation).getByRole("button", { name: "订单追踪" })).toBeTruthy();
+    expect(within(navigation).queryByRole("button", { name: "订单派单" })).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "我的/更多" }));
+    const dialog = screen.getByRole("dialog", { name: "全部工作台" });
+    expect(within(dialog).queryByRole("button", { name: /城市派单/ })).toBeNull();
+    expect(within(dialog).getByRole("button", { name: /订单追踪/ })).toBeTruthy();
   });
 });

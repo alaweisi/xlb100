@@ -89,6 +89,15 @@ textarea {
   width: 6px;
 }
 
+.admin-mobile-statusbar .is-offline {
+  color: #9f1d2f;
+}
+
+.admin-mobile-statusbar .is-offline i {
+  background: #c7364f;
+  box-shadow: 0 0 0 3px rgba(199, 54, 79, 0.12);
+}
+
 .admin-mobile-titlebar {
   gap: 8px;
   min-width: 0;

@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { marketingErrorMessage } from "../../apps/admin/src/adapters/marketingAdapter";
 
 const pageRoot = "apps/admin/src/pages";
 const pages = [
@@ -41,5 +42,14 @@ describe("后台运营手机 App 呈现", () => {
     const knowledge = readFileSync(`${pageRoot}/SupportKnowledgeBasePage.tsx`, "utf8");
     expect(knowledge).toContain('className="mobile-ops__confirm-bar"');
     expect(knowledge).toContain("简体中文");
+  });
+
+  it("把服务端错误转换为中文业务提示且不暴露接口路径", () => {
+    expect(marketingErrorMessage(new Error("API GET /api/admin/marketing/campaigns failed: 409")))
+      .toBe("数据状态已变化，请刷新后重新确认。");
+    expect(marketingErrorMessage(new Error("network timeout")))
+      .toBe("网络连接异常，请恢复网络后重试。");
+    expect(marketingErrorMessage(new Error("unexpected provider error")))
+      .toBe("营销服务暂时不可用，请稍后重试。");
   });
 });

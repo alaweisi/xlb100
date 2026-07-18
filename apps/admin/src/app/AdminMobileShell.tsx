@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import {
   ArrowLeft,
   Bell,
@@ -38,6 +38,7 @@ type AdminMobileShellProps = {
   onNotifications: () => void;
   onChangeCity: () => void;
   accountLabel: string;
+  ordersLabel: "订单派单" | "订单追踪";
   onLogout: () => void;
   activeNav: "overview" | "orders" | "support" | "approvals" | "tools";
   children: ReactNode;
@@ -45,7 +46,7 @@ type AdminMobileShellProps = {
 
 const navItems = [
   { key: "overview", label: "总览", Icon: House },
-  { key: "orders", label: "订单派单", Icon: ClipboardText },
+  { key: "orders", label: "", Icon: ClipboardText },
   { key: "support", label: "客服", Icon: Headset },
   { key: "approvals", label: "审批", Icon: SealCheck },
   { key: "tools", label: "我的/更多", Icon: DotsThreeCircle },
@@ -68,10 +69,57 @@ export function AdminMobileShell({
   onNotifications,
   onChangeCity,
   accountLabel,
+  ordersLabel,
   onLogout,
   activeNav,
   children,
 }: AdminMobileShellProps) {
+  const [online, setOnline] = useState(() => typeof navigator === "undefined" || navigator.onLine);
+  const toolsButtonRef = useRef<HTMLButtonElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const toolDialogRef = useRef<HTMLElement>(null);
+  const wasToolPanelOpen = useRef(false);
+
+  useEffect(() => {
+    const syncOnlineStatus = () => setOnline(navigator.onLine);
+    window.addEventListener("online", syncOnlineStatus);
+    window.addEventListener("offline", syncOnlineStatus);
+    return () => {
+      window.removeEventListener("online", syncOnlineStatus);
+      window.removeEventListener("offline", syncOnlineStatus);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (toolPanelOpen) {
+      wasToolPanelOpen.current = true;
+      closeButtonRef.current?.focus();
+    } else if (wasToolPanelOpen.current) {
+      wasToolPanelOpen.current = false;
+      toolsButtonRef.current?.focus();
+    }
+  }, [toolPanelOpen]);
+
+  function handleToolDialogKeyDown(event: KeyboardEvent<HTMLElement>) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      onCloseTools();
+      return;
+    }
+    if (event.key !== "Tab") return;
+    const focusable = Array.from(toolDialogRef.current?.querySelectorAll<HTMLElement>("button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])") || []);
+    if (focusable.length === 0) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+
   const actions = {
     overview: onOpenOverview,
     orders: onOpenOrders,
@@ -85,7 +133,7 @@ export function AdminMobileShell({
       <header className="admin-mobile-header">
         <div className="admin-mobile-statusbar" aria-label="运营应用状态">
           <strong>喜乐帮运营</strong>
-          <span><i aria-hidden="true" />业务在线</span>
+          <span className={online ? undefined : "is-offline"}><i aria-hidden="true" />{online ? "业务在线" : "当前离线"}</span>
         </div>
         <div className="admin-mobile-titlebar">
           {isDetail ? (
@@ -114,35 +162,41 @@ export function AdminMobileShell({
       <main className="admin-mobile-content">{children}</main>
 
       <nav className="admin-mobile-tabbar" aria-label="运营应用主导航">
-        {navItems.map(({ key, label, Icon }) => (
+        {navItems.map(({ key, label, Icon }) => {
+          const visibleLabel = key === "orders" ? ordersLabel : label;
+          return (
           <button
             key={key}
+            ref={key === "tools" ? toolsButtonRef : undefined}
             type="button"
             className={activeNav === key ? "is-active" : undefined}
             aria-current={activeNav === key ? "page" : undefined}
             onClick={actions[key]}
           >
             <Icon size={22} weight={activeNav === key ? "fill" : "regular"} />
-            <span>{label}</span>
+            <span>{visibleLabel}</span>
           </button>
-        ))}
+          );
+        })}
       </nav>
 
       {toolPanelOpen ? (
         <div className="admin-mobile-tools-backdrop" role="presentation" onClick={onCloseTools}>
           <section
+            ref={toolDialogRef}
             className="admin-mobile-tools"
             role="dialog"
             aria-modal="true"
             aria-labelledby="admin-mobile-tools-title"
             onClick={(event) => event.stopPropagation()}
+            onKeyDown={handleToolDialogKeyDown}
           >
             <header>
               <div>
                 <span>移动运营工具箱</span>
                 <h2 id="admin-mobile-tools-title">全部工作台</h2>
               </div>
-              <button className="admin-mobile-icon-button" type="button" aria-label="关闭全部工具" onClick={onCloseTools}>
+              <button ref={closeButtonRef} className="admin-mobile-icon-button" type="button" aria-label="关闭全部工具" onClick={onCloseTools}>
                 <X size={22} />
               </button>
             </header>
