@@ -113,7 +113,7 @@ export function SupportRoutingConfigPage({ cityCode }: { cityCode: string }) {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))", gap: 10 }}>
         <FormField label="技能组名称"><Input value={groupName} onChange={event => setGroupName(event.target.value)} /></FormField>
         <FormField label="匹配工单类型"><Select value={groupType} onChange={event => setGroupType(event.target.value as SupportTicketType)}>{ticketTypes.map(value => <option key={value} value={value}>{businessLabel(value)}</option>)}</Select></FormField>
-        <FormField label="匹配语言"><Input placeholder="例如 zh-CN,en" value={groupLanguages} onChange={event => setGroupLanguages(event.target.value)} /></FormField>
+        <FormField label="匹配语言"><Input placeholder="例如：简体中文、英语（以服务端语言代码输入并用逗号分隔）" value={groupLanguages} onChange={event => setGroupLanguages(event.target.value)} /></FormField>
         <FormField label="路由权重"><Input type="number" value={groupWeight} onChange={event => setGroupWeight(event.target.value)} /></FormField>
         <label><input type="checkbox" checked={groupDefault} onChange={event => setGroupDefault(event.target.checked)} /> 设为兜底技能组</label>
       </div>

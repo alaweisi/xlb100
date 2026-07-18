@@ -53,10 +53,10 @@ export function SupportKnowledgeBasePage({ cityCode }: { cityCode: string }) {
       {!online && <ApiErrorPanel title="当前网络不可用" detail="知识库写入已停用。恢复网络后再继续操作。" />}
       {error && <ApiErrorPanel title={error.title} detail={error.detail} />}
       {notice && <p role="status">{notice}</p>}
-      <FormField label="文章标识"><Input placeholder="例如 order-reschedule" value={slug} onChange={event => setSlug(event.target.value)} /></FormField>
+      <FormField label="文章标识"><Input placeholder="输入服务端认可的文章标识" value={slug} onChange={event => setSlug(event.target.value)} /></FormField>
       <FormField label="语言"><Input value={language} onChange={event => setLanguage(event.target.value)} /></FormField>
       <FormField label="标题"><Input value={title} onChange={event => setTitle(event.target.value)} /></FormField>
-      <FormField label="信息说明 Markdown"><Textarea value={body} onChange={event => setBody(event.target.value)} /></FormField>
+      <FormField label="信息说明（支持轻量标记语法）"><Textarea value={body} onChange={event => setBody(event.target.value)} /></FormField>
       <FormField label="关键词（逗号分隔）"><Input value={keywords} onChange={event => setKeywords(event.target.value)} /></FormField>
       <FormField label="意图标签（逗号分隔）"><Input value={intents} onChange={event => setIntents(event.target.value)} /></FormField>
       <FormField label="审核说明"><Textarea placeholder="批准或驳回时必填" value={note} onChange={event => setNote(event.target.value)} /></FormField>
@@ -68,7 +68,7 @@ export function SupportKnowledgeBasePage({ cityCode }: { cityCode: string }) {
         <Button disabled={!online || busy || !article || article.version.reviewStatus !== "pending_review" || !note.trim()} onClick={() => void act("reject")}>驳回修订</Button>
         <Button disabled={!online || busy || !article || article.version.reviewStatus !== "approved"} onClick={() => void act("publish")}>发布修订</Button>
       </div>
-      {article && <small>文章 {article.article.articleId} · 不可变修订 {article.version.revision} · 内容摘要 SHA-256 {article.version.contentSha256}</small>}
+      {article && <small>文章 {article.article.articleId} · 不可变修订 {article.version.revision} · 内容摘要校验值 {article.version.contentSha256}</small>}
     </div>
   </Card>;
 }

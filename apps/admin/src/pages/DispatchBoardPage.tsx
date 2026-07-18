@@ -158,7 +158,7 @@ export function DispatchBoardPage({ initialCityCode }: { initialCityCode?: strin
                 <Table rows={filteredTasks} getRowKey={(task) => task.dispatchTaskId} columns={[
                   { key: "task", title: "派单任务", render: (task) => <button type="button" className="operations-row-button" onClick={() => setSelectedTaskId(task.dispatchTaskId)}>{task.dispatchTaskId}</button> },
                   { key: "order", title: "订单", render: (task) => task.orderId },
-                  { key: "sku", title: "服务 SKU", render: (task) => task.skuId },
+                  { key: "sku", title: "服务项目", render: (task) => task.skuId },
                   { key: "status", title: "状态", render: (task) => <StatusTag tone={statusTone(task.status)}>{statusLabel(task.status)}</StatusTag> },
                   { key: "attempt", title: "匹配轮次", render: (task) => `${task.attemptCount} 次` },
                   { key: "candidates", title: "候选", render: (task) => `${task.candidates.length} 人` },
@@ -177,7 +177,7 @@ export function DispatchBoardPage({ initialCityCode }: { initialCityCode?: strin
                         <div><dt>当前状态</dt><dd><StatusTag tone={statusTone(selected.status)}>{statusLabel(selected.status)}</StatusTag></dd></div>
                         <div><dt>匹配轮次</dt><dd>{selected.attemptCount} 次</dd></div>
                         <div><dt>关联订单</dt><dd>{selected.orderId}</dd></div>
-                        <div><dt>服务 SKU</dt><dd>{selected.skuId}</dd></div>
+                        <div><dt>服务项目</dt><dd>{selected.skuId}</dd></div>
                       </dl>
                       <div className="operations-alert">{reasonLabel(selected.lastReason)}</div>
                       <Button disabled={busy !== null || !online || !["pending", "queued", "reassigning", "no_match", "manual_review", "timeout", "failed"].includes(selected.status)} onClick={() => void runAction(`match:${selected.dispatchTaskId}`, () => api.runDispatchMatch(selected.dispatchTaskId), (count) => `任务 ${selected.dispatchTaskId} 已完成重试，服务端处理 ${count} 个任务。`)}>{busy === `match:${selected.dispatchTaskId}` ? "重试中…" : "重新匹配该任务"}</Button>

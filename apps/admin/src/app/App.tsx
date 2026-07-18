@@ -25,10 +25,18 @@ import {
   TopBar,
 } from "@xlb/ui";
 import { Bell, MagnifyingGlass } from "@phosphor-icons/react";
+import { presentFailure } from "../operationsPresentation";
 
 const ADMIN_CITY_OPTIONS = ["hangzhou", "shanghai", "beijing"] as const;
 const ADMIN_ALLOWED_ROLES = new Set(["admin", "operator", "auditor"]);
 const ADMIN_CITY_SCOPE_STORAGE_KEY = "xlb.admin.cityCode";
+
+function adminRoleLabel(role: string): string {
+  if (role === "admin") return "后台管理员";
+  if (role === "operator") return "运营人员";
+  if (role === "auditor") return "审计人员";
+  return "未识别角色";
+}
 
 function readStoredAdminCityScope(): string | undefined {
   if (typeof window === "undefined") return undefined;
@@ -81,7 +89,7 @@ export function App() {
       const result = await requestAdminLoginCode(loginUsername);
       setAuthNotice(`验证码已发送，${result.ttlSeconds} 秒内有效。`);
     } catch (error) {
-      setAuthError(error instanceof Error ? error.message : "验证码发送失败，请稍后重试");
+      setAuthError(presentFailure(error, "验证码发送").detail);
     } finally {
       setAuthLoading(false);
     }
@@ -95,7 +103,7 @@ export function App() {
       const next = await loginAdminWithCode(loginUsername, loginCode);
       setSession(next);
     } catch (error) {
-      setAuthError(error instanceof Error ? error.message : "后台登录失败，请核对验证码");
+      setAuthError(presentFailure(error, "后台登录").detail);
     } finally {
       setAuthLoading(false);
     }
@@ -229,7 +237,7 @@ export function App() {
           style={{ maxWidth: 720, width: "100%" }}
           title="当前角色无权进入后台"
           description="系统不会透露任何业务对象是否存在。请切换到已授权的后台账号。"
-          facts={`当前角色：${session.role}`}
+          facts={`当前角色：${adminRoleLabel(session.role)}`}
           action={<Button onClick={handleLogout}>退出登录</Button>}
         />
       </main>
@@ -242,8 +250,8 @@ export function App() {
         <PermissionState
           style={{ maxWidth: 720, width: "100%" }}
           title="无权进入派单工作台"
-          description="该工作台当前仅允许 operator 角色访问。"
-          facts={`当前角色：${session.role}`}
+          description="该工作台当前仅允许运营人员访问。"
+          facts={`当前角色：${adminRoleLabel(session.role)}`}
           action={<Button onClick={navigateToDashboard}>返回后台首页</Button>}
           secondaryAction={<Button onClick={handleLogout}>退出登录</Button>}
         />

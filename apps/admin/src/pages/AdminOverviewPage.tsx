@@ -9,6 +9,7 @@ import {
 } from "@phosphor-icons/react";
 import { ApiErrorPanel, Button, LoadingState, MetricCard, StatusTag } from "@xlb/ui";
 import { adminSettlementApi as api } from "../adminAuth";
+import { presentFailure, type OperationsFailure } from "../operationsPresentation";
 
 interface OverviewSnapshot {
   totalStatements: number;
@@ -40,7 +41,7 @@ export function AdminOverviewPage({
 }: Props) {
   const [snapshot, setSnapshot] = useState<OverviewSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<OperationsFailure | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -59,7 +60,7 @@ export function AdminOverviewPage({
         totalGaps: Number(gapSummary.totalGaps ?? 0),
       });
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "运营总览加载失败");
+      setError(presentFailure(reason, "运营总览"));
     } finally {
       setLoading(false);
     }
@@ -87,7 +88,7 @@ export function AdminOverviewPage({
       </section>
 
       {loading ? <LoadingState title="正在加载运营总览" description="正在读取当前城市的真实运营数据。" /> : null}
-      {error ? <ApiErrorPanel title="运营总览加载失败" detail={error} action={<Button onClick={() => void load()}>重新加载</Button>} /> : null}
+      {error ? <ApiErrorPanel title={error.title} detail={error.detail} action={<Button onClick={() => void load()}>重新加载</Button>} /> : null}
 
       {!loading && !error ? (
         <section aria-label="城市运营指标" className="admin-overview-metrics">

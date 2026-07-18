@@ -141,7 +141,7 @@ export function PlatformOperationsPage({ initialCityCode }: { initialCityCode?: 
             {sectionErrors.some((item) => item.section === "catalog") && skus.length === 0 ? <EmptyState title="目录数据未能读取" description="页面不会创建临时类目或猜测服务配置。" /> : skus.length === 0 ? <EmptyState title="当前城市暂无正式服务" description="请以正式服务目录数据源为准，页面不会生成演示类目。" /> : (
               <Table rows={skus} getRowKey={(row) => row.skuId} columns={[
                 { key: "category", title: "类目", render: (row) => row.categoryName },
-                { key: "sku", title: "服务 SKU", render: (row) => <div><strong>{row.skuName}</strong><br /><small>{row.skuId}</small></div> },
+                { key: "sku", title: "服务项目", render: (row) => <div><strong>{row.skuName}</strong><br /><small>{row.skuId}</small></div> },
                 { key: "price", title: "基础价格", render: (row) => row.basePrice == null ? "未配置" : `${formatCurrency(row.basePrice)} / ${row.unit}` },
                 { key: "standard", title: "服务标准", render: (row) => `${row.warrantyDays ?? 0} 天质保 · ${row.supportsEnterprise ? "支持企业客户" : "面向个人客户"}` },
                 { key: "status", title: "目录状态", render: (row) => <StatusTag tone={row.isEnabled ? "success" : "muted"}>{row.isEnabled ? "已启用" : "已停用"}</StatusTag> },
