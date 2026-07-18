@@ -53,6 +53,8 @@ test("顾客端：新手机号完成中文资料与常用地址闭环", async ({
   await expect(addressCard).toBeVisible();
 
   await addressCard.getByRole("button", { name: "删除" }).click();
+  const confirmDelete = addressCard.getByRole("button", { name: "确认删除" });
+  if (await confirmDelete.isVisible().catch(() => false)) await confirmDelete.click();
   await expect(addressCard).toHaveCount(0);
   assertClean();
 });
