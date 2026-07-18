@@ -61,21 +61,32 @@ for (const manifest of manifests) {
   }
   for (const item of manifest.evidence ?? []) {
     const carrierId = item.carrierId ?? item.carrier ?? item.fileKey?.match(/^[CWA]-\d{2}/)?.[0];
-    const ids = [...(item.sliceIds ?? [])];
-    if (carrierId && (item.carrierBase === true || item.stage === "base")) ids.push(carrierId);
-    for (const id of new Set(ids)) {
-      const list = evidenceById.get(id) ?? [];
-      list.push({
-        browser: "edge",
-        browserVersion: manifest.browserVersion,
-        actualApp: true,
-        capturedAt: manifest.capturedAt,
-        stage: id === carrierId ? "base" : item.stage,
-        label: item.label,
-        file: item.path,
-        notes: item.description ?? item.contractState ?? "真实应用契约态截图。",
-      });
-      evidenceById.set(id, list);
+    const stagesById = new Map();
+    for (const [stage, ids] of Object.entries(item.sliceStages ?? {})) {
+      for (const id of ids ?? []) {
+        const stages = stagesById.get(id) ?? new Set();
+        stages.add(stage);
+        stagesById.set(id, stages);
+      }
+    }
+    const ids = new Set([...(item.sliceIds ?? []), ...stagesById.keys()]);
+    if (carrierId && (item.carrierBase === true || item.stage === "base")) ids.add(carrierId);
+    for (const id of ids) {
+      const stages = id === carrierId ? ["base"] : [...(stagesById.get(id) ?? [item.stage])];
+      for (const stage of stages) {
+        const list = evidenceById.get(id) ?? [];
+        list.push({
+          browser: "edge",
+          browserVersion: manifest.browserVersion,
+          actualApp: true,
+          capturedAt: manifest.capturedAt,
+          stage,
+          label: item.label,
+          file: item.path,
+          notes: item.description ?? item.contractState ?? "真实应用契约态截图。",
+        });
+        evidenceById.set(id, list);
+      }
     }
   }
 }
