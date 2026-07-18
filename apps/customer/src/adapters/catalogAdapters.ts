@@ -35,7 +35,9 @@ export const cityAreaByCode: Record<CityCode, string> = {
   beijing: "朝阳区",
 };
 
-export const cityDisplayLabel = (cityCode: CityCode): string => `${cityCode} · ${cityAreaByCode[cityCode] ?? "市中心"}`;
+export const cityNameByCode: Record<CityCode, string> = { hangzhou: "杭州", shanghai: "上海", beijing: "北京" };
+
+export const cityDisplayLabel = (cityCode: CityCode): string => `${cityNameByCode[cityCode]} · ${cityAreaByCode[cityCode] ?? "市中心"}`;
 
 const defaultCategoryMeta = {
   label: "服务",

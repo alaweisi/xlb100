@@ -13,13 +13,14 @@ import {
   StatusTag,
   Tabs,
 } from "@xlb/ui";
+import { CaretDown, MagnifyingGlass, MapPin } from "@phosphor-icons/react";
 import {
   CITY_OPTIONS,
   CustomerLoadable,
   setRouteSearchParams,
   useRouteSearchParams,
 } from "./customerPageShell";
-import { cityDisplayLabel, getCatalogSkuDisplayLabel, getCatalogSkus } from "../adapters/catalogAdapters";
+import { cityDisplayLabel, cityNameByCode, getCatalogSkuDisplayLabel, getCatalogSkus } from "../adapters/catalogAdapters";
 import { createCustomerUiBinding } from "../adapters/workflowAdapter";
 
 type CatalogCategoryTab = {
@@ -63,9 +64,9 @@ export function CustomerServicesPage({
 
   const tabs = useMemo<CatalogCategoryTab[]>(() => {
     if (catalogState.status !== "success") {
-      return [{ key: "all", label: "All" }];
+      return [{ key: "all", label: "全部" }];
     }
-    return [{ key: "all", label: "All" }, ...catalogState.data.categories.map((category) => ({ key: category.categoryId, label: category.name }))];
+    return [{ key: "all", label: "全部" }, ...catalogState.data.categories.map((category) => ({ key: category.categoryId, label: category.name }))];
   }, [catalogState]);
 
   const filteredSkus = useMemo(() => {
@@ -102,13 +103,16 @@ export function CustomerServicesPage({
   const retryAction = actionById["customer.catalog.retry"];
 
   const header = (
-    <Card title="Service discovery">
+    <Card title="全部服务">
       <LocationSearchBar
-        cityLabel={cityCode}
+        cityLabel={cityNameByCode[cityCode]}
         areaLabel={cityDisplayLabel(cityCode)}
+        locationIcon={<MapPin size={15} weight="fill" />}
+        dropdownIcon={<CaretDown size={13} weight="bold" />}
+        searchIcon={<MagnifyingGlass size={18} weight="bold" />}
         onSearchChange={setSearchQuery}
         onSearchSubmit={updateRouteSearchQuery}
-        placeholder="Search cleaning, repair, moving"
+        placeholder="搜索保洁、维修、搬家等服务"
         value={searchQuery}
         onCityClick={onCityChange}
       />
@@ -130,11 +134,11 @@ export function CustomerServicesPage({
         <Tabs items={tabs} activeKey={activeCategoryId} onChange={setActiveCategoryId} density="compact" />
       </Card>
 
-      {catalogState.status === "loading" && <LoadingState title="Loading services" description="Reading catalog API..." />}
+      {catalogState.status === "loading" && <LoadingState title="服务加载中" description="正在读取实时服务目录" />}
       {catalogState.status === "error" && (
         <ErrorState
-          title="Load failed"
-          description="Catalog API failed. Please retry."
+          title="加载失败"
+          description="服务目录读取失败，请重试。"
           action={
             <ActionDock
               actions={retryAction ? [retryAction] : []}
@@ -146,14 +150,14 @@ export function CustomerServicesPage({
       )}
 
       {catalogState.status === "success" && catalogState.data.categories.length === 0 && (
-        <EmptyState title="No service available" description="Current city has no service catalog." />
+        <EmptyState title="暂无可用服务" description="当前城市暂未开放服务目录。" />
       )}
 
       {catalogState.status === "success" && filteredSkus.length > 0 && (
         <section style={{ display: "grid", gap: 10 }}>
           <div style={{ alignItems: "center", color: "#64748b", display: "flex", justifyContent: "space-between" }}>
-            <strong>Service list</strong>
-            <StatusTag tone="success">{`${filteredSkus.length} items`}</StatusTag>
+            <strong>服务项目</strong>
+            <StatusTag tone="success">{`共 ${filteredSkus.length} 项`}</StatusTag>
           </div>
           {filteredSkus.map((sku) => {
             const skuDisplay = getCatalogSkuDisplayLabel(sku);
@@ -162,7 +166,7 @@ export function CustomerServicesPage({
                 key={sku.skuId}
                 title={sku.name}
                 subtitle={skuDisplay.subtitle}
-                status={<StatusTag tone="muted">Available</StatusTag>}
+                status={<StatusTag tone="muted">可预约</StatusTag>}
                 onClick={() => {
                   const params = new URLSearchParams({ skuId: sku.skuId });
                   window.location.href = `/customer/order/create?${params.toString()}`;
@@ -175,8 +179,8 @@ export function CustomerServicesPage({
 
       {catalogState.status === "success" && filteredSkus.length === 0 && (
         <EmptyState
-          title="No matching services"
-          description={searchQuery.trim() ? `No services found for "${searchQuery}"` : "No service is available in selected filters"}
+          title="没有匹配的服务"
+          description={searchQuery.trim() ? `未找到“${searchQuery}”相关服务` : "当前筛选条件下暂无服务"}
         />
       )}
 

@@ -1,15 +1,40 @@
-import { lazy, useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { buildHash, parseHashParams, parseView } from "../hashParams";
 import {
   clearAdminSession,
-  loginAdmin,
   loginAdminWithCode,
   readStoredAdminSession,
   requestAdminLoginCode,
   adminOpsApi,
   type AdminSession,
 } from "../adminAuth";
-import { AdminShell, Button, FormField, GuardrailCard, Input, ScopeBadge, SideNav, StatusTag, TopBar } from "@xlb/ui";
+import {
+  AdminShell,
+  Button,
+  CityScopeGate,
+  FormField,
+  GuardrailCard,
+  IdentityGate,
+  Input,
+  LoadingState,
+  PermissionState,
+  ScopeBadge,
+  Select,
+  SideNav,
+  StatusTag,
+  TopBar,
+} from "@xlb/ui";
+import { Bell, MagnifyingGlass } from "@phosphor-icons/react";
+
+const ADMIN_CITY_OPTIONS = ["hangzhou", "shanghai", "beijing"] as const;
+const ADMIN_ALLOWED_ROLES = new Set(["admin", "operator", "auditor"]);
+const ADMIN_CITY_SCOPE_STORAGE_KEY = "xlb.admin.cityCode";
+
+function readStoredAdminCityScope(): string | undefined {
+  if (typeof window === "undefined") return undefined;
+  const stored = window.localStorage.getItem(ADMIN_CITY_SCOPE_STORAGE_KEY)?.trim();
+  return stored && ADMIN_CITY_OPTIONS.includes(stored as (typeof ADMIN_CITY_OPTIONS)[number]) ? stored : undefined;
+}
 
 const SettlementOpsPage = lazy(() => import("../pages/SettlementOpsPage").then((module) => ({ default: module.SettlementOpsPage })));
 const SettlementStatementDetailPage = lazy(() => import("../pages/SettlementStatementDetailPage").then((module) => ({ default: module.SettlementStatementDetailPage })));
@@ -25,15 +50,18 @@ const SupportTicketsPage = lazy(() => import("../pages/SupportTicketsPage").then
 const SupportQualityPage=lazy(()=>import("../pages/SupportQualityPage").then(module=>({default:module.SupportQualityPage})));
 const ReviewModerationPage=lazy(()=>import("../pages/ReviewModerationPage").then(module=>({default:module.ReviewModerationPage})));
 const MarketingOperationsPage=lazy(()=>import("../pages/MarketingOperationsPage").then(module=>({default:module.MarketingOperationsPage})));
+const AdminOverviewPage=lazy(()=>import("../pages/AdminOverviewPage").then(module=>({default:module.AdminOverviewPage})));
 
 export function App() {
   const [view, setView] = useState(parseView);
   const [params, setParams] = useState(parseHashParams);
   const [session, setSession] = useState<AdminSession | null>(() => readStoredAdminSession());
-  const [authLoading, setAuthLoading] = useState(() => !readStoredAdminSession());
+  const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [authNotice, setAuthNotice] = useState<string | null>(null);
   const [loginUsername, setLoginUsername] = useState(() => readStoredAdminSession()?.username ?? "admin_hz");
   const [loginCode, setLoginCode] = useState("");
+  const [pendingCityCode, setPendingCityCode] = useState("hangzhou");
 
   const onHashChange = useCallback(() => {
     setView(parseView());
@@ -45,35 +73,15 @@ export function App() {
     return () => window.removeEventListener("hashchange", onHashChange);
   }, [onHashChange]);
 
-  useEffect(() => {
-    if (session) return;
-    let cancelled = false;
-    setAuthLoading(true);
-    void loginAdmin(loginUsername)
-      .then((next) => {
-        if (!cancelled) {
-          setSession(next);
-          setAuthError(null);
-        }
-      })
-      .catch((error) => {
-        if (!cancelled) {
-          setAuthError(error instanceof Error ? error.message : "Admin login failed");
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setAuthLoading(false);
-      });
-    return () => { cancelled = true; };
-  }, []);
-
   const handleRequestCode = useCallback(async () => {
     setAuthLoading(true);
     setAuthError(null);
+    setAuthNotice(null);
     try {
-      await requestAdminLoginCode(loginUsername);
+      const result = await requestAdminLoginCode(loginUsername);
+      setAuthNotice(`验证码已发送，${result.ttlSeconds} 秒内有效。`);
     } catch (error) {
-      setAuthError(error instanceof Error ? error.message : "Admin code request failed");
+      setAuthError(error instanceof Error ? error.message : "验证码发送失败，请稍后重试");
     } finally {
       setAuthLoading(false);
     }
@@ -82,11 +90,12 @@ export function App() {
   const handleLogin = useCallback(async () => {
     setAuthLoading(true);
     setAuthError(null);
+    setAuthNotice(null);
     try {
       const next = await loginAdminWithCode(loginUsername, loginCode);
       setSession(next);
     } catch (error) {
-      setAuthError(error instanceof Error ? error.message : "Admin login failed");
+      setAuthError(error instanceof Error ? error.message : "后台登录失败，请核对验证码");
     } finally {
       setAuthLoading(false);
     }
@@ -98,7 +107,7 @@ export function App() {
     setLoginCode("");
   }, []);
 
-  const cityCode = params.get("cityCode") || undefined;
+  const cityCode = params.get("cityCode") || readStoredAdminCityScope();
 
   const navigateToDetail = useCallback((statementId: string, extra?: Record<string, string>) => {
     window.location.hash = buildHash(
@@ -136,67 +145,141 @@ export function App() {
   const navigateToSupportQuality=useCallback(()=>{window.location.hash=buildHash("/support-quality",{cityCode:cityCode||""})},[cityCode]);
   const navigateToReviewModeration=useCallback(()=>{window.location.hash=buildHash("/review-moderation",{cityCode:cityCode||""})},[cityCode]);
   const navigateToMarketing=useCallback(()=>{window.location.hash=buildHash("/marketing",{cityCode:cityCode||""})},[cityCode]);
+  const navigateToSettlement=useCallback(()=>{window.location.hash=buildHash("/settlement-ops",{cityCode:cityCode||""})},[cityCode]);
 
   const navigateToDashboard = useCallback(() => {
     window.location.hash = "";
   }, []);
 
   const viewTitle = view.page === "workerWithdrawals"
-    ? "Worker Withdrawals"
+    ? "师傅提现审核"
     : view.page === "support"
-    ? "Support Agent Workbench"
+    ? "客服工作台"
     : view.page === "supportQuality"
-    ? "Support Quality"
+    ? "客服质量管理"
     : view.page === "reviewModeration"
-    ? "Review Moderation"
+    ? "评价治理"
     : view.page === "marketing"
-    ? "Marketing / Coupon"
+    ? "营销与优惠券"
     : view.page === "platformOperations"
-    ? "Platform Operations"
+    ? "平台运营"
     : view.page === "enterprise"
-    ? "Enterprise Platform"
+    ? "企业客户运营"
     : view.page === "dispatch"
-    ? "LBS-lite Dispatch"
+    ? "城市派单工作台"
     : view.page === "aftersale"
-    ? "Aftersale Operations"
+    ? "售后运营"
     : view.page === "orderTrace"
-    ? "Order Trace"
+    ? "订单追踪"
     : view.page === "governance"
-      ? "Settlement Governance"
+      ? "结算治理"
       : view.page === "exports"
-        ? "Export Review"
+        ? "导出复核"
         : view.page === "detail"
-          ? "Statement Detail"
-          : "Settlement Ops";
+          ? "结算单详情"
+          : view.page === "settlement"
+            ? "结算运营"
+            : "运营总览";
+
+  const handleConfirmCityScope = useCallback(() => {
+    const rawHash = window.location.hash.replace(/^#/, "");
+    const queryIndex = rawHash.indexOf("?");
+    const targetPath = (queryIndex === -1 ? rawHash : rawHash.slice(0, queryIndex)) || "/";
+    const nextParams: Record<string, string> = {};
+    params.forEach((value, key) => { nextParams[key] = value; });
+    nextParams.cityCode = pendingCityCode;
+    window.localStorage.setItem(ADMIN_CITY_SCOPE_STORAGE_KEY, pendingCityCode);
+    window.location.hash = buildHash(targetPath, nextParams);
+  }, [params, pendingCityCode]);
 
   if (!session) {
     return (
-      <div style={{ alignItems: "center", background: "var(--xlb-surface-muted)", display: "grid", minHeight: "100vh", padding: 24 }}>
-        <div style={{ margin: "0 auto", maxWidth: 440, width: "100%" }}>
-          <GuardrailCard
-            title="XLB Admin Login"
-            actions={<StatusTag tone={authLoading ? "warning" : "primary"}>{authLoading ? "checking" : "token required"}</StatusTag>}
-          >
-            <div style={{ display: "grid", gap: 12 }}>
-              <FormField label="Username">
+      <IdentityGate
+        visualRole="admin"
+        title="后台身份验证"
+        description="验证账号与角色后进入受控运营工作台。"
+        recoveryTarget={`目标工作台：${viewTitle}`}
+        status={<StatusTag tone={authLoading ? "warning" : "primary"}>{authLoading ? "验证中" : "需要令牌"}</StatusTag>}
+        form={
+          <>
+              <FormField label="后台账号">
                 <Input value={loginUsername} onChange={(event) => setLoginUsername(event.target.value)} />
               </FormField>
-              <FormField label="Verification code">
+              <FormField label="短信验证码">
                 <Input value={loginCode} onChange={(event) => setLoginCode(event.target.value)} />
               </FormField>
-              <div style={{ display: "flex", gap: 8 }}>
-                <Button onClick={handleRequestCode} disabled={authLoading}>Request code</Button>
-                <Button onClick={handleLogin} disabled={authLoading || !loginCode.trim()} variant="primary">Login</Button>
-              </div>
-              {authError && <p style={{ color: "#b91c1c", fontSize: 13, margin: 0 }}>{authError}</p>}
-            </div>
-          </GuardrailCard>
-        </div>
-      </div>
+          </>
+        }
+        actions={
+          <>
+            <Button onClick={handleRequestCode} disabled={authLoading}>获取验证码</Button>
+            <Button onClick={handleLogin} disabled={authLoading || !loginCode.trim()} variant="primary">登录</Button>
+          </>
+        }
+        error={authError}
+        notice={authNotice}
+      />
     );
   }
 
-  const content = view.page === "workerWithdrawals"
+  if (!ADMIN_ALLOWED_ROLES.has(session.role)) {
+    return (
+      <main style={{ alignItems: "center", background: "var(--xlb-role-admin-page)", boxSizing: "border-box", display: "grid", justifyItems: "center", minHeight: "100dvh", padding: 24 }}>
+        <PermissionState
+          style={{ maxWidth: 720, width: "100%" }}
+          title="当前角色无权进入后台"
+          description="系统不会透露任何业务对象是否存在。请切换到已授权的后台账号。"
+          facts={`当前角色：${session.role}`}
+          action={<Button onClick={handleLogout}>退出登录</Button>}
+        />
+      </main>
+    );
+  }
+
+  if (view.page === "dispatch" && session.role !== "operator") {
+    return (
+      <main style={{ alignItems: "center", background: "var(--xlb-role-admin-page)", boxSizing: "border-box", display: "grid", justifyItems: "center", minHeight: "100dvh", padding: 24 }}>
+        <PermissionState
+          style={{ maxWidth: 720, width: "100%" }}
+          title="无权进入派单工作台"
+          description="该工作台当前仅允许 operator 角色访问。"
+          facts={`当前角色：${session.role}`}
+          action={<Button onClick={navigateToDashboard}>返回后台首页</Button>}
+          secondaryAction={<Button onClick={handleLogout}>退出登录</Button>}
+        />
+      </main>
+    );
+  }
+
+  if (!cityCode) {
+    return (
+      <CityScopeGate
+        title="选择后台工作城市"
+        description="后台数据、操作权限和审计记录都按城市隔离。"
+        currentScope="尚未选择城市范围"
+        recoveryTarget={`确认后返回：${viewTitle}`}
+        selector={
+          <FormField label={<span style={{ color: "var(--xlb-role-admin-text)" }}>工作城市</span>}>
+            <Select value={pendingCityCode} onChange={(event) => setPendingCityCode(event.target.value)}>
+              {ADMIN_CITY_OPTIONS.map((option) => <option key={option} value={option}>{option === "hangzhou" ? "杭州" : option === "shanghai" ? "上海" : "北京"}</option>)}
+            </Select>
+          </FormField>
+        }
+        actions={<Button onClick={handleConfirmCityScope} variant="primary">进入该城市工作台</Button>}
+      />
+    );
+  }
+
+  const content = view.page === "dashboard"
+    ? <AdminOverviewPage
+        cityCode={cityCode}
+        role={session.role}
+        onOpenOrderTrace={navigateToOrderTrace}
+        onOpenDispatch={navigateToDispatch}
+        onOpenSupport={navigateToSupport}
+        onOpenSettlement={navigateToSettlement}
+      />
+    : view.page === "workerWithdrawals"
     ? <WorkerWithdrawalsPage initialCityCode={cityCode} />
     : view.page === "support"
     ? <SupportTicketsPage initialCityCode={cityCode} />
@@ -251,74 +334,84 @@ export function App() {
             );
 
   return (
+    <div className="admin-app-root">
     <AdminShell
       sideNav={
         <SideNav
-          title="XLB Admin"
+          title="喜乐帮后台"
           style={{ background: "var(--xlb-role-admin-page)" }}
           items={[
             {
-              key: "settlement",
-              label: "Settlement",
-              active: view.page === "dashboard" || view.page === "detail",
+              key: "overview",
+              label: "运营总览",
+              active: view.page === "dashboard",
               href: "#",
               onClick: navigateToDashboard,
             },
             {
+              key: "settlement",
+              label: "结算运营",
+              active: view.page === "settlement" || view.page === "detail",
+              href: "#/settlement-ops",
+              onClick: navigateToSettlement,
+            },
+            {
               key: "exports",
-              label: "Export Review",
+              label: "导出复核",
               active: view.page === "exports",
               href: "#/settlement-ops/exports",
               onClick: () => navigateToExports(),
             },
             {
               key: "governance",
-              label: "Governance",
+              label: "结算治理",
               active: view.page === "governance",
               href: "#/settlement-ops/governance",
               onClick: navigateToGovernance,
             },
             {
               key: "orderTrace",
-              label: "Order Trace",
+              label: "订单追踪",
               active: view.page === "orderTrace",
               href: "#/order-trace",
               onClick: navigateToOrderTrace,
             },
             {
               key: "workerWithdrawals",
-              label: "Withdrawals",
+              label: "师傅提现",
               active: view.page === "workerWithdrawals",
               href: "#/worker-withdrawals",
               onClick: navigateToWorkerWithdrawals,
             },
             {
               key: "aftersale",
-              label: "Aftersale",
+              label: "售后运营",
               active: view.page === "aftersale",
               href: "#/aftersale",
               onClick: navigateToAftersale,
             },
-            { key:"enterprise",label:"Enterprise",active:view.page==="enterprise",href:"#/enterprise",onClick:navigateToEnterprise },
-            { key:"dispatch",label:"Dispatch",active:view.page==="dispatch",href:"#/dispatch",onClick:navigateToDispatch },
-            { key:"platformOperations",label:"Orders / SKU / Workers",active:view.page==="platformOperations",href:"#/platform-operations",onClick:navigateToPlatformOperations },
-            { key: "support", label: "Support Workbench", active: view.page === "support", href: "#/support", onClick: navigateToSupport },
-            {key:"supportQuality",label:"Support Quality",active:view.page==="supportQuality",href:"#/support-quality",onClick:navigateToSupportQuality},
-            {key:"reviewModeration",label:"Review / Reputation",active:view.page==="reviewModeration",href:"#/review-moderation",onClick:navigateToReviewModeration},
-            {key:"marketing",label:"Marketing / Coupon",active:view.page==="marketing",href:"#/marketing",onClick:navigateToMarketing},
+            { key:"enterprise",label:"企业客户",active:view.page==="enterprise",href:"#/enterprise",onClick:navigateToEnterprise },
+            { key:"dispatch",label:"城市派单",active:view.page==="dispatch",href:"#/dispatch",onClick:navigateToDispatch },
+            { key:"platformOperations",label:"订单、服务与师傅",active:view.page==="platformOperations",href:"#/platform-operations",onClick:navigateToPlatformOperations },
+            { key: "support", label: "客服工作台", active: view.page === "support", href: "#/support", onClick: navigateToSupport },
+            {key:"supportQuality",label:"客服质量",active:view.page==="supportQuality",href:"#/support-quality",onClick:navigateToSupportQuality},
+            {key:"reviewModeration",label:"评价与口碑",active:view.page==="reviewModeration",href:"#/review-moderation",onClick:navigateToReviewModeration},
+            {key:"marketing",label:"营销与优惠券",active:view.page==="marketing",href:"#/marketing",onClick:navigateToMarketing},
           ]}
         />
       }
       topBar={
         <TopBar
           title={viewTitle}
-          subtitle="Admin / Operations / Controlled workflows"
+          subtitle="运营管理与受控业务流程"
           actions={
             <>
-              {cityCode && <ScopeBadge scope={`city: ${cityCode}`} />}
-              <StatusTag tone="primary">{session.userId}</StatusTag>
-              <StatusTag tone="success">same-origin API</StatusTag>
-              <Button onClick={handleLogout}>Logout</Button>
+              <Button aria-label="打开订单全局搜索" onClick={navigateToOrderTrace}><MagnifyingGlass size={18} weight="regular" /></Button>
+              <Button aria-label="打开客服工作台" onClick={navigateToSupport}><Bell size={18} weight="regular" /></Button>
+              {cityCode && <ScopeBadge scope={`城市：${cityCode === "hangzhou" ? "杭州" : cityCode === "shanghai" ? "上海" : "北京"}`} />}
+              <StatusTag tone="primary">运营账号</StatusTag>
+              <StatusTag tone="success">业务接口已接入</StatusTag>
+              <Button onClick={handleLogout}>退出登录</Button>
             </>
           }
         />
@@ -326,20 +419,22 @@ export function App() {
       style={{ background: "var(--xlb-surface-muted)" }}
       contentStyle={{ display: "grid", gap: 16 }}
     >
-      <GuardrailCard
-        title="Operations Guardrail"
-        actions={<StatusTag tone="warning">controlled ops</StatusTag>}
+      {view.page !== "dashboard" ? <GuardrailCard
+        title="运营操作边界"
+        actions={<StatusTag tone="warning">受控操作</StatusTag>}
         style={{
           borderColor: "#ddd6fe",
           boxShadow: "0 12px 28px rgba(25, 18, 37, 0.08)",
         }}
       >
         <p style={{ color: "#4b5563", fontSize: 13, lineHeight: "20px", margin: 0 }}>
-          This console keeps settlement and governance surfaces intact. Phase 17 aftersale actions are audited state transitions;
-          compensation approval records intent only and never executes a provider refund.
+          本工作台保留完整的结算与治理边界。售后操作会记录可审计的状态变化；补偿审批只记录业务意图，不会直接执行外部退款。
         </p>
-      </GuardrailCard>
-      {content}
+      </GuardrailCard> : null}
+      <Suspense fallback={<LoadingState title="正在打开后台工作台" description="正在加载所需模块。" />}>
+        {content}
+      </Suspense>
     </AdminShell>
+    </div>
   );
 }

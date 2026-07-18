@@ -1,12 +1,13 @@
 import { useCallback, useState } from "react";
-import { Button, Card, FormField, Input, StatusTag } from "@xlb/ui";
+import { Button, FormField, IdentityGate, Input, Select, StatusTag } from "@xlb/ui";
 import {
   loginWorkerWithCode,
-  readWorkerDebugCode,
   requestWorkerLoginCode,
+  WorkerAccessError,
+  type WorkerAccessStatus,
   type WorkerSession,
 } from "../app/workerAuth";
-import { helperText, workerPanelStyle } from "./pageShared";
+import { helperText } from "./pageShared";
 
 const DEFAULT_CITY_CODE = "hangzhou";
 const DEFAULT_WORKER_PHONE = "13800000001";
@@ -15,43 +16,27 @@ export function WorkerLoginPage({
   cityCode,
   onCityChange,
   onLogin,
+  onAccessBlocked,
 }: {
   cityCode: string;
   onCityChange: (value: string) => void;
   onLogin: (session: WorkerSession) => void;
+  onAccessBlocked: (status: WorkerAccessStatus) => void;
 }) {
   const [phone, setPhone] = useState(DEFAULT_WORKER_PHONE);
   const [code, setCode] = useState("");
-  const [loading, setLoading] = useState<"request" | "debug" | "login" | null>(null);
+  const [loading, setLoading] = useState<"request" | "login" | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const debugCodeEnabledInUi =
-    ((import.meta as ImportMeta & { env?: { MODE?: string } }).env?.MODE ?? "development") !== "production";
-
   const requestCode = useCallback(async () => {
     setLoading("request");
     setError(null);
     setNotice(null);
     try {
       const result = await requestWorkerLoginCode(phone.trim());
-      setNotice(`Code sent. It expires in ${result.ttlSeconds}s.`);
+      setNotice(`验证码已发送，${result.ttlSeconds} 秒内有效。`);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Failed to request login code");
-    } finally {
-      setLoading(null);
-    }
-  }, [phone]);
-
-  const fillDebugCode = useCallback(async () => {
-    setLoading("debug");
-    setError(null);
-    setNotice(null);
-    try {
-      const result = await readWorkerDebugCode(phone.trim());
-      setCode(result.code);
-      setNotice("Debug code filled for local verification.");
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Debug code unavailable");
+      setError(caught instanceof Error ? caught.message : "验证码发送失败，请稍后重试");
     } finally {
       setLoading(null);
     }
@@ -65,43 +50,55 @@ export function WorkerLoginPage({
       const session = await loginWorkerWithCode(phone.trim(), code.trim());
       onLogin(session);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Worker login failed");
+      if (caught instanceof WorkerAccessError) {
+        onAccessBlocked(caught.status);
+        return;
+      }
+      setError(caught instanceof Error ? caught.message : "登录失败，请核对验证码后重试");
     } finally {
       setLoading(null);
     }
-  }, [code, onLogin, phone]);
+  }, [code, onAccessBlocked, onLogin, phone]);
 
   return (
-    <>
-      <Card title="Worker Login" actions={<StatusTag tone="primary">Bearer</StatusTag>} style={workerPanelStyle}>
-        <div style={{ display: "grid", gap: 10 }}>
-          <p style={helperText}>Use phone OTP login before opening the worker task pool.</p>
-          <FormField label="cityCode">
-            <Input value={cityCode} onChange={(event) => onCityChange(event.target.value || DEFAULT_CITY_CODE)} />
+    <IdentityGate
+      visualRole="worker"
+      title="师傅身份验证"
+      description="使用手机号验证码登录，验证完成后进入任务大厅。"
+      recoveryTarget="验证完成后返回：待接任务大厅"
+      status={<StatusTag tone="primary">需要登录</StatusTag>}
+      style={{ alignItems: "center", minHeight: 824, padding: 20 }}
+      form={
+        <>
+          <FormField label={<span style={{ color: "#f8fbff" }}>工作城市</span>}>
+            <Select value={cityCode} onChange={(event) => onCityChange(event.target.value || DEFAULT_CITY_CODE)}>
+              <option value="hangzhou">杭州</option><option value="shanghai">上海</option><option value="beijing">北京</option>
+            </Select>
           </FormField>
-          <FormField label="phone">
+          <FormField label={<span style={{ color: "#f8fbff" }}>手机号</span>}>
             <Input value={phone} onChange={(event) => setPhone(event.target.value)} />
           </FormField>
-          <FormField label="code">
+          <FormField label={<span style={{ color: "#f8fbff" }}>短信验证码</span>}>
             <Input value={code} onChange={(event) => setCode(event.target.value)} />
           </FormField>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-            <Button onClick={requestCode} disabled={loading !== null || !phone.trim()}>
-              {loading === "request" ? "Sending" : "Send code"}
-            </Button>
-            {debugCodeEnabledInUi && (
-              <Button onClick={fillDebugCode} disabled={loading !== null || !phone.trim()}>
-                {loading === "debug" ? "Reading" : "Fill debug code"}
-              </Button>
-            )}
-            <Button onClick={submitLogin} disabled={loading !== null || !phone.trim() || !code.trim()} variant="primary">
-              {loading === "login" ? "Logging in" : "Login"}
-            </Button>
-          </div>
           {notice && <p style={helperText}>{notice}</p>}
-          {error && <p style={{ ...helperText, color: "#fda29b" }}>{error}</p>}
-        </div>
-      </Card>
-    </>
+        </>
+      }
+      actions={
+        <>
+          <Button
+            onClick={requestCode}
+            disabled={loading !== null || !phone.trim()}
+            style={{ borderColor: "rgba(184, 200, 220, 0.72)", color: "#f8fbff" }}
+          >
+            {loading === "request" ? "正在发送" : "获取验证码"}
+          </Button>
+          <Button onClick={submitLogin} disabled={loading !== null || !phone.trim() || !code.trim()} variant="primary">
+            {loading === "login" ? "正在登录" : "登录并进入任务大厅"}
+          </Button>
+        </>
+      }
+      error={error}
+    />
   );
 }

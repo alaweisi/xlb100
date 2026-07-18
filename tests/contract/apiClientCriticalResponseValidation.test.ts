@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { createAuthApi } from "../../packages/api-client/src/auth.js";
 import { createCustomerOrderApi } from "../../packages/api-client/src/customer.js";
-import type { ApiClient, ApiRequestOptions } from "../../packages/api-client/src/createApiClient.js";
+import { createApiClient, type ApiClient, type ApiRequestOptions } from "../../packages/api-client/src/createApiClient.js";
 import { createWorkerApi } from "../../packages/api-client/src/worker.js";
 
 function recordingClient() {
@@ -18,6 +18,19 @@ function validatorFrom(call: unknown[], optionIndex: number): NonNullable<ApiReq
 }
 
 describe("critical API response validation wiring", () => {
+  it("parses only explicitly accepted auth failure statuses as validated business responses", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(JSON.stringify({
+      ok: false,
+      error: "worker access is suspended",
+      statusCode: 403,
+      code: "WORKER_ACCESS_SUSPENDED",
+      workerAccessStatus: "suspended",
+    }), { status: 403, headers: { "Content-Type": "application/json" } }));
+    const result = await createAuthApi(createApiClient({ baseUrl: "" })).workerLogin("13800138000", "123456");
+    expect(result).toMatchObject({ ok: false, workerAccessStatus: "suspended" });
+    fetchMock.mockRestore();
+  });
+
   it("wires validators into every login and OTP request call", async () => {
     const { client, post } = recordingClient();
     const api = createAuthApi(client);
@@ -31,9 +44,13 @@ describe("critical API response validation wiring", () => {
     expect(post).toHaveBeenCalledTimes(6);
     for (const call of post.mock.calls) {
       expect(() => validatorFrom(call, 2)({ ok: true })).toThrow();
+      expect((call[2] as ApiRequestOptions<unknown>).acceptedStatuses).toEqual([400, 401, 403, 404, 429]);
     }
     expect(() => validatorFrom(post.mock.calls[0]!, 2)({ ok: true, expiresAt: "2026-07-11T00:00:00Z", ttlSeconds: 300, attemptsLeft: 5 })).not.toThrow();
     expect(() => validatorFrom(post.mock.calls[1]!, 2)({ ok: true, token: "jwt", userId: "customer-1", role: "customer" })).not.toThrow();
+    const workerLoginValidator = validatorFrom(post.mock.calls[5]!, 2);
+    expect(() => workerLoginValidator({ ok: false, error: "worker access is suspended", statusCode: 403, code: "WORKER_ACCESS_SUSPENDED", workerAccessStatus: "suspended" })).not.toThrow();
+    expect(() => workerLoginValidator({ ok: false, error: "invalid worker status", statusCode: 403, workerAccessStatus: "unknown" })).toThrow();
   });
 
   it("wires validators into order and payment creation/read/mutation calls", async () => {

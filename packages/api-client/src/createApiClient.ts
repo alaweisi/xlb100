@@ -13,6 +13,8 @@ export interface ApiRequestOptions<T> {
   timeoutMs?: number;
   retry?: RetryMode;
   validate?: ResponseValidator<T>;
+  /** HTTP statuses whose JSON body is an expected, validated business response. */
+  acceptedStatuses?: readonly number[];
 }
 
 export interface ApiClientOptions {
@@ -182,7 +184,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
             : "network";
         throw new ApiClientError({ kind, message: `API ${method} ${path} ${kind}`, method, path, cause });
       }
-      if (!response.ok) {
+      if (!response.ok && !requestOptions.acceptedStatuses?.includes(response.status)) {
         throw new ApiClientError({
           kind: "http",
           message: `API ${method} ${path} failed: ${response.status}`,

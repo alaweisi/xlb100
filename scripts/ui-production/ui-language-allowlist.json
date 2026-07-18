@@ -1,0 +1,12 @@
+{
+  "allowedTechnicalTokens": [
+    "API",
+    "CNY",
+    "HMAC",
+    "ID",
+    "OTP",
+    "SHA",
+    "SKU",
+    "URL"
+  ]
+}

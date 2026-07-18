@@ -59,6 +59,7 @@ describe("Phase 9B — Drilldown / Detail Foundation", () => {
     window.localStorage.setItem("xlb.admin.userId", "operator-hangzhou");
     window.localStorage.setItem("xlb.admin.role", "operator");
     window.localStorage.setItem("xlb.admin.username", "admin_hz");
+    window.localStorage.setItem("xlb.admin.cityCode", "hangzhou");
     window.location.hash = "";
   });
   afterEach(() => {
@@ -69,6 +70,25 @@ describe("Phase 9B — Drilldown / Detail Foundation", () => {
 
   // ── Unit: Hash Route ──
   describe("unit — hash route", () => {
+    it("requires a city scope before opening the admin workspace", async () => {
+      window.localStorage.removeItem("xlb.admin.cityCode");
+      render(<App />);
+
+      expect(screen.getByRole("heading", { name: "选择后台工作城市" })).toBeTruthy();
+      fireEvent.click(screen.getByRole("button", { name: "进入该城市工作台" }));
+
+      await waitFor(() => { expect(window.location.hash).toContain("cityCode=hangzhou"); });
+      expect(await screen.findByText("Settlement Operations Console")).toBeTruthy();
+    });
+
+    it("shows a privacy-safe permission state for an unsupported admin role", () => {
+      window.localStorage.setItem("xlb.admin.role", "viewer");
+      render(<App />);
+
+      expect(screen.getByText("当前角色无权进入后台")).toBeTruthy();
+      expect(screen.queryByText("Settlement Operations Console")).toBeNull();
+    });
+
     it("renders dashboard when hash is empty", async () => {
       render(<App />);
       expect(await screen.findByText("Settlement Operations Console")).toBeTruthy();

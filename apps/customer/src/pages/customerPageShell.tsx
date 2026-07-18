@@ -3,11 +3,19 @@ import { createApiClient, createAuthApi, customerApi } from "@xlb/api-client";
 import type { CatalogSnapshot, CityCode } from "@xlb/types";
 import { XLB_HEADERS } from "@xlb/types";
 import { BottomNav, MobileShell } from "@xlb/ui";
+import {
+  ChatCircleDots,
+  ClipboardText,
+  Headset,
+  House,
+  Plus,
+  UserCircle,
+} from "@phosphor-icons/react";
 
-// Phase 14: removed hardcoded CUSTOMER_ID; replaced with loginCustomer().
+// Phase 14: removed hardcoded CUSTOMER_ID; replaced with authenticated customer sessions.
 // Legacy reference preserved for tests: "customer-demo-001" exists in customers table via seed 011.
 
-/** @deprecated Use loginCustomer() + session.userId instead. Kept for backward compat. */
+/** @deprecated Use an authenticated CustomerSession instead. Kept for backward compatibility. */
 export const CUSTOMER_ID = "customer-demo-001";
 
 export const DEFAULT_CITY: CityCode = "hangzhou";
@@ -36,25 +44,16 @@ function storeSession(session: CustomerSession): void {
   window.localStorage.setItem("xlb.customer.userId", session.userId);
 }
 
-/**
- * Login (or auto-register) using the non-production debug OTP readback.
- * Real SMS delivery remains a backend TODO after investor approval.
- */
-export async function loginCustomer(phone = "13800000001"): Promise<CustomerSession> {
-  const authApi = createAuthApi(
-    createApiClient({ baseUrl: "" }),
-  );
-  const codeRequest = await authApi.requestCustomerLoginCode(phone);
-  if (!codeRequest.ok) {
-    throw new Error(`Login code request failed: ${codeRequest.error}`);
-  }
-  const debugCode = await authApi.getCustomerDebugCode(phone);
-  if (!debugCode.ok) {
-    throw new Error(`Login debug code unavailable: ${debugCode.error}`);
-  }
-  const result = await authApi.customerLogin(phone, debugCode.code);
+export async function requestCustomerLoginCode(phone: string) {
+  const result = await createAuthApi(createApiClient({ baseUrl: "" })).requestCustomerLoginCode(phone);
+  if (!result.ok) throw new Error(customerAuthErrorMessage(result.error, "验证码发送失败，请稍后重试"));
+  return result;
+}
+
+export async function loginCustomerWithCode(phone: string, code: string): Promise<CustomerSession> {
+  const result = await createAuthApi(createApiClient({ baseUrl: "" })).customerLogin(phone, code);
   if (!result.ok) {
-    throw new Error(`Login failed: ${result.error}`);
+    throw new Error(customerAuthErrorMessage(result.error, "登录失败，请核对验证码后重试"));
   }
   const session: CustomerSession = { token: result.token, userId: result.userId };
   storeSession(session);
@@ -62,6 +61,19 @@ export async function loginCustomer(phone = "13800000001"): Promise<CustomerSess
     window.localStorage.setItem(CUSTOMER_PHONE_KEY, phone);
   }
   return session;
+}
+
+function customerAuthErrorMessage(error: string, fallback: string): string {
+  if (/invalid phone/i.test(error)) return "请输入正确的中国大陆手机号";
+  if (/too recently|cooldown/i.test(error)) return "验证码发送过于频繁，请稍后再试";
+  if (/invalid|expired|verification code|otp/i.test(error)) return "验证码无效或已过期，请重新获取";
+  return fallback;
+}
+
+export function clearCustomerSession(): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(TOKEN_STORAGE_KEY);
+  window.localStorage.removeItem("xlb.customer.userId");
 }
 export const CITY_OPTIONS: ReadonlyArray<CityCode> = ["hangzhou", "shanghai", "beijing"];
 export const CITY_STORAGE_KEY = "xlb.customer.cityCode";
@@ -85,16 +97,28 @@ export function readCustomerCityFromSearch(): CityCode | null {
 
 export const customerRouteConfig: Record<
   CustomerRoute,
-  { label: string; href: string; title: string; icon: string; prominent?: boolean }
+  { label: string; href: string; title: string; icon: ReactNode; prominent?: boolean }
 > = {
-  home: { label: "首页", href: "/customer/", title: "喜乐帮到家", icon: "⌂" },
-  services: { label: "服务", href: "/customer/services", title: "服务选择", icon: "⌕" },
-  createOrder: { label: "下单", href: "/customer/order/create", title: "确认订单", icon: "+", prominent: true },
-  orders: { label: "订单", href: "/customer/orders", title: "订单", icon: "▦" },
-  aftersale: { label: "售后", href: "/customer/aftersale", title: "售后服务", icon: "A" },
-  support: { label: "客服", href: "/customer/support", title: "客服工单", icon: "S" },
-  profile: { label: "我的", href: "/customer/profile", title: "我的", icon: "👤" },
+  home: { label: "首页", href: "/customer/", title: "喜乐帮到家", icon: <House size={24} weight="regular" /> },
+  services: { label: "服务", href: "/customer/services", title: "服务选择", icon: <House size={24} weight="regular" /> },
+  createOrder: { label: "下单", href: "/customer/order/create", title: "确认订单", icon: <ClipboardText size={24} weight="regular" /> },
+  orders: { label: "订单", href: "/customer/orders", title: "订单", icon: <ClipboardText size={24} weight="regular" /> },
+  aftersale: { label: "售后", href: "/customer/aftersale", title: "售后服务", icon: <ClipboardText size={24} weight="regular" /> },
+  support: { label: "客服", href: "/customer/support", title: "客服工单", icon: <ChatCircleDots size={24} weight="regular" /> },
+  profile: { label: "我的", href: "/customer/profile", title: "我的", icon: <UserCircle size={24} weight="regular" /> },
 };
+
+const customerPrimaryNavigation = [
+  { key: "home", label: "首页", href: "/customer/", icon: <House size={25} weight="regular" /> },
+  { key: "orders", label: "订单", href: "/customer/orders", icon: <ClipboardText size={25} weight="regular" /> },
+  { key: "services", label: "下单", href: "/customer/services", icon: <Plus size={24} weight="bold" />, prominent: true },
+  { key: "support", label: "客服", href: "/customer/support", icon: <Headset size={25} weight="regular" /> },
+  { key: "profile", label: "我的", href: "/customer/profile", icon: <UserCircle size={25} weight="regular" /> },
+] as const;
+
+function isPrimaryNavigationActive(itemKey: (typeof customerPrimaryNavigation)[number]["key"], currentRoute: CustomerShellRoute) {
+  return itemKey === currentRoute || (itemKey === "services" && currentRoute === "createOrder");
+}
 
 export function detectCustomerRoute(pathname = window.location.pathname): CustomerShellRoute {
   const trimmed = pathname.replace(/\/+$/, "") || "/";
@@ -228,14 +252,7 @@ export function useCustomerShellMode() {
 export function CustomerBottomNav({ currentRoute }: { currentRoute: CustomerShellRoute }) {
   const items = useMemo(
     () =>
-      (Object.keys(customerRouteConfig) as CustomerRoute[]).map((route) => ({
-        key: route,
-        label: customerRouteConfig[route].label,
-        active: route === currentRoute,
-        href: customerRouteConfig[route].href,
-        icon: customerRouteConfig[route].icon,
-        prominent: customerRouteConfig[route].prominent,
-      })),
+      customerPrimaryNavigation.map((item) => ({ ...item, active: isPrimaryNavigationActive(item.key, currentRoute) })),
     [currentRoute],
   );
 
@@ -252,17 +269,7 @@ type CustomerRouteShellProps = {
 export function CustomerRouteShell({ currentRoute, topBar, children, fixedBottomNav = false }: CustomerRouteShellProps) {
   const shellMode = useCustomerShellMode();
   const isAppMode = shellMode === "app";
-  const bottomNav = <BottomNav items={Object.keys(customerRouteConfig).map((route) => {
-    const key = route as CustomerRoute;
-    return {
-      key,
-      label: customerRouteConfig[key].label,
-      active: key === currentRoute,
-      href: customerRouteConfig[key].href,
-      icon: customerRouteConfig[key].icon,
-      prominent: customerRouteConfig[key].prominent,
-    };
-  })} placement={fixedBottomNav || isAppMode ? "fixed" : "static"} />;
+  const bottomNav = <BottomNav items={customerPrimaryNavigation.map((item) => ({ ...item, active: isPrimaryNavigationActive(item.key, currentRoute) }))} placement={fixedBottomNav || isAppMode ? "fixed" : "static"} />;
 
   return (
     <div className="customer-app-root" data-role="customer" data-shell-mode={isAppMode ? "app" : "preview"}>
@@ -272,8 +279,8 @@ export function CustomerRouteShell({ currentRoute, topBar, children, fixedBottom
             mode={isAppMode ? "app" : "preview"}
             topBar={topBar}
             bottomNav={bottomNav}
-            contentStyle={{ paddingBottom: isAppMode ? "calc(104px + env(safe-area-inset-bottom))" : "8px" }}
-            style={{ background: "#FFFAF0", minHeight: isAppMode ? "100dvh" : 824 }}
+            contentStyle={{ paddingBottom: isAppMode ? "calc(76px + env(safe-area-inset-bottom))" : "8px" }}
+            style={{ background: "transparent", minHeight: isAppMode ? "100dvh" : 824 }}
           >
             <div className="customer-content-stack">{children}</div>
           </MobileShell>

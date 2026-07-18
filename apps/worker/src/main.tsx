@@ -1,6 +1,7 @@
 import { lazy, StrictMode, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { AppErrorBoundary, ThemeProvider } from "@xlb/ui";
+import "./app/worker-shell.css";
 
 const App = lazy(() => import("./app/App").then((module) => ({ default: module.App })));
 

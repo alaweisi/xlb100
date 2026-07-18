@@ -1,6 +1,8 @@
 import type { ApiClient } from "./createApiClient.js";
 import { validateLoginCodeResponse, validateLoginResponse } from "./responseValidators.js";
 
+const AUTH_FAILURE_STATUSES = [400, 401, 403, 404, 429] as const;
+
 // ── Response types ──
 
 export interface LoginResponse {
@@ -15,6 +17,8 @@ export interface LoginError {
   error: string;
   statusCode: number;
   attemptsLeft?: number;
+  code?: "WORKER_ACCESS_SUSPENDED" | "WORKER_ACCESS_DISABLED";
+  workerAccessStatus?: "suspended" | "disabled";
 }
 
 export interface LoginCodeResponse {
@@ -36,10 +40,10 @@ export interface DebugLoginCodeResponse {
 export function createAuthApi(client: ApiClient) {
   return {
     requestCustomerLoginCode(phone: string) {
-      return client.post<LoginCodeResponse | LoginError>("/api/auth/customer/code", { phone }, { validate: validateLoginCodeResponse });
+      return client.post<LoginCodeResponse | LoginError>("/api/auth/customer/code", { phone }, { validate: validateLoginCodeResponse, acceptedStatuses: AUTH_FAILURE_STATUSES });
     },
     customerLogin(phone: string, code: string) {
-      return client.post<LoginResponse | LoginError>("/api/auth/customer/login", { phone, code }, { validate: validateLoginResponse });
+      return client.post<LoginResponse | LoginError>("/api/auth/customer/login", { phone, code }, { validate: validateLoginResponse, acceptedStatuses: AUTH_FAILURE_STATUSES });
     },
     getCustomerDebugCode(phone: string) {
       return client.get<DebugLoginCodeResponse | LoginError>(
@@ -47,10 +51,10 @@ export function createAuthApi(client: ApiClient) {
       );
     },
     requestAdminLoginCode(username: string) {
-      return client.post<LoginCodeResponse | LoginError>("/api/auth/admin/code", { username }, { validate: validateLoginCodeResponse });
+      return client.post<LoginCodeResponse | LoginError>("/api/auth/admin/code", { username }, { validate: validateLoginCodeResponse, acceptedStatuses: AUTH_FAILURE_STATUSES });
     },
     adminLogin(username: string, code: string) {
-      return client.post<LoginResponse | LoginError>("/api/auth/admin/login", { username, code }, { validate: validateLoginResponse });
+      return client.post<LoginResponse | LoginError>("/api/auth/admin/login", { username, code }, { validate: validateLoginResponse, acceptedStatuses: AUTH_FAILURE_STATUSES });
     },
     getAdminDebugCode(username: string) {
       return client.get<DebugLoginCodeResponse | LoginError>(
@@ -58,10 +62,10 @@ export function createAuthApi(client: ApiClient) {
       );
     },
     requestWorkerLoginCode(phone: string) {
-      return client.post<LoginCodeResponse | LoginError>("/api/auth/worker/code", { phone }, { validate: validateLoginCodeResponse });
+      return client.post<LoginCodeResponse | LoginError>("/api/auth/worker/code", { phone }, { validate: validateLoginCodeResponse, acceptedStatuses: AUTH_FAILURE_STATUSES });
     },
     workerLogin(phone: string, code: string) {
-      return client.post<LoginResponse | LoginError>("/api/auth/worker/login", { phone, code }, { validate: validateLoginResponse });
+      return client.post<LoginResponse | LoginError>("/api/auth/worker/login", { phone, code }, { validate: validateLoginResponse, acceptedStatuses: AUTH_FAILURE_STATUSES });
     },
     getWorkerDebugCode(phone: string) {
       return client.get<DebugLoginCodeResponse | LoginError>(

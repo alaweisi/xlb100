@@ -100,7 +100,14 @@ export interface LoginCodeRequestResult {
   attemptsLeft: number;
 }
 
-type AuthError = { ok: false; error: string; statusCode: number; attemptsLeft?: number };
+type AuthError = {
+  ok: false;
+  error: string;
+  statusCode: number;
+  attemptsLeft?: number;
+  code?: "WORKER_ACCESS_SUSPENDED" | "WORKER_ACCESS_DISABLED";
+  workerAccessStatus?: "suspended" | "disabled";
+};
 
 export async function requestCustomerLoginCode(
   phone: string,
@@ -151,10 +158,6 @@ export async function requestWorkerLoginCode(
   if (!worker) {
     return { ok: false, error: "worker not found", statusCode: 404 };
   }
-  if (worker.status !== "active") {
-    return { ok: false, error: "worker is not active", statusCode: 403 };
-  }
-
   const issued = await issueLoginOtp("worker", phone);
   if (!issued.ok) return issued;
   await deliverMockLoginCode("worker", phone, issued.code, issued.expiresAt);
@@ -223,12 +226,21 @@ export async function workerLogin(
   if (!worker) {
     return { ok: false, error: "worker not found", statusCode: 404 };
   }
-  if (worker.status !== "active") {
-    return { ok: false, error: "worker is not active", statusCode: 403 };
-  }
-
   const otp = await verifyLoginOtp("worker", phone, code);
   if (!otp.ok) return otp;
+
+  if (worker.status === "suspended" || worker.status === "disabled") {
+    return {
+      ok: false,
+      error: worker.status === "suspended" ? "worker access is suspended" : "worker access is disabled",
+      statusCode: 403,
+      code: worker.status === "suspended" ? "WORKER_ACCESS_SUSPENDED" : "WORKER_ACCESS_DISABLED",
+      workerAccessStatus: worker.status,
+    };
+  }
+  if (worker.status !== "active") {
+    return { ok: false, error: "worker access is unavailable", statusCode: 403 };
+  }
 
   const token = createToken(worker.id, "worker", "worker");
   return { ok: true, token, userId: worker.id, role: "worker" };

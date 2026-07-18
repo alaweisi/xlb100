@@ -1,0 +1,229 @@
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  background: #f5f3f0;
+  color: #211c25;
+  font-family: var(--xlb-font-family-sans);
+}
+
+.admin-app-root > div {
+  background: #f5f3f0 !important;
+  grid-template-columns: 232px minmax(0, 1fr) !important;
+}
+
+.admin-app-root aside {
+  background: #1b1423 !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 22px 16px !important;
+}
+
+.admin-app-root aside > strong {
+  font-family: var(--xlb-font-family-serif);
+  font-size: 20px !important;
+  padding: 10px 12px 18px !important;
+}
+
+.admin-app-root aside nav {
+  align-content: start;
+  gap: 5px !important;
+}
+
+.admin-app-root aside nav a {
+  border-radius: 12px !important;
+  min-height: 22px;
+  padding: 11px 12px !important;
+}
+
+.admin-app-root header {
+  min-height: 68px !important;
+}
+
+.admin-app-root > div > div > header {
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  backdrop-filter: blur(18px) saturate(140%);
+  background: rgba(255, 255, 255, 0.82) !important;
+  border-color: rgba(255, 255, 255, 0.9) !important;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.admin-app-root main {
+  padding: 28px !important;
+}
+
+.admin-overview {
+  display: grid;
+  gap: 22px;
+  margin: 0 auto;
+  max-width: 1180px;
+  width: 100%;
+}
+
+.admin-overview-hero {
+  align-items: flex-end;
+  display: flex;
+  gap: 24px;
+  justify-content: space-between;
+  padding: 10px 2px 4px;
+}
+
+.admin-overview-eyebrow,
+.admin-overview-section header span {
+  color: #8a5a38;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.admin-overview-hero h1,
+.admin-overview-section h2,
+.admin-overview-hero p,
+.admin-overview-boundary p {
+  margin: 0;
+}
+
+.admin-overview-hero h1 {
+  font-family: var(--xlb-font-family-serif);
+  font-size: 34px;
+  line-height: 44px;
+}
+
+.admin-overview-hero p {
+  color: #6f6872;
+  font-size: 14px;
+}
+
+.admin-overview-identity {
+  align-items: flex-end;
+  display: grid;
+  gap: 7px;
+  justify-items: end;
+}
+
+.admin-overview-identity > span {
+  color: #706a73;
+  font-size: 12px;
+}
+
+.admin-overview-metrics {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.admin-overview-metrics > div {
+  background: #fff !important;
+  border: 1px solid #e8e2e8 !important;
+  border-radius: 20px !important;
+  box-shadow: 0 14px 34px rgba(42, 30, 47, 0.06) !important;
+  min-height: 118px;
+}
+
+.admin-overview-section {
+  background: #fff;
+  border: 1px solid #e8e2e8;
+  border-radius: 24px;
+  box-shadow: 0 16px 40px rgba(42, 30, 47, 0.06);
+  display: grid;
+  gap: 18px;
+  padding: 24px;
+}
+
+.admin-overview-section header {
+  min-height: auto !important;
+}
+
+.admin-overview-section h2 {
+  font-size: 20px;
+  line-height: 30px;
+}
+
+.admin-workbench-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.admin-workbench-grid button {
+  align-items: center;
+  background: #fbfaf8;
+  border: 1px solid #ebe6e1;
+  border-radius: 18px;
+  color: #29232c;
+  cursor: pointer;
+  display: grid;
+  font: inherit;
+  gap: 14px;
+  grid-template-columns: auto 1fr auto;
+  min-height: 96px;
+  padding: 18px;
+  text-align: left;
+}
+
+.admin-workbench-grid button:hover {
+  border-color: #c9b4d9;
+  box-shadow: 0 10px 24px rgba(42, 30, 47, 0.07);
+}
+
+.admin-workbench-grid button > svg:first-child {
+  color: #8554c7;
+}
+
+.admin-workbench-grid button span {
+  display: grid;
+  gap: 4px;
+}
+
+.admin-workbench-grid strong {
+  font-size: 16px;
+}
+
+.admin-workbench-grid small {
+  color: #716b74;
+  font-size: 12px;
+}
+
+.admin-overview-boundary {
+  align-items: flex-start;
+  background: #f7f3fa;
+  border: 1px solid #e1d7e8;
+  border-radius: 18px;
+  color: #5b3b70;
+  display: flex;
+  gap: 12px;
+  padding: 18px 20px;
+}
+
+.admin-overview-boundary div {
+  display: grid;
+  gap: 4px;
+}
+
+.admin-overview-boundary p {
+  color: #6e6474;
+  font-size: 13px;
+  line-height: 21px;
+}
+
+.admin-app-root :focus-visible {
+  outline: 2px solid #8554c7;
+  outline-offset: 3px;
+}
+
+@media (max-width: 1100px) {
+  .admin-app-root > div { grid-template-columns: 200px minmax(0, 1fr) !important; }
+  .admin-overview-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (prefers-reduced-motion: reduce), (prefers-contrast: more), (forced-colors: active) {
+  .admin-app-root > div > div > header {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}

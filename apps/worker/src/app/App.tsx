@@ -13,14 +13,26 @@ import {
   Button,
   Card,
   FormField,
-  Input,
   LoadingState,
   MobileShell,
+  PermissionState,
+  Select,
   StatusTag,
 } from "@xlb/ui";
 import {
+  Bell,
+  ClipboardText,
+  House,
+  SignOut,
+  UserCircle,
+  Wallet,
+  Wrench,
+} from "@phosphor-icons/react";
+import {
+  clearWorkerSession,
   createWorkerApiClient,
   isUnauthorizedError,
+  type WorkerAccessStatus,
   type WorkerSession,
 } from "./workerAuth";
 
@@ -63,60 +75,59 @@ type ResolvedRoute =
 
 const routeConfig: Record<
   WorkerRoute,
-  { label: string; href: string; title: string; subtitle: string; icon: string; prominent?: boolean }
+  { label: string; href: string; title: string; subtitle: string; icon: ReactNode; prominent?: boolean }
 > = {
   hall: {
-    label: "Pool",
+    label: "大厅",
     href: "/worker/",
-    title: "Task Pool",
-    subtitle: "Worker task pool with accept",
-    icon: "P",
+    title: "待接任务大厅",
+    subtitle: "查看本城市可承接的服务任务",
+    icon: <House size={24} weight="regular" />,
   },
   tasks: {
-    label: "Tasks",
+    label: "任务",
     href: "/worker/tasks",
-    title: "My Tasks",
-    subtitle: "Fulfillment lifecycle",
-    icon: "T",
+    title: "我的任务",
+    subtitle: "跟进已承接服务的履约进度",
+    icon: <ClipboardText size={24} weight="regular" />,
   },
   taskDetail: {
-    label: "Detail",
+    label: "详情",
     href: "/worker/tasks",
-    title: "Task Detail",
-    subtitle: "Start and complete service",
-    icon: "D",
+    title: "任务详情",
+    subtitle: "开始服务并记录完成结果",
+    icon: <ClipboardText size={24} weight="regular" />,
   },
   repairs: {
-    label: "Repairs",
+    label: "返工",
     href: "/worker/repairs",
-    title: "Repair Visits",
-    subtitle: "Aftersale repair lifecycle",
-    icon: "R",
+    title: "售后返工",
+    subtitle: "处理已分派的返工服务",
+    icon: <Wrench size={24} weight="regular" />,
   },
   wallet: {
-    label: "Wallet",
+    label: "收益",
     href: "/worker/wallet",
-    title: "Wallet",
-    subtitle: "Receivable balance and withdrawal requests",
-    icon: "W",
+    title: "我的收益",
+    subtitle: "查看应收余额并申请提现",
+    icon: <Wallet size={24} weight="regular" />,
   },
-  support: { label: "Support", href: "/worker/support", title: "Support Tickets", subtitle: "Tracked help and dispute requests", icon: "S" },
-  notifications: { label: "Messages", href: "/worker/notifications", title: "Notifications", subtitle: "Same-city in-app inbox", icon: "N" },
-  reputation: { label: "Rating", href: "/worker/reputation", title: "My Reputation", subtitle: "Visible-review aggregate", icon: "★" },
+  support: { label: "客服", href: "/worker/support", title: "客服工单", subtitle: "跟进帮助与争议处理进度", icon: <Bell size={24} weight="regular" /> },
+  notifications: { label: "消息", href: "/worker/notifications", title: "消息中心", subtitle: "接收本城市业务通知", icon: <Bell size={24} weight="regular" /> },
+  reputation: { label: "口碑", href: "/worker/reputation", title: "我的口碑", subtitle: "查看已公开评价汇总", icon: <UserCircle size={24} weight="regular" /> },
   profile: {
-    label: "Profile",
+    label: "我的",
     href: "/worker/profile",
-    title: "Profile",
-    subtitle: "Demo identity context",
-    icon: "M",
+    title: "个人资料",
+    subtitle: "管理服务身份与接单设置",
+    icon: <UserCircle size={24} weight="regular" />,
   },
   certification: {
-    label: "Cert",
+    label: "认证",
     href: "/worker/certification",
-    title: "Certification",
-    subtitle: "Demo qualification status",
-    icon: "+",
-    prominent: true,
+    title: "服务认证",
+    subtitle: "提交并查看服务资格",
+    icon: <UserCircle size={24} weight="regular" />,
   },
 };
 
@@ -156,19 +167,9 @@ function resolveRoute(): ResolvedRoute {
 
 function PhoneStatusBar() {
   return (
-    <div
-      style={{
-        alignItems: "center",
-        color: "#f8fbff",
-        display: "flex",
-        fontSize: 12,
-        fontWeight: 800,
-        justifyContent: "space-between",
-        lineHeight: "16px",
-      }}
-    >
+    <div className="worker-status-bar">
       <span>9:41</span>
-      <span>5G</span>
+      <span>工作台</span>
     </div>
   );
 }
@@ -178,30 +179,16 @@ function WorkerPageHeader({ route }: { route: WorkerRoute }) {
   const isWorkerApiRoute = true;
 
   return (
-    <header style={{ display: "grid", gap: 10, padding: "20px 20px 8px" }}>
+    <header className="worker-page-header">
       <PhoneStatusBar />
-      <div style={{ alignItems: "center", display: "flex", gap: 16, justifyContent: "space-between" }}>
-        <div style={{ display: "grid", gap: 4 }}>
-          <span style={{ color: "#a9bdd0", fontSize: 13, fontWeight: 700, lineHeight: "18px" }}>
-            {config.subtitle}
-          </span>
-          <h1
-            style={{
-              color: "#fffaf0",
-              fontSize: 29,
-              fontWeight: 800,
-              letterSpacing: 0,
-              lineHeight: "36px",
-              margin: 0,
-            }}
-          >
-            {config.title}
-          </h1>
+      <div className="worker-page-heading">
+        <div>
+          <span>{config.subtitle}</span>
+          <h1>{config.title}</h1>
         </div>
-        <StatusTag tone={isWorkerApiRoute ? "success" : "warning"}>
-          {isWorkerApiRoute ? "Real API" : "Unavailable"}
-        </StatusTag>
+        <a aria-label="打开消息中心" className="worker-header-icon" href="/worker/notifications"><Bell size={22} weight="regular" /></a>
       </div>
+      <StatusTag tone={isWorkerApiRoute ? "success" : "warning"}>{isWorkerApiRoute ? "业务已接入" : "暂不可用"}</StatusTag>
     </header>
   );
 }
@@ -209,49 +196,32 @@ function WorkerPageHeader({ route }: { route: WorkerRoute }) {
 function RouteNav({ activeRoute }: { activeRoute: WorkerRoute }) {
   return (
     <BottomNav
-      items={(["hall", "tasks", "repairs", "wallet", "support", "profile", "certification"] as WorkerRoute[]).map((key) => ({
+      items={(["hall", "tasks", "repairs", "wallet", "profile"] as WorkerRoute[]).map((key) => ({
         key,
         label: routeConfig[key].label,
         active: key === activeRoute || (key === "tasks" && activeRoute === "taskDetail"),
         href: routeConfig[key].href,
         icon: routeConfig[key].icon,
-        prominent: routeConfig[key].prominent,
       }))}
-      style={{
-        background: "rgba(255, 250, 240, 0.14)",
-        borderTop: "1px solid rgba(138, 174, 210, 0.2)",
-        boxShadow: "0 -10px 26px rgba(0, 0, 0, 0.16)",
-        color: "#f8fbff",
-        position: "sticky",
-        bottom: 0,
-        zIndex: 3,
-      }}
+      style={{ position: "sticky", bottom: 0, zIndex: 3 }}
     />
   );
 }
 
-function AppFrame({ route, children }: { route: WorkerRoute; children: ReactNode }) {
+function AppFrame({ route, children, gate = false }: { route: WorkerRoute; children: ReactNode; gate?: boolean }) {
   return (
-    <div data-role="worker" style={shellStyle}>
-      <div style={{ margin: "0 auto", maxWidth: 430, minHeight: "100vh", padding: "28px 18px" }}>
-        <div
-          style={{
-            background: "var(--xlb-role-worker-page)",
-            border: "10px solid #1d6595",
-            borderRadius: 28,
-            boxShadow: "0 24px 54px rgba(8, 23, 43, 0.32)",
-            boxSizing: "border-box",
-            minHeight: 844,
-            overflow: "hidden",
-          }}
-        >
+    <div className="worker-app-root" data-role="worker" style={shellStyle}>
+      <div className="worker-device-preview">
+        <div className="worker-device-frame">
           <MobileShell
-            topBar={<WorkerPageHeader route={route} />}
-            bottomNav={<RouteNav activeRoute={route} />}
-            contentStyle={{ padding: "8px 20px 0" }}
+            topBar={gate ? undefined : <WorkerPageHeader route={route} />}
+            bottomNav={gate ? undefined : <RouteNav activeRoute={route} />}
+            contentStyle={{ padding: gate ? 0 : "8px 18px 0" }}
             style={{ background: "var(--xlb-role-worker-page)", color: "var(--xlb-role-worker-text)", minHeight: 824 }}
           >
-            <div style={{ display: "grid", gap: 14, paddingBottom: 18 }}>{children}</div>
+            <div style={{ display: "grid", gap: 14, minHeight: gate ? 824 : undefined, paddingBottom: gate ? 0 : 18 }}>
+              {children}
+            </div>
           </MobileShell>
         </div>
       </div>
@@ -275,21 +245,20 @@ function SessionCard({
   onReload: () => void;
 }) {
   return (
-    <Card title="Worker Session" actions={<StatusTag tone="success">Logged in</StatusTag>} style={workerPanelStyle}>
-      <div style={{ display: "grid", gap: 10 }}>
-        <p style={helperText}>
-          Authenticated as {session.userId}. Worker requests use Authorization: Bearer.
-        </p>
-        <FormField label="cityCode">
-          <Input value={cityCode} onChange={(event) => onCityChange(event.target.value || DEFAULT_CITY_CODE)} />
+    <Card title="当前师傅身份" actions={<StatusTag tone="success">已登录</StatusTag>} className="worker-session-card" style={workerPanelStyle}>
+      <div className="worker-session-content">
+        <p style={helperText}>当前账号：{session.userId}。已验证服务身份，可查看本城市任务。</p>
+        <FormField label="工作城市">
+          <Select value={cityCode} onChange={(event) => onCityChange(event.target.value || DEFAULT_CITY_CODE)}>
+            <option value="hangzhou">杭州</option><option value="shanghai">上海</option><option value="beijing">北京</option>
+          </Select>
         </FormField>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+        <div className="worker-session-actions">
           <Button onClick={onReload} variant="primary">
-            Reload current view
+            刷新当前画面
           </Button>
-          <Button onClick={onLogout}>Logout</Button>
-          <Button onClick={() => onNavigate("/worker/notifications")}>Notifications</Button>
-          <Button onClick={() => onNavigate("/worker/reputation")}>My reputation</Button>
+          <Button onClick={() => onNavigate("/worker/notifications")}><Bell size={18} weight="regular" />消息</Button>
+          <Button onClick={onLogout}><SignOut size={18} weight="regular" />退出登录</Button>
         </div>
       </div>
     </Card>
@@ -348,6 +317,7 @@ export function App() {
   const [certSubmitting, setCertSubmitting] = useState(false);
   const [certError, setCertError] = useState<string | null>(null);
   const [certNotice, setCertNotice] = useState<string | null>(null);
+  const [accessStatus, setAccessStatus] = useState<WorkerAccessStatus | null>(null);
   const simulationControlsEnabled =
     ((import.meta as ImportMeta & { env?: { MODE?: string } }).env?.MODE ?? "development") !== "production";
 
@@ -359,8 +329,9 @@ export function App() {
   const handleApiError = useCallback(
     (error: unknown, fallback: string, setError: (message: string) => void) => {
       if (isUnauthorizedError(error)) {
+        clearWorkerSession();
         setSession(null);
-        setError("Session expired. Please login again.");
+        setError("登录状态已失效，请重新登录。");
         return;
       }
       setError(error instanceof Error ? error.message : fallback);
@@ -494,12 +465,10 @@ export function App() {
       setAcceptNotice(null);
       try {
         const response = await api.acceptTask(dispatchTaskId);
-        setAcceptNotice(
-          `Accepted ${response.acceptance.dispatchTaskId}; fulfillment ${response.fulfillment.fulfillmentId} is now ${response.fulfillment.status}.`,
-        );
+        setAcceptNotice(`已承接任务 ${response.acceptance.dispatchTaskId}，履约单 ${response.fulfillment.fulfillmentId} 已创建。`);
         await Promise.all([loadTaskPool(), loadFulfillments()]);
       } catch (error) {
-        handleApiError(error, "Failed to accept task", setAcceptError);
+        handleApiError(error, "接单失败，请稍后重试", setAcceptError);
       } finally {
         setAcceptingDispatchTaskId(null);
       }
@@ -514,11 +483,11 @@ export function App() {
       setAcceptError(null);
       setAcceptNotice(null);
       try {
-        const response = await api.rejectTask(dispatchTaskId);
-        setAcceptNotice(`Rejected ${dispatchTaskId}; dispatch task is now ${response.task.status}.`);
+        await api.rejectTask(dispatchTaskId);
+        setAcceptNotice(`已拒绝任务 ${dispatchTaskId}，平台将继续安排其他师傅。`);
         await loadTaskPool();
       } catch (error) {
-        handleApiError(error, "Failed to reject task", setAcceptError);
+        handleApiError(error, "拒绝任务失败，请稍后重试", setAcceptError);
       } finally {
         setSimulationAction(null);
       }
@@ -533,11 +502,11 @@ export function App() {
       setAcceptError(null);
       setAcceptNotice(null);
       try {
-        const response = await api.simulateTaskTimeout(dispatchTaskId);
-        setAcceptNotice(`Timed out ${dispatchTaskId}; dispatch task is now ${response.task.status}.`);
+        await api.simulateTaskTimeout(dispatchTaskId);
+        setAcceptNotice(`任务 ${dispatchTaskId} 已模拟超时，平台将继续安排其他师傅。`);
         await loadTaskPool();
       } catch (error) {
-        handleApiError(error, "Failed to simulate timeout", setAcceptError);
+        handleApiError(error, "模拟超时失败，请稍后重试", setAcceptError);
       } finally {
         setSimulationAction(null);
       }
@@ -725,6 +694,7 @@ export function App() {
   const handleLogin = useCallback(
     (nextSession: WorkerSession) => {
       clearWorkerData();
+      setAccessStatus(null);
       setSession(nextSession);
     },
     [clearWorkerData],
@@ -732,14 +702,35 @@ export function App() {
 
   const handleLogout = useCallback(() => {
     clearWorkerData();
+    clearWorkerSession();
+    setAccessStatus(null);
     setSession(null);
   }, [clearWorkerData]);
 
+  if (accessStatus) {
+    const suspended = accessStatus === "suspended";
+    return (
+      <AppFrame route="hall" gate>
+        <main style={{ alignItems: "center", display: "grid", minHeight: 824, padding: 24 }}>
+          <PermissionState
+            title={suspended ? "师傅账号已暂停接单" : "师傅账号已停用"}
+            description={suspended
+              ? "平台当前暂停了该账号的接单权限，身份验证仍然有效，但不能进入接单与履约场景。"
+              : "平台已停用该账号，不能进入接单、履约和收益相关场景。"}
+            facts={suspended ? "影响范围：接单、履约、售后返工。已有业务请联系平台客服处理。" : "允许的下一步：退出当前账号，或联系平台客服核对停用结果。"}
+            action={<Button onClick={() => setAccessStatus(null)}>{suspended ? "重新验证状态" : "退出当前账号"}</Button>}
+            secondaryAction={<Button onClick={() => { window.location.href = "tel:4000000000"; }}>联系平台客服</Button>}
+          />
+        </main>
+      </AppFrame>
+    );
+  }
+
   if (!session) {
     return (
-      <AppFrame route="hall">
-        <Suspense fallback={<LoadingState title="Loading worker login" />}>
-          <WorkerLoginPage cityCode={workerCityCode} onCityChange={setWorkerCityCode} onLogin={handleLogin} />
+      <AppFrame route="hall" gate>
+        <Suspense fallback={<LoadingState title="正在打开师傅登录" description="请稍候。" />}>
+          <WorkerLoginPage cityCode={workerCityCode} onCityChange={setWorkerCityCode} onLogin={handleLogin} onAccessBlocked={setAccessStatus} />
         </Suspense>
       </AppFrame>
     );
@@ -854,7 +845,7 @@ export function App() {
         onNavigate={navigate}
         onReload={reloadCurrent}
       />
-      <Suspense fallback={<LoadingState title="Loading worker page" />}>{content}</Suspense>
+      <Suspense fallback={<LoadingState title="正在打开师傅工作台" description="正在加载业务数据。" />}>{content}</Suspense>
     </AppFrame>
   );
 }

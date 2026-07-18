@@ -47,7 +47,7 @@ export function clearAdminSession(): void {
 export async function requestAdminLoginCode(username = "admin_hz") {
   const auth = createAuthApi(createApiClient({ baseUrl: API_BASE }));
   const result = await auth.requestAdminLoginCode(username);
-  if (!result.ok) throw new Error(result.error);
+  if (!result.ok) throw new Error(adminAuthErrorMessage(result.error, "验证码发送失败，请稍后重试"));
   if (typeof window !== "undefined") {
     window.localStorage.setItem(ADMIN_USERNAME_STORAGE_KEY, username);
   }
@@ -57,7 +57,7 @@ export async function requestAdminLoginCode(username = "admin_hz") {
 export async function loginAdminWithCode(username: string, code: string): Promise<AdminSession> {
   const auth = createAuthApi(createApiClient({ baseUrl: API_BASE }));
   const result = await auth.adminLogin(username, code);
-  if (!result.ok) throw new Error(result.error);
+  if (!result.ok) throw new Error(adminAuthErrorMessage(result.error, "后台登录失败，请核对验证码"));
   const session: AdminSession = {
     token: result.token,
     userId: result.userId,
@@ -68,17 +68,12 @@ export async function loginAdminWithCode(username: string, code: string): Promis
   return session;
 }
 
-export async function loginAdmin(username = "admin_hz"): Promise<AdminSession> {
-  const auth = createAuthApi(createApiClient({ baseUrl: API_BASE }));
-  const codeRequest = await auth.requestAdminLoginCode(username);
-  if (!codeRequest.ok) throw new Error(codeRequest.error);
-
-  const debugCode = await auth.getAdminDebugCode(username);
-  if (!debugCode.ok) {
-    throw new Error(debugCode.error);
-  }
-
-  return loginAdminWithCode(username, debugCode.code);
+function adminAuthErrorMessage(error: string, fallback: string): string {
+  if (/invalid username/i.test(error)) return "请输入正确的后台账号";
+  if (/not found/i.test(error)) return "后台账号不存在或无权登录";
+  if (/too recently|cooldown/i.test(error)) return "验证码发送过于频繁，请稍后再试";
+  if (/invalid|expired|verification code|otp/i.test(error)) return "验证码无效或已过期，请重新获取";
+  return fallback;
 }
 
 function readCityCodeFromHash(): string | null {

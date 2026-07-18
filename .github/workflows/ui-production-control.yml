@@ -1,0 +1,39 @@
+name: UI production control
+
+on:
+  pull_request:
+    paths:
+      - "apps/customer/**"
+      - "apps/worker/**"
+      - "apps/admin/**"
+      - "packages/ui/**"
+      - "docs/design/ui/**"
+      - "scripts/ui-production/**"
+      - "package.json"
+      - ".github/workflows/ui-production-control.yml"
+  workflow_dispatch:
+    inputs:
+      release_gate:
+        description: "运行214条正式发布门禁"
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  control:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:ui-control
+      - run: pnpm ui:control:check
+      - run: pnpm ui:gate:ratchet
+      - if: ${{ github.event_name == 'workflow_dispatch' && inputs.release_gate }}
+        run: pnpm ui:gate:release

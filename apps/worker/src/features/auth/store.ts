@@ -1,5 +1,5 @@
 import { useCallback, useReducer } from "react";
-import type { WorkerSession } from "../../app/workerAuth";
+import { readStoredWorkerSession, type WorkerSession } from "../../app/workerAuth";
 
 export type AuthState = { cityCode: string; session: WorkerSession | null };
 export type AuthAction =
@@ -12,7 +12,7 @@ export function authReducer(state: AuthState, action: AuthAction): AuthState {
 }
 
 export function useWorkerAuthStore(initialCityCode: string) {
-  const [state, dispatch] = useReducer(authReducer, { cityCode: initialCityCode, session: null });
+  const [state, dispatch] = useReducer(authReducer, { cityCode: initialCityCode, session: readStoredWorkerSession() });
   const setCityCode = useCallback((cityCode: string) => dispatch({ type: "cityChanged", cityCode }), []);
   const setSession = useCallback((session: WorkerSession | null) => dispatch({ type: "sessionChanged", session }), []);
   return { ...state, setCityCode, setSession };

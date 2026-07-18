@@ -72,11 +72,11 @@ function createAction(
 }
 
 export const customerWorkflowActions = {
-  retryCatalog: () => createAction("customer.catalog.retry", "Retry catalog", "api-derived", {
+  retryCatalog: () => createAction("customer.catalog.retry", "重新加载服务", "api-derived", {
     endpoint: "/api/catalog",
     method: "GET",
   }),
-  openServices: () => createAction("customer.services.open", "Open services", "api-derived"),
+  openServices: () => createAction("customer.services.open", "查看全部服务", "api-derived"),
   selectService: (skuId: string) =>
     createAction("customer.catalog.selectSku", "Select service", "api-derived", {
       enabled: Boolean(skuId),
@@ -202,7 +202,8 @@ function withRouteMeta(binding: WorkflowUiBinding, patch: Partial<WorkflowUiBind
 
 function buildHomeBinding(cityCode: CityCode): WorkflowUiBinding {
   const actions = [customerWorkflowActions.openServices(), customerWorkflowActions.retryCatalog()];
-  const stateLabel = "Browse city services";
+  const stateLabel = "浏览本城市服务";
+  const cityLabel = cityCode === "hangzhou" ? "杭州" : cityCode === "shanghai" ? "上海" : "北京";
   const base = createBaseBinding("home");
   return withRouteMeta(base, {
     backendSource: {
@@ -216,16 +217,16 @@ function buildHomeBinding(cityCode: CityCode): WorkflowUiBinding {
       label: stateLabel,
       source: "api-contract",
       customerAnswer: {
-        currentStep: `Showing catalog flow for ${cityCode}`,
-        nextAvailableStep: "Select a service to create an order",
+        currentStep: `正在展示${cityLabel}服务目录`,
+        nextAvailableStep: "选择服务后进入下单画面",
       },
     },
     availableActions: actions,
     disabledReasons: disabledReasonsFromActions(actions),
     customerFacingCopy: {
       ...base.customerFacingCopy,
-      title: "Service discovery",
-      body: `Browse services in ${cityCode}.`,
+      title: "发现服务",
+      body: `浏览${cityLabel}可用服务。`,
     },
     uiSlots: ["pageHero", "summaryCard", "primaryActionDock", "emptyState", "bottomNav", "themeSurface"],
     figmaBinding: {
@@ -239,6 +240,7 @@ function buildHomeBinding(cityCode: CityCode): WorkflowUiBinding {
 function buildServicesBinding(cityCode: CityCode): WorkflowUiBinding {
   const actions = [customerWorkflowActions.retryCatalog()];
   const base = createBaseBinding("services");
+  const cityLabel = cityCode === "hangzhou" ? "杭州" : cityCode === "shanghai" ? "上海" : "北京";
   return withRouteMeta(base, {
     workflowName: "customer.catalog.browsing",
     backendSource: {
@@ -249,18 +251,18 @@ function buildServicesBinding(cityCode: CityCode): WorkflowUiBinding {
     state: {
       ...base.state,
       stateId: "services.filtering",
-      label: "Select from catalog",
+      label: "从服务目录选择",
       source: "frontend-derived-from-api",
       customerAnswer: {
-        currentStep: `Filter services for ${cityCode}`,
-        nextAvailableStep: "Pick a service SKU",
+        currentStep: `筛选${cityLabel}可预约服务`,
+        nextAvailableStep: "选择具体服务项目",
       },
     },
     availableActions: actions,
     disabledReasons: disabledReasonsFromActions(actions),
     customerFacingCopy: {
       ...base.customerFacingCopy,
-      title: "Select a service",
+      title: "选择服务",
     },
     uiSlots: ["summaryCard", "primaryActionDock", "emptyState", "apiError", "bottomNav", "themeSurface"],
     figmaBinding: {

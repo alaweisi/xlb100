@@ -1,12 +1,22 @@
 import { createApiClient, createAuthApi, workerApi } from "@xlb/api-client";
 
 const DEFAULT_WORKER_PHONE = "13800000001";
+const WORKER_SESSION_KEY = "xlb.worker.session";
 
 export interface WorkerSession {
   token: string;
   userId: string;
   role: string;
   phone: string;
+}
+
+export type WorkerAccessStatus = "suspended" | "disabled";
+
+export class WorkerAccessError extends Error {
+  constructor(public readonly status: WorkerAccessStatus) {
+    super(status === "suspended" ? "师傅账号当前已暂停" : "师傅账号当前已停用");
+    this.name = "WorkerAccessError";
+  }
 }
 
 function normalizeApiBase(value: string | undefined): string {
@@ -24,41 +34,58 @@ function createWorkerAuthClient() {
   return createAuthApi(createApiClient({ baseUrl: getWorkerApiBase() }));
 }
 
-function assertOk<T extends { ok: true } | { ok: false; error: string }>(
-  result: T,
-  fallback: string,
-): Extract<T, { ok: true }> {
-  if (!result.ok) {
-    throw new Error(result.error || fallback);
-  }
-  return result as Extract<T, { ok: true }>;
+function authErrorMessage(error: string, fallback: string): string {
+  if (/invalid phone/i.test(error)) return "请输入正确的中国大陆手机号";
+  if (/not found/i.test(error)) return "未找到对应的师傅账号";
+  if (/too recently|cooldown/i.test(error)) return "验证码发送过于频繁，请稍后再试";
+  if (/invalid|expired|verification code|otp/i.test(error)) return "验证码无效或已过期，请重新获取";
+  return fallback;
 }
 
 export async function requestWorkerLoginCode(phone = DEFAULT_WORKER_PHONE) {
   const auth = createWorkerAuthClient();
-  return assertOk(await auth.requestWorkerLoginCode(phone), "Worker login code request failed");
-}
-
-export async function readWorkerDebugCode(phone = DEFAULT_WORKER_PHONE) {
-  const auth = createWorkerAuthClient();
-  return assertOk(await auth.getWorkerDebugCode(phone), "Worker debug code unavailable");
+  const result = await auth.requestWorkerLoginCode(phone);
+  if (!result.ok) throw new Error(authErrorMessage(result.error, "验证码发送失败，请稍后重试"));
+  return result;
 }
 
 export async function loginWorkerWithCode(phone: string, code: string): Promise<WorkerSession> {
   const auth = createWorkerAuthClient();
-  const result = assertOk(await auth.workerLogin(phone, code), "Worker login failed");
-  return {
+  const result = await auth.workerLogin(phone, code);
+  if (!result.ok) {
+    if (result.workerAccessStatus === "suspended" || result.workerAccessStatus === "disabled") {
+      throw new WorkerAccessError(result.workerAccessStatus);
+    }
+    throw new Error(authErrorMessage(result.error, "师傅登录失败，请核对验证码后重试"));
+  }
+  const session = {
     token: result.token,
     userId: result.userId,
     role: result.role,
     phone,
   };
+  storeWorkerSession(session);
+  return session;
 }
 
-export async function loginWorker(phone = DEFAULT_WORKER_PHONE): Promise<WorkerSession> {
-  await requestWorkerLoginCode(phone);
-  const debugCode = await readWorkerDebugCode(phone);
-  return loginWorkerWithCode(phone, debugCode.code);
+export function readStoredWorkerSession(): WorkerSession | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(WORKER_SESSION_KEY) ?? "null") as Partial<WorkerSession> | null;
+    return parsed?.token && parsed.userId && parsed.role && parsed.phone ? parsed as WorkerSession : null;
+  } catch {
+    return null;
+  }
+}
+
+export function storeWorkerSession(session: WorkerSession): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(WORKER_SESSION_KEY, JSON.stringify(session));
+}
+
+export function clearWorkerSession(): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(WORKER_SESSION_KEY);
 }
 
 export function createWorkerApiClient(cityCode: string, session: WorkerSession) {

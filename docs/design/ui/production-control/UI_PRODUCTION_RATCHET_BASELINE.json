@@ -1,0 +1,20 @@
+{
+  "generatedAt": "2026-07-17T13:52:22.206Z",
+  "sliceCount": 214,
+  "carrierCount": 36,
+  "languageViolationCount": 1181,
+  "localizedCount": 0,
+  "businessReadyCount": 0,
+  "evidenceReadyCount": 0,
+  "acceptedCount": 0,
+  "baseAcceptedCount": 0,
+  "statusCounts": {
+    "DEFINED": 214,
+    "READY": 0,
+    "IMPLEMENTED": 0,
+    "API_INTEGRATED": 0,
+    "TESTED": 0,
+    "EDGE_VERIFIED": 0,
+    "ACCEPTED": 0
+  }
+}

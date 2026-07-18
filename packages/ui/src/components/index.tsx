@@ -318,6 +318,9 @@ export function SearchBar({
 export interface LocationSearchBarProps extends Omit<HTMLAttributes<HTMLDivElement>, "onSubmit"> {
   cityLabel: string;
   areaLabel?: string;
+  locationIcon?: ReactNode;
+  dropdownIcon?: ReactNode;
+  searchIcon?: ReactNode;
   placeholder?: string;
   value: string;
   onSearchChange: (value: string) => void;
@@ -328,6 +331,9 @@ export interface LocationSearchBarProps extends Omit<HTMLAttributes<HTMLDivEleme
 export function LocationSearchBar({
   cityLabel,
   areaLabel,
+  locationIcon,
+  dropdownIcon,
+  searchIcon,
   placeholder,
   value,
   onSearchChange,
@@ -383,15 +389,16 @@ export function LocationSearchBar({
         }}
       >
         <span style={{ display: "grid", gap: 2, minWidth: 0 }}>
-          <span aria-hidden="true" style={{ color: "#6b7280", fontSize: 14, fontWeight: 700, letterSpacing: 0, whiteSpace: "nowrap" }}>
-            {`📍 ${cityLabel}`}
+          <span aria-hidden="true" style={{ alignItems: "center", color: "#6b7280", display: "flex", fontSize: 14, fontWeight: 700, gap: 5, letterSpacing: 0, whiteSpace: "nowrap" }}>
+            {locationIcon}
+            {cityLabel}
           </span>
           {safeAreaLabel ? (
             <span style={{ color: "#8a735b", fontSize: 12, whiteSpace: "nowrap" }}>{safeAreaLabel}</span>
           ) : null}
         </span>
         <span aria-hidden="true" style={{ color: "#6b7280", fontSize: 15, marginLeft: 4 }}>
-          ▾
+          {dropdownIcon}
         </span>
       </button>
       <div aria-hidden="true" style={{ alignSelf: "center", background: "#ead8bd", height: 24, width: 1 }} />
@@ -443,7 +450,7 @@ export function LocationSearchBar({
                 padding: 0,
               }}
             >
-              🔍
+              {searchIcon}
             </button>
           ) : null}
         </span>

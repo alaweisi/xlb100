@@ -5,6 +5,7 @@ import { loginWorkerHeaders } from "./helpers/authTestHelper.js";
 import { getMysqlPool } from "../../backend/src/dal/mysqlPool.js";
 import { getRedisClient } from "../../backend/src/dal/redisClient.js";
 import { issueLoginOtp } from "../../backend/src/auth/otpService.js";
+import { hashPhoneIdentity } from "../../backend/src/auth/phoneIdentity.js";
 
 const runDb = process.env.XLB_SKIP_DB_TESTS !== "1";
 let phoneSeq = 0;
@@ -222,6 +223,37 @@ describe.skipIf(!runDb)("auth OTP integration", { timeout: 20000 }, () => {
         ok: false,
         error: "worker not found",
       });
+    } finally {
+      await pool.query("DELETE FROM worker_profiles WHERE worker_id = ?", [id]);
+      await app.close();
+    }
+  });
+
+  it.each([
+    ["suspended", "WORKER_ACCESS_SUSPENDED"],
+    ["disabled", "WORKER_ACCESS_DISABLED"],
+  ] as const)("reveals a verified worker's %s access state only after OTP verification", async (status, code) => {
+    const app = await buildApp();
+    const pool = getMysqlPool();
+    const phoneValue = phone();
+    const id = `worker-access-${status}-${Date.now()}`;
+    try {
+      await pool.query(
+        `INSERT INTO worker_profiles (worker_id, display_name, phone_masked, phone_hash, status)
+         VALUES (?, ?, ?, ?, ?)`,
+        [id, `Access ${status}`, `${phoneValue.slice(0, 3)}****${phoneValue.slice(-4)}`, hashPhoneIdentity(phoneValue), status],
+      );
+
+      const requestCode = await app.inject({ method: "POST", url: "/api/auth/worker/code", payload: { phone: phoneValue } });
+      expect(requestCode.statusCode).toBe(200);
+      const debug = await app.inject({ method: "GET", url: `/api/auth/worker/debug-code?phone=${encodeURIComponent(phoneValue)}` });
+      const invalid = await app.inject({ method: "POST", url: "/api/auth/worker/login", payload: { phone: phoneValue, code: "000000" } });
+      expect(invalid.statusCode).toBe(401);
+      expect(invalid.json()).not.toHaveProperty("workerAccessStatus");
+
+      const login = await app.inject({ method: "POST", url: "/api/auth/worker/login", payload: { phone: phoneValue, code: debug.json().code } });
+      expect(login.statusCode).toBe(403);
+      expect(login.json()).toMatchObject({ ok: false, code, workerAccessStatus: status });
     } finally {
       await pool.query("DELETE FROM worker_profiles WHERE worker_id = ?", [id]);
       await app.close();

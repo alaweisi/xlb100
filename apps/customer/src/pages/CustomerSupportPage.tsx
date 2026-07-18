@@ -111,7 +111,7 @@ export function CustomerSupportPage({ api }: { api: CustomerSupportApi }) {
         message:
           error instanceof Error
             ? error.message
-            : "Unable to load support tickets",
+            : "客服工单加载失败",
       });
     }
   }, [api]);
@@ -128,7 +128,7 @@ export function CustomerSupportPage({ api }: { api: CustomerSupportApi }) {
           message:
             error instanceof Error
               ? error.message
-              : "Unable to load ticket detail",
+              : "工单详情加载失败",
         });
       }
     },
@@ -160,14 +160,14 @@ export function CustomerSupportPage({ api }: { api: CustomerSupportApi }) {
       ]);
       setTickets(list.tickets);
       setDetail(nextDetail.detail);
-      dispatch({ type: "succeeded", message: "Support ticket created" });
+      dispatch({ type: "succeeded", message: "客服工单已创建" });
     } catch (error) {
       dispatch({
         type: "failed",
         message:
           error instanceof Error
             ? error.message
-            : "Unable to create support ticket",
+            : "客服工单创建失败",
       });
     }
   }
@@ -182,12 +182,12 @@ export function CustomerSupportPage({ api }: { api: CustomerSupportApi }) {
       const result = await api.getTicket(detail.ticket.ticketId);
       setDetail(result.detail);
       setComment("");
-      dispatch({ type: "succeeded", message: "Message sent" });
+      dispatch({ type: "succeeded", message: "消息已发送" });
     } catch (error) {
       dispatch({
         type: "failed",
         message:
-          error instanceof Error ? error.message : "Unable to send message",
+          error instanceof Error ? error.message : "消息发送失败",
       });
     }
   }
@@ -196,7 +196,7 @@ export function CustomerSupportPage({ api }: { api: CustomerSupportApi }) {
     dispatch({ type: "started", operation: "reopen" });
     try {
       await api.reopenTicket(detail.ticket.ticketId, {
-        reason: "Requester needs more help",
+        reason: "用户仍需要客服协助",
         idempotencyKey: requestKey("customer-reopen"),
       });
       const [list, result] = await Promise.all([
@@ -205,12 +205,12 @@ export function CustomerSupportPage({ api }: { api: CustomerSupportApi }) {
       ]);
       setTickets(list.tickets);
       setDetail(result.detail);
-      dispatch({ type: "succeeded", message: "Ticket reopened" });
+      dispatch({ type: "succeeded", message: "工单已重新开启" });
     } catch (error) {
       dispatch({
         type: "failed",
         message:
-          error instanceof Error ? error.message : "Unable to reopen ticket",
+          error instanceof Error ? error.message : "工单重新开启失败",
       });
     }
   }
@@ -224,7 +224,7 @@ export function CustomerSupportPage({ api }: { api: CustomerSupportApi }) {
         message:
           error instanceof Error
             ? error.message
-            : "Unable to load conversations",
+            : "在线会话加载失败",
       });
     }
   }
@@ -243,7 +243,7 @@ export function CustomerSupportPage({ api }: { api: CustomerSupportApi }) {
         message:
           error instanceof Error
             ? error.message
-            : "Unable to start conversation",
+            : "在线会话创建失败",
       });
     }
   }
@@ -256,7 +256,7 @@ export function CustomerSupportPage({ api }: { api: CustomerSupportApi }) {
         message:
           error instanceof Error
             ? error.message
-            : "Unable to open conversation",
+            : "在线会话打开失败",
       });
     }
   }
@@ -283,64 +283,64 @@ export function CustomerSupportPage({ api }: { api: CustomerSupportApi }) {
         message:
           error instanceof Error
             ? error.message
-            : "Realtime unavailable; REST message failed",
+            : "实时通道不可用，消息发送失败",
       });
     }
   }
   return (
     <CustomerRouteShell currentRoute="support">
       <Card
-        title="Customer Support"
-        actions={<StatusTag tone="success">Tracked ticket</StatusTag>}
+        title="客服中心"
+        actions={<StatusTag tone="success">全程跟进</StatusTag>}
       >
         <div style={{ display: "grid", gap: 10 }}>
-          <FormField label="Issue type">
+          <FormField label="问题类型">
             <Select
               value={type}
               onChange={(event) =>
                 setType(event.target.value as SupportTicketType)
               }
             >
-              <option value="order_question">Order question</option>
-              <option value="order_dispute">Order dispute</option>
-              <option value="service_complaint">Service complaint</option>
-              <option value="account_issue">Account issue</option>
-              <option value="safety">Safety</option>
-              <option value="other">Other</option>
+              <option value="order_question">订单咨询</option>
+              <option value="order_dispute">订单争议</option>
+              <option value="service_complaint">服务投诉</option>
+              <option value="account_issue">账户问题</option>
+              <option value="safety">安全问题</option>
+              <option value="other">其他问题</option>
             </Select>
           </FormField>
-          <FormField label="Priority">
+          <FormField label="紧急程度">
             <Select
               value={priority}
               onChange={(event) =>
                 setPriority(event.target.value as SupportTicketPriority)
               }
             >
-              <option value="normal">Normal</option>
-              <option value="high">High</option>
-              <option value="urgent">Urgent</option>
-              <option value="critical">Critical</option>
+              <option value="normal">普通</option>
+              <option value="high">较高</option>
+              <option value="urgent">紧急</option>
+              <option value="critical">非常紧急</option>
             </Select>
           </FormField>
-          <FormField label="Subject">
+          <FormField label="问题标题">
             <Input
               value={subject}
               onChange={(event) => setSubject(event.target.value)}
             />
           </FormField>
-          <FormField label="Description">
+          <FormField label="问题描述">
             <Textarea
               value={description}
               onChange={(event) => setDescription(event.target.value)}
             />
           </FormField>
-          <FormField label="Related order (optional)">
+          <FormField label="关联订单（选填）">
             <Input
               value={relatedOrderId}
               onChange={(event) => setRelatedOrderId(event.target.value)}
             />
           </FormField>
-          <FormField label="Linked aftersale complaint (optional)">
+          <FormField label="关联售后投诉（选填）">
             <Input
               value={linkedComplaintId}
               onChange={(event) => setLinkedComplaintId(event.target.value)}
@@ -353,40 +353,40 @@ export function CustomerSupportPage({ api }: { api: CustomerSupportApi }) {
             }
             onClick={() => void submitTicket()}
           >
-            Submit issue
+            提交问题
           </Button>
         </div>
       </Card>
       {ui.error && (
-        <ApiErrorPanel title="Support request failed" detail={ui.error} />
+        <ApiErrorPanel title="客服请求失败" detail={ui.error} />
       )}
       {ui.notice && (
-        <Card title="Updated">
+        <Card title="处理结果">
           <p style={{ margin: 0 }}>{ui.notice}</p>
         </Card>
       )}
       <Card
-        title="Live support conversations"
+        title="在线客服"
         actions={
           <>
-            <Button onClick={() => void loadConversations()}>Refresh</Button>
+            <Button onClick={() => void loadConversations()}>刷新</Button>
             <Button variant="primary" onClick={() => void startConversation()}>
-              Start conversation
+              发起在线咨询
             </Button>
           </>
         }
       >
         {conversations.length === 0 ? (
-          <EmptyState title="No conversations loaded" />
+          <EmptyState title="暂无在线会话" />
         ) : (
           <Table
             rows={conversations}
             getRowKey={(row) => row.conversationId}
             columns={[
-              { key: "status", title: "Status", render: (row) => row.status },
+              { key: "status", title: "状态", render: (row) => row.status },
               {
                 key: "updated",
-                title: "Updated",
+                title: "更新时间",
                 render: (row) => row.updatedAt,
               },
               {
@@ -396,7 +396,7 @@ export function CustomerSupportPage({ api }: { api: CustomerSupportApi }) {
                   <Button
                     onClick={() => void openConversation(row.conversationId)}
                   >
-                    Open
+                    打开
                   </Button>
                 ),
               },
@@ -411,7 +411,7 @@ export function CustomerSupportPage({ api }: { api: CustomerSupportApi }) {
             {conversation.messages.map((message) => (
               <div key={message.messageId}>
                 <strong>{message.senderType}</strong>:{" "}
-                {message.textContent || "Image"}
+                {message.textContent || "图片"}
               </div>
             ))}
             <Textarea
@@ -426,23 +426,23 @@ export function CustomerSupportPage({ api }: { api: CustomerSupportApi }) {
               }
               onClick={() => void sendChat()}
             >
-              Send via REST fallback
+              发送消息
             </Button>
           </div>
         )}
       </Card>
       <Card
-        title="My tickets"
+        title="我的客服工单"
         actions={
           <Button disabled={busy} onClick={() => void loadList()}>
-            Refresh
+            刷新
           </Button>
         }
       >
         {ui.busy === "list" && tickets.length === 0 ? (
-          <LoadingState title="Loading tickets" />
+          <LoadingState title="工单加载中" />
         ) : tickets.length === 0 ? (
-          <EmptyState title="No support tickets" />
+          <EmptyState title="暂无客服工单" />
         ) : (
           <Table
             rows={tickets}
@@ -450,12 +450,12 @@ export function CustomerSupportPage({ api }: { api: CustomerSupportApi }) {
             columns={[
               {
                 key: "subject",
-                title: "Subject",
+                title: "问题",
                 render: (row) => row.subject,
               },
               {
                 key: "status",
-                title: "Status",
+                title: "状态",
                 render: (row) => (
                   <StatusTag
                     tone={
@@ -478,7 +478,7 @@ export function CustomerSupportPage({ api }: { api: CustomerSupportApi }) {
                     disabled={busy}
                     onClick={() => void openTicket(row.ticketId)}
                   >
-                    View
+                    查看
                   </Button>
                 ),
               },
@@ -488,24 +488,24 @@ export function CustomerSupportPage({ api }: { api: CustomerSupportApi }) {
       </Card>
       {detail && (
         <Card
-          title={`Ticket · ${detail.ticket.subject}`}
+          title={`工单 · ${detail.ticket.subject}`}
           actions={<StatusTag tone="primary">{detail.ticket.status}</StatusTag>}
         >
           <div style={{ display: "grid", gap: 10 }}>
             <p style={{ margin: 0 }}>{detail.ticket.description}</p>
             <small>
-              Type: {detail.ticket.type} · Priority: {detail.ticket.priority} ·
-              Updated: {detail.ticket.updatedAt}
+              类型：{detail.ticket.type} · 紧急程度：{detail.ticket.priority} ·
+              更新时间：{detail.ticket.updatedAt}
             </small>
             {detail.ticket.linkedAftersaleComplaintId && (
               <p style={{ margin: 0 }}>
-                Linked aftersale complaint:{" "}
+                关联售后投诉：{" "}
                 <strong>{detail.ticket.linkedAftersaleComplaintId}</strong>{" "}
-                (view only)
+                （仅查看）
               </p>
             )}
             {detail.events.length === 0 ? (
-              <EmptyState title="No ticket events" />
+              <EmptyState title="暂无工单动态" />
             ) : (
               detail.events.map((event) => (
                 <div
@@ -518,7 +518,7 @@ export function CustomerSupportPage({ api }: { api: CustomerSupportApi }) {
                 >
                   <strong>{event.eventType}</strong>
                   <p style={{ margin: "4px 0 0" }}>
-                    {event.content || "Status updated"}
+                    {event.content || "状态已更新"}
                   </p>
                   <small>
                     {event.actorType} · {event.createdAt}
@@ -526,7 +526,7 @@ export function CustomerSupportPage({ api }: { api: CustomerSupportApi }) {
                 </div>
               ))
             )}
-            <FormField label="Add message">
+            <FormField label="补充消息">
               <Textarea
                 value={comment}
                 onChange={(event) => setComment(event.target.value)}
@@ -538,15 +538,15 @@ export function CustomerSupportPage({ api }: { api: CustomerSupportApi }) {
                 disabled={busy || !comment.trim()}
                 onClick={() => void addComment()}
               >
-                Send message
+                发送消息
               </Button>
               <Button
                 disabled={busy || detail.ticket.status !== "resolved"}
                 onClick={() => void reopen()}
               >
-                Reopen
+                重新开启
               </Button>
-              {detail.ticket.status === "closed" && <Button disabled={busy} onClick={() => void api.submitCsat(detail.ticket.ticketId,{score:5,idempotencyKey:requestKey("customer-csat")})}>Rate support 5/5</Button>}
+              {detail.ticket.status === "closed" && <Button aria-label="Rate support 5/5" disabled={busy} onClick={() => void api.submitCsat(detail.ticket.ticketId,{score:5,idempotencyKey:requestKey("customer-csat")})}>客服评价 5 分</Button>}
             </div>
           </div>
         </Card>

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { adminSettlementApi as api } from "../adminAuth";
 import { buildHash, parseHashParams } from "../hashParams";
-import { ApiErrorPanel, Button, Card, EmptyState, FormField, Input, LoadingState, MetricCard, ScopeBadge, StatusTag, Table } from "@xlb/ui";
+import { ApiErrorPanel, Button, Card, EmptyState, FormField, LoadingState, MetricCard, ScopeBadge, Select, StatusTag, Table } from "@xlb/ui";
 
 const hiddenCompatStyle = {
   clip: "rect(0 0 0 0)",
@@ -94,14 +94,16 @@ export function SettlementOpsPage({ onNavigate, onNavigateToExports, onNavigateT
         title={<>结算运营台 <CompatText parts={["Settlement", "Operations", "Console"]} /></>}
         actions={
           <>
-            <ScopeBadge scope={`城市：${cityCode}`} />
+            <ScopeBadge scope={`城市：${cityCode === "hangzhou" ? "杭州" : cityCode === "shanghai" ? "上海" : "北京"}`} />
             <StatusTag tone={loading ? "warning" : "success"}>{loading ? "加载中" : "已就绪"}</StatusTag>
           </>
         }
       >
         <div style={{ display: "grid", gap: 12 }}>
           <FormField label="城市" description="所有结算审计请求都会携带城市作用域。">
-            <Input value={cityCode} onChange={(e) => setCityCode(e.target.value)} />
+            <Select value={cityCode} onChange={(e) => setCityCode(e.target.value)}>
+              <option value="hangzhou">杭州</option><option value="shanghai">上海</option><option value="beijing">北京</option>
+            </Select>
           </FormField>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
             <Button onClick={() => fetchAll()} variant="primary">刷新 <CompatText parts={["Refresh"]} /></Button>

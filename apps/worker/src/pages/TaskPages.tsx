@@ -36,46 +36,46 @@ export function HallPage({
 }) {
   return (
     <>
-      <Card title="Task Pool Status" actions={<StatusTag tone="success">{tasks.length} available</StatusTag>} style={workerPanelStyle}>
+      <Card title="今日接单" actions={<StatusTag tone="success">{tasks.length} 个可接任务</StatusTag>} style={workerPanelStyle}>
         <p style={helperText}>
-          city={cityCode}, worker={workerId}. Source: GET /api/worker/task-pool.
+          工作城市：{cityCode === "hangzhou" ? "杭州" : cityCode === "shanghai" ? "上海" : "北京"}。新任务会按照服务资格和城市范围进入这里。
         </p>
       </Card>
 
-      {loading && <LoadingState title="Loading task pool" description="Requesting real worker task pool data." />}
+      {loading && <LoadingState title="正在加载任务大厅" description="正在读取真实师傅任务数据。" />}
       {error && (
-        <Card title="Load failed" actions={<StatusTag tone="danger">Error</StatusTag>} style={workerPanelStyle}>
+        <Card title="任务加载失败" actions={<StatusTag tone="danger">错误</StatusTag>} style={workerPanelStyle}>
           <p style={{ ...helperText, color: "#fda29b" }}>{error}</p>
         </Card>
       )}
       {acceptError && (
-        <Card title="Accept failed" actions={<StatusTag tone="danger">Error</StatusTag>} style={workerPanelStyle}>
+        <Card title="接单失败" actions={<StatusTag tone="danger">错误</StatusTag>} style={workerPanelStyle}>
           <p style={{ ...helperText, color: "#fda29b" }}>{acceptError}</p>
         </Card>
       )}
       {acceptNotice && (
-        <Card title="Accept completed" actions={<StatusTag tone="success">Accepted</StatusTag>} style={workerPanelStyle}>
+        <Card title="接单完成" actions={<StatusTag tone="success">已承接</StatusTag>} style={workerPanelStyle}>
           <p style={helperText}>{acceptNotice}</p>
         </Card>
       )}
 
       {!loading && !error && (
-        <Card title="Available Tasks" actions={<Button onClick={onRefresh}>Refresh</Button>} style={workerPanelStyle}>
+        <Card title="可承接任务" actions={<Button onClick={onRefresh}>刷新</Button>} style={workerPanelStyle}>
           {tasks.length === 0 ? (
-            <EmptyState title="No queued task" description="Create and pay an order, then let auto-run create a queued dispatch_task." />
+            <EmptyState title="当前没有待接任务" description="新任务进入本城市派单队列后会显示在这里。" />
           ) : (
             <Table
               rows={tasks}
               getRowKey={(row) => row.dispatchTaskId}
               columns={[
-                { key: "dispatchTaskId", title: "Task ID", render: (row) => row.dispatchTaskId },
-                { key: "orderId", title: "Order ID", render: (row) => row.orderId },
-                { key: "skuId", title: "SKU", render: (row) => row.skuId },
-                { key: "amount", title: "Amount", render: (row) => formatAmount(row.amount) },
-                { key: "status", title: "Status", render: (row) => <StatusTag tone={statusTone(row.status)}>{row.status}</StatusTag> },
+                { key: "dispatchTaskId", title: "派单编号", render: (row) => row.dispatchTaskId },
+                { key: "orderId", title: "订单编号", render: (row) => row.orderId },
+                { key: "skuId", title: "服务编号", render: (row) => row.skuId },
+                { key: "amount", title: "服务金额", render: (row) => formatAmount(row.amount) },
+                { key: "status", title: "当前状态", render: (row) => <StatusTag tone={statusTone(row.status)}>{row.status}</StatusTag> },
                 {
                   key: "actions",
-                  title: "Action",
+                  title: "操作",
                   render: (row) => {
                     const busy = acceptingDispatchTaskId !== null || simulationAction !== null;
                     const acceptAction = workerWorkflowActions.acceptTask({
@@ -91,7 +91,7 @@ export function HallPage({
                           onClick={() => onAccept(row.dispatchTaskId)}
                           variant="primary"
                         >
-                          {acceptingDispatchTaskId === row.dispatchTaskId ? "Accepting" : "Accept"}
+                          {acceptingDispatchTaskId === row.dispatchTaskId ? "正在接单" : "立即接单"}
                         </Button>
                         {simulationControlsEnabled && (
                           <>
@@ -100,16 +100,16 @@ export function HallPage({
                               onClick={() => onReject(row.dispatchTaskId)}
                             >
                               {simulationAction?.type === "reject" && simulationAction.dispatchTaskId === row.dispatchTaskId
-                                ? "Rejecting"
-                                : "Reject"}
+                                ? "正在拒绝"
+                                : "拒绝"}
                             </Button>
                             <Button
                               disabled={!canSimulate || busy}
                               onClick={() => onSimulateTimeout(row.dispatchTaskId)}
                             >
                               {simulationAction?.type === "timeout" && simulationAction.dispatchTaskId === row.dispatchTaskId
-                                ? "Timing out"
-                                : "Timeout"}
+                                ? "正在超时"
+                                : "模拟超时"}
                             </Button>
                           </>
                         )}
@@ -120,9 +120,9 @@ export function HallPage({
               ]}
             />
           )}
-          <p style={{ ...helperText, color: "#ffd37d", marginTop: 10 }}>
-            Boundary: Accept is real. Reject and timeout are test-only dispatch simulation controls.
-          </p>
+          {simulationControlsEnabled && <p style={{ ...helperText, color: "#ffd37d", marginTop: 10 }}>
+            开发环境边界：接单连接真实业务；拒绝与超时按钮只用于本地派单状态验证。
+          </p>}
         </Card>
       )}
     </>
@@ -144,31 +144,31 @@ export function TasksPage({
 }) {
   return (
     <>
-      <Card title="Fulfillment Status" actions={<StatusTag tone="success">{fulfillments.length} total</StatusTag>} style={workerPanelStyle}>
-        <p style={helperText}>Source: GET /api/worker/fulfillments. Open a task to start or complete service.</p>
+      <Card title="履约任务" actions={<StatusTag tone="success">共 {fulfillments.length} 个</StatusTag>} style={workerPanelStyle}>
+        <p style={helperText}>打开任务可开始服务、上传凭证或登记完成结果。</p>
       </Card>
 
-      {loading && <LoadingState title="Loading fulfillments" description="Requesting real fulfillment list data." />}
+      {loading && <LoadingState title="正在加载履约任务" description="正在读取已承接的真实任务。" />}
       {error && (
-        <Card title="Load failed" actions={<StatusTag tone="danger">Error</StatusTag>} style={workerPanelStyle}>
+        <Card title="任务加载失败" actions={<StatusTag tone="danger">错误</StatusTag>} style={workerPanelStyle}>
           <p style={{ ...helperText, color: "#fda29b" }}>{error}</p>
         </Card>
       )}
 
       {!loading && !error && (
-        <Card title="My Fulfillments" actions={<Button onClick={onRefresh}>Refresh</Button>} style={workerPanelStyle}>
+        <Card title="我的履约任务" actions={<Button onClick={onRefresh}>刷新</Button>} style={workerPanelStyle}>
           {fulfillments.length === 0 ? (
-            <EmptyState title="No fulfillment yet" description="After a later accept action, accepted/in_progress/completed tasks appear here." />
+            <EmptyState title="暂无履约任务" description="接单成功后，待服务、服务中和已完成任务会显示在这里。" />
           ) : (
             <Table
               rows={fulfillments}
               getRowKey={(row) => row.fulfillmentId}
               columns={[
-                { key: "fulfillmentId", title: "Fulfillment ID", render: (row) => row.fulfillmentId },
-                { key: "orderId", title: "Order ID", render: (row) => row.orderId },
-                { key: "skuId", title: "SKU", render: (row) => row.skuId },
-                { key: "status", title: "Status", render: (row) => <StatusTag tone={statusTone(row.status)}>{row.status}</StatusTag> },
-                { key: "detail", title: "Detail", render: (row) => <Button onClick={() => onOpenDetail(row.fulfillmentId)}>Open</Button> },
+                { key: "fulfillmentId", title: "履约编号", render: (row) => row.fulfillmentId },
+                { key: "orderId", title: "订单编号", render: (row) => row.orderId },
+                { key: "skuId", title: "服务编号", render: (row) => row.skuId },
+                { key: "status", title: "当前状态", render: (row) => <StatusTag tone={statusTone(row.status)}>{row.status}</StatusTag> },
+                { key: "detail", title: "详情", render: (row) => <Button onClick={() => onOpenDetail(row.fulfillmentId)}>打开</Button> },
               ]}
             />
           )}

@@ -1,18 +1,21 @@
 import { lazy, useCallback, useEffect, useMemo, useState } from "react";
 import type { CatalogSnapshot, CityCode } from "@xlb/types";
+import { Button, FormField, IdentityGate, Input, StatusTag } from "@xlb/ui";
 import type { CustomerOrderCreatePageProps } from "../pages/CustomerOrderCreatePage";
 import type { CustomerOrdersPageProps } from "../pages/CustomerOrdersPage";
 import type { CustomerCouponsPageProps } from "../pages/CustomerCouponsPage";
 import type { CustomerSupportApi } from "../pages/CustomerSupportPage";
 import {
   appendOrderId,
+  clearCustomerSession,
   createCustomerApiClient,
   CustomerLoadable,
   detectCustomerRoute,
-  loginCustomer,
+  loginCustomerWithCode,
   readCustomerCityCode,
   readOrderIds,
   readStoredSession,
+  requestCustomerLoginCode,
   type CustomerSession,
   writeCustomerCityCode,
 } from "../pages/customerPageShell";
@@ -42,31 +45,41 @@ export function App() {
       : storedOrderIds;
   });
   const [session, setSession] = useState<CustomerSession | null>(() => readStoredSession());
+  const [loginPhone, setLoginPhone] = useState("13800000001");
+  const [loginCode, setLoginCode] = useState("");
+  const [authBusy, setAuthBusy] = useState<"code" | "login" | null>(null);
+  const [authNotice, setAuthNotice] = useState<string | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
   const currentRoute = useMemo(() => detectCustomerRoute(), []);
 
-  // Login on mount (idempotent: reuses stored token if still valid)
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      const storedSession = readStoredSession();
-      if (storedSession) {
-        if (!cancelled) setSession(storedSession);
-        return;
-      }
-      try {
-        const s = await loginCustomer();
-        if (!cancelled) setSession(s);
-      } catch (error) {
-        if (!cancelled) {
-          setCatalogState({
-            status: "error",
-            error: error instanceof Error ? error.message : "Customer login failed",
-          });
-        }
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
+  const targetName = currentRoute === "home" ? "首页" : currentRoute === "services" ? "服务选择" : currentRoute === "createOrder" ? "确认订单" : currentRoute === "orders" ? "订单" : currentRoute === "aftersale" ? "售后服务" : currentRoute === "support" ? "客服工单" : currentRoute === "notifications" ? "消息中心" : currentRoute === "coupons" ? "优惠券" : "我的";
+
+  const handleRequestLoginCode = useCallback(async () => {
+    setAuthBusy("code");
+    setAuthError(null);
+    setAuthNotice(null);
+    try {
+      const result = await requestCustomerLoginCode(loginPhone.trim());
+      setAuthNotice(`验证码已发送，${result.ttlSeconds} 秒内有效。`);
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : "验证码发送失败，请稍后重试");
+    } finally {
+      setAuthBusy(null);
+    }
+  }, [loginPhone]);
+
+  const handleCustomerLogin = useCallback(async () => {
+    setAuthBusy("login");
+    setAuthError(null);
+    try {
+      const next = await loginCustomerWithCode(loginPhone.trim(), loginCode.trim());
+      setSession(next);
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : "登录失败，请核对验证码后重试");
+    } finally {
+      setAuthBusy(null);
+    }
+  }, [loginCode, loginPhone]);
 
   const api = useMemo(
     () => createCustomerApiClient(cityCode, session?.token),
@@ -91,9 +104,15 @@ export function App() {
       const result = await api.getCatalog();
       setCatalogState({ status: "success", data: result.catalog });
     } catch (error) {
+      if (error instanceof Error && /\b401\b/.test(error.message)) {
+        clearCustomerSession();
+        setSession(null);
+        setAuthError("登录状态已失效，请重新验证手机号。");
+        return;
+      }
       setCatalogState({
         status: "error",
-        error: error instanceof Error ? error.message : "Unable to load catalog",
+        error: error instanceof Error ? error.message : "服务目录加载失败",
       });
     }
   }, [api, cityCode, session?.token]);
@@ -138,7 +157,26 @@ export function App() {
   };
 
   if (!session) {
-    return <main aria-busy="true" style={{ display: "grid", minHeight: "100vh", placeItems: "center" }}>Authenticating customer</main>;
+    return (
+      <IdentityGate
+        aria-busy={authBusy !== null}
+        visualRole="customer"
+        title="顾客身份验证"
+        description="使用手机号验证码登录；验证完成后会回到刚才准备打开的服务画面。"
+        recoveryTarget={`验证完成后返回：${targetName}`}
+        status={<StatusTag tone="primary">需要登录</StatusTag>}
+        form={<>
+          <FormField label="手机号"><Input value={loginPhone} onChange={(event) => setLoginPhone(event.target.value)} /></FormField>
+          <FormField label="短信验证码"><Input value={loginCode} onChange={(event) => setLoginCode(event.target.value)} /></FormField>
+          {authNotice ? <p style={{ fontSize: 13, margin: 0 }}>{authNotice}</p> : null}
+        </>}
+        actions={<>
+          <Button onClick={handleRequestLoginCode} disabled={authBusy !== null || !loginPhone.trim()}>{authBusy === "code" ? "正在发送" : "获取验证码"}</Button>
+          <Button variant="primary" onClick={handleCustomerLogin} disabled={authBusy !== null || !loginPhone.trim() || !loginCode.trim()}>{authBusy === "login" ? "正在登录" : "登录并继续"}</Button>
+        </>}
+        error={authError}
+      />
+    );
   }
 
   if (currentRoute === "home") {

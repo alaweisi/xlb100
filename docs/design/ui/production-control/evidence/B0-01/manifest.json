@@ -1,0 +1,257 @@
+{
+  "batch": "B0-01",
+  "browser": "Microsoft Edge",
+  "browserVersion": "150.0.4078.83",
+  "capturedAt": "2026-07-18T12:53:22.735Z",
+  "actualApp": true,
+  "viewportStandard": {
+    "mobile": "390×844",
+    "desktop": "1440×900"
+  },
+  "evidence": [
+    {
+      "fileKey": "C.AUTH.SESSION.REQUIRED.entry",
+      "sliceIds": [
+        "C.AUTH.SESSION.REQUIRED"
+      ],
+      "stage": "entry",
+      "label": "缺少会话",
+      "path": "docs/design/ui/production-control/evidence/B0-01/C.AUTH.SESSION.REQUIRED.entry.png",
+      "description": "从订单目标进入时保留业务意图，并显示顾客手机号验证码 Gate。"
+    },
+    {
+      "fileKey": "C.AUTH.SESSION.REQUIRED.interaction",
+      "sliceIds": [
+        "C.AUTH.SESSION.REQUIRED"
+      ],
+      "stage": "interaction",
+      "label": "验证码已发送",
+      "path": "docs/design/ui/production-control/evidence/B0-01/C.AUTH.SESSION.REQUIRED.interaction.png",
+      "description": "验证码请求成功，用户仍能看到返回订单的目标说明。"
+    },
+    {
+      "fileKey": "C.AUTH.SESSION.REQUIRED.recovery",
+      "sliceIds": [
+        "C.AUTH.SESSION.REQUIRED"
+      ],
+      "stage": "recovery",
+      "label": "验证失败可恢复",
+      "path": "docs/design/ui/production-control/evidence/B0-01/C.AUTH.SESSION.REQUIRED.recovery.png",
+      "description": "错误信息落在原 Gate，手机号、目标页面和重新输入能力均保留。"
+    },
+    {
+      "fileKey": "C-00.loading",
+      "sliceIds": [
+        "C-00"
+      ],
+      "stage": "loading",
+      "label": "顾客首页加载态",
+      "path": "docs/design/ui/production-control/evidence/B0-01/C-00.loading.png",
+      "description": "真实顾客首页在目录请求未完成时显示稳定加载状态。"
+    },
+    {
+      "fileKey": "C-00.base",
+      "sliceIds": [
+        "C-00"
+      ],
+      "stage": "base",
+      "label": "顾客端基础外壳",
+      "path": "docs/design/ui/production-control/evidence/B0-01/C-00.base.png",
+      "description": "移动 App 首页按批准样板复刻暖色液态玻璃的结构、比例、双层亮边与内部折射；首页八类服务和推荐内容仍由正式目录驱动。底部中央加号与其他菜单保持同一控制区。 "
+    },
+    {
+      "fileKey": "C-00.service-menu",
+      "sliceIds": [
+        "C-00"
+      ],
+      "stage": "interaction",
+      "label": "中央加号：全量服务菜单",
+      "path": "docs/design/ui/production-control/evidence/B0-01/C-00.service-menu.png",
+      "description": "点击底部中央加号后进入由实时目录接口驱动的全部 SKU 服务菜单。"
+    },
+    {
+      "fileKey": "C-00.support",
+      "sliceIds": [
+        "C-00"
+      ],
+      "stage": "interaction",
+      "label": "客服入口",
+      "path": "docs/design/ui/production-control/evidence/B0-01/C-00.support.png",
+      "description": "底部客服入口直达真实客服工单与在线会话页面，顾客界面全中文。"
+    },
+    {
+      "fileKey": "C-00.error",
+      "sliceIds": [
+        "C-00"
+      ],
+      "stage": "error",
+      "label": "顾客首页异常态",
+      "path": "docs/design/ui/production-control/evidence/B0-01/C-00.error.png",
+      "description": "目录失败不会伪造服务，页面提供明确重试动作。"
+    },
+    {
+      "fileKey": "W.AUTH.SESSION.UNAUTHENTICATED.entry",
+      "sliceIds": [
+        "W.AUTH.SESSION.UNAUTHENTICATED",
+        "W.PROFILE.ACCESS.SUSPENDED",
+        "W.PROFILE.ACCESS.DISABLED"
+      ],
+      "stage": "entry",
+      "label": "师傅登录入口",
+      "path": "docs/design/ui/production-control/evidence/B0-01/W.AUTH.SESSION.UNAUTHENTICATED.entry.png",
+      "description": "无会话时显示城市、手机号、验证码和目标任务大厅。"
+    },
+    {
+      "fileKey": "W.AUTH.SESSION.UNAUTHENTICATED.interaction",
+      "sliceIds": [
+        "W.AUTH.SESSION.UNAUTHENTICATED"
+      ],
+      "stage": "interaction",
+      "label": "验证码已发送",
+      "path": "docs/design/ui/production-control/evidence/B0-01/W.AUTH.SESSION.UNAUTHENTICATED.interaction.png",
+      "description": "师傅登录请求已进入后端认证流程。"
+    },
+    {
+      "fileKey": "W.AUTH.SESSION.UNAUTHENTICATED.recovery",
+      "sliceIds": [
+        "W.AUTH.SESSION.UNAUTHENTICATED"
+      ],
+      "stage": "recovery",
+      "label": "验证失败可恢复",
+      "path": "docs/design/ui/production-control/evidence/B0-01/W.AUTH.SESSION.UNAUTHENTICATED.recovery.png",
+      "description": "验证失败留在原登录场景并允许重新输入。"
+    },
+    {
+      "fileKey": "W.PROFILE.ACCESS.SUSPENDED.decision",
+      "sliceIds": [
+        "W.PROFILE.ACCESS.SUSPENDED"
+      ],
+      "stage": "decision",
+      "label": "师傅账号已暂停接单",
+      "path": "docs/design/ui/production-control/evidence/B0-01/W.PROFILE.ACCESS.SUSPENDED.decision.png",
+      "description": "验证码通过后以后端权威账号状态阻断接单，并说明影响范围与下一步。"
+    },
+    {
+      "fileKey": "W.PROFILE.ACCESS.SUSPENDED.recovery",
+      "sliceIds": [
+        "W.PROFILE.ACCESS.SUSPENDED"
+      ],
+      "stage": "recovery",
+      "label": "返回身份验证",
+      "path": "docs/design/ui/production-control/evidence/B0-01/W.PROFILE.ACCESS.SUSPENDED.recovery.png",
+      "description": "用户可退出阻断态并重新验证账号状态。"
+    },
+    {
+      "fileKey": "W.PROFILE.ACCESS.DISABLED.decision",
+      "sliceIds": [
+        "W.PROFILE.ACCESS.DISABLED"
+      ],
+      "stage": "decision",
+      "label": "师傅账号已停用",
+      "path": "docs/design/ui/production-control/evidence/B0-01/W.PROFILE.ACCESS.DISABLED.decision.png",
+      "description": "验证码通过后以后端权威账号状态阻断接单，并说明影响范围与下一步。"
+    },
+    {
+      "fileKey": "W.PROFILE.ACCESS.DISABLED.recovery",
+      "sliceIds": [
+        "W.PROFILE.ACCESS.DISABLED"
+      ],
+      "stage": "recovery",
+      "label": "返回身份验证",
+      "path": "docs/design/ui/production-control/evidence/B0-01/W.PROFILE.ACCESS.DISABLED.recovery.png",
+      "description": "用户可退出阻断态并重新验证账号状态。"
+    },
+    {
+      "fileKey": "W.AUTH.SESSION.AUTHENTICATED.entry",
+      "sliceIds": [
+        "W.AUTH.SESSION.AUTHENTICATED",
+        "W-00"
+      ],
+      "stage": "entry",
+      "label": "师傅端基础外壳",
+      "path": "docs/design/ui/production-control/evidence/B0-01/W.AUTH.SESSION.AUTHENTICATED.entry.png",
+      "description": "恢复持久会话后显示移动工作台、身份卡、任务大厅和五项底部导航。"
+    },
+    {
+      "fileKey": "W.AUTH.SESSION.AUTHENTICATED.result",
+      "sliceIds": [
+        "W.AUTH.SESSION.AUTHENTICATED"
+      ],
+      "stage": "result",
+      "label": "会话进入任务页",
+      "path": "docs/design/ui/production-control/evidence/B0-01/W.AUTH.SESSION.AUTHENTICATED.result.png",
+      "description": "有效会话和城市上下文传递到真实任务路由。"
+    },
+    {
+      "fileKey": "W.AUTH.SESSION.AUTHENTICATED.recovery",
+      "sliceIds": [
+        "W.AUTH.SESSION.AUTHENTICATED"
+      ],
+      "stage": "recovery",
+      "label": "退出后清除会话",
+      "path": "docs/design/ui/production-control/evidence/B0-01/W.AUTH.SESSION.AUTHENTICATED.recovery.png",
+      "description": "退出操作清除持久会话并回到身份 Gate。"
+    },
+    {
+      "fileKey": "A.AUTH.SESSION.REQUIRED.entry",
+      "sliceIds": [
+        "A.AUTH.SESSION.REQUIRED"
+      ],
+      "stage": "entry",
+      "label": "后台登录入口",
+      "path": "docs/design/ui/production-control/evidence/B0-01/A.AUTH.SESSION.REQUIRED.entry.png",
+      "description": "无后台会话时保留订单追踪目标并要求账号验证码。"
+    },
+    {
+      "fileKey": "A.AUTH.SESSION.REQUIRED.interaction",
+      "sliceIds": [
+        "A.AUTH.SESSION.REQUIRED"
+      ],
+      "stage": "interaction",
+      "label": "后台验证码已发送",
+      "path": "docs/design/ui/production-control/evidence/B0-01/A.AUTH.SESSION.REQUIRED.interaction.png",
+      "description": "后台账号进入验证码校验流程。"
+    },
+    {
+      "fileKey": "A.AUTH.SESSION.REQUIRED.recovery",
+      "sliceIds": [
+        "A.AUTH.SESSION.REQUIRED"
+      ],
+      "stage": "recovery",
+      "label": "后台验证失败",
+      "path": "docs/design/ui/production-control/evidence/B0-01/A.AUTH.SESSION.REQUIRED.recovery.png",
+      "description": "错误留在受控 Gate，目标工作台未丢失。"
+    },
+    {
+      "fileKey": "A.SCOPE.CITY.REQUIRED.entry",
+      "sliceIds": [
+        "A.SCOPE.CITY.REQUIRED"
+      ],
+      "stage": "entry",
+      "label": "城市范围缺失",
+      "path": "docs/design/ui/production-control/evidence/B0-01/A.SCOPE.CITY.REQUIRED.entry.png",
+      "description": "后台身份有效但城市范围缺失，业务工作台暂不开放。"
+    },
+    {
+      "fileKey": "A.SCOPE.CITY.REQUIRED.interaction",
+      "sliceIds": [
+        "A.SCOPE.CITY.REQUIRED"
+      ],
+      "stage": "interaction",
+      "label": "选择上海",
+      "path": "docs/design/ui/production-control/evidence/B0-01/A.SCOPE.CITY.REQUIRED.interaction.png",
+      "description": "选择控件显示即将进入的工作城市，确认前不写入范围。"
+    },
+    {
+      "fileKey": "A.SCOPE.CITY.REQUIRED.result",
+      "sliceIds": [
+        "A.SCOPE.CITY.REQUIRED",
+        "A-00"
+      ],
+      "stage": "result",
+      "label": "后台运营总览",
+      "path": "docs/design/ui/production-control/evidence/B0-01/A.SCOPE.CITY.REQUIRED.result.png",
+      "description": "城市范围写入后进入桌面运营总览，展示真实指标和常用工作台入口。"
+    }
+  ]
+}

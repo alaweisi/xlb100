@@ -146,7 +146,16 @@
     "gate:stage5": "node scripts/run-stage5-engineering-audit.mjs",
     "check:risk": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-lean-risk.ps1 -DiffMode WorkingTree",
     "check:migration-integrity": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-migration-integrity.ps1 -DiffMode WorkingTree",
-    "preflight": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/preflight-architecture.ps1"
+    "preflight": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/preflight-architecture.ps1",
+    "ui:control:sync": "node scripts/ui-production/control.mjs sync",
+    "ui:control:check": "node scripts/ui-production/control.mjs check",
+    "ui:control:audit": "node scripts/ui-production/control.mjs audit",
+    "ui:control:baseline": "node scripts/ui-production/control.mjs baseline",
+    "ui:control:console": "node scripts/ui-production/control.mjs console",
+    "ui:control:capture": "node scripts/ui-production/capture-console.mjs",
+    "ui:gate:ratchet": "node scripts/ui-production/control.mjs ratchet",
+    "ui:gate:release": "node scripts/ui-production/control.mjs release",
+    "test:ui-control": "node --test scripts/ui-production/control.test.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

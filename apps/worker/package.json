@@ -11,6 +11,7 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@phosphor-icons/react": "^2.1.10",
     "@xlb/api-client": "workspace:*",
     "@xlb/types": "workspace:*",
     "@xlb/ui": "workspace:*",

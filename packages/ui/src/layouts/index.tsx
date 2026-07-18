@@ -155,6 +155,8 @@ export function BottomNav({ items, placement = "static", style }: BottomNavProps
     >
       {items.map((item) => (
         <a
+          aria-current={item.active ? "page" : undefined}
+          data-prominent={item.prominent ? "true" : undefined}
           href={item.href ?? "#"}
           key={item.key}
           onClick={(event) => {
@@ -172,7 +174,7 @@ export function BottomNav({ items, placement = "static", style }: BottomNavProps
             gap: 3,
             justifyItems: "center",
             minHeight: 54,
-            padding: item.prominent ? "0 6px 8px" : "8px 6px 9px",
+            padding: item.prominent ? "6px" : "8px 6px 9px",
             textAlign: "center",
             textDecoration: "none",
           }}
@@ -188,11 +190,11 @@ export function BottomNav({ items, placement = "static", style }: BottomNavProps
                 color: item.prominent ? "#ffffff" : "currentColor",
                 display: "inline-flex",
                 fontSize: item.prominent ? 26 : 21,
-                height: item.prominent ? 58 : 24,
+                height: item.prominent ? 32 : 24,
                 justifyContent: "center",
                 lineHeight: 1,
-                marginTop: item.prominent ? -30 : 0,
-                width: item.prominent ? 58 : 24,
+                marginTop: 0,
+                width: item.prominent ? 32 : 24,
               }}
             >
               {item.icon}

@@ -131,6 +131,7 @@ describe("Phase 9C Export Review Console", () => {
     window.localStorage.setItem("xlb.admin.userId", "operator-hangzhou");
     window.localStorage.setItem("xlb.admin.role", "operator");
     window.localStorage.setItem("xlb.admin.username", "admin_hz");
+    window.localStorage.setItem("xlb.admin.cityCode", "hangzhou");
     window.location.hash = "";
   });
 
