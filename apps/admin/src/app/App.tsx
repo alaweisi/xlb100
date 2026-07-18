@@ -333,6 +333,16 @@ export function App() {
               />
             );
 
+  const guardrailCopy = view.page === "dispatch"
+    ? "派单操作仅作用于当前城市范围。候选排序使用服务端结果，页面不会读取精确坐标；重试和超时扫描完成后必须重新读取任务状态。"
+    : view.page === "platformOperations"
+      ? "订单列表为只读联动入口；服务目录开关与师傅认证审核会写入真实业务记录。发生并发冲突时必须刷新后重新判断。"
+      : view.page === "orderTrace"
+        ? "订单追踪为当前城市范围内的只读查询。评价正文、精确位置等敏感信息不会在此页面展开，部分接口失败也不会被解释为空数据。"
+        : "本工作台保留完整的结算与治理边界。售后操作会记录可审计的状态变化；补偿审批只记录业务意图，不会直接执行外部退款。";
+
+  const guardrailTone = view.page === "orderTrace" ? "只读查询" : "受控操作";
+
   return (
     <div className="admin-app-root">
     <AdminShell
@@ -421,14 +431,14 @@ export function App() {
     >
       {view.page !== "dashboard" ? <GuardrailCard
         title="运营操作边界"
-        actions={<StatusTag tone="warning">受控操作</StatusTag>}
+        actions={<StatusTag tone={view.page === "orderTrace" ? "muted" : "warning"}>{guardrailTone}</StatusTag>}
         style={{
           borderColor: "#ddd6fe",
           boxShadow: "0 12px 28px rgba(25, 18, 37, 0.08)",
         }}
       >
         <p style={{ color: "#4b5563", fontSize: 13, lineHeight: "20px", margin: 0 }}>
-          本工作台保留完整的结算与治理边界。售后操作会记录可审计的状态变化；补偿审批只记录业务意图，不会直接执行外部退款。
+          {guardrailCopy}
         </p>
       </GuardrailCard> : null}
       <Suspense fallback={<LoadingState title="正在打开后台工作台" description="正在加载所需模块。" />}>
