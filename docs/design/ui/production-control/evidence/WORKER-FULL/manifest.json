@@ -1,0 +1,1611 @@
+{
+  "batch": "WORKER-FULL",
+  "capturedAt": "2026-07-18T16:32:44.175Z",
+  "actualApp": true,
+  "appUrl": "http://127.0.0.1:4322",
+  "dedicatedPort": 4322,
+  "browser": "Microsoft Edge",
+  "browserVersion": "150.0.4078.83",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "fullPageScreenshots": true,
+  "contractStateInterception": true,
+  "externalProviderExecuted": false,
+  "notes": [
+    "截图来自实际 Worker Vite 应用与 Microsoft Edge；API 路由拦截只提供共享契约允许的确定性状态。",
+    "认证、提现、审核、打款、地图和外部 Provider 均未真实执行；结果态仅表示接口回执或既有合同状态。",
+    "W-02 当前台账没有独立 Slice，因此只要求并记录 Carrier 基座。"
+  ],
+  "carriers": [
+    {
+      "carrierId": "W-00",
+      "route": "/worker/",
+      "sliceIds": [
+        "W.AUTH.SESSION.UNAUTHENTICATED",
+        "W.AUTH.SESSION.AUTHENTICATED",
+        "W.PROFILE.ACCESS.SUSPENDED",
+        "W.PROFILE.ACCESS.DISABLED"
+      ]
+    },
+    {
+      "carrierId": "W-01",
+      "route": "/worker/",
+      "sliceIds": [
+        "W.TASK_POOL.AVAILABILITY.ONLINE",
+        "W.TASK_POOL.AVAILABILITY.PAUSED",
+        "W.TASK_POOL.ELIGIBILITY.BLOCKED",
+        "W.DISPATCH.OFFER.ACCEPTED",
+        "W.DISPATCH.OFFER.REJECTED",
+        "W.DISPATCH.OFFER.TIMEOUT",
+        "W.DISPATCH.OFFER.CANCELLED",
+        "W.DISPATCH.OFFER.OFFERING"
+      ]
+    },
+    {
+      "carrierId": "W-02",
+      "route": "/worker/tasks",
+      "sliceIds": []
+    },
+    {
+      "carrierId": "W-03",
+      "route": "/worker/tasks/ful-accepted",
+      "sliceIds": [
+        "W.FULFILLMENT.DETAIL.ACCEPTED",
+        "W.FULFILLMENT.DETAIL.IN_PROGRESS",
+        "W.FULFILLMENT.DETAIL.COMPLETED",
+        "W.FULFILLMENT.DETAIL.CANCELLED",
+        "W.CONFIRMATION.STATUS.DISPUTED",
+        "W.FULFILLMENT.EVIDENCE.MISSING",
+        "W.FULFILLMENT.EVIDENCE.STORED",
+        "W.CONFIRMATION.STATUS.PENDING",
+        "W.CONFIRMATION.STATUS.CONFIRMED"
+      ]
+    },
+    {
+      "carrierId": "W-04",
+      "route": "/worker/repairs",
+      "sliceIds": [
+        "W.REPAIR.DETAIL.ASSIGNED",
+        "W.REPAIR.DETAIL.IN_PROGRESS",
+        "W.REPAIR.DETAIL.COMPLETED",
+        "W.REPAIR.DETAIL.CANCELLED"
+      ]
+    },
+    {
+      "carrierId": "W-05",
+      "route": "/worker/wallet",
+      "sliceIds": [
+        "W.FINANCE.WALLET.AVAILABLE",
+        "W.FINANCE.WALLET.ADJUSTED",
+        "W.BANK_ACCOUNT.LIST.ACTIVE",
+        "W.BANK_ACCOUNT.DETAIL.INACTIVE",
+        "W.WITHDRAWAL.REQUEST.REQUESTED",
+        "W.WITHDRAWAL.REQUEST.APPROVED",
+        "W.WITHDRAWAL.REQUEST.REJECTED",
+        "W.WITHDRAWAL.REQUEST.MARKED_PAID",
+        "W.WITHDRAWAL.REQUEST.CANCELLED",
+        "W.BANK_ACCOUNT.EDIT.CREATING"
+      ]
+    },
+    {
+      "carrierId": "W-06",
+      "route": "/worker/support",
+      "sliceIds": [
+        "W.SUPPORT.CONVERSATION.CLOSED",
+        "W.SUPPORT.TICKET.ACTIVE",
+        "W.SUPPORT.TICKET.RESOLVED",
+        "W.SUPPORT.CONVERSATION.ACTIVE"
+      ]
+    },
+    {
+      "carrierId": "W-07",
+      "route": "/worker/notifications",
+      "sliceIds": [
+        "W.NOTIFICATION.INBOX.UNREAD",
+        "W.NOTIFICATION.INBOX.READ_OR_ARCHIVED"
+      ]
+    },
+    {
+      "carrierId": "W-08",
+      "route": "/worker/reputation",
+      "sliceIds": [
+        "W.REPUTATION.SUMMARY.EMPTY",
+        "W.REPUTATION.SUMMARY.AVAILABLE",
+        "W.REVIEW.APPEAL.ELIGIBLE",
+        "W.REVIEW.APPEAL.OPEN",
+        "W.REVIEW.APPEAL.RESOLVED"
+      ]
+    },
+    {
+      "carrierId": "W-09",
+      "route": "/worker/profile",
+      "sliceIds": [
+        "W.LOCATION.SHARING.STALE",
+        "W.LOCATION.SHARING.DISABLED",
+        "W.LOCATION.SHARING.ENABLED"
+      ]
+    },
+    {
+      "carrierId": "W-10",
+      "route": "/worker/certification",
+      "sliceIds": [
+        "W.CERTIFICATION.STATUS.PENDING",
+        "W.CERTIFICATION.STATUS.APPROVED",
+        "W.CERTIFICATION.STATUS.REJECTED",
+        "W.CERTIFICATION.STATUS.EXPIRED",
+        "W.CERTIFICATION.APPLY.NOT_SUBMITTED"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "fileKey": "W-00.entry.unauthenticated",
+      "carrierId": "W-00",
+      "sliceIds": [
+        "W.AUTH.SESSION.UNAUTHENTICATED",
+        "W.AUTH.SESSION.AUTHENTICATED",
+        "W.PROFILE.ACCESS.SUSPENDED",
+        "W.PROFILE.ACCESS.DISABLED"
+      ],
+      "stage": "entry",
+      "label": "W-00 未登录身份 Gate",
+      "route": "/worker/",
+      "path": "docs/design/ui/production-control/evidence/WORKER-FULL/W-00.entry.unauthenticated.png",
+      "carrierBase": true,
+      "source": "actual-worker-app",
+      "browser": "Microsoft Edge",
+      "contractState": true,
+      "externalProviderExecuted": false
+    },
+    {
+      "fileKey": "W-00.result.entry",
+      "carrierId": "W-00",
+      "sliceIds": [
+        "W.AUTH.SESSION.UNAUTHENTICATED",
+        "W.AUTH.SESSION.AUTHENTICATED",
+        "W.PROFILE.ACCESS.SUSPENDED",
+        "W.PROFILE.ACCESS.DISABLED"
+      ],
+      "stage": "result",
+      "label": "W-00 已认证会话进入真实工作台",
+      "route": "/worker/",
+      "path": "docs/design/ui/production-control/evidence/WORKER-FULL/W-00.result.entry.png",
+      "carrierBase": false,
+      "source": "actual-worker-app",
+      "browser": "Microsoft Edge",
+      "contractState": true,
+      "externalProviderExecuted": false
+    },
+    {
+      "fileKey": "W-00.recovery.unauthenticated",
+      "carrierId": "W-00",
+      "sliceIds": [
+        "W.AUTH.SESSION.UNAUTHENTICATED",
+        "W.AUTH.SESSION.AUTHENTICATED",
+        "W.PROFILE.ACCESS.SUSPENDED",
+        "W.PROFILE.ACCESS.DISABLED"
+      ],
+      "stage": "recovery",
+      "label": "W-00 Gate 保留重试入口",
+      "route": "/worker/",
+      "path": "docs/design/ui/production-control/evidence/WORKER-FULL/W-00.recovery.unauthenticated.png",
+      "carrierBase": false,
+      "source": "actual-worker-app",
+      "browser": "Microsoft Edge",
+      "contractState": true,
+      "externalProviderExecuted": false
+    },
+    {
+      "fileKey": "W-01.entry.entry",
+      "carrierId": "W-01",
+      "sliceIds": [
+        "W.TASK_POOL.AVAILABILITY.ONLINE",
+        "W.TASK_POOL.AVAILABILITY.PAUSED",
+        "W.TASK_POOL.ELIGIBILITY.BLOCKED",
+        "W.DISPATCH.OFFER.ACCEPTED",
+        "W.DISPATCH.OFFER.REJECTED",
+        "W.DISPATCH.OFFER.TIMEOUT",
+        "W.DISPATCH.OFFER.CANCELLED",
+        "W.DISPATCH.OFFER.OFFERING"
+      ],
+      "stage": "entry",
+      "label": "W-01 入口与基座",
+      "route": "/worker/",
+      "path": "docs/design/ui/production-control/evidence/WORKER-FULL/W-01.entry.entry.png",
+      "carrierBase": true,
+      "source": "actual-worker-app",
+      "browser": "Microsoft Edge",
+      "contractState": true,
+      "externalProviderExecuted": false
+    },
+    {
+      "fileKey": "W-01.result.result",
+      "carrierId": "W-01",
+      "sliceIds": [
+        "W.TASK_POOL.AVAILABILITY.ONLINE",
+        "W.TASK_POOL.AVAILABILITY.PAUSED",
+        "W.TASK_POOL.ELIGIBILITY.BLOCKED",
+        "W.DISPATCH.OFFER.ACCEPTED",
+        "W.DISPATCH.OFFER.REJECTED",
+        "W.DISPATCH.OFFER.TIMEOUT",
+        "W.DISPATCH.OFFER.CANCELLED",
+        "W.DISPATCH.OFFER.OFFERING"
+      ],
+      "stage": "result",
+      "label": "W-01 主要合同结果态",
+      "route": "/worker/",
+      "path": "docs/design/ui/production-control/evidence/WORKER-FULL/W-01.result.result.png",
+      "carrierBase": false,
+      "source": "actual-worker-app",
+      "browser": "Microsoft Edge",
+      "contractState": true,
+      "externalProviderExecuted": false
+    },
+    {
+      "fileKey": "W-01.recovery.recovery",
+      "carrierId": "W-01",
+      "sliceIds": [
+        "W.TASK_POOL.AVAILABILITY.ONLINE",
+        "W.TASK_POOL.AVAILABILITY.PAUSED",
+        "W.TASK_POOL.ELIGIBILITY.BLOCKED",
+        "W.DISPATCH.OFFER.ACCEPTED",
+        "W.DISPATCH.OFFER.REJECTED",
+        "W.DISPATCH.OFFER.TIMEOUT",
+        "W.DISPATCH.OFFER.CANCELLED",
+        "W.DISPATCH.OFFER.OFFERING"
+      ],
+      "stage": "recovery",
+      "label": "W-01 接口失败恢复态",
+      "route": "/worker/",
+      "path": "docs/design/ui/production-control/evidence/WORKER-FULL/W-01.recovery.recovery.png",
+      "carrierBase": false,
+      "source": "actual-worker-app",
+      "browser": "Microsoft Edge",
+      "contractState": true,
+      "externalProviderExecuted": false
+    },
+    {
+      "fileKey": "W-02.base.entry",
+      "carrierId": "W-02",
+      "sliceIds": [],
+      "stage": "base",
+      "label": "W-02 我的任务 Carrier 基座",
+      "route": "/worker/tasks",
+      "path": "docs/design/ui/production-control/evidence/WORKER-FULL/W-02.base.entry.png",
+      "carrierBase": true,
+      "source": "actual-worker-app",
+      "browser": "Microsoft Edge",
+      "contractState": true,
+      "externalProviderExecuted": false
+    },
+    {
+      "fileKey": "W-03.entry.entry",
+      "carrierId": "W-03",
+      "sliceIds": [
+        "W.FULFILLMENT.DETAIL.ACCEPTED",
+        "W.FULFILLMENT.DETAIL.IN_PROGRESS",
+        "W.FULFILLMENT.DETAIL.COMPLETED",
+        "W.FULFILLMENT.DETAIL.CANCELLED",
+        "W.CONFIRMATION.STATUS.DISPUTED",
+        "W.FULFILLMENT.EVIDENCE.MISSING",
+        "W.FULFILLMENT.EVIDENCE.STORED",
+        "W.CONFIRMATION.STATUS.PENDING",
+        "W.CONFIRMATION.STATUS.CONFIRMED"
+      ],
+      "stage": "entry",
+      "label": "W-03 已承接、待证据与待确认入口",
+      "route": "/worker/tasks/ful-accepted",
+      "path": "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.entry.entry.png",
+      "carrierBase": true,
+      "source": "actual-worker-app",
+      "browser": "Microsoft Edge",
+      "contractState": true,
+      "externalProviderExecuted": false
+    },
+    {
+      "fileKey": "W-03.result.stored",
+      "carrierId": "W-03",
+      "sliceIds": [
+        "W.FULFILLMENT.DETAIL.ACCEPTED",
+        "W.FULFILLMENT.DETAIL.IN_PROGRESS",
+        "W.FULFILLMENT.DETAIL.COMPLETED",
+        "W.FULFILLMENT.DETAIL.CANCELLED",
+        "W.CONFIRMATION.STATUS.DISPUTED",
+        "W.FULFILLMENT.EVIDENCE.MISSING",
+        "W.FULFILLMENT.EVIDENCE.STORED",
+        "W.CONFIRMATION.STATUS.PENDING",
+        "W.CONFIRMATION.STATUS.CONFIRMED"
+      ],
+      "stage": "result",
+      "label": "W-03 stored 合同结果态",
+      "route": "/worker/tasks/ful-stored",
+      "path": "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.result.stored.png",
+      "carrierBase": false,
+      "source": "actual-worker-app",
+      "browser": "Microsoft Edge",
+      "contractState": true,
+      "externalProviderExecuted": false
+    },
+    {
+      "fileKey": "W-03.result.completed",
+      "carrierId": "W-03",
+      "sliceIds": [
+        "W.FULFILLMENT.DETAIL.ACCEPTED",
+        "W.FULFILLMENT.DETAIL.IN_PROGRESS",
+        "W.FULFILLMENT.DETAIL.COMPLETED",
+        "W.FULFILLMENT.DETAIL.CANCELLED",
+        "W.CONFIRMATION.STATUS.DISPUTED",
+        "W.FULFILLMENT.EVIDENCE.MISSING",
+        "W.FULFILLMENT.EVIDENCE.STORED",
+        "W.CONFIRMATION.STATUS.PENDING",
+        "W.CONFIRMATION.STATUS.CONFIRMED"
+      ],
+      "stage": "result",
+      "label": "W-03 completed 合同结果态",
+      "route": "/worker/tasks/ful-completed",
+      "path": "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.result.completed.png",
+      "carrierBase": false,
+      "source": "actual-worker-app",
+      "browser": "Microsoft Edge",
+      "contractState": true,
+      "externalProviderExecuted": false
+    },
+    {
+      "fileKey": "W-03.result.cancelled",
+      "carrierId": "W-03",
+      "sliceIds": [
+        "W.FULFILLMENT.DETAIL.ACCEPTED",
+        "W.FULFILLMENT.DETAIL.IN_PROGRESS",
+        "W.FULFILLMENT.DETAIL.COMPLETED",
+        "W.FULFILLMENT.DETAIL.CANCELLED",
+        "W.CONFIRMATION.STATUS.DISPUTED",
+        "W.FULFILLMENT.EVIDENCE.MISSING",
+        "W.FULFILLMENT.EVIDENCE.STORED",
+        "W.CONFIRMATION.STATUS.PENDING",
+        "W.CONFIRMATION.STATUS.CONFIRMED"
+      ],
+      "stage": "result",
+      "label": "W-03 cancelled 合同结果态",
+      "route": "/worker/tasks/ful-cancelled",
+      "path": "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.result.cancelled.png",
+      "carrierBase": false,
+      "source": "actual-worker-app",
+      "browser": "Microsoft Edge",
+      "contractState": true,
+      "externalProviderExecuted": false
+    },
+    {
+      "fileKey": "W-03.result.disputed",
+      "carrierId": "W-03",
+      "sliceIds": [
+        "W.FULFILLMENT.DETAIL.ACCEPTED",
+        "W.FULFILLMENT.DETAIL.IN_PROGRESS",
+        "W.FULFILLMENT.DETAIL.COMPLETED",
+        "W.FULFILLMENT.DETAIL.CANCELLED",
+        "W.CONFIRMATION.STATUS.DISPUTED",
+        "W.FULFILLMENT.EVIDENCE.MISSING",
+        "W.FULFILLMENT.EVIDENCE.STORED",
+        "W.CONFIRMATION.STATUS.PENDING",
+        "W.CONFIRMATION.STATUS.CONFIRMED"
+      ],
+      "stage": "result",
+      "label": "W-03 disputed 合同结果态",
+      "route": "/worker/tasks/ful-disputed",
+      "path": "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.result.disputed.png",
+      "carrierBase": false,
+      "source": "actual-worker-app",
+      "browser": "Microsoft Edge",
+      "contractState": true,
+      "externalProviderExecuted": false
+    },
+    {
+      "fileKey": "W-03.recovery.recovery",
+      "carrierId": "W-03",
+      "sliceIds": [
+        "W.FULFILLMENT.DETAIL.ACCEPTED",
+        "W.FULFILLMENT.DETAIL.IN_PROGRESS",
+        "W.FULFILLMENT.DETAIL.COMPLETED",
+        "W.FULFILLMENT.DETAIL.CANCELLED",
+        "W.CONFIRMATION.STATUS.DISPUTED",
+        "W.FULFILLMENT.EVIDENCE.MISSING",
+        "W.FULFILLMENT.EVIDENCE.STORED",
+        "W.CONFIRMATION.STATUS.PENDING",
+        "W.CONFIRMATION.STATUS.CONFIRMED"
+      ],
+      "stage": "recovery",
+      "label": "W-03 详情与证据加载失败恢复态",
+      "route": "/worker/tasks/ful-accepted",
+      "path": "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.recovery.recovery.png",
+      "carrierBase": false,
+      "source": "actual-worker-app",
+      "browser": "Microsoft Edge",
+      "contractState": true,
+      "externalProviderExecuted": false
+    },
+    {
+      "fileKey": "W-04.entry.entry",
+      "carrierId": "W-04",
+      "sliceIds": [
+        "W.REPAIR.DETAIL.ASSIGNED",
+        "W.REPAIR.DETAIL.IN_PROGRESS",
+        "W.REPAIR.DETAIL.COMPLETED",
+        "W.REPAIR.DETAIL.CANCELLED"
+      ],
+      "stage": "entry",
+      "label": "W-04 入口与基座",
+      "route": "/worker/repairs",
+      "path": "docs/design/ui/production-control/evidence/WORKER-FULL/W-04.entry.entry.png",
+      "carrierBase": true,
+      "source": "actual-worker-app",
+      "browser": "Microsoft Edge",
+      "contractState": true,
+      "externalProviderExecuted": false
+    },
+    {
+      "fileKey": "W-04.result.result",
+      "carrierId": "W-04",
+      "sliceIds": [
+        "W.REPAIR.DETAIL.ASSIGNED",
+        "W.REPAIR.DETAIL.IN_PROGRESS",
+        "W.REPAIR.DETAIL.COMPLETED",
+        "W.REPAIR.DETAIL.CANCELLED"
+      ],
+      "stage": "result",
+      "label": "W-04 主要合同结果态",
+      "route": "/worker/repairs",
+      "path": "docs/design/ui/production-control/evidence/WORKER-FULL/W-04.result.result.png",
+      "carrierBase": false,
+      "source": "actual-worker-app",
+      "browser": "Microsoft Edge",
+      "contractState": true,
+      "externalProviderExecuted": false
+    },
+    {
+      "fileKey": "W-04.recovery.recovery",
+      "carrierId": "W-04",
+      "sliceIds": [
+        "W.REPAIR.DETAIL.ASSIGNED",
+        "W.REPAIR.DETAIL.IN_PROGRESS",
+        "W.REPAIR.DETAIL.COMPLETED",
+        "W.REPAIR.DETAIL.CANCELLED"
+      ],
+      "stage": "recovery",
+      "label": "W-04 接口失败恢复态",
+      "route": "/worker/repairs",
+      "path": "docs/design/ui/production-control/evidence/WORKER-FULL/W-04.recovery.recovery.png",
+      "carrierBase": false,
+      "source": "actual-worker-app",
+      "browser": "Microsoft Edge",
+      "contractState": true,
+      "externalProviderExecuted": false
+    },
+    {
+      "fileKey": "W-05.entry.entry",
+      "carrierId": "W-05",
+      "sliceIds": [
+        "W.FINANCE.WALLET.AVAILABLE",
+        "W.FINANCE.WALLET.ADJUSTED",
+        "W.BANK_ACCOUNT.LIST.ACTIVE",
+        "W.BANK_ACCOUNT.DETAIL.INACTIVE",
+        "W.WITHDRAWAL.REQUEST.REQUESTED",
+        "W.WITHDRAWAL.REQUEST.APPROVED",
+        "W.WITHDRAWAL.REQUEST.REJECTED",
+        "W.WITHDRAWAL.REQUEST.MARKED_PAID",
+        "W.WITHDRAWAL.REQUEST.CANCELLED",
+        "W.BANK_ACCOUNT.EDIT.CREATING"
+      ],
+      "stage": "entry",
+      "label": "W-05 入口与基座",
+      "route": "/worker/wallet",
+      "path": "docs/design/ui/production-control/evidence/WORKER-FULL/W-05.entry.entry.png",
+      "carrierBase": true,
+      "source": "actual-worker-app",
+      "browser": "Microsoft Edge",
+      "contractState": true,
+      "externalProviderExecuted": false
+    },
+    {
+      "fileKey": "W-05.result.result",
+      "carrierId": "W-05",
+      "sliceIds": [
+        "W.FINANCE.WALLET.AVAILABLE",
+        "W.FINANCE.WALLET.ADJUSTED",
+        "W.BANK_ACCOUNT.LIST.ACTIVE",
+        "W.BANK_ACCOUNT.DETAIL.INACTIVE",
+        "W.WITHDRAWAL.REQUEST.REQUESTED",
+        "W.WITHDRAWAL.REQUEST.APPROVED",
+        "W.WITHDRAWAL.REQUEST.REJECTED",
+        "W.WITHDRAWAL.REQUEST.MARKED_PAID",
+        "W.WITHDRAWAL.REQUEST.CANCELLED",
+        "W.BANK_ACCOUNT.EDIT.CREATING"
+      ],
+      "stage": "result",
+      "label": "W-05 主要合同结果态",
+      "route": "/worker/wallet",
+      "path": "docs/design/ui/production-control/evidence/WORKER-FULL/W-05.result.result.png",
+      "carrierBase": false,
+      "source": "actual-worker-app",
+      "browser": "Microsoft Edge",
+      "contractState": true,
+      "externalProviderExecuted": false
+    },
+    {
+      "fileKey": "W-05.recovery.recovery",
+      "carrierId": "W-05",
+      "sliceIds": [
+        "W.FINANCE.WALLET.AVAILABLE",
+        "W.FINANCE.WALLET.ADJUSTED",
+        "W.BANK_ACCOUNT.LIST.ACTIVE",
+        "W.BANK_ACCOUNT.DETAIL.INACTIVE",
+        "W.WITHDRAWAL.REQUEST.REQUESTED",
+        "W.WITHDRAWAL.REQUEST.APPROVED",
+        "W.WITHDRAWAL.REQUEST.REJECTED",
+        "W.WITHDRAWAL.REQUEST.MARKED_PAID",
+        "W.WITHDRAWAL.REQUEST.CANCELLED",
+        "W.BANK_ACCOUNT.EDIT.CREATING"
+      ],
+      "stage": "recovery",
+      "label": "W-05 接口失败恢复态",
+      "route": "/worker/wallet",
+      "path": "docs/design/ui/production-control/evidence/WORKER-FULL/W-05.recovery.recovery.png",
+      "carrierBase": false,
+      "source": "actual-worker-app",
+      "browser": "Microsoft Edge",
+      "contractState": true,
+      "externalProviderExecuted": false
+    },
+    {
+      "fileKey": "W-06.entry.entry",
+      "carrierId": "W-06",
+      "sliceIds": [
+        "W.SUPPORT.CONVERSATION.CLOSED",
+        "W.SUPPORT.TICKET.ACTIVE",
+        "W.SUPPORT.TICKET.RESOLVED",
+        "W.SUPPORT.CONVERSATION.ACTIVE"
+      ],
+      "stage": "entry",
+      "label": "W-06 入口与基座",
+      "route": "/worker/support",
+      "path": "docs/design/ui/production-control/evidence/WORKER-FULL/W-06.entry.entry.png",
+      "carrierBase": true,
+      "source": "actual-worker-app",
+      "browser": "Microsoft Edge",
+      "contractState": true,
+      "externalProviderExecuted": false
+    },
+    {
+      "fileKey": "W-06.result.result",
+      "carrierId": "W-06",
+      "sliceIds": [
+        "W.SUPPORT.CONVERSATION.CLOSED",
+        "W.SUPPORT.TICKET.ACTIVE",
+        "W.SUPPORT.TICKET.RESOLVED",
+        "W.SUPPORT.CONVERSATION.ACTIVE"
+      ],
+      "stage": "result",
+      "label": "W-06 主要合同结果态",
+      "route": "/worker/support",
+      "path": "docs/design/ui/production-control/evidence/WORKER-FULL/W-06.result.result.png",
+      "carrierBase": false,
+      "source": "actual-worker-app",
+      "browser": "Microsoft Edge",
+      "contractState": true,
+      "externalProviderExecuted": false
+    },
+    {
+      "fileKey": "W-06.recovery.recovery",
+      "carrierId": "W-06",
+      "sliceIds": [
+        "W.SUPPORT.CONVERSATION.CLOSED",
+        "W.SUPPORT.TICKET.ACTIVE",
+        "W.SUPPORT.TICKET.RESOLVED",
+        "W.SUPPORT.CONVERSATION.ACTIVE"
+      ],
+      "stage": "recovery",
+      "label": "W-06 接口失败恢复态",
+      "route": "/worker/support",
+      "path": "docs/design/ui/production-control/evidence/WORKER-FULL/W-06.recovery.recovery.png",
+      "carrierBase": false,
+      "source": "actual-worker-app",
+      "browser": "Microsoft Edge",
+      "contractState": true,
+      "externalProviderExecuted": false
+    },
+    {
+      "fileKey": "W-07.entry.entry",
+      "carrierId": "W-07",
+      "sliceIds": [
+        "W.NOTIFICATION.INBOX.UNREAD",
+        "W.NOTIFICATION.INBOX.READ_OR_ARCHIVED"
+      ],
+      "stage": "entry",
+      "label": "W-07 入口与基座",
+      "route": "/worker/notifications",
+      "path": "docs/design/ui/production-control/evidence/WORKER-FULL/W-07.entry.entry.png",
+      "carrierBase": true,
+      "source": "actual-worker-app",
+      "browser": "Microsoft Edge",
+      "contractState": true,
+      "externalProviderExecuted": false
+    },
+    {
+      "fileKey": "W-07.result.result",
+      "carrierId": "W-07",
+      "sliceIds": [
+        "W.NOTIFICATION.INBOX.UNREAD",
+        "W.NOTIFICATION.INBOX.READ_OR_ARCHIVED"
+      ],
+      "stage": "result",
+      "label": "W-07 主要合同结果态",
+      "route": "/worker/notifications",
+      "path": "docs/design/ui/production-control/evidence/WORKER-FULL/W-07.result.result.png",
+      "carrierBase": false,
+      "source": "actual-worker-app",
+      "browser": "Microsoft Edge",
+      "contractState": true,
+      "externalProviderExecuted": false
+    },
+    {
+      "fileKey": "W-07.recovery.recovery",
+      "carrierId": "W-07",
+      "sliceIds": [
+        "W.NOTIFICATION.INBOX.UNREAD",
+        "W.NOTIFICATION.INBOX.READ_OR_ARCHIVED"
+      ],
+      "stage": "recovery",
+      "label": "W-07 接口失败恢复态",
+      "route": "/worker/notifications",
+      "path": "docs/design/ui/production-control/evidence/WORKER-FULL/W-07.recovery.recovery.png",
+      "carrierBase": false,
+      "source": "actual-worker-app",
+      "browser": "Microsoft Edge",
+      "contractState": true,
+      "externalProviderExecuted": false
+    },
+    {
+      "fileKey": "W-08.entry.entry",
+      "carrierId": "W-08",
+      "sliceIds": [
+        "W.REPUTATION.SUMMARY.EMPTY",
+        "W.REPUTATION.SUMMARY.AVAILABLE",
+        "W.REVIEW.APPEAL.ELIGIBLE",
+        "W.REVIEW.APPEAL.OPEN",
+        "W.REVIEW.APPEAL.RESOLVED"
+      ],
+      "stage": "entry",
+      "label": "W-08 入口与基座",
+      "route": "/worker/reputation",
+      "path": "docs/design/ui/production-control/evidence/WORKER-FULL/W-08.entry.entry.png",
+      "carrierBase": true,
+      "source": "actual-worker-app",
+      "browser": "Microsoft Edge",
+      "contractState": true,
+      "externalProviderExecuted": false
+    },
+    {
+      "fileKey": "W-08.result.result",
+      "carrierId": "W-08",
+      "sliceIds": [
+        "W.REPUTATION.SUMMARY.EMPTY",
+        "W.REPUTATION.SUMMARY.AVAILABLE",
+        "W.REVIEW.APPEAL.ELIGIBLE",
+        "W.REVIEW.APPEAL.OPEN",
+        "W.REVIEW.APPEAL.RESOLVED"
+      ],
+      "stage": "result",
+      "label": "W-08 主要合同结果态",
+      "route": "/worker/reputation",
+      "path": "docs/design/ui/production-control/evidence/WORKER-FULL/W-08.result.result.png",
+      "carrierBase": false,
+      "source": "actual-worker-app",
+      "browser": "Microsoft Edge",
+      "contractState": true,
+      "externalProviderExecuted": false
+    },
+    {
+      "fileKey": "W-08.recovery.recovery",
+      "carrierId": "W-08",
+      "sliceIds": [
+        "W.REPUTATION.SUMMARY.EMPTY",
+        "W.REPUTATION.SUMMARY.AVAILABLE",
+        "W.REVIEW.APPEAL.ELIGIBLE",
+        "W.REVIEW.APPEAL.OPEN",
+        "W.REVIEW.APPEAL.RESOLVED"
+      ],
+      "stage": "recovery",
+      "label": "W-08 接口失败恢复态",
+      "route": "/worker/reputation",
+      "path": "docs/design/ui/production-control/evidence/WORKER-FULL/W-08.recovery.recovery.png",
+      "carrierBase": false,
+      "source": "actual-worker-app",
+      "browser": "Microsoft Edge",
+      "contractState": true,
+      "externalProviderExecuted": false
+    },
+    {
+      "fileKey": "W-09.entry.entry",
+      "carrierId": "W-09",
+      "sliceIds": [
+        "W.LOCATION.SHARING.STALE",
+        "W.LOCATION.SHARING.DISABLED",
+        "W.LOCATION.SHARING.ENABLED"
+      ],
+      "stage": "entry",
+      "label": "W-09 位置服务入口与基座",
+      "route": "/worker/profile",
+      "path": "docs/design/ui/production-control/evidence/WORKER-FULL/W-09.entry.entry.png",
+      "carrierBase": true,
+      "source": "actual-worker-app",
+      "browser": "Microsoft Edge",
+      "contractState": true,
+      "externalProviderExecuted": false
+    },
+    {
+      "fileKey": "W-09.result.stale",
+      "carrierId": "W-09",
+      "sliceIds": [
+        "W.LOCATION.SHARING.STALE",
+        "W.LOCATION.SHARING.DISABLED",
+        "W.LOCATION.SHARING.ENABLED"
+      ],
+      "stage": "result",
+      "label": "W-09 位置陈旧合同态",
+      "route": "/worker/profile",
+      "path": "docs/design/ui/production-control/evidence/WORKER-FULL/W-09.result.stale.png",
+      "carrierBase": false,
+      "source": "actual-worker-app",
+      "browser": "Microsoft Edge",
+      "contractState": true,
+      "externalProviderExecuted": false
+    },
+    {
+      "fileKey": "W-09.result.disabled",
+      "carrierId": "W-09",
+      "sliceIds": [
+        "W.LOCATION.SHARING.STALE",
+        "W.LOCATION.SHARING.DISABLED",
+        "W.LOCATION.SHARING.ENABLED"
+      ],
+      "stage": "result",
+      "label": "W-09 位置共享关闭合同态",
+      "route": "/worker/profile",
+      "path": "docs/design/ui/production-control/evidence/WORKER-FULL/W-09.result.disabled.png",
+      "carrierBase": false,
+      "source": "actual-worker-app",
+      "browser": "Microsoft Edge",
+      "contractState": true,
+      "externalProviderExecuted": false
+    },
+    {
+      "fileKey": "W-09.result.result",
+      "carrierId": "W-09",
+      "sliceIds": [
+        "W.LOCATION.SHARING.STALE",
+        "W.LOCATION.SHARING.DISABLED",
+        "W.LOCATION.SHARING.ENABLED"
+      ],
+      "stage": "result",
+      "label": "W-09 位置共享开启且新鲜合同态",
+      "route": "/worker/profile",
+      "path": "docs/design/ui/production-control/evidence/WORKER-FULL/W-09.result.result.png",
+      "carrierBase": false,
+      "source": "actual-worker-app",
+      "browser": "Microsoft Edge",
+      "contractState": true,
+      "externalProviderExecuted": false
+    },
+    {
+      "fileKey": "W-09.recovery.recovery",
+      "carrierId": "W-09",
+      "sliceIds": [
+        "W.LOCATION.SHARING.STALE",
+        "W.LOCATION.SHARING.DISABLED",
+        "W.LOCATION.SHARING.ENABLED"
+      ],
+      "stage": "recovery",
+      "label": "W-09 位置加载失败恢复态",
+      "route": "/worker/profile",
+      "path": "docs/design/ui/production-control/evidence/WORKER-FULL/W-09.recovery.recovery.png",
+      "carrierBase": false,
+      "source": "actual-worker-app",
+      "browser": "Microsoft Edge",
+      "contractState": true,
+      "externalProviderExecuted": false
+    },
+    {
+      "fileKey": "W-10.entry.entry",
+      "carrierId": "W-10",
+      "sliceIds": [
+        "W.CERTIFICATION.STATUS.PENDING",
+        "W.CERTIFICATION.STATUS.APPROVED",
+        "W.CERTIFICATION.STATUS.REJECTED",
+        "W.CERTIFICATION.STATUS.EXPIRED",
+        "W.CERTIFICATION.APPLY.NOT_SUBMITTED"
+      ],
+      "stage": "entry",
+      "label": "W-10 未提交认证入口与基座",
+      "route": "/worker/certification",
+      "path": "docs/design/ui/production-control/evidence/WORKER-FULL/W-10.entry.entry.png",
+      "carrierBase": true,
+      "source": "actual-worker-app",
+      "browser": "Microsoft Edge",
+      "contractState": true,
+      "externalProviderExecuted": false
+    },
+    {
+      "fileKey": "W-10.result.pending",
+      "carrierId": "W-10",
+      "sliceIds": [
+        "W.CERTIFICATION.STATUS.PENDING",
+        "W.CERTIFICATION.STATUS.APPROVED",
+        "W.CERTIFICATION.STATUS.REJECTED",
+        "W.CERTIFICATION.STATUS.EXPIRED",
+        "W.CERTIFICATION.APPLY.NOT_SUBMITTED"
+      ],
+      "stage": "result",
+      "label": "W-10 pending 本次会话合同回执",
+      "route": "/worker/certification",
+      "path": "docs/design/ui/production-control/evidence/WORKER-FULL/W-10.result.pending.png",
+      "carrierBase": false,
+      "source": "actual-worker-app",
+      "browser": "Microsoft Edge",
+      "contractState": true,
+      "externalProviderExecuted": false
+    },
+    {
+      "fileKey": "W-10.result.approved",
+      "carrierId": "W-10",
+      "sliceIds": [
+        "W.CERTIFICATION.STATUS.PENDING",
+        "W.CERTIFICATION.STATUS.APPROVED",
+        "W.CERTIFICATION.STATUS.REJECTED",
+        "W.CERTIFICATION.STATUS.EXPIRED",
+        "W.CERTIFICATION.APPLY.NOT_SUBMITTED"
+      ],
+      "stage": "result",
+      "label": "W-10 approved 本次会话合同回执",
+      "route": "/worker/certification",
+      "path": "docs/design/ui/production-control/evidence/WORKER-FULL/W-10.result.approved.png",
+      "carrierBase": false,
+      "source": "actual-worker-app",
+      "browser": "Microsoft Edge",
+      "contractState": true,
+      "externalProviderExecuted": false
+    },
+    {
+      "fileKey": "W-10.result.rejected",
+      "carrierId": "W-10",
+      "sliceIds": [
+        "W.CERTIFICATION.STATUS.PENDING",
+        "W.CERTIFICATION.STATUS.APPROVED",
+        "W.CERTIFICATION.STATUS.REJECTED",
+        "W.CERTIFICATION.STATUS.EXPIRED",
+        "W.CERTIFICATION.APPLY.NOT_SUBMITTED"
+      ],
+      "stage": "result",
+      "label": "W-10 rejected 本次会话合同回执",
+      "route": "/worker/certification",
+      "path": "docs/design/ui/production-control/evidence/WORKER-FULL/W-10.result.rejected.png",
+      "carrierBase": false,
+      "source": "actual-worker-app",
+      "browser": "Microsoft Edge",
+      "contractState": true,
+      "externalProviderExecuted": false
+    },
+    {
+      "fileKey": "W-10.result.expired",
+      "carrierId": "W-10",
+      "sliceIds": [
+        "W.CERTIFICATION.STATUS.PENDING",
+        "W.CERTIFICATION.STATUS.APPROVED",
+        "W.CERTIFICATION.STATUS.REJECTED",
+        "W.CERTIFICATION.STATUS.EXPIRED",
+        "W.CERTIFICATION.APPLY.NOT_SUBMITTED"
+      ],
+      "stage": "result",
+      "label": "W-10 expired 本次会话合同回执",
+      "route": "/worker/certification",
+      "path": "docs/design/ui/production-control/evidence/WORKER-FULL/W-10.result.expired.png",
+      "carrierBase": false,
+      "source": "actual-worker-app",
+      "browser": "Microsoft Edge",
+      "contractState": true,
+      "externalProviderExecuted": false
+    },
+    {
+      "fileKey": "W-10.recovery.recovery",
+      "carrierId": "W-10",
+      "sliceIds": [
+        "W.CERTIFICATION.STATUS.PENDING",
+        "W.CERTIFICATION.STATUS.APPROVED",
+        "W.CERTIFICATION.STATUS.REJECTED",
+        "W.CERTIFICATION.STATUS.EXPIRED",
+        "W.CERTIFICATION.APPLY.NOT_SUBMITTED"
+      ],
+      "stage": "recovery",
+      "label": "W-10 认证提交前可恢复失败态",
+      "route": "/worker/certification",
+      "path": "docs/design/ui/production-control/evidence/WORKER-FULL/W-10.recovery.recovery.png",
+      "carrierBase": false,
+      "source": "actual-worker-app",
+      "browser": "Microsoft Edge",
+      "contractState": true,
+      "externalProviderExecuted": false
+    }
+  ],
+  "coverage": {
+    "carrierBases": {
+      "W-00": "docs/design/ui/production-control/evidence/WORKER-FULL/W-00.entry.unauthenticated.png",
+      "W-01": "docs/design/ui/production-control/evidence/WORKER-FULL/W-01.entry.entry.png",
+      "W-02": "docs/design/ui/production-control/evidence/WORKER-FULL/W-02.base.entry.png",
+      "W-03": "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.entry.entry.png",
+      "W-04": "docs/design/ui/production-control/evidence/WORKER-FULL/W-04.entry.entry.png",
+      "W-05": "docs/design/ui/production-control/evidence/WORKER-FULL/W-05.entry.entry.png",
+      "W-06": "docs/design/ui/production-control/evidence/WORKER-FULL/W-06.entry.entry.png",
+      "W-07": "docs/design/ui/production-control/evidence/WORKER-FULL/W-07.entry.entry.png",
+      "W-08": "docs/design/ui/production-control/evidence/WORKER-FULL/W-08.entry.entry.png",
+      "W-09": "docs/design/ui/production-control/evidence/WORKER-FULL/W-09.entry.entry.png",
+      "W-10": "docs/design/ui/production-control/evidence/WORKER-FULL/W-10.entry.entry.png"
+    },
+    "slices": {
+      "W.AUTH.SESSION.UNAUTHENTICATED": {
+        "entry": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-00.entry.unauthenticated.png"
+        ],
+        "result": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-00.result.entry.png"
+        ],
+        "recovery": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-00.recovery.unauthenticated.png"
+        ]
+      },
+      "W.AUTH.SESSION.AUTHENTICATED": {
+        "entry": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-00.entry.unauthenticated.png"
+        ],
+        "result": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-00.result.entry.png"
+        ],
+        "recovery": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-00.recovery.unauthenticated.png"
+        ]
+      },
+      "W.PROFILE.ACCESS.SUSPENDED": {
+        "entry": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-00.entry.unauthenticated.png"
+        ],
+        "result": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-00.result.entry.png"
+        ],
+        "recovery": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-00.recovery.unauthenticated.png"
+        ]
+      },
+      "W.PROFILE.ACCESS.DISABLED": {
+        "entry": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-00.entry.unauthenticated.png"
+        ],
+        "result": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-00.result.entry.png"
+        ],
+        "recovery": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-00.recovery.unauthenticated.png"
+        ]
+      },
+      "W.TASK_POOL.AVAILABILITY.ONLINE": {
+        "entry": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-01.entry.entry.png"
+        ],
+        "result": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-01.result.result.png"
+        ],
+        "recovery": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-01.recovery.recovery.png"
+        ]
+      },
+      "W.TASK_POOL.AVAILABILITY.PAUSED": {
+        "entry": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-01.entry.entry.png"
+        ],
+        "result": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-01.result.result.png"
+        ],
+        "recovery": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-01.recovery.recovery.png"
+        ]
+      },
+      "W.TASK_POOL.ELIGIBILITY.BLOCKED": {
+        "entry": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-01.entry.entry.png"
+        ],
+        "result": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-01.result.result.png"
+        ],
+        "recovery": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-01.recovery.recovery.png"
+        ]
+      },
+      "W.DISPATCH.OFFER.ACCEPTED": {
+        "entry": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-01.entry.entry.png"
+        ],
+        "result": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-01.result.result.png"
+        ],
+        "recovery": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-01.recovery.recovery.png"
+        ]
+      },
+      "W.DISPATCH.OFFER.REJECTED": {
+        "entry": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-01.entry.entry.png"
+        ],
+        "result": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-01.result.result.png"
+        ],
+        "recovery": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-01.recovery.recovery.png"
+        ]
+      },
+      "W.DISPATCH.OFFER.TIMEOUT": {
+        "entry": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-01.entry.entry.png"
+        ],
+        "result": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-01.result.result.png"
+        ],
+        "recovery": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-01.recovery.recovery.png"
+        ]
+      },
+      "W.DISPATCH.OFFER.CANCELLED": {
+        "entry": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-01.entry.entry.png"
+        ],
+        "result": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-01.result.result.png"
+        ],
+        "recovery": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-01.recovery.recovery.png"
+        ]
+      },
+      "W.DISPATCH.OFFER.OFFERING": {
+        "entry": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-01.entry.entry.png"
+        ],
+        "result": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-01.result.result.png"
+        ],
+        "recovery": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-01.recovery.recovery.png"
+        ]
+      },
+      "W.FULFILLMENT.DETAIL.ACCEPTED": {
+        "entry": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.entry.entry.png"
+        ],
+        "result": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.result.stored.png",
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.result.completed.png",
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.result.cancelled.png",
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.result.disputed.png"
+        ],
+        "recovery": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.recovery.recovery.png"
+        ]
+      },
+      "W.FULFILLMENT.DETAIL.IN_PROGRESS": {
+        "entry": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.entry.entry.png"
+        ],
+        "result": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.result.stored.png",
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.result.completed.png",
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.result.cancelled.png",
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.result.disputed.png"
+        ],
+        "recovery": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.recovery.recovery.png"
+        ]
+      },
+      "W.FULFILLMENT.DETAIL.COMPLETED": {
+        "entry": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.entry.entry.png"
+        ],
+        "result": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.result.stored.png",
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.result.completed.png",
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.result.cancelled.png",
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.result.disputed.png"
+        ],
+        "recovery": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.recovery.recovery.png"
+        ]
+      },
+      "W.FULFILLMENT.DETAIL.CANCELLED": {
+        "entry": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.entry.entry.png"
+        ],
+        "result": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.result.stored.png",
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.result.completed.png",
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.result.cancelled.png",
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.result.disputed.png"
+        ],
+        "recovery": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.recovery.recovery.png"
+        ]
+      },
+      "W.CONFIRMATION.STATUS.DISPUTED": {
+        "entry": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.entry.entry.png"
+        ],
+        "result": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.result.stored.png",
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.result.completed.png",
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.result.cancelled.png",
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.result.disputed.png"
+        ],
+        "recovery": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.recovery.recovery.png"
+        ]
+      },
+      "W.FULFILLMENT.EVIDENCE.MISSING": {
+        "entry": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.entry.entry.png"
+        ],
+        "result": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.result.stored.png",
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.result.completed.png",
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.result.cancelled.png",
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.result.disputed.png"
+        ],
+        "recovery": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.recovery.recovery.png"
+        ]
+      },
+      "W.FULFILLMENT.EVIDENCE.STORED": {
+        "entry": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.entry.entry.png"
+        ],
+        "result": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.result.stored.png",
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.result.completed.png",
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.result.cancelled.png",
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.result.disputed.png"
+        ],
+        "recovery": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.recovery.recovery.png"
+        ]
+      },
+      "W.CONFIRMATION.STATUS.PENDING": {
+        "entry": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.entry.entry.png"
+        ],
+        "result": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.result.stored.png",
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.result.completed.png",
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.result.cancelled.png",
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.result.disputed.png"
+        ],
+        "recovery": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.recovery.recovery.png"
+        ]
+      },
+      "W.CONFIRMATION.STATUS.CONFIRMED": {
+        "entry": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.entry.entry.png"
+        ],
+        "result": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.result.stored.png",
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.result.completed.png",
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.result.cancelled.png",
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.result.disputed.png"
+        ],
+        "recovery": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-03.recovery.recovery.png"
+        ]
+      },
+      "W.REPAIR.DETAIL.ASSIGNED": {
+        "entry": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-04.entry.entry.png"
+        ],
+        "result": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-04.result.result.png"
+        ],
+        "recovery": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-04.recovery.recovery.png"
+        ]
+      },
+      "W.REPAIR.DETAIL.IN_PROGRESS": {
+        "entry": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-04.entry.entry.png"
+        ],
+        "result": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-04.result.result.png"
+        ],
+        "recovery": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-04.recovery.recovery.png"
+        ]
+      },
+      "W.REPAIR.DETAIL.COMPLETED": {
+        "entry": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-04.entry.entry.png"
+        ],
+        "result": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-04.result.result.png"
+        ],
+        "recovery": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-04.recovery.recovery.png"
+        ]
+      },
+      "W.REPAIR.DETAIL.CANCELLED": {
+        "entry": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-04.entry.entry.png"
+        ],
+        "result": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-04.result.result.png"
+        ],
+        "recovery": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-04.recovery.recovery.png"
+        ]
+      },
+      "W.FINANCE.WALLET.AVAILABLE": {
+        "entry": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-05.entry.entry.png"
+        ],
+        "result": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-05.result.result.png"
+        ],
+        "recovery": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-05.recovery.recovery.png"
+        ]
+      },
+      "W.FINANCE.WALLET.ADJUSTED": {
+        "entry": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-05.entry.entry.png"
+        ],
+        "result": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-05.result.result.png"
+        ],
+        "recovery": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-05.recovery.recovery.png"
+        ]
+      },
+      "W.BANK_ACCOUNT.LIST.ACTIVE": {
+        "entry": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-05.entry.entry.png"
+        ],
+        "result": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-05.result.result.png"
+        ],
+        "recovery": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-05.recovery.recovery.png"
+        ]
+      },
+      "W.BANK_ACCOUNT.DETAIL.INACTIVE": {
+        "entry": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-05.entry.entry.png"
+        ],
+        "result": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-05.result.result.png"
+        ],
+        "recovery": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-05.recovery.recovery.png"
+        ]
+      },
+      "W.WITHDRAWAL.REQUEST.REQUESTED": {
+        "entry": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-05.entry.entry.png"
+        ],
+        "result": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-05.result.result.png"
+        ],
+        "recovery": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-05.recovery.recovery.png"
+        ]
+      },
+      "W.WITHDRAWAL.REQUEST.APPROVED": {
+        "entry": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-05.entry.entry.png"
+        ],
+        "result": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-05.result.result.png"
+        ],
+        "recovery": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-05.recovery.recovery.png"
+        ]
+      },
+      "W.WITHDRAWAL.REQUEST.REJECTED": {
+        "entry": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-05.entry.entry.png"
+        ],
+        "result": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-05.result.result.png"
+        ],
+        "recovery": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-05.recovery.recovery.png"
+        ]
+      },
+      "W.WITHDRAWAL.REQUEST.MARKED_PAID": {
+        "entry": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-05.entry.entry.png"
+        ],
+        "result": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-05.result.result.png"
+        ],
+        "recovery": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-05.recovery.recovery.png"
+        ]
+      },
+      "W.WITHDRAWAL.REQUEST.CANCELLED": {
+        "entry": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-05.entry.entry.png"
+        ],
+        "result": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-05.result.result.png"
+        ],
+        "recovery": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-05.recovery.recovery.png"
+        ]
+      },
+      "W.BANK_ACCOUNT.EDIT.CREATING": {
+        "entry": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-05.entry.entry.png"
+        ],
+        "result": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-05.result.result.png"
+        ],
+        "recovery": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-05.recovery.recovery.png"
+        ]
+      },
+      "W.SUPPORT.CONVERSATION.CLOSED": {
+        "entry": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-06.entry.entry.png"
+        ],
+        "result": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-06.result.result.png"
+        ],
+        "recovery": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-06.recovery.recovery.png"
+        ]
+      },
+      "W.SUPPORT.TICKET.ACTIVE": {
+        "entry": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-06.entry.entry.png"
+        ],
+        "result": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-06.result.result.png"
+        ],
+        "recovery": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-06.recovery.recovery.png"
+        ]
+      },
+      "W.SUPPORT.TICKET.RESOLVED": {
+        "entry": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-06.entry.entry.png"
+        ],
+        "result": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-06.result.result.png"
+        ],
+        "recovery": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-06.recovery.recovery.png"
+        ]
+      },
+      "W.SUPPORT.CONVERSATION.ACTIVE": {
+        "entry": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-06.entry.entry.png"
+        ],
+        "result": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-06.result.result.png"
+        ],
+        "recovery": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-06.recovery.recovery.png"
+        ]
+      },
+      "W.NOTIFICATION.INBOX.UNREAD": {
+        "entry": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-07.entry.entry.png"
+        ],
+        "result": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-07.result.result.png"
+        ],
+        "recovery": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-07.recovery.recovery.png"
+        ]
+      },
+      "W.NOTIFICATION.INBOX.READ_OR_ARCHIVED": {
+        "entry": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-07.entry.entry.png"
+        ],
+        "result": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-07.result.result.png"
+        ],
+        "recovery": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-07.recovery.recovery.png"
+        ]
+      },
+      "W.REPUTATION.SUMMARY.EMPTY": {
+        "entry": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-08.entry.entry.png"
+        ],
+        "result": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-08.result.result.png"
+        ],
+        "recovery": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-08.recovery.recovery.png"
+        ]
+      },
+      "W.REPUTATION.SUMMARY.AVAILABLE": {
+        "entry": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-08.entry.entry.png"
+        ],
+        "result": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-08.result.result.png"
+        ],
+        "recovery": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-08.recovery.recovery.png"
+        ]
+      },
+      "W.REVIEW.APPEAL.ELIGIBLE": {
+        "entry": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-08.entry.entry.png"
+        ],
+        "result": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-08.result.result.png"
+        ],
+        "recovery": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-08.recovery.recovery.png"
+        ]
+      },
+      "W.REVIEW.APPEAL.OPEN": {
+        "entry": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-08.entry.entry.png"
+        ],
+        "result": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-08.result.result.png"
+        ],
+        "recovery": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-08.recovery.recovery.png"
+        ]
+      },
+      "W.REVIEW.APPEAL.RESOLVED": {
+        "entry": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-08.entry.entry.png"
+        ],
+        "result": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-08.result.result.png"
+        ],
+        "recovery": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-08.recovery.recovery.png"
+        ]
+      },
+      "W.LOCATION.SHARING.STALE": {
+        "entry": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-09.entry.entry.png"
+        ],
+        "result": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-09.result.stale.png",
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-09.result.disabled.png",
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-09.result.result.png"
+        ],
+        "recovery": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-09.recovery.recovery.png"
+        ]
+      },
+      "W.LOCATION.SHARING.DISABLED": {
+        "entry": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-09.entry.entry.png"
+        ],
+        "result": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-09.result.stale.png",
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-09.result.disabled.png",
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-09.result.result.png"
+        ],
+        "recovery": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-09.recovery.recovery.png"
+        ]
+      },
+      "W.LOCATION.SHARING.ENABLED": {
+        "entry": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-09.entry.entry.png"
+        ],
+        "result": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-09.result.stale.png",
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-09.result.disabled.png",
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-09.result.result.png"
+        ],
+        "recovery": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-09.recovery.recovery.png"
+        ]
+      },
+      "W.CERTIFICATION.STATUS.PENDING": {
+        "entry": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-10.entry.entry.png"
+        ],
+        "result": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-10.result.pending.png",
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-10.result.approved.png",
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-10.result.rejected.png",
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-10.result.expired.png"
+        ],
+        "recovery": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-10.recovery.recovery.png"
+        ]
+      },
+      "W.CERTIFICATION.STATUS.APPROVED": {
+        "entry": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-10.entry.entry.png"
+        ],
+        "result": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-10.result.pending.png",
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-10.result.approved.png",
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-10.result.rejected.png",
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-10.result.expired.png"
+        ],
+        "recovery": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-10.recovery.recovery.png"
+        ]
+      },
+      "W.CERTIFICATION.STATUS.REJECTED": {
+        "entry": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-10.entry.entry.png"
+        ],
+        "result": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-10.result.pending.png",
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-10.result.approved.png",
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-10.result.rejected.png",
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-10.result.expired.png"
+        ],
+        "recovery": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-10.recovery.recovery.png"
+        ]
+      },
+      "W.CERTIFICATION.STATUS.EXPIRED": {
+        "entry": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-10.entry.entry.png"
+        ],
+        "result": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-10.result.pending.png",
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-10.result.approved.png",
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-10.result.rejected.png",
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-10.result.expired.png"
+        ],
+        "recovery": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-10.recovery.recovery.png"
+        ]
+      },
+      "W.CERTIFICATION.APPLY.NOT_SUBMITTED": {
+        "entry": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-10.entry.entry.png"
+        ],
+        "result": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-10.result.pending.png",
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-10.result.approved.png",
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-10.result.rejected.png",
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-10.result.expired.png"
+        ],
+        "recovery": [
+          "docs/design/ui/production-control/evidence/WORKER-FULL/W-10.recovery.recovery.png"
+        ]
+      }
+    }
+  },
+  "validation": {
+    "passed": true,
+    "expectedCarrierCount": 11,
+    "capturedCarrierBaseCount": 11,
+    "workerSliceCount": 54,
+    "nonB0SliceCount": 50,
+    "requiredNonB0Stages": [
+      "entry",
+      "result",
+      "recovery"
+    ],
+    "screenshotCount": 39,
+    "screenshotFilesExist": true
+  }
+}
