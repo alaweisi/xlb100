@@ -208,16 +208,16 @@ describe("Phase28 Review/Reputation pages", () => {
 
     render(<ReviewModerationPage initialCityCode="hangzhou" />);
 
-    expect(await screen.findByText("review-1")).toBeTruthy();
-    expect(screen.getAllByText("restricted").length).toBeGreaterThan(0);
-    expect(screen.getByText("read-only")).toBeTruthy();
-    expect(screen.getAllByText("restricted").length).toBeGreaterThan(1);
+    expect((await screen.findAllByText("review-1")).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/受限/).length).toBeGreaterThan(0);
+    expect(screen.getByText("只读权限")).toBeTruthy();
+    expect(screen.getAllByText(/受限/).length).toBeGreaterThan(1);
     expect(screen.queryByText("private appellant statement")).toBeNull();
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Show" })).toHaveProperty("disabled", true);
-      expect(screen.getByRole("button", { name: "Hide" })).toHaveProperty("disabled", true);
+      expect(screen.getByRole("button", { name: "设为可见" })).toHaveProperty("disabled", true);
+      expect(screen.getByRole("button", { name: "隐藏评价" })).toHaveProperty("disabled", true);
     });
-    expect(screen.queryByRole("button", { name: "View content" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "查看正文" })).toBeNull();
   });
 
   it("loads one audited review content item only after an Admin explicitly asks", async () => {
@@ -246,7 +246,7 @@ describe("Phase28 Review/Reputation pages", () => {
     });
 
     render(<ReviewModerationPage initialCityCode="hangzhou" />);
-    fireEvent.click(await screen.findByRole("button", { name: "View content" }));
+    fireEvent.click(await screen.findByRole("button", { name: "查看正文" }));
 
     expect(await screen.findByText("Authenticated single-item content")).toBeTruthy();
     expect(adminMocks.getReviewContent).toHaveBeenCalledTimes(1);
@@ -273,7 +273,7 @@ describe("Phase28 Review/Reputation pages", () => {
     adminMocks.listReviewAppeals.mockResolvedValue({ ok: true, items: [], nextCursor: null });
 
     render(<ReviewModerationPage initialCityCode="hangzhou" />);
-    fireEvent.click(await screen.findByRole("button", { name: "Load more reviews" }));
+    fireEvent.click(await screen.findByRole("button", { name: "加载更多评价" }));
 
     expect(await screen.findByText("review-2")).toBeTruthy();
     expect(adminMocks.listReviewModeration).toHaveBeenLastCalledWith(

@@ -2,10 +2,73 @@ import { useState } from "react";
 import type { SupportKbMutationResponse } from "@xlb/types";
 import { ApiErrorPanel, Button, Card, FormField, Input, StatusTag, Textarea } from "@xlb/ui";
 import { adminOpsApi as api } from "../adminAuth";
-const key=(p:string)=>`${p}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-export function SupportKnowledgeBasePage({cityCode}:{cityCode:string}){
- const [article,setArticle]=useState<SupportKbMutationResponse|null>(null),[slug,setSlug]=useState(""),[language,setLanguage]=useState("zh-cn"),[title,setTitle]=useState(""),[body,setBody]=useState(""),[keywords,setKeywords]=useState(""),[intents,setIntents]=useState(""),[note,setNote]=useState(""),[error,setError]=useState<string|null>(null);
- const terms=(v:string)=>v.split(",").map(x=>x.trim()).filter(Boolean);
- async function act(action:"create"|"revision"|"submit"|"approve"|"reject"|"publish") { try { setError(null); let result:SupportKbMutationResponse;if(action==="create") result=await api.createSupportKbArticle({slug,language,title,bodyMarkdown:body,keywords:terms(keywords),intentTags:terms(intents),idempotencyKey:key("kb-create")}); else {if(!article) return;const a=article.article,v=article.version;if(action==="revision")result=await api.createSupportKbRevision(a.articleId,{expectedVersion:a.version,title,bodyMarkdown:body,keywords:terms(keywords),intentTags:terms(intents),idempotencyKey:key("kb-revision")});else if(action==="submit")result=await api.submitSupportKbRevision(a.articleId,v.articleVersionId,{note:note||undefined,idempotencyKey:key("kb-submit")});else if(action==="approve")result=await api.approveSupportKbRevision(a.articleId,v.articleVersionId,{note:note||undefined,idempotencyKey:key("kb-approve")});else if(action==="reject")result=await api.rejectSupportKbRevision(a.articleId,v.articleVersionId,{note:note||undefined,idempotencyKey:key("kb-reject")});else result=await api.publishSupportKbRevision(a.articleId,{versionId:v.articleVersionId,expectedVersion:a.version,idempotencyKey:key("kb-publish")});}setArticle(result);}catch(e){setError(e instanceof Error?e.message:"Knowledge operation failed");}}
- return <Card title="Support Knowledge Base" actions={<><StatusTag tone="primary">city: {cityCode}</StatusTag>{article&&<><StatusTag tone="primary">{article.article.lifecycleStatus}</StatusTag><StatusTag tone="warning">{article.version.reviewStatus}</StatusTag></>}</>}><div style={{display:"grid",gap:8}}>{error&&<ApiErrorPanel title="Knowledge operation failed" detail={error}/>}<FormField label="Slug"><Input value={slug} onChange={e=>setSlug(e.target.value)}/></FormField><FormField label="Language"><Input value={language} onChange={e=>setLanguage(e.target.value)}/></FormField><FormField label="Title"><Input value={title} onChange={e=>setTitle(e.target.value)}/></FormField><FormField label="Approved information-only Markdown"><Textarea value={body} onChange={e=>setBody(e.target.value)}/></FormField><FormField label="Keywords (comma separated)"><Input value={keywords} onChange={e=>setKeywords(e.target.value)}/></FormField><FormField label="Intent tags"><Input value={intents} onChange={e=>setIntents(e.target.value)}/></FormField><FormField label="Review note"><Textarea value={note} onChange={e=>setNote(e.target.value)}/></FormField><div style={{display:"flex",gap:8,flexWrap:"wrap"}}><Button variant="primary" onClick={()=>void act("create")}>Create article</Button><Button disabled={!article} onClick={()=>void act("revision")}>New immutable revision</Button><Button disabled={!article||article.version.reviewStatus!=="draft"} onClick={()=>void act("submit")}>Submit review</Button><Button disabled={!article||article.version.reviewStatus!=="pending_review"} onClick={()=>void act("approve")}>Approve</Button><Button disabled={!article||article.version.reviewStatus!=="pending_review"} onClick={()=>void act("reject")}>Reject</Button><Button disabled={!article||article.version.reviewStatus!=="approved"} onClick={()=>void act("publish")}>Publish</Button></div>{article&&<small>Article {article.article.articleId} · immutable revision {article.version.revision} · SHA-256 {article.version.contentSha256}</small>}</div></Card>;
+import { cityLabel, presentFailure, statusLabel, statusTone, useOnlineStatus } from "../operationsPresentation";
+
+const key = (prefix: string) => `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+export function SupportKnowledgeBasePage({ cityCode }: { cityCode: string }) {
+  const online = useOnlineStatus();
+  const [article, setArticle] = useState<SupportKbMutationResponse | null>(null);
+  const [slug, setSlug] = useState("");
+  const [language, setLanguage] = useState("zh-CN");
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+  const [keywords, setKeywords] = useState("");
+  const [intents, setIntents] = useState("");
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<{ title: string; detail: string } | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const terms = (value: string) => value.split(",").map(item => item.trim()).filter(Boolean);
+
+  async function act(action: "create" | "revision" | "submit" | "approve" | "reject" | "publish") {
+    if (!online || busy) return;
+    setBusy(true); setError(null); setNotice(null);
+    try {
+      let result: SupportKbMutationResponse;
+      if (action === "create") {
+        result = await api.createSupportKbArticle({ slug: slug.trim(), language: language.trim(), title: title.trim(), bodyMarkdown: body, keywords: terms(keywords), intentTags: terms(intents), idempotencyKey: key("kb-create") });
+      } else {
+        if (!article) return;
+        const currentArticle = article.article;
+        const version = article.version;
+        if (action === "revision") result = await api.createSupportKbRevision(currentArticle.articleId, { expectedVersion: currentArticle.version, title: title.trim(), bodyMarkdown: body, keywords: terms(keywords), intentTags: terms(intents), idempotencyKey: key("kb-revision") });
+        else if (action === "submit") result = await api.submitSupportKbRevision(currentArticle.articleId, version.articleVersionId, { note: note.trim() || undefined, idempotencyKey: key("kb-submit") });
+        else if (action === "approve") result = await api.approveSupportKbRevision(currentArticle.articleId, version.articleVersionId, { note: note.trim(), idempotencyKey: key("kb-approve") });
+        else if (action === "reject") result = await api.rejectSupportKbRevision(currentArticle.articleId, version.articleVersionId, { note: note.trim(), idempotencyKey: key("kb-reject") });
+        else result = await api.publishSupportKbRevision(currentArticle.articleId, { versionId: version.articleVersionId, expectedVersion: currentArticle.version, idempotencyKey: key("kb-publish") });
+      }
+      setArticle(result);
+      setNotice(`${action === "create" ? "文章" : "知识库修订"}已由服务端确认更新。`);
+    } catch (cause) {
+      const failure = presentFailure(cause, "客服知识库操作");
+      setError({ title: failure.title, detail: failure.detail });
+    } finally { setBusy(false); }
+  }
+
+  const contentReady = slug.trim() && language.trim() && title.trim() && body.trim();
+  return <Card title="客服知识库" actions={<><StatusTag tone="primary">城市：{cityLabel(cityCode)}</StatusTag><StatusTag tone={online ? "success" : "danger"}>{online ? "在线" : "离线"}</StatusTag>{article && <><StatusTag tone={statusTone(article.article.lifecycleStatus)}>{statusLabel(article.article.lifecycleStatus)}</StatusTag><StatusTag tone={statusTone(article.version.reviewStatus)}>{statusLabel(article.version.reviewStatus)}</StatusTag></>}</>}>
+    <div style={{ display: "grid", gap: 8 }}>
+      <p>正文仅用于已审核的信息说明；新修订不可覆盖旧版本，发布必须使用服务端返回的版本号。</p>
+      {!online && <ApiErrorPanel title="当前网络不可用" detail="知识库写入已停用。恢复网络后再继续操作。" />}
+      {error && <ApiErrorPanel title={error.title} detail={error.detail} />}
+      {notice && <p role="status">{notice}</p>}
+      <FormField label="文章标识"><Input placeholder="例如 order-reschedule" value={slug} onChange={event => setSlug(event.target.value)} /></FormField>
+      <FormField label="语言"><Input value={language} onChange={event => setLanguage(event.target.value)} /></FormField>
+      <FormField label="标题"><Input value={title} onChange={event => setTitle(event.target.value)} /></FormField>
+      <FormField label="信息说明 Markdown"><Textarea value={body} onChange={event => setBody(event.target.value)} /></FormField>
+      <FormField label="关键词（逗号分隔）"><Input value={keywords} onChange={event => setKeywords(event.target.value)} /></FormField>
+      <FormField label="意图标签（逗号分隔）"><Input value={intents} onChange={event => setIntents(event.target.value)} /></FormField>
+      <FormField label="审核说明"><Textarea placeholder="批准或驳回时必填" value={note} onChange={event => setNote(event.target.value)} /></FormField>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <Button variant="primary" disabled={!online || busy || !contentReady} onClick={() => void act("create")}>创建文章</Button>
+        <Button disabled={!online || busy || !article || !title.trim() || !body.trim()} onClick={() => void act("revision")}>创建不可变新修订</Button>
+        <Button disabled={!online || busy || !article || article.version.reviewStatus !== "draft"} onClick={() => void act("submit")}>提交审核</Button>
+        <Button disabled={!online || busy || !article || article.version.reviewStatus !== "pending_review" || !note.trim()} onClick={() => void act("approve")}>批准修订</Button>
+        <Button disabled={!online || busy || !article || article.version.reviewStatus !== "pending_review" || !note.trim()} onClick={() => void act("reject")}>驳回修订</Button>
+        <Button disabled={!online || busy || !article || article.version.reviewStatus !== "approved"} onClick={() => void act("publish")}>发布修订</Button>
+      </div>
+      {article && <small>文章 {article.article.articleId} · 不可变修订 {article.version.revision} · 内容摘要 SHA-256 {article.version.contentSha256}</small>}
+    </div>
+  </Card>;
 }

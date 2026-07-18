@@ -78,7 +78,7 @@ describe("Phase 9B — Drilldown / Detail Foundation", () => {
       fireEvent.click(screen.getByRole("button", { name: "进入该城市工作台" }));
 
       await waitFor(() => { expect(window.location.hash).toContain("cityCode=hangzhou"); });
-      expect(await screen.findByText("Settlement Operations Console")).toBeTruthy();
+      expect((await screen.findAllByText("运营总览")).length).toBeGreaterThan(0);
     });
 
     it("shows a privacy-safe permission state for an unsupported admin role", () => {
@@ -86,12 +86,12 @@ describe("Phase 9B — Drilldown / Detail Foundation", () => {
       render(<App />);
 
       expect(screen.getByText("当前角色无权进入后台")).toBeTruthy();
-      expect(screen.queryByText("Settlement Operations Console")).toBeNull();
+      expect(screen.queryByText("结算运营台")).toBeNull();
     });
 
     it("renders dashboard when hash is empty", async () => {
       render(<App />);
-      expect(await screen.findByText("Settlement Operations Console")).toBeTruthy();
+      expect((await screen.findAllByText("运营总览")).length).toBeGreaterThan(0);
     });
 
     it("renders detail page when hash contains statementId", async () => {
@@ -99,7 +99,7 @@ describe("Phase 9B — Drilldown / Detail Foundation", () => {
       window.location.hash = "#/settlement-ops/statements/stmt-001";
       render(<App />);
       await waitFor(
-        () => { expect(screen.getByText("Statement Detail")).toBeTruthy(); },
+        () => { expect(screen.getByText("结算单详情")).toBeTruthy(); },
         { timeout: 5_000 },
       );
     });
@@ -118,7 +118,7 @@ describe("Phase 9B — Drilldown / Detail Foundation", () => {
       mockGet.mockResolvedValue(mockStatementDetail);
       window.location.hash = "#/settlement-ops/statements/stmt-001";
       render(<App />);
-      await waitFor(() => { expect(screen.getByText("approved")).toBeTruthy(); });
+      await waitFor(() => { expect(screen.getByText("已通过")).toBeTruthy(); });
     });
 
     it("renders export section", async () => {
@@ -141,6 +141,8 @@ describe("Phase 9B — Drilldown / Detail Foundation", () => {
     it("navigates from dashboard to detail via hash", async () => {
       setupDashboardWithStatements();
       render(<App />);
+      window.location.hash = "#/settlement-ops?cityCode=hangzhou";
+      window.dispatchEvent(new HashChangeEvent("hashchange"));
       await waitFor(() => { expect(screen.getByText(/stmt-001/)).toBeTruthy(); });
       fireEvent.click(screen.getByText(/stmt-001/));
       await waitFor(() => { expect(window.location.hash).toContain("stmt-001"); });
@@ -150,9 +152,9 @@ describe("Phase 9B — Drilldown / Detail Foundation", () => {
       mockGet.mockResolvedValue(mockStatementDetail);
       window.location.hash = "#/settlement-ops/statements/stmt-001";
       render(<App />);
-      await waitFor(() => { expect(screen.getByText("Statement Detail")).toBeTruthy(); });
-      fireEvent.click(screen.getAllByText(/Back to Console/)[0]);
-      await waitFor(() => { expect(screen.getByText("Settlement Operations Console")).toBeTruthy(); });
+      await waitFor(() => { expect(screen.getByText("结算单详情")).toBeTruthy(); });
+      fireEvent.click(screen.getAllByText(/返回运营台/)[0]);
+      await waitFor(() => { expect(screen.getAllByText("运营总览").length).toBeGreaterThan(0); });
     });
   });
 
@@ -162,14 +164,14 @@ describe("Phase 9B — Drilldown / Detail Foundation", () => {
       mockGet.mockImplementation(() => new Promise(() => {}));
       window.location.hash = "#/settlement-ops/statements/stmt-001";
       render(<App />);
-      expect(screen.getByText(/Loading statement detail/)).toBeTruthy();
+      expect(screen.getByText("正在读取结算单详情")).toBeTruthy();
     });
 
     it("shows error state on API failure", async () => {
       mockGet.mockRejectedValue(new Error("Network Error"));
       window.location.hash = "#/settlement-ops/statements/stmt-001";
       render(<App />);
-      await waitFor(() => { expect(screen.getByText(/Error:/)).toBeTruthy(); });
+      await waitFor(() => { expect(screen.getByText(/请求失败/)).toBeTruthy(); });
     });
   });
 
@@ -179,7 +181,7 @@ describe("Phase 9B — Drilldown / Detail Foundation", () => {
       mockGet.mockResolvedValue(mockStatementDetail);
       window.location.hash = "#/settlement-ops/statements/stmt-001";
       render(<App />);
-      await waitFor(() => { expect(screen.getByText("Statement Detail")).toBeTruthy(); });
+      await waitFor(() => { expect(screen.getByText("结算单详情")).toBeTruthy(); });
       expect(screen.queryByText(/^approve$/i)).toBeNull();
       expect(screen.queryByText(/^payout$/i)).toBeNull();
       expect(screen.queryByText(/^paid$/i)).toBeNull();
@@ -194,7 +196,7 @@ describe("Phase 9B — Drilldown / Detail Foundation", () => {
       mockGet.mockResolvedValue(mockStatementDetail);
       window.location.hash = "#/settlement-ops/statements/stmt-001";
       render(<App />);
-      await waitFor(() => { expect(screen.getByText("Statement Detail")).toBeTruthy(); });
+      await waitFor(() => { expect(screen.getByText("结算单详情")).toBeTruthy(); });
       const calls = mockGet.mock.calls.flat();
       const mutationCalls = calls.filter((c: unknown) =>
         typeof c === "string" && /\b(POST|PUT|PATCH|DELETE)\b/.test(c as string)
@@ -206,7 +208,7 @@ describe("Phase 9B — Drilldown / Detail Foundation", () => {
       mockGet.mockResolvedValue(mockStatementDetail);
       window.location.hash = "#/settlement-ops/statements/stmt-001";
       render(<App />);
-      await waitFor(() => { expect(screen.getByText("Statement Detail")).toBeTruthy(); });
+      await waitFor(() => { expect(screen.getByText("结算单详情")).toBeTruthy(); });
       const calls = mockGet.mock.calls.flat();
       expect(calls.some((c: unknown) => typeof c === "string" && (c as string).includes("stmt-001"))).toBe(true);
     });
@@ -218,7 +220,7 @@ describe("Phase 9B — Drilldown / Detail Foundation", () => {
       mockGet.mockResolvedValue(mockStatementDetail);
       window.location.hash = "#/settlement-ops/statements/stmt-001";
       render(<App />);
-      await waitFor(() => { expect(screen.getByText("Statement Detail")).toBeTruthy(); });
+      await waitFor(() => { expect(screen.getByText("结算单详情")).toBeTruthy(); });
       const t = document.body.textContent?.toLowerCase() || "";
       expect(t).not.toContain("payout");
       expect(t).not.toContain("payment instruction");

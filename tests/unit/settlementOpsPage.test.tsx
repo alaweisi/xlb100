@@ -58,30 +58,30 @@ describe("Phase 9A Settlement Ops Console", () => {
     it("renders console title", async () => {
       await renderAndAwaitApi();
       await waitFor(() => {
-        expect(screen.getByText("Settlement Operations Console")).toBeTruthy();
+        expect(screen.getByText("结算运营台")).toBeTruthy();
       });
     });
 
     it("renders 4 read-only sections", async () => {
       await renderAndAwaitApi();
       await waitFor(() => {
-        expect(screen.getByText("Statement Audit")).toBeTruthy();
-        expect(screen.getByText("Review Summary")).toBeTruthy();
-        expect(screen.getByText("Settlement Audit Summary")).toBeTruthy();
-        expect(screen.getByText("Reconciliation Gap Scan")).toBeTruthy();
+        expect(screen.getByText("结算单审计")).toBeTruthy();
+        expect(screen.getAllByText("复核汇总").length).toBeGreaterThan(0);
+        expect(screen.getByText("结算审计汇总")).toBeTruthy();
+        expect(screen.getByText("对账差异扫描")).toBeTruthy();
       });
     });
 
     it("renders city filter input", async () => {
       await renderAndAwaitApi();
-      const input = screen.getByRole("textbox");
+      const input = screen.getByRole("combobox", { name: /城市/ });
       expect(input).toBeTruthy();
       expect((input as HTMLInputElement).value).toBe("hangzhou");
     });
 
     it("renders refresh button", async () => {
       await renderAndAwaitApi();
-      expect(screen.getByText("Refresh")).toBeTruthy();
+      expect(screen.getByText("刷新")).toBeTruthy();
     });
   });
 
@@ -89,7 +89,7 @@ describe("Phase 9A Settlement Ops Console", () => {
     it("shows 'No statements' when statement list is empty", async () => {
       await renderAndAwaitApi();
       await waitFor(() => {
-        expect(screen.getByText("No statements")).toBeTruthy();
+        expect(screen.getByText("暂无结算单")).toBeTruthy();
       });
     });
   });
@@ -101,10 +101,10 @@ describe("Phase 9A Settlement Ops Console", () => {
       );
       render(<SettlementOpsPage />);
       await waitFor(() => {
-        expect(screen.getByText("Loading...")).toBeTruthy();
+        expect(screen.getByText("正在加载结算数据")).toBeTruthy();
       });
       await waitFor(() => {
-        expect(screen.getByText("No statements")).toBeTruthy();
+        expect(screen.getByText("暂无结算单")).toBeTruthy();
       });
     });
   });
@@ -114,7 +114,7 @@ describe("Phase 9A Settlement Ops Console", () => {
       mockGet.mockRejectedValue(new Error("Network Error"));
       render(<SettlementOpsPage />);
       await waitFor(() => {
-        expect(screen.getByText(/Error:/)).toBeTruthy();
+        expect(screen.getByText(/请求失败/)).toBeTruthy();
       });
     });
   });
@@ -136,7 +136,7 @@ describe("Phase 9A Settlement Ops Console", () => {
       });
       mockGet.mockClear();
 
-      const input = screen.getByRole("textbox");
+      const input = screen.getByRole("combobox", { name: /城市/ });
       fireEvent.change(input, { target: { value: "shanghai" } });
 
       await waitFor(() => {

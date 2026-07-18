@@ -77,7 +77,7 @@ describe("Phase29 Marketing Customer/Admin surfaces", () => {
     };
     render(<MarketingOperationsPage api={api} initialCityCode="hangzhou" role="auditor" />);
     expect(await screen.findByText("真实活动")).toBeTruthy();
-    expect(screen.getByText(/角色：auditor/)).toBeTruthy();
+    expect(screen.getByText(/角色：审计人员/)).toBeTruthy();
     expect(screen.queryByRole("button", { name: "创建草稿" })).toBeNull();
     expect(screen.queryByText("审计原因")).toBeNull();
   });

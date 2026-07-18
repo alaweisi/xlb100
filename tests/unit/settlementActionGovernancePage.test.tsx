@@ -1,298 +1,71 @@
 // @vitest-environment jsdom
 import React from "react";
-import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { SettlementActionGovernancePage } from "@xlb/admin-pages/SettlementActionGovernancePage";
 
 const { mockGet, mockPost } = vi.hoisted(() => ({ mockGet: vi.fn(), mockPost: vi.fn() }));
 vi.mock("@xlb/api-client", () => ({
   createApiClient: () => ({ get: mockGet, post: mockPost }),
-  createAuthApi: () => ({
-    requestAdminLoginCode: () => Promise.resolve({ ok: true }),
-    getAdminDebugCode: () => Promise.resolve({ ok: true, code: "000000" }),
-    adminLogin: () => Promise.resolve({ ok: true, token: "test-admin-token", userId: "operator-hangzhou", role: "operator" }),
-  }),
+  createAuthApi: () => ({ requestAdminLoginCode: vi.fn(), getAdminDebugCode: vi.fn(), adminLogin: vi.fn() }),
   adminApi: { create: () => ({}) },
-  settlementApi: {
-    create: () => ({
-      listStatementAudit: () => mockGet("listStatementAudit"),
-      getReviewSummary: () => mockGet("getReviewSummary"),
-      getSettlementAuditSummary: () => mockGet("getSettlementAuditSummary"),
-      scanReconciliationGaps: () => mockGet("scanReconciliationGaps"),
-    }),
-  },
-  governancePlannerApi: {
-    create: () => ({
-      listSettlementDryRunPlans: () => mockGet("listSettlementDryRunPlans"),
-      createSettlementDryRunPlan: () => mockPost("createSettlementDryRunPlan"),
-      getSettlementDryRunPlan: () => mockGet("getSettlementDryRunPlan"),
-      getSettlementDryRunPlanItems: () => mockGet("getSettlementDryRunPlanItems"),
-      getSettlementDryRunPlanAudit: () => mockGet("getSettlementDryRunPlanAudit"),
-      getReadinessPacketDryRunEligibility: () => mockGet("getReadinessPacketDryRunEligibility"),
-    }),
-  },
+  settlementApi: { create: () => ({}) },
+  governancePlannerApi: { create: () => ({
+    listSettlementDryRunPlans: (query: unknown) => mockGet("listSettlementDryRunPlans", query),
+    createSettlementDryRunPlan: (packetId: string) => mockPost("createSettlementDryRunPlan", packetId),
+    getSettlementDryRunPlan: vi.fn(), getSettlementDryRunPlanItems: vi.fn(), getSettlementDryRunPlanAudit: vi.fn(), getReadinessPacketDryRunEligibility: vi.fn(),
+  }) },
 }));
 
-const mockOnBack = vi.fn();
-
-const renderGovernance = async (subView?: string) => {
-  render(<SettlementActionGovernancePage onBack={mockOnBack} subView={subView} />);
-  await waitFor(() => {
-    if (subView === "plans") {
-      expect(screen.getAllByRole("heading", { name: /Dry-run Plans/ }).length).toBeGreaterThan(0);
-      return;
-    }
-    expect(screen.getByText("Settlement Action Governance")).toBeTruthy();
-  });
-};
-
-describe("Phase 10A Settlement Action Governance Foundation", () => {
+describe("结算动作治理工作台", () => {
   beforeEach(() => {
-    mockGet.mockReset();
-    mockPost.mockReset();
-    mockOnBack.mockReset();
+    mockGet.mockReset(); mockPost.mockReset();
     mockGet.mockResolvedValue({ ok: true, plans: [] });
     mockPost.mockResolvedValue({ ok: true, plan: {} });
+    window.location.hash = "";
   });
 
-  describe("unit rendering", () => {
-    it("renders governance shell title", async () => {
-      await renderGovernance();
-      expect(screen.getByText("Settlement Action Governance")).toBeTruthy();
-    });
-
-    it("renders Governance Only and Execution Disabled subtitle", async () => {
-      await renderGovernance();
-      expect(screen.getByText(/Governance Only/)).toBeTruthy();
-      expect(screen.getAllByText(/Execution Disabled/).length).toBeGreaterThanOrEqual(1);
-    });
-
-    it("renders 10B-10F dedicated content sections", async () => {
-      await renderGovernance();
-      expect(screen.getByRole("heading", { name: /Intent Contract/ })).toBeTruthy();
-      expect(screen.getByText(/Governance Persistence/)).toBeTruthy();
-      expect(screen.getByText(/Review Workflow/)).toBeTruthy();
-      expect(screen.getByRole("heading", { name: /Evidence Bundle \/ Audit Trail/ })).toBeTruthy();
-      expect(screen.getByRole("heading", { name: /Readiness Packet \/ Dry-run Guard/ })).toBeTruthy();
-    });
-
-    it("renders Phase 11 section", async () => {
-      await renderGovernance();
-      expect(screen.getByRole("heading", { name: /Dry-run Planner/ })).toBeTruthy();
-    });
-
-    it("renders View Dry-run Plans button", async () => {
-      await renderGovernance();
-      expect(screen.getByText("View Dry-run Plans")).toBeTruthy();
-    });
-
-    it("renders Generate Dry-run Plan button", async () => {
-      await renderGovernance();
-      expect(screen.getByText("Generate Dry-run Plan")).toBeTruthy();
-    });
-
-    it("renders Execution Boundary section", async () => {
-      await renderGovernance();
-      expect(screen.getByText(/Execution Boundary/)).toBeTruthy();
-    });
-
-    it("renders back button", async () => {
-      await renderGovernance();
-      expect(screen.getAllByRole("button", { name: /Back to Console/i }).length).toBeGreaterThan(0);
-    });
-
-    it("does not display No Persistence text", async () => {
-      await renderGovernance();
-      expect(screen.queryByText(/No Persistence/)).toBeNull();
-    });
-
-    it("does not display no backend interaction text", async () => {
-      await renderGovernance();
-      expect(screen.queryByText(/no backend interaction/)).toBeNull();
-    });
+  it("明确展示全部禁用的执行边界", () => {
+    render(<SettlementActionGovernancePage onBack={vi.fn()} />);
+    expect(screen.getByText("结算动作治理")).toBeTruthy();
+    expect(screen.getByText("执行边界")).toBeTruthy();
+    expect(screen.getAllByText("已禁用").length).toBe(7);
+    for (const label of ["出款", "退款", "账本冲正", "提交结算", "生成导出文件", "批准并执行"]) {
+      expect((screen.getByRole("button", { name: label }) as HTMLButtonElement).disabled).toBe(true);
+    }
   });
 
-  describe("unit governance boundary banner", () => {
-    it("displays no-payout / no-refund / no-mutation", async () => {
-      await renderGovernance();
-      expect(screen.getByText(/does not execute payouts/)).toBeTruthy();
-      expect(screen.getByText(/does not execute refunds/)).toBeTruthy();
-      expect(screen.getByText(/does not mutate settlement/)).toBeTruthy();
-    });
+  it("没有真实就绪包编号时不能生成计划", () => {
+    render(<SettlementActionGovernancePage onBack={vi.fn()} />);
+    expect((screen.getByRole("button", { name: "生成只读计划" }) as HTMLButtonElement).disabled).toBe(true);
+    expect(mockPost).not.toHaveBeenCalled();
   });
 
-  describe("unit intent draft shell fields are disabled", () => {
-    it("all inputs are disabled and readonly", async () => {
-      await renderGovernance();
-      const inputs = screen.getAllByRole("textbox");
-      expect(inputs.length).toBeGreaterThanOrEqual(4);
-      for (const input of inputs) {
-        expect((input as HTMLInputElement).disabled).toBe(true);
-      }
-    });
+  it("把人工输入的就绪包编号原样提交给计划接口", async () => {
+    render(<SettlementActionGovernancePage onBack={vi.fn()} />);
+    fireEvent.change(screen.getByPlaceholderText("输入真实就绪包编号"), { target: { value: "packet-real-1" } });
+    fireEvent.click(screen.getByRole("button", { name: "生成只读计划" }));
+    await waitFor(() => expect(mockPost).toHaveBeenCalledWith("createSettlementDryRunPlan", "packet-real-1"));
   });
 
-  describe("unit forbidden action guard", () => {
-    it("all 6 execution buttons are disabled", async () => {
-      await renderGovernance();
-      const btns = screen.getAllByText(/Execution disabled/);
-      expect(btns.length).toBe(6);
-      for (const button of btns) {
-        expect((button as HTMLButtonElement).disabled).toBe(true);
-      }
-    });
+  it("只读计划列表按服务端结果展示", async () => {
+    mockGet.mockResolvedValue({ ok: true, plans: [{ planId: "p1", planHash: "abc123", status: "draft", packetId: "pkt1", cityCode: "hangzhou", itemCount: 5, createdAt: "2025-01-01T00:00:00Z", updatedAt: "2025-01-01T00:00:00Z" }] });
+    render(<SettlementActionGovernancePage onBack={vi.fn()} subView="plans" />);
+    expect(await screen.findByText("abc123")).toBeTruthy();
+    expect(screen.getByText("草稿")).toBeTruthy();
+    expect(screen.getByText("pkt1")).toBeTruthy();
   });
 
-  describe("unit phase boundary card", () => {
-    it("shows Phase 10A-10F as Completed", async () => {
-      await renderGovernance();
-      const completed = screen.getAllByText("Completed");
-      expect(completed.length).toBeGreaterThanOrEqual(6);
-    });
-
-    it("shows Phase 11 row in boundary table", async () => {
-      await renderGovernance();
-      const rows = screen.getAllByRole("row");
-      const phase11 = rows.find((row) => row.textContent?.includes("Phase 11"));
-      expect(phase11).toBeTruthy();
-    });
+  it("空列表诚实展示空态", async () => {
+    render(<SettlementActionGovernancePage onBack={vi.fn()} subView="plans" />);
+    expect(await screen.findByText("当前城市没有只读计划")).toBeTruthy();
   });
 
-  describe("security no enabled mutation controls", () => {
-    it("no enabled payout/refund/reversal/mutation buttons except governance navigation", async () => {
-      await renderGovernance();
-      const enabled = [...screen.queryAllByRole("button")].filter((button) =>
-        !(button as HTMLButtonElement).disabled &&
-        !/Back/i.test(button.textContent || "") &&
-        !/View Dry-run Plans/i.test(button.textContent || "") &&
-        !/Generate Dry-run Plan/i.test(button.textContent || "")
-      );
-      expect(enabled.length).toBe(0);
-    });
-  });
-
-  describe("security forbidden execute/payout/refund/download/export buttons", () => {
-    const forbidden = ["Execute", "Payout", "Refund", "Reverse", "Download", "Export"];
-    forbidden.forEach((label) => {
-      it(`no enabled button containing "${label}"`, async () => {
-        await renderGovernance();
-        const enabled = [...screen.queryAllByRole("button")].filter(
-          (button) =>
-            !(button as HTMLButtonElement).disabled &&
-            new RegExp(label, "i").test(button.textContent || ""),
-        );
-        expect(enabled.length).toBe(0);
-      });
-    });
-  });
-
-  describe("integration disabled guard is no-op", () => {
-    it("clicking disabled buttons does not trigger API", async () => {
-      await renderGovernance();
-      screen.getAllByText(/Execution disabled/).forEach((button) => fireEvent.click(button));
-      expect(mockGet).not.toHaveBeenCalled();
-      expect(mockPost).not.toHaveBeenCalled();
-    });
-
-    it("clicking back calls onBack", async () => {
-      await renderGovernance();
-      const backButtons = screen.getAllByRole("button", { name: /Back to Console/i });
-      fireEvent.click(backButtons[0]);
-      expect(mockOnBack).toHaveBeenCalled();
-    });
-  });
-
-  describe("contract no forbidden executable semantics", () => {
-    const forbidden = [
-      "Execute payout",
-      "Pay now",
-      "Withdraw",
-      "Execute refund",
-      "Reverse ledger",
-      "Commit settlement",
-      "Generate export file",
-    ];
-    forbidden.forEach((label) => {
-      it(`no enabled "${label}"`, async () => {
-        await renderGovernance();
-        const found = screen
-          .queryAllByText(new RegExp(label, "i"))
-          .filter((element) => element instanceof HTMLButtonElement && !element.disabled);
-        expect(found.length).toBe(0);
-      });
-    });
-  });
-
-  describe("Phase 11 dry-run plans sub-view", () => {
-    it("renders without error with subView=plans", async () => {
-      await renderGovernance("plans");
-      expect(screen.getByText(/does not execute payouts/)).toBeTruthy();
-    });
-
-    it("shows governance boundary banner in plans sub-view", async () => {
-      await renderGovernance("plans");
-      expect(screen.getByText(/does not execute payouts/)).toBeTruthy();
-    });
-
-    it("shows empty state when no plans", async () => {
-      mockGet.mockResolvedValue({ ok: true, plans: [] });
-      await renderGovernance("plans");
-      expect(await screen.findByText(/No dry-run plans found/)).toBeTruthy();
-    });
-
-    it("renders plans in table when data available", async () => {
-      mockGet.mockResolvedValue({
-        ok: true,
-        plans: [{
-          planId: "p1",
-          planHash: "abc123",
-          status: "draft",
-          packetId: "pkt1",
-          cityCode: "hangzhou",
-          itemCount: 5,
-          createdAt: "2025-01-01T00:00:00Z",
-          updatedAt: "2025-01-01T00:00:00Z",
-        }],
-      });
-      await renderGovernance("plans");
-      expect(await screen.findByText("abc123")).toBeTruthy();
-      expect(screen.getByText("draft")).toBeTruthy();
-      expect(screen.getByText("5")).toBeTruthy();
-    });
-
-    it("shows execution boundary in plans sub-view", async () => {
-      await renderGovernance("plans");
-      expect(screen.getByText(/Execution Boundary/)).toBeTruthy();
-    });
-
-    it("no execute/payout/refund/download/export buttons in plans sub-view", async () => {
-      await renderGovernance("plans");
-      const forbidden = ["Execute", "Payout", "Refund", "Download", "Export"];
-      for (const label of forbidden) {
-        const found = screen
-          .queryAllByText(new RegExp(label, "i"))
-          .filter((element) => element instanceof HTMLButtonElement && !(element as HTMLButtonElement).disabled);
-        expect(found.length).toBe(0);
-      }
-    });
-  });
-
-  describe("Phase 11 generate dry-run plan", () => {
-    it("Generate Dry-run Plan button is enabled", async () => {
-      await renderGovernance();
-      const button = screen.getByText("Generate Dry-run Plan") as HTMLButtonElement;
-      expect(button.disabled).toBe(false);
-    });
-
-    it("does not show Execute, Payout, Refund, Reverse buttons", async () => {
-      await renderGovernance();
-      const forbidden = ["Execute", "Payout", "Refund", "Reverse"];
-      for (const label of forbidden) {
-        const found = screen
-          .queryAllByText(new RegExp(label, "i"))
-          .filter((element) => element instanceof HTMLButtonElement && !(element as HTMLButtonElement).disabled);
-        expect(found.length).toBe(0);
-      }
-    });
+  it("返回按钮只触发调用方导航", () => {
+    const onBack = vi.fn();
+    render(<SettlementActionGovernancePage onBack={onBack} />);
+    fireEvent.click(screen.getByRole("button", { name: "返回结算运营台" }));
+    expect(onBack).toHaveBeenCalledTimes(1);
+    expect(mockPost).not.toHaveBeenCalled();
   });
 });

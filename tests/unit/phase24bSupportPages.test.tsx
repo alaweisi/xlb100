@@ -122,14 +122,14 @@ describe("Phase 24B support pages", () => {
       .mockResolvedValueOnce(detail())
       .mockResolvedValueOnce(detail(assigned, [event(), event({ ticketEventId: "assigned-1", eventType: "assigned", actorType: "admin" })]));
     render(<SupportTicketsPage initialCityCode="hangzhou" />);
-    fireEvent.click(await screen.findByRole("button", { name: "Open" }));
-    fireEvent.change(await screen.findByLabelText("Assigned agent ID"), { target: { value: "admin-agent-1" } });
-    fireEvent.click(screen.getByRole("button", { name: "Assign" }));
+    fireEvent.click(await screen.findByRole("button", { name: "打开" }));
+    fireEvent.change(await screen.findByLabelText("负责客服编号"), { target: { value: "admin-agent-1" } });
+    fireEvent.click(screen.getByRole("button", { name: "分配" }));
     await waitFor(() => expect(adminApi.assignSupportTicket).toHaveBeenCalledWith("ticket-phase24b", {
       assignedAgentId: "admin-agent-1", expectedVersion: 0,
       idempotencyKey: expect.stringMatching(/^assign-/),
     }));
-    expect(await screen.findByText("assign completed")).toBeTruthy();
-    expect(screen.getAllByText("processing").length).toBeGreaterThan(0);
+    expect(await screen.findByText("分配工单已完成")).toBeTruthy();
+    expect(screen.getAllByText("处理中").length).toBeGreaterThan(0);
   });
 });

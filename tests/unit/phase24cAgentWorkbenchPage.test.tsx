@@ -39,9 +39,9 @@ describe("Phase 24C Phase 3 agent workbench", () => {
     render(<SupportTicketsPage initialCityCode="hangzhou" />);
     await waitFor(() => expect(adminApi.listSupportTickets).toHaveBeenCalledWith(expect.objectContaining({ view: "mine", sort: "sla_due" })));
 
-    fireEvent.change(screen.getByLabelText("Queue"), { target: { value: "skill_group" } });
+    fireEvent.change(screen.getByLabelText("队列"), { target: { value: "skill_group" } });
     await waitFor(() => expect(adminApi.listSupportTickets).toHaveBeenLastCalledWith(expect.objectContaining({ view: "skill_group", sort: "sla_due" })));
-    expect(screen.getByRole("heading", { name: "Skill-group pool" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "技能组待领取" })).toBeTruthy();
   });
 
   it("renders normal, near-due and overdue SLA states", async () => {
@@ -53,9 +53,9 @@ describe("Phase 24C Phase 3 agent workbench", () => {
     ], nextCursor: null });
     render(<SupportTicketsPage initialCityCode="hangzhou" />);
 
-    expect(await screen.findByText(/Due in 90m|Due in 89m/)).toBeTruthy();
-    expect(screen.getByText(/Due in 10m|Due in 9m/)).toBeTruthy();
-    expect(screen.getByText(/Overdue 5m|Overdue 6m/)).toBeTruthy();
+    expect(await screen.findByText(/剩余 90 分钟|剩余 89 分钟/)).toBeTruthy();
+    expect(screen.getByText(/剩余 10 分钟|剩余 9 分钟/)).toBeTruthy();
+    expect(screen.getByText(/已超时 5 分钟|已超时 6 分钟/)).toBeTruthy();
   });
 
   it("claims a public-pool ticket with the displayed CAS version", async () => {
@@ -65,13 +65,13 @@ describe("Phase 24C Phase 3 agent workbench", () => {
       .mockResolvedValue({ ok: true, tickets: [poolTicket], nextCursor: null });
     render(<SupportTicketsPage initialCityCode="hangzhou" />);
     await waitFor(() => expect(adminApi.listSupportTickets).toHaveBeenCalledTimes(1));
-    fireEvent.change(screen.getByLabelText("Queue"), { target: { value: "skill_group" } });
-    fireEvent.click(await screen.findByRole("button", { name: "Claim" }));
+    fireEvent.change(screen.getByLabelText("队列"), { target: { value: "skill_group" } });
+    fireEvent.click(await screen.findByRole("button", { name: "领取" }));
 
     await waitFor(() => expect(adminApi.claimSupportTicket).toHaveBeenCalledWith("pool", {
       expectedVersion: 2,
       idempotencyKey: expect.stringMatching(/^claim-/),
     }));
-    expect(await screen.findByText("claim completed")).toBeTruthy();
+    expect(await screen.findByText("工单领取已完成")).toBeTruthy();
   });
 });

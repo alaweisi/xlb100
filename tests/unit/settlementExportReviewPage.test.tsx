@@ -146,14 +146,14 @@ describe("Phase 9C Export Review Console", () => {
       mockGet.mockResolvedValue(mockExports);
       await renderExportReview("#/settlement-ops/exports");
       await waitFor(() => {
-        expect(screen.getByText("Settlement Export Review")).toBeTruthy();
+        expect(screen.getByText("结算导出复核")).toBeTruthy();
       });
     });
 
     it("dashboard has export review navigation button", async () => {
       await renderExportReview("");
       await waitFor(() => {
-        expect(screen.getByText("Settlement Exports")).toBeTruthy();
+        expect(screen.getByText("导出复核")).toBeTruthy();
       });
     });
   });
@@ -197,7 +197,7 @@ describe("Phase 9C Export Review Console", () => {
       mockGet.mockImplementation(() => new Promise(() => {}));
       await renderExportReview("#/settlement-ops/exports");
       await waitFor(() => {
-        expect(screen.getByText(/Loading exports/)).toBeTruthy();
+        expect(screen.getByText(/正在读取导出记录/)).toBeTruthy();
       });
     });
 
@@ -205,14 +205,14 @@ describe("Phase 9C Export Review Console", () => {
       mockGet.mockRejectedValue(new Error("Network Error"));
       await renderExportReview("#/settlement-ops/exports");
       await waitFor(() => {
-        expect(screen.getByText(/Error:/)).toBeTruthy();
+        expect(screen.getByText(/请求失败/)).toBeTruthy();
       });
     });
 
     it("shows empty state", async () => {
       await renderExportReview("#/settlement-ops/exports");
       await waitFor(() => {
-        expect(screen.getByText(/No export records/)).toBeTruthy();
+        expect(screen.getByText(/暂无导出记录/)).toBeTruthy();
       });
     });
   });
@@ -222,7 +222,7 @@ describe("Phase 9C Export Review Console", () => {
       mockGet.mockResolvedValue(mockExports);
       await renderExportReview("#/settlement-ops/exports");
       await waitFor(() => {
-        expect(screen.getByText("Settlement Export Review")).toBeTruthy();
+        expect(screen.getByText("结算导出复核")).toBeTruthy();
       });
       expect(screen.queryByText(/^approve$/i)).toBeNull();
       expect(screen.queryByText(/^payout$/i)).toBeNull();
@@ -234,7 +234,7 @@ describe("Phase 9C Export Review Console", () => {
       mockGet.mockResolvedValue(mockExports);
       await renderExportReview("#/settlement-ops/exports");
       await waitFor(() => {
-        expect(screen.getByText("Settlement Export Review")).toBeTruthy();
+        expect(screen.getByText("结算导出复核")).toBeTruthy();
       });
       const calls = mockGet.mock.calls.flat();
       const mutations = calls.filter(
@@ -249,7 +249,7 @@ describe("Phase 9C Export Review Console", () => {
       mockGet.mockResolvedValue(mockExports);
       await renderExportReview("#/settlement-ops/exports");
       await waitFor(() => {
-        expect(screen.getByText("Settlement Export Review")).toBeTruthy();
+        expect(screen.getByText("结算导出复核")).toBeTruthy();
       });
       const pageText = (document.body.textContent || "").toLowerCase();
       expect(pageText).not.toContain("payout");

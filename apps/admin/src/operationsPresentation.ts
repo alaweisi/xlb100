@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { ApiClientError } from "@xlb/api-client";
 
 export type OperationsTone = "default" | "primary" | "success" | "warning" | "danger" | "muted";
 
@@ -39,6 +38,81 @@ const STATUS_LABELS: Record<string, string> = {
   pending_confirmation: "待确认",
   confirmed: "已确认",
   disputed: "有异议",
+  applied: "已应用",
+  submitted: "已提交",
+  resolved: "已解决",
+  processing: "处理中",
+  waiting_requester: "等待诉求人",
+  escalated: "已升级",
+  open: "待处理",
+  visible: "公开可见",
+  hidden: "已隐藏",
+  pending_moderation: "待审核",
+  upheld: "申诉成立",
+  marked_paid: "已标记付款",
+  proposed: "待审批",
+  reviewed: "已审核",
+  scheduled: "已排期",
+  paused: "已暂停",
+  ended: "已结束",
+  suspended: "已暂停",
+  retired: "已退役",
+  published: "已发布",
+  granted: "已发放",
+  available: "可使用",
+  released: "已释放",
+  revoked: "已撤销",
+  delivered: "已送达",
+  retry_wait: "等待重试",
+  dead_letter: "待人工处理",
+  draft_plan: "计划草稿",
+  queueing: "排队中",
+  transferred: "已转接",
+  reply: "自动回复",
+  handoff: "转人工",
+  provider_not_executed: "未执行服务商操作",
+  not_executed: "未执行",
+};
+
+const BUSINESS_LABELS: Record<string, string> = {
+  customer: "客户",
+  worker: "师傅",
+  enterprise: "企业客户",
+  admin: "后台人员",
+  system: "系统",
+  low: "低",
+  normal: "普通",
+  high: "高",
+  urgent: "紧急",
+  critical: "严重",
+  order_question: "订单咨询",
+  order_dispute: "订单争议",
+  service_complaint: "服务投诉",
+  withdrawal_issue: "提现问题",
+  account_issue: "账号问题",
+  safety: "安全事件",
+  other: "其他",
+  mine: "分配给我",
+  skill_group: "技能组待领取",
+  all: "城市全量",
+  cancel: "取消订单",
+  reschedule: "改约",
+  reassign: "改派",
+  explanation: "解释说明",
+  repair: "返工处理",
+  refund: "退款意图",
+  service_credit: "服务补偿",
+  no_fault: "无责",
+  worker_fault: "师傅责任",
+  platform_fault: "平台责任",
+  customer_fault: "客户责任",
+  shared_fault: "共同责任",
+  single: "单笔结算",
+  monthly: "月结",
+  operator: "运营人员",
+  auditor: "审计人员",
+  internal: "仅内部可见",
+  deterministic: "本地确定性规则",
 };
 
 const EVENT_LABELS: Record<string, string> = {
@@ -76,11 +150,16 @@ export function statusLabel(status?: string | null): string {
 
 export function statusTone(status?: string | null): OperationsTone {
   if (!status) return "muted";
-  if (["accepted", "completed", "service_completed", "paid", "approved", "confirmed", "success", "active", "enabled", "fresh"].includes(status)) return "success";
-  if (["pending", "queued", "offering", "reassigning", "pending_dispatch", "pending_payment", "in_progress", "requested", "created", "started", "triaged", "waiting_customer", "pending_confirmation"].includes(status)) return "warning";
-  if (["failed", "cancelled", "no_match", "manual_review", "timeout", "rejected", "expired", "disputed"].includes(status)) return "danger";
-  if (["draft", "disabled", "closed", "stale"].includes(status)) return "muted";
+  if (["accepted", "completed", "service_completed", "paid", "marked_paid", "approved", "confirmed", "success", "active", "enabled", "fresh", "resolved", "visible", "applied", "published", "delivered"].includes(status)) return "success";
+  if (["pending", "queued", "offering", "reassigning", "pending_dispatch", "pending_payment", "in_progress", "processing", "requested", "created", "started", "triaged", "waiting_customer", "waiting_requester", "pending_confirmation", "pending_moderation", "proposed", "reviewed", "scheduled", "queueing", "transferred", "retry_wait"].includes(status)) return "warning";
+  if (["failed", "cancelled", "no_match", "manual_review", "timeout", "rejected", "expired", "disputed", "escalated", "hidden", "dead_letter", "revoked"].includes(status)) return "danger";
+  if (["draft", "disabled", "closed", "stale", "paused", "suspended", "retired", "ended", "not_executed", "provider_not_executed"].includes(status)) return "muted";
   return "primary";
+}
+
+export function businessLabel(value?: string | null): string {
+  if (!value) return "暂无";
+  return BUSINESS_LABELS[value] ?? `业务代码（${value}）`;
 }
 
 export function eventLabel(eventType?: string | null): string {
@@ -128,20 +207,21 @@ export interface OperationsFailure {
 }
 
 export function presentFailure(error: unknown, subject: string): OperationsFailure {
+  const apiError = error && typeof error === "object" ? error as { kind?: string; status?: number } : null;
   const offline = typeof navigator !== "undefined" && navigator.onLine === false;
-  if (offline || (error instanceof ApiClientError && error.kind === "network")) {
+  if (offline || apiError?.kind === "network") {
     return { kind: "offline", title: "当前网络不可用", detail: `无法连接服务端读取${subject}。请恢复网络后重试，页面不会把旧数据当作最新结果。` };
   }
-  if (error instanceof ApiClientError && error.status === 403) {
+  if (apiError?.status === 403) {
     return { kind: "forbidden", title: `无权访问${subject}`, detail: "当前账号角色或城市权限不满足要求。系统未展示任何越权数据。" };
   }
-  if (error instanceof ApiClientError && error.status === 409) {
+  if (apiError?.status === 409) {
     return { kind: "conflict", title: "数据已被其他操作更新", detail: `本次${subject}操作未生效。请刷新最新数据后重新判断，避免覆盖他人的处理结果。` };
   }
-  if (error instanceof ApiClientError && error.kind === "timeout") {
+  if (apiError?.kind === "timeout") {
     return { kind: "timeout", title: "请求超时", detail: `${subject}暂未确认完成。请刷新核对服务端结果，不要重复提交。` };
   }
-  if (error instanceof ApiClientError && error.kind === "response_format") {
+  if (apiError?.kind === "response_format") {
     return { kind: "invalid", title: "返回数据无法安全展示", detail: `${subject}接口返回格式与当前客户端不一致，页面已停止使用该结果。` };
   }
   return { kind: "unknown", title: `${subject}请求失败`, detail: "服务端暂未完成请求。请稍后重试；若持续失败，请联系平台技术支持并提供操作时间。" };

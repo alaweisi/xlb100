@@ -22,6 +22,6 @@ describe("Phase 24D three-app conversation UI bindings", () => {
     expect(page).toContain("acceptSupportConversation");
     expect(page).toContain("transferSupportConversation");
     expect(page).toContain("closeSupportConversation");
-    expect(page).toContain("Realtime conversation queue");
+    expect(page).toContain("实时会话队列");
   });
 });
