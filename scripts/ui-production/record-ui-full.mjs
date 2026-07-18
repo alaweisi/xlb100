@@ -60,7 +60,7 @@ for (const manifest of manifests) {
     throw new Error(`证据清单不是 Microsoft Edge 真实应用采集：${manifest.batch ?? "未知批次"}`);
   }
   for (const item of manifest.evidence ?? []) {
-    const carrierId = item.carrierId ?? item.carrier;
+    const carrierId = item.carrierId ?? item.carrier ?? item.fileKey?.match(/^[CWA]-\d{2}/)?.[0];
     const ids = [...(item.sliceIds ?? [])];
     if (carrierId && (item.carrierBase === true || item.stage === "base")) ids.push(carrierId);
     for (const id of new Set(ids)) {
