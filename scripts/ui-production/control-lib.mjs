@@ -432,6 +432,22 @@ export function releaseErrors(rootDir, ledger, structureErrors, languageViolatio
   return errors;
 }
 
+export function candidateErrors(rootDir, ledger, structureErrors, languageViolations) {
+  const errors = [...structureErrors];
+  if (languageViolations.length) errors.push(`全中文门禁失败：仍有 ${languageViolations.length} 处可见英文`);
+  const notLocalized = ledger.slices.filter((item) => item.localization?.status !== "COMPLETE");
+  const notBusinessReady = ledger.slices.filter((item) => !isBusinessReady(rootDir, item));
+  const noEvidence = ledger.slices.filter((item) => !isEvidenceReady(rootDir, item));
+  const notEdgeVerified = ledger.slices.filter((item) => !["EDGE_VERIFIED", "ACCEPTED"].includes(item.status));
+  const baseNotVerified = ledger.carriers.filter((item) => !["EDGE_VERIFIED", "ACCEPTED"].includes(item.baseFrame?.status));
+  if (notLocalized.length) errors.push(`中文竣工未完成：${notLocalized.length} 条切片`);
+  if (notBusinessReady.length) errors.push(`真实商业链路资料不完整：${notBusinessReady.length} 条切片`);
+  if (noEvidence.length) errors.push(`Edge 真实画面证据不完整：${noEvidence.length} 条切片`);
+  if (baseNotVerified.length) errors.push(`Base Frame 尚未 Edge 验证：${baseNotVerified.length} 个 Carrier`);
+  if (notEdgeVerified.length) errors.push(`尚未达到 Edge 竣工状态：${notEdgeVerified.length} 条切片`);
+  return errors;
+}
+
 export function ratchetErrors(metrics, baseline) {
   const errors = [];
   if (metrics.sliceCount !== baseline.sliceCount) errors.push(`切片数从 ${baseline.sliceCount} 变化为 ${metrics.sliceCount}`);

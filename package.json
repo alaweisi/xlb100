@@ -155,6 +155,7 @@
     "ui:control:record-full": "node scripts/ui-production/record-ui-full.mjs",
     "ui:control:capture": "node scripts/ui-production/capture-console.mjs",
     "ui:gate:ratchet": "node scripts/ui-production/control.mjs ratchet",
+    "ui:gate:candidate": "node scripts/ui-production/control.mjs candidate",
     "ui:gate:release": "node scripts/ui-production/control.mjs release",
     "test:ui-control": "node --test scripts/ui-production/control.test.mjs"
   },

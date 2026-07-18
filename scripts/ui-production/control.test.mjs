@@ -5,6 +5,7 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import {
+  candidateErrors,
   EXPECTED,
   isBusinessReady,
   isEvidenceReady,
@@ -102,4 +103,22 @@ test("棘轮允许进步但阻止新增英文和验收回退", () => {
   assert.deepEqual(ratchetErrors({ ...baseline, languageViolationCount: 9, acceptedCount: 2 }, baseline), []);
   const errors = ratchetErrors({ ...baseline, languageViolationCount: 11, acceptedCount: 0 }, baseline);
   assert.equal(errors.length, 2);
+});
+
+test("竣工候选门禁要求 Edge 齐备，但不提前要求人工 ACCEPTED", () => {
+  const temporary = fs.mkdtempSync(path.join(os.tmpdir(), "xlb-ui-candidate-"));
+  fs.writeFileSync(path.join(temporary, "page.tsx"), "export {};", "utf8");
+  fs.writeFileSync(path.join(temporary, "test.ts"), "export {};", "utf8");
+  fs.writeFileSync(path.join(temporary, "screen.png"), "png", "utf8");
+  const evidence = [{ browser: "edge", actualApp: true, capturedAt: "2026-07-18T00:00:00Z", stage: "result", label: "结果", file: "screen.png" }];
+  const slice = {
+    status: "EDGE_VERIFIED",
+    localization: { status: "COMPLETE" },
+    implementation: { route: "/customer/", sourceFiles: ["page.tsx"], apiBindings: ["catalog.list"] },
+    business: { authoritativeStates: ["available"], permissions: ["customer"], entryCondition: "进入", persistedResult: "读取结果", recovery: "重试", handoff: "进入下单", scenarioKind: "contract-state" },
+    tests: ["test.ts"], evidenceRequirement: ["result"], edgeEvidence: evidence,
+  };
+  const carrier = { baseFrame: { status: "EDGE_VERIFIED", evidenceRequirement: ["result"], edgeEvidence: evidence } };
+  assert.deepEqual(candidateErrors(temporary, { slices: [slice], carriers: [carrier] }, [], []), []);
+  assert.ok(candidateErrors(temporary, { slices: [{ ...slice, status: "TESTED" }], carriers: [carrier] }, [], []).some((item) => item.includes("尚未达到 Edge 竣工状态")));
 });

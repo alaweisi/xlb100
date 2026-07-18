@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   collectMetrics,
+  candidateErrors,
   EXPECTED,
   parseBindings,
   ratchetErrors,
@@ -158,7 +159,7 @@ if (command === "sync") {
 } else {
   if (!fs.existsSync(ledgerFile)) throw new Error("缺少 SLICE_IMPLEMENTATION_LEDGER.json，请先运行 ui:control:sync");
   const audit = loadAudit();
-  if (["audit", "baseline", "console", "ratchet", "release"].includes(command)) writeAuditArtifacts(audit);
+  if (["audit", "baseline", "console", "ratchet", "candidate", "release"].includes(command)) writeAuditArtifacts(audit);
   if (command === "baseline") {
     writeJson(baselineFile, { generatedAt: new Date().toISOString(), ...audit.metrics });
     console.log(`UI_PRODUCTION_BASELINE ${JSON.stringify(audit.metrics)}`);
@@ -179,10 +180,16 @@ if (command === "sync") {
       console.error(`UI_PRODUCTION_RELEASE_BLOCKED\n${errors.join("\n")}`);
       process.exitCode = 1;
     } else console.log("UI_PRODUCTION_RELEASE_OK accepted=214");
+  } else if (command === "candidate") {
+    const errors = candidateErrors(rootDir, audit.ledger, audit.structureErrors, audit.languageViolations);
+    if (errors.length) {
+      console.error(`UI_PRODUCTION_CANDIDATE_BLOCKED\n${errors.join("\n")}`);
+      process.exitCode = 1;
+    } else console.log("UI_PRODUCTION_CANDIDATE_OK edge=214 bases=36");
   } else if (["audit", "console"].includes(command)) {
     console.log(`UI_PRODUCTION_AUDIT ${JSON.stringify(audit.metrics)}`);
     console.log(`console=${path.relative(rootDir, consoleFile)}`);
-  } else if (!['baseline','check','ratchet','release'].includes(command)) {
+  } else if (!['baseline','check','ratchet','candidate','release'].includes(command)) {
     throw new Error(`未知命令：${command}`);
   }
 }
