@@ -111,7 +111,7 @@ describe("Phase 9B — Drilldown / Detail Foundation", () => {
       mockGet.mockResolvedValue(mockStatementDetail);
       window.location.hash = "#/settlement-ops/statements/stmt-001";
       render(<App />);
-      await waitFor(() => { expect(screen.getByText("CNY")).toBeTruthy(); });
+      await waitFor(() => { expect(screen.getAllByText("¥10000.00").length).toBeGreaterThan(0); });
     });
 
     it("renders review section", async () => {
@@ -144,7 +144,7 @@ describe("Phase 9B — Drilldown / Detail Foundation", () => {
       window.location.hash = "#/settlement-ops?cityCode=hangzhou";
       window.dispatchEvent(new HashChangeEvent("hashchange"));
       await waitFor(() => { expect(screen.getByText(/stmt-001/)).toBeTruthy(); });
-      fireEvent.click(screen.getByText(/stmt-001/));
+      fireEvent.click(screen.getByRole("button", { name: "查看结算单详情" }));
       await waitFor(() => { expect(window.location.hash).toContain("stmt-001"); });
     });
 
@@ -153,7 +153,7 @@ describe("Phase 9B — Drilldown / Detail Foundation", () => {
       window.location.hash = "#/settlement-ops/statements/stmt-001";
       render(<App />);
       await waitFor(() => { expect(screen.getByText("结算单详情")).toBeTruthy(); });
-      fireEvent.click(screen.getAllByText(/返回运营台/)[0]);
+      fireEvent.click(screen.getByRole("button", { name: "返回运营总览" }));
       await waitFor(() => { expect(screen.getAllByText("运营总览").length).toBeGreaterThan(0); });
     });
   });
