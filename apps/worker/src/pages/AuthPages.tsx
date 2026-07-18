@@ -7,7 +7,7 @@ import {
   type WorkerAccessStatus,
   type WorkerSession,
 } from "../app/workerAuth";
-import { helperText } from "./pageShared";
+import { helperText, uiChoice, uiStateIs } from "./pageShared";
 
 const DEFAULT_CITY_CODE = "hangzhou";
 const DEFAULT_WORKER_PHONE = "13800000001";
@@ -91,10 +91,10 @@ export function WorkerLoginPage({
             disabled={loading !== null || !phone.trim()}
             style={{ borderColor: "rgba(184, 200, 220, 0.72)", color: "#f8fbff" }}
           >
-            {loading === "request" ? "正在发送" : "获取验证码"}
+            {uiChoice(uiStateIs(loading, "request"), "正在发送", "获取验证码")}
           </Button>
           <Button onClick={submitLogin} disabled={loading !== null || !phone.trim() || !code.trim()} variant="primary">
-            {loading === "login" ? "正在登录" : "登录并进入任务大厅"}
+            {uiChoice(uiStateIs(loading, "login"), "正在登录", "登录并进入任务大厅")}
           </Button>
         </>
       }
