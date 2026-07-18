@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { type WorkerWithdrawalResponse } from "@xlb/api-client";
-import { ApiErrorPanel, Button, Card, EmptyState, FormField, Input, LoadingState, ScopeBadge, StatusTag, Table, Textarea } from "@xlb/ui";
+import { ApiErrorPanel, Button, Card, EmptyState, FormField, LoadingState, ScopeBadge, Select, StatusTag, Table, Textarea } from "@xlb/ui";
 import { adminOpsApi as api } from "../adminAuth";
 import { cityLabel, formatCurrency, formatDateTime, presentFailure, statusLabel, statusTone, useOnlineStatus } from "../operationsPresentation";
 
@@ -50,7 +50,7 @@ export function WorkerWithdrawalsPage({ initialCityCode }: Props) {
   return <div style={{ display: "grid", gap: 16 }}>
     <Card title="师傅提现审核" actions={<><ScopeBadge scope={`城市：${cityLabel(cityCode)}`} /><StatusTag tone={online ? "success" : "danger"}>{online ? "在线" : "离线"}</StatusTag></>}>
       <p>批准与驳回只更新提现审核状态；“标记已付款”只记录服务端状态，不会在页面中调用银行或支付服务商。</p>
-      <div style={{ display: "grid", gap: 12 }}><FormField label="城市代码"><Input value={cityCode} onChange={event => setCityCode(event.target.value)} /></FormField><div><Button onClick={() => void load()} variant="primary" disabled={!online || loading}>{loading ? "刷新中" : "刷新队列"}</Button></div></div>
+      <div style={{ display: "grid", gap: 12 }}><FormField label="城市"><Select value={cityCode} onChange={event => setCityCode(event.target.value)}><option value="hangzhou">杭州</option><option value="shanghai">上海</option><option value="beijing">北京</option></Select></FormField><div><Button onClick={() => void load()} variant="primary" disabled={!online || loading}>{loading ? "刷新中" : "刷新队列"}</Button></div></div>
     </Card>
     {!online && <ApiErrorPanel title="当前网络不可用" detail="提现审核写入已停用。恢复网络并刷新服务端状态后再继续。" />}
     {loading && <LoadingState title="正在加载提现申请" />}

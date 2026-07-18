@@ -84,7 +84,7 @@ export function EnterpriseOpsPage({ initialCityCode }: { initialCityCode?: strin
   const callbackValid = /^https:\/\//i.test(callbackUrl.trim());
   return <div style={{ display: "grid", gap: 16 }}>
     <Card title="企业客户运营" actions={<><ScopeBadge scope={`城市：${cityLabel(cityCode)}`} /><StatusTag tone={online ? "success" : "danger"}>{online ? "在线" : "离线"}</StatusTag><StatusTag tone="warning">不执行收付款</StatusTag></>}>
-      <div style={{ display: "flex", gap: 8, alignItems: "end", flexWrap: "wrap" }}><FormField label="城市代码"><Input value={cityCode} onChange={event => setCityCode(event.target.value)} /></FormField><Button onClick={() => void loadClients()} disabled={!online || busy !== null}>刷新</Button><StatusTag tone="primary">凭据按企业与城市隔离</StatusTag></div>
+      <div style={{ display: "flex", gap: 8, alignItems: "end", flexWrap: "wrap" }}><FormField label="城市"><Select value={cityCode} onChange={event => setCityCode(event.target.value)}><option value="hangzhou">杭州</option><option value="shanghai">上海</option><option value="beijing">北京</option></Select></FormField><Button onClick={() => void loadClients()} disabled={!online || busy !== null}>刷新</Button><StatusTag tone="primary">凭据按企业与城市隔离</StatusTag></div>
     </Card>
     {!online && <ApiErrorPanel title="当前网络不可用" detail="企业运营写入已停用。恢复网络并刷新服务端状态后再继续。" />}
     {error && <ApiErrorPanel title={error.title} detail={error.detail} />}{notice && <p role="status">{notice}</p>}{partial && <p role="status">{partial}</p>}

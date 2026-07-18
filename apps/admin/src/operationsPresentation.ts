@@ -145,7 +145,7 @@ const REASON_LABELS: Record<string, string> = {
 
 export function statusLabel(status?: string | null): string {
   if (!status) return "暂无";
-  return STATUS_LABELS[status] ?? `未识别状态（${status}）`;
+  return STATUS_LABELS[status] ?? "未识别状态";
 }
 
 export function statusTone(status?: string | null): OperationsTone {
@@ -159,12 +159,12 @@ export function statusTone(status?: string | null): OperationsTone {
 
 export function businessLabel(value?: string | null): string {
   if (!value) return "暂无";
-  return BUSINESS_LABELS[value] ?? `业务代码（${value}）`;
+  return BUSINESS_LABELS[value] ?? "未识别业务类型";
 }
 
 export function eventLabel(eventType?: string | null): string {
   if (!eventType) return "暂无事件";
-  return EVENT_LABELS[eventType] ?? `业务事件（${eventType}）`;
+  return EVENT_LABELS[eventType] ?? "未识别业务事件";
 }
 
 export function reasonLabel(reason?: string | null): string {

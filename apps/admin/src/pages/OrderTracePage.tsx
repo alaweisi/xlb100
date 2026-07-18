@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { FulfillmentEvidenceAggregateResponse } from "@xlb/api-client";
-import { ApiErrorPanel, Button, Card, EmptyState, FormField, Input, LoadingState, ScopeBadge, StatusTag, Table } from "@xlb/ui";
+import { ApiErrorPanel, Button, Card, EmptyState, FormField, Input, LoadingState, ScopeBadge, Select, StatusTag, Table } from "@xlb/ui";
 import { adminOrderTraceApi } from "../adminAuth";
 import { buildHash, parseHashParams } from "../hashParams";
 import {
@@ -127,7 +127,7 @@ export function OrderTracePage({ initialCityCode, initialOrderId }: Props) {
     <div className="operations-workbench">
       <Card title="订单全链路追踪" actions={<><ScopeBadge scope={`城市：${cityLabel(cityCode)}`} /><StatusTag tone="muted">只读查询</StatusTag><StatusTag tone={online ? "success" : "danger"}>{online ? "服务已连接" : "当前离线"}</StatusTag></>}>
         <div className="operations-form-grid">
-          <FormField label="城市代码"><Input value={cityCode} onChange={(event) => setCityCode(event.target.value)} /></FormField>
+          <FormField label="城市"><Select value={cityCode} onChange={(event) => setCityCode(event.target.value)}><option value="hangzhou">杭州</option><option value="shanghai">上海</option><option value="beijing">北京</option></Select></FormField>
           <FormField label="订单编号"><Input value={orderId} onChange={(event) => setOrderId(event.target.value)} placeholder="输入完整订单编号" /></FormField>
         </div>
         <div className="operations-inline-actions" style={{ marginTop: 10 }}><Button variant="primary" onClick={() => void loadTrace()} disabled={!cityCode.trim() || !orderId.trim() || loading || !online}>{loading ? "查询中…" : "查询订单全链路"}</Button></div>

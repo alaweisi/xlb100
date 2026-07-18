@@ -1,0 +1,1590 @@
+{
+  "batch": "ADMIN-FULL",
+  "browser": "Microsoft Edge",
+  "browserVersion": "150.0.4078.83",
+  "capturedAt": "2026-07-18T17:01:41.558Z",
+  "actualApp": true,
+  "appUrl": "http://127.0.0.1:4317",
+  "dedicatedPort": 4317,
+  "contractInterception": true,
+  "externalProviderExecution": false,
+  "externalExecutionBoundary": "仅拦截后台契约态；不执行退款、到账、出款或外部 Provider 调用。",
+  "viewport": "1440×900",
+  "ledgerSliceCount": 98,
+  "targetSliceCount": 96,
+  "evidence": [
+    {
+      "fileKey": "A-00.base",
+      "sliceIds": [
+        "A.AUTH.SESSION.REQUIRED",
+        "A.SCOPE.CITY.REQUIRED"
+      ],
+      "stage": "base",
+      "label": "后台城市范围入口：基础框架",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-00.base.png",
+      "description": "真实 Admin 应用的桌面基础框架与当前载体入口。"
+    },
+    {
+      "fileKey": "A-01.base",
+      "sliceIds": [
+        "A.SETTLEMENT.RECONCILIATION.GAP_FOUND",
+        "A.SETTLEMENT.BATCH.PREPARED",
+        "A.SETTLEMENT.BATCH.CONFIRMED",
+        "A.SETTLEMENT.BATCH.CANCELLED",
+        "A.SETTLEMENT.PAYABLE.PAYABLE",
+        "A.SETTLEMENT.QUEUE.QUEUED",
+        "A.SETTLEMENT.RECONCILIATION.CLEAR"
+      ],
+      "stage": "base",
+      "label": "结算运营台：基础框架",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-01.base.png",
+      "description": "真实 Admin 应用的桌面基础框架与当前载体入口。"
+    },
+    {
+      "fileKey": "A-01.entry",
+      "sliceIds": [
+        "A.SETTLEMENT.RECONCILIATION.GAP_FOUND",
+        "A.SETTLEMENT.BATCH.PREPARED",
+        "A.SETTLEMENT.BATCH.CONFIRMED",
+        "A.SETTLEMENT.BATCH.CANCELLED",
+        "A.SETTLEMENT.PAYABLE.PAYABLE",
+        "A.SETTLEMENT.QUEUE.QUEUED",
+        "A.SETTLEMENT.RECONCILIATION.CLEAR"
+      ],
+      "stage": "entry",
+      "label": "结算运营台：进入/加载",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-01.entry.png",
+      "description": "真实 Admin 页面在契约请求未完成时保留业务上下文并显示加载状态。"
+    },
+    {
+      "fileKey": "A-01.result",
+      "sliceIds": [
+        "A.SETTLEMENT.RECONCILIATION.GAP_FOUND",
+        "A.SETTLEMENT.BATCH.PREPARED",
+        "A.SETTLEMENT.BATCH.CONFIRMED",
+        "A.SETTLEMENT.BATCH.CANCELLED",
+        "A.SETTLEMENT.PAYABLE.PAYABLE",
+        "A.SETTLEMENT.QUEUE.QUEUED",
+        "A.SETTLEMENT.RECONCILIATION.CLEAR"
+      ],
+      "stage": "result",
+      "label": "结算运营台：受控结果",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-01.result.png",
+      "description": "真实 Admin 页面消费成功契约并显示服务端确认的空结果；未伪造到账、退款或 Provider 成功。"
+    },
+    {
+      "fileKey": "A-01.recovery",
+      "sliceIds": [
+        "A.SETTLEMENT.RECONCILIATION.GAP_FOUND",
+        "A.SETTLEMENT.BATCH.PREPARED",
+        "A.SETTLEMENT.BATCH.CONFIRMED",
+        "A.SETTLEMENT.BATCH.CANCELLED",
+        "A.SETTLEMENT.PAYABLE.PAYABLE",
+        "A.SETTLEMENT.QUEUE.QUEUED",
+        "A.SETTLEMENT.RECONCILIATION.CLEAR"
+      ],
+      "stage": "recovery",
+      "label": "结算运营台：失败恢复",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-01.recovery.png",
+      "description": "真实 Admin 页面在契约 503 下显示可恢复失败，不把失败解释为空数据或成功。"
+    },
+    {
+      "fileKey": "A-02.base",
+      "sliceIds": [
+        "A.SETTLEMENT.STATEMENT.CREATED",
+        "A.SETTLEMENT.STATEMENT.APPROVED",
+        "A.SETTLEMENT.STATEMENT.REJECTED"
+      ],
+      "stage": "base",
+      "label": "结算单审计详情：基础框架",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-02.base.png",
+      "description": "真实 Admin 应用的桌面基础框架与当前载体入口。"
+    },
+    {
+      "fileKey": "A-02.entry",
+      "sliceIds": [
+        "A.SETTLEMENT.STATEMENT.CREATED",
+        "A.SETTLEMENT.STATEMENT.APPROVED",
+        "A.SETTLEMENT.STATEMENT.REJECTED"
+      ],
+      "stage": "entry",
+      "label": "结算单审计详情：进入/加载",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-02.entry.png",
+      "description": "真实 Admin 页面在契约请求未完成时保留业务上下文并显示加载状态。"
+    },
+    {
+      "fileKey": "A-02.result",
+      "sliceIds": [
+        "A.SETTLEMENT.STATEMENT.CREATED",
+        "A.SETTLEMENT.STATEMENT.APPROVED",
+        "A.SETTLEMENT.STATEMENT.REJECTED"
+      ],
+      "stage": "result",
+      "label": "结算单审计详情：受控结果",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-02.result.png",
+      "description": "真实 Admin 页面消费成功契约并显示服务端确认的空结果；未伪造到账、退款或 Provider 成功。"
+    },
+    {
+      "fileKey": "A-02.recovery",
+      "sliceIds": [
+        "A.SETTLEMENT.STATEMENT.CREATED",
+        "A.SETTLEMENT.STATEMENT.APPROVED",
+        "A.SETTLEMENT.STATEMENT.REJECTED"
+      ],
+      "stage": "recovery",
+      "label": "结算单审计详情：失败恢复",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-02.recovery.png",
+      "description": "真实 Admin 页面在契约 503 下显示可恢复失败，不把失败解释为空数据或成功。"
+    },
+    {
+      "fileKey": "A-03.base",
+      "sliceIds": [
+        "A.SETTLEMENT.EXPORT.CREATED"
+      ],
+      "stage": "base",
+      "label": "结算导出审计：基础框架",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-03.base.png",
+      "description": "真实 Admin 应用的桌面基础框架与当前载体入口。"
+    },
+    {
+      "fileKey": "A-03.entry",
+      "sliceIds": [
+        "A.SETTLEMENT.EXPORT.CREATED"
+      ],
+      "stage": "entry",
+      "label": "结算导出审计：进入/加载",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-03.entry.png",
+      "description": "真实 Admin 页面在契约请求未完成时保留业务上下文并显示加载状态。"
+    },
+    {
+      "fileKey": "A-03.result",
+      "sliceIds": [
+        "A.SETTLEMENT.EXPORT.CREATED"
+      ],
+      "stage": "result",
+      "label": "结算导出审计：受控结果",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-03.result.png",
+      "description": "真实 Admin 页面消费成功契约并显示服务端确认的空结果；未伪造到账、退款或 Provider 成功。"
+    },
+    {
+      "fileKey": "A-03.recovery",
+      "sliceIds": [
+        "A.SETTLEMENT.EXPORT.CREATED"
+      ],
+      "stage": "recovery",
+      "label": "结算导出审计：失败恢复",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-03.recovery.png",
+      "description": "真实 Admin 页面在契约 503 下显示可恢复失败，不把失败解释为空数据或成功。"
+    },
+    {
+      "fileKey": "A-04.base",
+      "sliceIds": [
+        "A.GOVERNANCE.INTENT.BLOCKED",
+        "A.GOVERNANCE.INTENT.DRAFT",
+        "A.GOVERNANCE.INTENT.READY_FOR_REVIEW",
+        "A.GOVERNANCE.INTENT.TERMINAL"
+      ],
+      "stage": "base",
+      "label": "结算只读治理：基础框架",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-04.base.png",
+      "description": "真实 Admin 应用的桌面基础框架与当前载体入口。"
+    },
+    {
+      "fileKey": "A-04.entry",
+      "sliceIds": [
+        "A.GOVERNANCE.INTENT.BLOCKED",
+        "A.GOVERNANCE.INTENT.DRAFT",
+        "A.GOVERNANCE.INTENT.READY_FOR_REVIEW",
+        "A.GOVERNANCE.INTENT.TERMINAL"
+      ],
+      "stage": "entry",
+      "label": "结算只读治理：进入/加载",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-04.entry.png",
+      "description": "真实 Admin 页面在契约请求未完成时保留业务上下文并显示加载状态。"
+    },
+    {
+      "fileKey": "A-04.result",
+      "sliceIds": [
+        "A.GOVERNANCE.INTENT.BLOCKED",
+        "A.GOVERNANCE.INTENT.DRAFT",
+        "A.GOVERNANCE.INTENT.READY_FOR_REVIEW",
+        "A.GOVERNANCE.INTENT.TERMINAL"
+      ],
+      "stage": "result",
+      "label": "结算只读治理：受控结果",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-04.result.png",
+      "description": "真实 Admin 页面消费成功契约并显示服务端确认的空结果；未伪造到账、退款或 Provider 成功。"
+    },
+    {
+      "fileKey": "A-04.recovery",
+      "sliceIds": [
+        "A.GOVERNANCE.INTENT.BLOCKED",
+        "A.GOVERNANCE.INTENT.DRAFT",
+        "A.GOVERNANCE.INTENT.READY_FOR_REVIEW",
+        "A.GOVERNANCE.INTENT.TERMINAL"
+      ],
+      "stage": "recovery",
+      "label": "结算只读治理：失败恢复",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-04.recovery.png",
+      "description": "真实 Admin 页面在契约 503 下显示可恢复失败，不把失败解释为空数据或成功。"
+    },
+    {
+      "fileKey": "A-05.base",
+      "sliceIds": [
+        "A.ORDER.TRACE.FOUND",
+        "A.ORDER.TRACE.NOT_FOUND",
+        "A.ORDER.TRACE.SEARCH"
+      ],
+      "stage": "base",
+      "label": "订单追踪：基础框架",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-05.base.png",
+      "description": "真实 Admin 应用的桌面基础框架与当前载体入口。"
+    },
+    {
+      "fileKey": "A-05.entry",
+      "sliceIds": [
+        "A.ORDER.TRACE.FOUND",
+        "A.ORDER.TRACE.NOT_FOUND",
+        "A.ORDER.TRACE.SEARCH"
+      ],
+      "stage": "entry",
+      "label": "订单追踪：进入/加载",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-05.entry.png",
+      "description": "真实 Admin 页面在契约请求未完成时保留业务上下文并显示加载状态。"
+    },
+    {
+      "fileKey": "A-05.result",
+      "sliceIds": [
+        "A.ORDER.TRACE.FOUND",
+        "A.ORDER.TRACE.NOT_FOUND",
+        "A.ORDER.TRACE.SEARCH"
+      ],
+      "stage": "result",
+      "label": "订单追踪：受控结果",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-05.result.png",
+      "description": "真实 Admin 页面消费成功契约并显示服务端确认的空结果；未伪造到账、退款或 Provider 成功。"
+    },
+    {
+      "fileKey": "A-05.recovery",
+      "sliceIds": [
+        "A.ORDER.TRACE.FOUND",
+        "A.ORDER.TRACE.NOT_FOUND",
+        "A.ORDER.TRACE.SEARCH"
+      ],
+      "stage": "recovery",
+      "label": "订单追踪：失败恢复",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-05.recovery.png",
+      "description": "真实 Admin 页面在契约 503 下显示可恢复失败，不把失败解释为空数据或成功。"
+    },
+    {
+      "fileKey": "A-06.base",
+      "sliceIds": [
+        "A.WITHDRAWAL.REVIEW.REQUESTED",
+        "A.WITHDRAWAL.REVIEW.APPROVED",
+        "A.WITHDRAWAL.REVIEW.REJECTED",
+        "A.WITHDRAWAL.REVIEW.MARKED_PAID",
+        "A.WITHDRAWAL.REVIEW.CANCELLED"
+      ],
+      "stage": "base",
+      "label": "提现审核：基础框架",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-06.base.png",
+      "description": "真实 Admin 应用的桌面基础框架与当前载体入口。"
+    },
+    {
+      "fileKey": "A-06.entry",
+      "sliceIds": [
+        "A.WITHDRAWAL.REVIEW.REQUESTED",
+        "A.WITHDRAWAL.REVIEW.APPROVED",
+        "A.WITHDRAWAL.REVIEW.REJECTED",
+        "A.WITHDRAWAL.REVIEW.MARKED_PAID",
+        "A.WITHDRAWAL.REVIEW.CANCELLED"
+      ],
+      "stage": "entry",
+      "label": "提现审核：进入/加载",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-06.entry.png",
+      "description": "真实 Admin 页面在契约请求未完成时保留业务上下文并显示加载状态。"
+    },
+    {
+      "fileKey": "A-06.result",
+      "sliceIds": [
+        "A.WITHDRAWAL.REVIEW.REQUESTED",
+        "A.WITHDRAWAL.REVIEW.APPROVED",
+        "A.WITHDRAWAL.REVIEW.REJECTED",
+        "A.WITHDRAWAL.REVIEW.MARKED_PAID",
+        "A.WITHDRAWAL.REVIEW.CANCELLED"
+      ],
+      "stage": "result",
+      "label": "提现审核：受控结果",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-06.result.png",
+      "description": "真实 Admin 页面消费成功契约并显示服务端确认的空结果；未伪造到账、退款或 Provider 成功。"
+    },
+    {
+      "fileKey": "A-06.recovery",
+      "sliceIds": [
+        "A.WITHDRAWAL.REVIEW.REQUESTED",
+        "A.WITHDRAWAL.REVIEW.APPROVED",
+        "A.WITHDRAWAL.REVIEW.REJECTED",
+        "A.WITHDRAWAL.REVIEW.MARKED_PAID",
+        "A.WITHDRAWAL.REVIEW.CANCELLED"
+      ],
+      "stage": "recovery",
+      "label": "提现审核：失败恢复",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-06.recovery.png",
+      "description": "真实 Admin 页面在契约 503 下显示可恢复失败，不把失败解释为空数据或成功。"
+    },
+    {
+      "fileKey": "A-07.base",
+      "sliceIds": [
+        "A.REFUND.REVIEW.APPROVED",
+        "A.COMPLAINT.DETAIL.WAITING_CUSTOMER",
+        "A.COMPLAINT.DETAIL.RESOLVED",
+        "A.COMPLAINT.DETAIL.CLOSED_OR_REJECTED",
+        "A.REFUND.REVIEW.REQUESTED",
+        "A.REVERSE.REVIEW.REQUESTED",
+        "A.REVERSE.REVIEW.APPROVED",
+        "A.REVERSE.REVIEW.REJECTED",
+        "A.REVERSE.REVIEW.APPLIED",
+        "A.COMPLAINT.QUEUE.SUBMITTED",
+        "A.COMPLAINT.DETAIL.TRIAGED",
+        "A.COMPLAINT.DETAIL.IN_PROGRESS",
+        "A.REPAIR.ORDER.REQUESTED",
+        "A.REPAIR.ORDER.ACTIVE",
+        "A.REPAIR.ORDER.COMPLETED_OR_CANCELLED",
+        "A.LIABILITY.DECISION.DRAFTING",
+        "A.COMPENSATION.INTENT.PROPOSED",
+        "A.COMPENSATION.INTENT.APPROVED_OR_REJECTED"
+      ],
+      "stage": "base",
+      "label": "售后运营：基础框架",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.base.png",
+      "description": "真实 Admin 应用的桌面基础框架与当前载体入口。"
+    },
+    {
+      "fileKey": "A-07.entry",
+      "sliceIds": [
+        "A.REFUND.REVIEW.APPROVED",
+        "A.COMPLAINT.DETAIL.WAITING_CUSTOMER",
+        "A.COMPLAINT.DETAIL.RESOLVED",
+        "A.COMPLAINT.DETAIL.CLOSED_OR_REJECTED",
+        "A.REFUND.REVIEW.REQUESTED",
+        "A.REVERSE.REVIEW.REQUESTED",
+        "A.REVERSE.REVIEW.APPROVED",
+        "A.REVERSE.REVIEW.REJECTED",
+        "A.REVERSE.REVIEW.APPLIED",
+        "A.COMPLAINT.QUEUE.SUBMITTED",
+        "A.COMPLAINT.DETAIL.TRIAGED",
+        "A.COMPLAINT.DETAIL.IN_PROGRESS",
+        "A.REPAIR.ORDER.REQUESTED",
+        "A.REPAIR.ORDER.ACTIVE",
+        "A.REPAIR.ORDER.COMPLETED_OR_CANCELLED",
+        "A.LIABILITY.DECISION.DRAFTING",
+        "A.COMPENSATION.INTENT.PROPOSED",
+        "A.COMPENSATION.INTENT.APPROVED_OR_REJECTED"
+      ],
+      "stage": "entry",
+      "label": "售后运营：进入/加载",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.entry.png",
+      "description": "真实 Admin 页面在契约请求未完成时保留业务上下文并显示加载状态。"
+    },
+    {
+      "fileKey": "A-07.result",
+      "sliceIds": [
+        "A.REFUND.REVIEW.APPROVED",
+        "A.COMPLAINT.DETAIL.WAITING_CUSTOMER",
+        "A.COMPLAINT.DETAIL.RESOLVED",
+        "A.COMPLAINT.DETAIL.CLOSED_OR_REJECTED",
+        "A.REFUND.REVIEW.REQUESTED",
+        "A.REVERSE.REVIEW.REQUESTED",
+        "A.REVERSE.REVIEW.APPROVED",
+        "A.REVERSE.REVIEW.REJECTED",
+        "A.REVERSE.REVIEW.APPLIED",
+        "A.COMPLAINT.QUEUE.SUBMITTED",
+        "A.COMPLAINT.DETAIL.TRIAGED",
+        "A.COMPLAINT.DETAIL.IN_PROGRESS",
+        "A.REPAIR.ORDER.REQUESTED",
+        "A.REPAIR.ORDER.ACTIVE",
+        "A.REPAIR.ORDER.COMPLETED_OR_CANCELLED",
+        "A.LIABILITY.DECISION.DRAFTING",
+        "A.COMPENSATION.INTENT.PROPOSED",
+        "A.COMPENSATION.INTENT.APPROVED_OR_REJECTED"
+      ],
+      "stage": "result",
+      "label": "售后运营：受控结果",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.result.png",
+      "description": "真实 Admin 页面消费成功契约并显示服务端确认的空结果；未伪造到账、退款或 Provider 成功。"
+    },
+    {
+      "fileKey": "A-07.recovery",
+      "sliceIds": [
+        "A.REFUND.REVIEW.APPROVED",
+        "A.COMPLAINT.DETAIL.WAITING_CUSTOMER",
+        "A.COMPLAINT.DETAIL.RESOLVED",
+        "A.COMPLAINT.DETAIL.CLOSED_OR_REJECTED",
+        "A.REFUND.REVIEW.REQUESTED",
+        "A.REVERSE.REVIEW.REQUESTED",
+        "A.REVERSE.REVIEW.APPROVED",
+        "A.REVERSE.REVIEW.REJECTED",
+        "A.REVERSE.REVIEW.APPLIED",
+        "A.COMPLAINT.QUEUE.SUBMITTED",
+        "A.COMPLAINT.DETAIL.TRIAGED",
+        "A.COMPLAINT.DETAIL.IN_PROGRESS",
+        "A.REPAIR.ORDER.REQUESTED",
+        "A.REPAIR.ORDER.ACTIVE",
+        "A.REPAIR.ORDER.COMPLETED_OR_CANCELLED",
+        "A.LIABILITY.DECISION.DRAFTING",
+        "A.COMPENSATION.INTENT.PROPOSED",
+        "A.COMPENSATION.INTENT.APPROVED_OR_REJECTED"
+      ],
+      "stage": "recovery",
+      "label": "售后运营：失败恢复",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.recovery.png",
+      "description": "真实 Admin 页面在契约 503 下显示可恢复失败，不把失败解释为空数据或成功。"
+    },
+    {
+      "fileKey": "A-08.base",
+      "sliceIds": [
+        "A.ENTERPRISE.CLIENT.SUSPENDED_OR_CLOSED",
+        "A.ENTERPRISE.CREDENTIAL.ACTIVE",
+        "A.ENTERPRISE.CLIENT.ACTIVE",
+        "A.ENTERPRISE.CREDENTIAL.REVOKED",
+        "A.ENTERPRISE.PRICE.ACTIVE",
+        "A.ENTERPRISE.WEBHOOK.ACTIVE_OR_PAUSED",
+        "A.ENTERPRISE.DELIVERY.PENDING_OR_RETRY",
+        "A.ENTERPRISE.DELIVERY.DELIVERED_OR_DEAD",
+        "A.ENTERPRISE.BILL.DRAFT",
+        "A.ENTERPRISE.BILL.ISSUED"
+      ],
+      "stage": "base",
+      "label": "企业服务：基础框架",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-08.base.png",
+      "description": "真实 Admin 应用的桌面基础框架与当前载体入口。"
+    },
+    {
+      "fileKey": "A-08.entry",
+      "sliceIds": [
+        "A.ENTERPRISE.CLIENT.SUSPENDED_OR_CLOSED",
+        "A.ENTERPRISE.CREDENTIAL.ACTIVE",
+        "A.ENTERPRISE.CLIENT.ACTIVE",
+        "A.ENTERPRISE.CREDENTIAL.REVOKED",
+        "A.ENTERPRISE.PRICE.ACTIVE",
+        "A.ENTERPRISE.WEBHOOK.ACTIVE_OR_PAUSED",
+        "A.ENTERPRISE.DELIVERY.PENDING_OR_RETRY",
+        "A.ENTERPRISE.DELIVERY.DELIVERED_OR_DEAD",
+        "A.ENTERPRISE.BILL.DRAFT",
+        "A.ENTERPRISE.BILL.ISSUED"
+      ],
+      "stage": "entry",
+      "label": "企业服务：进入/加载",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-08.entry.png",
+      "description": "真实 Admin 页面在契约请求未完成时保留业务上下文并显示加载状态。"
+    },
+    {
+      "fileKey": "A-08.result",
+      "sliceIds": [
+        "A.ENTERPRISE.CLIENT.SUSPENDED_OR_CLOSED",
+        "A.ENTERPRISE.CREDENTIAL.ACTIVE",
+        "A.ENTERPRISE.CLIENT.ACTIVE",
+        "A.ENTERPRISE.CREDENTIAL.REVOKED",
+        "A.ENTERPRISE.PRICE.ACTIVE",
+        "A.ENTERPRISE.WEBHOOK.ACTIVE_OR_PAUSED",
+        "A.ENTERPRISE.DELIVERY.PENDING_OR_RETRY",
+        "A.ENTERPRISE.DELIVERY.DELIVERED_OR_DEAD",
+        "A.ENTERPRISE.BILL.DRAFT",
+        "A.ENTERPRISE.BILL.ISSUED"
+      ],
+      "stage": "result",
+      "label": "企业服务：受控结果",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-08.result.png",
+      "description": "真实 Admin 页面消费成功契约并显示服务端确认的空结果；未伪造到账、退款或 Provider 成功。"
+    },
+    {
+      "fileKey": "A-08.recovery",
+      "sliceIds": [
+        "A.ENTERPRISE.CLIENT.SUSPENDED_OR_CLOSED",
+        "A.ENTERPRISE.CREDENTIAL.ACTIVE",
+        "A.ENTERPRISE.CLIENT.ACTIVE",
+        "A.ENTERPRISE.CREDENTIAL.REVOKED",
+        "A.ENTERPRISE.PRICE.ACTIVE",
+        "A.ENTERPRISE.WEBHOOK.ACTIVE_OR_PAUSED",
+        "A.ENTERPRISE.DELIVERY.PENDING_OR_RETRY",
+        "A.ENTERPRISE.DELIVERY.DELIVERED_OR_DEAD",
+        "A.ENTERPRISE.BILL.DRAFT",
+        "A.ENTERPRISE.BILL.ISSUED"
+      ],
+      "stage": "recovery",
+      "label": "企业服务：失败恢复",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-08.recovery.png",
+      "description": "真实 Admin 页面在契约 503 下显示可恢复失败，不把失败解释为空数据或成功。"
+    },
+    {
+      "fileKey": "A-09.base",
+      "sliceIds": [
+        "A.DISPATCH.BOARD.PENDING",
+        "A.DISPATCH.BOARD.QUEUED",
+        "A.DISPATCH.BOARD.OFFERING",
+        "A.DISPATCH.BOARD.ACCEPTED",
+        "A.DISPATCH.BOARD.REASSIGNING",
+        "A.DISPATCH.BOARD.NO_MATCH",
+        "A.DISPATCH.BOARD.MANUAL_REVIEW",
+        "A.DISPATCH.BOARD.TIMEOUT_OR_EXPIRED",
+        "A.DISPATCH.BOARD.FAILED_OR_REJECTED",
+        "A.DISPATCH.BOARD.COMPLETED",
+        "A.DISPATCH.BOARD.CANCELLED"
+      ],
+      "stage": "base",
+      "label": "派单工作台：基础框架",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-09.base.png",
+      "description": "真实 Admin 应用的桌面基础框架与当前载体入口。"
+    },
+    {
+      "fileKey": "A-09.entry",
+      "sliceIds": [
+        "A.DISPATCH.BOARD.PENDING",
+        "A.DISPATCH.BOARD.QUEUED",
+        "A.DISPATCH.BOARD.OFFERING",
+        "A.DISPATCH.BOARD.ACCEPTED",
+        "A.DISPATCH.BOARD.REASSIGNING",
+        "A.DISPATCH.BOARD.NO_MATCH",
+        "A.DISPATCH.BOARD.MANUAL_REVIEW",
+        "A.DISPATCH.BOARD.TIMEOUT_OR_EXPIRED",
+        "A.DISPATCH.BOARD.FAILED_OR_REJECTED",
+        "A.DISPATCH.BOARD.COMPLETED",
+        "A.DISPATCH.BOARD.CANCELLED"
+      ],
+      "stage": "entry",
+      "label": "派单工作台：进入/加载",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-09.entry.png",
+      "description": "真实 Admin 页面在契约请求未完成时保留业务上下文并显示加载状态。"
+    },
+    {
+      "fileKey": "A-09.result",
+      "sliceIds": [
+        "A.DISPATCH.BOARD.PENDING",
+        "A.DISPATCH.BOARD.QUEUED",
+        "A.DISPATCH.BOARD.OFFERING",
+        "A.DISPATCH.BOARD.ACCEPTED",
+        "A.DISPATCH.BOARD.REASSIGNING",
+        "A.DISPATCH.BOARD.NO_MATCH",
+        "A.DISPATCH.BOARD.MANUAL_REVIEW",
+        "A.DISPATCH.BOARD.TIMEOUT_OR_EXPIRED",
+        "A.DISPATCH.BOARD.FAILED_OR_REJECTED",
+        "A.DISPATCH.BOARD.COMPLETED",
+        "A.DISPATCH.BOARD.CANCELLED"
+      ],
+      "stage": "result",
+      "label": "派单工作台：受控结果",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-09.result.png",
+      "description": "真实 Admin 页面消费成功契约并显示服务端确认的空结果；未伪造到账、退款或 Provider 成功。"
+    },
+    {
+      "fileKey": "A-09.recovery",
+      "sliceIds": [
+        "A.DISPATCH.BOARD.PENDING",
+        "A.DISPATCH.BOARD.QUEUED",
+        "A.DISPATCH.BOARD.OFFERING",
+        "A.DISPATCH.BOARD.ACCEPTED",
+        "A.DISPATCH.BOARD.REASSIGNING",
+        "A.DISPATCH.BOARD.NO_MATCH",
+        "A.DISPATCH.BOARD.MANUAL_REVIEW",
+        "A.DISPATCH.BOARD.TIMEOUT_OR_EXPIRED",
+        "A.DISPATCH.BOARD.FAILED_OR_REJECTED",
+        "A.DISPATCH.BOARD.COMPLETED",
+        "A.DISPATCH.BOARD.CANCELLED"
+      ],
+      "stage": "recovery",
+      "label": "派单工作台：失败恢复",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-09.recovery.png",
+      "description": "真实 Admin 页面在契约 503 下显示可恢复失败，不把失败解释为空数据或成功。"
+    },
+    {
+      "fileKey": "A-10.base",
+      "sliceIds": [
+        "A.CERTIFICATION.REVIEW.PENDING",
+        "A.CERTIFICATION.REVIEW.APPROVED",
+        "A.CERTIFICATION.REVIEW.REJECTED",
+        "A.CERTIFICATION.REVIEW.EXPIRED",
+        "A.ORDER.OPERATIONS.LIST",
+        "A.CATALOG.OPERATIONS.LIST"
+      ],
+      "stage": "base",
+      "label": "平台运营：基础框架",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-10.base.png",
+      "description": "真实 Admin 应用的桌面基础框架与当前载体入口。"
+    },
+    {
+      "fileKey": "A-10.entry",
+      "sliceIds": [
+        "A.CERTIFICATION.REVIEW.PENDING",
+        "A.CERTIFICATION.REVIEW.APPROVED",
+        "A.CERTIFICATION.REVIEW.REJECTED",
+        "A.CERTIFICATION.REVIEW.EXPIRED",
+        "A.ORDER.OPERATIONS.LIST",
+        "A.CATALOG.OPERATIONS.LIST"
+      ],
+      "stage": "entry",
+      "label": "平台运营：进入/加载",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-10.entry.png",
+      "description": "真实 Admin 页面在契约请求未完成时保留业务上下文并显示加载状态。"
+    },
+    {
+      "fileKey": "A-10.result",
+      "sliceIds": [
+        "A.CERTIFICATION.REVIEW.PENDING",
+        "A.CERTIFICATION.REVIEW.APPROVED",
+        "A.CERTIFICATION.REVIEW.REJECTED",
+        "A.CERTIFICATION.REVIEW.EXPIRED",
+        "A.ORDER.OPERATIONS.LIST",
+        "A.CATALOG.OPERATIONS.LIST"
+      ],
+      "stage": "result",
+      "label": "平台运营：受控结果",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-10.result.png",
+      "description": "真实 Admin 页面消费成功契约并显示服务端确认的空结果；未伪造到账、退款或 Provider 成功。"
+    },
+    {
+      "fileKey": "A-10.recovery",
+      "sliceIds": [
+        "A.CERTIFICATION.REVIEW.PENDING",
+        "A.CERTIFICATION.REVIEW.APPROVED",
+        "A.CERTIFICATION.REVIEW.REJECTED",
+        "A.CERTIFICATION.REVIEW.EXPIRED",
+        "A.ORDER.OPERATIONS.LIST",
+        "A.CATALOG.OPERATIONS.LIST"
+      ],
+      "stage": "recovery",
+      "label": "平台运营：失败恢复",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-10.recovery.png",
+      "description": "真实 Admin 页面在契约 503 下显示可恢复失败，不把失败解释为空数据或成功。"
+    },
+    {
+      "fileKey": "A-11.base",
+      "sliceIds": [
+        "A.SUPPORT.TICKET.ESCALATED",
+        "A.SUPPORT.CONVERSATION.ACTIVE",
+        "A.SUPPORT.WORKBENCH.QUEUE",
+        "A.SUPPORT.TICKET.PROCESSING",
+        "A.SUPPORT.TICKET.RESOLVED_OR_CLOSED",
+        "A.SUPPORT.CONVERSATION.QUEUEING",
+        "A.SUPPORT.CONVERSATION.TRANSFERRED_OR_CLOSED",
+        "A.SUPPORT.ROUTING.CONFIGURATION",
+        "A.SUPPORT.KNOWLEDGE.DRAFT_OR_REVIEW",
+        "A.SUPPORT.KNOWLEDGE.PUBLISHED_OR_ARCHIVED"
+      ],
+      "stage": "base",
+      "label": "客服工作台：基础框架",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-11.base.png",
+      "description": "真实 Admin 应用的桌面基础框架与当前载体入口。"
+    },
+    {
+      "fileKey": "A-11.entry",
+      "sliceIds": [
+        "A.SUPPORT.TICKET.ESCALATED",
+        "A.SUPPORT.CONVERSATION.ACTIVE",
+        "A.SUPPORT.WORKBENCH.QUEUE",
+        "A.SUPPORT.TICKET.PROCESSING",
+        "A.SUPPORT.TICKET.RESOLVED_OR_CLOSED",
+        "A.SUPPORT.CONVERSATION.QUEUEING",
+        "A.SUPPORT.CONVERSATION.TRANSFERRED_OR_CLOSED",
+        "A.SUPPORT.ROUTING.CONFIGURATION",
+        "A.SUPPORT.KNOWLEDGE.DRAFT_OR_REVIEW",
+        "A.SUPPORT.KNOWLEDGE.PUBLISHED_OR_ARCHIVED"
+      ],
+      "stage": "entry",
+      "label": "客服工作台：进入/加载",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-11.entry.png",
+      "description": "真实 Admin 页面在契约请求未完成时保留业务上下文并显示加载状态。"
+    },
+    {
+      "fileKey": "A-11.result",
+      "sliceIds": [
+        "A.SUPPORT.TICKET.ESCALATED",
+        "A.SUPPORT.CONVERSATION.ACTIVE",
+        "A.SUPPORT.WORKBENCH.QUEUE",
+        "A.SUPPORT.TICKET.PROCESSING",
+        "A.SUPPORT.TICKET.RESOLVED_OR_CLOSED",
+        "A.SUPPORT.CONVERSATION.QUEUEING",
+        "A.SUPPORT.CONVERSATION.TRANSFERRED_OR_CLOSED",
+        "A.SUPPORT.ROUTING.CONFIGURATION",
+        "A.SUPPORT.KNOWLEDGE.DRAFT_OR_REVIEW",
+        "A.SUPPORT.KNOWLEDGE.PUBLISHED_OR_ARCHIVED"
+      ],
+      "stage": "result",
+      "label": "客服工作台：受控结果",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-11.result.png",
+      "description": "真实 Admin 页面消费成功契约并显示服务端确认的空结果；未伪造到账、退款或 Provider 成功。"
+    },
+    {
+      "fileKey": "A-11.recovery",
+      "sliceIds": [
+        "A.SUPPORT.TICKET.ESCALATED",
+        "A.SUPPORT.CONVERSATION.ACTIVE",
+        "A.SUPPORT.WORKBENCH.QUEUE",
+        "A.SUPPORT.TICKET.PROCESSING",
+        "A.SUPPORT.TICKET.RESOLVED_OR_CLOSED",
+        "A.SUPPORT.CONVERSATION.QUEUEING",
+        "A.SUPPORT.CONVERSATION.TRANSFERRED_OR_CLOSED",
+        "A.SUPPORT.ROUTING.CONFIGURATION",
+        "A.SUPPORT.KNOWLEDGE.DRAFT_OR_REVIEW",
+        "A.SUPPORT.KNOWLEDGE.PUBLISHED_OR_ARCHIVED"
+      ],
+      "stage": "recovery",
+      "label": "客服工作台：失败恢复",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-11.recovery.png",
+      "description": "真实 Admin 页面在契约 503 下显示可恢复失败，不把失败解释为空数据或成功。"
+    },
+    {
+      "fileKey": "A-12.base",
+      "sliceIds": [
+        "A.SUPPORT.QUALITY.DASHBOARD",
+        "A.SUPPORT.QUALITY.REVIEW"
+      ],
+      "stage": "base",
+      "label": "客服质量：基础框架",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-12.base.png",
+      "description": "真实 Admin 应用的桌面基础框架与当前载体入口。"
+    },
+    {
+      "fileKey": "A-12.entry",
+      "sliceIds": [
+        "A.SUPPORT.QUALITY.DASHBOARD",
+        "A.SUPPORT.QUALITY.REVIEW"
+      ],
+      "stage": "entry",
+      "label": "客服质量：进入/加载",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-12.entry.png",
+      "description": "真实 Admin 页面在契约请求未完成时保留业务上下文并显示加载状态。"
+    },
+    {
+      "fileKey": "A-12.result",
+      "sliceIds": [
+        "A.SUPPORT.QUALITY.DASHBOARD",
+        "A.SUPPORT.QUALITY.REVIEW"
+      ],
+      "stage": "result",
+      "label": "客服质量：受控结果",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-12.result.png",
+      "description": "真实 Admin 页面消费成功契约并显示服务端确认的空结果；未伪造到账、退款或 Provider 成功。"
+    },
+    {
+      "fileKey": "A-12.recovery",
+      "sliceIds": [
+        "A.SUPPORT.QUALITY.DASHBOARD",
+        "A.SUPPORT.QUALITY.REVIEW"
+      ],
+      "stage": "recovery",
+      "label": "客服质量：失败恢复",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-12.recovery.png",
+      "description": "真实 Admin 页面在契约 503 下显示可恢复失败，不把失败解释为空数据或成功。"
+    },
+    {
+      "fileKey": "A-13.base",
+      "sliceIds": [
+        "A.REVIEW.MODERATION.PENDING",
+        "A.REVIEW.MODERATION.VISIBLE_OR_HIDDEN",
+        "A.REVIEW.APPEAL.OPEN",
+        "A.REVIEW.APPEAL.RESOLVED"
+      ],
+      "stage": "base",
+      "label": "评价治理：基础框架",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-13.base.png",
+      "description": "真实 Admin 应用的桌面基础框架与当前载体入口。"
+    },
+    {
+      "fileKey": "A-13.entry",
+      "sliceIds": [
+        "A.REVIEW.MODERATION.PENDING",
+        "A.REVIEW.MODERATION.VISIBLE_OR_HIDDEN",
+        "A.REVIEW.APPEAL.OPEN",
+        "A.REVIEW.APPEAL.RESOLVED"
+      ],
+      "stage": "entry",
+      "label": "评价治理：进入/加载",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-13.entry.png",
+      "description": "真实 Admin 页面在契约请求未完成时保留业务上下文并显示加载状态。"
+    },
+    {
+      "fileKey": "A-13.result",
+      "sliceIds": [
+        "A.REVIEW.MODERATION.PENDING",
+        "A.REVIEW.MODERATION.VISIBLE_OR_HIDDEN",
+        "A.REVIEW.APPEAL.OPEN",
+        "A.REVIEW.APPEAL.RESOLVED"
+      ],
+      "stage": "result",
+      "label": "评价治理：受控结果",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-13.result.png",
+      "description": "真实 Admin 页面消费成功契约并显示服务端确认的空结果；未伪造到账、退款或 Provider 成功。"
+    },
+    {
+      "fileKey": "A-13.recovery",
+      "sliceIds": [
+        "A.REVIEW.MODERATION.PENDING",
+        "A.REVIEW.MODERATION.VISIBLE_OR_HIDDEN",
+        "A.REVIEW.APPEAL.OPEN",
+        "A.REVIEW.APPEAL.RESOLVED"
+      ],
+      "stage": "recovery",
+      "label": "评价治理：失败恢复",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-13.recovery.png",
+      "description": "真实 Admin 页面在契约 503 下显示可恢复失败，不把失败解释为空数据或成功。"
+    },
+    {
+      "fileKey": "A-14.base",
+      "sliceIds": [
+        "A.MARKETING.CAMPAIGN.SCHEDULED_OR_ACTIVE",
+        "A.MARKETING.CAMPAIGN.TERMINAL",
+        "A.MARKETING.COMPENSATION.PENDING",
+        "A.MARKETING.CAMPAIGN.DRAFT_OR_REVIEWED",
+        "A.MARKETING.RULE.DRAFT_OR_REVIEWED",
+        "A.MARKETING.RULE.PUBLISHED_OR_RETIRED",
+        "A.COUPON.DEFINITION.DRAFT",
+        "A.COUPON.DEFINITION.ACTIVE_OR_SUSPENDED",
+        "A.COUPON.DEFINITION.TERMINAL",
+        "A.COUPON.GRANT.LIFECYCLE",
+        "A.COUPON.GRANT.TERMINAL",
+        "A.MARKETING.COMPENSATION.RESOLVED"
+      ],
+      "stage": "base",
+      "label": "营销运营：基础框架",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-14.base.png",
+      "description": "真实 Admin 应用的桌面基础框架与当前载体入口。"
+    },
+    {
+      "fileKey": "A-14.entry",
+      "sliceIds": [
+        "A.MARKETING.CAMPAIGN.SCHEDULED_OR_ACTIVE",
+        "A.MARKETING.CAMPAIGN.TERMINAL",
+        "A.MARKETING.COMPENSATION.PENDING",
+        "A.MARKETING.CAMPAIGN.DRAFT_OR_REVIEWED",
+        "A.MARKETING.RULE.DRAFT_OR_REVIEWED",
+        "A.MARKETING.RULE.PUBLISHED_OR_RETIRED",
+        "A.COUPON.DEFINITION.DRAFT",
+        "A.COUPON.DEFINITION.ACTIVE_OR_SUSPENDED",
+        "A.COUPON.DEFINITION.TERMINAL",
+        "A.COUPON.GRANT.LIFECYCLE",
+        "A.COUPON.GRANT.TERMINAL",
+        "A.MARKETING.COMPENSATION.RESOLVED"
+      ],
+      "stage": "entry",
+      "label": "营销运营：进入/加载",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-14.entry.png",
+      "description": "真实 Admin 页面在契约请求未完成时保留业务上下文并显示加载状态。"
+    },
+    {
+      "fileKey": "A-14.result",
+      "sliceIds": [
+        "A.MARKETING.CAMPAIGN.SCHEDULED_OR_ACTIVE",
+        "A.MARKETING.CAMPAIGN.TERMINAL",
+        "A.MARKETING.COMPENSATION.PENDING",
+        "A.MARKETING.CAMPAIGN.DRAFT_OR_REVIEWED",
+        "A.MARKETING.RULE.DRAFT_OR_REVIEWED",
+        "A.MARKETING.RULE.PUBLISHED_OR_RETIRED",
+        "A.COUPON.DEFINITION.DRAFT",
+        "A.COUPON.DEFINITION.ACTIVE_OR_SUSPENDED",
+        "A.COUPON.DEFINITION.TERMINAL",
+        "A.COUPON.GRANT.LIFECYCLE",
+        "A.COUPON.GRANT.TERMINAL",
+        "A.MARKETING.COMPENSATION.RESOLVED"
+      ],
+      "stage": "result",
+      "label": "营销运营：受控结果",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-14.result.png",
+      "description": "真实 Admin 页面消费成功契约并显示服务端确认的空结果；未伪造到账、退款或 Provider 成功。"
+    },
+    {
+      "fileKey": "A-14.recovery",
+      "sliceIds": [
+        "A.MARKETING.CAMPAIGN.SCHEDULED_OR_ACTIVE",
+        "A.MARKETING.CAMPAIGN.TERMINAL",
+        "A.MARKETING.COMPENSATION.PENDING",
+        "A.MARKETING.CAMPAIGN.DRAFT_OR_REVIEWED",
+        "A.MARKETING.RULE.DRAFT_OR_REVIEWED",
+        "A.MARKETING.RULE.PUBLISHED_OR_RETIRED",
+        "A.COUPON.DEFINITION.DRAFT",
+        "A.COUPON.DEFINITION.ACTIVE_OR_SUSPENDED",
+        "A.COUPON.DEFINITION.TERMINAL",
+        "A.COUPON.GRANT.LIFECYCLE",
+        "A.COUPON.GRANT.TERMINAL",
+        "A.MARKETING.COMPENSATION.RESOLVED"
+      ],
+      "stage": "recovery",
+      "label": "营销运营：失败恢复",
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-14.recovery.png",
+      "description": "真实 Admin 页面在契约 503 下显示可恢复失败，不把失败解释为空数据或成功。"
+    }
+  ],
+  "sliceCoverage": [
+    {
+      "sliceId": "A.SETTLEMENT.RECONCILIATION.GAP_FOUND",
+      "carrierId": "A-01",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-01.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-01.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-01.recovery.png"
+    },
+    {
+      "sliceId": "A.SETTLEMENT.BATCH.PREPARED",
+      "carrierId": "A-01",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-01.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-01.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-01.recovery.png"
+    },
+    {
+      "sliceId": "A.SETTLEMENT.BATCH.CONFIRMED",
+      "carrierId": "A-01",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-01.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-01.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-01.recovery.png"
+    },
+    {
+      "sliceId": "A.SETTLEMENT.BATCH.CANCELLED",
+      "carrierId": "A-01",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-01.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-01.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-01.recovery.png"
+    },
+    {
+      "sliceId": "A.SETTLEMENT.PAYABLE.PAYABLE",
+      "carrierId": "A-01",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-01.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-01.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-01.recovery.png"
+    },
+    {
+      "sliceId": "A.SETTLEMENT.QUEUE.QUEUED",
+      "carrierId": "A-01",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-01.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-01.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-01.recovery.png"
+    },
+    {
+      "sliceId": "A.SETTLEMENT.RECONCILIATION.CLEAR",
+      "carrierId": "A-01",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-01.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-01.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-01.recovery.png"
+    },
+    {
+      "sliceId": "A.SETTLEMENT.STATEMENT.CREATED",
+      "carrierId": "A-02",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-02.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-02.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-02.recovery.png"
+    },
+    {
+      "sliceId": "A.SETTLEMENT.STATEMENT.APPROVED",
+      "carrierId": "A-02",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-02.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-02.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-02.recovery.png"
+    },
+    {
+      "sliceId": "A.SETTLEMENT.STATEMENT.REJECTED",
+      "carrierId": "A-02",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-02.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-02.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-02.recovery.png"
+    },
+    {
+      "sliceId": "A.SETTLEMENT.EXPORT.CREATED",
+      "carrierId": "A-03",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-03.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-03.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-03.recovery.png"
+    },
+    {
+      "sliceId": "A.GOVERNANCE.INTENT.BLOCKED",
+      "carrierId": "A-04",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-04.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-04.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-04.recovery.png"
+    },
+    {
+      "sliceId": "A.GOVERNANCE.INTENT.DRAFT",
+      "carrierId": "A-04",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-04.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-04.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-04.recovery.png"
+    },
+    {
+      "sliceId": "A.GOVERNANCE.INTENT.READY_FOR_REVIEW",
+      "carrierId": "A-04",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-04.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-04.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-04.recovery.png"
+    },
+    {
+      "sliceId": "A.GOVERNANCE.INTENT.TERMINAL",
+      "carrierId": "A-04",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-04.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-04.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-04.recovery.png"
+    },
+    {
+      "sliceId": "A.ORDER.TRACE.FOUND",
+      "carrierId": "A-05",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-05.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-05.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-05.recovery.png"
+    },
+    {
+      "sliceId": "A.ORDER.TRACE.NOT_FOUND",
+      "carrierId": "A-05",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-05.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-05.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-05.recovery.png"
+    },
+    {
+      "sliceId": "A.ORDER.TRACE.SEARCH",
+      "carrierId": "A-05",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-05.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-05.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-05.recovery.png"
+    },
+    {
+      "sliceId": "A.WITHDRAWAL.REVIEW.REQUESTED",
+      "carrierId": "A-06",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-06.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-06.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-06.recovery.png"
+    },
+    {
+      "sliceId": "A.WITHDRAWAL.REVIEW.APPROVED",
+      "carrierId": "A-06",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-06.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-06.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-06.recovery.png"
+    },
+    {
+      "sliceId": "A.WITHDRAWAL.REVIEW.REJECTED",
+      "carrierId": "A-06",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-06.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-06.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-06.recovery.png"
+    },
+    {
+      "sliceId": "A.WITHDRAWAL.REVIEW.MARKED_PAID",
+      "carrierId": "A-06",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-06.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-06.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-06.recovery.png"
+    },
+    {
+      "sliceId": "A.WITHDRAWAL.REVIEW.CANCELLED",
+      "carrierId": "A-06",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-06.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-06.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-06.recovery.png"
+    },
+    {
+      "sliceId": "A.REFUND.REVIEW.APPROVED",
+      "carrierId": "A-07",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.recovery.png"
+    },
+    {
+      "sliceId": "A.COMPLAINT.DETAIL.WAITING_CUSTOMER",
+      "carrierId": "A-07",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.recovery.png"
+    },
+    {
+      "sliceId": "A.COMPLAINT.DETAIL.RESOLVED",
+      "carrierId": "A-07",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.recovery.png"
+    },
+    {
+      "sliceId": "A.COMPLAINT.DETAIL.CLOSED_OR_REJECTED",
+      "carrierId": "A-07",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.recovery.png"
+    },
+    {
+      "sliceId": "A.REFUND.REVIEW.REQUESTED",
+      "carrierId": "A-07",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.recovery.png"
+    },
+    {
+      "sliceId": "A.REVERSE.REVIEW.REQUESTED",
+      "carrierId": "A-07",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.recovery.png"
+    },
+    {
+      "sliceId": "A.REVERSE.REVIEW.APPROVED",
+      "carrierId": "A-07",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.recovery.png"
+    },
+    {
+      "sliceId": "A.REVERSE.REVIEW.REJECTED",
+      "carrierId": "A-07",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.recovery.png"
+    },
+    {
+      "sliceId": "A.REVERSE.REVIEW.APPLIED",
+      "carrierId": "A-07",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.recovery.png"
+    },
+    {
+      "sliceId": "A.COMPLAINT.QUEUE.SUBMITTED",
+      "carrierId": "A-07",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.recovery.png"
+    },
+    {
+      "sliceId": "A.COMPLAINT.DETAIL.TRIAGED",
+      "carrierId": "A-07",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.recovery.png"
+    },
+    {
+      "sliceId": "A.COMPLAINT.DETAIL.IN_PROGRESS",
+      "carrierId": "A-07",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.recovery.png"
+    },
+    {
+      "sliceId": "A.REPAIR.ORDER.REQUESTED",
+      "carrierId": "A-07",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.recovery.png"
+    },
+    {
+      "sliceId": "A.REPAIR.ORDER.ACTIVE",
+      "carrierId": "A-07",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.recovery.png"
+    },
+    {
+      "sliceId": "A.REPAIR.ORDER.COMPLETED_OR_CANCELLED",
+      "carrierId": "A-07",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.recovery.png"
+    },
+    {
+      "sliceId": "A.LIABILITY.DECISION.DRAFTING",
+      "carrierId": "A-07",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.recovery.png"
+    },
+    {
+      "sliceId": "A.COMPENSATION.INTENT.PROPOSED",
+      "carrierId": "A-07",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.recovery.png"
+    },
+    {
+      "sliceId": "A.COMPENSATION.INTENT.APPROVED_OR_REJECTED",
+      "carrierId": "A-07",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-07.recovery.png"
+    },
+    {
+      "sliceId": "A.ENTERPRISE.CLIENT.SUSPENDED_OR_CLOSED",
+      "carrierId": "A-08",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-08.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-08.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-08.recovery.png"
+    },
+    {
+      "sliceId": "A.ENTERPRISE.CREDENTIAL.ACTIVE",
+      "carrierId": "A-08",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-08.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-08.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-08.recovery.png"
+    },
+    {
+      "sliceId": "A.ENTERPRISE.CLIENT.ACTIVE",
+      "carrierId": "A-08",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-08.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-08.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-08.recovery.png"
+    },
+    {
+      "sliceId": "A.ENTERPRISE.CREDENTIAL.REVOKED",
+      "carrierId": "A-08",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-08.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-08.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-08.recovery.png"
+    },
+    {
+      "sliceId": "A.ENTERPRISE.PRICE.ACTIVE",
+      "carrierId": "A-08",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-08.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-08.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-08.recovery.png"
+    },
+    {
+      "sliceId": "A.ENTERPRISE.WEBHOOK.ACTIVE_OR_PAUSED",
+      "carrierId": "A-08",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-08.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-08.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-08.recovery.png"
+    },
+    {
+      "sliceId": "A.ENTERPRISE.DELIVERY.PENDING_OR_RETRY",
+      "carrierId": "A-08",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-08.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-08.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-08.recovery.png"
+    },
+    {
+      "sliceId": "A.ENTERPRISE.DELIVERY.DELIVERED_OR_DEAD",
+      "carrierId": "A-08",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-08.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-08.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-08.recovery.png"
+    },
+    {
+      "sliceId": "A.ENTERPRISE.BILL.DRAFT",
+      "carrierId": "A-08",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-08.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-08.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-08.recovery.png"
+    },
+    {
+      "sliceId": "A.ENTERPRISE.BILL.ISSUED",
+      "carrierId": "A-08",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-08.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-08.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-08.recovery.png"
+    },
+    {
+      "sliceId": "A.DISPATCH.BOARD.PENDING",
+      "carrierId": "A-09",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-09.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-09.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-09.recovery.png"
+    },
+    {
+      "sliceId": "A.DISPATCH.BOARD.QUEUED",
+      "carrierId": "A-09",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-09.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-09.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-09.recovery.png"
+    },
+    {
+      "sliceId": "A.DISPATCH.BOARD.OFFERING",
+      "carrierId": "A-09",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-09.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-09.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-09.recovery.png"
+    },
+    {
+      "sliceId": "A.DISPATCH.BOARD.ACCEPTED",
+      "carrierId": "A-09",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-09.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-09.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-09.recovery.png"
+    },
+    {
+      "sliceId": "A.DISPATCH.BOARD.REASSIGNING",
+      "carrierId": "A-09",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-09.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-09.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-09.recovery.png"
+    },
+    {
+      "sliceId": "A.DISPATCH.BOARD.NO_MATCH",
+      "carrierId": "A-09",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-09.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-09.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-09.recovery.png"
+    },
+    {
+      "sliceId": "A.DISPATCH.BOARD.MANUAL_REVIEW",
+      "carrierId": "A-09",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-09.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-09.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-09.recovery.png"
+    },
+    {
+      "sliceId": "A.DISPATCH.BOARD.TIMEOUT_OR_EXPIRED",
+      "carrierId": "A-09",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-09.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-09.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-09.recovery.png"
+    },
+    {
+      "sliceId": "A.DISPATCH.BOARD.FAILED_OR_REJECTED",
+      "carrierId": "A-09",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-09.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-09.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-09.recovery.png"
+    },
+    {
+      "sliceId": "A.DISPATCH.BOARD.COMPLETED",
+      "carrierId": "A-09",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-09.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-09.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-09.recovery.png"
+    },
+    {
+      "sliceId": "A.DISPATCH.BOARD.CANCELLED",
+      "carrierId": "A-09",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-09.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-09.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-09.recovery.png"
+    },
+    {
+      "sliceId": "A.CERTIFICATION.REVIEW.PENDING",
+      "carrierId": "A-10",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-10.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-10.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-10.recovery.png"
+    },
+    {
+      "sliceId": "A.CERTIFICATION.REVIEW.APPROVED",
+      "carrierId": "A-10",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-10.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-10.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-10.recovery.png"
+    },
+    {
+      "sliceId": "A.CERTIFICATION.REVIEW.REJECTED",
+      "carrierId": "A-10",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-10.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-10.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-10.recovery.png"
+    },
+    {
+      "sliceId": "A.CERTIFICATION.REVIEW.EXPIRED",
+      "carrierId": "A-10",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-10.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-10.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-10.recovery.png"
+    },
+    {
+      "sliceId": "A.ORDER.OPERATIONS.LIST",
+      "carrierId": "A-10",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-10.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-10.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-10.recovery.png"
+    },
+    {
+      "sliceId": "A.CATALOG.OPERATIONS.LIST",
+      "carrierId": "A-10",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-10.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-10.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-10.recovery.png"
+    },
+    {
+      "sliceId": "A.SUPPORT.TICKET.ESCALATED",
+      "carrierId": "A-11",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-11.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-11.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-11.recovery.png"
+    },
+    {
+      "sliceId": "A.SUPPORT.CONVERSATION.ACTIVE",
+      "carrierId": "A-11",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-11.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-11.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-11.recovery.png"
+    },
+    {
+      "sliceId": "A.SUPPORT.WORKBENCH.QUEUE",
+      "carrierId": "A-11",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-11.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-11.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-11.recovery.png"
+    },
+    {
+      "sliceId": "A.SUPPORT.TICKET.PROCESSING",
+      "carrierId": "A-11",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-11.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-11.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-11.recovery.png"
+    },
+    {
+      "sliceId": "A.SUPPORT.TICKET.RESOLVED_OR_CLOSED",
+      "carrierId": "A-11",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-11.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-11.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-11.recovery.png"
+    },
+    {
+      "sliceId": "A.SUPPORT.CONVERSATION.QUEUEING",
+      "carrierId": "A-11",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-11.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-11.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-11.recovery.png"
+    },
+    {
+      "sliceId": "A.SUPPORT.CONVERSATION.TRANSFERRED_OR_CLOSED",
+      "carrierId": "A-11",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-11.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-11.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-11.recovery.png"
+    },
+    {
+      "sliceId": "A.SUPPORT.ROUTING.CONFIGURATION",
+      "carrierId": "A-11",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-11.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-11.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-11.recovery.png"
+    },
+    {
+      "sliceId": "A.SUPPORT.KNOWLEDGE.DRAFT_OR_REVIEW",
+      "carrierId": "A-11",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-11.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-11.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-11.recovery.png"
+    },
+    {
+      "sliceId": "A.SUPPORT.KNOWLEDGE.PUBLISHED_OR_ARCHIVED",
+      "carrierId": "A-11",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-11.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-11.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-11.recovery.png"
+    },
+    {
+      "sliceId": "A.SUPPORT.QUALITY.DASHBOARD",
+      "carrierId": "A-12",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-12.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-12.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-12.recovery.png"
+    },
+    {
+      "sliceId": "A.SUPPORT.QUALITY.REVIEW",
+      "carrierId": "A-12",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-12.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-12.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-12.recovery.png"
+    },
+    {
+      "sliceId": "A.REVIEW.MODERATION.PENDING",
+      "carrierId": "A-13",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-13.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-13.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-13.recovery.png"
+    },
+    {
+      "sliceId": "A.REVIEW.MODERATION.VISIBLE_OR_HIDDEN",
+      "carrierId": "A-13",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-13.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-13.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-13.recovery.png"
+    },
+    {
+      "sliceId": "A.REVIEW.APPEAL.OPEN",
+      "carrierId": "A-13",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-13.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-13.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-13.recovery.png"
+    },
+    {
+      "sliceId": "A.REVIEW.APPEAL.RESOLVED",
+      "carrierId": "A-13",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-13.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-13.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-13.recovery.png"
+    },
+    {
+      "sliceId": "A.MARKETING.CAMPAIGN.SCHEDULED_OR_ACTIVE",
+      "carrierId": "A-14",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-14.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-14.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-14.recovery.png"
+    },
+    {
+      "sliceId": "A.MARKETING.CAMPAIGN.TERMINAL",
+      "carrierId": "A-14",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-14.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-14.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-14.recovery.png"
+    },
+    {
+      "sliceId": "A.MARKETING.COMPENSATION.PENDING",
+      "carrierId": "A-14",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-14.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-14.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-14.recovery.png"
+    },
+    {
+      "sliceId": "A.MARKETING.CAMPAIGN.DRAFT_OR_REVIEWED",
+      "carrierId": "A-14",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-14.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-14.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-14.recovery.png"
+    },
+    {
+      "sliceId": "A.MARKETING.RULE.DRAFT_OR_REVIEWED",
+      "carrierId": "A-14",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-14.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-14.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-14.recovery.png"
+    },
+    {
+      "sliceId": "A.MARKETING.RULE.PUBLISHED_OR_RETIRED",
+      "carrierId": "A-14",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-14.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-14.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-14.recovery.png"
+    },
+    {
+      "sliceId": "A.COUPON.DEFINITION.DRAFT",
+      "carrierId": "A-14",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-14.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-14.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-14.recovery.png"
+    },
+    {
+      "sliceId": "A.COUPON.DEFINITION.ACTIVE_OR_SUSPENDED",
+      "carrierId": "A-14",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-14.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-14.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-14.recovery.png"
+    },
+    {
+      "sliceId": "A.COUPON.DEFINITION.TERMINAL",
+      "carrierId": "A-14",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-14.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-14.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-14.recovery.png"
+    },
+    {
+      "sliceId": "A.COUPON.GRANT.LIFECYCLE",
+      "carrierId": "A-14",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-14.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-14.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-14.recovery.png"
+    },
+    {
+      "sliceId": "A.COUPON.GRANT.TERMINAL",
+      "carrierId": "A-14",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-14.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-14.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-14.recovery.png"
+    },
+    {
+      "sliceId": "A.MARKETING.COMPENSATION.RESOLVED",
+      "carrierId": "A-14",
+      "entry": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-14.entry.png",
+      "result": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-14.result.png",
+      "recovery": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-14.recovery.png"
+    }
+  ]
+}

@@ -70,7 +70,7 @@ export function AftersaleOpsPage({ initialCityCode }: { initialCityCode?: string
 
   return <div className="operations-workbench">
     <Card title="售后运营工作台" actions={<><ScopeBadge scope={`城市：${cityLabel(cityCode)}`} /><StatusTag tone={online ? "success" : "danger"}>{online ? "服务已连接" : "当前离线"}</StatusTag><StatusTag tone="warning">不执行服务商退款</StatusTag></>}>
-      <div className="operations-toolbar"><FormField label="城市代码"><Input value={cityCode} onChange={(event) => setCityCode(event.target.value)} /></FormField><Button variant="primary" disabled={busy !== null} onClick={() => void load()}>{isRefreshing ? "刷新中…" : "刷新售后队列"}</Button></div>
+      <div className="operations-toolbar"><FormField label="城市"><Select value={cityCode} onChange={(event) => setCityCode(event.target.value)}><option value="hangzhou">杭州</option><option value="shanghai">上海</option><option value="beijing">北京</option></Select></FormField><Button variant="primary" disabled={busy !== null} onClick={() => void load()}>{isRefreshing ? "刷新中…" : "刷新售后队列"}</Button></div>
     </Card>
     {!online && <div className="operations-alert operations-alert--offline" role="status">网络已断开。旧数据仅供核对，所有售后写操作已停用。</div>}
     {partial && <div className="operations-alert" role="status">{partial}</div>}

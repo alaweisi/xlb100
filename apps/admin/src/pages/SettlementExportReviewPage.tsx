@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { adminSettlementApi as api } from "../adminAuth";
-import { ApiErrorPanel, Button, Card, EmptyState, FormField, Input, LoadingState, ScopeBadge, StatusTag, Table } from "@xlb/ui";
+import { ApiErrorPanel, Button, Card, EmptyState, FormField, LoadingState, ScopeBadge, Select, StatusTag, Table } from "@xlb/ui";
 import { cityLabel, formatDateTime, type OperationsFailure, presentFailure, useOnlineStatus } from "../operationsPresentation";
 
 interface ExportItem {
@@ -77,7 +77,7 @@ export function SettlementExportReviewPage({ onBack, onNavigateToDetail, filterS
             <Button onClick={() => fetchExports()} variant="primary" disabled={!online}>刷新</Button>
           </div>
           <FormField label="城市" description="导出审计继续按城市作用域筛选。">
-            <Input value={cityCode} onChange={(e) => setCityCode(e.target.value)} />
+            <Select value={cityCode} onChange={(e) => setCityCode(e.target.value)}><option value="hangzhou">杭州</option><option value="shanghai">上海</option><option value="beijing">北京</option></Select>
           </FormField>
         </div>
       </Card>
