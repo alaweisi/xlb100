@@ -2,7 +2,7 @@
   "batch": "CUSTOMER-FULL",
   "browser": "Microsoft Edge",
   "browserVersion": "150.0.4078.83",
-  "capturedAt": "2026-07-18T16:29:01.598Z",
+  "capturedAt": "2026-07-18T17:09:53.587Z",
   "actualApp": true,
   "contractStateInjection": true,
   "appUrl": "http://127.0.0.1:4391",
@@ -15,56 +15,200 @@
     "退款仅展示已申请，不伪造到账"
   ],
   "coverage": {
-    "C-00": [
-      "base",
-      "result",
-      "recovery"
-    ],
-    "C-01": [
-      "state",
-      "base",
-      "state",
-      "recovery"
-    ],
-    "C-02": [
-      "base",
-      "state"
-    ],
-    "C-03": [
-      "base",
-      "result",
-      "recovery"
-    ],
-    "C-04": [
-      "base",
-      "result",
-      "result"
-    ],
-    "C-05": [
-      "base",
-      "result",
-      "recovery"
-    ],
-    "C-06": [
-      "base",
-      "state",
-      "state"
-    ],
-    "C-07": [
-      "base",
-      "state",
-      "recovery"
-    ],
-    "C-08": [
-      "base",
-      "state",
-      "recovery"
-    ],
-    "C-09": [
-      "base",
-      "interaction",
-      "recovery"
-    ]
+    "C-00": {
+      "sliceIds": [
+        "C.AUTH.SESSION.REQUIRED"
+      ],
+      "evidence": [
+        "C-00.base",
+        "C-00.otp-result",
+        "C-00.error-recovery"
+      ]
+    },
+    "C-01": {
+      "sliceIds": [
+        "C.CATALOG.HOME.EMPTY",
+        "C.CATALOG.HOME.AVAILABLE"
+      ],
+      "evidence": [
+        "C-01.loading",
+        "C-01.base",
+        "C-01.empty",
+        "C-01.error-recovery"
+      ]
+    },
+    "C-02": {
+      "sliceIds": [
+        "C.CATALOG.BROWSE.AVAILABLE",
+        "C.CATALOG.SEARCH.NO_RESULT"
+      ],
+      "evidence": [
+        "C-02.base",
+        "C-02.no-result",
+        "C-02.error-recovery"
+      ]
+    },
+    "C-03": {
+      "sliceIds": [
+        "C.ORDER.QUOTE.READY",
+        "C.ORDER.QUOTE.INVALIDATED",
+        "C.ORDER.CREATE.PENDING_DISPATCH",
+        "C.ORDER.CREATE.INPUT",
+        "C.COUPON.SELECT.AVAILABLE",
+        "C.COUPON.SELECT.INELIGIBLE"
+      ],
+      "evidence": [
+        "C-03.quote-ready",
+        "C-03.coupon-result",
+        "C-03.validation-recovery",
+        "C-03.quote-error-recovery",
+        "C-03.order-input",
+        "C-03.order-created",
+        "C-03.submit-error-recovery"
+      ]
+    },
+    "C-04": {
+      "sliceIds": [
+        "C.ORDER.DETAIL.PENDING_DISPATCH",
+        "C.ORDER.DETAIL.SERVICE_COMPLETED",
+        "C.ORDER.DETAIL.CANCELLED",
+        "C.CONFIRMATION.DETAIL.DISPUTED",
+        "C.PAYMENT.RESULT.PAID",
+        "C.PAYMENT.RESULT.FAILED",
+        "C.PAYMENT.RESULT.CLOSED",
+        "C.REFUND.REQUEST.APPROVED",
+        "C.CONFIRMATION.DETAIL.PENDING",
+        "C.CONFIRMATION.DETAIL.CONFIRMED",
+        "C.PAYMENT.CHECKOUT.PENDING",
+        "C.REVIEW.CREATE.ELIGIBLE",
+        "C.REVIEW.DETAIL.PENDING_MODERATION",
+        "C.REVIEW.DETAIL.VISIBLE",
+        "C.REVIEW.DETAIL.HIDDEN",
+        "C.REVIEW.APPEAL.OPEN",
+        "C.REVIEW.APPEAL.UPHELD",
+        "C.REVIEW.APPEAL.REJECTED",
+        "C.REVIEW.APPEAL.WITHDRAWN",
+        "C.REFUND.REQUEST.REQUESTED"
+      ],
+      "evidence": [
+        "C-04.base",
+        "C-04.service-completed",
+        "C-04.cancelled",
+        "C-04.payment-pending",
+        "C-04.payment-paid",
+        "C-04.payment-failed",
+        "C-04.payment-closed",
+        "C-04.refund-requested",
+        "C-04.refund-approved",
+        "C-04.review-eligible",
+        "C-04.review-pending_moderation",
+        "C-04.review-visible",
+        "C-04.review-hidden",
+        "C-04.appeal-open",
+        "C-04.appeal-upheld",
+        "C-04.appeal-rejected",
+        "C-04.appeal-withdrawn",
+        "C-04.confirmation-pending",
+        "C-04.confirmation-confirmed",
+        "C-04.confirmation-disputed",
+        "C-04.error-recovery"
+      ]
+    },
+    "C-05": {
+      "sliceIds": [
+        "C.AFTERSALE.REVERSE.APPLIED",
+        "C.AFTERSALE.COMPLAINT.WAITING_CUSTOMER",
+        "C.AFTERSALE.COMPLAINT.RESOLVED",
+        "C.AFTERSALE.COMPLAINT.CLOSED",
+        "C.AFTERSALE.COMPLAINT.REJECTED",
+        "C.AFTERSALE.REVERSE.REQUESTED",
+        "C.AFTERSALE.REVERSE.APPROVED",
+        "C.AFTERSALE.REVERSE.REJECTED",
+        "C.AFTERSALE.COMPLAINT.SUBMITTED",
+        "C.AFTERSALE.COMPLAINT.IN_PROGRESS"
+      ],
+      "evidence": [
+        "C-05.base",
+        "C-05.reverse-result",
+        "C-05.reverse-statuses",
+        "C-05.complaint-statuses",
+        "C-05.complaint-rejected",
+        "C-05.error-recovery"
+      ]
+    },
+    "C-06": {
+      "sliceIds": [
+        "C.SUPPORT.TICKET.ESCALATED",
+        "C.SUPPORT.CONVERSATION.CLOSED",
+        "C.SUPPORT.TICKET.OPEN",
+        "C.SUPPORT.TICKET.WAITING_REQUESTER",
+        "C.SUPPORT.TICKET.RESOLVED",
+        "C.SUPPORT.TICKET.CLOSED",
+        "C.SUPPORT.CONVERSATION.QUEUEING",
+        "C.SUPPORT.CONVERSATION.ACTIVE",
+        "C.SUPPORT.CONVERSATION.TRANSFERRED"
+      ],
+      "evidence": [
+        "C-06.base",
+        "C-06.ticket-state",
+        "C-06.conversation-state",
+        "C-06.ticket-open",
+        "C-06.ticket-resolved",
+        "C-06.ticket-closed",
+        "C-06.ticket-escalated",
+        "C-06.conversation-queueing",
+        "C-06.conversation-transferred",
+        "C-06.conversation-closed",
+        "C-06.error-recovery"
+      ]
+    },
+    "C-07": {
+      "sliceIds": [
+        "C.NOTIFICATION.INBOX.UNREAD",
+        "C.NOTIFICATION.INBOX.READ",
+        "C.NOTIFICATION.ARCHIVE.ARCHIVED"
+      ],
+      "evidence": [
+        "C-07.base",
+        "C-07.read-state",
+        "C-07.archive-state",
+        "C-07.error-recovery"
+      ]
+    },
+    "C-08": {
+      "sliceIds": [
+        "C.COUPON.WALLET.AVAILABLE",
+        "C.COUPON.WALLET.RESERVED",
+        "C.COUPON.WALLET.REDEEMED",
+        "C.COUPON.WALLET.TERMINAL"
+      ],
+      "evidence": [
+        "C-08.base",
+        "C-08.status-matrix",
+        "C-08.permission-recovery"
+      ]
+    },
+    "C-09": {
+      "sliceIds": [
+        "C.PROFILE.DETAIL.DISPLAY",
+        "C.PROFILE.EDIT.EDITING",
+        "C.ADDRESS.EDIT.CREATING",
+        "C.ADDRESS.EDIT.UPDATING",
+        "C.ADDRESS.DELETE.CONFIRMING"
+      ],
+      "evidence": [
+        "C-09.base",
+        "C-09.profile-editing",
+        "C-09.profile-saved",
+        "C-09.address-creating",
+        "C-09.address-created",
+        "C-09.address-edit",
+        "C-09.address-updated",
+        "C-09.delete-confirming",
+        "C-09.address-deleted",
+        "C-09.conflict-recovery"
+      ]
+    }
   },
   "evidence": [
     {
@@ -73,6 +217,7 @@
       "stage": "base",
       "label": "身份恢复入口",
       "contractState": "无有效会话，保留订单目标",
+      "route": "/customer/orders?orderId=order-contract-001",
       "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-00.base.png",
       "viewport": {
         "width": 390,
@@ -84,7 +229,17 @@
         "clientWidth": 390,
         "scrollHeight": 844,
         "clientHeight": 844
-      }
+      },
+      "sliceStages": {
+        "entry": [
+          "C.AUTH.SESSION.REQUIRED"
+        ],
+        "result": [],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.AUTH.SESSION.REQUIRED"
+      ]
     },
     {
       "carrier": "C-00",
@@ -92,6 +247,7 @@
       "stage": "result",
       "label": "验证码请求结果",
       "contractState": "验证码接口确认发送，不代表登录成功",
+      "route": "/customer/orders?orderId=order-contract-001",
       "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-00.otp-result.png",
       "viewport": {
         "width": 390,
@@ -103,7 +259,17 @@
         "clientWidth": 390,
         "scrollHeight": 844,
         "clientHeight": 844
-      }
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [
+          "C.AUTH.SESSION.REQUIRED"
+        ],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.AUTH.SESSION.REQUIRED"
+      ]
     },
     {
       "carrier": "C-00",
@@ -111,6 +277,7 @@
       "stage": "recovery",
       "label": "登录错误恢复",
       "contractState": "认证接口返回 401，留在原门禁可重试",
+      "route": "/customer/orders?orderId=order-contract-001",
       "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-00.error-recovery.png",
       "viewport": {
         "width": 390,
@@ -122,7 +289,17 @@
         "clientWidth": 390,
         "scrollHeight": 844,
         "clientHeight": 844
-      }
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [],
+        "recovery": [
+          "C.AUTH.SESSION.REQUIRED"
+        ]
+      },
+      "sliceIds": [
+        "C.AUTH.SESSION.REQUIRED"
+      ]
     },
     {
       "carrier": "C-01",
@@ -130,6 +307,7 @@
       "stage": "state",
       "label": "首页加载态",
       "contractState": "目录请求保持未完成",
+      "route": "/customer/",
       "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-01.loading.png",
       "viewport": {
         "width": 390,
@@ -141,7 +319,19 @@
         "clientWidth": 390,
         "scrollHeight": 887,
         "clientHeight": 844
-      }
+      },
+      "sliceStages": {
+        "entry": [
+          "C.CATALOG.HOME.AVAILABLE",
+          "C.CATALOG.HOME.EMPTY"
+        ],
+        "result": [],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.CATALOG.HOME.AVAILABLE",
+        "C.CATALOG.HOME.EMPTY"
+      ]
     },
     {
       "carrier": "C-01",
@@ -149,6 +339,7 @@
       "stage": "base",
       "label": "首页发现 Base Frame",
       "contractState": "正式目录契约态",
+      "route": "/customer/",
       "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-01.base.png",
       "viewport": {
         "width": 390,
@@ -160,7 +351,17 @@
         "clientWidth": 390,
         "scrollHeight": 968,
         "clientHeight": 844
-      }
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [
+          "C.CATALOG.HOME.AVAILABLE"
+        ],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.CATALOG.HOME.AVAILABLE"
+      ]
     },
     {
       "carrier": "C-01",
@@ -168,6 +369,7 @@
       "stage": "state",
       "label": "首页整页空态",
       "contractState": "目录接口返回空分类",
+      "route": "/customer/",
       "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-01.empty.png",
       "viewport": {
         "width": 390,
@@ -179,7 +381,17 @@
         "clientWidth": 390,
         "scrollHeight": 887,
         "clientHeight": 844
-      }
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [
+          "C.CATALOG.HOME.EMPTY"
+        ],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.CATALOG.HOME.EMPTY"
+      ]
     },
     {
       "carrier": "C-01",
@@ -187,6 +399,7 @@
       "stage": "recovery",
       "label": "目录错误恢复入口",
       "contractState": "目录接口返回 503，真实重试动作可见",
+      "route": "/customer/",
       "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-01.error-recovery.png",
       "viewport": {
         "width": 390,
@@ -198,7 +411,19 @@
         "clientWidth": 390,
         "scrollHeight": 887,
         "clientHeight": 844
-      }
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [],
+        "recovery": [
+          "C.CATALOG.HOME.AVAILABLE",
+          "C.CATALOG.HOME.EMPTY"
+        ]
+      },
+      "sliceIds": [
+        "C.CATALOG.HOME.AVAILABLE",
+        "C.CATALOG.HOME.EMPTY"
+      ]
     },
     {
       "carrier": "C-02",
@@ -206,6 +431,7 @@
       "stage": "base",
       "label": "服务浏览 Base Frame",
       "contractState": "正式目录契约态",
+      "route": "/customer/services",
       "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-02.base.png",
       "viewport": {
         "width": 390,
@@ -217,7 +443,21 @@
         "clientWidth": 390,
         "scrollHeight": 976,
         "clientHeight": 844
-      }
+      },
+      "sliceStages": {
+        "entry": [
+          "C.CATALOG.BROWSE.AVAILABLE",
+          "C.CATALOG.SEARCH.NO_RESULT"
+        ],
+        "result": [
+          "C.CATALOG.BROWSE.AVAILABLE"
+        ],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.CATALOG.BROWSE.AVAILABLE",
+        "C.CATALOG.SEARCH.NO_RESULT"
+      ]
     },
     {
       "carrier": "C-02",
@@ -225,6 +465,7 @@
       "stage": "state",
       "label": "搜索无结果",
       "contractState": "客户端筛选真实目录后无匹配",
+      "route": "/customer/services",
       "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-02.no-result.png",
       "viewport": {
         "width": 390,
@@ -236,7 +477,49 @@
         "clientWidth": 390,
         "scrollHeight": 844,
         "clientHeight": 844
-      }
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [
+          "C.CATALOG.SEARCH.NO_RESULT"
+        ],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.CATALOG.SEARCH.NO_RESULT"
+      ]
+    },
+    {
+      "carrier": "C-02",
+      "fileKey": "C-02.error-recovery",
+      "stage": "recovery",
+      "label": "服务浏览错误恢复",
+      "contractState": "目录接口返回 503，保留重试动作",
+      "route": "/customer/services",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-02.error-recovery.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 844,
+        "clientHeight": 844
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [],
+        "recovery": [
+          "C.CATALOG.BROWSE.AVAILABLE",
+          "C.CATALOG.SEARCH.NO_RESULT"
+        ]
+      },
+      "sliceIds": [
+        "C.CATALOG.BROWSE.AVAILABLE",
+        "C.CATALOG.SEARCH.NO_RESULT"
+      ]
     },
     {
       "carrier": "C-03",
@@ -244,6 +527,7 @@
       "stage": "base",
       "label": "下单与权威报价",
       "contractState": "报价接口返回 88 元固定价",
+      "route": "/customer/order/create?skuId=sku-clean-contract",
       "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-03.quote-ready.png",
       "viewport": {
         "width": 390,
@@ -255,7 +539,29 @@
         "clientWidth": 390,
         "scrollHeight": 1792,
         "clientHeight": 844
-      }
+      },
+      "sliceStages": {
+        "entry": [
+          "C.COUPON.SELECT.AVAILABLE",
+          "C.COUPON.SELECT.INELIGIBLE",
+          "C.ORDER.CREATE.INPUT",
+          "C.ORDER.CREATE.PENDING_DISPATCH",
+          "C.ORDER.QUOTE.INVALIDATED",
+          "C.ORDER.QUOTE.READY"
+        ],
+        "result": [
+          "C.ORDER.QUOTE.READY"
+        ],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.COUPON.SELECT.AVAILABLE",
+        "C.COUPON.SELECT.INELIGIBLE",
+        "C.ORDER.CREATE.INPUT",
+        "C.ORDER.CREATE.PENDING_DISPATCH",
+        "C.ORDER.QUOTE.INVALIDATED",
+        "C.ORDER.QUOTE.READY"
+      ]
     },
     {
       "carrier": "C-03",
@@ -263,6 +569,7 @@
       "stage": "result",
       "label": "优惠券校验结果",
       "contractState": "折扣决策由服务端契约态返回",
+      "route": "/customer/order/create?skuId=sku-clean-contract",
       "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-03.coupon-result.png",
       "viewport": {
         "width": 390,
@@ -274,7 +581,17 @@
         "clientWidth": 390,
         "scrollHeight": 1978,
         "clientHeight": 844
-      }
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [
+          "C.COUPON.SELECT.AVAILABLE"
+        ],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.COUPON.SELECT.AVAILABLE"
+      ]
     },
     {
       "carrier": "C-03",
@@ -282,6 +599,7 @@
       "stage": "recovery",
       "label": "优惠资格变化恢复",
       "contractState": "折扣决策接口返回 422，不自动原价提交",
+      "route": "/customer/order/create?skuId=sku-clean-contract",
       "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-03.validation-recovery.png",
       "viewport": {
         "width": 390,
@@ -293,7 +611,147 @@
         "clientWidth": 390,
         "scrollHeight": 1949,
         "clientHeight": 844
-      }
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [
+          "C.COUPON.SELECT.INELIGIBLE",
+          "C.ORDER.QUOTE.INVALIDATED"
+        ],
+        "recovery": [
+          "C.COUPON.SELECT.AVAILABLE",
+          "C.COUPON.SELECT.INELIGIBLE"
+        ]
+      },
+      "sliceIds": [
+        "C.COUPON.SELECT.AVAILABLE",
+        "C.COUPON.SELECT.INELIGIBLE",
+        "C.ORDER.QUOTE.INVALIDATED"
+      ]
+    },
+    {
+      "carrier": "C-03",
+      "fileKey": "C-03.quote-error-recovery",
+      "stage": "recovery",
+      "label": "报价失败恢复",
+      "contractState": "报价接口返回 503，保留重新报价动作",
+      "route": "/customer/order/create?skuId=sku-clean-contract",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-03.quote-error-recovery.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 1841,
+        "clientHeight": 844
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [],
+        "recovery": [
+          "C.ORDER.QUOTE.INVALIDATED",
+          "C.ORDER.QUOTE.READY"
+        ]
+      },
+      "sliceIds": [
+        "C.ORDER.QUOTE.INVALIDATED",
+        "C.ORDER.QUOTE.READY"
+      ]
+    },
+    {
+      "carrier": "C-03",
+      "fileKey": "C-03.order-input",
+      "stage": "interaction",
+      "label": "订单信息填写完成",
+      "contractState": "地址、联系人与预约信息已完成本地输入，尚未提交",
+      "route": "/customer/order/create?skuId=sku-clean-contract",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-03.order-input.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 1792,
+        "clientHeight": 844
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [
+          "C.ORDER.CREATE.INPUT"
+        ],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.ORDER.CREATE.INPUT"
+      ]
+    },
+    {
+      "carrier": "C-03",
+      "fileKey": "C-03.order-created",
+      "stage": "result",
+      "label": "订单创建结果",
+      "contractState": "创建接口返回 pending_dispatch，随后按订单详情接口复核",
+      "route": "/customer/orders?skuId=sku-clean-contract&orderId=order-contract-001",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-03.order-created.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 1988,
+        "clientHeight": 844
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [
+          "C.ORDER.CREATE.PENDING_DISPATCH"
+        ],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.ORDER.CREATE.PENDING_DISPATCH"
+      ]
+    },
+    {
+      "carrier": "C-03",
+      "fileKey": "C-03.submit-error-recovery",
+      "stage": "recovery",
+      "label": "订单提交失败恢复",
+      "contractState": "创建接口返回 503，保留同一幂等请求重新提交",
+      "route": "/customer/order/create?skuId=sku-clean-contract",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-03.submit-error-recovery.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 1973,
+        "clientHeight": 844
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [],
+        "recovery": [
+          "C.ORDER.CREATE.INPUT",
+          "C.ORDER.CREATE.PENDING_DISPATCH"
+        ]
+      },
+      "sliceIds": [
+        "C.ORDER.CREATE.INPUT",
+        "C.ORDER.CREATE.PENDING_DISPATCH"
+      ]
     },
     {
       "carrier": "C-04",
@@ -301,6 +759,7 @@
       "stage": "base",
       "label": "订单详情 Base Frame",
       "contractState": "订单状态等待服务",
+      "route": "/customer/orders?orderId=order-contract-001",
       "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.base.png",
       "viewport": {
         "width": 390,
@@ -312,14 +771,125 @@
         "clientWidth": 390,
         "scrollHeight": 1489,
         "clientHeight": 844
-      }
+      },
+      "sliceStages": {
+        "entry": [
+          "C.CONFIRMATION.DETAIL.CONFIRMED",
+          "C.CONFIRMATION.DETAIL.DISPUTED",
+          "C.CONFIRMATION.DETAIL.PENDING",
+          "C.ORDER.DETAIL.CANCELLED",
+          "C.ORDER.DETAIL.PENDING_DISPATCH",
+          "C.ORDER.DETAIL.SERVICE_COMPLETED",
+          "C.PAYMENT.CHECKOUT.PENDING",
+          "C.PAYMENT.RESULT.CLOSED",
+          "C.PAYMENT.RESULT.FAILED",
+          "C.PAYMENT.RESULT.PAID",
+          "C.REFUND.REQUEST.APPROVED",
+          "C.REFUND.REQUEST.REQUESTED",
+          "C.REVIEW.APPEAL.OPEN",
+          "C.REVIEW.APPEAL.REJECTED",
+          "C.REVIEW.APPEAL.UPHELD",
+          "C.REVIEW.APPEAL.WITHDRAWN",
+          "C.REVIEW.CREATE.ELIGIBLE",
+          "C.REVIEW.DETAIL.HIDDEN",
+          "C.REVIEW.DETAIL.PENDING_MODERATION",
+          "C.REVIEW.DETAIL.VISIBLE"
+        ],
+        "result": [
+          "C.ORDER.DETAIL.PENDING_DISPATCH"
+        ],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.CONFIRMATION.DETAIL.CONFIRMED",
+        "C.CONFIRMATION.DETAIL.DISPUTED",
+        "C.CONFIRMATION.DETAIL.PENDING",
+        "C.ORDER.DETAIL.CANCELLED",
+        "C.ORDER.DETAIL.PENDING_DISPATCH",
+        "C.ORDER.DETAIL.SERVICE_COMPLETED",
+        "C.PAYMENT.CHECKOUT.PENDING",
+        "C.PAYMENT.RESULT.CLOSED",
+        "C.PAYMENT.RESULT.FAILED",
+        "C.PAYMENT.RESULT.PAID",
+        "C.REFUND.REQUEST.APPROVED",
+        "C.REFUND.REQUEST.REQUESTED",
+        "C.REVIEW.APPEAL.OPEN",
+        "C.REVIEW.APPEAL.REJECTED",
+        "C.REVIEW.APPEAL.UPHELD",
+        "C.REVIEW.APPEAL.WITHDRAWN",
+        "C.REVIEW.CREATE.ELIGIBLE",
+        "C.REVIEW.DETAIL.HIDDEN",
+        "C.REVIEW.DETAIL.PENDING_MODERATION",
+        "C.REVIEW.DETAIL.VISIBLE"
+      ]
+    },
+    {
+      "carrier": "C-04",
+      "fileKey": "C-04.service-completed",
+      "stage": "result",
+      "label": "服务完成待支付",
+      "contractState": "订单详情接口返回 service_completed",
+      "route": "/customer/orders?orderId=order-contract-001",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.service-completed.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 1489,
+        "clientHeight": 844
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [
+          "C.ORDER.DETAIL.SERVICE_COMPLETED"
+        ],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.ORDER.DETAIL.SERVICE_COMPLETED"
+      ]
+    },
+    {
+      "carrier": "C-04",
+      "fileKey": "C-04.cancelled",
+      "stage": "result",
+      "label": "订单已取消",
+      "contractState": "订单详情接口返回 cancelled",
+      "route": "/customer/orders?orderId=order-contract-001",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.cancelled.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 1519,
+        "clientHeight": 844
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [
+          "C.ORDER.DETAIL.CANCELLED"
+        ],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.ORDER.DETAIL.CANCELLED"
+      ]
     },
     {
       "carrier": "C-04",
       "fileKey": "C-04.payment-pending",
       "stage": "result",
-      "label": "支付待处理结果",
-      "contractState": "支付单接口仅返回 pending，未伪造支付成功",
+      "label": "支付结果：等待支付结果",
+      "contractState": "支付单接口返回 pending",
+      "route": "/customer/orders?orderId=order-contract-001",
       "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.payment-pending.png",
       "viewport": {
         "width": 390,
@@ -331,7 +901,107 @@
         "clientWidth": 390,
         "scrollHeight": 1549,
         "clientHeight": 844
-      }
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [
+          "C.PAYMENT.CHECKOUT.PENDING"
+        ],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.PAYMENT.CHECKOUT.PENDING"
+      ]
+    },
+    {
+      "carrier": "C-04",
+      "fileKey": "C-04.payment-paid",
+      "stage": "result",
+      "label": "支付结果：支付成功",
+      "contractState": "支付单接口返回 paid",
+      "route": "/customer/orders?orderId=order-contract-001",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.payment-paid.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 1519,
+        "clientHeight": 844
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [
+          "C.PAYMENT.RESULT.PAID"
+        ],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.PAYMENT.RESULT.PAID"
+      ]
+    },
+    {
+      "carrier": "C-04",
+      "fileKey": "C-04.payment-failed",
+      "stage": "result",
+      "label": "支付结果：支付失败",
+      "contractState": "支付单接口返回 failed",
+      "route": "/customer/orders?orderId=order-contract-001",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.payment-failed.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 1519,
+        "clientHeight": 844
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [
+          "C.PAYMENT.RESULT.FAILED"
+        ],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.PAYMENT.RESULT.FAILED"
+      ]
+    },
+    {
+      "carrier": "C-04",
+      "fileKey": "C-04.payment-closed",
+      "stage": "result",
+      "label": "支付结果：支付已关闭",
+      "contractState": "支付单接口返回 closed",
+      "route": "/customer/orders?orderId=order-contract-001",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.payment-closed.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 1519,
+        "clientHeight": 844
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [
+          "C.PAYMENT.RESULT.CLOSED"
+        ],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.PAYMENT.RESULT.CLOSED"
+      ]
     },
     {
       "carrier": "C-04",
@@ -339,6 +1009,7 @@
       "stage": "result",
       "label": "退款申请结果",
       "contractState": "退款接口仅返回 requested，未声明批准或到账",
+      "route": "/customer/orders?orderId=order-contract-001",
       "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.refund-requested.png",
       "viewport": {
         "width": 390,
@@ -350,7 +1021,445 @@
         "clientWidth": 390,
         "scrollHeight": 1489,
         "clientHeight": 844
-      }
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [
+          "C.REFUND.REQUEST.REQUESTED"
+        ],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.REFUND.REQUEST.REQUESTED"
+      ]
+    },
+    {
+      "carrier": "C-04",
+      "fileKey": "C-04.refund-approved",
+      "stage": "result",
+      "label": "退款申请已批准",
+      "contractState": "退款接口明确返回 approved，仅呈现服务端状态",
+      "route": "/customer/aftersale?orderId=order-contract-001",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.refund-approved.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 2118,
+        "clientHeight": 844
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [
+          "C.REFUND.REQUEST.APPROVED"
+        ],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.REFUND.REQUEST.APPROVED"
+      ]
+    },
+    {
+      "carrier": "C-04",
+      "fileKey": "C-04.review-eligible",
+      "stage": "result",
+      "label": "支付后评价入口",
+      "contractState": "订单为 paid 且尚无评价",
+      "route": "/customer/orders?orderId=order-contract-001",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.review-eligible.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 1429,
+        "clientHeight": 844
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [
+          "C.REVIEW.CREATE.ELIGIBLE"
+        ],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.REVIEW.CREATE.ELIGIBLE"
+      ]
+    },
+    {
+      "carrier": "C-04",
+      "fileKey": "C-04.review-pending_moderation",
+      "stage": "result",
+      "label": "评价状态：审核中",
+      "contractState": "评价详情接口返回 pending_moderation",
+      "route": "/customer/orders?orderId=order-contract-001",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.review-pending_moderation.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 1303,
+        "clientHeight": 844
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [
+          "C.REVIEW.DETAIL.PENDING_MODERATION"
+        ],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.REVIEW.DETAIL.PENDING_MODERATION"
+      ]
+    },
+    {
+      "carrier": "C-04",
+      "fileKey": "C-04.review-visible",
+      "stage": "result",
+      "label": "评价状态：已展示",
+      "contractState": "评价详情接口返回 visible",
+      "route": "/customer/orders?orderId=order-contract-001",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.review-visible.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 1303,
+        "clientHeight": 844
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [
+          "C.REVIEW.DETAIL.VISIBLE"
+        ],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.REVIEW.DETAIL.VISIBLE"
+      ]
+    },
+    {
+      "carrier": "C-04",
+      "fileKey": "C-04.review-hidden",
+      "stage": "result",
+      "label": "评价状态：未展示",
+      "contractState": "评价详情接口返回 hidden",
+      "route": "/customer/orders?orderId=order-contract-001",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.review-hidden.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 1443,
+        "clientHeight": 844
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [
+          "C.REVIEW.DETAIL.HIDDEN"
+        ],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.REVIEW.DETAIL.HIDDEN"
+      ]
+    },
+    {
+      "carrier": "C-04",
+      "fileKey": "C-04.appeal-open",
+      "stage": "result",
+      "label": "评价申诉：申诉处理中",
+      "contractState": "评价详情接口返回申诉 open",
+      "route": "/customer/orders?orderId=order-contract-001",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.appeal-open.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 1347,
+        "clientHeight": 844
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [
+          "C.REVIEW.APPEAL.OPEN"
+        ],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.REVIEW.APPEAL.OPEN"
+      ]
+    },
+    {
+      "carrier": "C-04",
+      "fileKey": "C-04.appeal-upheld",
+      "stage": "result",
+      "label": "评价申诉：申诉成立",
+      "contractState": "评价详情接口返回申诉 upheld",
+      "route": "/customer/orders?orderId=order-contract-001",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.appeal-upheld.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 1473,
+        "clientHeight": 844
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [
+          "C.REVIEW.APPEAL.UPHELD"
+        ],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.REVIEW.APPEAL.UPHELD"
+      ]
+    },
+    {
+      "carrier": "C-04",
+      "fileKey": "C-04.appeal-rejected",
+      "stage": "result",
+      "label": "评价申诉：申诉未通过",
+      "contractState": "评价详情接口返回申诉 rejected",
+      "route": "/customer/orders?orderId=order-contract-001",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.appeal-rejected.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 1473,
+        "clientHeight": 844
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [
+          "C.REVIEW.APPEAL.REJECTED"
+        ],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.REVIEW.APPEAL.REJECTED"
+      ]
+    },
+    {
+      "carrier": "C-04",
+      "fileKey": "C-04.appeal-withdrawn",
+      "stage": "result",
+      "label": "评价申诉：已撤回",
+      "contractState": "评价详情接口返回申诉 withdrawn",
+      "route": "/customer/orders?orderId=order-contract-001",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.appeal-withdrawn.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 1473,
+        "clientHeight": 844
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [
+          "C.REVIEW.APPEAL.WITHDRAWN"
+        ],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.REVIEW.APPEAL.WITHDRAWN"
+      ]
+    },
+    {
+      "carrier": "C-04",
+      "fileKey": "C-04.confirmation-pending",
+      "stage": "result",
+      "label": "服务凭证确认：等待确认",
+      "contractState": "履约凭证接口返回确认状态 pending",
+      "route": "/customer/aftersale?orderId=order-contract-001",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.confirmation-pending.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 1986,
+        "clientHeight": 844
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [
+          "C.CONFIRMATION.DETAIL.PENDING"
+        ],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.CONFIRMATION.DETAIL.PENDING"
+      ]
+    },
+    {
+      "carrier": "C-04",
+      "fileKey": "C-04.confirmation-confirmed",
+      "stage": "result",
+      "label": "服务凭证确认：已确认",
+      "contractState": "履约凭证接口返回确认状态 confirmed",
+      "route": "/customer/aftersale?orderId=order-contract-001",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.confirmation-confirmed.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 1940,
+        "clientHeight": 844
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [
+          "C.CONFIRMATION.DETAIL.CONFIRMED"
+        ],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.CONFIRMATION.DETAIL.CONFIRMED"
+      ]
+    },
+    {
+      "carrier": "C-04",
+      "fileKey": "C-04.confirmation-disputed",
+      "stage": "result",
+      "label": "服务凭证确认：已提出异议",
+      "contractState": "履约凭证接口返回确认状态 disputed",
+      "route": "/customer/aftersale?orderId=order-contract-001",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.confirmation-disputed.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 1940,
+        "clientHeight": 844
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [
+          "C.CONFIRMATION.DETAIL.DISPUTED"
+        ],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.CONFIRMATION.DETAIL.DISPUTED"
+      ]
+    },
+    {
+      "carrier": "C-04",
+      "fileKey": "C-04.error-recovery",
+      "stage": "recovery",
+      "label": "订单详情错误恢复",
+      "contractState": "订单详情接口返回 503，保留重新加载动作",
+      "route": "/customer/orders?orderId=order-contract-001",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.error-recovery.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 844,
+        "clientHeight": 844
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [],
+        "recovery": [
+          "C.CONFIRMATION.DETAIL.CONFIRMED",
+          "C.CONFIRMATION.DETAIL.DISPUTED",
+          "C.CONFIRMATION.DETAIL.PENDING",
+          "C.ORDER.DETAIL.CANCELLED",
+          "C.ORDER.DETAIL.PENDING_DISPATCH",
+          "C.ORDER.DETAIL.SERVICE_COMPLETED",
+          "C.PAYMENT.CHECKOUT.PENDING",
+          "C.PAYMENT.RESULT.CLOSED",
+          "C.PAYMENT.RESULT.FAILED",
+          "C.PAYMENT.RESULT.PAID",
+          "C.REFUND.REQUEST.APPROVED",
+          "C.REFUND.REQUEST.REQUESTED",
+          "C.REVIEW.APPEAL.OPEN",
+          "C.REVIEW.APPEAL.REJECTED",
+          "C.REVIEW.APPEAL.UPHELD",
+          "C.REVIEW.APPEAL.WITHDRAWN",
+          "C.REVIEW.CREATE.ELIGIBLE",
+          "C.REVIEW.DETAIL.HIDDEN",
+          "C.REVIEW.DETAIL.PENDING_MODERATION",
+          "C.REVIEW.DETAIL.VISIBLE"
+        ]
+      },
+      "sliceIds": [
+        "C.CONFIRMATION.DETAIL.CONFIRMED",
+        "C.CONFIRMATION.DETAIL.DISPUTED",
+        "C.CONFIRMATION.DETAIL.PENDING",
+        "C.ORDER.DETAIL.CANCELLED",
+        "C.ORDER.DETAIL.PENDING_DISPATCH",
+        "C.ORDER.DETAIL.SERVICE_COMPLETED",
+        "C.PAYMENT.CHECKOUT.PENDING",
+        "C.PAYMENT.RESULT.CLOSED",
+        "C.PAYMENT.RESULT.FAILED",
+        "C.PAYMENT.RESULT.PAID",
+        "C.REFUND.REQUEST.APPROVED",
+        "C.REFUND.REQUEST.REQUESTED",
+        "C.REVIEW.APPEAL.OPEN",
+        "C.REVIEW.APPEAL.REJECTED",
+        "C.REVIEW.APPEAL.UPHELD",
+        "C.REVIEW.APPEAL.WITHDRAWN",
+        "C.REVIEW.CREATE.ELIGIBLE",
+        "C.REVIEW.DETAIL.HIDDEN",
+        "C.REVIEW.DETAIL.PENDING_MODERATION",
+        "C.REVIEW.DETAIL.VISIBLE"
+      ]
     },
     {
       "carrier": "C-05",
@@ -358,6 +1467,7 @@
       "stage": "base",
       "label": "售后 Base Frame",
       "contractState": "逆向、客诉与凭证聚合契约态",
+      "route": "/customer/aftersale?orderId=order-contract-001",
       "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-05.base.png",
       "viewport": {
         "width": 390,
@@ -369,7 +1479,35 @@
         "clientWidth": 390,
         "scrollHeight": 1940,
         "clientHeight": 844
-      }
+      },
+      "sliceStages": {
+        "entry": [
+          "C.AFTERSALE.COMPLAINT.CLOSED",
+          "C.AFTERSALE.COMPLAINT.IN_PROGRESS",
+          "C.AFTERSALE.COMPLAINT.REJECTED",
+          "C.AFTERSALE.COMPLAINT.RESOLVED",
+          "C.AFTERSALE.COMPLAINT.SUBMITTED",
+          "C.AFTERSALE.COMPLAINT.WAITING_CUSTOMER",
+          "C.AFTERSALE.REVERSE.APPLIED",
+          "C.AFTERSALE.REVERSE.APPROVED",
+          "C.AFTERSALE.REVERSE.REJECTED",
+          "C.AFTERSALE.REVERSE.REQUESTED"
+        ],
+        "result": [],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.AFTERSALE.COMPLAINT.CLOSED",
+        "C.AFTERSALE.COMPLAINT.IN_PROGRESS",
+        "C.AFTERSALE.COMPLAINT.REJECTED",
+        "C.AFTERSALE.COMPLAINT.RESOLVED",
+        "C.AFTERSALE.COMPLAINT.SUBMITTED",
+        "C.AFTERSALE.COMPLAINT.WAITING_CUSTOMER",
+        "C.AFTERSALE.REVERSE.APPLIED",
+        "C.AFTERSALE.REVERSE.APPROVED",
+        "C.AFTERSALE.REVERSE.REJECTED",
+        "C.AFTERSALE.REVERSE.REQUESTED"
+      ]
     },
     {
       "carrier": "C-05",
@@ -377,6 +1515,7 @@
       "stage": "result",
       "label": "逆向申请结果",
       "contractState": "逆向接口返回 requested",
+      "route": "/customer/aftersale?orderId=order-contract-001",
       "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-05.reverse-result.png",
       "viewport": {
         "width": 390,
@@ -388,7 +1527,121 @@
         "clientWidth": 390,
         "scrollHeight": 2084,
         "clientHeight": 844
-      }
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [
+          "C.AFTERSALE.REVERSE.REQUESTED"
+        ],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.AFTERSALE.REVERSE.REQUESTED"
+      ]
+    },
+    {
+      "carrier": "C-05",
+      "fileKey": "C-05.reverse-statuses",
+      "stage": "result",
+      "label": "逆向状态矩阵",
+      "contractState": "逆向列表真实返回 requested、approved、rejected、applied",
+      "route": "/customer/aftersale?orderId=order-contract-001",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-05.reverse-statuses.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 2804,
+        "clientHeight": 844
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [
+          "C.AFTERSALE.REVERSE.APPLIED",
+          "C.AFTERSALE.REVERSE.APPROVED",
+          "C.AFTERSALE.REVERSE.REJECTED",
+          "C.AFTERSALE.REVERSE.REQUESTED"
+        ],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.AFTERSALE.REVERSE.APPLIED",
+        "C.AFTERSALE.REVERSE.APPROVED",
+        "C.AFTERSALE.REVERSE.REJECTED",
+        "C.AFTERSALE.REVERSE.REQUESTED"
+      ]
+    },
+    {
+      "carrier": "C-05",
+      "fileKey": "C-05.complaint-statuses",
+      "stage": "result",
+      "label": "客诉状态矩阵",
+      "contractState": "客诉列表真实返回 submitted、waiting_customer、in_progress、resolved、closed、rejected",
+      "route": "/customer/aftersale?orderId=order-contract-001",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-05.complaint-statuses.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 2804,
+        "clientHeight": 844
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [
+          "C.AFTERSALE.COMPLAINT.CLOSED",
+          "C.AFTERSALE.COMPLAINT.IN_PROGRESS",
+          "C.AFTERSALE.COMPLAINT.RESOLVED",
+          "C.AFTERSALE.COMPLAINT.SUBMITTED",
+          "C.AFTERSALE.COMPLAINT.WAITING_CUSTOMER"
+        ],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.AFTERSALE.COMPLAINT.CLOSED",
+        "C.AFTERSALE.COMPLAINT.IN_PROGRESS",
+        "C.AFTERSALE.COMPLAINT.RESOLVED",
+        "C.AFTERSALE.COMPLAINT.SUBMITTED",
+        "C.AFTERSALE.COMPLAINT.WAITING_CUSTOMER"
+      ]
+    },
+    {
+      "carrier": "C-05",
+      "fileKey": "C-05.complaint-rejected",
+      "stage": "result",
+      "label": "客诉未受理状态",
+      "contractState": "客诉列表明确返回 rejected",
+      "route": "/customer/aftersale?orderId=order-contract-001",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-05.complaint-rejected.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 2804,
+        "clientHeight": 844
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [
+          "C.AFTERSALE.COMPLAINT.REJECTED"
+        ],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.AFTERSALE.COMPLAINT.REJECTED"
+      ]
     },
     {
       "carrier": "C-05",
@@ -396,6 +1649,7 @@
       "stage": "recovery",
       "label": "售后加载错误",
       "contractState": "售后列表接口返回 503，可刷新重试",
+      "route": "/customer/aftersale?orderId=order-contract-001",
       "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-05.error-recovery.png",
       "viewport": {
         "width": 390,
@@ -407,7 +1661,35 @@
         "clientWidth": 390,
         "scrollHeight": 1943,
         "clientHeight": 844
-      }
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [],
+        "recovery": [
+          "C.AFTERSALE.COMPLAINT.CLOSED",
+          "C.AFTERSALE.COMPLAINT.IN_PROGRESS",
+          "C.AFTERSALE.COMPLAINT.REJECTED",
+          "C.AFTERSALE.COMPLAINT.RESOLVED",
+          "C.AFTERSALE.COMPLAINT.SUBMITTED",
+          "C.AFTERSALE.COMPLAINT.WAITING_CUSTOMER",
+          "C.AFTERSALE.REVERSE.APPLIED",
+          "C.AFTERSALE.REVERSE.APPROVED",
+          "C.AFTERSALE.REVERSE.REJECTED",
+          "C.AFTERSALE.REVERSE.REQUESTED"
+        ]
+      },
+      "sliceIds": [
+        "C.AFTERSALE.COMPLAINT.CLOSED",
+        "C.AFTERSALE.COMPLAINT.IN_PROGRESS",
+        "C.AFTERSALE.COMPLAINT.REJECTED",
+        "C.AFTERSALE.COMPLAINT.RESOLVED",
+        "C.AFTERSALE.COMPLAINT.SUBMITTED",
+        "C.AFTERSALE.COMPLAINT.WAITING_CUSTOMER",
+        "C.AFTERSALE.REVERSE.APPLIED",
+        "C.AFTERSALE.REVERSE.APPROVED",
+        "C.AFTERSALE.REVERSE.REJECTED",
+        "C.AFTERSALE.REVERSE.REQUESTED"
+      ]
     },
     {
       "carrier": "C-06",
@@ -415,6 +1697,7 @@
       "stage": "base",
       "label": "客服中心 Base Frame",
       "contractState": "工单与在线会话列表契约态",
+      "route": "/customer/support",
       "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-06.base.png",
       "viewport": {
         "width": 390,
@@ -426,7 +1709,33 @@
         "clientWidth": 390,
         "scrollHeight": 989,
         "clientHeight": 844
-      }
+      },
+      "sliceStages": {
+        "entry": [
+          "C.SUPPORT.CONVERSATION.ACTIVE",
+          "C.SUPPORT.CONVERSATION.CLOSED",
+          "C.SUPPORT.CONVERSATION.QUEUEING",
+          "C.SUPPORT.CONVERSATION.TRANSFERRED",
+          "C.SUPPORT.TICKET.CLOSED",
+          "C.SUPPORT.TICKET.ESCALATED",
+          "C.SUPPORT.TICKET.OPEN",
+          "C.SUPPORT.TICKET.RESOLVED",
+          "C.SUPPORT.TICKET.WAITING_REQUESTER"
+        ],
+        "result": [],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.SUPPORT.CONVERSATION.ACTIVE",
+        "C.SUPPORT.CONVERSATION.CLOSED",
+        "C.SUPPORT.CONVERSATION.QUEUEING",
+        "C.SUPPORT.CONVERSATION.TRANSFERRED",
+        "C.SUPPORT.TICKET.CLOSED",
+        "C.SUPPORT.TICKET.ESCALATED",
+        "C.SUPPORT.TICKET.OPEN",
+        "C.SUPPORT.TICKET.RESOLVED",
+        "C.SUPPORT.TICKET.WAITING_REQUESTER"
+      ]
     },
     {
       "carrier": "C-06",
@@ -434,6 +1743,7 @@
       "stage": "state",
       "label": "工单等待回复状态",
       "contractState": "工单详情为 waiting_requester",
+      "route": "/customer/support",
       "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-06.ticket-state.png",
       "viewport": {
         "width": 390,
@@ -445,7 +1755,17 @@
         "clientWidth": 390,
         "scrollHeight": 1401,
         "clientHeight": 844
-      }
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [
+          "C.SUPPORT.TICKET.WAITING_REQUESTER"
+        ],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.SUPPORT.TICKET.WAITING_REQUESTER"
+      ]
     },
     {
       "carrier": "C-06",
@@ -453,6 +1773,7 @@
       "stage": "state",
       "label": "在线会话消息",
       "contractState": "会话为 active 且消息由会话详情接口返回",
+      "route": "/customer/support",
       "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-06.conversation-state.png",
       "viewport": {
         "width": 390,
@@ -464,7 +1785,273 @@
         "clientWidth": 390,
         "scrollHeight": 1658,
         "clientHeight": 844
-      }
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [
+          "C.SUPPORT.CONVERSATION.ACTIVE"
+        ],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.SUPPORT.CONVERSATION.ACTIVE"
+      ]
+    },
+    {
+      "carrier": "C-06",
+      "fileKey": "C-06.ticket-open",
+      "stage": "result",
+      "label": "客服工单：待处理",
+      "contractState": "工单列表返回 open",
+      "route": "/customer/support",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-06.ticket-open.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 985,
+        "clientHeight": 844
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [
+          "C.SUPPORT.TICKET.OPEN"
+        ],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.SUPPORT.TICKET.OPEN"
+      ]
+    },
+    {
+      "carrier": "C-06",
+      "fileKey": "C-06.ticket-resolved",
+      "stage": "result",
+      "label": "客服工单：已解决",
+      "contractState": "工单列表返回 resolved",
+      "route": "/customer/support",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-06.ticket-resolved.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 985,
+        "clientHeight": 844
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [
+          "C.SUPPORT.TICKET.RESOLVED"
+        ],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.SUPPORT.TICKET.RESOLVED"
+      ]
+    },
+    {
+      "carrier": "C-06",
+      "fileKey": "C-06.ticket-closed",
+      "stage": "result",
+      "label": "客服工单：已关闭",
+      "contractState": "工单列表返回 closed",
+      "route": "/customer/support",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-06.ticket-closed.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 985,
+        "clientHeight": 844
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [
+          "C.SUPPORT.TICKET.CLOSED"
+        ],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.SUPPORT.TICKET.CLOSED"
+      ]
+    },
+    {
+      "carrier": "C-06",
+      "fileKey": "C-06.ticket-escalated",
+      "stage": "result",
+      "label": "客服工单：已升级",
+      "contractState": "工单列表返回 escalated",
+      "route": "/customer/support",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-06.ticket-escalated.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 985,
+        "clientHeight": 844
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [
+          "C.SUPPORT.TICKET.ESCALATED"
+        ],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.SUPPORT.TICKET.ESCALATED"
+      ]
+    },
+    {
+      "carrier": "C-06",
+      "fileKey": "C-06.conversation-queueing",
+      "stage": "result",
+      "label": "在线会话：排队中",
+      "contractState": "会话列表返回 queueing",
+      "route": "/customer/support",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-06.conversation-queueing.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 1016,
+        "clientHeight": 844
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [
+          "C.SUPPORT.CONVERSATION.QUEUEING"
+        ],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.SUPPORT.CONVERSATION.QUEUEING"
+      ]
+    },
+    {
+      "carrier": "C-06",
+      "fileKey": "C-06.conversation-transferred",
+      "stage": "result",
+      "label": "在线会话：已转接",
+      "contractState": "会话列表返回 transferred",
+      "route": "/customer/support",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-06.conversation-transferred.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 1016,
+        "clientHeight": 844
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [
+          "C.SUPPORT.CONVERSATION.TRANSFERRED"
+        ],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.SUPPORT.CONVERSATION.TRANSFERRED"
+      ]
+    },
+    {
+      "carrier": "C-06",
+      "fileKey": "C-06.conversation-closed",
+      "stage": "result",
+      "label": "在线会话：已结束",
+      "contractState": "会话列表返回 closed",
+      "route": "/customer/support",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-06.conversation-closed.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 1016,
+        "clientHeight": 844
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [
+          "C.SUPPORT.CONVERSATION.CLOSED"
+        ],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.SUPPORT.CONVERSATION.CLOSED"
+      ]
+    },
+    {
+      "carrier": "C-06",
+      "fileKey": "C-06.error-recovery",
+      "stage": "recovery",
+      "label": "客服请求错误恢复",
+      "contractState": "客服接口返回 503，页面保留刷新与重新发起动作",
+      "route": "/customer/support",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-06.error-recovery.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 1081,
+        "clientHeight": 844
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [],
+        "recovery": [
+          "C.SUPPORT.CONVERSATION.ACTIVE",
+          "C.SUPPORT.CONVERSATION.CLOSED",
+          "C.SUPPORT.CONVERSATION.QUEUEING",
+          "C.SUPPORT.CONVERSATION.TRANSFERRED",
+          "C.SUPPORT.TICKET.CLOSED",
+          "C.SUPPORT.TICKET.ESCALATED",
+          "C.SUPPORT.TICKET.OPEN",
+          "C.SUPPORT.TICKET.RESOLVED",
+          "C.SUPPORT.TICKET.WAITING_REQUESTER"
+        ]
+      },
+      "sliceIds": [
+        "C.SUPPORT.CONVERSATION.ACTIVE",
+        "C.SUPPORT.CONVERSATION.CLOSED",
+        "C.SUPPORT.CONVERSATION.QUEUEING",
+        "C.SUPPORT.CONVERSATION.TRANSFERRED",
+        "C.SUPPORT.TICKET.CLOSED",
+        "C.SUPPORT.TICKET.ESCALATED",
+        "C.SUPPORT.TICKET.OPEN",
+        "C.SUPPORT.TICKET.RESOLVED",
+        "C.SUPPORT.TICKET.WAITING_REQUESTER"
+      ]
     },
     {
       "carrier": "C-07",
@@ -472,6 +2059,7 @@
       "stage": "base",
       "label": "通知收件箱 Base Frame",
       "contractState": "未读订单通知契约态",
+      "route": "/customer/notifications",
       "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-07.base.png",
       "viewport": {
         "width": 390,
@@ -483,7 +2071,53 @@
         "clientWidth": 390,
         "scrollHeight": 844,
         "clientHeight": 844
-      }
+      },
+      "sliceStages": {
+        "entry": [
+          "C.NOTIFICATION.ARCHIVE.ARCHIVED",
+          "C.NOTIFICATION.INBOX.READ",
+          "C.NOTIFICATION.INBOX.UNREAD"
+        ],
+        "result": [
+          "C.NOTIFICATION.INBOX.UNREAD"
+        ],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.NOTIFICATION.ARCHIVE.ARCHIVED",
+        "C.NOTIFICATION.INBOX.READ",
+        "C.NOTIFICATION.INBOX.UNREAD"
+      ]
+    },
+    {
+      "carrier": "C-07",
+      "fileKey": "C-07.read-state",
+      "stage": "result",
+      "label": "通知已读状态",
+      "contractState": "收件箱接口返回 readAt",
+      "route": "/customer/notifications",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-07.read-state.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 844,
+        "clientHeight": 844
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [
+          "C.NOTIFICATION.INBOX.READ"
+        ],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.NOTIFICATION.INBOX.READ"
+      ]
     },
     {
       "carrier": "C-07",
@@ -491,6 +2125,7 @@
       "stage": "state",
       "label": "归档通知状态",
       "contractState": "归档视图返回 readAt 与 archivedAt",
+      "route": "/customer/notifications",
       "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-07.archive-state.png",
       "viewport": {
         "width": 390,
@@ -502,7 +2137,17 @@
         "clientWidth": 390,
         "scrollHeight": 844,
         "clientHeight": 844
-      }
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [
+          "C.NOTIFICATION.ARCHIVE.ARCHIVED"
+        ],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.NOTIFICATION.ARCHIVE.ARCHIVED"
+      ]
     },
     {
       "carrier": "C-07",
@@ -510,6 +2155,7 @@
       "stage": "recovery",
       "label": "通知错误恢复",
       "contractState": "通知接口返回 503，保留重试按钮",
+      "route": "/customer/notifications",
       "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-07.error-recovery.png",
       "viewport": {
         "width": 390,
@@ -521,7 +2167,21 @@
         "clientWidth": 390,
         "scrollHeight": 844,
         "clientHeight": 844
-      }
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [],
+        "recovery": [
+          "C.NOTIFICATION.ARCHIVE.ARCHIVED",
+          "C.NOTIFICATION.INBOX.READ",
+          "C.NOTIFICATION.INBOX.UNREAD"
+        ]
+      },
+      "sliceIds": [
+        "C.NOTIFICATION.ARCHIVE.ARCHIVED",
+        "C.NOTIFICATION.INBOX.READ",
+        "C.NOTIFICATION.INBOX.UNREAD"
+      ]
     },
     {
       "carrier": "C-08",
@@ -529,6 +2189,7 @@
       "stage": "base",
       "label": "优惠券钱包 Base Frame",
       "contractState": "可使用券由 grant 契约态返回",
+      "route": "/customer/coupons",
       "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-08.base.png",
       "viewport": {
         "width": 390,
@@ -540,15 +2201,34 @@
         "clientWidth": 390,
         "scrollHeight": 844,
         "clientHeight": 844
-      }
+      },
+      "sliceStages": {
+        "entry": [
+          "C.COUPON.WALLET.AVAILABLE",
+          "C.COUPON.WALLET.REDEEMED",
+          "C.COUPON.WALLET.RESERVED",
+          "C.COUPON.WALLET.TERMINAL"
+        ],
+        "result": [
+          "C.COUPON.WALLET.AVAILABLE"
+        ],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.COUPON.WALLET.AVAILABLE",
+        "C.COUPON.WALLET.REDEEMED",
+        "C.COUPON.WALLET.RESERVED",
+        "C.COUPON.WALLET.TERMINAL"
+      ]
     },
     {
       "carrier": "C-08",
-      "fileKey": "C-08.empty",
-      "stage": "state",
-      "label": "券包空态",
-      "contractState": "券包接口返回空列表",
-      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-08.empty.png",
+      "fileKey": "C-08.status-matrix",
+      "stage": "result",
+      "label": "优惠券状态矩阵",
+      "contractState": "全部视图返回 available、reserved、redeemed 与 terminal 券状态",
+      "route": "/customer/coupons",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-08.status-matrix.png",
       "viewport": {
         "width": 390,
         "height": 844
@@ -557,9 +2237,25 @@
       "documentMetrics": {
         "scrollWidth": 390,
         "clientWidth": 390,
-        "scrollHeight": 844,
+        "scrollHeight": 948,
         "clientHeight": 844
-      }
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [
+          "C.COUPON.WALLET.AVAILABLE",
+          "C.COUPON.WALLET.REDEEMED",
+          "C.COUPON.WALLET.RESERVED",
+          "C.COUPON.WALLET.TERMINAL"
+        ],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.COUPON.WALLET.AVAILABLE",
+        "C.COUPON.WALLET.REDEEMED",
+        "C.COUPON.WALLET.RESERVED",
+        "C.COUPON.WALLET.TERMINAL"
+      ]
     },
     {
       "carrier": "C-08",
@@ -567,6 +2263,7 @@
       "stage": "recovery",
       "label": "券包权限错误",
       "contractState": "券包接口返回 403，不伪造券",
+      "route": "/customer/coupons",
       "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-08.permission-recovery.png",
       "viewport": {
         "width": 390,
@@ -578,7 +2275,23 @@
         "clientWidth": 390,
         "scrollHeight": 844,
         "clientHeight": 844
-      }
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [],
+        "recovery": [
+          "C.COUPON.WALLET.AVAILABLE",
+          "C.COUPON.WALLET.REDEEMED",
+          "C.COUPON.WALLET.RESERVED",
+          "C.COUPON.WALLET.TERMINAL"
+        ]
+      },
+      "sliceIds": [
+        "C.COUPON.WALLET.AVAILABLE",
+        "C.COUPON.WALLET.REDEEMED",
+        "C.COUPON.WALLET.RESERVED",
+        "C.COUPON.WALLET.TERMINAL"
+      ]
     },
     {
       "carrier": "C-09",
@@ -586,6 +2299,7 @@
       "stage": "base",
       "label": "资料与地址 Base Frame",
       "contractState": "资料与地址来自账号接口",
+      "route": "/customer/profile",
       "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-09.base.png",
       "viewport": {
         "width": 390,
@@ -597,7 +2311,147 @@
         "clientWidth": 390,
         "scrollHeight": 1019,
         "clientHeight": 844
-      }
+      },
+      "sliceStages": {
+        "entry": [
+          "C.ADDRESS.DELETE.CONFIRMING",
+          "C.ADDRESS.EDIT.CREATING",
+          "C.ADDRESS.EDIT.UPDATING",
+          "C.PROFILE.DETAIL.DISPLAY",
+          "C.PROFILE.EDIT.EDITING"
+        ],
+        "result": [
+          "C.PROFILE.DETAIL.DISPLAY"
+        ],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.ADDRESS.DELETE.CONFIRMING",
+        "C.ADDRESS.EDIT.CREATING",
+        "C.ADDRESS.EDIT.UPDATING",
+        "C.PROFILE.DETAIL.DISPLAY",
+        "C.PROFILE.EDIT.EDITING"
+      ]
+    },
+    {
+      "carrier": "C-09",
+      "fileKey": "C-09.profile-editing",
+      "stage": "interaction",
+      "label": "资料编辑中",
+      "contractState": "名称字段为本地编辑态，尚未保存",
+      "route": "/customer/profile",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-09.profile-editing.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 1019,
+        "clientHeight": 844
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [
+          "C.PROFILE.EDIT.EDITING"
+        ],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.PROFILE.EDIT.EDITING"
+      ]
+    },
+    {
+      "carrier": "C-09",
+      "fileKey": "C-09.profile-saved",
+      "stage": "result",
+      "label": "资料保存结果",
+      "contractState": "资料更新接口确认保存",
+      "route": "/customer/profile",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-09.profile-saved.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 1072,
+        "clientHeight": 844
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [
+          "C.PROFILE.EDIT.EDITING"
+        ],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.PROFILE.EDIT.EDITING"
+      ]
+    },
+    {
+      "carrier": "C-09",
+      "fileKey": "C-09.address-creating",
+      "stage": "interaction",
+      "label": "新地址填写中",
+      "contractState": "创建地址表单已通过本地必填校验",
+      "route": "/customer/profile",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-09.address-creating.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 1072,
+        "clientHeight": 844
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [
+          "C.ADDRESS.EDIT.CREATING"
+        ],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.ADDRESS.EDIT.CREATING"
+      ]
+    },
+    {
+      "carrier": "C-09",
+      "fileKey": "C-09.address-created",
+      "stage": "result",
+      "label": "地址创建结果",
+      "contractState": "创建地址接口确认并重新加载地址列表",
+      "route": "/customer/profile",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-09.address-created.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 1072,
+        "clientHeight": 844
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [
+          "C.ADDRESS.EDIT.CREATING"
+        ],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.ADDRESS.EDIT.CREATING"
+      ]
     },
     {
       "carrier": "C-09",
@@ -605,6 +2459,7 @@
       "stage": "interaction",
       "label": "地址编辑区域",
       "contractState": "脱敏手机号不可回填，要求重新输入",
+      "route": "/customer/profile",
       "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-09.address-edit.png",
       "viewport": {
         "width": 390,
@@ -616,7 +2471,107 @@
         "clientWidth": 390,
         "scrollHeight": 1069,
         "clientHeight": 844
-      }
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [
+          "C.ADDRESS.EDIT.UPDATING"
+        ],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.ADDRESS.EDIT.UPDATING"
+      ]
+    },
+    {
+      "carrier": "C-09",
+      "fileKey": "C-09.address-updated",
+      "stage": "result",
+      "label": "地址更新结果",
+      "contractState": "更新接口确认并重新加载地址列表",
+      "route": "/customer/profile",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-09.address-updated.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 1072,
+        "clientHeight": 844
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [
+          "C.ADDRESS.EDIT.UPDATING"
+        ],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.ADDRESS.EDIT.UPDATING"
+      ]
+    },
+    {
+      "carrier": "C-09",
+      "fileKey": "C-09.delete-confirming",
+      "stage": "interaction",
+      "label": "地址删除确认",
+      "contractState": "删除动作执行前显示目标地址、确认删除与取消动作",
+      "route": "/customer/profile",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-09.delete-confirming.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 1063,
+        "clientHeight": 844
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [
+          "C.ADDRESS.DELETE.CONFIRMING"
+        ],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.ADDRESS.DELETE.CONFIRMING"
+      ]
+    },
+    {
+      "carrier": "C-09",
+      "fileKey": "C-09.address-deleted",
+      "stage": "result",
+      "label": "地址删除结果",
+      "contractState": "删除接口确认后重新加载地址列表",
+      "route": "/customer/profile",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-09.address-deleted.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 1072,
+        "clientHeight": 844
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [
+          "C.ADDRESS.DELETE.CONFIRMING"
+        ],
+        "recovery": []
+      },
+      "sliceIds": [
+        "C.ADDRESS.DELETE.CONFIRMING"
+      ]
     },
     {
       "carrier": "C-09",
@@ -624,6 +2579,7 @@
       "stage": "recovery",
       "label": "资料冲突恢复",
       "contractState": "资料接口返回 409，展示重新加载动作",
+      "route": "/customer/profile",
       "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-09.conflict-recovery.png",
       "viewport": {
         "width": 390,
@@ -635,14 +2591,35 @@
         "clientWidth": 390,
         "scrollHeight": 1076,
         "clientHeight": 844
-      }
+      },
+      "sliceStages": {
+        "entry": [],
+        "result": [],
+        "recovery": [
+          "C.ADDRESS.DELETE.CONFIRMING",
+          "C.ADDRESS.EDIT.CREATING",
+          "C.ADDRESS.EDIT.UPDATING",
+          "C.PROFILE.DETAIL.DISPLAY",
+          "C.PROFILE.EDIT.EDITING"
+        ]
+      },
+      "sliceIds": [
+        "C.ADDRESS.DELETE.CONFIRMING",
+        "C.ADDRESS.EDIT.CREATING",
+        "C.ADDRESS.EDIT.UPDATING",
+        "C.PROFILE.DETAIL.DISPLAY",
+        "C.PROFILE.EDIT.EDITING"
+      ]
     }
   ],
   "validation": {
-    "screenshotCount": 30,
+    "screenshotCount": 72,
     "filesExist": true,
     "pngDimensionsValid": true,
     "allCarriersHaveBaseFrame": true,
+    "ledgerCustomerNonB0SliceCount": 61,
+    "slicesWithEntryResultRecovery": 61,
+    "everyEvidenceHasSliceIds": true,
     "horizontalOverflowCount": 0,
     "files": [
       {
@@ -683,7 +2660,7 @@
       },
       {
         "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-01.error-recovery.png",
-        "bytes": 245173,
+        "bytes": 243682,
         "width": 390,
         "height": 844
       },
@@ -700,38 +2677,176 @@
         "height": 844
       },
       {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-02.error-recovery.png",
+        "bytes": 35689,
+        "width": 390,
+        "height": 844
+      },
+      {
         "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-03.quote-ready.png",
-        "bytes": 48363,
+        "bytes": 46861,
         "width": 390,
         "height": 844
       },
       {
         "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-03.coupon-result.png",
-        "bytes": 50906,
+        "bytes": 48306,
         "width": 390,
         "height": 844
       },
       {
         "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-03.validation-recovery.png",
-        "bytes": 51534,
+        "bytes": 46439,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-03.quote-error-recovery.png",
+        "bytes": 46397,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-03.order-input.png",
+        "bytes": 50584,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-03.order-created.png",
+        "bytes": 49718,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-03.submit-error-recovery.png",
+        "bytes": 44820,
         "width": 390,
         "height": 844
       },
       {
         "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.base.png",
-        "bytes": 56339,
+        "bytes": 54948,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.service-completed.png",
+        "bytes": 57704,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.cancelled.png",
+        "bytes": 58364,
         "width": 390,
         "height": 844
       },
       {
         "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.payment-pending.png",
-        "bytes": 58688,
+        "bytes": 51390,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.payment-paid.png",
+        "bytes": 51616,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.payment-failed.png",
+        "bytes": 51657,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.payment-closed.png",
+        "bytes": 51642,
         "width": 390,
         "height": 844
       },
       {
         "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.refund-requested.png",
-        "bytes": 47994,
+        "bytes": 44861,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.refund-approved.png",
+        "bytes": 59154,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.review-eligible.png",
+        "bytes": 46094,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.review-pending_moderation.png",
+        "bytes": 55247,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.review-visible.png",
+        "bytes": 54837,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.review-hidden.png",
+        "bytes": 48475,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.appeal-open.png",
+        "bytes": 53153,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.appeal-upheld.png",
+        "bytes": 47449,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.appeal-rejected.png",
+        "bytes": 47507,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.appeal-withdrawn.png",
+        "bytes": 47168,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.confirmation-pending.png",
+        "bytes": 69353,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.confirmation-confirmed.png",
+        "bytes": 67408,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.confirmation-disputed.png",
+        "bytes": 67608,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.error-recovery.png",
+        "bytes": 22288,
         "width": 390,
         "height": 844
       },
@@ -743,13 +2858,31 @@
       },
       {
         "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-05.reverse-result.png",
-        "bytes": 61334,
+        "bytes": 58985,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-05.reverse-statuses.png",
+        "bytes": 75381,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-05.complaint-statuses.png",
+        "bytes": 72015,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-05.complaint-rejected.png",
+        "bytes": 66224,
         "width": 390,
         "height": 844
       },
       {
         "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-05.error-recovery.png",
-        "bytes": 60289,
+        "bytes": 58373,
         "width": 390,
         "height": 844
       },
@@ -767,13 +2900,67 @@
       },
       {
         "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-06.conversation-state.png",
-        "bytes": 73064,
+        "bytes": 70231,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-06.ticket-open.png",
+        "bytes": 61182,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-06.ticket-resolved.png",
+        "bytes": 61110,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-06.ticket-closed.png",
+        "bytes": 61087,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-06.ticket-escalated.png",
+        "bytes": 61128,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-06.conversation-queueing.png",
+        "bytes": 63737,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-06.conversation-transferred.png",
+        "bytes": 63860,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-06.conversation-closed.png",
+        "bytes": 63634,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-06.error-recovery.png",
+        "bytes": 62744,
         "width": 390,
         "height": 844
       },
       {
         "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-07.base.png",
         "bytes": 58435,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-07.read-state.png",
+        "bytes": 57679,
         "width": 390,
         "height": 844
       },
@@ -796,8 +2983,8 @@
         "height": 844
       },
       {
-        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-08.empty.png",
-        "bytes": 59461,
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-08.status-matrix.png",
+        "bytes": 79997,
         "width": 390,
         "height": 844
       },
@@ -814,17 +3001,1387 @@
         "height": 844
       },
       {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-09.profile-editing.png",
+        "bytes": 37868,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-09.profile-saved.png",
+        "bytes": 40840,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-09.address-creating.png",
+        "bytes": 37449,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-09.address-created.png",
+        "bytes": 39719,
+        "width": 390,
+        "height": 844
+      },
+      {
         "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-09.address-edit.png",
-        "bytes": 43263,
+        "bytes": 42251,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-09.address-updated.png",
+        "bytes": 39707,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-09.delete-confirming.png",
+        "bytes": 37740,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-09.address-deleted.png",
+        "bytes": 39725,
         "width": 390,
         "height": 844
       },
       {
         "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-09.conflict-recovery.png",
-        "bytes": 35401,
+        "bytes": 31929,
         "width": 390,
         "height": 844
       }
     ]
+  },
+  "sliceCoverage": {
+    "C.AUTH.SESSION.REQUIRED": {
+      "carrier": "C-00",
+      "entry": [
+        {
+          "fileKey": "C-00.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-00.base.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-00.otp-result",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-00.otp-result.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-00.error-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-00.error-recovery.png"
+        }
+      ]
+    },
+    "C.CATALOG.HOME.EMPTY": {
+      "carrier": "C-01",
+      "entry": [
+        {
+          "fileKey": "C-01.loading",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-01.loading.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-01.empty",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-01.empty.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-01.error-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-01.error-recovery.png"
+        }
+      ]
+    },
+    "C.CATALOG.HOME.AVAILABLE": {
+      "carrier": "C-01",
+      "entry": [
+        {
+          "fileKey": "C-01.loading",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-01.loading.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-01.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-01.base.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-01.error-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-01.error-recovery.png"
+        }
+      ]
+    },
+    "C.CATALOG.BROWSE.AVAILABLE": {
+      "carrier": "C-02",
+      "entry": [
+        {
+          "fileKey": "C-02.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-02.base.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-02.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-02.base.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-02.error-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-02.error-recovery.png"
+        }
+      ]
+    },
+    "C.CATALOG.SEARCH.NO_RESULT": {
+      "carrier": "C-02",
+      "entry": [
+        {
+          "fileKey": "C-02.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-02.base.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-02.no-result",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-02.no-result.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-02.error-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-02.error-recovery.png"
+        }
+      ]
+    },
+    "C.ORDER.QUOTE.READY": {
+      "carrier": "C-03",
+      "entry": [
+        {
+          "fileKey": "C-03.quote-ready",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-03.quote-ready.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-03.quote-ready",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-03.quote-ready.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-03.quote-error-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-03.quote-error-recovery.png"
+        }
+      ]
+    },
+    "C.ORDER.QUOTE.INVALIDATED": {
+      "carrier": "C-03",
+      "entry": [
+        {
+          "fileKey": "C-03.quote-ready",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-03.quote-ready.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-03.validation-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-03.validation-recovery.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-03.quote-error-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-03.quote-error-recovery.png"
+        }
+      ]
+    },
+    "C.ORDER.CREATE.PENDING_DISPATCH": {
+      "carrier": "C-03",
+      "entry": [
+        {
+          "fileKey": "C-03.quote-ready",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-03.quote-ready.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-03.order-created",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-03.order-created.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-03.submit-error-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-03.submit-error-recovery.png"
+        }
+      ]
+    },
+    "C.ORDER.CREATE.INPUT": {
+      "carrier": "C-03",
+      "entry": [
+        {
+          "fileKey": "C-03.quote-ready",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-03.quote-ready.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-03.order-input",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-03.order-input.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-03.submit-error-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-03.submit-error-recovery.png"
+        }
+      ]
+    },
+    "C.COUPON.SELECT.AVAILABLE": {
+      "carrier": "C-03",
+      "entry": [
+        {
+          "fileKey": "C-03.quote-ready",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-03.quote-ready.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-03.coupon-result",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-03.coupon-result.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-03.validation-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-03.validation-recovery.png"
+        }
+      ]
+    },
+    "C.COUPON.SELECT.INELIGIBLE": {
+      "carrier": "C-03",
+      "entry": [
+        {
+          "fileKey": "C-03.quote-ready",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-03.quote-ready.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-03.validation-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-03.validation-recovery.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-03.validation-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-03.validation-recovery.png"
+        }
+      ]
+    },
+    "C.ORDER.DETAIL.PENDING_DISPATCH": {
+      "carrier": "C-04",
+      "entry": [
+        {
+          "fileKey": "C-04.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.base.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-04.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.base.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-04.error-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.error-recovery.png"
+        }
+      ]
+    },
+    "C.ORDER.DETAIL.SERVICE_COMPLETED": {
+      "carrier": "C-04",
+      "entry": [
+        {
+          "fileKey": "C-04.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.base.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-04.service-completed",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.service-completed.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-04.error-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.error-recovery.png"
+        }
+      ]
+    },
+    "C.ORDER.DETAIL.CANCELLED": {
+      "carrier": "C-04",
+      "entry": [
+        {
+          "fileKey": "C-04.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.base.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-04.cancelled",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.cancelled.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-04.error-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.error-recovery.png"
+        }
+      ]
+    },
+    "C.CONFIRMATION.DETAIL.DISPUTED": {
+      "carrier": "C-04",
+      "entry": [
+        {
+          "fileKey": "C-04.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.base.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-04.confirmation-disputed",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.confirmation-disputed.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-04.error-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.error-recovery.png"
+        }
+      ]
+    },
+    "C.PAYMENT.RESULT.PAID": {
+      "carrier": "C-04",
+      "entry": [
+        {
+          "fileKey": "C-04.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.base.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-04.payment-paid",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.payment-paid.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-04.error-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.error-recovery.png"
+        }
+      ]
+    },
+    "C.PAYMENT.RESULT.FAILED": {
+      "carrier": "C-04",
+      "entry": [
+        {
+          "fileKey": "C-04.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.base.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-04.payment-failed",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.payment-failed.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-04.error-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.error-recovery.png"
+        }
+      ]
+    },
+    "C.PAYMENT.RESULT.CLOSED": {
+      "carrier": "C-04",
+      "entry": [
+        {
+          "fileKey": "C-04.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.base.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-04.payment-closed",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.payment-closed.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-04.error-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.error-recovery.png"
+        }
+      ]
+    },
+    "C.REFUND.REQUEST.APPROVED": {
+      "carrier": "C-04",
+      "entry": [
+        {
+          "fileKey": "C-04.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.base.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-04.refund-approved",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.refund-approved.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-04.error-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.error-recovery.png"
+        }
+      ]
+    },
+    "C.CONFIRMATION.DETAIL.PENDING": {
+      "carrier": "C-04",
+      "entry": [
+        {
+          "fileKey": "C-04.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.base.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-04.confirmation-pending",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.confirmation-pending.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-04.error-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.error-recovery.png"
+        }
+      ]
+    },
+    "C.CONFIRMATION.DETAIL.CONFIRMED": {
+      "carrier": "C-04",
+      "entry": [
+        {
+          "fileKey": "C-04.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.base.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-04.confirmation-confirmed",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.confirmation-confirmed.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-04.error-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.error-recovery.png"
+        }
+      ]
+    },
+    "C.PAYMENT.CHECKOUT.PENDING": {
+      "carrier": "C-04",
+      "entry": [
+        {
+          "fileKey": "C-04.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.base.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-04.payment-pending",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.payment-pending.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-04.error-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.error-recovery.png"
+        }
+      ]
+    },
+    "C.REVIEW.CREATE.ELIGIBLE": {
+      "carrier": "C-04",
+      "entry": [
+        {
+          "fileKey": "C-04.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.base.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-04.review-eligible",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.review-eligible.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-04.error-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.error-recovery.png"
+        }
+      ]
+    },
+    "C.REVIEW.DETAIL.PENDING_MODERATION": {
+      "carrier": "C-04",
+      "entry": [
+        {
+          "fileKey": "C-04.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.base.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-04.review-pending_moderation",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.review-pending_moderation.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-04.error-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.error-recovery.png"
+        }
+      ]
+    },
+    "C.REVIEW.DETAIL.VISIBLE": {
+      "carrier": "C-04",
+      "entry": [
+        {
+          "fileKey": "C-04.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.base.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-04.review-visible",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.review-visible.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-04.error-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.error-recovery.png"
+        }
+      ]
+    },
+    "C.REVIEW.DETAIL.HIDDEN": {
+      "carrier": "C-04",
+      "entry": [
+        {
+          "fileKey": "C-04.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.base.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-04.review-hidden",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.review-hidden.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-04.error-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.error-recovery.png"
+        }
+      ]
+    },
+    "C.REVIEW.APPEAL.OPEN": {
+      "carrier": "C-04",
+      "entry": [
+        {
+          "fileKey": "C-04.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.base.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-04.appeal-open",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.appeal-open.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-04.error-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.error-recovery.png"
+        }
+      ]
+    },
+    "C.REVIEW.APPEAL.UPHELD": {
+      "carrier": "C-04",
+      "entry": [
+        {
+          "fileKey": "C-04.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.base.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-04.appeal-upheld",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.appeal-upheld.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-04.error-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.error-recovery.png"
+        }
+      ]
+    },
+    "C.REVIEW.APPEAL.REJECTED": {
+      "carrier": "C-04",
+      "entry": [
+        {
+          "fileKey": "C-04.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.base.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-04.appeal-rejected",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.appeal-rejected.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-04.error-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.error-recovery.png"
+        }
+      ]
+    },
+    "C.REVIEW.APPEAL.WITHDRAWN": {
+      "carrier": "C-04",
+      "entry": [
+        {
+          "fileKey": "C-04.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.base.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-04.appeal-withdrawn",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.appeal-withdrawn.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-04.error-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.error-recovery.png"
+        }
+      ]
+    },
+    "C.REFUND.REQUEST.REQUESTED": {
+      "carrier": "C-04",
+      "entry": [
+        {
+          "fileKey": "C-04.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.base.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-04.refund-requested",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.refund-requested.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-04.error-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.error-recovery.png"
+        }
+      ]
+    },
+    "C.AFTERSALE.REVERSE.APPLIED": {
+      "carrier": "C-05",
+      "entry": [
+        {
+          "fileKey": "C-05.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-05.base.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-05.reverse-statuses",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-05.reverse-statuses.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-05.error-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-05.error-recovery.png"
+        }
+      ]
+    },
+    "C.AFTERSALE.COMPLAINT.WAITING_CUSTOMER": {
+      "carrier": "C-05",
+      "entry": [
+        {
+          "fileKey": "C-05.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-05.base.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-05.complaint-statuses",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-05.complaint-statuses.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-05.error-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-05.error-recovery.png"
+        }
+      ]
+    },
+    "C.AFTERSALE.COMPLAINT.RESOLVED": {
+      "carrier": "C-05",
+      "entry": [
+        {
+          "fileKey": "C-05.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-05.base.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-05.complaint-statuses",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-05.complaint-statuses.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-05.error-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-05.error-recovery.png"
+        }
+      ]
+    },
+    "C.AFTERSALE.COMPLAINT.CLOSED": {
+      "carrier": "C-05",
+      "entry": [
+        {
+          "fileKey": "C-05.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-05.base.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-05.complaint-statuses",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-05.complaint-statuses.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-05.error-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-05.error-recovery.png"
+        }
+      ]
+    },
+    "C.AFTERSALE.COMPLAINT.REJECTED": {
+      "carrier": "C-05",
+      "entry": [
+        {
+          "fileKey": "C-05.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-05.base.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-05.complaint-rejected",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-05.complaint-rejected.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-05.error-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-05.error-recovery.png"
+        }
+      ]
+    },
+    "C.AFTERSALE.REVERSE.REQUESTED": {
+      "carrier": "C-05",
+      "entry": [
+        {
+          "fileKey": "C-05.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-05.base.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-05.reverse-result",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-05.reverse-result.png"
+        },
+        {
+          "fileKey": "C-05.reverse-statuses",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-05.reverse-statuses.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-05.error-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-05.error-recovery.png"
+        }
+      ]
+    },
+    "C.AFTERSALE.REVERSE.APPROVED": {
+      "carrier": "C-05",
+      "entry": [
+        {
+          "fileKey": "C-05.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-05.base.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-05.reverse-statuses",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-05.reverse-statuses.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-05.error-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-05.error-recovery.png"
+        }
+      ]
+    },
+    "C.AFTERSALE.REVERSE.REJECTED": {
+      "carrier": "C-05",
+      "entry": [
+        {
+          "fileKey": "C-05.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-05.base.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-05.reverse-statuses",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-05.reverse-statuses.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-05.error-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-05.error-recovery.png"
+        }
+      ]
+    },
+    "C.AFTERSALE.COMPLAINT.SUBMITTED": {
+      "carrier": "C-05",
+      "entry": [
+        {
+          "fileKey": "C-05.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-05.base.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-05.complaint-statuses",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-05.complaint-statuses.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-05.error-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-05.error-recovery.png"
+        }
+      ]
+    },
+    "C.AFTERSALE.COMPLAINT.IN_PROGRESS": {
+      "carrier": "C-05",
+      "entry": [
+        {
+          "fileKey": "C-05.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-05.base.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-05.complaint-statuses",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-05.complaint-statuses.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-05.error-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-05.error-recovery.png"
+        }
+      ]
+    },
+    "C.SUPPORT.TICKET.ESCALATED": {
+      "carrier": "C-06",
+      "entry": [
+        {
+          "fileKey": "C-06.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-06.base.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-06.ticket-escalated",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-06.ticket-escalated.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-06.error-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-06.error-recovery.png"
+        }
+      ]
+    },
+    "C.SUPPORT.CONVERSATION.CLOSED": {
+      "carrier": "C-06",
+      "entry": [
+        {
+          "fileKey": "C-06.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-06.base.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-06.conversation-closed",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-06.conversation-closed.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-06.error-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-06.error-recovery.png"
+        }
+      ]
+    },
+    "C.SUPPORT.TICKET.OPEN": {
+      "carrier": "C-06",
+      "entry": [
+        {
+          "fileKey": "C-06.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-06.base.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-06.ticket-open",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-06.ticket-open.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-06.error-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-06.error-recovery.png"
+        }
+      ]
+    },
+    "C.SUPPORT.TICKET.WAITING_REQUESTER": {
+      "carrier": "C-06",
+      "entry": [
+        {
+          "fileKey": "C-06.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-06.base.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-06.ticket-state",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-06.ticket-state.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-06.error-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-06.error-recovery.png"
+        }
+      ]
+    },
+    "C.SUPPORT.TICKET.RESOLVED": {
+      "carrier": "C-06",
+      "entry": [
+        {
+          "fileKey": "C-06.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-06.base.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-06.ticket-resolved",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-06.ticket-resolved.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-06.error-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-06.error-recovery.png"
+        }
+      ]
+    },
+    "C.SUPPORT.TICKET.CLOSED": {
+      "carrier": "C-06",
+      "entry": [
+        {
+          "fileKey": "C-06.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-06.base.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-06.ticket-closed",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-06.ticket-closed.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-06.error-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-06.error-recovery.png"
+        }
+      ]
+    },
+    "C.SUPPORT.CONVERSATION.QUEUEING": {
+      "carrier": "C-06",
+      "entry": [
+        {
+          "fileKey": "C-06.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-06.base.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-06.conversation-queueing",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-06.conversation-queueing.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-06.error-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-06.error-recovery.png"
+        }
+      ]
+    },
+    "C.SUPPORT.CONVERSATION.ACTIVE": {
+      "carrier": "C-06",
+      "entry": [
+        {
+          "fileKey": "C-06.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-06.base.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-06.conversation-state",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-06.conversation-state.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-06.error-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-06.error-recovery.png"
+        }
+      ]
+    },
+    "C.SUPPORT.CONVERSATION.TRANSFERRED": {
+      "carrier": "C-06",
+      "entry": [
+        {
+          "fileKey": "C-06.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-06.base.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-06.conversation-transferred",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-06.conversation-transferred.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-06.error-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-06.error-recovery.png"
+        }
+      ]
+    },
+    "C.NOTIFICATION.INBOX.UNREAD": {
+      "carrier": "C-07",
+      "entry": [
+        {
+          "fileKey": "C-07.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-07.base.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-07.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-07.base.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-07.error-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-07.error-recovery.png"
+        }
+      ]
+    },
+    "C.NOTIFICATION.INBOX.READ": {
+      "carrier": "C-07",
+      "entry": [
+        {
+          "fileKey": "C-07.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-07.base.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-07.read-state",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-07.read-state.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-07.error-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-07.error-recovery.png"
+        }
+      ]
+    },
+    "C.NOTIFICATION.ARCHIVE.ARCHIVED": {
+      "carrier": "C-07",
+      "entry": [
+        {
+          "fileKey": "C-07.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-07.base.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-07.archive-state",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-07.archive-state.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-07.error-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-07.error-recovery.png"
+        }
+      ]
+    },
+    "C.COUPON.WALLET.AVAILABLE": {
+      "carrier": "C-08",
+      "entry": [
+        {
+          "fileKey": "C-08.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-08.base.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-08.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-08.base.png"
+        },
+        {
+          "fileKey": "C-08.status-matrix",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-08.status-matrix.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-08.permission-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-08.permission-recovery.png"
+        }
+      ]
+    },
+    "C.COUPON.WALLET.RESERVED": {
+      "carrier": "C-08",
+      "entry": [
+        {
+          "fileKey": "C-08.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-08.base.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-08.status-matrix",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-08.status-matrix.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-08.permission-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-08.permission-recovery.png"
+        }
+      ]
+    },
+    "C.COUPON.WALLET.REDEEMED": {
+      "carrier": "C-08",
+      "entry": [
+        {
+          "fileKey": "C-08.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-08.base.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-08.status-matrix",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-08.status-matrix.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-08.permission-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-08.permission-recovery.png"
+        }
+      ]
+    },
+    "C.COUPON.WALLET.TERMINAL": {
+      "carrier": "C-08",
+      "entry": [
+        {
+          "fileKey": "C-08.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-08.base.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-08.status-matrix",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-08.status-matrix.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-08.permission-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-08.permission-recovery.png"
+        }
+      ]
+    },
+    "C.PROFILE.DETAIL.DISPLAY": {
+      "carrier": "C-09",
+      "entry": [
+        {
+          "fileKey": "C-09.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-09.base.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-09.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-09.base.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-09.conflict-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-09.conflict-recovery.png"
+        }
+      ]
+    },
+    "C.PROFILE.EDIT.EDITING": {
+      "carrier": "C-09",
+      "entry": [
+        {
+          "fileKey": "C-09.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-09.base.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-09.profile-editing",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-09.profile-editing.png"
+        },
+        {
+          "fileKey": "C-09.profile-saved",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-09.profile-saved.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-09.conflict-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-09.conflict-recovery.png"
+        }
+      ]
+    },
+    "C.ADDRESS.EDIT.CREATING": {
+      "carrier": "C-09",
+      "entry": [
+        {
+          "fileKey": "C-09.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-09.base.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-09.address-creating",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-09.address-creating.png"
+        },
+        {
+          "fileKey": "C-09.address-created",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-09.address-created.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-09.conflict-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-09.conflict-recovery.png"
+        }
+      ]
+    },
+    "C.ADDRESS.EDIT.UPDATING": {
+      "carrier": "C-09",
+      "entry": [
+        {
+          "fileKey": "C-09.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-09.base.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-09.address-edit",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-09.address-edit.png"
+        },
+        {
+          "fileKey": "C-09.address-updated",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-09.address-updated.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-09.conflict-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-09.conflict-recovery.png"
+        }
+      ]
+    },
+    "C.ADDRESS.DELETE.CONFIRMING": {
+      "carrier": "C-09",
+      "entry": [
+        {
+          "fileKey": "C-09.base",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-09.base.png"
+        }
+      ],
+      "result": [
+        {
+          "fileKey": "C-09.delete-confirming",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-09.delete-confirming.png"
+        },
+        {
+          "fileKey": "C-09.address-deleted",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-09.address-deleted.png"
+        }
+      ],
+      "recovery": [
+        {
+          "fileKey": "C-09.conflict-recovery",
+          "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-09.conflict-recovery.png"
+        }
+      ]
+    }
   }
 }

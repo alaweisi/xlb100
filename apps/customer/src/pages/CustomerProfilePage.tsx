@@ -44,6 +44,7 @@ export function CustomerProfilePage({ api, cityCode }: CustomerProfilePageProps)
   const [name, setName] = useState("");
   const [form, setForm] = useState<SaveCustomerAddressRequest>(initialAddress);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [busy, setBusy] = useState<"load" | "profile" | "address" | "delete" | null>("load");
   const [error, setError] = useState<{ title: string; description: string } | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -109,7 +110,7 @@ export function CustomerProfilePage({ api, cityCode }: CustomerProfilePageProps)
     } catch (caught) {
       const mapped = toCustomerError(caught, "地址删除失败");
       setError({ title: mapped.title, description: mapped.description });
-    } finally { setBusy(null); }
+    } finally { setBusy(null); setPendingDeleteId(null); }
   }
 
   const addressReady = Boolean(form.contactName.trim()) && /^1[3-9]\d{9}$/.test(form.contactPhone)
@@ -141,7 +142,14 @@ export function CustomerProfilePage({ api, cityCode }: CustomerProfilePageProps)
               <div className="customer-order-section" key={address.addressId}>
                 <div className="customer-order-actions"><strong>{address.contactName} · {address.contactPhoneMasked}</strong>{address.isDefault && <StatusTag tone="success">默认地址</StatusTag>}</div>
                 <span>{address.province} {address.city} {address.district} {address.detailAddress}</span>
-                <div className="customer-order-actions"><Button onClick={() => editAddress(address)}>编辑</Button><Button disabled={busy !== null} onClick={() => void removeAddress(address.addressId)}>删除</Button></div>
+                <div className="customer-order-actions">
+                  <Button onClick={() => editAddress(address)}>编辑</Button>
+                  {pendingDeleteId === address.addressId ? <>
+                    <StatusTag tone="warning">确认删除此地址？</StatusTag>
+                    <Button disabled={busy !== null} onClick={() => void removeAddress(address.addressId)}>确认删除</Button>
+                    <Button disabled={busy !== null} onClick={() => setPendingDeleteId(null)}>取消</Button>
+                  </> : <Button disabled={busy !== null} onClick={() => setPendingDeleteId(address.addressId)}>删除</Button>}
+                </div>
               </div>
             ))}
           </div>
