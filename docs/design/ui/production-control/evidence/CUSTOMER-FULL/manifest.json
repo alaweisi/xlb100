@@ -1,0 +1,830 @@
+{
+  "batch": "CUSTOMER-FULL",
+  "browser": "Microsoft Edge",
+  "browserVersion": "150.0.4078.83",
+  "capturedAt": "2026-07-18T16:29:01.598Z",
+  "actualApp": true,
+  "contractStateInjection": true,
+  "appUrl": "http://127.0.0.1:4391",
+  "viewport": "390x844",
+  "constraints": [
+    "截图来自实际顾客 App",
+    "仅在 Playwright route 网络边界注入现有响应契约",
+    "金额来自统一报价契约态",
+    "支付仅展示待处理，不伪造支付成功",
+    "退款仅展示已申请，不伪造到账"
+  ],
+  "coverage": {
+    "C-00": [
+      "base",
+      "result",
+      "recovery"
+    ],
+    "C-01": [
+      "state",
+      "base",
+      "state",
+      "recovery"
+    ],
+    "C-02": [
+      "base",
+      "state"
+    ],
+    "C-03": [
+      "base",
+      "result",
+      "recovery"
+    ],
+    "C-04": [
+      "base",
+      "result",
+      "result"
+    ],
+    "C-05": [
+      "base",
+      "result",
+      "recovery"
+    ],
+    "C-06": [
+      "base",
+      "state",
+      "state"
+    ],
+    "C-07": [
+      "base",
+      "state",
+      "recovery"
+    ],
+    "C-08": [
+      "base",
+      "state",
+      "recovery"
+    ],
+    "C-09": [
+      "base",
+      "interaction",
+      "recovery"
+    ]
+  },
+  "evidence": [
+    {
+      "carrier": "C-00",
+      "fileKey": "C-00.base",
+      "stage": "base",
+      "label": "身份恢复入口",
+      "contractState": "无有效会话，保留订单目标",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-00.base.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 844,
+        "clientHeight": 844
+      }
+    },
+    {
+      "carrier": "C-00",
+      "fileKey": "C-00.otp-result",
+      "stage": "result",
+      "label": "验证码请求结果",
+      "contractState": "验证码接口确认发送，不代表登录成功",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-00.otp-result.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 844,
+        "clientHeight": 844
+      }
+    },
+    {
+      "carrier": "C-00",
+      "fileKey": "C-00.error-recovery",
+      "stage": "recovery",
+      "label": "登录错误恢复",
+      "contractState": "认证接口返回 401，留在原门禁可重试",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-00.error-recovery.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 844,
+        "clientHeight": 844
+      }
+    },
+    {
+      "carrier": "C-01",
+      "fileKey": "C-01.loading",
+      "stage": "state",
+      "label": "首页加载态",
+      "contractState": "目录请求保持未完成",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-01.loading.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 887,
+        "clientHeight": 844
+      }
+    },
+    {
+      "carrier": "C-01",
+      "fileKey": "C-01.base",
+      "stage": "base",
+      "label": "首页发现 Base Frame",
+      "contractState": "正式目录契约态",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-01.base.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 968,
+        "clientHeight": 844
+      }
+    },
+    {
+      "carrier": "C-01",
+      "fileKey": "C-01.empty",
+      "stage": "state",
+      "label": "首页整页空态",
+      "contractState": "目录接口返回空分类",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-01.empty.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 887,
+        "clientHeight": 844
+      }
+    },
+    {
+      "carrier": "C-01",
+      "fileKey": "C-01.error-recovery",
+      "stage": "recovery",
+      "label": "目录错误恢复入口",
+      "contractState": "目录接口返回 503，真实重试动作可见",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-01.error-recovery.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 887,
+        "clientHeight": 844
+      }
+    },
+    {
+      "carrier": "C-02",
+      "fileKey": "C-02.base",
+      "stage": "base",
+      "label": "服务浏览 Base Frame",
+      "contractState": "正式目录契约态",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-02.base.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 976,
+        "clientHeight": 844
+      }
+    },
+    {
+      "carrier": "C-02",
+      "fileKey": "C-02.no-result",
+      "stage": "state",
+      "label": "搜索无结果",
+      "contractState": "客户端筛选真实目录后无匹配",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-02.no-result.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 844,
+        "clientHeight": 844
+      }
+    },
+    {
+      "carrier": "C-03",
+      "fileKey": "C-03.quote-ready",
+      "stage": "base",
+      "label": "下单与权威报价",
+      "contractState": "报价接口返回 88 元固定价",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-03.quote-ready.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 1792,
+        "clientHeight": 844
+      }
+    },
+    {
+      "carrier": "C-03",
+      "fileKey": "C-03.coupon-result",
+      "stage": "result",
+      "label": "优惠券校验结果",
+      "contractState": "折扣决策由服务端契约态返回",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-03.coupon-result.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 1978,
+        "clientHeight": 844
+      }
+    },
+    {
+      "carrier": "C-03",
+      "fileKey": "C-03.validation-recovery",
+      "stage": "recovery",
+      "label": "优惠资格变化恢复",
+      "contractState": "折扣决策接口返回 422，不自动原价提交",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-03.validation-recovery.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 1949,
+        "clientHeight": 844
+      }
+    },
+    {
+      "carrier": "C-04",
+      "fileKey": "C-04.base",
+      "stage": "base",
+      "label": "订单详情 Base Frame",
+      "contractState": "订单状态等待服务",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.base.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 1489,
+        "clientHeight": 844
+      }
+    },
+    {
+      "carrier": "C-04",
+      "fileKey": "C-04.payment-pending",
+      "stage": "result",
+      "label": "支付待处理结果",
+      "contractState": "支付单接口仅返回 pending，未伪造支付成功",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.payment-pending.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 1549,
+        "clientHeight": 844
+      }
+    },
+    {
+      "carrier": "C-04",
+      "fileKey": "C-04.refund-requested",
+      "stage": "result",
+      "label": "退款申请结果",
+      "contractState": "退款接口仅返回 requested，未声明批准或到账",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.refund-requested.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 1489,
+        "clientHeight": 844
+      }
+    },
+    {
+      "carrier": "C-05",
+      "fileKey": "C-05.base",
+      "stage": "base",
+      "label": "售后 Base Frame",
+      "contractState": "逆向、客诉与凭证聚合契约态",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-05.base.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 1940,
+        "clientHeight": 844
+      }
+    },
+    {
+      "carrier": "C-05",
+      "fileKey": "C-05.reverse-result",
+      "stage": "result",
+      "label": "逆向申请结果",
+      "contractState": "逆向接口返回 requested",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-05.reverse-result.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 2084,
+        "clientHeight": 844
+      }
+    },
+    {
+      "carrier": "C-05",
+      "fileKey": "C-05.error-recovery",
+      "stage": "recovery",
+      "label": "售后加载错误",
+      "contractState": "售后列表接口返回 503，可刷新重试",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-05.error-recovery.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 1943,
+        "clientHeight": 844
+      }
+    },
+    {
+      "carrier": "C-06",
+      "fileKey": "C-06.base",
+      "stage": "base",
+      "label": "客服中心 Base Frame",
+      "contractState": "工单与在线会话列表契约态",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-06.base.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 989,
+        "clientHeight": 844
+      }
+    },
+    {
+      "carrier": "C-06",
+      "fileKey": "C-06.ticket-state",
+      "stage": "state",
+      "label": "工单等待回复状态",
+      "contractState": "工单详情为 waiting_requester",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-06.ticket-state.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 1401,
+        "clientHeight": 844
+      }
+    },
+    {
+      "carrier": "C-06",
+      "fileKey": "C-06.conversation-state",
+      "stage": "state",
+      "label": "在线会话消息",
+      "contractState": "会话为 active 且消息由会话详情接口返回",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-06.conversation-state.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 1658,
+        "clientHeight": 844
+      }
+    },
+    {
+      "carrier": "C-07",
+      "fileKey": "C-07.base",
+      "stage": "base",
+      "label": "通知收件箱 Base Frame",
+      "contractState": "未读订单通知契约态",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-07.base.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 844,
+        "clientHeight": 844
+      }
+    },
+    {
+      "carrier": "C-07",
+      "fileKey": "C-07.archive-state",
+      "stage": "state",
+      "label": "归档通知状态",
+      "contractState": "归档视图返回 readAt 与 archivedAt",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-07.archive-state.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 844,
+        "clientHeight": 844
+      }
+    },
+    {
+      "carrier": "C-07",
+      "fileKey": "C-07.error-recovery",
+      "stage": "recovery",
+      "label": "通知错误恢复",
+      "contractState": "通知接口返回 503，保留重试按钮",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-07.error-recovery.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 844,
+        "clientHeight": 844
+      }
+    },
+    {
+      "carrier": "C-08",
+      "fileKey": "C-08.base",
+      "stage": "base",
+      "label": "优惠券钱包 Base Frame",
+      "contractState": "可使用券由 grant 契约态返回",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-08.base.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 844,
+        "clientHeight": 844
+      }
+    },
+    {
+      "carrier": "C-08",
+      "fileKey": "C-08.empty",
+      "stage": "state",
+      "label": "券包空态",
+      "contractState": "券包接口返回空列表",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-08.empty.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 844,
+        "clientHeight": 844
+      }
+    },
+    {
+      "carrier": "C-08",
+      "fileKey": "C-08.permission-recovery",
+      "stage": "recovery",
+      "label": "券包权限错误",
+      "contractState": "券包接口返回 403，不伪造券",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-08.permission-recovery.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 844,
+        "clientHeight": 844
+      }
+    },
+    {
+      "carrier": "C-09",
+      "fileKey": "C-09.base",
+      "stage": "base",
+      "label": "资料与地址 Base Frame",
+      "contractState": "资料与地址来自账号接口",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-09.base.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 1019,
+        "clientHeight": 844
+      }
+    },
+    {
+      "carrier": "C-09",
+      "fileKey": "C-09.address-edit",
+      "stage": "interaction",
+      "label": "地址编辑区域",
+      "contractState": "脱敏手机号不可回填，要求重新输入",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-09.address-edit.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 1069,
+        "clientHeight": 844
+      }
+    },
+    {
+      "carrier": "C-09",
+      "fileKey": "C-09.conflict-recovery",
+      "stage": "recovery",
+      "label": "资料冲突恢复",
+      "contractState": "资料接口返回 409，展示重新加载动作",
+      "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-09.conflict-recovery.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "horizontalOverflow": false,
+      "documentMetrics": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "scrollHeight": 1076,
+        "clientHeight": 844
+      }
+    }
+  ],
+  "validation": {
+    "screenshotCount": 30,
+    "filesExist": true,
+    "pngDimensionsValid": true,
+    "allCarriersHaveBaseFrame": true,
+    "horizontalOverflowCount": 0,
+    "files": [
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-00.base.png",
+        "bytes": 58962,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-00.otp-result.png",
+        "bytes": 60436,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-00.error-recovery.png",
+        "bytes": 62517,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-01.loading.png",
+        "bytes": 239955,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-01.base.png",
+        "bytes": 252569,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-01.empty.png",
+        "bytes": 247490,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-01.error-recovery.png",
+        "bytes": 245173,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-02.base.png",
+        "bytes": 43395,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-02.no-result.png",
+        "bytes": 34269,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-03.quote-ready.png",
+        "bytes": 48363,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-03.coupon-result.png",
+        "bytes": 50906,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-03.validation-recovery.png",
+        "bytes": 51534,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.base.png",
+        "bytes": 56339,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.payment-pending.png",
+        "bytes": 58688,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-04.refund-requested.png",
+        "bytes": 47994,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-05.base.png",
+        "bytes": 59342,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-05.reverse-result.png",
+        "bytes": 61334,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-05.error-recovery.png",
+        "bytes": 60289,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-06.base.png",
+        "bytes": 60408,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-06.ticket-state.png",
+        "bytes": 71455,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-06.conversation-state.png",
+        "bytes": 73064,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-07.base.png",
+        "bytes": 58435,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-07.archive-state.png",
+        "bytes": 57785,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-07.error-recovery.png",
+        "bytes": 54086,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-08.base.png",
+        "bytes": 65491,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-08.empty.png",
+        "bytes": 59461,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-08.permission-recovery.png",
+        "bytes": 62270,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-09.base.png",
+        "bytes": 39149,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-09.address-edit.png",
+        "bytes": 43263,
+        "width": 390,
+        "height": 844
+      },
+      {
+        "path": "docs/design/ui/production-control/evidence/CUSTOMER-FULL/C-09.conflict-recovery.png",
+        "bytes": 35401,
+        "width": 390,
+        "height": 844
+      }
+    ]
+  }
+}
