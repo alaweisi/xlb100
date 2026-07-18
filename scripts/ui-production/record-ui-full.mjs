@@ -49,12 +49,10 @@ const carrierDefinitions = {
   "A-14": ["#/marketing", "apps/admin/src/pages/MarketingOperationsPage.tsx", "tests/unit/phase29MarketingSurfaces.test.tsx", ["listCampaigns", "createCampaign", "listRuleRevisions", "listCouponDefinitions", "grantCoupon"]],
 };
 
-const manifests = ["CUSTOMER-FULL", "WORKER-FULL", "ADMIN-FULL"]
-  .map((name) => path.join(evidenceRoot, name, "manifest.json"))
-  .filter((file) => fs.existsSync(file))
-  .map((file) => JSON.parse(fs.readFileSync(file, "utf8")));
-
-if (!manifests.length) throw new Error("没有找到三端 Edge 证据清单，请先执行 capture-*-full.mjs");
+const manifestPaths = ["CUSTOMER-FULL", "WORKER-FULL", "ADMIN-FULL"].map((name) => path.join(evidenceRoot, name, "manifest.json"));
+const missingManifests = manifestPaths.filter((file) => !fs.existsSync(file));
+if (missingManifests.length) throw new Error(`三端 Edge 证据清单尚未齐备：${missingManifests.map((file) => path.basename(path.dirname(file))).join("、")}`);
+const manifests = manifestPaths.map((file) => JSON.parse(fs.readFileSync(file, "utf8")));
 
 const evidenceById = new Map();
 for (const manifest of manifests) {
