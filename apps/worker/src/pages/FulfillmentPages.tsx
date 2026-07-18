@@ -14,10 +14,14 @@ const evidenceLabels: Record<FulfillmentEvidenceType, string> = {
   completion: "完工结果",
 };
 
-export function RepairOrdersPage({ repairOrders, loading, error, busyId, notes, onRefresh, onNoteChange, onStart, onComplete }: {
+const repairStatusLabels: Record<AftersaleRepairOrderResponse["status"], string> = { requested: "待平台分派", assigned: "待开始", in_progress: "返工中", completed: "已完成", cancelled: "已取消" };
+
+export function RepairOrdersPage({ repairOrders, loading, error, notice = null, networkOnline = true, busyId, notes, onRefresh, onNoteChange, onStart, onComplete }: {
   repairOrders: AftersaleRepairOrderResponse[];
   loading: boolean;
   error: string | null;
+  notice?: string | null;
+  networkOnline?: boolean;
   busyId: string | null;
   notes: Record<string, string>;
   onRefresh: () => void;
@@ -27,15 +31,20 @@ export function RepairOrdersPage({ repairOrders, loading, error, busyId, notes, 
 }) {
   return (
     <>
+      {!networkOnline && <div className="worker-state-banner worker-state-banner--danger" role="status"><strong>当前网络已断开</strong><span>返工操作已关闭。恢复网络后请先刷新状态，避免重复开始或完成。</span></div>}
       {loading && <LoadingState title="正在加载返工任务" description="正在读取已分派的售后返工单。" />}
-      {error && <Card title="返工任务加载失败" actions={<StatusTag tone="danger">需处理</StatusTag>} style={workerPanelStyle}><p className="worker-error-copy">{error}</p></Card>}
+      {error && <Card title={error.includes("结果暂时未知") ? "返工结果待确认" : "返工任务暂不可用"} actions={<StatusTag tone="danger">需核对</StatusTag>} style={workerPanelStyle}><p className="worker-error-copy">{error}</p><Button disabled={!networkOnline || loading} onClick={onRefresh}>刷新确认</Button></Card>}
+      {notice && <Card title="返工状态已同步" actions={<StatusTag tone="success">成功</StatusTag>} style={workerPanelStyle}><p style={helperText}>{notice}</p></Card>}
       <section className="worker-journey-section" aria-labelledby="repair-title">
-        <div className="worker-section-heading"><div><span className="worker-eyebrow">售后履约</span><h2 id="repair-title">已分派返工</h2></div><Button onClick={onRefresh}>刷新</Button></div>
+        <div className="worker-section-heading"><div><span className="worker-eyebrow">售后履约</span><h2 id="repair-title">返工任务全流程</h2></div><Button disabled={!networkOnline || loading} onClick={onRefresh}>刷新</Button></div>
         {repairOrders.length === 0 && !loading ? <Card style={workerPanelStyle}><EmptyState title="暂无返工任务" description="平台分派的投诉返工任务会显示在这里。" /></Card> : <div className="worker-task-list">{repairOrders.map((item) => <article className={`worker-task-card worker-task-card--${item.status}`} key={item.repairOrderId}>
-          <div className="worker-task-card__topline"><div><span>返工编号</span><strong>{item.repairOrderId}</strong></div><StatusTag tone={statusTone(item.status)}>{item.status === "assigned" ? "待开始" : item.status === "in_progress" ? "返工中" : item.status === "completed" ? "已完成" : item.status === "cancelled" ? "已取消" : "待分派"}</StatusTag></div>
-          <dl className="worker-fact-grid"><div><dt>订单编号</dt><dd>{item.orderId}</dd></div><div><dt>返工原因</dt><dd>{item.reason}</dd></div></dl>
-          <FormField label="完成说明"><Input value={notes[item.repairOrderId] ?? ""} onChange={(event) => onNoteChange(item.repairOrderId, event.target.value)} /></FormField>
-          <div className="worker-card-actions"><Button disabled={item.status !== "assigned" || busyId === item.repairOrderId} onClick={() => onStart(item.repairOrderId)}>开始返工</Button><Button variant="primary" disabled={item.status !== "in_progress" || busyId === item.repairOrderId || !(notes[item.repairOrderId] ?? "").trim()} onClick={() => onComplete(item.repairOrderId, (notes[item.repairOrderId] ?? "").trim())}>登记完成</Button></div>
+          <div className="worker-task-card__topline"><div><span>返工编号</span><strong>{item.repairOrderId}</strong></div><StatusTag tone={statusTone(item.status)}>{repairStatusLabels[item.status]}</StatusTag></div>
+          <p className="worker-primary-guidance">{item.status === "requested" ? "返工申请已创建，等待平台分派；当前无需操作。" : item.status === "assigned" ? "平台已分派给你，请核对订单和原因后开始返工。" : item.status === "in_progress" ? "返工处理中，请完成现场服务并如实填写结果。" : item.status === "completed" ? "返工已登记完成，请保留现场记录并关注后续售后结果。" : "该返工已取消，操作入口已关闭。"}</p>
+          <ol className="worker-timeline"><li className={`worker-timeline__item worker-timeline__item--${item.status === "requested" ? "current" : "done"}`}><span aria-hidden="true"/><div><strong>返工申请</strong><small>{formatDateTime(item.createdAt)}</small></div></li><li className={`worker-timeline__item worker-timeline__item--${item.status === "assigned" ? "current" : ["in_progress","completed"].includes(item.status) ? "done" : item.status === "cancelled" ? "blocked" : "pending"}`}><span aria-hidden="true"/><div><strong>平台分派</strong><small>{item.workerId ? `已分派师傅 ${item.workerId}` : "等待分派"}</small></div></li><li className={`worker-timeline__item worker-timeline__item--${item.status === "in_progress" ? "current" : item.status === "completed" ? "done" : item.status === "cancelled" ? "blocked" : "pending"}`}><span aria-hidden="true"/><div><strong>现场返工</strong><small>{item.startedAt ? formatDateTime(item.startedAt) : "尚未开始"}</small></div></li><li className={`worker-timeline__item worker-timeline__item--${item.status === "completed" ? "done" : item.status === "cancelled" ? "blocked" : "pending"}`}><span aria-hidden="true"/><div><strong>{item.status === "cancelled" ? "任务取消" : "登记完成"}</strong><small>{item.completedAt ? formatDateTime(item.completedAt) : item.status === "cancelled" ? "平台已取消" : "尚未完成"}</small></div></li></ol>
+          <dl className="worker-fact-grid"><div><dt>订单编号</dt><dd>{item.orderId}</dd></div><div><dt>投诉编号</dt><dd>{item.complaintId}</dd></div><div><dt>返工原因</dt><dd>{item.reason}</dd></div>{item.serviceNote && <div><dt>完成说明</dt><dd>{item.serviceNote}</dd></div>}</dl>
+          <FormField label="返工完成说明（仅返工中可填）"><Input disabled={item.status !== "in_progress" || busyId === item.repairOrderId} maxLength={500} value={notes[item.repairOrderId] ?? ""} onChange={(event) => onNoteChange(item.repairOrderId, event.target.value)} /></FormField>
+          <div className="worker-card-actions"><Button disabled={!networkOnline || item.status !== "assigned" || busyId === item.repairOrderId} onClick={() => onStart(item.repairOrderId)}>{busyId === item.repairOrderId && item.status === "assigned" ? "正在开始" : "开始返工"}</Button><Button variant="primary" disabled={!networkOnline || item.status !== "in_progress" || busyId === item.repairOrderId || !(notes[item.repairOrderId] ?? "").trim()} onClick={() => onComplete(item.repairOrderId, (notes[item.repairOrderId] ?? "").trim())}>{busyId === item.repairOrderId && item.status === "in_progress" ? "正在登记" : "登记返工完成"}</Button></div>
+          {(item.status === "requested" || item.status === "cancelled") && <p className="worker-contract-note">师傅侧现有接口不提供接收、拒绝或取消返工操作，本页只展示平台真实状态，不伪造操作结果。</p>}
         </article>)}</div>}
       </section>
     </>
@@ -140,7 +149,7 @@ export function TaskDetailPage({
         <Card title="服务证据" actions={<StatusTag tone={evidenceAggregate?.evidence.length ? "success" : "warning"}>{evidenceAggregate?.evidence.length ?? 0} 项</StatusTag>} style={workerPanelStyle}>
           <div className="worker-evidence-form">
             <FormField label="证据节点"><Select disabled={fulfillment.status === "cancelled" || evidenceBusy} value={evidenceType} onChange={(event) => setEvidenceType(event.target.value as FulfillmentEvidenceType)}>{Object.entries(evidenceLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select></FormField>
-            <FormField label="现场图片（JPEG / PNG / WebP，最大 5 MiB）"><input accept="image/jpeg,image/png,image/webp" disabled={fulfillment.status === "cancelled" || evidenceBusy} onChange={(event) => setEvidenceFile(event.target.files?.[0] ?? null)} type="file" /></FormField>
+            <FormField label="现场图片（常见图片格式，最大 5 兆字节）"><input accept="image/jpeg,image/png,image/webp" disabled={fulfillment.status === "cancelled" || evidenceBusy} onChange={(event) => setEvidenceFile(event.target.files?.[0] ?? null)} type="file" /></FormField>
             <FormField label="投诉编号（仅关联争议时填写）"><Input disabled={fulfillment.status === "cancelled" || evidenceBusy} maxLength={64} value={evidenceComplaintId} onChange={(event) => setEvidenceComplaintId(event.target.value)} /></FormField>
             <FormField label="证据说明（最多 500 字）"><Textarea disabled={fulfillment.status === "cancelled" || evidenceBusy} maxLength={500} value={evidenceNote} onChange={(event) => setEvidenceNote(event.target.value)} /></FormField>
             <div className="worker-card-actions"><Button variant="primary" disabled={!evidenceFile || evidenceBusy || !networkOnline || fulfillment.status === "cancelled" || confirmationStatus === "confirmed" || confirmationStatus === "disputed"} onClick={() => evidenceFile && onUploadEvidence(fulfillmentId, evidenceFile, { evidenceType, complaintId: evidenceComplaintId.trim() || undefined, note: evidenceNote.trim() || undefined })}>{evidenceBusy ? "正在上传证据" : "上传证据"}</Button><Button disabled={evidenceLoading || !networkOnline} onClick={() => onRefreshEvidence(fulfillmentId)}>刷新证据</Button></div>
@@ -150,11 +159,11 @@ export function TaskDetailPage({
         {evidenceError && <Card title={evidenceError.includes("结果暂时未知") ? "证据结果待确认" : "证据操作未完成"} actions={<StatusTag tone="danger">请核对</StatusTag>} style={workerPanelStyle}><p className="worker-error-copy">{evidenceError}</p></Card>}
         {evidenceNotice && <Card title="证据已保存" actions={<StatusTag tone="success">已同步</StatusTag>} style={workerPanelStyle}><p style={helperText}>{evidenceNotice}</p></Card>}
         {evidenceLoading && <LoadingState title="正在加载证据" description="正在读取私有证据元数据。" />}
-        {!evidenceLoading && evidenceAggregate && <Card title="证据时间线" style={workerPanelStyle}>{evidenceAggregate.evidence.length === 0 ? <EmptyState title="尚未上传证据" description="建议按到场、服务前后和完工节点留存现场图片。" /> : <div className="worker-evidence-list">{evidenceAggregate.evidence.map((item) => <article key={item.evidenceId}><div><StatusTag tone="primary">{evidenceLabels[item.evidenceType]}</StatusTag><strong>{item.mediaAsset.originalFileName}</strong></div><span>{formatDateTime(item.capturedAt)} · {Math.max(1, Math.round(item.mediaAsset.sizeBytes / 1024))} KB</span><small>校验值 {item.mediaAsset.checksumSha256.slice(0, 12)} · {item.mediaAsset.securityScanStatus === "not_malware_scanned_local" ? "本地格式检查" : item.mediaAsset.securityScanStatus}</small></article>)}</div>}</Card>}
+        {!evidenceLoading && evidenceAggregate && <Card title="证据时间线" style={workerPanelStyle}>{evidenceAggregate.evidence.length === 0 ? <EmptyState title="尚未上传证据" description="建议按到场、服务前后和完工节点留存现场图片。" /> : <div className="worker-evidence-list">{evidenceAggregate.evidence.map((item) => <article key={item.evidenceId}><div><StatusTag tone="primary">{evidenceLabels[item.evidenceType]}</StatusTag><strong>{item.mediaAsset.originalFileName}</strong></div><span>{formatDateTime(item.capturedAt)} · {Math.max(1, Math.round(item.mediaAsset.sizeBytes / 1024))} 千字节</span><small>校验值 {item.mediaAsset.checksumSha256.slice(0, 12)} · {item.mediaAsset.securityScanStatus === "not_malware_scanned_local" ? "本地格式检查" : "安全检查状态未知"}</small></article>)}</div>}</Card>}
 
         <Card title="顾客确认与争议" actions={<StatusTag tone={confirmationStatus === "confirmed" ? "success" : confirmationStatus === "disputed" ? "danger" : "warning"}>{confirmationStatus === "confirmed" ? "已确认" : confirmationStatus === "disputed" ? "有争议" : "待确认"}</StatusTag>} style={workerPanelStyle}><ConfirmationPanel aggregate={evidenceAggregate} completed={fulfillment.status === "completed"} /></Card>
 
-        <Card title="取消与异常" actions={<StatusTag tone="muted">受限操作</StatusTag>} style={workerPanelStyle}><p style={helperText}>当前共享 API 未提供师傅取消履约接口，因此页面不会伪造取消成功。若无法继续服务，请联系客服留痕处理。</p><div className="worker-card-actions"><Button disabled>取消履约（接口待接入）</Button><a className="worker-link-button" href="/worker/support">联系平台客服</a></div></Card>
+        <Card title="取消与异常" actions={<StatusTag tone="muted">受限操作</StatusTag>} style={workerPanelStyle}><p style={helperText}>当前共享接口未提供师傅取消履约能力，因此页面不会伪造取消成功。若无法继续服务，请联系客服留痕处理。</p><div className="worker-card-actions"><Button disabled>取消履约（接口待接入）</Button><a className="worker-link-button" href="/worker/support">联系平台客服</a></div></Card>
       </>}
     </>
   );

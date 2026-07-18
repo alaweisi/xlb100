@@ -102,13 +102,13 @@ describe("Phase 24B support pages", () => {
       reopenTicket: vi.fn(),
     };
     render(<WorkerSupportPage api={api} />);
-    fireEvent.click(await screen.findByRole("button", { name: "View" }));
-    fireEvent.change(await screen.findByLabelText("Add message"), { target: { value: "Please investigate" } });
-    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    fireEvent.click(await screen.findByRole("button", { name: "查看" }));
+    fireEvent.change(await screen.findByLabelText("补充留言"), { target: { value: "Please investigate" } });
+    fireEvent.click(screen.getByRole("button", { name: "发送留言" }));
     await waitFor(() => expect(api.addComment).toHaveBeenCalledWith("ticket-phase24b", {
       content: "Please investigate", idempotencyKey: expect.stringMatching(/^worker-comment-/),
     }));
-    expect(await screen.findByText("Message sent")).toBeTruthy();
+    expect(await screen.findByText("留言已发送。")).toBeTruthy();
     expect(api.getTicket).toHaveBeenCalledTimes(2);
   });
 

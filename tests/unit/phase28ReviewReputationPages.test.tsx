@@ -59,7 +59,7 @@ describe("Phase28 Review/Reputation pages", () => {
     }} />);
 
     expect(await screen.findByText("4.67")).toBeTruthy();
-    expect(screen.getByText(/not used for dispatch, eligibility, ranking, or qualification/i)).toBeTruthy();
+    expect(screen.getByText(/不用于派单、接单资格、排序或资质判定/)).toBeTruthy();
     expect(getMyReputation).toHaveBeenCalledTimes(1);
   });
 
@@ -82,9 +82,9 @@ describe("Phase28 Review/Reputation pages", () => {
       withdrawReviewAppeal: vi.fn(),
     }} />);
 
-    const reason = await screen.findByLabelText("Appeal reason for decision 2");
+    const reason = await screen.findByLabelText("审核决定 2 的申诉理由");
     fireEvent.change(reason, { target: { value: "Please review this decision" } });
-    fireEvent.click(screen.getByRole("button", { name: "Appeal decision" }));
+    fireEvent.click(screen.getByRole("button", { name: "提交申诉" }));
 
     await waitFor(() => expect(createReviewAppeal).toHaveBeenCalledWith(
       "review-1",

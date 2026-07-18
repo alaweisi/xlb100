@@ -133,9 +133,9 @@ describe("Phase27D Customer/Worker notification pages", () => {
       setNotificationArchived: vi.fn((_id, _body) => mutationResult(2)),
     }} />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Mark as read" }));
-    expect(await screen.findByText("Notification changed on another device. Latest state reloaded.")).toBeTruthy();
-    expect(await screen.findByLabelText("Read notification: Order created")).toBeTruthy();
+    fireEvent.click(await screen.findByRole("button", { name: "标记已读" }));
+    expect(await screen.findByText("消息已在其他设备变更，已重新加载最新状态。")).toBeTruthy();
+    expect(await screen.findByLabelText("已读消息：Order created")).toBeTruthy();
     expect(listNotifications).toHaveBeenCalledTimes(2);
     expect(screen.queryByRole("link")).toBeNull();
   });
@@ -150,16 +150,16 @@ describe("Phase27D Customer/Worker notification pages", () => {
       setNotificationArchived: vi.fn((_id, _body) => mutationResult(2)),
     }} />);
 
-    expect((await screen.findByRole("alert")).textContent).toContain("notification API unavailable");
-    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
-    expect(await screen.findByText("No notifications")).toBeTruthy();
+    expect((await screen.findByRole("alert")).textContent).toContain("平台未能完成当前操作");
+    fireEvent.click(screen.getByRole("button", { name: "重试" }));
+    expect(await screen.findByText("暂无消息")).toBeTruthy();
     expect(listNotifications).toHaveBeenCalledTimes(2);
   });
 
   it.each([
     { name: "Customer", Component: CustomerNotificationsPage, read: "标为已读", archiveTab: "已归档" },
-    { name: "Worker", Component: WorkerNotificationsPage, read: "Mark as read", archiveTab: "Archive" },
-  ])("prevents $name view changes while a mutation is pending", async ({ Component, read, archiveTab }) => {
+    { name: "Worker", Component: WorkerNotificationsPage, read: "标记已读", archiveTab: "已归档" },
+  ])("prevents $name view changes while a mutation is pending", async ({ name, Component, read, archiveTab }) => {
     const deferred = deferredMutation();
     const listNotifications = vi.fn().mockResolvedValue({ ok: true, items: [orderItem], nextCursor: null });
     const api = {
@@ -170,7 +170,7 @@ describe("Phase27D Customer/Worker notification pages", () => {
     render(<Component api={api} />);
 
     fireEvent.click(await screen.findByRole("button", { name: read }));
-    const archive = within(screen.getByRole("tablist", { name: "Notification view" }))
+    const archive = within(screen.getByRole("tablist", { name: name === "Worker" ? "消息视图" : "Notification view" }))
       .getByRole("button", { name: archiveTab });
     expect(archive).toHaveProperty("disabled", true);
     fireEvent.click(archive);

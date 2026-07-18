@@ -357,7 +357,7 @@ describe("Worker App API wiring", () => {
     fireEvent.click(await screen.findByRole("button", { name: "立即接单" }));
 
     expect(await screen.findByText("接单未完成")).toBeTruthy();
-    expect(screen.getByText("任务状态已被其他操作更新，请刷新后再处理。")).toBeTruthy();
+    expect(screen.getByText("业务状态已被其他操作更新，请刷新后再处理。")).toBeTruthy();
   });
 
   it("starts and completes a fulfillment, refreshing detail after each action", async () => {
@@ -390,10 +390,10 @@ describe("Worker App API wiring", () => {
 
     await renderAndLogin();
 
-    fireEvent.change(await screen.findByLabelText("certName"), {
+    fireEvent.change(await screen.findByLabelText("资格名称（最多 128 字）"), {
       target: { value: "现场服务基础资格" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Submit certification" }));
+    fireEvent.click(screen.getByRole("button", { name: "提交认证申请" }));
 
     await waitFor(() => {
       expect(mocks.submitCertification).toHaveBeenCalledWith({
@@ -401,21 +401,21 @@ describe("Worker App API wiring", () => {
         certName: "现场服务基础资格",
       });
     });
-    expect(await screen.findByText(/Certification cert-1 submitted with status pending/)).toBeTruthy();
+    expect(await screen.findByText(/认证申请 cert-1 已提交，平台返回状态：待审核/)).toBeTruthy();
   });
 
   it("loads the real wallet and submits a withdrawal request",async()=>{
     setRoute("/worker/wallet");await renderAndLogin();
     expect(await screen.findByText("¥350.00")).toBeTruthy();
-    fireEvent.change(screen.getByLabelText("Amount"),{target:{value:"100"}});
-    fireEvent.click(screen.getByRole("button",{name:"Submit request"}));
+    fireEvent.change(screen.getByLabelText("申请金额（人民币）"),{target:{value:"100"}});
+    fireEvent.click(screen.getByRole("button",{name:"提交提现申请"}));
     await waitFor(()=>expect(mocks.createWithdrawalRequest).toHaveBeenCalledWith(expect.objectContaining({bankAccountId:"bank-1",amount:100})));
   });
 
   it("loads and reports a private worker location",async()=>{
     setRoute("/worker/profile");await renderAndLogin();
     expect(await screen.findByText(/30.2741, 120.1551/)).toBeTruthy();
-    fireEvent.click(screen.getByRole("button",{name:"Report current location"}));
+    fireEvent.click(screen.getByRole("button",{name:"更新当前位置"}));
     await waitFor(()=>expect(mocks.upsertLocation).toHaveBeenCalledWith(expect.objectContaining({latitude:30.2741,longitude:120.1551,serviceRadiusKm:10,locationSharingEnabled:true})));
   });
 
@@ -456,10 +456,10 @@ describe("Worker App API wiring", () => {
   it("adds a bank account and logs out without retaining the session", async () => {
     setRoute("/worker/wallet");
     await renderAndLogin();
-    fireEvent.change(await screen.findByLabelText("Account holder"), { target: { value: "Worker" } });
-    fireEvent.change(screen.getByLabelText("Bank"), { target: { value: "XLB Bank" } });
-    fireEvent.change(screen.getByLabelText("Card number"), { target: { value: "6222021234567890" } });
-    fireEvent.click(screen.getByRole("button", { name: "Add bank account" }));
+    fireEvent.change(await screen.findByLabelText("账户姓名（最多 128 字）"), { target: { value: "Worker" } });
+    fireEvent.change(screen.getByLabelText("开户银行（最多 128 字）"), { target: { value: "XLB Bank" } });
+    fireEvent.change(screen.getByLabelText("银行卡号（12～32 位，可含空格）"), { target: { value: "6222021234567890" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存收款账户" }));
     await waitFor(() => expect(mocks.createBankAccount).toHaveBeenCalledWith({
       accountHolder: "Worker", bankName: "XLB Bank", bankCardNumber: "6222021234567890",
     }));

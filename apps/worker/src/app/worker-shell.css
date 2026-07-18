@@ -632,6 +632,50 @@ body {
   text-decoration: none;
 }
 
+.worker-finance-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 12px;
+}
+
+.worker-finance-grid > div {
+  background: rgba(3, 15, 30, 0.28);
+  border: 1px solid rgba(148, 184, 219, 0.14);
+  border-radius: 12px;
+  display: grid;
+  gap: 5px;
+  padding: 11px;
+}
+
+.worker-finance-grid span { color: #91a8be; font-size: 10px; }
+.worker-finance-grid strong { color: #f0f6fc; font-size: 17px; }
+
+.worker-stack-list {
+  display: grid;
+  gap: 10px;
+}
+
+.worker-stack-list article,
+.worker-record-card {
+  display: grid;
+  gap: 8px;
+}
+
+.worker-checkbox-row {
+  align-items: flex-start;
+  background: rgba(3, 15, 30, 0.28);
+  border: 1px solid rgba(148, 184, 219, 0.14);
+  border-radius: 12px;
+  color: #eaf2f9;
+  display: flex;
+  gap: 9px;
+  padding: 11px;
+}
+
+.worker-checkbox-row span { display: grid; gap: 3px; }
+.worker-checkbox-row small { color: #91a8be; font-size: 10px; line-height: 15px; }
+
 @media (max-width: 640px), (pointer: coarse) {
   body,
   .worker-app-root,

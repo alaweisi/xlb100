@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
-import type { Fulfillment, FulfillmentEvidenceType, WorkerLocation, WorkerTaskPoolItem } from "@xlb/types";
+import type { Fulfillment, FulfillmentEvidenceType, WorkerCertification, WorkerLocation, WorkerTaskPoolItem } from "@xlb/types";
 import type {
   AftersaleRepairOrderResponse,
   FulfillmentEvidenceAggregateResponse,
@@ -8,7 +8,6 @@ import type {
   WorkerReceivableBalanceResponse,
   WorkerWithdrawalResponse,
 } from "@xlb/api-client";
-import { ApiClientError } from "@xlb/api-client";
 import {
   BottomNav,
   Button,
@@ -41,6 +40,7 @@ import { helperText, workerPanelStyle } from "../pages/pageShared";
 import { useWorkerAuthStore } from "../features/auth/store";
 import type { WorkerSupportApi } from "../pages/WorkerSupportPage";
 import type { WorkerEligibilityView, WorkerWorkMode } from "../pages/TaskPages";
+import { formatWorkerApiError } from "./workerFeedback";
 
 const WorkerLoginPage = lazy(() => import("../pages/AuthPages").then((module) => ({ default: module.WorkerLoginPage })));
 const HallPage = lazy(() => import("../pages/TaskPages").then((module) => ({ default: module.HallPage })));
@@ -81,32 +81,6 @@ function readLocalWorkMode(): WorkerWorkMode {
   return window.localStorage.getItem(WORKER_LOCAL_MODE_KEY) === "paused" ? "paused" : "online";
 }
 
-function apiStatus(error: unknown): number | undefined {
-  if (error instanceof ApiClientError) return error.status;
-  const match = error instanceof Error ? error.message.match(/\b(400|401|403|404|409|429|500|502|503|504)\b/) : null;
-  return match ? Number(match[1]) : undefined;
-}
-
-function apiBodyMessage(error: unknown): string | null {
-  if (!(error instanceof ApiClientError) || !error.responseBody) return null;
-  try {
-    const body = JSON.parse(error.responseBody) as { error?: unknown };
-    return typeof body.error === "string" ? body.error : null;
-  } catch {
-    return null;
-  }
-}
-
-function translateBackendReason(reason: string): string {
-  if (/not eligible|qualification/i.test(reason)) return "当前服务资格不满足要求，请查看资格阻断原因。";
-  if (/already accepted/i.test(reason)) return "该任务已被承接，请刷新大厅确认最新结果。";
-  if (/invalid.*status|transition/i.test(reason)) return "任务状态已经变化，当前操作不再允许，请刷新确认。";
-  if (/not found/i.test(reason)) return "任务不存在或已失效，请返回列表刷新。";
-  if (/city|bound/i.test(reason)) return "当前账号没有此工作城市的操作权限。";
-  if (/evidence.*frozen|confirmation is terminal/i.test(reason)) return "顾客已确认或发起争议，证据已冻结。";
-  return reason;
-}
-
 function translateEligibilityReason(reason: string): string {
   if (/qualification record indicates not eligible/i.test(reason)) return "当前服务资格记录标记为不满足要求。";
   const missing = reason.match(/Missing approved certification:\s*(.+)/i);
@@ -114,19 +88,8 @@ function translateEligibilityReason(reason: string): string {
   return /[A-Za-z]{4,}/.test(reason) ? "平台判定当前服务资格不满足要求，请进入资格页查看详情。" : reason;
 }
 
-function formatWorkerApiError(error: unknown, fallback: string, mutation = false): string {
-  const offline = typeof navigator !== "undefined" && !navigator.onLine;
-  if (offline) return mutation ? "当前网络已断开，操作结果暂时未知。恢复网络后请先刷新确认，避免重复操作。" : "当前网络已断开，请恢复网络后重试。";
-  if (error instanceof ApiClientError && (error.kind === "network" || error.kind === "timeout" || error.kind === "cancelled")) {
-    return mutation ? "网络响应中断，操作结果暂时未知。请先刷新确认最新状态，避免重复操作。" : "网络响应失败，请检查连接后重试。";
-  }
-  const status = apiStatus(error);
-  if (status === 403) return translateBackendReason(apiBodyMessage(error) ?? "当前账号或服务资格无权执行此操作。");
-  if (status === 404) return "任务不存在或已失效，请返回列表刷新。";
-  if (status === 409) return translateBackendReason(apiBodyMessage(error) ?? "任务状态已被其他操作更新，请刷新后再处理。");
-  if (status === 429) return "操作过于频繁，请稍后再试。";
-  if (status && status >= 500) return mutation ? "平台响应异常，操作结果暂时未知。请刷新确认最新状态。" : "平台服务暂时不可用，请稍后重试。";
-  return error instanceof Error && !/^API\s/i.test(error.message) ? translateBackendReason(error.message) : fallback;
+function certificationStatusLabel(status: WorkerCertification["status"]): string {
+  return ({ pending: "待审核", approved: "已通过", rejected: "已拒绝", expired: "已过期" })[status];
 }
 
 const routeConfig: Record<
@@ -337,6 +300,7 @@ export function App() {
   const [withdrawals, setWithdrawals] = useState<WorkerWithdrawalResponse[]>([]);
   const [walletBusy, setWalletBusy] = useState(false);
   const [walletError, setWalletError] = useState<string | null>(null);
+  const [walletNotice, setWalletNotice] = useState<string | null>(null);
   const [accountHolder, setAccountHolder] = useState("");
   const [bankName, setBankName] = useState("");
   const [bankCardNumber, setBankCardNumber] = useState("");
@@ -345,6 +309,7 @@ export function App() {
   const [workerLocation, setWorkerLocation] = useState<WorkerLocation | null>(null);
   const [locationBusy, setLocationBusy] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [locationNotice, setLocationNotice] = useState<string | null>(null);
   const [latitude, setLatitude] = useState("30.274100");
   const [longitude, setLongitude] = useState("120.155100");
   const [serviceRadius, setServiceRadius] = useState("10");
@@ -363,6 +328,7 @@ export function App() {
   const [hallError, setHallError] = useState<string | null>(null);
   const [tasksError, setTasksError] = useState<string | null>(null);
   const [repairsError, setRepairsError] = useState<string | null>(null);
+  const [repairsNotice, setRepairsNotice] = useState<string | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [evidenceError, setEvidenceError] = useState<string | null>(null);
   const [evidenceNotice, setEvidenceNotice] = useState<string | null>(null);
@@ -377,6 +343,7 @@ export function App() {
   const [certSubmitting, setCertSubmitting] = useState(false);
   const [certError, setCertError] = useState<string | null>(null);
   const [certNotice, setCertNotice] = useState<string | null>(null);
+  const [certReceipt, setCertReceipt] = useState<WorkerCertification | null>(null);
   const [accessStatus, setAccessStatus] = useState<WorkerAccessStatus | null>(null);
   const simulationControlsEnabled =
     ((import.meta as ImportMeta & { env?: { MODE?: string } }).env?.MODE ?? "development") !== "production";
@@ -394,7 +361,7 @@ export function App() {
         setError("登录状态已失效，请重新登录。");
         return;
       }
-      setError(formatWorkerApiError(error, fallback, mutation));
+      setError(formatWorkerApiError(error, fallback, mutation ? "mutation" : "read"));
     },
     [setSession],
   );
@@ -459,7 +426,7 @@ export function App() {
       const response = await api.listAftersaleRepairOrders();
       setRepairOrders(response.repairOrders);
     } catch (error) {
-      handleApiError(error, "Failed to load repair visits", setRepairsError);
+      handleApiError(error, "返工任务加载失败，请稍后重试。", setRepairsError);
       setRepairOrders([]);
     } finally {
       setLoadingRepairs(false);
@@ -469,17 +436,21 @@ export function App() {
   const loadWallet = useCallback(async () => {
     if (!api) return;
     setWalletBusy(true); setWalletError(null);
-    try {
-      const [balanceResult, accountsResult, withdrawalsResult] = await Promise.all([
-        api.getReceivableBalance(), api.listBankAccounts(), api.listWithdrawalRequests(),
-      ]);
-      setWalletBalance(balanceResult.balance);
-      setBankAccounts(accountsResult.bankAccounts);
-      setWithdrawals(withdrawalsResult.withdrawals);
-      setSelectedBankAccountId(previous => previous || accountsResult.bankAccounts[0]?.bankAccountId || "");
-    } catch (error) {
-      handleApiError(error, "Failed to load wallet", setWalletError);
-    } finally { setWalletBusy(false); }
+    const results = await Promise.allSettled([
+      api.getReceivableBalance(), api.listBankAccounts(), api.listWithdrawalRequests(),
+    ] as const);
+    const failed: string[] = [];
+    if (results[0].status === "fulfilled") setWalletBalance(results[0].value.balance);
+    else failed.push("余额");
+    if (results[1].status === "fulfilled") {
+      const accounts = results[1].value.bankAccounts;
+      setBankAccounts(accounts);
+      setSelectedBankAccountId(previous => previous || accounts[0]?.bankAccountId || "");
+    } else failed.push("收款账户");
+    if (results[2].status === "fulfilled") setWithdrawals(results[2].value.withdrawals);
+    else failed.push("提现记录");
+    if (failed.length) setWalletError(`钱包数据仅部分加载：${failed.join("、")}暂不可用。已显示的内容仍可查看，请刷新重试。`);
+    setWalletBusy(false);
   }, [api, handleApiError]);
 
   const loadLocation = useCallback(async () => {
@@ -490,8 +461,10 @@ export function App() {
       setWorkerLocation(response.location);
       if (response.location) {
         setLatitude(String(response.location.latitude)); setLongitude(String(response.location.longitude));
+        if (Number.isFinite(response.location.serviceRadiusKm)) setServiceRadius(String(response.location.serviceRadiusKm));
+        if (typeof response.location.locationSharingEnabled === "boolean") setLocationSharing(response.location.locationSharingEnabled);
       }
-    } catch (error) { handleApiError(error, "Failed to load worker location", setLocationError); }
+    } catch (error) { handleApiError(error, "位置状态加载失败，请稍后重试。", setLocationError); }
     finally { setLocationBusy(false); }
   }, [api, handleApiError]);
 
@@ -671,12 +644,14 @@ export function App() {
       if (!api) return;
       setRepairBusyId(repairOrderId);
       setRepairsError(null);
+      setRepairsNotice(null);
       try {
         if (action === "start") await api.startAftersaleRepairOrder(repairOrderId);
         else await api.completeAftersaleRepairOrder(repairOrderId, note);
+        setRepairsNotice(action === "start" ? `返工单 ${repairOrderId} 已进入处理中。` : `返工单 ${repairOrderId} 已登记完成。`);
         await loadRepairOrders();
       } catch (error) {
-        handleApiError(error, "Failed to update repair visit", setRepairsError);
+        handleApiError(error, "返工操作未完成，请刷新确认后再重试。", setRepairsError, true);
       } finally {
         setRepairBusyId(null);
       }
@@ -694,11 +669,10 @@ export function App() {
         certType: certType.trim(),
         certName: certName.trim(),
       });
-      setCertNotice(
-        `Certification ${response.certification.certificationId} submitted with status ${response.certification.status}.`,
-      );
+      setCertReceipt(response.certification);
+      setCertNotice(`认证申请 ${response.certification.certificationId} 已提交，平台返回状态：${certificationStatusLabel(response.certification.status)}。`);
     } catch (error) {
-      handleApiError(error, "Failed to submit certification", setCertError);
+      handleApiError(error, "认证申请未完成，请刷新确认后再重试。", setCertError, true);
     } finally {
       setCertSubmitting(false);
     }
@@ -706,37 +680,40 @@ export function App() {
 
   const addBankAccount = useCallback(async () => {
     if (!api) return;
-    setWalletBusy(true); setWalletError(null);
+    setWalletBusy(true); setWalletError(null); setWalletNotice(null);
     try {
       const response = await api.createBankAccount({ accountHolder: accountHolder.trim(), bankName: bankName.trim(), bankCardNumber: bankCardNumber.trim() });
       setSelectedBankAccountId(response.bankAccount.bankAccountId);
       setBankCardNumber("");
+      setWalletNotice(`收款账户 ${response.bankAccount.bankCardMasked} 已保存。`);
       await loadWallet();
-    } catch (error) { handleApiError(error, "Failed to add bank account", setWalletError); }
+    } catch (error) { handleApiError(error, "收款账户未保存，请核对信息后重试。", setWalletError, true); }
     finally { setWalletBusy(false); }
   }, [accountHolder, api, bankCardNumber, bankName, handleApiError, loadWallet]);
 
   const requestWithdrawal = useCallback(async () => {
     if (!api) return;
-    setWalletBusy(true); setWalletError(null);
+    setWalletBusy(true); setWalletError(null); setWalletNotice(null);
     try {
-      await api.createWithdrawalRequest({ bankAccountId: selectedBankAccountId, amount: Number(withdrawalAmount), requestNote: "Submitted from worker operations app" });
+      const response = await api.createWithdrawalRequest({ bankAccountId: selectedBankAccountId, amount: Number(withdrawalAmount), requestNote: "师傅工作台提交" });
       setWithdrawalAmount("");
+      setWalletNotice(`提现申请 ${response.withdrawal.withdrawalId} 已提交，需等待平台审核；提交不代表已打款。`);
       await loadWallet();
-    } catch (error) { handleApiError(error, "Failed to submit withdrawal request", setWalletError); }
+    } catch (error) { handleApiError(error, "提现申请未完成，请刷新记录确认后再决定是否重试。", setWalletError, true); }
     finally { setWalletBusy(false); }
   }, [api, handleApiError, loadWallet, selectedBankAccountId, withdrawalAmount]);
 
   const saveLocation = useCallback(async () => {
     if (!api) return;
-    setLocationBusy(true); setLocationError(null);
+    setLocationBusy(true); setLocationError(null); setLocationNotice(null);
     try {
       const response = await api.upsertLocation({
         latitude: Number(latitude), longitude: Number(longitude), accuracyMeters: 20,
         capturedAt: new Date().toISOString(), serviceRadiusKm: Number(serviceRadius), locationSharingEnabled: locationSharing,
       });
       setWorkerLocation(response.location);
-    } catch (error) { handleApiError(error, "Failed to report location", setLocationError); }
+      setLocationNotice(response.location.locationSharingEnabled ? "位置已更新，平台可按服务半径参与匹配。" : "位置已保存，但位置共享已关闭，不参与位置匹配。 ");
+    } catch (error) { handleApiError(error, "位置更新未完成，请刷新确认后再重试。", setLocationError, true); }
     finally { setLocationBusy(false); }
   }, [api, handleApiError, latitude, locationSharing, longitude, serviceRadius]);
 
@@ -901,6 +878,8 @@ export function App() {
         repairOrders={repairOrders}
         loading={loadingRepairs}
         error={repairsError}
+        notice={repairsNotice}
+        networkOnline={networkOnline}
         busyId={repairBusyId}
         notes={repairNotes}
         onRefresh={() => void loadRepairOrders()}
@@ -909,13 +888,13 @@ export function App() {
         onComplete={(repairOrderId, note) => void mutateRepairOrder(repairOrderId, "complete", note)}
       />
     ) : route.route === "wallet" ? (
-      <WalletPage balance={walletBalance} bankAccounts={bankAccounts} withdrawals={withdrawals} busy={walletBusy} error={walletError}
+      <WalletPage balance={walletBalance} bankAccounts={bankAccounts} withdrawals={withdrawals} busy={walletBusy} error={walletError} notice={walletNotice} networkOnline={networkOnline}
         accountHolder={accountHolder} bankName={bankName} bankCardNumber={bankCardNumber} withdrawalAmount={withdrawalAmount}
         selectedBankAccountId={selectedBankAccountId} onReload={() => void loadWallet()} onAccountHolderChange={setAccountHolder}
         onBankNameChange={setBankName} onBankCardNumberChange={setBankCardNumber} onWithdrawalAmountChange={setWithdrawalAmount}
         onSelectedBankAccountChange={setSelectedBankAccountId} onAddBankAccount={() => void addBankAccount()} onRequestWithdrawal={() => void requestWithdrawal()} />
     ) : route.route === "support" ? (
-      <WorkerSupportPage api={{
+      <WorkerSupportPage networkOnline={networkOnline} api={{
         createTicket: (input) => api!.createSupportTicket(input),
         listTickets: (filters) => api!.listSupportTickets(filters),
         getTicket: (ticketId) => api!.getSupportTicket(ticketId),
@@ -928,11 +907,11 @@ export function App() {
         sendConversationMessage: (conversationId, input) => api!.sendSupportMessage(conversationId, input),
       } satisfies WorkerSupportApi} />
     ) : route.route === "notifications" ? (
-      <WorkerNotificationsPage api={api!} />
+      <WorkerNotificationsPage api={api!} networkOnline={networkOnline} />
     ) : route.route === "reputation" ? (
-      <WorkerReputationPage api={api!} />
+      <WorkerReputationPage api={api!} networkOnline={networkOnline} />
     ) : route.route === "profile" ? (
-      <WorkerLocationPage location={workerLocation} busy={locationBusy} error={locationError} latitude={latitude} longitude={longitude}
+      <WorkerLocationPage location={workerLocation} busy={locationBusy} error={locationError} notice={locationNotice} networkOnline={networkOnline} latitude={latitude} longitude={longitude}
         radius={serviceRadius} sharing={locationSharing} onLatitudeChange={setLatitude} onLongitudeChange={setLongitude}
         onRadiusChange={setServiceRadius} onSharingChange={setLocationSharing} onSave={() => void saveLocation()} onReload={() => void loadLocation()} />
     ) : (
@@ -944,6 +923,8 @@ export function App() {
         submitting={certSubmitting}
         error={certError}
         notice={certNotice}
+        receipt={certReceipt}
+        networkOnline={networkOnline}
         onCertTypeChange={setCertType}
         onCertNameChange={setCertName}
         onSubmit={() => void submitCertification()}

@@ -149,7 +149,7 @@ export function HallPage({
       {!loading && !error && (
         <section className="worker-journey-section" aria-labelledby="available-task-title">
           <div className="worker-section-heading">
-            <div><span className="worker-eyebrow">W-01 抢单大厅</span><h2 id="available-task-title">可承接任务</h2></div>
+            <div><span className="worker-eyebrow">实时抢单大厅</span><h2 id="available-task-title">可承接任务</h2></div>
             <Button disabled={!networkOnline} onClick={onRefresh}>刷新</Button>
           </div>
           {tasks.length === 0 ? (
@@ -236,7 +236,7 @@ export function TasksPage({ fulfillments, loading, error, networkOnline = true, 
       {error && <Card title="任务加载失败" actions={<StatusTag tone="danger">需处理</StatusTag>} style={workerPanelStyle}><p className="worker-error-copy">{error}</p><Button disabled={!networkOnline} onClick={onRefresh}>重新加载</Button></Card>}
       {!loading && !error && (
         <section className="worker-journey-section" aria-labelledby="my-task-title">
-          <div className="worker-section-heading"><div><span className="worker-eyebrow">W-02 任务支撑框架</span><h2 id="my-task-title">我的任务</h2></div><Button disabled={!networkOnline} onClick={onRefresh}>刷新</Button></div>
+          <div className="worker-section-heading"><div><span className="worker-eyebrow">任务履约</span><h2 id="my-task-title">我的任务</h2></div><Button disabled={!networkOnline} onClick={onRefresh}>刷新</Button></div>
           <div className="worker-filter-tabs" role="tablist" aria-label="任务筛选">
             {([{ key: "active", label: "进行中" }, { key: "accepted", label: "待开始" }, { key: "history", label: "已结束" }] as const).map((item) => <button aria-selected={filter === item.key} key={item.key} onClick={() => setFilter(item.key)} role="tab" type="button">{item.label}<span>{counts[item.key]}</span></button>)}
           </div>
