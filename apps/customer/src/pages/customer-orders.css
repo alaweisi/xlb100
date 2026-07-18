@@ -16,4 +16,85 @@
 
 .customer-review-error {
   color: var(--xlb-color-danger);
+  display: grid;
+  font-size: 12px;
+  gap: 2px;
+  line-height: 18px;
+}
+
+.customer-order-index,
+.customer-order-section {
+  background: color-mix(in srgb, #fff8ec 82%, transparent);
+  border: 1px solid color-mix(in srgb, #b85f2a 16%, transparent);
+  border-radius: 18px;
+  box-shadow: 0 12px 32px rgba(91, 55, 29, 0.08);
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+}
+
+.customer-order-index-heading,
+.customer-order-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.customer-order-index-item {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.66);
+  border: 1px solid rgba(184, 95, 42, 0.13);
+  border-radius: 14px;
+  color: #2b2118;
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  gap: 10px;
+  justify-content: space-between;
+  padding: 12px;
+  text-align: left;
+  width: 100%;
+}
+
+.customer-order-index-item[data-active="true"] {
+  border-color: rgba(184, 95, 42, 0.55);
+  box-shadow: 0 0 0 3px rgba(184, 95, 42, 0.09);
+}
+
+.customer-order-index-item > span,
+.customer-order-detail-stack,
+.customer-order-section {
+  display: grid;
+  gap: 8px;
+}
+
+.customer-order-index-item small,
+.customer-order-section > span {
+  color: var(--xlb-text-secondary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.customer-order-notice {
+  background: rgba(255, 248, 236, 0.82);
+  border: 1px solid rgba(184, 95, 42, 0.18);
+  border-radius: 14px;
+  color: #7a451f;
+  font-size: 13px;
+  padding: 10px 12px;
+}
+
+.customer-order-link {
+  color: #9a481f;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+/* Shared templates expose a developer route/city breadcrumb. The production
+   customer transaction surface replaces it with the Chinese page content. */
+.customer-transaction-page > [data-workflow-actor="customer"] > div > div:first-child {
+  display: none;
 }

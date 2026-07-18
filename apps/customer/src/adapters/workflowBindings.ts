@@ -78,42 +78,42 @@ export const customerWorkflowActions = {
   }),
   openServices: () => createAction("customer.services.open", "查看全部服务", "api-derived"),
   selectService: (skuId: string) =>
-    createAction("customer.catalog.selectSku", "Select service", "api-derived", {
+    createAction("customer.catalog.selectSku", "选择服务", "api-derived", {
       enabled: Boolean(skuId),
       disabledReasonCode: "STATE_NOT_ACTIONABLE",
       endpoint: "/customer/order/create",
       method: "GET",
     }),
   retryQuote: (skuId?: string) =>
-    createAction("customer.pricing.retryQuote", "Retry quote", "api-derived", {
+    createAction("customer.pricing.retryQuote", "重新获取报价", "api-derived", {
       enabled: Boolean(skuId),
       disabledReasonCode: skuId ? undefined : "API_NOT_AVAILABLE",
       endpoint: "/api/pricing/quote?skuId=:skuId",
       method: "GET",
     }),
   submitOrder: (quoteReady: boolean, selectedSkuId: boolean, submitting: boolean) =>
-    createAction("customer.order.submit", submitting ? "Submitting..." : "Submit order", "backend", {
+    createAction("customer.order.submit", submitting ? "正在提交" : "提交订单", "backend", {
       enabled: quoteReady && selectedSkuId && !submitting,
       disabledReasonCode: quoteReady && selectedSkuId && !submitting ? undefined : "STATE_NOT_ACTIONABLE",
       endpoint: "/api/orders",
       method: "POST",
       idempotencyRequired: true,
     }),
-  viewOrders: () => createAction("customer.orders.open", "Open orders", "api-derived", {
+  viewOrders: () => createAction("customer.orders.open", "查看订单", "api-derived", {
     endpoint: "/customer/orders",
     method: "GET",
   }),
   retryOrderDetails: (hasOrderIds: boolean) =>
-    createAction("customer.orders.retryDetails", "Reload order detail", "api-derived", {
+    createAction("customer.orders.retryDetails", "重新加载订单", "api-derived", {
       enabled: hasOrderIds,
       disabledReasonCode: hasOrderIds ? undefined : "WORKFLOW_NOT_IMPLEMENTED",
       endpoint: "/api/orders/:orderId",
       method: "GET",
     }),
-  loadProfile: () => createAction("customer.profile.load", "Load profile", "api-derived", { endpoint: "/api/customer/profile", method: "GET" }),
-  saveProfile: () => createAction("customer.profile.save", "Save profile", "backend", { endpoint: "/api/customer/profile", method: "POST" }),
-  listAddresses: () => createAction("customer.address.list", "Load addresses", "api-derived", { endpoint: "/api/customer/addresses", method: "GET" }),
-  saveAddress: () => createAction("customer.address.save", "Save address", "backend", { endpoint: "/api/customer/addresses", method: "POST" }),
+  loadProfile: () => createAction("customer.profile.load", "加载个人资料", "api-derived", { endpoint: "/api/customer/profile", method: "GET" }),
+  saveProfile: () => createAction("customer.profile.save", "保存个人资料", "backend", { endpoint: "/api/customer/profile", method: "POST" }),
+  listAddresses: () => createAction("customer.address.list", "加载常用地址", "api-derived", { endpoint: "/api/customer/addresses", method: "GET" }),
+  saveAddress: () => createAction("customer.address.save", "保存地址", "backend", { endpoint: "/api/customer/addresses", method: "POST" }),
 };
 
 function getWorkflowRuntimeTokens() {
@@ -136,12 +136,12 @@ function disabledReasonsFromActions(actions: WorkflowActionContract[]): Workflow
 function makeNotWiredPolicy(code: WorkflowDisabledReason, allowedActions: WorkflowActionContract[]): WorkflowUiBinding["notWiredPolicy"] {
   return {
     reasonCode: code,
-    userCopy: "Backend workflow data is not fully wired yet.",
+    userCopy: "服务端暂未提供完整列表，请先创建订单或使用明确的订单号查询。",
     allowedUi: "read-only-shell",
     forbiddenClaims: [
-      "show fabricated order list",
-      "show fake payment success",
-      "show fake dispatch result",
+      "不得展示虚构订单列表",
+      "不得展示虚假支付成功",
+      "不得展示虚假派单结果",
     ],
     allowedActions,
   };
@@ -159,19 +159,19 @@ function createBaseBinding(route: CustomerWorkflowRoute): WorkflowUiBinding {
     },
     state: {
       stateId: "not-started",
-      label: "Customer route waiting for backend facts",
+      label: "正在等待服务端数据",
       source: "api-contract",
       customerAnswer: {
-        currentStep: "Load API facts for the current route",
-        nextAvailableStep: "Show service list and order flow",
+        currentStep: "读取当前页面所需数据",
+        nextAvailableStep: "展示服务与订单流程",
       },
     },
     availableActions: [],
     disabledReasons: [],
     customerFacingCopy: {
-      title: "Customer route",
-      body: "Customer service workflow page",
-      primaryCta: "Continue",
+      title: "顾客服务",
+      body: "顾客服务流程",
+      primaryCta: "继续",
     },
     uiSlots: ["pageHero", "summaryCard", "bottomNav", "themeSurface"],
     figmaBinding: {
@@ -186,7 +186,7 @@ function createBaseBinding(route: CustomerWorkflowRoute): WorkflowUiBinding {
 
 function withRouteMeta(binding: WorkflowUiBinding, patch: Partial<WorkflowUiBinding>): WorkflowUiBinding {
   const baseFacingCopy = binding.customerFacingCopy ?? {
-    title: "Customer route",
+    title: "顾客服务",
   };
 
   return {
@@ -278,7 +278,7 @@ function buildCreateOrderBinding(input: CustomerBindingInput): WorkflowUiBinding
   const quoteAction = customerWorkflowActions.retryQuote(input.selectedSkuId);
   const actions = [quoteAction, submitAction, customerWorkflowActions.viewOrders()];
   const base = createBaseBinding("createOrder");
-  const stateLabel = submitAction.enabled ? "Ready to create order" : "Waiting for quote";
+  const stateLabel = submitAction.enabled ? "可以提交订单" : "等待实时报价";
 
   return withRouteMeta(base, {
     workflowName: "customer.order.create",
@@ -293,18 +293,18 @@ function buildCreateOrderBinding(input: CustomerBindingInput): WorkflowUiBinding
       label: stateLabel,
       source: "frontend-derived-from-api",
       customerAnswer: {
-        currentStep: input.quoteReady ? "Quote loaded from pricing service" : "Waiting for quote",
-        nextAvailableStep: submitAction.enabled ? "Create order" : "Obtain quote first",
-        blockedReason: submitAction.disabledReasonCode ?? undefined,
-        recoveryPath: "Retry quote from pricing API",
+        currentStep: input.quoteReady ? "实时报价已返回" : "正在等待报价",
+        nextAvailableStep: submitAction.enabled ? "提交订单" : "先获取报价并补全信息",
+        blockedReason: undefined,
+        recoveryPath: "重新从报价服务获取价格",
       },
     },
     availableActions: actions,
     disabledReasons: disabledReasonsFromActions(actions),
     customerFacingCopy: {
       ...base.customerFacingCopy,
-      title: "Create order",
-      body: "Submit order data from real APIs only.",
+      title: "确认订单",
+      body: "服务、报价和订单状态均来自服务端。",
       primaryCta: submitAction.label,
     },
     uiSlots: [
@@ -342,20 +342,20 @@ function buildOrdersBinding(input: CustomerBindingInput): WorkflowUiBinding {
     state: {
       ...base.state,
       stateId: hasOrderIds ? "order.detail.review" : "order.list.unavailable",
-      label: hasOrderIds ? "Review created order" : "Order detail not wired",
+      label: hasOrderIds ? "查看订单详情" : "暂无可查询订单",
       source: hasOrderIds ? "api-contract" : "not-wired-policy",
       customerAnswer: {
-        currentStep: hasOrderIds ? "Order detail available from backend" : "No order detail source yet",
-        nextAvailableStep: hasOrderIds ? "Open order and payment detail" : "Create an order first",
-        blockedReason: hasOrderIds ? undefined : "WORKFLOW_NOT_IMPLEMENTED",
-        recoveryPath: "Create an order and keep latest orderId in state",
+        currentStep: hasOrderIds ? "订单详情已从服务端返回" : "服务端暂未提供订单列表接口",
+        nextAvailableStep: hasOrderIds ? "查看服务、支付和售后状态" : "先创建订单",
+        blockedReason: undefined,
+        recoveryPath: "创建订单后使用订单号读取详情",
       },
     },
     availableActions: actions,
     disabledReasons: disabledReasonsFromActions(actions),
     customerFacingCopy: {
       ...base.customerFacingCopy,
-      title: "Order review",
+      title: "我的订单",
     },
     uiSlots: ["summaryCard", "stateBadge", "notWired", "emptyState", "apiError", "bottomNav", "themeSurface"],
     figmaBinding: {
@@ -382,21 +382,21 @@ function buildProfileBinding(): WorkflowUiBinding {
     state: {
       ...base.state,
       stateId: "profile.operations.ready",
-      label: "Profile and address operations ready",
+      label: "个人资料与地址可管理",
       source: "api-contract",
       customerAnswer: {
-        currentStep: "Profile and city-scoped service addresses are persisted",
-        nextAvailableStep: "Maintain account and service address details",
-        recoveryPath: "Retry the authenticated customer API",
+        currentStep: "个人资料与当前城市地址来自服务端",
+        nextAvailableStep: "维护账号与服务地址",
+        recoveryPath: "重新加载账号数据",
       },
     },
     availableActions: actions,
     disabledReasons: [],
     customerFacingCopy: {
       ...base.customerFacingCopy,
-      title: "Profile",
-      body: "Manage the authenticated account and city-scoped service addresses.",
-      primaryCta: "Save changes",
+      title: "我的",
+      body: "管理已登录账号与当前城市服务地址。",
+      primaryCta: "保存修改",
     },
     uiSlots: ["summaryCard", "primaryActionDock", "bottomNav", "themeSurface"],
     figmaBinding: {

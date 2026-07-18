@@ -3,6 +3,7 @@ import type {
   CatalogSnapshot,
   CityCode,
   CouponGrant,
+  CustomerAddress,
   MarketingDiscountDecision,
   Order,
   PriceQuote,
@@ -14,6 +15,7 @@ import {
   CustomerAnswerCard,
   CustomerOrderCreateTemplate,
   CustomerQuoteCard,
+  EmptyState,
   ErrorState,
   FormField,
   Input,
@@ -48,6 +50,8 @@ import {
   formatServerMarketingMinor,
   isCustomerCouponGrantSelectable,
 } from "../adapters/marketingAdapter";
+import { toCustomerError } from "../adapters/customerError";
+import "./customer-orders.css";
 
 type QuoteState =
   | { status: "pending" }
@@ -68,6 +72,11 @@ type CouponState =
 type DecisionState =
   | { status: "pending" | "loading" }
   | { status: "success"; decision: MarketingDiscountDecision; orderCommandKey: string }
+  | { status: "error"; error: string };
+
+type AddressState =
+  | { status: "loading" }
+  | { status: "success"; addresses: CustomerAddress[] }
   | { status: "error"; error: string };
 
 interface CreateOrderFormDetails {
@@ -96,6 +105,9 @@ export interface CustomerOrderCreatePageProps {
       contactPhone: string;
       scheduledAt: string;
       scheduledTimeSlot: ScheduledTimeSlot;
+      discountDecisionId?: string;
+      discountDecisionRevision?: number;
+      orderIdempotencyKey?: string;
     }): Promise<{ order: Order }>;
     getOrder(orderId: string): Promise<{ order: Order }>;
     listCouponGrants?(query?: { status?: "available" }): Promise<{ couponGrants: CouponGrant[] }>;
@@ -105,6 +117,7 @@ export interface CustomerOrderCreatePageProps {
       selectedCouponGrantId: string;
       idempotencyKey: string;
     }): Promise<{ discountDecision: MarketingDiscountDecision }>;
+    listAddresses?(): Promise<{ addresses: CustomerAddress[] }>;
   };
   catalogState: CustomerLoadable<CatalogSnapshot>;
   cityCode: CityCode;
@@ -122,6 +135,27 @@ function statusTone(status: string): "success" | "warning" | "danger" | "muted" 
     status === "draft"
   ) return "warning";
   return "muted";
+}
+
+function orderStatusLabel(status: string): string {
+  return ({
+    draft: "待提交",
+    pending_dispatch: "等待服务",
+    service_completed: "待支付",
+    pending_payment: "支付处理中",
+    paid: "已支付",
+    cancelled: "已取消",
+  } as Record<string, string>)[status] ?? "状态待确认";
+}
+
+function priceTypeLabel(priceType: string): string {
+  return ({
+    fixed: "固定价",
+    range: "区间价",
+    from: "起步价",
+    estimate_from: "预估起价",
+    onsite_quote: "上门报价",
+  } as Record<string, string>)[priceType] ?? "实时报价";
 }
 
 function createOrderRequestPayload(skuId: string, quantity: number, details: CreateOrderFormDetails) {
@@ -144,9 +178,9 @@ export function CustomerOrderCreatePage({
   const [selectedSkuId, setSelectedSkuId] = useState(initialSkuId ?? "");
   const [quantity, setQuantity] = useState(1);
   const [selectedDistrict, setSelectedDistrict] = useState(() => getOrderAddressOption(cityCode).districts[0]);
-  const [detailAddress, setDetailAddress] = useState("喜乐帮演示小区 3 栋 502");
-  const [contactName, setContactName] = useState("演示用户");
-  const [contactPhone, setContactPhone] = useState("13800000001");
+  const [detailAddress, setDetailAddress] = useState("");
+  const [contactName, setContactName] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
   const [scheduleDayOffset, setScheduleDayOffset] = useState(1);
   const [scheduledTimeSlot, setScheduledTimeSlot] = useState<ScheduledTimeSlot>("morning");
   const [quoteState, setQuoteState] = useState<QuoteState>({ status: "pending" });
@@ -157,16 +191,23 @@ export function CustomerOrderCreatePage({
     return new URLSearchParams(window.location.search).get("couponGrantId") ?? "";
   });
   const [decisionState, setDecisionState] = useState<DecisionState>({ status: "pending" });
+  const [orderIdempotencyKey] = useState(() => globalThis.crypto?.randomUUID?.()
+    ?? `customer-order-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+  const [addressState, setAddressState] = useState<AddressState>({ status: "loading" });
+  const [selectedAddressId, setSelectedAddressId] = useState("");
 
   const addressOption = useMemo(() => getOrderAddressOption(cityCode), [cityCode]);
+  const selectedAddress = addressState.status === "success"
+    ? addressState.addresses.find((address) => address.addressId === selectedAddressId) ?? null
+    : null;
   const scheduledAt = useMemo(
     () => buildScheduledAt(scheduleDayOffset, scheduledTimeSlot),
     [scheduleDayOffset, scheduledTimeSlot],
   );
   const selectedTimeSlot = getServiceTimeSlot(scheduledTimeSlot);
   const orderFormDetails: CreateOrderFormDetails = {
-    addressProvince: addressOption.province,
-    addressCity: addressOption.city,
+    addressProvince: selectedAddress?.province ?? addressOption.province,
+    addressCity: selectedAddress?.city ?? addressOption.city,
     addressDistrict: selectedDistrict,
     detailAddress: detailAddress.trim(),
     contactName: contactName.trim(),
@@ -230,6 +271,30 @@ export function CustomerOrderCreatePage({
     submitState.status !== "submitting";
 
   useEffect(() => {
+    if (!api.listAddresses) {
+      setAddressState({ status: "success", addresses: [] });
+      return;
+    }
+    setAddressState({ status: "loading" });
+    void api.listAddresses()
+      .then((response) => {
+        const addresses = response.addresses.filter((address) => address.cityCode === cityCode);
+        setAddressState({ status: "success", addresses });
+        const preferred = addresses.find((address) => address.isDefault) ?? addresses[0];
+        if (preferred) {
+          setSelectedAddressId(preferred.addressId);
+          setSelectedDistrict(preferred.district);
+          setDetailAddress(preferred.detailAddress);
+          setContactName(preferred.contactName);
+        }
+      })
+      .catch((error: unknown) => setAddressState({
+        status: "error",
+        error: toCustomerError(error, "常用地址加载失败").description,
+      }));
+  }, [api, cityCode]);
+
+  useEffect(() => {
     if (!api.listCouponGrants) {
       setCouponState({ status: "success", grants: [] });
       return;
@@ -242,7 +307,7 @@ export function CustomerOrderCreatePage({
       }))
       .catch((error: unknown) => setCouponState({
         status: "error",
-        error: error instanceof Error ? error.message : "Failed to load coupons",
+        error: toCustomerError(error, "优惠券加载失败").description,
       }));
   }, [api]);
 
@@ -251,10 +316,10 @@ export function CustomerOrderCreatePage({
   }, [selectedSkuId, quantity, selectedCouponGrantId]);
 
   useEffect(() => {
-    if (!addressOption.districts.includes(selectedDistrict)) {
+    if (!selectedAddress && !addressOption.districts.includes(selectedDistrict)) {
       setSelectedDistrict(addressOption.districts[0]);
     }
-  }, [addressOption, selectedDistrict]);
+  }, [addressOption, selectedAddress, selectedDistrict]);
 
   useEffect(() => {
     if (catalogState.status !== "success" || !allSkus.length) return;
@@ -276,7 +341,7 @@ export function CustomerOrderCreatePage({
         setQuoteState({ status: "success", quote: result.quote, quoteViewModel: toCustomerQuoteViewModel(result.quote) }),
       )
       .catch((error: unknown) => {
-        setQuoteState({ status: "error", error: error instanceof Error ? error.message : "Get quote failed" });
+        setQuoteState({ status: "error", error: toCustomerError(error, "报价获取失败").description });
       });
   }, [api, selectedSkuId]);
 
@@ -289,7 +354,7 @@ export function CustomerOrderCreatePage({
         setQuoteState({ status: "success", quote: result.quote, quoteViewModel: toCustomerQuoteViewModel(result.quote) }),
       )
       .catch((error: unknown) => {
-        setQuoteState({ status: "error", error: error instanceof Error ? error.message : "Get quote failed" });
+        setQuoteState({ status: "error", error: toCustomerError(error, "报价获取失败").description });
       });
   };
 
@@ -301,7 +366,7 @@ export function CustomerOrderCreatePage({
 
   async function applySelectedCoupon() {
     if (!selectedCouponGrantId || !selectedSkuId || !api.issueDiscountDecision) {
-      setDecisionState({ status: "error", error: "Select an available coupon and service first." });
+      setDecisionState({ status: "error", error: "请先选择服务与可用优惠券。" });
       return;
     }
     const decisionCommandKey = globalThis.crypto?.randomUUID?.()
@@ -322,7 +387,7 @@ export function CustomerOrderCreatePage({
     } catch (error) {
       setDecisionState({
         status: "error",
-        error: error instanceof Error ? error.message : "Coupon validation failed. Reload and retry.",
+        error: toCustomerError(error, "优惠券校验失败").description,
       });
     }
   }
@@ -330,12 +395,13 @@ export function CustomerOrderCreatePage({
   async function submitOrder() {
     clearSubmitError();
     if (!canSubmit || !selectedSkuId) {
-      setSubmitState({ status: "error", error: "Please complete service, address, contact and schedule before submit." });
+      setSubmitState({ status: "error", error: "请完整填写服务、地址、联系方式和预约时间。" });
       return;
     }
 
     const requestPayload = {
       ...createOrderRequestPayload(selectedSkuId, quantity, orderFormDetails),
+      orderIdempotencyKey,
       ...(decisionState.status === "success" && hasCurrentDecision
         ? {
             discountDecisionId: decisionState.decision.discountDecisionId,
@@ -347,27 +413,41 @@ export function CustomerOrderCreatePage({
     setSubmitState({ status: "submitting" });
     try {
       const orderResponse = await api.createOrder(requestPayload);
-      const verifiedOrderResponse = await api.getOrder(orderResponse.order.orderId);
       onOrderCreated(orderResponse.order.orderId);
+      const verifiedOrderResponse = await api.getOrder(orderResponse.order.orderId);
       setSubmitState({
         status: "success",
         order: orderResponse.order,
         orderDetail: verifiedOrderResponse.order,
       });
     } catch (error) {
-      setSubmitState({ status: "error", error: error instanceof Error ? error.message : "Submit failed" });
+      const mapped = toCustomerError(error, "订单提交失败");
+      setSubmitState({
+        status: "error",
+        error: mapped.kind === "offline" || mapped.kind === "timeout" || mapped.kind === "unknown"
+          ? "提交过程中连接中断，订单结果暂时无法确认。请使用当前页面重新提交，服务端会按同一请求标识去重。"
+          : mapped.description,
+      });
     }
   }
 
   return (
+    <div className="customer-transaction-page">
     <CustomerOrderCreateTemplate route="/customer/order/create" cityCode={cityCode} binding={binding}>
+      {(catalogState.status === "loading" || catalogState.status === "pending") && (
+        <LoadingState title="正在加载服务配置" description="读取当前城市实时服务目录" />
+      )}
+      {catalogState.status === "error" && <ErrorState title="服务配置加载失败" description={catalogState.error} />}
+      {catalogState.status === "success" && allSkus.length === 0 && (
+        <EmptyState title="当前城市暂无可下单服务" description="请返回服务页刷新目录或切换城市。" />
+      )}
       <section style={{ display: "grid", gap: 12 }}>
         <div style={{ display: "grid", gap: 10 }}>
-          <strong>{`City: ${cityCode} / ${cityAreaByCode[cityCode] ?? "default area"}`}</strong>
-          <FormField label="Service" description="Select one service">
+          <strong>{`${addressOption.city} · ${cityAreaByCode[cityCode] ?? "当前服务区域"}`}</strong>
+          <FormField label="服务项目" description="服务与价格均来自当前城市实时目录">
             <Select value={selectedSkuId} onChange={(event) => setSelectedSkuId(event.target.value)}>
               <option value="" disabled>
-                Select service
+                请选择服务
               </option>
               {optionSkus.map((sku) => (
                 <option key={sku.skuId} value={sku.skuId}>
@@ -376,19 +456,46 @@ export function CustomerOrderCreatePage({
               ))}
             </Select>
           </FormField>
-          <FormField label="Quantity" description="Minimum is 1. It cannot be reduced to zero.">
+          <FormField label="服务数量" description="最少 1 份，最终金额以服务端报价为准">
             <QuantityStepper min={1} value={quantity} onChange={setQuantity} />
           </FormField>
-          <FormField label="District" description={`${addressOption.province} / ${addressOption.city}`}>
+          {addressState.status === "loading" && <LoadingState title="正在加载常用地址" description="读取账号已保存的服务地址" />}
+          {addressState.status === "error" && <ErrorState title="常用地址暂不可用" description={addressState.error} />}
+          {addressState.status === "success" && addressState.addresses.length > 0 && (
+            <FormField label="常用地址" description="选择后仍需补充完整手机号，服务端只返回脱敏号码">
+              <Select
+                value={selectedAddressId}
+                onChange={(event) => {
+                  const addressId = event.target.value;
+                  setSelectedAddressId(addressId);
+                  const address = addressState.addresses.find((item) => item.addressId === addressId);
+                  if (address) {
+                    setSelectedDistrict(address.district);
+                    setDetailAddress(address.detailAddress);
+                    setContactName(address.contactName);
+                    setContactPhone("");
+                  }
+                }}
+              >
+                <option value="">填写新地址</option>
+                {addressState.addresses.map((address) => (
+                  <option key={address.addressId} value={address.addressId}>
+                    {address.isDefault ? "默认 · " : ""}{address.district} {address.detailAddress} · {address.contactName} {address.contactPhoneMasked}
+                  </option>
+                ))}
+              </Select>
+            </FormField>
+          )}
+          <FormField label="服务区域" description={`${orderFormDetails.addressProvince} / ${orderFormDetails.addressCity}`}>
             <Select value={selectedDistrict} onChange={(event) => setSelectedDistrict(event.target.value)}>
-              {addressOption.districts.map((district) => (
+              {[...new Set([selectedDistrict, ...addressOption.districts])].map((district) => (
                 <option key={district} value={district}>
                   {district}
                 </option>
               ))}
             </Select>
           </FormField>
-          <FormField label="Detail address" description="Example: building, unit and room number">
+          <FormField label="详细地址" description="请填写小区、楼栋、单元和门牌号">
             <Textarea
               value={detailAddress}
               onChange={(event) => setDetailAddress(event.target.value)}
@@ -396,10 +503,10 @@ export function CustomerOrderCreatePage({
             />
           </FormField>
           <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
-            <FormField label="Contact name">
+            <FormField label="联系人">
               <Input value={contactName} onChange={(event) => setContactName(event.target.value)} placeholder="联系人" />
             </FormField>
-            <FormField label="Contact phone" error={contactPhone && !isContactPhoneValid ? "请输入 11 位手机号" : undefined}>
+            <FormField label="联系电话" error={contactPhone && !isContactPhoneValid ? "请输入 11 位手机号" : undefined}>
               <Input
                 value={contactPhone}
                 onChange={(event) => setContactPhone(event.target.value)}
@@ -409,7 +516,7 @@ export function CustomerOrderCreatePage({
             </FormField>
           </div>
           <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
-            <FormField label="Service date">
+            <FormField label="服务日期">
               <Select value={String(scheduleDayOffset)} onChange={(event) => setScheduleDayOffset(Number(event.target.value))}>
                 {scheduleDayOptions.map((option) => (
                   <option key={option.offsetDays} value={option.offsetDays}>
@@ -418,7 +525,7 @@ export function CustomerOrderCreatePage({
                 ))}
               </Select>
             </FormField>
-            <FormField label="Time slot" description={selectedTimeSlot.timeRange}>
+            <FormField label="服务时段" description={selectedTimeSlot.timeRange}>
               <Select
                 value={scheduledTimeSlot}
                 onChange={(event) => setScheduledTimeSlot(event.target.value as ScheduledTimeSlot)}
@@ -437,19 +544,19 @@ export function CustomerOrderCreatePage({
           <ServiceCard
             title={selectedSku.name}
             subtitle={selectedSkuSummary?.subtitle ?? [selectedSku.categoryPathLabel, selectedSku.unit].filter(Boolean).join(" / ")}
-            status={<StatusTag tone="success">selected</StatusTag>}
-            actionLabel="Change service"
+            status={<StatusTag tone="success">已选择</StatusTag>}
+            actionLabel="更换服务"
             onClick={() => {
               window.location.href = `/customer/services?${new URLSearchParams({ cityCode }).toString()}`;
             }}
           />
         )}
 
-        {quoteState.status === "loading" && <LoadingState title="Loading quote" description="Reading pricing..." />}
+        {quoteState.status === "loading" && <LoadingState title="正在获取报价" description="读取当前服务和数量的实时价格" />}
         {quoteState.status === "error" && (
           <ErrorState
-            title="Failed to get quote"
-            description="Pricing failed. Please retry."
+            title="报价获取失败"
+            description={quoteState.error}
             action={
               <ActionDock
                 actions={actionById["customer.pricing.retryQuote"] ? [actionById["customer.pricing.retryQuote"]] : []}
@@ -460,95 +567,95 @@ export function CustomerOrderCreatePage({
         )}
         {quoteState.status === "success" && (
           <CustomerQuoteCard
-            label={selectedSku?.name ?? "Current quote"}
+            label={selectedSku?.name ?? "当前报价"}
             price={<PriceText amount={quoteState.quote.basePrice} currency={quoteState.quote.currency} />}
-            meta={`${quoteState.quoteViewModel.priceText} / ${quoteState.quoteViewModel.priceType}`}
+            meta={`${quoteState.quoteViewModel.priceText} · ${priceTypeLabel(quoteState.quoteViewModel.priceType)} · ${quoteState.quoteViewModel.sourceLabel}`}
           />
         )}
 
-        <section className="customer-coupon-selection" aria-label="Coupon selection">
+        <section className="customer-coupon-selection" aria-label="优惠券选择">
           <FormField
-            label="Coupon"
-            description="Coupons are applied only after the server validates the current SKU, quantity and Pricing revision."
+            label="优惠券"
+            description="优惠资格、服务范围、数量和价格版本均由服务端校验"
           >
             <Select
               value={selectedCouponGrantId}
               disabled={couponState.status !== "success"}
               onChange={(event) => setSelectedCouponGrantId(event.target.value)}
             >
-              <option value="">Do not use a coupon</option>
+              <option value="">不使用优惠券</option>
               {couponState.status === "success" && couponState.grants.map((grant) => (
                 <option key={grant.couponGrantId} value={grant.couponGrantId}>
-                  {grant.issuanceReason} / expires {new Date(grant.expiresAt).toLocaleDateString()}
+                  可用优惠券 · {new Date(grant.expiresAt).toLocaleDateString("zh-CN")} 到期
                 </option>
               ))}
             </Select>
           </FormField>
-          {couponState.status === "loading" && <LoadingState title="Loading coupons" description="Reading available grants..." />}
-          {couponState.status === "error" && <ErrorState title="Failed to load coupons" description={couponState.error} />}
+          {couponState.status === "loading" && <LoadingState title="正在加载优惠券" description="读取当前账号可用优惠券" />}
+          {couponState.status === "error" && <ErrorState title="优惠券加载失败" description={couponState.error} />}
           {selectedCouponGrantId && (
             <Button
               type="button"
               disabled={decisionState.status === "loading" || quoteState.status !== "success"}
               onClick={() => void applySelectedCoupon()}
             >
-              {decisionState.status === "loading" ? "Validating coupon..." : "Apply selected coupon"}
+              {decisionState.status === "loading" ? "正在校验优惠券" : "使用所选优惠券"}
             </Button>
           )}
           {decisionState.status === "error" && (
-            <ErrorState title="Coupon unavailable" description={`${decisionState.error} The original price is not submitted automatically.`} />
+            <ErrorState title="优惠券暂不可用" description={`${decisionState.error} 系统不会自动改为原价提交。`} />
           )}
           {decisionState.status === "success" && (
             <div className="customer-coupon-summary">
-              <StatusTag tone="success">Coupon validated by server</StatusTag>
-              <span>Gross: {formatServerMarketingMinor(decisionState.decision.grossAmountMinor)}</span>
-              <span>Discount: -{formatServerMarketingMinor(decisionState.decision.discountAmountMinor)}</span>
-              <strong>Net: {formatServerMarketingMinor(decisionState.decision.netAmountMinor)}</strong>
-              <small>Decision expires at {new Date(decisionState.decision.expiresAt).toLocaleString()}</small>
+              <StatusTag tone="success">服务端校验通过</StatusTag>
+              <span>原价：{formatServerMarketingMinor(decisionState.decision.grossAmountMinor)}</span>
+              <span>优惠：-{formatServerMarketingMinor(decisionState.decision.discountAmountMinor)}</span>
+              <strong>应付：{formatServerMarketingMinor(decisionState.decision.netAmountMinor)}</strong>
+              <small>本次优惠结果有效至 {new Date(decisionState.decision.expiresAt).toLocaleString("zh-CN")}</small>
             </div>
           )}
         </section>
 
         <WorkflowTimeline
           items={[
-            { key: "catalog", title: "Pick service", description: "service selected", state: "complete" },
+            { key: "catalog", title: "选择服务", description: selectedSku ? "服务已选择" : "等待选择服务", state: selectedSku ? "complete" : "current" },
             {
               key: "quote",
-              title: "Get quote",
-              description: quoteState.status === "success" ? "quote ready" : "waiting quote",
+              title: "确认报价",
+              description: quoteState.status === "success" ? "实时报价已返回" : "等待报价",
               state: quoteState.status === "success" ? "complete" : "current",
             },
             {
               key: "address",
-              title: "Fill address",
-              description: isAddressReady ? `${selectedDistrict} ${orderFormDetails.detailAddress}` : "waiting address",
+              title: "填写地址",
+              description: isAddressReady ? `${selectedDistrict} ${orderFormDetails.detailAddress}` : "等待完整地址和联系方式",
               state: isAddressReady ? "complete" : quoteState.status === "success" ? "current" : "pending",
             },
             {
               key: "schedule",
-              title: "Pick schedule",
-              description: isScheduleReady ? formatScheduledLabel(orderFormDetails.scheduledAt, orderFormDetails.scheduledTimeSlot) : "waiting schedule",
+              title: "预约时间",
+              description: isScheduleReady ? formatScheduledLabel(orderFormDetails.scheduledAt, orderFormDetails.scheduledTimeSlot) : "等待预约时间",
               state: isScheduleReady ? "complete" : isAddressReady ? "current" : "pending",
             },
             {
               key: "order",
-              title: "Create order",
+              title: "创建订单",
               description:
                 submitState.status === "success"
-                  ? `order created ${submitState.order.orderId}`
+                  ? `订单已创建 ${submitState.order.orderId}`
                   : submitState.status === "error"
-                    ? "blocked"
-                    : "waiting submit",
+                    ? "提交受阻"
+                    : "等待提交",
               state:
                 submitState.status === "success" ? "complete" : submitState.status === "error" ? "blocked" : "pending",
             },
             {
               key: "payment",
-              title: "Pay after service",
+              title: "服务后支付",
               description:
                 submitState.status === "success"
-                  ? "waiting worker fulfillment and customer confirm"
-                  : "waiting order",
+                  ? "等待服务完成并由顾客确认"
+                  : "等待订单创建",
               state: "pending",
             },
           ]}
@@ -562,32 +669,33 @@ export function CustomerOrderCreatePage({
 
         {submitState.status === "error" && (
           <ErrorState
-            title="Submit failed"
+            title="订单提交失败"
             description={submitState.error}
             action={<Button type="button" onClick={() => void submitOrder()}>
-              Try again
+              重新提交
             </Button>}
           />
         )}
         {submitState.status === "success" && (
           <div style={{ display: "grid", gap: 10 }}>
-            <StatusTag tone="success">Order ID: {submitState.order.orderId}</StatusTag>
+            <StatusTag tone="success">订单号：{submitState.order.orderId}</StatusTag>
             <ServiceCard
               title={submitState.order.skuName}
               subtitle={`${submitState.orderDetail.quantity} ${submitState.orderDetail.unit} / ${submitState.orderDetail.addressDistrict} ${submitState.orderDetail.detailAddress} / ${formatScheduledLabel(submitState.orderDetail.scheduledAt, submitState.orderDetail.scheduledTimeSlot)}`}
-              status={<StatusTag tone={statusTone(submitState.orderDetail.status)}>{submitState.orderDetail.status}</StatusTag>}
+              status={<StatusTag tone={statusTone(submitState.orderDetail.status)}>{orderStatusLabel(submitState.orderDetail.status)}</StatusTag>}
               priceText={<PriceText amount={submitState.orderDetail.totalAmount} currency={submitState.orderDetail.currency} />}
-              actionLabel="View order detail"
+              actionLabel="查看订单详情"
               onClick={() => {
                 window.location.href = "/customer/orders";
               }}
             />
-            <StatusTag tone="warning">Payment opens after worker completion and customer confirmation</StatusTag>
+            <StatusTag tone="warning">服务完成并确认后方可进入支付</StatusTag>
           </div>
         )}
       </section>
 
       <CustomerAnswerCard state={binding.state} />
     </CustomerOrderCreateTemplate>
+    </div>
   );
 }

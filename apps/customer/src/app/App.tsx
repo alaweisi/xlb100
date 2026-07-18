@@ -19,6 +19,7 @@ import {
   type CustomerSession,
   writeCustomerCityCode,
 } from "../pages/customerPageShell";
+import { isUnauthorizedCustomerError, toCustomerError } from "../adapters/customerError";
 
 const CustomerHomePage = lazy(() => import("../pages/CustomerHomePage").then((module) => ({ default: module.CustomerHomePage })));
 const CustomerOrderCreatePage = lazy(() => import("../pages/CustomerOrderCreatePage").then((module) => ({ default: module.CustomerOrderCreatePage })));
@@ -104,7 +105,7 @@ export function App() {
       const result = await api.getCatalog();
       setCatalogState({ status: "success", data: result.catalog });
     } catch (error) {
-      if (error instanceof Error && /\b401\b/.test(error.message)) {
+      if (isUnauthorizedCustomerError(error)) {
         clearCustomerSession();
         setSession(null);
         setAuthError("登录状态已失效，请重新验证手机号。");
@@ -112,7 +113,7 @@ export function App() {
       }
       setCatalogState({
         status: "error",
-        error: error instanceof Error ? error.message : "服务目录加载失败",
+        error: toCustomerError(error, "服务目录加载失败").description,
       });
     }
   }, [api, cityCode, session?.token]);
@@ -142,13 +143,13 @@ export function App() {
     getOrder: (orderId) => api.getOrder(orderId),
     listCouponGrants: (query) => api.listCouponGrants(query),
     issueDiscountDecision: (payload) => api.issueDiscountDecision(payload),
+    listAddresses: () => api.listAddresses(),
   };
 
   const ordersApi: CustomerOrdersPageProps["api"] = {
     getOrder: (orderId) => api.getOrder(orderId),
     confirmService: (orderId) => api.confirmService(orderId),
     createPaymentOrder: (payload) => api.createPaymentOrder(payload),
-    mockPaySuccess: (payload) => api.mockPaySuccess(payload),
     createRefundRequest: (payload) => api.createRefundRequest(payload),
     createOrderReview: (payload) => api.createOrderReview(payload),
     getOrderReview: (orderId) => api.getOrderReview(orderId),

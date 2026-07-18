@@ -112,7 +112,7 @@ export function CustomerServicesPage({
         searchIcon={<MagnifyingGlass size={18} weight="bold" />}
         onSearchChange={setSearchQuery}
         onSearchSubmit={updateRouteSearchQuery}
-        placeholder="搜索保洁、维修、搬家等服务"
+        placeholder="输入服务名称或关键词"
         value={searchQuery}
         onCityClick={onCityChange}
       />
@@ -138,7 +138,7 @@ export function CustomerServicesPage({
       {catalogState.status === "error" && (
         <ErrorState
           title="加载失败"
-          description="服务目录读取失败，请重试。"
+          description={catalogState.error}
           action={
             <ActionDock
               actions={retryAction ? [retryAction] : []}

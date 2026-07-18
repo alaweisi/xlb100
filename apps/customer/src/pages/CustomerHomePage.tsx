@@ -85,7 +85,7 @@ export function CustomerHomePage({ cityCode, catalogState, onRetryCatalog }: Cus
             <input
               aria-label="搜索服务"
               onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="水槽漏水、空调清洗、门锁维修"
+              placeholder="输入服务名称或关键词"
               value={searchQuery}
             />
           </form>
@@ -158,7 +158,7 @@ export function CustomerHomePage({ cityCode, catalogState, onRetryCatalog }: Cus
           <section className="customer-home-state" role="alert">
             <MapPin aria-hidden="true" size={54} weight="thin" />
             <h2>服务目录加载失败</h2>
-            <p>网络异常，请稍后重试</p>
+            <p>{catalogState.error}</p>
             <button className="customer-retry-button" onClick={onRetryCatalog} type="button">
               <ArrowClockwise size={20} weight="bold" />重试
             </button>

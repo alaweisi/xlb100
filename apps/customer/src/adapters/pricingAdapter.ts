@@ -14,6 +14,6 @@ export function toCustomerQuoteViewModel(quote: PriceQuote): CustomerQuoteViewMo
     currency: quote.currency,
     priceText: quote.priceText,
     priceType: quote.priceType,
-    sourceLabel: "Quote from pricing service",
+    sourceLabel: "价格来自实时报价服务",
   };
 }
