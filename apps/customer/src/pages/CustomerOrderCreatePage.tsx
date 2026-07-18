@@ -499,7 +499,7 @@ export function CustomerOrderCreatePage({
             <Textarea
               value={detailAddress}
               onChange={(event) => setDetailAddress(event.target.value)}
-              placeholder="XX小区3栋502"
+              placeholder="示例小区3栋502室"
             />
           </FormField>
           <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>

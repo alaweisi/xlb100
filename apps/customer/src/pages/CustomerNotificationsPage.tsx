@@ -8,6 +8,8 @@ import type {
   NotificationStateMutationResponse,
 } from "@xlb/types";
 import { Button, Card, EmptyState, LoadingState, StatusTag } from "@xlb/ui";
+import { ApiClientError } from "@xlb/api-client";
+import { toCustomerError } from "../adapters/customerError";
 import { CustomerRouteShell } from "./customerPageShell";
 
 export interface CustomerNotificationApi {
@@ -30,13 +32,13 @@ function isConflict(error: unknown): boolean {
 
 function displayTime(value: string): string {
   const date = new Date(value);
-  return Number.isFinite(date.getTime()) ? date.toLocaleString() : value;
+  return Number.isFinite(date.getTime()) ? date.toLocaleString("zh-CN", { hour12: false }) : value;
 }
 
 function referenceHref(item: NotificationInboxItem): string | null {
-  return item.reference.kind === "order_created"
-    ? `/customer/orders?orderId=${encodeURIComponent(item.reference.orderId)}`
-    : null;
+  if (item.reference.kind === "order_created") return `/customer/orders?orderId=${encodeURIComponent(item.reference.orderId)}`;
+  if (item.reference.kind === "support_ticket_resolved") return `/customer/support?ticketId=${encodeURIComponent(item.reference.ticketId)}`;
+  return null;
 }
 
 export function CustomerNotificationsPage({ api }: { api: CustomerNotificationApi }) {
@@ -51,6 +53,7 @@ export function CustomerNotificationsPage({ api }: { api: CustomerNotificationAp
   const requestSequence = useRef(0);
   const nextCursorRef = useRef<string | null>(null);
   const busyRef = useRef<string | null>(null);
+  const commandKeys = useRef<Record<string, string>>({});
 
   const load = useCallback(async (reset = true, requestedView: View = view) => {
     const sequence = ++requestSequence.current;
@@ -78,7 +81,9 @@ export function CustomerNotificationsPage({ api }: { api: CustomerNotificationAp
       setNextCursor(result.nextCursor);
     } catch (caught) {
       if (sequence !== requestSequence.current) return;
-      setError(caught instanceof Error ? caught.message : "Unable to load notifications");
+      setError(caught instanceof ApiClientError
+        ? toCustomerError(caught, "消息加载失败").description
+        : caught instanceof Error ? caught.message : "消息加载失败");
       if (reset) setItems([]);
     } finally {
       if (sequence === requestSequence.current) {
@@ -104,27 +109,37 @@ export function CustomerNotificationsPage({ api }: { api: CustomerNotificationAp
     setBusyId(item.notificationId);
     setError(null);
     setNotice(null);
+    const operationKey = `${kind}:${view}:${item.notificationId}:${item.rowVersion}`;
+    const idempotencyKey = commandKeys.current[operationKey]
+      ?? mutationKey(kind === "read" ? "read" : view === "inbox" ? "archive" : "restore");
+    commandKeys.current[operationKey] = idempotencyKey;
     try {
+      let mutation: NotificationStateMutationResponse;
       if (kind === "read") {
-        await api.markNotificationRead(item.notificationId, {
+        mutation = await api.markNotificationRead(item.notificationId, {
           expectedRowVersion: item.rowVersion,
-          idempotencyKey: mutationKey("read"),
+          idempotencyKey,
         });
       } else {
-        await api.setNotificationArchived(item.notificationId, {
+        mutation = await api.setNotificationArchived(item.notificationId, {
           expectedRowVersion: item.rowVersion,
-          idempotencyKey: mutationKey(view === "inbox" ? "archive" : "restore"),
+          idempotencyKey,
           archived: view === "inbox",
         });
       }
-      setNotice(kind === "read" ? "Notification marked as read." : view === "inbox" ? "Notification archived." : "Notification restored.");
+      delete commandKeys.current[operationKey];
+      const duplicate = mutation.result.outcome === "already_applied";
+      setNotice(`${kind === "read" ? "消息已标为已读" : view === "inbox" ? "消息已归档" : "消息已恢复"}${duplicate ? "（服务端返回已处理）" : ""}。`);
       await load(true, view);
     } catch (caught) {
       if (isConflict(caught)) {
-        setNotice("Notification changed on another device. Latest state reloaded.");
+        delete commandKeys.current[operationKey];
+        setNotice("消息已在其他设备发生变化，已重新加载最新状态。");
         await load(true, view);
       } else {
-        setError(caught instanceof Error ? caught.message : "Unable to update notification");
+        setError(caught instanceof ApiClientError
+          ? toCustomerError(caught, "消息更新失败").description
+          : caught instanceof Error ? caught.message : "消息更新失败");
       }
     } finally {
       busyRef.current = null;
@@ -137,7 +152,7 @@ export function CustomerNotificationsPage({ api }: { api: CustomerNotificationAp
       currentRoute="notifications"
       topBar={<header className="notification-page-header"><h1>消息中心</h1><p>仅显示当前城市、当前账号的站内消息</p></header>}
     >
-      <Card title="通知" actions={<StatusTag tone="success">Real API</StatusTag>}>
+      <Card title="通知" actions={<StatusTag tone="success">服务端消息</StatusTag>}>
         <div role="tablist" aria-label="Notification view" className="notification-view-tabs">
           <Button disabled={busyId !== null} aria-pressed={view === "inbox"} variant={view === "inbox" ? "primary" : undefined} onClick={() => changeView("inbox")}>收件箱</Button>
           <Button disabled={busyId !== null} aria-pressed={view === "archive"} variant={view === "archive" ? "primary" : undefined} onClick={() => changeView("archive")}>已归档</Button>
@@ -145,7 +160,7 @@ export function CustomerNotificationsPage({ api }: { api: CustomerNotificationAp
 
         {loading ? <LoadingState title="正在加载消息" /> : null}
         {error ? <div role="alert" className="notification-error"><span>{error}</span><Button onClick={() => void load(true, view)}>重试</Button></div> : null}
-        {!loading && !error && items.length === 0 ? <EmptyState title={view === "inbox" ? "暂无消息" : "暂无归档消息"} description="新消息会通过真实通知 API 显示在这里。" /> : null}
+        {!loading && !error && items.length === 0 ? <EmptyState title={view === "inbox" ? "暂无消息" : "暂无归档消息"} description="新消息会通过真实通知接口显示在这里。" /> : null}
 
         <div aria-busy={loading || loadingMore} className="notification-list">
           {items.map((item) => {
@@ -166,7 +181,7 @@ export function CustomerNotificationsPage({ api }: { api: CustomerNotificationAp
                 <div className="notification-actions">
                   {unread ? <Button disabled={busyId === item.notificationId} onClick={() => void mutate(item, "read")}>标为已读</Button> : null}
                   <Button disabled={busyId === item.notificationId} onClick={() => void mutate(item, "archive")}>{view === "inbox" ? "归档" : "恢复"}</Button>
-                  {href ? <a href={href} className="notification-link">查看订单</a> : null}
+                  {href ? <a href={href} className="notification-link">{item.reference.kind === "order_created" ? "查看订单" : "查看工单"}</a> : null}
                 </div>
               </article>
             );

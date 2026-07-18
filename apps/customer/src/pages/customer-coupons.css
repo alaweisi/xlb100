@@ -1,4 +1,8 @@
 .customer-coupons {
+  background: color-mix(in srgb, #fff8ec 86%, transparent);
+  border: 1px solid color-mix(in srgb, #b85f2a 14%, transparent);
+  border-radius: 22px;
+  box-shadow: 0 18px 48px rgba(91, 55, 29, 0.09);
   display: grid;
   gap: var(--xlb-spacing-md);
   margin: var(--xlb-spacing-none) auto;
@@ -26,12 +30,30 @@
 }
 
 .customer-coupons__card {
-  background: var(--xlb-surface-panel);
+  background: color-mix(in srgb, #fff 72%, transparent);
   border: var(--xlb-stroke-hairline) solid var(--xlb-border-subtle);
   border-radius: var(--xlb-radius-lg);
   display: grid;
   gap: var(--xlb-spacing-sm);
   padding: var(--xlb-spacing-md);
+}
+
+.customer-coupons__toolbar button,
+.customer-coupons__card button,
+.customer-coupons__error button {
+  background: rgba(184, 95, 42, 0.1);
+  border: 1px solid rgba(184, 95, 42, 0.2);
+  border-radius: 999px;
+  color: #8f421d;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  padding: 8px 14px;
+}
+
+.customer-coupons__toolbar button[aria-selected="true"] {
+  background: #b85f2a;
+  color: #fff8ec;
 }
 
 .customer-coupons__amount {

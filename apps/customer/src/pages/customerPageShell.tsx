@@ -225,7 +225,7 @@ export function createCustomerApiClient(cityCode: CityCode, token?: string) {
 
 function detectShellMode() {
   if (typeof window === "undefined") return "preview" as const;
-  const mediaMatch = window.matchMedia(MOBILE_SHELL_QUERY).matches;
+  const mediaMatch = typeof window.matchMedia === "function" && window.matchMedia(MOBILE_SHELL_QUERY).matches;
   const touchViewport = window.innerWidth <= 900 && window.navigator.maxTouchPoints > 0;
   return mediaMatch || touchViewport ? ("app" as const) : ("preview" as const);
 }
@@ -234,6 +234,10 @@ export function useCustomerShellMode() {
   const [mode, setMode] = useState<"preview" | "app">(detectShellMode());
 
   useEffect(() => {
+    if (typeof window.matchMedia !== "function") {
+      setMode(detectShellMode());
+      return;
+    }
     const mediaQuery = window.matchMedia(MOBILE_SHELL_QUERY);
     const syncMode = () => setMode(detectShellMode());
 

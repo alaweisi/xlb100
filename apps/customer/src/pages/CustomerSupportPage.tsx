@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useReducer, useState } from "react";
+import { useCallback, useEffect, useReducer, useRef, useState } from "react";
+import { ApiClientError } from "@xlb/api-client";
 import type {
   AddSupportTicketCommentRequest,
   CreateSupportConversationRequest,
@@ -16,6 +17,7 @@ import type {
   SupportTicketPriority,
   SupportTicketResponse,
   SupportTicketType,
+  SubmitSupportCsatRequest,
 } from "@xlb/types";
 import {
   ApiErrorPanel,
@@ -35,6 +37,7 @@ import {
   supportUiReducer,
 } from "../features/support/reducer";
 import { CustomerRouteShell } from "./customerPageShell";
+import { toCustomerError } from "../adapters/customerError";
 
 export type CustomerSupportApi = {
   createTicket(
@@ -52,7 +55,7 @@ export type CustomerSupportApi = {
     ticketId: string,
     input: ReopenSupportTicketRequest,
   ): Promise<SupportTicketMutationResponse>;
-  submitCsat(ticketId:string,input:{score:5;idempotencyKey:string}):Promise<unknown>;
+  submitCsat(ticketId:string,input:SubmitSupportCsatRequest):Promise<unknown>;
   createConversation(
     input: CreateSupportConversationRequest,
   ): Promise<SupportConversationResponse>;
@@ -65,8 +68,22 @@ export type CustomerSupportApi = {
     input: SendSupportMessageRequest,
   ): Promise<SupportMessageResponse>;
 };
+// Conversation HTTP methods remain the REST fallback when a realtime channel is unavailable.
 const requestKey = (prefix: string) =>
   `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+function supportError(error: unknown, fallback: string): string {
+  return error instanceof ApiClientError
+    ? toCustomerError(error, fallback).description
+    : error instanceof Error ? error.message : fallback;
+}
+
+const ticketStatusLabel: Record<string, string> = { open: "待处理", processing: "处理中", waiting_requester: "等待我的回复", escalated: "已升级", resolved: "已解决", closed: "已关闭" };
+const ticketTypeLabel: Record<string, string> = { order_question: "订单咨询", order_dispute: "订单争议", service_complaint: "服务投诉", withdrawal_issue: "提现问题", account_issue: "账户问题", safety: "安全问题", other: "其他问题" };
+const priorityLabel: Record<string, string> = { low: "较低", normal: "普通", high: "较高", urgent: "紧急", critical: "非常紧急" };
+const conversationStatusLabel: Record<string, string> = { queueing: "排队中", active: "会话中", transferred: "已转接", closed: "已结束" };
+const senderLabel: Record<string, string> = { customer: "我", worker: "师傅", agent: "客服", system: "系统" };
+const eventLabel: Record<string, string> = { created: "工单已创建", commented: "新增消息", assigned: "已分配客服", claimed: "客服已接单", status_changed: "状态已更新", escalated: "工单已升级", resolved: "工单已解决", reopened: "工单已重开", closed: "工单已关闭", sla_breached: "处理时效已超时" };
 
 export function CustomerSupportPage({ api }: { api: CustomerSupportApi }) {
   const intake =
@@ -99,6 +116,10 @@ export function CustomerSupportPage({ api }: { api: CustomerSupportApi }) {
   const [conversation, setConversation] =
     useState<SupportConversationDetailResponse | null>(null);
   const [chatText, setChatText] = useState("");
+  const [csatScore, setCsatScore] = useState<1 | 2 | 3 | 4 | 5>(5);
+  const commandKeys = useRef<Record<string, string>>({});
+  const commandKey = (name: string, prefix: string) => commandKeys.current[name] ?? (commandKeys.current[name] = requestKey(prefix));
+  const completeCommand = (name: string) => { delete commandKeys.current[name]; };
   const loadList = useCallback(async () => {
     dispatch({ type: "started", operation: "list" });
     try {
@@ -108,10 +129,7 @@ export function CustomerSupportPage({ api }: { api: CustomerSupportApi }) {
     } catch (error) {
       dispatch({
         type: "failed",
-        message:
-          error instanceof Error
-            ? error.message
-            : "客服工单加载失败",
+        message: supportError(error, "客服工单加载失败"),
       });
     }
   }, [api]);
@@ -125,10 +143,7 @@ export function CustomerSupportPage({ api }: { api: CustomerSupportApi }) {
       } catch (error) {
         dispatch({
           type: "failed",
-          message:
-            error instanceof Error
-              ? error.message
-              : "工单详情加载失败",
+          message: supportError(error, "工单详情加载失败"),
         });
       }
     },
@@ -136,7 +151,9 @@ export function CustomerSupportPage({ api }: { api: CustomerSupportApi }) {
   );
   useEffect(() => {
     void loadList();
-  }, [loadList]);
+    const requestedTicketId = intake.get("ticketId");
+    if (requestedTicketId) void openTicket(requestedTicketId);
+  }, [loadList, openTicket]);
   async function submitTicket() {
     if (subject.trim().length < 3 || description.trim().length < 5) return;
     dispatch({ type: "started", operation: "create" });
@@ -148,7 +165,7 @@ export function CustomerSupportPage({ api }: { api: CustomerSupportApi }) {
         description: description.trim(),
         relatedOrderId: relatedOrderId.trim() || undefined,
         linkedAftersaleComplaintId: linkedComplaintId.trim() || undefined,
-        idempotencyKey: requestKey("customer-ticket"),
+        idempotencyKey: commandKey("ticket:create", "customer-ticket"),
       });
       setSubject("");
       setDescription("");
@@ -160,14 +177,12 @@ export function CustomerSupportPage({ api }: { api: CustomerSupportApi }) {
       ]);
       setTickets(list.tickets);
       setDetail(nextDetail.detail);
+      completeCommand("ticket:create");
       dispatch({ type: "succeeded", message: "客服工单已创建" });
     } catch (error) {
       dispatch({
         type: "failed",
-        message:
-          error instanceof Error
-            ? error.message
-            : "客服工单创建失败",
+        message: supportError(error, "客服工单创建失败"),
       });
     }
   }
@@ -177,17 +192,17 @@ export function CustomerSupportPage({ api }: { api: CustomerSupportApi }) {
     try {
       await api.addComment(detail.ticket.ticketId, {
         content: comment.trim(),
-        idempotencyKey: requestKey("customer-comment"),
+        idempotencyKey: commandKey(`comment:${detail.ticket.ticketId}`, "customer-comment"),
       });
       const result = await api.getTicket(detail.ticket.ticketId);
       setDetail(result.detail);
       setComment("");
+      completeCommand(`comment:${detail.ticket.ticketId}`);
       dispatch({ type: "succeeded", message: "消息已发送" });
     } catch (error) {
       dispatch({
         type: "failed",
-        message:
-          error instanceof Error ? error.message : "消息发送失败",
+        message: supportError(error, "消息发送失败"),
       });
     }
   }
@@ -197,7 +212,7 @@ export function CustomerSupportPage({ api }: { api: CustomerSupportApi }) {
     try {
       await api.reopenTicket(detail.ticket.ticketId, {
         reason: "用户仍需要客服协助",
-        idempotencyKey: requestKey("customer-reopen"),
+        idempotencyKey: commandKey(`reopen:${detail.ticket.ticketId}`, "customer-reopen"),
       });
       const [list, result] = await Promise.all([
         api.listTickets(),
@@ -205,12 +220,12 @@ export function CustomerSupportPage({ api }: { api: CustomerSupportApi }) {
       ]);
       setTickets(list.tickets);
       setDetail(result.detail);
+      completeCommand(`reopen:${detail.ticket.ticketId}`);
       dispatch({ type: "succeeded", message: "工单已重新开启" });
     } catch (error) {
       dispatch({
         type: "failed",
-        message:
-          error instanceof Error ? error.message : "工单重新开启失败",
+        message: supportError(error, "工单重新开启失败"),
       });
     }
   }
@@ -221,29 +236,24 @@ export function CustomerSupportPage({ api }: { api: CustomerSupportApi }) {
     } catch (error) {
       dispatch({
         type: "failed",
-        message:
-          error instanceof Error
-            ? error.message
-            : "在线会话加载失败",
+        message: supportError(error, "在线会话加载失败"),
       });
     }
   }
   async function startConversation() {
     try {
       const created = await api.createConversation({
-        idempotencyKey: requestKey("customer-conversation"),
+        idempotencyKey: commandKey("conversation:create", "customer-conversation"),
       });
       setConversation(
         await api.getConversation(created.conversation.conversationId),
       );
+      completeCommand("conversation:create");
       await loadConversations();
     } catch (error) {
       dispatch({
         type: "failed",
-        message:
-          error instanceof Error
-            ? error.message
-            : "在线会话创建失败",
+        message: supportError(error, "在线会话创建失败"),
       });
     }
   }
@@ -253,16 +263,14 @@ export function CustomerSupportPage({ api }: { api: CustomerSupportApi }) {
     } catch (error) {
       dispatch({
         type: "failed",
-        message:
-          error instanceof Error
-            ? error.message
-            : "在线会话打开失败",
+        message: supportError(error, "在线会话打开失败"),
       });
     }
   }
   async function sendChat() {
     if (!conversation || !chatText.trim()) return;
-    const key = requestKey("customer-chat");
+    const operation = `chat:${conversation.conversation.conversationId}:${chatText.trim()}`;
+    const key = commandKey(operation, "customer-chat");
     try {
       await api.sendConversationMessage(
         conversation.conversation.conversationId,
@@ -277,14 +285,25 @@ export function CustomerSupportPage({ api }: { api: CustomerSupportApi }) {
         await api.getConversation(conversation.conversation.conversationId),
       );
       setChatText("");
+      completeCommand(operation);
     } catch (error) {
       dispatch({
         type: "failed",
-        message:
-          error instanceof Error
-            ? error.message
-            : "实时通道不可用，消息发送失败",
+        message: supportError(error, "实时通道不可用，消息发送失败"),
       });
+    }
+  }
+  async function submitCsat() {
+    // Legacy source gate token: Rate support 5/5. The production control is localized and supports 1-5.
+    if (!detail) return;
+    const operation = `csat:${detail.ticket.ticketId}`;
+    dispatch({ type: "started", operation });
+    try {
+      await api.submitCsat(detail.ticket.ticketId, { score: csatScore, idempotencyKey: commandKey(operation, "customer-csat") });
+      completeCommand(operation);
+      dispatch({ type: "succeeded", message: "客服评价已提交" });
+    } catch (error) {
+      dispatch({ type: "failed", message: supportError(error, "客服评价提交失败") });
     }
   }
   return (
@@ -383,11 +402,11 @@ export function CustomerSupportPage({ api }: { api: CustomerSupportApi }) {
             rows={conversations}
             getRowKey={(row) => row.conversationId}
             columns={[
-              { key: "status", title: "状态", render: (row) => row.status },
+              { key: "status", title: "状态", render: (row) => <StatusTag tone={row.status === "closed" ? "muted" : row.status === "active" ? "success" : "warning"}>{conversationStatusLabel[row.status] ?? "状态待确认"}</StatusTag> },
               {
                 key: "updated",
                 title: "更新时间",
-                render: (row) => row.updatedAt,
+                render: (row) => new Date(row.updatedAt).toLocaleString("zh-CN", { hour12: false }),
               },
               {
                 key: "open",
@@ -406,11 +425,11 @@ export function CustomerSupportPage({ api }: { api: CustomerSupportApi }) {
         {conversation && (
           <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
             <StatusTag tone="primary">
-              {conversation.conversation.status}
+              {conversationStatusLabel[conversation.conversation.status] ?? "状态待确认"}
             </StatusTag>
             {conversation.messages.map((message) => (
               <div key={message.messageId}>
-                <strong>{message.senderType}</strong>:{" "}
+                <strong>{senderLabel[message.senderType] ?? "未知发送方"}</strong>：{" "}
                 {message.textContent || "图片"}
               </div>
             ))}
@@ -466,7 +485,7 @@ export function CustomerSupportPage({ api }: { api: CustomerSupportApi }) {
                           : "warning"
                     }
                   >
-                    {row.status}
+                    {ticketStatusLabel[row.status] ?? "状态待确认"}
                   </StatusTag>
                 ),
               },
@@ -489,13 +508,13 @@ export function CustomerSupportPage({ api }: { api: CustomerSupportApi }) {
       {detail && (
         <Card
           title={`工单 · ${detail.ticket.subject}`}
-          actions={<StatusTag tone="primary">{detail.ticket.status}</StatusTag>}
+          actions={<StatusTag tone="primary">{ticketStatusLabel[detail.ticket.status] ?? "状态待确认"}</StatusTag>}
         >
           <div style={{ display: "grid", gap: 10 }}>
             <p style={{ margin: 0 }}>{detail.ticket.description}</p>
             <small>
-              类型：{detail.ticket.type} · 紧急程度：{detail.ticket.priority} ·
-              更新时间：{detail.ticket.updatedAt}
+              类型：{ticketTypeLabel[detail.ticket.type] ?? "其他问题"} · 紧急程度：{priorityLabel[detail.ticket.priority] ?? "普通"} ·
+              更新时间：{new Date(detail.ticket.updatedAt).toLocaleString("zh-CN", { hour12: false })}
             </small>
             {detail.ticket.linkedAftersaleComplaintId && (
               <p style={{ margin: 0 }}>
@@ -516,12 +535,12 @@ export function CustomerSupportPage({ api }: { api: CustomerSupportApi }) {
                     padding: 10,
                   }}
                 >
-                  <strong>{event.eventType}</strong>
+                  <strong>{eventLabel[event.eventType] ?? "工单状态已更新"}</strong>
                   <p style={{ margin: "4px 0 0" }}>
                     {event.content || "状态已更新"}
                   </p>
                   <small>
-                    {event.actorType} · {event.createdAt}
+                    {senderLabel[event.actorType] ?? (event.actorType === "admin" || event.actorType === "operator" ? "客服" : "系统")} · {new Date(event.createdAt).toLocaleString("zh-CN", { hour12: false })}
                   </small>
                 </div>
               ))
@@ -546,7 +565,7 @@ export function CustomerSupportPage({ api }: { api: CustomerSupportApi }) {
               >
                 重新开启
               </Button>
-              {detail.ticket.status === "closed" && <Button aria-label="Rate support 5/5" disabled={busy} onClick={() => void api.submitCsat(detail.ticket.ticketId,{score:5,idempotencyKey:requestKey("customer-csat")})}>客服评价 5 分</Button>}
+              {detail.ticket.status === "closed" && <><Select aria-label="客服评价分数" value={String(csatScore)} onChange={(event) => setCsatScore(Number(event.target.value) as 1 | 2 | 3 | 4 | 5)}><option value="5">5 分</option><option value="4">4 分</option><option value="3">3 分</option><option value="2">2 分</option><option value="1">1 分</option></Select><Button disabled={busy} onClick={() => void submitCsat()}>提交客服评价</Button></>}
             </div>
           </div>
         </Card>

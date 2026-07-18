@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   AftersaleComplaintResponse,
   FulfillmentEvidenceAggregateResponse,
   OrderReverseResponse,
 } from "@xlb/api-client";
+import type { RefundRequest } from "@xlb/types";
 import {
   ApiErrorPanel,
   Button,
@@ -11,12 +12,15 @@ import {
   EmptyState,
   FormField,
   Input,
+  LoadingState,
   Select,
   StatusTag,
   Table,
   Textarea,
 } from "@xlb/ui";
 import { CustomerRouteShell } from "./customerPageShell";
+import { toCustomerError } from "../adapters/customerError";
+import "./customer-orders.css";
 
 export interface CustomerAftersalePageProps {
   orderIds: string[];
@@ -43,18 +47,32 @@ export interface CustomerAftersalePageProps {
       note?: string;
       complaintId?: string;
     }): Promise<{ confirmation: { status: string } }>;
+    createRefundRequest(body: { orderId: string; reason?: string }): Promise<{ refund: RefundRequest; idempotent: boolean }>;
   };
 }
 
 function requestKey(prefix: string): string {
-  return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  return prefix + "-" + (globalThis.crypto?.randomUUID?.() ?? (Date.now() + "-" + Math.random().toString(16).slice(2)));
 }
+
+function initialSchedule(): string {
+  const date = new Date(Date.now() + 24 * 60 * 60 * 1_000);
+  date.setHours(10, 0, 0, 0);
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 16);
+}
+
+const reverseTypeLabel: Record<string, string> = { cancel: "取消服务", reschedule: "修改预约", reassign: "更换师傅" };
+const reverseStatusLabel: Record<string, string> = { requested: "已申请", approved: "已批准", rejected: "未批准", applied: "已执行" };
+const complaintCategoryLabel: Record<string, string> = { service_quality: "服务质量", price_dispute: "价格争议", material: "材料问题", timeliness: "时效问题", attitude: "服务态度", safety: "安全问题", damage: "物品损坏", other: "其他" };
+const complaintStatusLabel: Record<string, string> = { submitted: "已提交", triaged: "已分流", in_progress: "处理中", waiting_customer: "等待我的回复", resolved: "已解决", closed: "已关闭", rejected: "未受理" };
+const evidenceTypeLabel: Record<string, string> = { arrival: "到场", before_service: "服务前", diagnosis: "诊断", material: "材料", after_service: "服务后", completion: "完工" };
 
 export function CustomerAftersalePage({ api, orderIds }: CustomerAftersalePageProps) {
   const [orderId, setOrderId] = useState(orderIds[0] ?? "");
   const [reverseType, setReverseType] = useState<"cancel" | "reschedule" | "reassign">("cancel");
   const [reverseReason, setReverseReason] = useState("");
-  const [scheduledAt, setScheduledAt] = useState("2026-07-20T10:00");
+  const [scheduledAt, setScheduledAt] = useState(initialSchedule);
   const [timeSlot, setTimeSlot] = useState<"morning" | "afternoon" | "evening">("morning");
   const [category, setCategory] = useState<"service_quality" | "price_dispute" | "material" | "timeliness" | "attitude" | "safety" | "damage" | "other">("service_quality");
   const [priority, setPriority] = useState<"normal" | "urgent" | "critical">("normal");
@@ -64,9 +82,14 @@ export function CustomerAftersalePage({ api, orderIds }: CustomerAftersalePagePr
   const [evidenceAggregates, setEvidenceAggregates] = useState<FulfillmentEvidenceAggregateResponse[]>([]);
   const [confirmationNote, setConfirmationNote] = useState("");
   const [disputeComplaintId, setDisputeComplaintId] = useState("");
+  const [refundReason, setRefundReason] = useState("");
+  const [refundResult, setRefundResult] = useState<{ refund: RefundRequest; idempotent: boolean } | null>(null);
   const [busy, setBusy] = useState<"reverse" | "complaint" | "load" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const commandKeys = useRef<Record<string, string>>({});
+  const commandKey = (name: string, prefix: string) => commandKeys.current[name] ?? (commandKeys.current[name] = requestKey(prefix));
+  const completeCommand = (name: string) => { delete commandKeys.current[name]; };
 
   const load = useCallback(async () => {
     if (!orderId) return;
@@ -82,7 +105,7 @@ export function CustomerAftersalePage({ api, orderIds }: CustomerAftersalePagePr
       setComplaints(complaint.complaints);
       setEvidenceAggregates(evidence.aggregates);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to load aftersale records");
+      setError(toCustomerError(err, "售后记录加载失败").description);
     } finally {
       setBusy(null);
     }
@@ -105,14 +128,15 @@ export function CustomerAftersalePage({ api, orderIds }: CustomerAftersalePagePr
       const response = await api.createOrderReverseRequest(orderId, {
         reverseType,
         reason: reverseReason.trim(),
-        idempotencyKey: requestKey("customer-reverse"),
+        idempotencyKey: commandKey(`reverse:${orderId}:${reverseType}`, "customer-reverse"),
         ...schedule,
       });
-      setNotice(`Reverse request ${response.reverseRequest.reverseRequestId} is ${response.reverseRequest.status}.`);
+      completeCommand(`reverse:${orderId}:${reverseType}`);
+      setNotice(`逆向申请 ${response.reverseRequest.reverseRequestId} 已提交，当前状态：${reverseStatusLabel[response.reverseRequest.status] ?? "待确认"}。`);
       setReverseReason("");
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to submit reverse request");
+      setError(toCustomerError(err, "逆向申请提交失败").description);
     } finally { setBusy(null); }
   }
 
@@ -122,13 +146,14 @@ export function CustomerAftersalePage({ api, orderIds }: CustomerAftersalePagePr
     try {
       const response = await api.createAftersaleComplaint({
         orderId, category, priority, description: description.trim(),
-        idempotencyKey: requestKey("customer-complaint"),
+        idempotencyKey: commandKey(`complaint:${orderId}`, "customer-complaint"),
       });
-      setNotice(`Complaint ${response.complaint.complaintId} is ${response.complaint.status}.`);
+      completeCommand(`complaint:${orderId}`);
+      setNotice(`投诉 ${response.complaint.complaintId} 已提交，当前状态：${complaintStatusLabel[response.complaint.status] ?? "待确认"}。`);
       setDescription("");
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to submit complaint");
+      setError(toCustomerError(err, "投诉提交失败").description);
     } finally { setBusy(null); }
   }
 
@@ -140,18 +165,32 @@ export function CustomerAftersalePage({ api, orderIds }: CustomerAftersalePagePr
         note: confirmationNote.trim() || undefined,
         complaintId: decision === "disputed" ? disputeComplaintId || undefined : undefined,
       });
-      setNotice(`Customer confirmation is ${response.confirmation.status}.`);
+      setNotice(`服务凭证已${response.confirmation.status === "confirmed" ? "确认" : response.confirmation.status === "disputed" ? "提出异议" : "更新"}。`);
       setConfirmationNote("");
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to update customer confirmation");
+      setError(toCustomerError(err, "服务凭证确认失败").description);
+    } finally { setBusy(null); }
+  }
+
+  async function submitRefund() {
+    if (!orderId) return;
+    const operation = `refund:${orderId}`;
+    setBusy("complaint"); setError(null); setNotice(null);
+    try {
+      const response = await api.createRefundRequest({ orderId, ...(refundReason.trim() ? { reason: refundReason.trim() } : {}) });
+      completeCommand(operation);
+      setRefundResult(response);
+      setNotice(`退款申请 ${response.refund.refundId} 已由服务端受理，当前状态：${response.refund.status === "approved" ? "已批准" : "待处理"}。`);
+    } catch (err) {
+      setError(toCustomerError(err, "退款申请提交失败").description);
     } finally { setBusy(null); }
   }
 
   return (
     <CustomerRouteShell currentRoute="aftersale">
       <div style={{ display: "grid", gap: 16 }}>
-        <Card title="售后服务" actions={<StatusTag tone="primary">Phase 17</StatusTag>}>
+        <Card title="售后服务" actions={<StatusTag tone="primary">服务端状态</StatusTag>}>
           <FormField label="订单">
             {orderIds.length > 0 ? (
               <Select value={orderId} onChange={(event) => setOrderId(event.target.value)}>{selectedOrderOptions}</Select>
@@ -162,6 +201,7 @@ export function CustomerAftersalePage({ api, orderIds }: CustomerAftersalePagePr
           <Button onClick={() => void load()} disabled={!orderId || busy === "load"}>刷新</Button>
         </Card>
 
+        {busy === "load" && <LoadingState title="正在加载售后记录" description="读取逆向申请、投诉与服务凭证" />}
         {error && <ApiErrorPanel title="操作失败" detail={error} />}
         {notice && <Card title="已受理" actions={<StatusTag tone="success">后端已确认</StatusTag>}><p>{notice}</p></Card>}
 
@@ -196,45 +236,54 @@ export function CustomerAftersalePage({ api, orderIds }: CustomerAftersalePagePr
           </div>
         </Card>
 
+        <Card title="退款申请">
+          <div style={{ display: "grid", gap: 12 }}>
+            <p style={{ color: "#64748b", fontSize: 13, margin: 0 }}>这里只提交退款申请，不代表退款已批准或已到账；金额和处理结果以服务端为准。</p>
+            <FormField label="退款原因（选填）"><Textarea maxLength={255} value={refundReason} onChange={(event) => setRefundReason(event.target.value)} /></FormField>
+            <Button variant="primary" disabled={!orderId || busy !== null} onClick={() => void submitRefund()}>提交退款申请</Button>
+            {refundResult ? <div className="customer-review-inline"><StatusTag tone="warning">{refundResult.refund.status === "approved" ? "已批准" : "待处理"}</StatusTag><StatusTag tone="muted">申请号：{refundResult.refund.refundId}</StatusTag>{refundResult.idempotent ? <StatusTag tone="warning">服务端返回已有申请</StatusTag> : null}</div> : null}
+          </div>
+        </Card>
+
         <Card title="逆向记录" actions={<StatusTag tone="muted">{reverseRequests.length}</StatusTag>}>
           {reverseRequests.length === 0 ? <EmptyState title="暂无逆向申请" /> : <Table rows={reverseRequests} getRowKey={(item) => item.reverseRequestId} columns={[
-            { key:"type",title:"类型",render:(item)=>item.reverseType },
-            { key:"status",title:"状态",render:(item)=><StatusTag tone={item.status === "applied" ? "success" : item.status === "rejected" ? "danger" : "warning"}>{item.status}</StatusTag> },
+            { key:"type",title:"类型",render:(item)=>reverseTypeLabel[item.reverseType] ?? "其他" },
+            { key:"status",title:"状态",render:(item)=><StatusTag tone={item.status === "applied" ? "success" : item.status === "rejected" ? "danger" : "warning"}>{reverseStatusLabel[item.status] ?? "待确认"}</StatusTag> },
             { key:"reason",title:"原因",render:(item)=>item.reason },
           ]} />}
         </Card>
         <Card title="客诉记录" actions={<StatusTag tone="muted">{complaints.length}</StatusTag>}>
           {complaints.length === 0 ? <EmptyState title="暂无客诉" /> : <Table rows={complaints} getRowKey={(item) => item.complaintId} columns={[
             { key:"id",title:"客诉单",render:(item)=>item.complaintId },
-            { key:"category",title:"类型",render:(item)=>item.category },
-            { key:"status",title:"状态",render:(item)=><StatusTag tone={item.status === "closed" ? "success" : "warning"}>{item.status}</StatusTag> },
+            { key:"category",title:"类型",render:(item)=>complaintCategoryLabel[item.category] ?? "其他" },
+            { key:"status",title:"状态",render:(item)=><StatusTag tone={item.status === "closed" ? "success" : item.status === "rejected" ? "danger" : "warning"}>{complaintStatusLabel[item.status] ?? "待确认"}</StatusTag> },
             { key:"support",title:"客服工单",render:(item)=><a href={`/customer/support?orderId=${encodeURIComponent(item.orderId)}&complaintId=${encodeURIComponent(item.complaintId)}`}>转入客服跟进</a> },
           ]} />}
         </Card>
-        <Card title="Service Evidence" actions={<StatusTag tone="primary">Private local/mock storage</StatusTag>}>
+        <Card title="服务凭证与顾客确认" actions={<StatusTag tone="primary">服务端凭证</StatusTag>}>
           <div style={{ display: "grid", gap: 12 }}>
-            <FormField label="Confirmation note"><Textarea value={confirmationNote} onChange={(event) => setConfirmationNote(event.target.value)} /></FormField>
-            <FormField label="Complaint for dispute">
+            <FormField label="确认说明"><Textarea value={confirmationNote} onChange={(event) => setConfirmationNote(event.target.value)} /></FormField>
+            <FormField label="异议关联投诉">
               <Select value={disputeComplaintId} onChange={(event) => setDisputeComplaintId(event.target.value)}>
-                <option value="">Select an existing complaint</option>
+                <option value="">选择已有投诉</option>
                 {complaints.map((item)=><option key={item.complaintId} value={item.complaintId}>{item.complaintId}</option>)}
               </Select>
             </FormField>
-            {evidenceAggregates.length===0?<EmptyState title="No fulfillment evidence yet" />:evidenceAggregates.map((aggregate)=>(
+            {evidenceAggregates.length===0?<EmptyState title="暂无服务凭证" description="师傅提交完工凭证后会显示在这里。" />:evidenceAggregates.map((aggregate)=>(
               <div key={aggregate.fulfillmentId} style={{ display: "grid", gap: 10, borderTop: "1px solid #e4e7ec", paddingTop: 12 }}>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
                   <strong>{aggregate.fulfillmentId}</strong>
-                  <StatusTag tone={aggregate.confirmation?.status === "confirmed" ? "success" : aggregate.confirmation?.status === "disputed" ? "danger" : "warning"}>{aggregate.confirmation?.status ?? "awaiting worker completion"}</StatusTag>
+                  <StatusTag tone={aggregate.confirmation?.status === "confirmed" ? "success" : aggregate.confirmation?.status === "disputed" ? "danger" : "warning"}>{aggregate.confirmation?.status === "confirmed" ? "已确认" : aggregate.confirmation?.status === "disputed" ? "已提出异议" : aggregate.confirmation?.status === "pending" ? "等待确认" : "等待师傅完工"}</StatusTag>
                 </div>
-                {aggregate.evidence.length===0?<EmptyState title="No evidence nodes" />:<Table rows={aggregate.evidence} getRowKey={(item)=>item.evidenceId} columns={[
-                  {key:"node",title:"Node",render:(item)=>item.evidenceType},
-                  {key:"file",title:"File",render:(item)=>item.mediaAsset.originalFileName},
-                  {key:"provider",title:"Storage",render:(item)=>item.mediaAsset.storage.providerStatus},
-                  {key:"scan",title:"Scan",render:(item)=>item.mediaAsset.securityScanStatus},
+                {aggregate.evidence.length===0?<EmptyState title="暂无凭证图片" />:<Table rows={aggregate.evidence} getRowKey={(item)=>item.evidenceId} columns={[
+                  {key:"node",title:"环节",render:(item)=>evidenceTypeLabel[item.evidenceType] ?? "服务凭证"},
+                  {key:"file",title:"文件",render:(item)=>item.mediaAsset.originalFileName},
+                  {key:"provider",title:"存储",render:(item)=>item.mediaAsset.storage.externalProviderExecuted ? "外部存储已执行" : "平台存储"},
+                  {key:"scan",title:"安全检查",render:(item)=>item.mediaAsset.securityScanStatus === "not_malware_scanned_local" ? "未完成恶意软件扫描" : "状态待确认"},
                 ]}/>}
                 {aggregate.confirmation?.status === "pending" && <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  <Button variant="primary" disabled={busy!==null} onClick={()=>void decideConfirmation(aggregate.fulfillmentId,"confirmed")}>Confirm evidence</Button>
-                  <Button disabled={busy!==null||!disputeComplaintId||confirmationNote.trim().length<2} onClick={()=>void decideConfirmation(aggregate.fulfillmentId,"disputed")}>Dispute with complaint</Button>
+                  <Button variant="primary" disabled={busy!==null} onClick={()=>void decideConfirmation(aggregate.fulfillmentId,"confirmed")}>确认服务凭证</Button>
+                  <Button disabled={busy!==null||!disputeComplaintId||confirmationNote.trim().length<2} onClick={()=>void decideConfirmation(aggregate.fulfillmentId,"disputed")}>关联投诉并提出异议</Button>
                 </div>}
               </div>
             ))}

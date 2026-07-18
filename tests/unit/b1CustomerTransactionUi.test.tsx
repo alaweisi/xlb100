@@ -142,7 +142,7 @@ describe("B1-02 服务配置、地址与报价", () => {
 
     expect(await screen.findByText("目录返回服务")).toBeTruthy();
     expect(await screen.findByText(/每次 88 元/)).toBeTruthy();
-    expect((screen.getByPlaceholderText("XX小区3栋502") as HTMLTextAreaElement).value).toBe("");
+    expect((screen.getByPlaceholderText("示例小区3栋502室") as HTMLTextAreaElement).value).toBe("");
     expect((screen.getByPlaceholderText("联系人") as HTMLInputElement).value).toBe("");
     expect(screen.queryByText(/演示用户|演示小区/)).toBeNull();
     expect(getPriceQuote).toHaveBeenCalledWith("sku-real-1");

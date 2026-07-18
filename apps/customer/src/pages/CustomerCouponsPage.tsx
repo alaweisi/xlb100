@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CouponGrant, CouponGrantListResponse } from "@xlb/types";
 import { sortCustomerCouponGrants, toCustomerCouponGrantViewModel } from "../adapters/marketingAdapter";
+import { ApiClientError } from "@xlb/api-client";
+import { toCustomerError } from "../adapters/customerError";
+import { CustomerRouteShell } from "./customerPageShell";
 import "./customer-coupons.css";
 
 type CouponView = "available" | "all";
@@ -28,7 +31,9 @@ export function CustomerCouponsPage({ api, onSelectForQuote }: CustomerCouponsPa
       setItems(sortCustomerCouponGrants(response.couponGrants));
       setState("success");
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "优惠券加载失败");
+      setError(cause instanceof ApiClientError
+        ? toCustomerError(cause, "优惠券加载失败").description
+        : cause instanceof Error ? cause.message : "优惠券加载失败");
       setState("error");
     }
   }, [api, view]);
@@ -41,6 +46,7 @@ export function CustomerCouponsPage({ api, onSelectForQuote }: CustomerCouponsPa
   }, [items]);
 
   return (
+    <CustomerRouteShell currentRoute="coupons">
     <main className="customer-coupons" aria-labelledby="customer-coupons-title">
       <header className="customer-coupons__header">
         <div>
@@ -84,5 +90,6 @@ export function CustomerCouponsPage({ api, onSelectForQuote }: CustomerCouponsPa
         </ul>
       )}
     </main>
+    </CustomerRouteShell>
   );
 }
