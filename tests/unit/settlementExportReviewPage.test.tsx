@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { App } from "../../apps/admin/src/app/App";
 
 const { mockGet } = vi.hoisted(() => ({ mockGet: vi.fn() }));
@@ -150,8 +150,9 @@ describe("Phase 9C Export Review Console", () => {
       });
     });
 
-    it("dashboard has export review navigation button", async () => {
+    it("mobile tools panel has export review navigation button", async () => {
       await renderExportReview("");
+      fireEvent.click(screen.getByRole("button", { name: /我的\/更多/ }));
       await waitFor(() => {
         expect(screen.getByText("导出复核")).toBeTruthy();
       });
@@ -179,15 +180,15 @@ describe("Phase 9C Export Review Console", () => {
         expect(screen.getByText("exp-1")).toBeTruthy();
       });
       expect(screen.getByText("exp-2")).toBeTruthy();
-      expect(screen.getByText("csv")).toBeTruthy();
-      expect(screen.getByText("json")).toBeTruthy();
+      expect(screen.getByText("CSV 文件")).toBeTruthy();
+      expect(screen.getByText("JSON 文件")).toBeTruthy();
     });
 
     it("renders content hash truncated", async () => {
       mockGet.mockResolvedValue(mockExports);
       await renderExportReview("#/settlement-ops/exports");
       await waitFor(() => {
-        expect(screen.getByText("abc123def456...")).toBeTruthy();
+        expect(screen.getByText("abc123def456…")).toBeTruthy();
       });
     });
   });
