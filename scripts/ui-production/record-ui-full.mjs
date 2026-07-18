@@ -97,10 +97,10 @@ const languageViolations = scanVisibleLanguage(root, allowlist);
 const localizedTerminals = new Set(["customer", "worker", "admin"].filter((terminal) => !languageViolations.some((item) => item.terminal === terminal)));
 
 function businessDefinition(slice) {
-  const terminalNames = { customer: "顾客", worker: "师傅", admin: "后台运营人员" };
+  const terminalNames = { customer: "顾客", worker: "师傅", admin: "运营 App 人员" };
   const handoffs = {
-    customer: "服务端保存结果并把订单、履约、售后或客服事实交接给师傅端和后台端。",
-    worker: "服务端保存结果并把接单、履约、返工或资质事实交接给顾客端和后台端。",
+    customer: "服务端保存结果并把订单、履约、售后或客服事实交接给师傅端和运营端。",
+    worker: "服务端保存结果并把接单、履约、返工或资质事实交接给顾客端和运营端。",
     admin: "服务端保存受控操作与审计事实，并把可公开结果交接给顾客端或师傅端。",
   };
   return {

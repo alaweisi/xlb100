@@ -199,8 +199,8 @@
       ],
       "stage": "entry",
       "label": "后台登录入口",
-      "path": "docs/design/ui/production-control/evidence/B0-01/A.AUTH.SESSION.REQUIRED.entry.png",
-      "description": "无后台会话时保留订单追踪目标并要求账号验证码。"
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/GATE.identity.png",
+      "description": "无运营会话时以 390×844 手机全屏 Gate 保留目标并要求账号验证码。"
     },
     {
       "fileKey": "A.AUTH.SESSION.REQUIRED.interaction",
@@ -229,8 +229,8 @@
       ],
       "stage": "entry",
       "label": "城市范围缺失",
-      "path": "docs/design/ui/production-control/evidence/B0-01/A.SCOPE.CITY.REQUIRED.entry.png",
-      "description": "后台身份有效但城市范围缺失，业务工作台暂不开放。"
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/GATE.city.png",
+      "description": "运营身份有效但城市范围缺失，手机业务工作台暂不开放。"
     },
     {
       "fileKey": "A.SCOPE.CITY.REQUIRED.interaction",
@@ -250,8 +250,8 @@
       ],
       "stage": "result",
       "label": "后台运营总览",
-      "path": "docs/design/ui/production-control/evidence/B0-01/A.SCOPE.CITY.REQUIRED.result.png",
-      "description": "城市范围写入后进入桌面运营总览，展示真实指标和常用工作台入口。"
+      "path": "docs/design/ui/production-control/evidence/ADMIN-FULL/A-00.base.png",
+      "description": "城市范围写入后进入手机运营总览，展示真实指标、五项主导航和常用工作台入口。"
     }
   ]
 }

@@ -104,8 +104,8 @@ const definitions = {
   },
   "A.AUTH.SESSION.REQUIRED": {
     route: "/#/order-trace",
-    sources: ["apps/admin/src/app/App.tsx", "apps/admin/src/adminAuth.ts", ...sharedUiSources],
-    component: "IdentityGate + 后台验证码表单",
+    sources: ["apps/admin/src/app/App.tsx", "apps/admin/src/app/AdminMobileShell.tsx", "apps/admin/src/app/admin-shell.css", "apps/admin/src/adminAuth.ts", ...sharedUiSources],
+    component: "IdentityGate + 运营 App 验证码表单",
     apis: ["POST /api/auth/admin/code", "POST /api/auth/admin/login"],
     states: ["admin session missing", "OTP requested", "role verified"],
     permissions: ["admin", "operator", "auditor"],
@@ -117,7 +117,7 @@ const definitions = {
   },
   "A.SCOPE.CITY.REQUIRED": {
     route: "/#/order-trace",
-    sources: ["apps/admin/src/app/App.tsx", "apps/admin/src/adminAuth.ts", ...sharedUiSources],
+    sources: ["apps/admin/src/app/App.tsx", "apps/admin/src/app/AdminMobileShell.tsx", "apps/admin/src/app/admin-shell.css", "apps/admin/src/adminAuth.ts", ...sharedUiSources],
     component: "CityScopeGate",
     apis: ["x-xlb-city-code", "admin API cityCode query scope"],
     states: ["admin session active", "city scope missing", "city scope selected"],
@@ -170,7 +170,7 @@ const baseDefinitions = {
     stages: ["loading", "base", "error"],
   },
   "W-00": { route: "/worker/", sources: ["apps/worker/src/app/App.tsx", "apps/worker/src/pages/TaskPages.tsx"], stages: ["entry"] },
-  "A-00": { route: "/", sources: ["apps/admin/src/app/App.tsx", "apps/admin/src/pages/AdminOverviewPage.tsx"], stages: ["result"] },
+  "A-00": { route: "/", sources: ["apps/admin/src/app/App.tsx", "apps/admin/src/app/AdminMobileShell.tsx", "apps/admin/src/app/admin-shell.css", "apps/admin/src/pages/AdminOverviewPage.tsx"], stages: ["result"] },
 };
 for (const carrier of ledger.carriers) {
   const definition = baseDefinitions[carrier.carrierId];

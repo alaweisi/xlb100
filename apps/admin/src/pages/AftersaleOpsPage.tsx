@@ -6,6 +6,9 @@ import { businessLabel, cityLabel, formatCurrency, formatDateTime, presentFailur
 import "./operations-workbench.css";
 import "./mobile-core.css";
 
+const REVERSE_QUEUE = "reverse";
+const COMPLAINT_QUEUE = "complaints";
+
 export function AftersaleOpsPage({ initialCityCode }: { initialCityCode?: string }) {
   const [cityCode, setCityCode] = useState(initialCityCode || "hangzhou");
   const online = useOnlineStatus();
@@ -29,7 +32,7 @@ export function AftersaleOpsPage({ initialCityCode }: { initialCityCode?: string
   const [failure, setFailure] = useState<OperationsFailure | null>(null);
   const [partial, setPartial] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [queueView, setQueueView] = useState<"reverse" | "complaints">("complaints");
+  const [queueView, setQueueView] = useState<typeof REVERSE_QUEUE | typeof COMPLAINT_QUEUE>(COMPLAINT_QUEUE);
 
   const load = useCallback(async () => {
     setBusy("load"); setFailure(null); setPartial(null); setNotice(null);
@@ -74,7 +77,7 @@ export function AftersaleOpsPage({ initialCityCode }: { initialCityCode?: string
     <Card title="售后运营工作台" actions={<><ScopeBadge scope={`城市：${cityLabel(cityCode)}`} /><StatusTag tone={online ? "success" : "danger"}>{online ? "服务已连接" : "当前离线"}</StatusTag><StatusTag tone="warning">不执行服务商退款</StatusTag></>}>
       <div className="admin-mobile-summary" aria-label="售后运营摘要"><div className="admin-mobile-summary__item"><span>订单变更</span><strong>{reverseRequests.length}</strong></div><div className="admin-mobile-summary__item"><span>投诉</span><strong>{complaints.length}</strong></div><div className="admin-mobile-summary__item"><span>当前城市</span><strong>{cityLabel(cityCode)}</strong></div><div className="admin-mobile-summary__item"><span>当前详情</span><strong>{detail?.complaint.complaintId || "未选择"}</strong></div></div>
       <details className="admin-mobile-filter"><summary>城市筛选</summary><div className="admin-mobile-filter__body"><FormField label="城市"><Select value={cityCode} onChange={(event) => setCityCode(event.target.value)}><option value="hangzhou">杭州</option><option value="shanghai">上海</option><option value="beijing">北京</option></Select></FormField><Button variant="primary" disabled={busy !== null} onClick={() => void load()}>{isRefreshing ? "刷新中…" : "刷新售后队列"}</Button></div></details>
-      <div className="admin-mobile-segments" aria-label="售后队列"><Button aria-pressed={queueView === "complaints"} onClick={() => setQueueView("complaints")}>投诉 {complaints.length}</Button><Button aria-pressed={queueView === "reverse"} onClick={() => setQueueView("reverse")}>订单变更 {reverseRequests.length}</Button></div>
+      <div className="admin-mobile-segments" aria-label="售后队列"><Button aria-pressed={queueView === COMPLAINT_QUEUE} onClick={() => setQueueView(COMPLAINT_QUEUE)}>投诉 {complaints.length}</Button><Button aria-pressed={queueView === REVERSE_QUEUE} onClick={() => setQueueView(REVERSE_QUEUE)}>订单变更 {reverseRequests.length}</Button></div>
     </Card>
     {!online && <div className="operations-alert operations-alert--offline" role="status">网络已断开。旧数据仅供核对，所有售后写操作已停用。</div>}
     {partial && <div className="operations-alert" role="status">{partial}</div>}
@@ -82,11 +85,11 @@ export function AftersaleOpsPage({ initialCityCode }: { initialCityCode?: string
     {failure && <ApiErrorPanel title={failure.title} detail={failure.detail} action={<Button onClick={() => void load()}>刷新最新数据</Button>} />}
     {!loaded && <LoadingState title="正在读取售后队列" description="正在分别读取订单变更和投诉处理记录。" />}
 
-    {queueView === "reverse" && <Card title="订单变更队列" actions={<StatusTag tone="muted">{reverseRequests.length} 条</StatusTag>}>
+    {queueView === REVERSE_QUEUE && <Card title="订单变更队列" actions={<StatusTag tone="muted">{reverseRequests.length} 条</StatusTag>}>
       {loaded && reverseRequests.length === 0 ? <EmptyState title="当前城市暂无订单变更申请" /> : <div className="admin-mobile-list">{reverseRequests.map(item => <article className="admin-mobile-item" key={item.reverseRequestId}><header className="admin-mobile-item__header"><h3>{businessLabel(item.reverseType)} · {item.orderId}</h3><StatusTag tone={statusTone(item.status)}>{statusLabel(item.status)}</StatusTag></header><dl className="admin-mobile-meta"><div><dt>申请编号</dt><dd>{item.reverseRequestId}</dd></div><div><dt>客户原因</dt><dd>{item.reason}</dd></div></dl><div className="admin-mobile-item__actions"><FormField label="变更复核意见"><Input aria-label={`变更复核意见 ${item.reverseRequestId}`} value={reverseNote} onChange={(event) => setReverseNote(event.target.value)} placeholder="通过或驳回前填写" /></FormField><div className="admin-mobile-actions"><Button disabled={!online || busy !== null || item.status !== "requested" || !reverseNote.trim()} onClick={() => void execute(item.reverseRequestId, "订单变更复核", () => api.reviewOrderReverseRequest(item.reverseRequestId, { decision: "approved", reviewNote: reverseNote.trim() }), "订单变更申请已通过复核。")}>通过</Button><Button disabled={!online || busy !== null || item.status !== "requested" || !reverseNote.trim()} onClick={() => void execute(item.reverseRequestId, "订单变更复核", () => api.reviewOrderReverseRequest(item.reverseRequestId, { decision: "rejected", reviewNote: reverseNote.trim() }), "订单变更申请已驳回。")}>驳回</Button><Button variant="primary" disabled={!online || busy !== null || item.status !== "approved"} onClick={() => void execute(item.reverseRequestId, "应用订单变更", () => api.applyOrderReverseRequest(item.reverseRequestId), "订单变更已按服务端规则应用。")}>应用已批准变更</Button></div></div></article>)}</div>}
     </Card>}
 
-    {queueView === "complaints" && <Card title="投诉队列" actions={<StatusTag tone="muted">{complaints.length} 条</StatusTag>}>
+    {queueView === COMPLAINT_QUEUE && <Card title="投诉队列" actions={<StatusTag tone="muted">{complaints.length} 条</StatusTag>}>
       {loaded && complaints.length === 0 ? <EmptyState title="当前城市暂无投诉" /> : <div className="admin-mobile-list">{complaints.map(item => <article className="admin-mobile-item" key={item.complaintId}><header className="admin-mobile-item__header"><h3>{item.complaintId}</h3><StatusTag tone={statusTone(item.status)}>{statusLabel(item.status)}</StatusTag></header><dl className="admin-mobile-meta"><div><dt>订单</dt><dd>{item.orderId}</dd></div><div><dt>类别</dt><dd>{businessLabel(item.category)}</dd></div><div><dt>优先级</dt><dd><StatusTag tone={item.priority === "critical" ? "danger" : item.priority === "urgent" ? "warning" : "muted"}>{businessLabel(item.priority)}</StatusTag></dd></div></dl><div className="admin-mobile-item__actions"><Button variant="primary" onClick={() => void openDetail(item.complaintId)}>{detail?.complaint.complaintId === item.complaintId ? "刷新投诉详情" : "打开投诉详情"}</Button></div></article>)}</div>}
     </Card>}
 

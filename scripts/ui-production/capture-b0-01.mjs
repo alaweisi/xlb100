@@ -14,12 +14,11 @@ const manifest = {
   browserVersion: browser.version(),
   capturedAt,
   actualApp: true,
-  viewportStandard: { mobile: "390×844", desktop: "1440×900" },
+  viewportStandard: { customer: "390×844", worker: "390×844", admin: "390×844" },
   evidence: [],
 };
 
 const mobileViewport = { width: 390, height: 844 };
-const desktopViewport = { width: 1440, height: 900 };
 
 async function createContext(viewport, init) {
   const ctx = await browser.newContext({ viewport, deviceScaleFactor: 1, locale: "zh-CN" });
@@ -223,21 +222,21 @@ async function workerAuthenticatedEvidence() {
 }
 
 async function adminAuthEvidence() {
-  const ctx = await createContext(desktopViewport);
+  const ctx = await createContext(mobileViewport);
   const page = await ctx.newPage();
-  await mockOtpGate(page, "后台验证码不正确，请重新输入");
+  await mockOtpGate(page, "运营验证码不正确，请重新输入");
   await page.goto("http://127.0.0.1:4313/#/order-trace", { waitUntil: "networkidle" });
-  await page.getByRole("heading", { name: "后台身份验证" }).waitFor();
-  await save(page, "A.AUTH.SESSION.REQUIRED.entry", ["A.AUTH.SESSION.REQUIRED"], "entry", "后台登录入口", "无后台会话时保留订单追踪目标并要求账号验证码。");
+  await page.getByRole("heading", { name: "运营身份验证" }).waitFor();
+  await save(page, "A.AUTH.SESSION.REQUIRED.entry", ["A.AUTH.SESSION.REQUIRED"], "entry", "运营 App 登录入口", "无运营会话时以手机全屏 Gate 保留订单追踪目标并要求账号验证码。");
 
   await page.getByRole("button", { name: "获取验证码" }).click();
   await page.getByText(/验证码已发送/).waitFor();
-  await save(page, "A.AUTH.SESSION.REQUIRED.interaction", ["A.AUTH.SESSION.REQUIRED"], "interaction", "后台验证码已发送", "后台账号进入验证码校验流程。");
+  await save(page, "A.AUTH.SESSION.REQUIRED.interaction", ["A.AUTH.SESSION.REQUIRED"], "interaction", "运营验证码已发送", "运营账号进入验证码校验流程。");
 
   await page.getByLabel("短信验证码").fill("000000");
   await page.getByRole("button", { name: "登录", exact: true }).click();
-  await page.getByText(/后台登录失败/).waitFor();
-  await save(page, "A.AUTH.SESSION.REQUIRED.recovery", ["A.AUTH.SESSION.REQUIRED"], "recovery", "后台验证失败", "错误留在受控 Gate，目标工作台未丢失。");
+  await page.getByText("运营验证码不正确，请重新输入").waitFor();
+  await save(page, "A.AUTH.SESSION.REQUIRED.recovery", ["A.AUTH.SESSION.REQUIRED"], "recovery", "运营验证失败", "错误留在手机全屏 Gate，目标工作台未丢失。");
   await ctx.close();
 }
 
@@ -249,7 +248,7 @@ function adminSession() {
 }
 
 async function adminEvidence() {
-  const ctx = await createContext(desktopViewport, adminSession);
+  const ctx = await createContext(mobileViewport, adminSession);
   const page = await ctx.newPage();
   await page.route("**/api/**", async (route) => {
     const url = route.request().url();
@@ -258,8 +257,8 @@ async function adminEvidence() {
     return json(route, { ok: true, items: [], nextCursor: null });
   });
   await page.goto("http://127.0.0.1:4313/", { waitUntil: "networkidle" });
-  await page.getByRole("heading", { name: "选择后台工作城市" }).waitFor();
-  await save(page, "A.SCOPE.CITY.REQUIRED.entry", ["A.SCOPE.CITY.REQUIRED"], "entry", "城市范围缺失", "后台身份有效但城市范围缺失，业务工作台暂不开放。");
+  await page.getByRole("heading", { name: "选择运营城市" }).waitFor();
+  await save(page, "A.SCOPE.CITY.REQUIRED.entry", ["A.SCOPE.CITY.REQUIRED"], "entry", "城市范围缺失", "运营身份有效但城市范围缺失，手机业务工作台暂不开放。");
 
   await page.getByLabel("工作城市").selectOption("shanghai");
   await save(page, "A.SCOPE.CITY.REQUIRED.interaction", ["A.SCOPE.CITY.REQUIRED"], "interaction", "选择上海", "选择控件显示即将进入的工作城市，确认前不写入范围。");
@@ -267,7 +266,7 @@ async function adminEvidence() {
   await page.getByRole("button", { name: "进入该城市工作台" }).click();
   await page.getByRole("heading", { name: "运营总览" }).waitFor();
   await page.getByText("上海城市工作台").waitFor();
-  await save(page, "A.SCOPE.CITY.REQUIRED.result", ["A.SCOPE.CITY.REQUIRED", "A-00"], "result", "后台运营总览", "城市范围写入后进入桌面运营总览，展示真实指标和常用工作台入口。");
+  await save(page, "A.SCOPE.CITY.REQUIRED.result", ["A.SCOPE.CITY.REQUIRED", "A-00"], "result", "手机运营总览", "城市范围写入后进入手机运营总览，展示真实指标、五项主导航和常用工作台入口。");
   await ctx.close();
 }
 
