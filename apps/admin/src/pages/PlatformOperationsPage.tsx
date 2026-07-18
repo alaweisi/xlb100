@@ -27,6 +27,10 @@ const SECTION_NAMES: Record<SectionKey, string> = {
   certifications: "师傅认证",
 };
 
+function certificationOperation(action: "approve" | "reject", certificationId: string): string {
+  return `${action}:${certificationId}`;
+}
+
 export function PlatformOperationsPage({ initialCityCode }: { initialCityCode?: string }) {
   const cityCode = initialCityCode || "hangzhou";
   const online = useOnlineStatus();
@@ -95,13 +99,14 @@ export function PlatformOperationsPage({ initialCityCode }: { initialCityCode?: 
 
   const pendingCertificationCount = certifications.filter((item) => item.status === "pending").length;
   const enabledSkuCount = skus.filter((item) => item.isEnabled).length;
+  const isRefreshing = busy === "load";
 
   return (
     <div className="operations-workbench">
       <Card title="平台运营联动工作台" actions={<><ScopeBadge scope={`城市：${cityLabel(cityCode)}`} /><StatusTag tone={online ? "success" : "danger"}>{online ? "服务已连接" : "当前离线"}</StatusTag></>}>
         <div className="operations-toolbar">
           <div className="operations-toolbar__copy"><p>订单、正式服务目录与师傅认证均读取现有城市级接口；目录开关与认证审核会写入真实业务记录。</p></div>
-          <div className="operations-toolbar__actions"><Button onClick={() => void load()} disabled={busy !== null}>{busy === "load" ? "刷新中…" : "刷新全部"}</Button></div>
+          <div className="operations-toolbar__actions"><Button onClick={() => void load()} disabled={busy !== null}>{isRefreshing ? "刷新中…" : "刷新全部"}</Button></div>
         </div>
       </Card>
 
@@ -114,7 +119,7 @@ export function PlatformOperationsPage({ initialCityCode }: { initialCityCode?: 
         </div>
       )}
 
-      {!loaded && busy === "load" ? <LoadingState title="正在读取平台运营数据" description="正在分别读取城市订单、正式服务目录和师傅认证申请。" /> : (
+      {!loaded && isRefreshing ? <LoadingState title="正在读取平台运营数据" description="正在分别读取城市订单、正式服务目录和师傅认证申请。" /> : (
         <>
           <div className="operations-kpi-grid" aria-label="平台运营实时汇总">
             <div className="operations-kpi"><span>城市订单</span><strong>{sectionErrors.some((item) => item.section === "orders") ? "读取失败" : `${orders.length} 单`}</strong></div>
@@ -157,7 +162,7 @@ export function PlatformOperationsPage({ initialCityCode }: { initialCityCode?: 
                 { key: "cert", title: "认证项目", render: (row) => <div><strong>{row.certName}</strong><br /><small>{row.certType}</small></div> },
                 { key: "submitted", title: "提交时间", render: (row) => formatDateTime(row.submittedAt) },
                 { key: "status", title: "审核状态", render: (row) => <div><StatusTag tone={statusTone(row.status)}>{statusLabel(row.status)}</StatusTag>{row.rejectReason ? <><br /><small>驳回原因：{row.rejectReason}</small></> : null}</div> },
-                { key: "review", title: "审核操作", render: (row) => row.status !== "pending" ? <span className="operations-muted">该申请已完成审核</span> : <div className="operations-reject-control"><Input aria-label={`驳回原因 ${row.certificationId}`} value={rejectReasons[row.certificationId] ?? ""} onChange={(event) => setRejectReasons((current) => ({ ...current, [row.certificationId]: event.target.value }))} placeholder="驳回时必须填写具体原因" /><div className="operations-inline-actions"><Button disabled={busy !== null || !online} onClick={() => void runAction(`approve:${row.certificationId}`, "认证审核", () => api.approveWorkerCertification(row.certificationId), `师傅 ${row.workerId} 的认证申请已通过。`)}>{busy === `approve:${row.certificationId}` ? "提交中…" : "通过"}</Button><Button disabled={busy !== null || !online || !(rejectReasons[row.certificationId] ?? "").trim()} onClick={() => void runAction(`reject:${row.certificationId}`, "认证审核", () => api.rejectWorkerCertification(row.certificationId, (rejectReasons[row.certificationId] ?? "").trim()), `师傅 ${row.workerId} 的认证申请已驳回。`)}>{busy === `reject:${row.certificationId}` ? "提交中…" : "驳回"}</Button></div></div> },
+                { key: "review", title: "审核操作", render: (row) => row.status !== "pending" ? <span className="operations-muted">该申请已完成审核</span> : <div className="operations-reject-control"><Input aria-label={`驳回原因 ${row.certificationId}`} value={rejectReasons[row.certificationId] ?? ""} onChange={(event) => setRejectReasons((current) => ({ ...current, [row.certificationId]: event.target.value }))} placeholder="驳回时必须填写具体原因" /><div className="operations-inline-actions"><Button disabled={busy !== null || !online} onClick={() => void runAction(certificationOperation("approve", row.certificationId), "认证审核", () => api.approveWorkerCertification(row.certificationId), `师傅 ${row.workerId} 的认证申请已通过。`)}>{busy === certificationOperation("approve", row.certificationId) ? "提交中…" : "通过"}</Button><Button disabled={busy !== null || !online || !(rejectReasons[row.certificationId] ?? "").trim()} onClick={() => void runAction(certificationOperation("reject", row.certificationId), "认证审核", () => api.rejectWorkerCertification(row.certificationId, (rejectReasons[row.certificationId] ?? "").trim()), `师傅 ${row.workerId} 的认证申请已驳回。`)}>{busy === certificationOperation("reject", row.certificationId) ? "提交中…" : "驳回"}</Button></div></div> },
               ]} />
             )}
           </Card>

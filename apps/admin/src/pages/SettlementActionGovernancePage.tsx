@@ -52,14 +52,15 @@ export function SettlementActionGovernancePage({ onBack, subView }: Props) {
     } finally { setGeneratingPlan(false); }
   }
 
-  const header = <Card title={subView === "plans" ? "结算只读计划" : "结算动作治理"} actions={<><ScopeBadge scope={`城市：${cityLabel(cityCode)}`} /><StatusTag tone="warning">仅治理，不执行</StatusTag><StatusTag tone={online ? "success" : "danger"}>{online ? "在线" : "离线"}</StatusTag></>}>
+  const showingPlans = subView === "plans";
+  const header = <Card title={showingPlans ? "结算只读计划" : "结算动作治理"} actions={<><ScopeBadge scope={`城市：${cityLabel(cityCode)}`} /><StatusTag tone="warning">仅治理，不执行</StatusTag><StatusTag tone={online ? "success" : "danger"}>{online ? "在线" : "离线"}</StatusTag></>}>
     <p>本工作台只生成和查看治理计划，不执行出款、退款、账本改写、结算提交、文件生成或服务商派发。</p>
-    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><Button onClick={onBack}>返回结算运营台</Button>{subView === "plans" ? <Button disabled={!online || plansLoading} onClick={() => void fetchPlans()}>刷新计划</Button> : <Button onClick={() => { window.location.hash = buildHash("/settlement-ops/governance", { sub: "plans", cityCode }); }}>查看只读计划</Button>}</div>
+    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><Button onClick={onBack}>返回结算运营台</Button>{showingPlans ? <Button disabled={!online || plansLoading} onClick={() => void fetchPlans()}>刷新计划</Button> : <Button onClick={() => { window.location.hash = buildHash("/settlement-ops/governance", { sub: "plans", cityCode }); }}>查看只读计划</Button>}</div>
   </Card>;
 
   const boundary = <Card title="执行边界" actions={<StatusTag tone="danger">全部禁用</StatusTag>}><Table rows={boundaryRows} getRowKey={row => String(row[0])} columns={[{ key: "capability", title: "能力", render: row => row[0] }, { key: "state", title: "状态", render: row => <StatusTag tone="danger">{row[1]}</StatusTag> }]} /></Card>;
 
-  if (subView === "plans") return <div style={{ display: "grid", gap: 16, maxWidth: 1040 }}>
+  if (showingPlans) return <div style={{ display: "grid", gap: 16, maxWidth: 1040 }}>
     {header}
     {!online && <ApiErrorPanel title="当前网络不可用" detail="页面不会把缓存数据标记为最新。恢复网络后请刷新计划。" />}
     {error && <ApiErrorPanel title={error.title} detail={error.detail} action={<Button disabled={!online} onClick={() => void fetchPlans()}>重试</Button>} />}

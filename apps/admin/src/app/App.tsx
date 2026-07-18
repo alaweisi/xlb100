@@ -38,6 +38,12 @@ function adminRoleLabel(role: string): string {
   return "未识别角色";
 }
 
+function adminCityLabel(cityCode: string): string {
+  if (cityCode === "hangzhou") return "杭州";
+  if (cityCode === "shanghai") return "上海";
+  return "北京";
+}
+
 function readStoredAdminCityScope(): string | undefined {
   if (typeof window === "undefined") return undefined;
   const stored = window.localStorage.getItem(ADMIN_CITY_SCOPE_STORAGE_KEY)?.trim();
@@ -269,7 +275,7 @@ export function App() {
         selector={
           <FormField label={<span style={{ color: "var(--xlb-role-admin-text)" }}>工作城市</span>}>
             <Select value={pendingCityCode} onChange={(event) => setPendingCityCode(event.target.value)}>
-              {ADMIN_CITY_OPTIONS.map((option) => <option key={option} value={option}>{option === "hangzhou" ? "杭州" : option === "shanghai" ? "上海" : "北京"}</option>)}
+              {ADMIN_CITY_OPTIONS.map((option) => <option key={option} value={option}>{adminCityLabel(option)}</option>)}
             </Select>
           </FormField>
         }
@@ -366,6 +372,7 @@ export function App() {
                         : "结算单、详情与导出记录仅供审计查看，不执行付款、退款或服务商操作；部分接口失败不会被解释为空数据。";
 
   const guardrailTone = ["orderTrace", "settlement", "detail", "exports", "governance"].includes(view.page) ? "只读治理" : "受控操作";
+  const showGuardrail = view.page !== "dashboard";
 
   return (
     <div className="admin-app-root">
@@ -442,7 +449,7 @@ export function App() {
             <>
               <Button aria-label="打开订单全局搜索" onClick={navigateToOrderTrace}><MagnifyingGlass size={18} weight="regular" /></Button>
               <Button aria-label="打开客服工作台" onClick={navigateToSupport}><Bell size={18} weight="regular" /></Button>
-              {cityCode && <ScopeBadge scope={`城市：${cityCode === "hangzhou" ? "杭州" : cityCode === "shanghai" ? "上海" : "北京"}`} />}
+              {cityCode && <ScopeBadge scope={`城市：${adminCityLabel(cityCode)}`} />}
               <StatusTag tone="primary">运营账号</StatusTag>
               <StatusTag tone="success">业务接口已接入</StatusTag>
               <Button onClick={handleLogout}>退出登录</Button>
@@ -453,7 +460,7 @@ export function App() {
       style={{ background: "var(--xlb-surface-muted)" }}
       contentStyle={{ display: "grid", gap: 16 }}
     >
-      {view.page !== "dashboard" ? <GuardrailCard
+      {showGuardrail ? <GuardrailCard
         title="运营操作边界"
         actions={<StatusTag tone={view.page === "orderTrace" ? "muted" : "warning"}>{guardrailTone}</StatusTag>}
         style={{

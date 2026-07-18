@@ -78,6 +78,9 @@ export function DispatchBoardPage({ initialCityCode }: { initialCityCode?: strin
   const filteredTasks = filter === "all" ? tasks : tasks.filter((task) => task.status === filter);
   const selected = filteredTasks.find((task) => task.dispatchTaskId === selectedTaskId) ?? filteredTasks[0] ?? null;
   const incompleteCandidateCount = rows.filter((row) => row.offer && (row.offer.distanceKm == null || row.offer.etaMinutes == null || row.offer.rankScore == null)).length;
+  const isRefreshing = busy === "load";
+  const selectedRetryOperation = selected ? `match:${selected.dispatchTaskId}` : null;
+  const isRetryingSelected = selectedRetryOperation !== null && busy === selectedRetryOperation;
 
   const load = useCallback(async () => {
     setBusy("load");
@@ -131,7 +134,7 @@ export function DispatchBoardPage({ initialCityCode }: { initialCityCode?: strin
             <p>仅展示当前城市范围内的真实任务与候选邀约；精确坐标不会进入后台页面。</p>
           </div>
           <div className="operations-toolbar__actions">
-            <Button onClick={() => void load()} disabled={busy !== null}>{busy === "load" ? "刷新中…" : "刷新看板"}</Button>
+            <Button onClick={() => void load()} disabled={busy !== null}>{isRefreshing ? "刷新中…" : "刷新看板"}</Button>
             <Button variant="primary" onClick={() => void runAction("match-all", () => api.runDispatchMatch(), (count) => `匹配扫描已完成，服务端处理 ${count} 个任务。`)} disabled={busy !== null || !online}>匹配待处理任务</Button>
             <Button onClick={() => void runAction("timeout", () => api.runDispatchTimeout(), (count) => `超时扫描已完成，服务端处理 ${count} 个任务。`)} disabled={busy !== null || !online}>执行超时扫描</Button>
           </div>
@@ -143,7 +146,7 @@ export function DispatchBoardPage({ initialCityCode }: { initialCityCode?: strin
       {failure && <ApiErrorPanel title={failure.title} detail={failure.detail} action={<Button onClick={() => void load()}>重新读取</Button>} />}
       {loaded && incompleteCandidateCount > 0 && <div className="operations-alert" role="status">部分结果：有 {incompleteCandidateCount} 条候选记录缺少距离、预计到达时间或排序分值；页面不推算缺失数据。</div>}
 
-      {!loaded && busy === "load" ? <LoadingState title="正在读取派单任务" description="正在按当前城市权限读取任务、候选邀约与派单原因。" /> : (
+      {!loaded && isRefreshing ? <LoadingState title="正在读取派单任务" description="正在按当前城市权限读取任务、候选邀约与派单原因。" /> : (
         <>
           <Card title="状态队列" actions={<StatusTag tone="primary">共 {tasks.length} 个任务</StatusTag>}>
             <div className="operations-status-strip" aria-label="派单状态筛选">
@@ -180,7 +183,7 @@ export function DispatchBoardPage({ initialCityCode }: { initialCityCode?: strin
                         <div><dt>服务项目</dt><dd>{selected.skuId}</dd></div>
                       </dl>
                       <div className="operations-alert">{reasonLabel(selected.lastReason)}</div>
-                      <Button disabled={busy !== null || !online || !["pending", "queued", "reassigning", "no_match", "manual_review", "timeout", "failed"].includes(selected.status)} onClick={() => void runAction(`match:${selected.dispatchTaskId}`, () => api.runDispatchMatch(selected.dispatchTaskId), (count) => `任务 ${selected.dispatchTaskId} 已完成重试，服务端处理 ${count} 个任务。`)}>{busy === `match:${selected.dispatchTaskId}` ? "重试中…" : "重新匹配该任务"}</Button>
+                      <Button disabled={busy !== null || !online || !["pending", "queued", "reassigning", "no_match", "manual_review", "timeout", "failed"].includes(selected.status)} onClick={() => void runAction(selectedRetryOperation!, () => api.runDispatchMatch(selected.dispatchTaskId), (count) => `任务 ${selected.dispatchTaskId} 已完成重试，服务端处理 ${count} 个任务。`)}>{isRetryingSelected ? "重试中…" : "重新匹配该任务"}</Button>
                     </section>
 
                     <section className="operations-panel">

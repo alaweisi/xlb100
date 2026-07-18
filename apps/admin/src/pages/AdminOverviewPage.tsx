@@ -31,6 +31,12 @@ function cityName(cityCode: string) {
   return cityCode === "hangzhou" ? "杭州" : cityCode === "shanghai" ? "上海" : "北京";
 }
 
+function roleName(role: string) {
+  if (role === "operator") return "运营人员";
+  if (role === "auditor") return "审计人员";
+  return "管理员";
+}
+
 export function AdminOverviewPage({
   cityCode,
   role,
@@ -83,7 +89,7 @@ export function AdminOverviewPage({
         </div>
         <div className="admin-overview-identity">
           <StatusTag tone="success">业务已接入</StatusTag>
-          <span>当前账号已验证 · {role === "operator" ? "运营人员" : role === "auditor" ? "审计人员" : "管理员"}</span>
+          <span>当前账号已验证 · {roleName(role)}</span>
         </div>
       </section>
 

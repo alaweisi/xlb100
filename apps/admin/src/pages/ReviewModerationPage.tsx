@@ -121,6 +121,8 @@ export function ReviewModerationPage({ initialCityCode }: { initialCityCode?: st
     finally { setBusy(null); }
   }
 
+  const isLoadingQueues = busy === "load";
+
   return <div className="review-moderation-page">
     <Card title="评价审核与申诉" actions={<><ScopeBadge scope={`城市：${cityLabel(cityCode)}`} /><StatusTag tone={canModerate ? "success" : "warning"}>{canModerate ? "审核管理员" : "只读权限"}</StatusTag><StatusTag tone={online ? "success" : "danger"}>{online ? "在线" : "离线"}</StatusTag></>}>
       <p>评价正文按需读取；所有裁决携带版本号与幂等键。冲突时必须刷新后重新判断，不覆盖他人结果。</p>
@@ -129,9 +131,9 @@ export function ReviewModerationPage({ initialCityCode }: { initialCityCode?: st
     {!online && <ApiErrorPanel title="当前网络不可用" detail="审核写入已停用。恢复网络并刷新队列后再继续操作。" />}
     {error && <ApiErrorPanel title={error.title} detail={error.detail} action={<Button disabled={!online} onClick={() => void load()}>重新加载</Button>} />}
     {notice && <p role="status">{notice}</p>}
-    {busy === "load" && reviews.length === 0 && appeals.length === 0 && <LoadingState title="正在加载评价治理队列" description="读取当前城市的评价审核与申诉数据。" />}
+    {isLoadingQueues && reviews.length === 0 && appeals.length === 0 && <LoadingState title="正在加载评价治理队列" description="读取当前城市的评价审核与申诉数据。" />}
     <Card title="评价审核队列" actions={<StatusTag tone="primary">{reviews.length} 条</StatusTag>}>
-      {busy === "load" && reviews.length === 0 ? null : reviews.length === 0 ? <EmptyState title="当前状态下没有评价" /> : <Table rows={reviews} getRowKey={row => row.reviewId} columns={[
+      {isLoadingQueues && reviews.length === 0 ? null : reviews.length === 0 ? <EmptyState title="当前状态下没有评价" /> : <Table rows={reviews} getRowKey={row => row.reviewId} columns={[
         { key: "review", title: "评价", render: row => <div><strong>{row.rating}/5 分</strong><br /><small>{row.reviewId}</small></div> },
         { key: "worker", title: "师傅", render: row => row.workerId },
         { key: "content", title: "正文", render: row => <div className="review-moderation-content">{reviewContent[row.reviewId] !== undefined ? <span className="review-moderation-text">{reviewContent[row.reviewId]}</span> : <StatusTag tone="warning">受限内容</StatusTag>}{canModerate && reviewContent[row.reviewId] === undefined && <Button disabled={!online || contentBusy !== null || busy !== null} onClick={() => void viewContent(row.reviewId)}>{contentBusy === row.reviewId ? "读取中" : "查看正文"}</Button>}</div> },
@@ -142,7 +144,7 @@ export function ReviewModerationPage({ initialCityCode }: { initialCityCode?: st
       {reviewNextCursor && <div className="review-moderation-load-more"><Button disabled={busy !== null || !online} onClick={() => void loadMore("review")}>加载更多评价</Button></div>}
     </Card>
     <Card title="待处理申诉" actions={<StatusTag tone="primary">{appeals.length} 条</StatusTag>}>
-      {busy === "load" && appeals.length === 0 ? null : appeals.length === 0 ? <EmptyState title="当前没有待处理申诉" /> : <Table rows={appeals} getRowKey={row => row.appealId} columns={[
+      {isLoadingQueues && appeals.length === 0 ? null : appeals.length === 0 ? <EmptyState title="当前没有待处理申诉" /> : <Table rows={appeals} getRowKey={row => row.appealId} columns={[
         { key: "appeal", title: "申诉", render: row => <div><strong>{businessLabel(row.subjectType)}</strong><br /><small>{row.appealId}</small></div> },
         { key: "review", title: "关联评价", render: row => <div>{row.reviewId}<br /><small>审核版本 {row.moderationVersion}</small></div> },
         { key: "request", title: "申诉原因", render: row => row.detailsRestricted ? <StatusTag tone="warning">内容受限</StatusTag> : row.reason },
