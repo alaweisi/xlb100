@@ -62,17 +62,20 @@ for (const manifest of manifests) {
     throw new Error(`证据清单不是 Microsoft Edge 真实应用采集：${manifest.batch ?? "未知批次"}`);
   }
   for (const item of manifest.evidence ?? []) {
-    for (const id of item.sliceIds ?? []) {
+    const carrierId = item.carrierId ?? item.carrier;
+    const ids = [...(item.sliceIds ?? [])];
+    if (carrierId && (item.carrierBase === true || item.stage === "base")) ids.push(carrierId);
+    for (const id of new Set(ids)) {
       const list = evidenceById.get(id) ?? [];
       list.push({
         browser: "edge",
         browserVersion: manifest.browserVersion,
         actualApp: true,
         capturedAt: manifest.capturedAt,
-        stage: item.stage,
+        stage: id === carrierId ? "base" : item.stage,
         label: item.label,
         file: item.path,
-        notes: item.description,
+        notes: item.description ?? item.contractState ?? "真实应用契约态截图。",
       });
       evidenceById.set(id, list);
     }
