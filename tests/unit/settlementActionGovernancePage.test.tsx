@@ -37,14 +37,14 @@ describe("结算动作治理工作台", () => {
 
   it("没有真实就绪包编号时不能生成计划", () => {
     render(<SettlementActionGovernancePage onBack={vi.fn()} />);
-    expect((screen.getByRole("button", { name: "生成只读计划" }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole("button", { name: "确认生成只读计划" }) as HTMLButtonElement).disabled).toBe(true);
     expect(mockPost).not.toHaveBeenCalled();
   });
 
   it("把人工输入的就绪包编号原样提交给计划接口", async () => {
     render(<SettlementActionGovernancePage onBack={vi.fn()} />);
     fireEvent.change(screen.getByPlaceholderText("输入真实就绪包编号"), { target: { value: "packet-real-1" } });
-    fireEvent.click(screen.getByRole("button", { name: "生成只读计划" }));
+    fireEvent.click(screen.getByRole("button", { name: "确认生成只读计划" }));
     await waitFor(() => expect(mockPost).toHaveBeenCalledWith("createSettlementDryRunPlan", "packet-real-1"));
   });
 

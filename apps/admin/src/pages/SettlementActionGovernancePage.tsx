@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import { ApiErrorPanel, Button, Card, EmptyState, FormField, Input, LoadingState, ScopeBadge, StatusTag, Table } from "@xlb/ui";
+import { ApiErrorPanel, Button, Card, EmptyState, FormField, Input, LoadingState, ScopeBadge, StatusTag } from "@xlb/ui";
 import { parseHashParams, buildHash } from "../hashParams";
 import { adminPlannerApi as plannerApi } from "../adminAuth";
 import { cityLabel, formatDateTime, presentFailure, statusLabel, statusTone, useOnlineStatus } from "../operationsPresentation";
+import "./mobile-core.css";
 
 interface DryRunPlan { planId: string; planHash: string; status: string; packetId: string; cityCode: string; itemCount: number; createdAt: string; updatedAt: string; }
 interface Props { onBack: () => void; subView?: string; }
@@ -55,40 +56,36 @@ export function SettlementActionGovernancePage({ onBack, subView }: Props) {
   const showingPlans = subView === "plans";
   const header = <Card title={showingPlans ? "结算只读计划" : "结算动作治理"} actions={<><ScopeBadge scope={`城市：${cityLabel(cityCode)}`} /><StatusTag tone="warning">仅治理，不执行</StatusTag><StatusTag tone={online ? "success" : "danger"}>{online ? "在线" : "离线"}</StatusTag></>}>
     <p>本工作台只生成和查看治理计划，不执行出款、退款、账本改写、结算提交、文件生成或服务商派发。</p>
-    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><Button onClick={onBack}>返回结算运营台</Button>{showingPlans ? <Button disabled={!online || plansLoading} onClick={() => void fetchPlans()}>刷新计划</Button> : <Button onClick={() => { window.location.hash = buildHash("/settlement-ops/governance", { sub: "plans", cityCode }); }}>查看只读计划</Button>}</div>
+    <div className="admin-mobile-segments" aria-label="结算治理视图"><Button aria-pressed={!showingPlans} onClick={() => { window.location.hash = buildHash("/settlement-ops/governance", { cityCode }); }}>治理边界</Button><Button aria-pressed={showingPlans} onClick={() => { window.location.hash = buildHash("/settlement-ops/governance", { sub: "plans", cityCode }); }}>只读计划</Button></div>
   </Card>;
 
-  const boundary = <Card title="执行边界" actions={<StatusTag tone="danger">全部禁用</StatusTag>}><Table rows={boundaryRows} getRowKey={row => String(row[0])} columns={[{ key: "capability", title: "能力", render: row => row[0] }, { key: "state", title: "状态", render: row => <StatusTag tone="danger">{row[1]}</StatusTag> }]} /></Card>;
+  const boundary = <Card title="执行边界" actions={<StatusTag tone="danger">全部禁用</StatusTag>}><div className="admin-mobile-list">{boundaryRows.map(row => <div className="admin-mobile-item" key={row[0]}><header className="admin-mobile-item__header"><h3>{row[0]}</h3><StatusTag tone="danger">{row[1]}</StatusTag></header></div>)}</div></Card>;
 
-  if (showingPlans) return <div style={{ display: "grid", gap: 16, maxWidth: 1040 }}>
+  if (showingPlans) return <div className="admin-mobile-core">
     {header}
     {!online && <ApiErrorPanel title="当前网络不可用" detail="页面不会把缓存数据标记为最新。恢复网络后请刷新计划。" />}
     {error && <ApiErrorPanel title={error.title} detail={error.detail} action={<Button disabled={!online} onClick={() => void fetchPlans()}>重试</Button>} />}
     {notice && <p role="status">{notice}</p>}
     <Card title="计划列表" actions={<StatusTag tone="muted">{plans.length} 条</StatusTag>}>
       {plansLoading && <LoadingState title="正在加载只读计划" />}
-      {!plansLoading && plans.length === 0 ? <EmptyState title="当前城市没有只读计划" description="请返回治理页，输入真实就绪包编号后生成。" /> : <Table rows={plans} getRowKey={row => row.planId} columns={[
-        { key: "hash", title: "计划摘要", render: row => row.planHash },
-        { key: "status", title: "状态", render: row => <StatusTag tone={statusTone(row.status)}>{statusLabel(row.status)}</StatusTag> },
-        { key: "packet", title: "就绪包编号", render: row => row.packetId },
-        { key: "items", title: "项目数", render: row => row.itemCount },
-        { key: "created", title: "创建时间", render: row => formatDateTime(row.createdAt) },
-      ]} />}
+      {!plansLoading && plans.length === 0 ? <EmptyState title="当前城市没有只读计划" description="请返回治理页，输入真实就绪包编号后生成。" /> : <div className="admin-mobile-list">{plans.map(row => <article className="admin-mobile-item" key={row.planId}><header className="admin-mobile-item__header"><h3>{row.planId}</h3><StatusTag tone={statusTone(row.status)}>{statusLabel(row.status)}</StatusTag></header><dl className="admin-mobile-meta"><div><dt>计划摘要</dt><dd>{row.planHash}</dd></div><div><dt>就绪包编号</dt><dd>{row.packetId}</dd></div><div><dt>项目数</dt><dd>{row.itemCount}</dd></div><div><dt>创建时间</dt><dd>{formatDateTime(row.createdAt)}</dd></div></dl></article>)}</div>}
     </Card>
     {boundary}
+    <div className="admin-mobile-bottom-actions"><Button disabled={!online || plansLoading} onClick={() => void fetchPlans()} variant="primary">刷新只读计划</Button><Button onClick={onBack}>返回结算运营台</Button></div>
   </div>;
 
-  return <div style={{ display: "grid", gap: 16, maxWidth: 1040 }}>
+  return <div className="admin-mobile-core">
     {header}
     {!online && <ApiErrorPanel title="当前网络不可用" detail="计划生成已停用。恢复网络后再提交。" />}
     {error && <ApiErrorPanel title={error.title} detail={error.detail} />}{notice && <p role="status">{notice}</p>}
     <Card title="生成只读治理计划" actions={<StatusTag tone="warning">需要真实就绪包</StatusTag>}>
       <p>计划由服务端根据就绪包生成，只保存治理元数据与摘要。计划生成成功不代表任何资金或结算动作已执行。</p>
       <FormField label="就绪包编号" description="不得使用占位值；请从已批准的治理就绪包复制编号。"><Input value={packetId} onChange={event => setPacketId(event.target.value)} placeholder="输入真实就绪包编号" /></FormField>
-      <Button variant="primary" disabled={!online || generatingPlan || !packetId.trim()} onClick={() => void handleGeneratePlan()}>{generatingPlan ? "生成中" : "生成只读计划"}</Button>
+      <p className="admin-mobile-note">提交后只生成治理元数据和摘要，不会执行资金、账本或服务商动作。</p>
     </Card>
-    <Card title="治理链路状态"><Table rows={[["治理意图", "已建立"], ["复核与证据", "已建立"], ["就绪包防线", "已建立"], ["只读计划器", "可用"], ["执行能力", "禁止"]]} getRowKey={row => String(row[0])} columns={[{ key: "stage", title: "阶段", render: row => row[0] }, { key: "state", title: "状态", render: row => <StatusTag tone={row[1] === "禁止" ? "danger" : "success"}>{row[1]}</StatusTag> }]} /></Card>
+    <Card title="治理链路状态"><div className="admin-mobile-list">{[["治理意图", "已建立"], ["复核与证据", "已建立"], ["就绪包防线", "已建立"], ["只读计划器", "可用"], ["执行能力", "禁止"]].map(row => <div className="admin-mobile-item" key={row[0]}><header className="admin-mobile-item__header"><h3>{row[0]}</h3><StatusTag tone={row[1] === "禁止" ? "danger" : "success"}>{row[1]}</StatusTag></header></div>)}</div></Card>
     {boundary}
     <Card title="禁止动作"><div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}><Button disabled>出款</Button><Button disabled>退款</Button><Button disabled>账本冲正</Button><Button disabled>提交结算</Button><Button disabled>生成导出文件</Button><Button disabled>批准并执行</Button></div></Card>
+    <div className="admin-mobile-bottom-actions"><Button variant="primary" disabled={!online || generatingPlan || !packetId.trim()} onClick={() => void handleGeneratePlan()}>{generatingPlan ? "生成中" : "确认生成只读计划"}</Button><Button onClick={onBack}>返回结算运营台</Button></div>
   </div>;
 }

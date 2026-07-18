@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import type { AftersaleComplaintDetailResponse, AftersaleComplaintResponse, OrderReverseResponse } from "@xlb/api-client";
-import { ApiErrorPanel, Button, Card, EmptyState, FormField, Input, LoadingState, ScopeBadge, Select, StatusTag, Table, Textarea } from "@xlb/ui";
+import { ApiErrorPanel, Button, Card, EmptyState, FormField, Input, LoadingState, ScopeBadge, Select, StatusTag, Textarea } from "@xlb/ui";
 import { adminOpsApi as api } from "../adminAuth";
 import { businessLabel, cityLabel, formatCurrency, formatDateTime, presentFailure, statusLabel, statusTone, useOnlineStatus, type OperationsFailure } from "../operationsPresentation";
 import "./operations-workbench.css";
+import "./mobile-core.css";
 
 export function AftersaleOpsPage({ initialCityCode }: { initialCityCode?: string }) {
   const [cityCode, setCityCode] = useState(initialCityCode || "hangzhou");
@@ -28,6 +29,7 @@ export function AftersaleOpsPage({ initialCityCode }: { initialCityCode?: string
   const [failure, setFailure] = useState<OperationsFailure | null>(null);
   const [partial, setPartial] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [queueView, setQueueView] = useState<"reverse" | "complaints">("complaints");
 
   const load = useCallback(async () => {
     setBusy("load"); setFailure(null); setPartial(null); setNotice(null);
@@ -68,9 +70,11 @@ export function AftersaleOpsPage({ initialCityCode }: { initialCityCode?: string
   const isRefreshing = busy === "load";
   const hasAssignedLiability = liableParty !== "no_fault";
 
-  return <div className="operations-workbench">
+  return <div className="operations-workbench admin-mobile-core">
     <Card title="售后运营工作台" actions={<><ScopeBadge scope={`城市：${cityLabel(cityCode)}`} /><StatusTag tone={online ? "success" : "danger"}>{online ? "服务已连接" : "当前离线"}</StatusTag><StatusTag tone="warning">不执行服务商退款</StatusTag></>}>
-      <div className="operations-toolbar"><FormField label="城市"><Select value={cityCode} onChange={(event) => setCityCode(event.target.value)}><option value="hangzhou">杭州</option><option value="shanghai">上海</option><option value="beijing">北京</option></Select></FormField><Button variant="primary" disabled={busy !== null} onClick={() => void load()}>{isRefreshing ? "刷新中…" : "刷新售后队列"}</Button></div>
+      <div className="admin-mobile-summary" aria-label="售后运营摘要"><div className="admin-mobile-summary__item"><span>订单变更</span><strong>{reverseRequests.length}</strong></div><div className="admin-mobile-summary__item"><span>投诉</span><strong>{complaints.length}</strong></div><div className="admin-mobile-summary__item"><span>当前城市</span><strong>{cityLabel(cityCode)}</strong></div><div className="admin-mobile-summary__item"><span>当前详情</span><strong>{detail?.complaint.complaintId || "未选择"}</strong></div></div>
+      <details className="admin-mobile-filter"><summary>城市筛选</summary><div className="admin-mobile-filter__body"><FormField label="城市"><Select value={cityCode} onChange={(event) => setCityCode(event.target.value)}><option value="hangzhou">杭州</option><option value="shanghai">上海</option><option value="beijing">北京</option></Select></FormField><Button variant="primary" disabled={busy !== null} onClick={() => void load()}>{isRefreshing ? "刷新中…" : "刷新售后队列"}</Button></div></details>
+      <div className="admin-mobile-segments" aria-label="售后队列"><Button aria-pressed={queueView === "complaints"} onClick={() => setQueueView("complaints")}>投诉 {complaints.length}</Button><Button aria-pressed={queueView === "reverse"} onClick={() => setQueueView("reverse")}>订单变更 {reverseRequests.length}</Button></div>
     </Card>
     {!online && <div className="operations-alert operations-alert--offline" role="status">网络已断开。旧数据仅供核对，所有售后写操作已停用。</div>}
     {partial && <div className="operations-alert" role="status">{partial}</div>}
@@ -78,25 +82,13 @@ export function AftersaleOpsPage({ initialCityCode }: { initialCityCode?: string
     {failure && <ApiErrorPanel title={failure.title} detail={failure.detail} action={<Button onClick={() => void load()}>刷新最新数据</Button>} />}
     {!loaded && <LoadingState title="正在读取售后队列" description="正在分别读取订单变更和投诉处理记录。" />}
 
-    <Card title="订单变更队列" actions={<StatusTag tone="muted">{reverseRequests.length} 条</StatusTag>}>
-      {loaded && reverseRequests.length === 0 ? <EmptyState title="当前城市暂无订单变更申请" /> : <Table rows={reverseRequests} getRowKey={(item) => item.reverseRequestId} columns={[
-        { key: "order", title: "订单", render: (item) => item.orderId },
-        { key: "type", title: "申请类型", render: (item) => businessLabel(item.reverseType) },
-        { key: "status", title: "状态", render: (item) => <StatusTag tone={statusTone(item.status)}>{statusLabel(item.status)}</StatusTag> },
-        { key: "reason", title: "客户原因", render: (item) => item.reason },
-        { key: "actions", title: "复核", render: (item) => <div className="operations-section-stack"><Input aria-label={`变更复核意见 ${item.reverseRequestId}`} value={reverseNote} onChange={(event) => setReverseNote(event.target.value)} placeholder="通过或驳回前填写复核意见" /><div className="operations-inline-actions"><Button disabled={!online || busy !== null || item.status !== "requested" || !reverseNote.trim()} onClick={() => void execute(item.reverseRequestId, "订单变更复核", () => api.reviewOrderReverseRequest(item.reverseRequestId, { decision: "approved", reviewNote: reverseNote.trim() }), "订单变更申请已通过复核。")}>通过</Button><Button disabled={!online || busy !== null || item.status !== "requested" || !reverseNote.trim()} onClick={() => void execute(item.reverseRequestId, "订单变更复核", () => api.reviewOrderReverseRequest(item.reverseRequestId, { decision: "rejected", reviewNote: reverseNote.trim() }), "订单变更申请已驳回。")}>驳回</Button><Button variant="primary" disabled={!online || busy !== null || item.status !== "approved"} onClick={() => void execute(item.reverseRequestId, "应用订单变更", () => api.applyOrderReverseRequest(item.reverseRequestId), "订单变更已按服务端规则应用。")}>应用已批准变更</Button></div></div> },
-      ]} />}
-    </Card>
+    {queueView === "reverse" && <Card title="订单变更队列" actions={<StatusTag tone="muted">{reverseRequests.length} 条</StatusTag>}>
+      {loaded && reverseRequests.length === 0 ? <EmptyState title="当前城市暂无订单变更申请" /> : <div className="admin-mobile-list">{reverseRequests.map(item => <article className="admin-mobile-item" key={item.reverseRequestId}><header className="admin-mobile-item__header"><h3>{businessLabel(item.reverseType)} · {item.orderId}</h3><StatusTag tone={statusTone(item.status)}>{statusLabel(item.status)}</StatusTag></header><dl className="admin-mobile-meta"><div><dt>申请编号</dt><dd>{item.reverseRequestId}</dd></div><div><dt>客户原因</dt><dd>{item.reason}</dd></div></dl><div className="admin-mobile-item__actions"><FormField label="变更复核意见"><Input aria-label={`变更复核意见 ${item.reverseRequestId}`} value={reverseNote} onChange={(event) => setReverseNote(event.target.value)} placeholder="通过或驳回前填写" /></FormField><div className="admin-mobile-actions"><Button disabled={!online || busy !== null || item.status !== "requested" || !reverseNote.trim()} onClick={() => void execute(item.reverseRequestId, "订单变更复核", () => api.reviewOrderReverseRequest(item.reverseRequestId, { decision: "approved", reviewNote: reverseNote.trim() }), "订单变更申请已通过复核。")}>通过</Button><Button disabled={!online || busy !== null || item.status !== "requested" || !reverseNote.trim()} onClick={() => void execute(item.reverseRequestId, "订单变更复核", () => api.reviewOrderReverseRequest(item.reverseRequestId, { decision: "rejected", reviewNote: reverseNote.trim() }), "订单变更申请已驳回。")}>驳回</Button><Button variant="primary" disabled={!online || busy !== null || item.status !== "approved"} onClick={() => void execute(item.reverseRequestId, "应用订单变更", () => api.applyOrderReverseRequest(item.reverseRequestId), "订单变更已按服务端规则应用。")}>应用已批准变更</Button></div></div></article>)}</div>}
+    </Card>}
 
-    <Card title="投诉队列" actions={<StatusTag tone="muted">{complaints.length} 条</StatusTag>}>
-      {loaded && complaints.length === 0 ? <EmptyState title="当前城市暂无投诉" /> : <Table rows={complaints} getRowKey={(item) => item.complaintId} columns={[
-        { key: "id", title: "投诉编号", render: (item) => item.complaintId }, { key: "order", title: "订单", render: (item) => item.orderId },
-        { key: "category", title: "类别", render: (item) => businessLabel(item.category) },
-        { key: "priority", title: "优先级", render: (item) => <StatusTag tone={item.priority === "critical" ? "danger" : item.priority === "urgent" ? "warning" : "muted"}>{businessLabel(item.priority)}</StatusTag> },
-        { key: "status", title: "状态", render: (item) => <StatusTag tone={statusTone(item.status)}>{statusLabel(item.status)}</StatusTag> },
-        { key: "open", title: "详情", render: (item) => <Button onClick={() => void openDetail(item.complaintId)}>打开</Button> },
-      ]} />}
-    </Card>
+    {queueView === "complaints" && <Card title="投诉队列" actions={<StatusTag tone="muted">{complaints.length} 条</StatusTag>}>
+      {loaded && complaints.length === 0 ? <EmptyState title="当前城市暂无投诉" /> : <div className="admin-mobile-list">{complaints.map(item => <article className="admin-mobile-item" key={item.complaintId}><header className="admin-mobile-item__header"><h3>{item.complaintId}</h3><StatusTag tone={statusTone(item.status)}>{statusLabel(item.status)}</StatusTag></header><dl className="admin-mobile-meta"><div><dt>订单</dt><dd>{item.orderId}</dd></div><div><dt>类别</dt><dd>{businessLabel(item.category)}</dd></div><div><dt>优先级</dt><dd><StatusTag tone={item.priority === "critical" ? "danger" : item.priority === "urgent" ? "warning" : "muted"}>{businessLabel(item.priority)}</StatusTag></dd></div></dl><div className="admin-mobile-item__actions"><Button variant="primary" onClick={() => void openDetail(item.complaintId)}>{detail?.complaint.complaintId === item.complaintId ? "刷新投诉详情" : "打开投诉详情"}</Button></div></article>)}</div>}
+    </Card>}
 
     {detail && <Card title={`投诉详情 · ${detail.complaint.complaintId}`} actions={<StatusTag tone={statusTone(detail.complaint.status)}>{statusLabel(detail.complaint.status)}</StatusTag>}>
       <div className="operations-section-stack">
@@ -107,13 +99,10 @@ export function AftersaleOpsPage({ initialCityCode }: { initialCityCode?: string
 
         <section className="operations-panel"><h3>补偿与结案</h3><div className="operations-form-grid"><FormField label="补偿金额"><Input type="number" min="0" value={compensationAmount} onChange={(event) => setCompensationAmount(event.target.value)} /></FormField><FormField label="补偿原因"><Textarea value={compensationReason} onChange={(event) => setCompensationReason(event.target.value)} /></FormField><FormField label="结案说明"><Textarea value={resolutionNote} onChange={(event) => setResolutionNote(event.target.value)} /></FormField></div><div className="operations-inline-actions"><Button disabled={!online || busy !== null || !compensationReason.trim() || !Number.isFinite(Number(compensationAmount)) || Number(compensationAmount) <= 0 || ["closed", "rejected"].includes(detail.complaint.status)} onClick={() => void execute(complaintId!, "补偿提议", () => api.proposeAftersaleCompensation(complaintId!, { intentType: "service_credit", requestedAmount: Number(compensationAmount), reason: compensationReason.trim() }), "补偿意图已提交，尚未执行任何服务商退款。", true)}>提交服务补偿意图</Button><Button disabled={!online || busy !== null || !resolutionNote.trim() || !["triaged", "in_progress", "waiting_customer"].includes(detail.complaint.status)} onClick={() => void execute(complaintId!, "投诉解决", () => api.resolveAftersaleComplaint(complaintId!, { resolutionType: "explanation", resolutionNote: resolutionNote.trim() }), "投诉解决结果已记录。", true)}>记录解决结果</Button><Button variant="primary" disabled={!online || busy !== null || detail.complaint.status !== "resolved"} onClick={() => void execute(complaintId!, "投诉关闭", () => api.closeAftersaleComplaint(complaintId!), "投诉已关闭。", true)}>关闭投诉</Button></div></section>
 
-        <Table rows={detail.compensationIntents} getRowKey={(item) => item.compensationIntentId} emptyText="暂无补偿意图" columns={[
-          { key: "type", title: "补偿类型", render: (item) => businessLabel(item.intentType) }, { key: "amount", title: "申请金额", render: (item) => formatCurrency(item.requestedAmount) },
-          { key: "status", title: "审批 / 执行", render: (item) => <><StatusTag tone={statusTone(item.status)}>{statusLabel(item.status)}</StatusTag> <StatusTag tone="muted">{statusLabel(item.providerExecutionStatus)}</StatusTag></> },
-          { key: "review", title: "复核", render: (item) => <div className="operations-inline-actions"><Button disabled={!online || busy !== null || item.status !== "proposed" || !compensationReason.trim()} onClick={() => void execute(item.compensationIntentId, "补偿审批", () => api.reviewAftersaleCompensation(item.compensationIntentId, { decision: "approved", approvedAmount: item.requestedAmount, decisionNote: compensationReason.trim() }), "补偿意图已批准；未执行外部退款。", true)}>批准意图</Button><Button disabled={!online || busy !== null || item.status !== "proposed" || !compensationReason.trim()} onClick={() => void execute(item.compensationIntentId, "补偿审批", () => api.reviewAftersaleCompensation(item.compensationIntentId, { decision: "rejected", decisionNote: compensationReason.trim() }), "补偿意图已驳回。", true)}>驳回</Button></div> },
-        ]} />
-        <Table rows={detail.timeline} getRowKey={(item) => item.timelineEventId} columns={[{ key: "time", title: "时间", render: (item) => formatDateTime(item.createdAt) }, { key: "event", title: "事件", render: (item) => statusLabel(item.eventType) }, { key: "actor", title: "操作主体", render: (item) => `${businessLabel(item.actorType)}：${item.actorId || "系统"}` }, { key: "content", title: "内容", render: (item) => item.content }]} />
+        <section className="admin-mobile-panel"><h3>补偿意图</h3>{detail.compensationIntents.length === 0 ? <EmptyState title="暂无补偿意图" /> : <div className="admin-mobile-list">{detail.compensationIntents.map(item => <article className="admin-mobile-item" key={item.compensationIntentId}><header className="admin-mobile-item__header"><h3>{businessLabel(item.intentType)} · {formatCurrency(item.requestedAmount)}</h3><StatusTag tone={statusTone(item.status)}>{statusLabel(item.status)}</StatusTag></header><dl className="admin-mobile-meta"><div><dt>服务商执行</dt><dd>{statusLabel(item.providerExecutionStatus)}</dd></div><div><dt>意图编号</dt><dd>{item.compensationIntentId}</dd></div></dl><div className="admin-mobile-item__actions"><div className="admin-mobile-actions"><Button disabled={!online || busy !== null || item.status !== "proposed" || !compensationReason.trim()} onClick={() => void execute(item.compensationIntentId, "补偿审批", () => api.reviewAftersaleCompensation(item.compensationIntentId, { decision: "approved", approvedAmount: item.requestedAmount, decisionNote: compensationReason.trim() }), "补偿意图已批准；未执行外部退款。", true)}>批准意图</Button><Button disabled={!online || busy !== null || item.status !== "proposed" || !compensationReason.trim()} onClick={() => void execute(item.compensationIntentId, "补偿审批", () => api.reviewAftersaleCompensation(item.compensationIntentId, { decision: "rejected", decisionNote: compensationReason.trim() }), "补偿意图已驳回。", true)}>驳回</Button></div><p className="admin-mobile-note">批准只更新补偿意图，不执行外部退款。</p></div></article>)}</div>}</section>
+        <section className="admin-mobile-panel"><h3>处理时间线</h3><div className="admin-mobile-list">{detail.timeline.map(item => <article className="admin-mobile-item" key={item.timelineEventId}><header className="admin-mobile-item__header"><h3>{statusLabel(item.eventType)}</h3><span>{formatDateTime(item.createdAt)}</span></header><dl className="admin-mobile-meta"><div><dt>操作主体</dt><dd>{businessLabel(item.actorType)}：{item.actorId || "系统"}</dd></div><div><dt>内容</dt><dd>{item.content}</dd></div></dl></article>)}</div></section>
       </div>
     </Card>}
+    <div className="admin-mobile-bottom-actions"><Button variant="primary" disabled={busy !== null} onClick={() => void load()}>{isRefreshing ? "刷新中…" : "刷新最新售后状态"}</Button>{detail && <Button onClick={() => setDetail(null)}>关闭当前详情</Button>}</div>
   </div>;
 }

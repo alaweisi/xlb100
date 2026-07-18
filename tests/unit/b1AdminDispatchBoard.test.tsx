@@ -60,7 +60,7 @@ describe("B1 后台派单看板", () => {
     }
     expect(screen.queryByText("offering")).toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: "重新匹配该任务" }));
+    fireEvent.click(screen.getByRole("button", { name: "重新匹配当前任务" }));
     await waitFor(() => expect(mocks.runDispatchMatch).toHaveBeenCalledWith("dispatch-1"));
   });
 
@@ -75,7 +75,7 @@ describe("B1 后台派单看板", () => {
     mocks.runDispatchMatch.mockRejectedValue(new ApiClientError({ kind: "http", message: "conflict", method: "POST", path: "/dispatch", status: 409 }));
     render(<DispatchBoardPage initialCityCode="hangzhou" />);
     await screen.findAllByText("dispatch-1");
-    fireEvent.click(screen.getByRole("button", { name: "重新匹配该任务" }));
+    fireEvent.click(screen.getByRole("button", { name: "重新匹配当前任务" }));
     expect(await screen.findByText("数据已被其他操作更新")).toBeTruthy();
     expect(screen.queryByText(/已完成重试/)).toBeNull();
   });

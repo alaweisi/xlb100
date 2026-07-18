@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { adminSettlementApi as api } from "../adminAuth";
-import { ApiErrorPanel, Button, Card, EmptyState, LoadingState, PriceText, ScopeBadge, StatusTag, Table, Timeline } from "@xlb/ui";
-import { cityLabel, formatDateTime, type OperationsFailure, presentFailure, statusLabel, statusTone, useOnlineStatus } from "../operationsPresentation";
+import { ApiErrorPanel, Button, Card, EmptyState, LoadingState, PriceText, ScopeBadge, StatusTag, Timeline } from "@xlb/ui";
+import { cityLabel, eventLabel, formatDateTime, type OperationsFailure, presentFailure, statusLabel, statusTone, useOnlineStatus } from "../operationsPresentation";
+import "./mobile-core.css";
 
 interface DetailData {
   statement: {
@@ -72,16 +73,16 @@ export function SettlementStatementDetailPage({ statementId, onBack, cityCode, o
     return () => { cancelled = true; };
   }, [online, statementId]);
 
-  if (loading) return <LoadingState title="正在读取结算单详情" description="正在读取结算单、复核、导出和事件投递记录。" />;
-  if (error) return <ApiErrorPanel title={error.title} detail={error.detail} action={<Button onClick={onBack}>返回运营台</Button>} />;
-  if (!data) return <EmptyState title="暂无详情数据" action={<Button onClick={onBack}>返回运营台</Button>} />;
+  if (loading) return <div className="admin-mobile-core"><LoadingState title="正在读取结算单详情" description="正在读取结算单、复核、导出和事件投递记录。" /></div>;
+  if (error) return <div className="admin-mobile-core"><ApiErrorPanel title={error.title} detail={error.detail} action={<Button onClick={onBack}>返回运营台</Button>} /></div>;
+  if (!data) return <div className="admin-mobile-core"><EmptyState title="暂无详情数据" action={<Button onClick={onBack}>返回运营台</Button>} /></div>;
 
   const { statement, review } = data;
   const exportRecord = data.export;
   const outboxEvent = data.exportedOutboxEvent;
 
   return (
-    <div style={{ display: "grid", gap: 16 }}>
+    <div className="admin-mobile-core">
       <Card
         title="结算单详情"
         actions={
@@ -91,13 +92,11 @@ export function SettlementStatementDetailPage({ statementId, onBack, cityCode, o
           </>
         }
       >
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-          <Button onClick={onBack}>返回运营台</Button>
-          {onNavigateToExports && cityCode && (
-            <Button onClick={() => onNavigateToExports({ statementId, cityCode })}>
-              查看{cityLabel(cityCode)}导出记录
-            </Button>
-          )}
+        <div className="admin-mobile-summary" aria-label="结算单摘要">
+          <div className="admin-mobile-summary__item"><span>结算单</span><strong>{statementId}</strong></div>
+          <div className="admin-mobile-summary__item"><span>当前状态</span><strong>{statusLabel(statement?.status)}</strong></div>
+          <div className="admin-mobile-summary__item"><span>总金额</span><strong>{statement ? <PriceText amount={statement.grossAmount} currency={statement.currency} /> : "—"}</strong></div>
+          <div className="admin-mobile-summary__item"><span>师傅应收</span><strong>{statement ? <PriceText amount={statement.workerReceivableAmount} currency={statement.currency} /> : "—"}</strong></div>
         </div>
       </Card>
 
@@ -114,44 +113,19 @@ export function SettlementStatementDetailPage({ statementId, onBack, cityCode, o
 
       {statement && (
         <Card title="结算单">
-          <Table
-            rows={[
-              ["结算单编号", statement.statementId],
-              ["城市", cityLabel(statement.cityCode)],
-              ["师傅", statement.workerId],
-              ["状态", <StatusTag tone={statusTone(statement.status)}>{statusLabel(statement.status)}</StatusTag>],
-              ["币种", statement.currency],
-              ["总金额", <PriceText amount={statement.grossAmount} currency={statement.currency} />],
-              ["平台服务费", <PriceText amount={statement.platformFeeAmount} currency={statement.currency} />],
-              ["师傅应收", <PriceText amount={statement.workerReceivableAmount} currency={statement.currency} />],
-              ["项目数", statement.itemCount],
-              ["生成时间", formatDateTime(statement.generatedAt)],
-              ["生成人", statement.generatedBy],
-            ]}
-            getRowKey={(row) => String(row[0])}
-            columns={[
-              { key: "field", title: "字段", render: (row) => row[0], width: 220 },
-              { key: "value", title: "值", render: (row) => row[1] },
-            ]}
-          />
+          <dl className="admin-mobile-meta">
+            <div><dt>结算单编号</dt><dd>{statement.statementId}</dd></div><div><dt>城市</dt><dd>{cityLabel(statement.cityCode)}</dd></div>
+            <div><dt>师傅</dt><dd>{statement.workerId}</dd></div><div><dt>状态</dt><dd><StatusTag tone={statusTone(statement.status)}>{statusLabel(statement.status)}</StatusTag></dd></div>
+            <div><dt>总金额</dt><dd><PriceText amount={statement.grossAmount} currency={statement.currency} /></dd></div><div><dt>平台服务费</dt><dd><PriceText amount={statement.platformFeeAmount} currency={statement.currency} /></dd></div>
+            <div><dt>师傅应收</dt><dd><PriceText amount={statement.workerReceivableAmount} currency={statement.currency} /></dd></div><div><dt>项目数</dt><dd>{statement.itemCount}</dd></div>
+            <div><dt>生成时间</dt><dd>{formatDateTime(statement.generatedAt)}</dd></div><div><dt>生成人</dt><dd>{statement.generatedBy}</dd></div>
+          </dl>
         </Card>
       )}
 
       {review && (
         <Card title="复核" actions={<StatusTag tone="success">已复核</StatusTag>}>
-          <Table
-            rows={[
-              ["决策", statusLabel(review.decision)],
-              ...(review.reviewNote ? [["备注", review.reviewNote] as [string, string]] : []),
-              ["复核时间", formatDateTime(review.reviewedAt)],
-              ["复核人", review.reviewedBy],
-            ]}
-            getRowKey={(row) => String(row[0])}
-            columns={[
-              { key: "field", title: "字段", render: (row) => row[0], width: 220 },
-              { key: "value", title: "值", render: (row) => row[1] },
-            ]}
-          />
+          <dl className="admin-mobile-meta"><div><dt>决策</dt><dd>{statusLabel(review.decision)}</dd></div><div><dt>复核人</dt><dd>{review.reviewedBy}</dd></div>{review.reviewNote && <div><dt>备注</dt><dd>{review.reviewNote}</dd></div>}<div><dt>复核时间</dt><dd>{formatDateTime(review.reviewedAt)}</dd></div></dl>
         </Card>
       )}
       {!review && (
@@ -160,20 +134,7 @@ export function SettlementStatementDetailPage({ statementId, onBack, cityCode, o
 
       {exportRecord && (
         <Card title="导出记录" actions={<StatusTag tone="success">已记录</StatusTag>}>
-          <Table
-            rows={[
-              ["导出编号", exportRecord.exportId],
-              ["内容哈希", exportRecord.contentHash],
-              ["导出时间", formatDateTime(exportRecord.exportedAt)],
-              ["导出人", exportRecord.exportedBy],
-              ...(exportRecord.outboxEventId ? [["投递事件编号", exportRecord.outboxEventId] as [string, string]] : []),
-            ]}
-            getRowKey={(row) => String(row[0])}
-            columns={[
-              { key: "field", title: "字段", render: (row) => row[0], width: 220 },
-              { key: "value", title: "值", render: (row) => row[1] },
-            ]}
-          />
+          <dl className="admin-mobile-meta"><div><dt>导出编号</dt><dd>{exportRecord.exportId}</dd></div><div><dt>导出人</dt><dd>{exportRecord.exportedBy}</dd></div><div><dt>内容哈希</dt><dd>{exportRecord.contentHash}</dd></div><div><dt>导出时间</dt><dd>{formatDateTime(exportRecord.exportedAt)}</dd></div>{exportRecord.outboxEventId && <div><dt>投递事件编号</dt><dd>{exportRecord.outboxEventId}</dd></div>}</dl>
         </Card>
       )}
       {!exportRecord && (
@@ -182,26 +143,17 @@ export function SettlementStatementDetailPage({ statementId, onBack, cityCode, o
 
       {outboxEvent && (
         <Card title="事件投递" actions={<StatusTag tone={statusTone(outboxEvent.status)}>{statusLabel(outboxEvent.status)}</StatusTag>}>
-          <Table
-            rows={[
-              ["事件编号", outboxEvent.eventId],
-              ["类型", outboxEvent.eventType],
-              ["状态", statusLabel(outboxEvent.status)],
-              ...(outboxEvent.publishedAt ? [["发布时间", formatDateTime(outboxEvent.publishedAt)] as [string, string]] : []),
-            ]}
-            getRowKey={(row) => String(row[0])}
-            columns={[
-              { key: "field", title: "字段", render: (row) => row[0], width: 220 },
-              { key: "value", title: "值", render: (row) => row[1] },
-            ]}
-          />
+          <dl className="admin-mobile-meta"><div><dt>事件编号</dt><dd>{outboxEvent.eventId}</dd></div><div><dt>类型</dt><dd>{eventLabel(outboxEvent.eventType)}</dd></div><div><dt>状态</dt><dd>{statusLabel(outboxEvent.status)}</dd></div>{outboxEvent.publishedAt && <div><dt>发布时间</dt><dd>{formatDateTime(outboxEvent.publishedAt)}</dd></div>}</dl>
         </Card>
       )}
       {!outboxEvent && (
         <Card title="事件投递"><EmptyState title="暂无事件投递记录" /></Card>
       )}
 
-      <div><Button onClick={onBack}>返回运营台</Button></div>
+      <div className="admin-mobile-bottom-actions">
+        {onNavigateToExports && cityCode && <Button onClick={() => onNavigateToExports({ statementId, cityCode })}>查看{cityLabel(cityCode)}导出记录</Button>}
+        <Button onClick={onBack}>返回结算运营台</Button>
+      </div>
     </div>
   );
 }

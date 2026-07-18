@@ -81,7 +81,7 @@ describe("Phase 9A Settlement Ops Console", () => {
 
     it("renders refresh button", async () => {
       await renderAndAwaitApi();
-      expect(screen.getByText("刷新")).toBeTruthy();
+      expect(screen.getByRole("button", { name: "刷新结算数据" })).toBeTruthy();
     });
   });
 

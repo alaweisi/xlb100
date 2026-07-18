@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { DispatchBoardRow } from "@xlb/api-client";
-import { ApiErrorPanel, Button, Card, EmptyState, LoadingState, ScopeBadge, StatusTag, Table } from "@xlb/ui";
+import { ApiErrorPanel, Button, Card, EmptyState, LoadingState, ScopeBadge, StatusTag } from "@xlb/ui";
 import { adminOpsApi as api } from "../adminAuth";
 import {
   cityLabel,
@@ -13,6 +13,7 @@ import {
   type OperationsFailure,
 } from "../operationsPresentation";
 import "./operations-workbench.css";
+import "./mobile-core.css";
 
 const DISPATCH_STATUSES = [
   "pending",
@@ -124,21 +125,13 @@ export function DispatchBoardPage({ initialCityCode }: { initialCityCode?: strin
   const statusCount = (status: string) => tasks.filter((task) => task.status === status).length;
 
   return (
-    <div className="operations-workbench">
+    <div className="operations-workbench admin-mobile-core">
       <Card
         title="城市派单工作台"
         actions={<><ScopeBadge scope={`城市：${cityLabel(cityCode)}`} /><StatusTag tone={online ? "success" : "danger"}>{online ? "服务已连接" : "当前离线"}</StatusTag></>}
       >
-        <div className="operations-toolbar">
-          <div className="operations-toolbar__copy">
-            <p>仅展示当前城市范围内的真实任务与候选邀约；精确坐标不会进入后台页面。</p>
-          </div>
-          <div className="operations-toolbar__actions">
-            <Button onClick={() => void load()} disabled={busy !== null}>{isRefreshing ? "刷新中…" : "刷新看板"}</Button>
-            <Button variant="primary" onClick={() => void runAction("match-all", () => api.runDispatchMatch(), (count) => `匹配扫描已完成，服务端处理 ${count} 个任务。`)} disabled={busy !== null || !online}>匹配待处理任务</Button>
-            <Button onClick={() => void runAction("timeout", () => api.runDispatchTimeout(), (count) => `超时扫描已完成，服务端处理 ${count} 个任务。`)} disabled={busy !== null || !online}>执行超时扫描</Button>
-          </div>
-        </div>
+        <p>仅展示当前城市范围内的真实任务与候选邀约；精确坐标不会进入后台页面。</p>
+        <div className="admin-mobile-summary" aria-label="派单摘要"><div className="admin-mobile-summary__item"><span>任务总数</span><strong>{tasks.length}</strong></div><div className="admin-mobile-summary__item"><span>待匹配</span><strong>{statusCount("pending") + statusCount("queued")}</strong></div><div className="admin-mobile-summary__item"><span>人工复核</span><strong>{statusCount("manual_review")}</strong></div><div className="admin-mobile-summary__item"><span>候选数据不完整</span><strong>{incompleteCandidateCount}</strong></div></div>
       </Card>
 
       {!online && <div className="operations-alert operations-alert--offline" role="status">网络已断开。页面保留上次成功读取的数据供核对，但所有写操作已停用，旧数据不会标记为最新。</div>}
@@ -158,15 +151,7 @@ export function DispatchBoardPage({ initialCityCode }: { initialCityCode?: strin
           <div className="dispatch-layout">
             <Card title="任务队列" actions={<StatusTag tone="muted">当前筛选 {filteredTasks.length} 个</StatusTag>}>
               {filteredTasks.length === 0 ? <EmptyState title="当前筛选下没有任务" description="可切换状态筛选，或刷新读取服务端最新结果。" /> : (
-                <Table rows={filteredTasks} getRowKey={(task) => task.dispatchTaskId} columns={[
-                  { key: "task", title: "派单任务", render: (task) => <button type="button" className="operations-row-button" onClick={() => setSelectedTaskId(task.dispatchTaskId)}>{task.dispatchTaskId}</button> },
-                  { key: "order", title: "订单", render: (task) => task.orderId },
-                  { key: "sku", title: "服务项目", render: (task) => task.skuId },
-                  { key: "status", title: "状态", render: (task) => <StatusTag tone={statusTone(task.status)}>{statusLabel(task.status)}</StatusTag> },
-                  { key: "attempt", title: "匹配轮次", render: (task) => `${task.attemptCount} 次` },
-                  { key: "candidates", title: "候选", render: (task) => `${task.candidates.length} 人` },
-                  { key: "reason", title: "最近原因", render: (task) => reasonLabel(task.lastReason) },
-                ]} />
+                <div className="admin-mobile-list">{filteredTasks.map(task => <article className="admin-mobile-item" key={task.dispatchTaskId}><header className="admin-mobile-item__header"><h3>{task.dispatchTaskId}</h3><StatusTag tone={statusTone(task.status)}>{statusLabel(task.status)}</StatusTag></header><dl className="admin-mobile-meta"><div><dt>订单</dt><dd>{task.orderId}</dd></div><div><dt>服务项目</dt><dd>{task.skuId}</dd></div><div><dt>匹配轮次</dt><dd>{task.attemptCount} 次</dd></div><div><dt>候选</dt><dd>{task.candidates.length} 人</dd></div><div><dt>最近原因</dt><dd>{reasonLabel(task.lastReason)}</dd></div></dl><div className="admin-mobile-item__actions"><Button variant={selected?.dispatchTaskId === task.dispatchTaskId ? "primary" : undefined} onClick={() => setSelectedTaskId(task.dispatchTaskId)}>{selected?.dispatchTaskId === task.dispatchTaskId ? "正在查看" : "查看任务详情"}</Button></div></article>)}</div>
               )}
             </Card>
 
@@ -183,20 +168,12 @@ export function DispatchBoardPage({ initialCityCode }: { initialCityCode?: strin
                         <div><dt>服务项目</dt><dd>{selected.skuId}</dd></div>
                       </dl>
                       <div className="operations-alert">{reasonLabel(selected.lastReason)}</div>
-                      <Button disabled={busy !== null || !online || !["pending", "queued", "reassigning", "no_match", "manual_review", "timeout", "failed"].includes(selected.status)} onClick={() => void runAction(selectedRetryOperation!, () => api.runDispatchMatch(selected.dispatchTaskId), (count) => `任务 ${selected.dispatchTaskId} 已完成重试，服务端处理 ${count} 个任务。`)}>{isRetryingSelected ? "重试中…" : "重新匹配该任务"}</Button>
                     </section>
 
                     <section className="operations-panel">
                       <h3>候选排序</h3>
                       {selected.candidates.length === 0 ? <EmptyState title="服务端未返回候选" description="页面不会生成候选或推测距离；请结合最近原因决定是否重试或转人工。" /> : (
-                        <Table rows={selected.candidates} getRowKey={(candidate) => candidate.offerId} columns={[
-                          { key: "rank", title: "排序分值", render: (candidate) => candidate.rankScore == null ? "未返回" : candidate.rankScore.toFixed(2) },
-                          { key: "worker", title: "师傅", render: (candidate) => candidate.workerId },
-                          { key: "status", title: "邀约状态", render: (candidate) => <StatusTag tone={statusTone(candidate.status)}>{statusLabel(candidate.status)}</StatusTag> },
-                          { key: "route", title: "路程 / 到达", render: (candidate) => candidate.distanceKm == null || candidate.etaMinutes == null ? "数据不完整" : `${candidate.distanceKm.toFixed(1)} 公里 / ${candidate.etaMinutes} 分钟` },
-                          { key: "fresh", title: "位置", render: (candidate) => <StatusTag tone={statusTone(candidate.locationFreshness)}>{candidate.locationFreshness ? statusLabel(candidate.locationFreshness) : "未返回"}</StatusTag> },
-                          { key: "expires", title: "邀约截止", render: (candidate) => formatDateTime(candidate.expiresAt) },
-                        ]} />
+                        <div className="admin-mobile-list">{selected.candidates.map(candidate => <article className="admin-mobile-item" key={candidate.offerId}><header className="admin-mobile-item__header"><h3>{candidate.workerId}</h3><StatusTag tone={statusTone(candidate.status)}>{statusLabel(candidate.status)}</StatusTag></header><dl className="admin-mobile-meta"><div><dt>排序分值</dt><dd>{candidate.rankScore == null ? "未返回" : candidate.rankScore.toFixed(2)}</dd></div><div><dt>路程 / 到达</dt><dd>{candidate.distanceKm == null || candidate.etaMinutes == null ? "数据不完整" : `${candidate.distanceKm.toFixed(1)} 公里 / ${candidate.etaMinutes} 分钟`}</dd></div><div><dt>位置新鲜度</dt><dd>{candidate.locationFreshness ? statusLabel(candidate.locationFreshness) : "未返回"}</dd></div><div><dt>邀约截止</dt><dd>{formatDateTime(candidate.expiresAt)}</dd></div></dl></article>)}</div>
                       )}
                       <p>排序分值、距离和预计到达时间均来自服务端；页面不展示精确坐标，也不把本地地理能力描述为外部供应商成功。</p>
                     </section>
@@ -207,6 +184,7 @@ export function DispatchBoardPage({ initialCityCode }: { initialCityCode?: strin
           </div>
         </>
       )}
+      <div className="admin-mobile-bottom-actions"><div className="admin-mobile-actions"><Button onClick={() => void load()} disabled={busy !== null}>{isRefreshing ? "刷新中…" : "刷新看板"}</Button><Button onClick={() => void runAction("timeout", () => api.runDispatchTimeout(), (count) => `超时扫描已完成，服务端处理 ${count} 个任务。`)} disabled={busy !== null || !online}>执行超时扫描</Button></div>{selected ? <Button variant="primary" disabled={busy !== null || !online || !["pending", "queued", "reassigning", "no_match", "manual_review", "timeout", "failed"].includes(selected.status)} onClick={() => void runAction(selectedRetryOperation!, () => api.runDispatchMatch(selected.dispatchTaskId), (count) => `任务 ${selected.dispatchTaskId} 已完成重试，服务端处理 ${count} 个任务。`)}>{isRetryingSelected ? "重试中…" : "重新匹配当前任务"}</Button> : <Button variant="primary" onClick={() => void runAction("match-all", () => api.runDispatchMatch(), (count) => `匹配扫描已完成，服务端处理 ${count} 个任务。`)} disabled={busy !== null || !online}>匹配待处理任务</Button>}</div>
     </div>
   );
 }

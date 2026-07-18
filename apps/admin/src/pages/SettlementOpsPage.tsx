@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import { ApiErrorPanel, Button, Card, EmptyState, FormField, LoadingState, MetricCard, ScopeBadge, Select, StatusTag, Table } from "@xlb/ui";
+import { ApiErrorPanel, Button, Card, EmptyState, FormField, LoadingState, ScopeBadge, Select, StatusTag } from "@xlb/ui";
 import { adminSettlementApi as api } from "../adminAuth";
 import { buildHash, parseHashParams } from "../hashParams";
-import { cityLabel, formatCurrency, presentFailure, statusLabel, statusTone, useOnlineStatus } from "../operationsPresentation";
+import { businessLabel, cityLabel, formatCurrency, presentFailure, statusLabel, statusTone, useOnlineStatus } from "../operationsPresentation";
+import "./mobile-core.css";
 
 interface AuditItem { statementId: string; workerId: string; status: string; review: { decision: string } | null; export: { contentHash: string } | null; }
 interface Summary { overall: { totalStatements: number; reviewedStatements: number; approvedStatements: number; exportedStatements: number }; }
@@ -62,30 +63,25 @@ export function SettlementOpsPage({ onNavigate, onNavigateToExports, onNavigateT
   useEffect(() => { void fetchAll(); }, [fetchAll]);
   useEffect(() => { const target = buildHash("/settlement-ops", { cityCode }); if (window.location.hash !== target) window.location.hash = target; }, [cityCode]);
 
-  return <div style={{ display: "grid", gap: 16 }}>
+  return <div className="admin-mobile-core">
     <Card title="结算运营台" actions={<><ScopeBadge scope={`城市：${cityLabel(cityCode)}`} /><StatusTag tone={online ? "success" : "danger"}>{online ? (loading ? "读取中" : "在线") : "离线"}</StatusTag></>}>
       <p>本页仅汇总审计、复核、导出与差异扫描结果，不执行付款、退款或服务商操作。</p>
-      <div style={{ display: "grid", gap: 12 }}><FormField label="城市" description="所有结算审计请求均携带城市作用域。"><Select value={cityCode} onChange={event => setCityCode(event.target.value)}><option value="hangzhou">杭州</option><option value="shanghai">上海</option><option value="beijing">北京</option></Select></FormField><div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}><Button onClick={() => void fetchAll()} variant="primary" disabled={!online || loading}>刷新</Button>{onNavigateToExports && <Button onClick={onNavigateToExports}>导出复核</Button>}{onNavigateToGovernance && <Button onClick={onNavigateToGovernance}>结算动作治理</Button>}</div></div>
+      <details className="admin-mobile-filter" open><summary>城市筛选与操作入口</summary><div className="admin-mobile-filter__body"><FormField label="城市" description="所有结算审计请求均携带城市作用域。"><Select value={cityCode} onChange={event => setCityCode(event.target.value)}><option value="hangzhou">杭州</option><option value="shanghai">上海</option><option value="beijing">北京</option></Select></FormField><Button onClick={() => void fetchAll()} variant="primary" disabled={!online || loading}>刷新结算数据</Button></div></details>
     </Card>
     {!online && <ApiErrorPanel title="当前网络不可用" detail="页面不会把旧数据标记为最新；恢复网络后请刷新。" />}
     {loading && <LoadingState title="正在加载结算数据" description="并行读取结算单审计、复核汇总、结算汇总与差异扫描。" />}
     {error && <ApiErrorPanel title={error.title} detail={error.detail} action={<Button disabled={!online} onClick={() => void fetchAll()}>重试</Button>} />}
     {partial && <p role="status">{partial}</p>}
-    <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(4, minmax(0, 1fr))" }}><MetricCard productRole="admin" label="结算单" value={summary?.overall.totalStatements ?? "--"} hint="复核汇总" tone="primary" /><MetricCard productRole="admin" label="已复核" value={summary?.overall.reviewedStatements ?? "--"} hint="已进入复核链路" tone="success" /><MetricCard productRole="admin" label="已通过" value={summary?.overall.approvedStatements ?? "--"} hint="复核通过结算单" tone="success" /><MetricCard productRole="admin" label="对账差异" value={gaps?.summary.totalGaps ?? "--"} hint="差异扫描" tone={gaps?.summary.totalGaps ? "warning" : "muted"} /></div>
+    <div className="admin-mobile-summary" aria-label="结算运营摘要"><div className="admin-mobile-summary__item"><span>结算单</span><strong>{summary?.overall.totalStatements ?? "—"}</strong></div><div className="admin-mobile-summary__item"><span>已复核</span><strong>{summary?.overall.reviewedStatements ?? "—"}</strong></div><div className="admin-mobile-summary__item"><span>已通过</span><strong>{summary?.overall.approvedStatements ?? "—"}</strong></div><div className="admin-mobile-summary__item"><span>对账差异</span><strong>{gaps?.summary.totalGaps ?? "—"}</strong></div></div>
     <Card title="结算单审计" actions={<StatusTag tone="muted">{statements.length} 条</StatusTag>}>
-      {!loading && statements.length === 0 ? <EmptyState title="暂无结算单" description="当前城市作用域下，服务端返回空审计列表。" /> : <Table rows={statements} getRowKey={row => row.statementId} emptyText="暂无结算单" columns={[
-        { key: "statement", title: "结算单", render: row => <button onClick={() => onNavigate?.(row.statementId)} style={{ background: "transparent", border: 0, color: "#2563eb", cursor: "pointer", padding: 0 }} type="button">{row.statementId}</button> },
-        { key: "worker", title: "师傅", render: row => row.workerId },
-        { key: "status", title: "状态", render: row => <StatusTag tone={statusTone(row.status)}>{statusLabel(row.status)}</StatusTag> },
-        { key: "review", title: "复核", render: row => row.review ? <StatusTag tone={statusTone(row.review.decision)}>{statusLabel(row.review.decision)}</StatusTag> : <StatusTag tone="warning">待复核</StatusTag> },
-        { key: "export", title: "导出", render: row => row.export ? `摘要 ${row.export.contentHash.slice(0, 8)}` : <StatusTag tone="muted">未导出</StatusTag> },
-      ]} />}
+      {!loading && statements.length === 0 ? <EmptyState title="暂无结算单" description="当前城市作用域下，服务端返回空审计列表。" /> : <div className="admin-mobile-list">{statements.map(row => <article className="admin-mobile-item" key={row.statementId}><header className="admin-mobile-item__header"><h3>{row.statementId}</h3><StatusTag tone={statusTone(row.status)}>{statusLabel(row.status)}</StatusTag></header><dl className="admin-mobile-meta"><div><dt>师傅</dt><dd>{row.workerId}</dd></div><div><dt>复核</dt><dd>{row.review ? <StatusTag tone={statusTone(row.review.decision)}>{statusLabel(row.review.decision)}</StatusTag> : <StatusTag tone="warning">待复核</StatusTag>}</dd></div><div><dt>导出</dt><dd>{row.export ? `摘要 ${row.export.contentHash.slice(0, 8)}` : "未导出"}</dd></div></dl>{onNavigate && <div className="admin-mobile-item__actions"><Button onClick={() => onNavigate(row.statementId)}>查看结算单详情</Button></div>}</article>)}</div>}
       {nextCursor && <div style={{ marginTop: 12 }}><Button disabled={!online || loading} onClick={() => void fetchAll(nextCursor)}>加载更多</Button></div>}
     </Card>
-    <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
-      <Card title="复核汇总">{summary ? <Table rows={[["全部结算单", summary.overall.totalStatements], ["已复核", summary.overall.reviewedStatements], ["复核通过", summary.overall.approvedStatements], ["已导出", summary.overall.exportedStatements]]} getRowKey={row => String(row[0])} columns={[{ key: "metric", title: "指标", render: row => row[0] }, { key: "value", title: "数量", render: row => row[1] }]} /> : <EmptyState title="暂无复核汇总" />}</Card>
-      <Card title="结算审计汇总">{settlement ? <Table rows={[["结算批次", settlement.counts.totalBatches], ["结算项目", settlement.counts.totalItems], ["应付款项", settlement.counts.totalPayables], ["队列项目", settlement.counts.totalQueueItems], ["项目总额", formatCurrency(settlement.amounts.itemsGrossAmount)]]} getRowKey={row => String(row[0])} columns={[{ key: "metric", title: "指标", render: row => row[0] }, { key: "value", title: "值", render: row => row[1] }]} /> : <EmptyState title="暂无结算审计汇总" />}</Card>
-      <Card title="对账差异扫描">{gaps ? <Table rows={[["差异总数", gaps.summary.totalGaps], ...Object.entries(gaps.summary.gapsByType)]} getRowKey={row => String(row[0])} columns={[{ key: "type", title: "差异类型", render: row => row[0] }, { key: "count", title: "数量", render: row => row[1] }]} /> : <EmptyState title="暂无差异扫描结果" />}</Card>
+    <div className="admin-mobile-stack">
+      <Card title="复核汇总">{summary ? <dl className="admin-mobile-meta"><div><dt>全部结算单</dt><dd>{summary.overall.totalStatements}</dd></div><div><dt>已复核</dt><dd>{summary.overall.reviewedStatements}</dd></div><div><dt>复核通过</dt><dd>{summary.overall.approvedStatements}</dd></div><div><dt>已导出</dt><dd>{summary.overall.exportedStatements}</dd></div></dl> : <EmptyState title="暂无复核汇总" />}</Card>
+      <Card title="结算审计汇总">{settlement ? <dl className="admin-mobile-meta"><div><dt>结算批次</dt><dd>{settlement.counts.totalBatches}</dd></div><div><dt>结算项目</dt><dd>{settlement.counts.totalItems}</dd></div><div><dt>应付款项</dt><dd>{settlement.counts.totalPayables}</dd></div><div><dt>队列项目</dt><dd>{settlement.counts.totalQueueItems}</dd></div><div><dt>项目总额</dt><dd>{formatCurrency(settlement.amounts.itemsGrossAmount)}</dd></div></dl> : <EmptyState title="暂无结算审计汇总" />}</Card>
+      <Card title="对账差异扫描">{gaps ? <dl className="admin-mobile-meta"><div><dt>差异总数</dt><dd>{gaps.summary.totalGaps}</dd></div>{Object.entries(gaps.summary.gapsByType).map(([type, count]) => <div key={type}><dt>{businessLabel(type)}</dt><dd>{count}</dd></div>)}</dl> : <EmptyState title="暂无差异扫描结果" />}</Card>
     </div>
+    <div className="admin-mobile-bottom-actions"><div className="admin-mobile-actions">{onNavigateToExports && <Button onClick={onNavigateToExports}>导出复核</Button>}{onNavigateToGovernance && <Button onClick={onNavigateToGovernance}>结算动作治理</Button>}</div><Button onClick={() => void fetchAll()} variant="primary" disabled={!online || loading}>刷新最新数据</Button></div>
   </div>;
 }

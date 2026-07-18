@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { FulfillmentEvidenceAggregateResponse } from "@xlb/api-client";
-import { ApiErrorPanel, Button, Card, EmptyState, FormField, Input, LoadingState, ScopeBadge, Select, StatusTag, Table } from "@xlb/ui";
+import { ApiErrorPanel, Button, Card, EmptyState, FormField, Input, LoadingState, ScopeBadge, Select, StatusTag } from "@xlb/ui";
 import { adminOrderTraceApi } from "../adminAuth";
 import { buildHash, parseHashParams } from "../hashParams";
 import {
@@ -16,6 +16,7 @@ import {
   type OperationsFailure,
 } from "../operationsPresentation";
 import "./operations-workbench.css";
+import "./mobile-core.css";
 
 type AdminApi = typeof adminOrderTraceApi;
 type OrderTrace = Awaited<ReturnType<AdminApi["getOrderTrace"]>>["trace"];
@@ -124,13 +125,9 @@ export function OrderTracePage({ initialCityCode, initialOrderId }: Props) {
   ] : [];
 
   return (
-    <div className="operations-workbench">
+    <div className="operations-workbench admin-mobile-core">
       <Card title="订单全链路追踪" actions={<><ScopeBadge scope={`城市：${cityLabel(cityCode)}`} /><StatusTag tone="muted">只读查询</StatusTag><StatusTag tone={online ? "success" : "danger"}>{online ? "服务已连接" : "当前离线"}</StatusTag></>}>
-        <div className="operations-form-grid">
-          <FormField label="城市"><Select value={cityCode} onChange={(event) => setCityCode(event.target.value)}><option value="hangzhou">杭州</option><option value="shanghai">上海</option><option value="beijing">北京</option></Select></FormField>
-          <FormField label="订单编号"><Input value={orderId} onChange={(event) => setOrderId(event.target.value)} placeholder="输入完整订单编号" /></FormField>
-        </div>
-        <div className="operations-inline-actions" style={{ marginTop: 10 }}><Button variant="primary" onClick={() => void loadTrace()} disabled={!cityCode.trim() || !orderId.trim() || loading || !online}>{loading ? "查询中…" : "查询订单全链路"}</Button></div>
+        <details className="admin-mobile-filter" open><summary>订单筛选</summary><div className="admin-mobile-filter__body"><FormField label="城市"><Select value={cityCode} onChange={(event) => setCityCode(event.target.value)}><option value="hangzhou">杭州</option><option value="shanghai">上海</option><option value="beijing">北京</option></Select></FormField><FormField label="订单编号"><Input value={orderId} onChange={(event) => setOrderId(event.target.value)} placeholder="输入完整订单编号" /></FormField></div></details>
       </Card>
 
       {!online && <div className="operations-alert operations-alert--offline" role="status">网络已断开，无法执行新的订单查询。当前页面如有数据，仅代表上次成功读取的结果。</div>}
@@ -141,26 +138,12 @@ export function OrderTracePage({ initialCityCode, initialOrderId }: Props) {
 
       {trace && !loading && (
         <>
-          <div className="operations-kpi-grid" aria-label="订单当前状态">
-            <div className="operations-kpi"><span>订单编号</span><strong>{trace.order.orderId}</strong></div>
-            <div className="operations-kpi"><span>订单状态</span><strong>{statusLabel(trace.order.status)}</strong></div>
-            <div className="operations-kpi"><span>订单金额</span><strong>{formatCurrency(trace.order.totalAmount, trace.order.currency)}</strong></div>
-            <div className="operations-kpi"><span>服务项目</span><strong>{trace.order.skuName}</strong></div>
-            <div className="operations-kpi"><span>支付状态</span><strong>{statusLabel(trace.payment?.status)}</strong></div>
-            <div className="operations-kpi"><span>派单状态</span><strong>{statusLabel(trace.dispatch?.status)}</strong></div>
-            <div className="operations-kpi"><span>履约师傅</span><strong>{trace.fulfillment?.workerId || "尚未分配"}</strong></div>
-            <div className="operations-kpi"><span>售后状态</span><strong>{statusLabel(trace.aftersale?.status)}</strong></div>
+          <div className="admin-mobile-summary" aria-label="订单当前状态">
+            {[['订单编号', trace.order.orderId], ['订单状态', statusLabel(trace.order.status)], ['订单金额', formatCurrency(trace.order.totalAmount, trace.order.currency)], ['服务项目', trace.order.skuName], ['支付状态', statusLabel(trace.payment?.status)], ['派单状态', statusLabel(trace.dispatch?.status)], ['履约师傅', trace.fulfillment?.workerId || '尚未分配'], ['售后状态', statusLabel(trace.aftersale?.status)]].map(([label, value]) => <div className="admin-mobile-summary__item" key={label}><span>{label}</span><strong>{value}</strong></div>)}
           </div>
 
           <Card title="业务阶段">
-            <Table rows={rows} getRowKey={(row) => row.key} columns={[
-              { key: "stage", title: "阶段", render: (row) => row.stage, width: 130 },
-              { key: "id", title: "业务编号", render: (row) => row.id },
-              { key: "actor", title: "关联主体", render: (row) => row.actor },
-              { key: "status", title: "状态", render: (row) => row.status ? <StatusTag tone={statusTone(row.status)}>{statusLabel(row.status)}</StatusTag> : "—" },
-              { key: "amount", title: "金额 / 评分", render: (row) => row.amount },
-              { key: "note", title: "说明", render: (row) => row.note },
-            ]} />
+            <div className="admin-mobile-list">{rows.map(row => <article className="admin-mobile-item" key={row.key}><header className="admin-mobile-item__header"><h3>{row.stage}</h3>{row.status ? <StatusTag tone={statusTone(row.status)}>{statusLabel(row.status)}</StatusTag> : null}</header><dl className="admin-mobile-meta"><div><dt>业务编号</dt><dd>{row.id}</dd></div><div><dt>关联主体</dt><dd>{row.actor}</dd></div><div><dt>金额 / 评分</dt><dd>{row.amount}</dd></div><div><dt>说明</dt><dd>{row.note}</dd></div></dl></article>)}</div>
           </Card>
 
           <div className="dispatch-layout">
@@ -168,27 +151,18 @@ export function OrderTracePage({ initialCityCode, initialOrderId }: Props) {
               {evidenceFailure ? <EmptyState title="履约凭证未能读取" description="主链路结果仍可核对；请修复权限或网络后重新查询凭证。" /> : evidence.length === 0 ? <EmptyState title="当前订单暂无履约凭证" description="该结论来自本次成功的履约凭证接口响应。" /> : evidence.map((aggregate) => (
                 <section key={aggregate.fulfillmentId} className="operations-panel">
                   <h3>{aggregate.fulfillmentId} <StatusTag tone={statusTone(aggregate.confirmation?.status ?? "pending")}>{statusLabel(aggregate.confirmation?.status ?? "pending")}</StatusTag></h3>
-                  {aggregate.evidence.length === 0 ? <EmptyState title="该履约记录暂无凭证节点" /> : <Table rows={aggregate.evidence} getRowKey={(item) => item.evidenceId} columns={[
-                    { key: "type", title: "凭证类型", render: (item) => evidenceTypeLabel(item.evidenceType) },
-                    { key: "complaint", title: "关联投诉", render: (item) => item.complaintId || "—" },
-                    { key: "provider", title: "存储状态", render: (item) => statusLabel(item.mediaAsset.storage.providerStatus) },
-                    { key: "hash", title: "校验摘要", render: (item) => item.mediaAsset.checksumSha256.slice(0, 16) },
-                  ]} />}
+                  {aggregate.evidence.length === 0 ? <EmptyState title="该履约记录暂无凭证节点" /> : <div className="admin-mobile-list">{aggregate.evidence.map(item => <article className="admin-mobile-item" key={item.evidenceId}><header className="admin-mobile-item__header"><h3>{evidenceTypeLabel(item.evidenceType)}</h3><StatusTag tone={statusTone(item.mediaAsset.storage.providerStatus)}>{statusLabel(item.mediaAsset.storage.providerStatus)}</StatusTag></header><dl className="admin-mobile-meta"><div><dt>关联投诉</dt><dd>{item.complaintId || "—"}</dd></div><div><dt>校验摘要</dt><dd>{item.mediaAsset.checksumSha256.slice(0, 16)}</dd></div></dl></article>)}</div>}
                 </section>
               ))}
             </Card>
 
             <Card title="派单事件时间线">
-              {trace.dispatch?.timeline.length ? <Table rows={trace.dispatch.timeline} getRowKey={(row) => row.dispatchEventId} columns={[
-                { key: "createdAt", title: "发生时间", render: (row) => formatDateTime(row.createdAt) },
-                { key: "eventType", title: "事件", render: (row) => eventLabel(row.eventType) },
-                { key: "workerId", title: "关联师傅", render: (row) => row.workerId || "—" },
-                { key: "reason", title: "原因", render: (row) => reasonLabel(row.reason) },
-              ]} /> : <EmptyState title="当前订单暂无派单事件" description="派单任务产生事件后，将按服务端时间顺序展示。" />}
+              {trace.dispatch?.timeline.length ? <div className="admin-mobile-list">{trace.dispatch.timeline.map(row => <article className="admin-mobile-item" key={row.dispatchEventId}><header className="admin-mobile-item__header"><h3>{eventLabel(row.eventType)}</h3><span>{formatDateTime(row.createdAt)}</span></header><dl className="admin-mobile-meta"><div><dt>关联师傅</dt><dd>{row.workerId || "—"}</dd></div><div><dt>原因</dt><dd>{reasonLabel(row.reason)}</dd></div></dl></article>)}</div> : <EmptyState title="当前订单暂无派单事件" description="派单任务产生事件后，将按服务端时间顺序展示。" />}
             </Card>
           </div>
         </>
       )}
+      <div className="admin-mobile-bottom-actions"><Button variant="primary" onClick={() => void loadTrace()} disabled={!cityCode.trim() || !orderId.trim() || loading || !online}>{loading ? "查询中…" : "查询订单全链路"}</Button></div>
     </div>
   );
 }
