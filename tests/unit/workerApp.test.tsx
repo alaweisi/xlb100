@@ -34,6 +34,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@xlb/api-client", () => ({
+  ApiClientError: class MockApiClientError extends Error {},
   createApiClient: mocks.createApiClient,
   createAuthApi: () => ({
     requestWorkerLoginCode: mocks.requestWorkerLoginCode,
@@ -139,6 +140,7 @@ describe("Worker App API wiring", () => {
     mocks.getWorkerDebugCode.mockResolvedValue({ ok: true, code: "123456", expiresAt: "2026-07-09T01:05:00.000Z", attemptsLeft: 5 });
     mocks.workerLogin.mockResolvedValue(workerSession);
     mocks.getTaskPool.mockResolvedValue({ ok: true, cityCode: "hangzhou", tasks: [] });
+    mocks.getEligibility.mockImplementation(async (skuId) => ({ ok: true, eligibility: { workerId: "worker-demo-hangzhou", cityCode: "hangzhou", skuId, isEligible: true, reasons: [] } }));
     mocks.getMyFulfillments.mockResolvedValue({ ok: true, cityCode: "hangzhou", fulfillments: [] });
     mocks.getFulfillment.mockResolvedValue({ ok: true, fulfillment: acceptedFulfillment });
     mocks.acceptTask.mockResolvedValue({
@@ -187,8 +189,8 @@ describe("Worker App API wiring", () => {
     mocks.listAftersaleRepairOrders.mockResolvedValue({ ok: true, repairOrders: [] });
     mocks.startAftersaleRepairOrder.mockResolvedValue({ ok: true });
     mocks.completeAftersaleRepairOrder.mockResolvedValue({ ok: true });
-    mocks.getFulfillmentEvidence.mockResolvedValue({ ok: true, evidence: [], confirmation: null });
-    mocks.uploadFulfillmentEvidence.mockResolvedValue({ ok: true });
+    mocks.getFulfillmentEvidence.mockResolvedValue({ ok: true, aggregate: { fulfillmentId: "ful-1", orderId: "order-1", cityCode: "hangzhou", fulfillmentStatus: "accepted", evidence: [], confirmation: null } });
+    mocks.uploadFulfillmentEvidence.mockResolvedValue({ ok: true, evidence: { evidenceId: "evidence-1" } });
   });
 
   afterEach(() => {
@@ -249,7 +251,7 @@ describe("Worker App API wiring", () => {
     expect(await screen.findByText("dispatch-1")).toBeTruthy();
     expect(screen.getByText("order-1")).toBeTruthy();
     expect(screen.getByText("sku_home_daily_2h")).toBeTruthy();
-    expect(screen.getByText("CNY 128.00")).toBeTruthy();
+    expect(screen.getByText("¥128.00")).toBeTruthy();
     expect(mocks.getTaskPool).toHaveBeenCalledTimes(1);
     expect(mocks.createApiClient).toHaveBeenLastCalledWith(
       expect.objectContaining({
@@ -288,7 +290,7 @@ describe("Worker App API wiring", () => {
     await renderAndLogin();
 
     expect(await screen.findByText("ful-1")).toBeTruthy();
-    expect(screen.getByText("accepted")).toBeTruthy();
+    expect(screen.getAllByText("待开始").length).toBeGreaterThan(0);
     expect(mocks.getMyFulfillments).toHaveBeenCalledTimes(1);
   });
 
@@ -318,10 +320,32 @@ describe("Worker App API wiring", () => {
     await waitFor(() => {
       expect(mocks.acceptTask).toHaveBeenCalledWith("dispatch-1");
     });
-    expect(await screen.findByText(/已承接任务 dispatch-1/)).toBeTruthy();
+    expect(await screen.findByText(/接单成功：任务 dispatch-1 已承接/)).toBeTruthy();
     expect(await screen.findByText("当前没有待接任务")).toBeTruthy();
     expect(mocks.getTaskPool).toHaveBeenCalledTimes(2);
     expect(mocks.getMyFulfillments).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports a duplicate accept as safely handled", async () => {
+    mocks.getTaskPool.mockResolvedValue({ ok: true, cityCode: "hangzhou", tasks: [queuedTask] });
+    mocks.acceptTask.mockResolvedValueOnce({
+      ok: true,
+      acceptance: { acceptanceId: "acc-1", dispatchTaskId: "dispatch-1" },
+      fulfillment: acceptedFulfillment,
+      idempotent: true,
+    });
+    await renderAndLogin();
+    fireEvent.click(await screen.findByRole("button", { name: "立即接单" }));
+    expect(await screen.findByText(/重复接单请求已安全处理/)).toBeTruthy();
+  });
+
+  it("treats a failed platform response after mutation as an unknown result", async () => {
+    mocks.getTaskPool.mockResolvedValueOnce({ ok: true, cityCode: "hangzhou", tasks: [queuedTask] });
+    mocks.acceptTask.mockRejectedValueOnce(new Error("API POST /api/worker/tasks/dispatch-1/accept failed: 503"));
+    await renderAndLogin();
+    fireEvent.click(await screen.findByRole("button", { name: "立即接单" }));
+    expect(await screen.findByText("接单结果待确认")).toBeTruthy();
+    expect(screen.getByText(/操作结果暂时未知/)).toBeTruthy();
   });
 
   it("shows an accept failure from the backend", async () => {
@@ -332,8 +356,8 @@ describe("Worker App API wiring", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "立即接单" }));
 
-    expect(await screen.findByText("接单失败")).toBeTruthy();
-    expect(screen.getByText("API POST /api/worker/tasks/dispatch-1/accept failed: 409")).toBeTruthy();
+    expect(await screen.findByText("接单未完成")).toBeTruthy();
+    expect(screen.getByText("任务状态已被其他操作更新，请刷新后再处理。")).toBeTruthy();
   });
 
   it("starts and completes a fulfillment, refreshing detail after each action", async () => {
@@ -345,17 +369,17 @@ describe("Worker App API wiring", () => {
 
     await renderAndLogin();
 
-    fireEvent.click(await screen.findByRole("button", { name: "Start service" }, { timeout: 5000 }));
+    fireEvent.click(await screen.findByRole("button", { name: "开始服务" }, { timeout: 5000 }));
     await waitFor(() => {
       expect(mocks.startFulfillment).toHaveBeenCalledWith("ful-1");
     });
-    expect(await screen.findByText(/Fulfillment ful-1 is now in_progress/)).toBeTruthy();
+    expect(await screen.findByText(/已开始服务：履约单 ful-1 状态已同步/)).toBeTruthy();
 
-    fireEvent.click(await screen.findByRole("button", { name: "Complete service" }, { timeout: 5000 }));
+    fireEvent.click(await screen.findByRole("button", { name: "登记完工" }, { timeout: 5000 }));
     await waitFor(() => {
-      expect(mocks.completeFulfillment).toHaveBeenCalledWith("ful-1");
+      expect(mocks.completeFulfillment).toHaveBeenCalledWith("ful-1", { completionNote: undefined });
     });
-    expect(await screen.findByText(/Fulfillment ful-1 is now completed/)).toBeTruthy();
+    expect(await screen.findByText(/完工已登记：履约单 ful-1 正在等待顾客确认/)).toBeTruthy();
     expect(mocks.getFulfillment).toHaveBeenCalledTimes(3);
     expect(mocks.getTaskPool).toHaveBeenCalledTimes(2);
     expect(mocks.getMyFulfillments).toHaveBeenCalledTimes(2);
@@ -382,7 +406,7 @@ describe("Worker App API wiring", () => {
 
   it("loads the real wallet and submits a withdrawal request",async()=>{
     setRoute("/worker/wallet");await renderAndLogin();
-    expect(await screen.findByText("CNY 350.00")).toBeTruthy();
+    expect(await screen.findByText("¥350.00")).toBeTruthy();
     fireEvent.change(screen.getByLabelText("Amount"),{target:{value:"100"}});
     fireEvent.click(screen.getByRole("button",{name:"Submit request"}));
     await waitFor(()=>expect(mocks.createWithdrawalRequest).toHaveBeenCalledWith(expect.objectContaining({bankAccountId:"bank-1",amount:100})));
@@ -396,8 +420,8 @@ describe("Worker App API wiring", () => {
   });
 
   it.each([
-    ["拒绝", mocks.rejectTask, { ok: true, task: { ...queuedTask, status: "reassigning" } }, /已拒绝任务 dispatch-1/],
-    ["模拟超时", mocks.simulateTaskTimeout, { ok: true, task: { ...queuedTask, status: "reassigning" } }, /任务 dispatch-1 已模拟超时/],
+    ["放弃邀约", mocks.rejectTask, { ok: true, task: { ...queuedTask, status: "reassigning" } }, /已放弃派单邀约 dispatch-1/],
+    ["模拟邀约超时", mocks.simulateTaskTimeout, { ok: true, task: { ...queuedTask, status: "reassigning" } }, /开发验证：派单邀约 dispatch-1 已进入超时状态/],
   ])("runs the %s simulation control", async (button, mutation, response, notice) => {
     mocks.getTaskPool.mockResolvedValue({ ok: true, cityCode: "hangzhou", tasks: [{ ...queuedTask, status: "offering" }] });
     mutation.mockResolvedValueOnce(response);
@@ -413,7 +437,7 @@ describe("Worker App API wiring", () => {
       repairOrderId: "repair-1", orderId: "order-1", reason: "rework", status: "assigned",
     }] });
     await renderAndLogin();
-    fireEvent.click(await screen.findByRole("button", { name: "Start" }));
+    fireEvent.click(await screen.findByRole("button", { name: "开始返工" }));
     await waitFor(() => expect(mocks.startAftersaleRepairOrder).toHaveBeenCalledWith("repair-1"));
   });
 
@@ -421,9 +445,9 @@ describe("Worker App API wiring", () => {
     setRoute("/worker/tasks/ful-1");
     await renderAndLogin();
     const file = new File(["image"], "arrival.jpg", { type: "image/jpeg" });
-    fireEvent.change(await screen.findByLabelText(/Image/), { target: { files: [file] } });
-    fireEvent.change(screen.getByLabelText("Evidence note"), { target: { value: "front door" } });
-    fireEvent.click(screen.getByRole("button", { name: "Store evidence" }));
+    fireEvent.change(await screen.findByLabelText(/现场图片/), { target: { files: [file] } });
+    fireEvent.change(screen.getByLabelText(/证据说明/), { target: { value: "front door" } });
+    fireEvent.click(screen.getByRole("button", { name: "上传证据" }));
     await waitFor(() => expect(mocks.uploadFulfillmentEvidence).toHaveBeenCalledWith("ful-1", file, {
       evidenceType: "before_service", note: "front door",
     }));

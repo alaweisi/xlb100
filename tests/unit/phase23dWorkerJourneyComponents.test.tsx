@@ -46,17 +46,17 @@ describe("Phase 23D Worker journey page components", () => {
     };
     const { rerender } = render(<HallPage {...props} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Accept" }));
+    fireEvent.click(screen.getByRole("button", { name: "立即接单" }));
     expect(onAccept).toHaveBeenCalledWith(task.dispatchTaskId);
 
     rerender(<HallPage {...props} acceptingDispatchTaskId={task.dispatchTaskId} />);
-    expect((screen.getByRole("button", { name: "Accepting" }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole("button", { name: "正在确认接单" }) as HTMLButtonElement).disabled).toBe(true);
   });
 
   it("opens the selected fulfillment from the Worker task list", () => {
     const onOpenDetail = vi.fn();
     render(<TasksPage fulfillments={[accepted]} loading={false} error={null} onRefresh={vi.fn()} onOpenDetail={onOpenDetail} />);
-    fireEvent.click(screen.getByRole("button", { name: "Open" }));
+    fireEvent.click(screen.getByRole("button", { name: "去开始服务" }));
     expect(onOpenDetail).toHaveBeenCalledWith(accepted.fulfillmentId);
   });
 
@@ -71,8 +71,8 @@ describe("Phase 23D Worker journey page components", () => {
     };
     const { rerender } = render(<TaskDetailPage {...props} />);
 
-    const start = screen.getByRole("button", { name: "Start service" }) as HTMLButtonElement;
-    const complete = screen.getByRole("button", { name: "Complete service" }) as HTMLButtonElement;
+    const start = screen.getByRole("button", { name: "开始服务" }) as HTMLButtonElement;
+    const complete = screen.getByRole("button", { name: "登记完工" }) as HTMLButtonElement;
     expect(start.disabled).toBe(false);
     expect(complete.disabled).toBe(true);
     fireEvent.click(start);
@@ -80,10 +80,10 @@ describe("Phase 23D Worker journey page components", () => {
 
     const inProgress = { ...accepted, status: "in_progress" as const, startedAt: "2026-07-11T01:02:00.000Z" };
     rerender(<TaskDetailPage {...props} fulfillment={inProgress} />);
-    expect((screen.getByRole("button", { name: "Start service" }) as HTMLButtonElement).disabled).toBe(true);
-    const enabledComplete = screen.getByRole("button", { name: "Complete service" }) as HTMLButtonElement;
+    expect((screen.getByRole("button", { name: "开始服务" }) as HTMLButtonElement).disabled).toBe(true);
+    const enabledComplete = screen.getByRole("button", { name: "登记完工" }) as HTMLButtonElement;
     expect(enabledComplete.disabled).toBe(false);
     fireEvent.click(enabledComplete);
-    expect(onComplete).toHaveBeenCalledWith(accepted.fulfillmentId);
+    expect(onComplete).toHaveBeenCalledWith(accepted.fulfillmentId, undefined);
   });
 });
