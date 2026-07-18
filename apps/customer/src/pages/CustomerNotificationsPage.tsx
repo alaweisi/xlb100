@@ -41,6 +41,10 @@ function referenceHref(item: NotificationInboxItem): string | null {
   return null;
 }
 
+function referenceLabel(item: NotificationInboxItem): string {
+  return item.reference.kind === "order_created" ? "查看订单" : "查看工单";
+}
+
 export function CustomerNotificationsPage({ api }: { api: CustomerNotificationApi }) {
   const [view, setView] = useState<View>("inbox");
   const [items, setItems] = useState<NotificationInboxItem[]>([]);
@@ -147,20 +151,22 @@ export function CustomerNotificationsPage({ api }: { api: CustomerNotificationAp
     }
   }, [api, load, view]);
 
+  const showingInbox = view === "inbox";
+
   return (
     <CustomerRouteShell
       currentRoute="notifications"
       topBar={<header className="notification-page-header"><h1>消息中心</h1><p>仅显示当前城市、当前账号的站内消息</p></header>}
     >
       <Card title="通知" actions={<StatusTag tone="success">服务端消息</StatusTag>}>
-        <div role="tablist" aria-label="Notification view" className="notification-view-tabs">
-          <Button disabled={busyId !== null} aria-pressed={view === "inbox"} variant={view === "inbox" ? "primary" : undefined} onClick={() => changeView("inbox")}>收件箱</Button>
-          <Button disabled={busyId !== null} aria-pressed={view === "archive"} variant={view === "archive" ? "primary" : undefined} onClick={() => changeView("archive")}>已归档</Button>
+        <div role="tablist" aria-label="消息视图" className="notification-view-tabs">
+          <Button disabled={busyId !== null} aria-pressed={showingInbox} variant={showingInbox ? "primary" : undefined} onClick={() => changeView("inbox")}>收件箱</Button>
+          <Button disabled={busyId !== null} aria-pressed={!showingInbox} variant={!showingInbox ? "primary" : undefined} onClick={() => changeView("archive")}>已归档</Button>
         </div>
 
         {loading ? <LoadingState title="正在加载消息" /> : null}
         {error ? <div role="alert" className="notification-error"><span>{error}</span><Button onClick={() => void load(true, view)}>重试</Button></div> : null}
-        {!loading && !error && items.length === 0 ? <EmptyState title={view === "inbox" ? "暂无消息" : "暂无归档消息"} description="新消息会通过真实通知接口显示在这里。" /> : null}
+        {!loading && !error && items.length === 0 ? <EmptyState title={showingInbox ? "暂无消息" : "暂无归档消息"} description="新消息会通过真实通知接口显示在这里。" /> : null}
 
         <div aria-busy={loading || loadingMore} className="notification-list">
           {items.map((item) => {
@@ -180,8 +186,8 @@ export function CustomerNotificationsPage({ api }: { api: CustomerNotificationAp
                 <time dateTime={item.occurredAt} className="notification-time">{displayTime(item.occurredAt)}</time>
                 <div className="notification-actions">
                   {unread ? <Button disabled={busyId === item.notificationId} onClick={() => void mutate(item, "read")}>标为已读</Button> : null}
-                  <Button disabled={busyId === item.notificationId} onClick={() => void mutate(item, "archive")}>{view === "inbox" ? "归档" : "恢复"}</Button>
-                  {href ? <a href={href} className="notification-link">{item.reference.kind === "order_created" ? "查看订单" : "查看工单"}</a> : null}
+                  <Button disabled={busyId === item.notificationId} onClick={() => void mutate(item, "archive")}>{showingInbox ? "归档" : "恢复"}</Button>
+                  {href ? <a href={href} className="notification-link">{referenceLabel(item)}</a> : null}
                 </div>
               </article>
             );

@@ -68,6 +68,27 @@ const complaintCategoryLabel: Record<string, string> = { service_quality: "服�
 const complaintStatusLabel: Record<string, string> = { submitted: "已提交", triaged: "已分流", in_progress: "处理中", waiting_customer: "等待我的回复", resolved: "已解决", closed: "已关闭", rejected: "未受理" };
 const evidenceTypeLabel: Record<string, string> = { arrival: "到场", before_service: "服务前", diagnosis: "诊断", material: "材料", after_service: "服务后", completion: "完工" };
 
+function confirmationTone(status?: string): "success" | "danger" | "warning" {
+  if (status === "confirmed") return "success";
+  if (status === "disputed") return "danger";
+  return "warning";
+}
+
+function confirmationLabel(status?: string): string {
+  if (status === "confirmed") return "已确认";
+  if (status === "disputed") return "已提出异议";
+  if (status === "pending") return "等待确认";
+  return "等待师傅完工";
+}
+
+function isPendingConfirmation(status?: string): boolean {
+  return status === "pending";
+}
+
+function isApprovedRefund(status?: string): boolean {
+  return status === "approved";
+}
+
 export function CustomerAftersalePage({ api, orderIds }: CustomerAftersalePageProps) {
   const [orderId, setOrderId] = useState(orderIds[0] ?? "");
   const [reverseType, setReverseType] = useState<"cancel" | "reschedule" | "reassign">("cancel");
@@ -187,6 +208,10 @@ export function CustomerAftersalePage({ api, orderIds }: CustomerAftersalePagePr
     } finally { setBusy(null); }
   }
 
+  const isLoadingRecords = busy === "load";
+  const isRescheduling = reverseType === "reschedule";
+  const refundApproved = isApprovedRefund(refundResult?.refund.status);
+
   return (
     <CustomerRouteShell currentRoute="aftersale">
       <div style={{ display: "grid", gap: 16 }}>
@@ -198,10 +223,10 @@ export function CustomerAftersalePage({ api, orderIds }: CustomerAftersalePagePr
               <Input value={orderId} onChange={(event) => setOrderId(event.target.value)} placeholder="输入订单号" />
             )}
           </FormField>
-          <Button onClick={() => void load()} disabled={!orderId || busy === "load"}>刷新</Button>
+          <Button onClick={() => void load()} disabled={!orderId || isLoadingRecords}>刷新</Button>
         </Card>
 
-        {busy === "load" && <LoadingState title="正在加载售后记录" description="读取逆向申请、投诉与服务凭证" />}
+        {isLoadingRecords && <LoadingState title="正在加载售后记录" description="读取逆向申请、投诉与服务凭证" />}
         {error && <ApiErrorPanel title="操作失败" detail={error} />}
         {notice && <Card title="已受理" actions={<StatusTag tone="success">后端已确认</StatusTag>}><p>{notice}</p></Card>}
 
@@ -214,7 +239,7 @@ export function CustomerAftersalePage({ api, orderIds }: CustomerAftersalePagePr
                 <option value="reassign">申请更换师傅</option>
               </Select>
             </FormField>
-            {reverseType === "reschedule" && (
+            {isRescheduling && (
               <div style={{ display: "grid", gap: 12, gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)" }}>
                 <FormField label="新预约时间"><Input type="datetime-local" value={scheduledAt} onChange={(event) => setScheduledAt(event.target.value)} /></FormField>
                 <FormField label="时段"><Select value={timeSlot} onChange={(event) => setTimeSlot(event.target.value as typeof timeSlot)}><option value="morning">上午</option><option value="afternoon">下午</option><option value="evening">晚上</option></Select></FormField>
@@ -241,7 +266,7 @@ export function CustomerAftersalePage({ api, orderIds }: CustomerAftersalePagePr
             <p style={{ color: "#64748b", fontSize: 13, margin: 0 }}>这里只提交退款申请，不代表退款已批准或已到账；金额和处理结果以服务端为准。</p>
             <FormField label="退款原因（选填）"><Textarea maxLength={255} value={refundReason} onChange={(event) => setRefundReason(event.target.value)} /></FormField>
             <Button variant="primary" disabled={!orderId || busy !== null} onClick={() => void submitRefund()}>提交退款申请</Button>
-            {refundResult ? <div className="customer-review-inline"><StatusTag tone="warning">{refundResult.refund.status === "approved" ? "已批准" : "待处理"}</StatusTag><StatusTag tone="muted">申请号：{refundResult.refund.refundId}</StatusTag>{refundResult.idempotent ? <StatusTag tone="warning">服务端返回已有申请</StatusTag> : null}</div> : null}
+            {refundResult ? <div className="customer-review-inline"><StatusTag tone="warning">{refundApproved ? "已批准" : "待处理"}</StatusTag><StatusTag tone="muted">申请号：{refundResult.refund.refundId}</StatusTag>{refundResult.idempotent ? <StatusTag tone="warning">服务端返回已有申请</StatusTag> : null}</div> : null}
           </div>
         </Card>
 
@@ -273,7 +298,7 @@ export function CustomerAftersalePage({ api, orderIds }: CustomerAftersalePagePr
               <div key={aggregate.fulfillmentId} style={{ display: "grid", gap: 10, borderTop: "1px solid #e4e7ec", paddingTop: 12 }}>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
                   <strong>{aggregate.fulfillmentId}</strong>
-                  <StatusTag tone={aggregate.confirmation?.status === "confirmed" ? "success" : aggregate.confirmation?.status === "disputed" ? "danger" : "warning"}>{aggregate.confirmation?.status === "confirmed" ? "已确认" : aggregate.confirmation?.status === "disputed" ? "已提出异议" : aggregate.confirmation?.status === "pending" ? "等待确认" : "等待师傅完工"}</StatusTag>
+                  <StatusTag tone={confirmationTone(aggregate.confirmation?.status)}>{confirmationLabel(aggregate.confirmation?.status)}</StatusTag>
                 </div>
                 {aggregate.evidence.length===0?<EmptyState title="暂无凭证图片" />:<Table rows={aggregate.evidence} getRowKey={(item)=>item.evidenceId} columns={[
                   {key:"node",title:"环节",render:(item)=>evidenceTypeLabel[item.evidenceType] ?? "服务凭证"},
@@ -281,7 +306,7 @@ export function CustomerAftersalePage({ api, orderIds }: CustomerAftersalePagePr
                   {key:"provider",title:"存储",render:(item)=>item.mediaAsset.storage.externalProviderExecuted ? "外部存储已执行" : "平台存储"},
                   {key:"scan",title:"安全检查",render:(item)=>item.mediaAsset.securityScanStatus === "not_malware_scanned_local" ? "未完成恶意软件扫描" : "状态待确认"},
                 ]}/>}
-                {aggregate.confirmation?.status === "pending" && <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {isPendingConfirmation(aggregate.confirmation?.status) && <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   <Button variant="primary" disabled={busy!==null} onClick={()=>void decideConfirmation(aggregate.fulfillmentId,"confirmed")}>确认服务凭证</Button>
                   <Button disabled={busy!==null||!disputeComplaintId||confirmationNote.trim().length<2} onClick={()=>void decideConfirmation(aggregate.fulfillmentId,"disputed")}>关联投诉并提出异议</Button>
                 </div>}

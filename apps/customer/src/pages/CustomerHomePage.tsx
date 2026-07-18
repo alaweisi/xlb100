@@ -47,6 +47,10 @@ export function CustomerHomePage({ cityCode, catalogState, onRetryCatalog }: Cus
     window.location.href = `/customer/services?${params.toString()}`;
   }
 
+  const catalogReady = catalogState.status === "success";
+  const catalogLoading = catalogState.status === "loading";
+  const catalogFailed = catalogState.status === "error";
+
   return (
     <CustomerRouteShell currentRoute="home">
       <section className="customer-home" aria-label="顾客首页">
@@ -91,7 +95,7 @@ export function CustomerHomePage({ cityCode, catalogState, onRetryCatalog }: Cus
           </form>
         </div>
 
-        {catalogState.status === "success" && quickSkus.length > 0 ? (
+        {catalogReady && quickSkus.length > 0 ? (
           <>
             <section aria-label="可用服务" className="customer-service-grid">
               {quickSkus.slice(0, 8).map((sku, index) => {
@@ -146,7 +150,7 @@ export function CustomerHomePage({ cityCode, catalogState, onRetryCatalog }: Cus
           </>
         ) : null}
 
-        {catalogState.status === "loading" ? (
+        {catalogLoading ? (
           <section aria-busy="true" className="customer-home-state customer-home-loading">
             <CircleNotch aria-hidden="true" className="customer-state-spinner" size={30} weight="bold" />
             <h2>服务目录加载中</h2>
@@ -154,7 +158,7 @@ export function CustomerHomePage({ cityCode, catalogState, onRetryCatalog }: Cus
           </section>
         ) : null}
 
-        {catalogState.status === "error" ? (
+        {catalogFailed ? (
           <section className="customer-home-state" role="alert">
             <MapPin aria-hidden="true" size={54} weight="thin" />
             <h2>服务目录加载失败</h2>
@@ -165,7 +169,7 @@ export function CustomerHomePage({ cityCode, catalogState, onRetryCatalog }: Cus
           </section>
         ) : null}
 
-        {catalogState.status === "success" && catalogState.data.categories.length === 0 ? (
+        {catalogReady && catalogState.data.categories.length === 0 ? (
           <section className="customer-home-state">
             <MapPin aria-hidden="true" size={58} weight="thin" />
             <h2>当前城市暂无可用服务，请稍后重试</h2>

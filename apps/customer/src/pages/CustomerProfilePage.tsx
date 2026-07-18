@@ -115,11 +115,14 @@ export function CustomerProfilePage({ api, cityCode }: CustomerProfilePageProps)
   const addressReady = Boolean(form.contactName.trim()) && /^1[3-9]\d{9}$/.test(form.contactPhone)
     && Boolean(form.province.trim()) && Boolean(form.city.trim()) && Boolean(form.district.trim())
     && form.detailAddress.trim().length >= 2;
+  const initialLoading = busy === "load";
+  const savingProfile = busy === "profile";
+  const savingAddress = busy === "address";
 
   return (
     <div className="customer-transaction-page">
       <CustomerProfileTemplate route="/customer/profile" cityCode={cityCode} binding={binding}>
-        {busy === "load" && !profile ? <LoadingState title="正在加载个人资料" description="读取账号与常用地址" /> : null}
+        {initialLoading && !profile ? <LoadingState title="正在加载个人资料" description="读取账号与常用地址" /> : null}
         {error ? <div className="customer-review-error" role="alert"><strong>{error.title}</strong><span>{error.description}</span><Button onClick={() => void load()}>重新加载</Button></div> : null}
         {notice ? <div className="customer-order-notice" role="status">{notice}</div> : null}
 
@@ -128,13 +131,13 @@ export function CustomerProfilePage({ api, cityCode }: CustomerProfilePageProps)
             <div className="customer-order-actions"><a href="/customer/notifications" className="notification-entry-link">消息中心</a><a href="/customer/coupons" className="notification-entry-link">我的优惠券</a></div>
             <div style={{ color: "#64748b", fontSize: 13 }}>{profile?.phoneMasked ?? "手机号待加载"}</div>
             <FormField label="显示名称"><Input value={name} onChange={(event) => setName(event.target.value)} /></FormField>
-            <Button variant="primary" disabled={busy !== null || !name.trim()} onClick={() => void saveProfile()}>{busy === "profile" ? "正在保存" : "保存个人资料"}</Button>
+            <Button variant="primary" disabled={busy !== null || !name.trim()} onClick={() => void saveProfile()}>{savingProfile ? "正在保存" : "保存个人资料"}</Button>
           </div>
         </Card>
 
         <Card title="常用服务地址" actions={<StatusTag tone="primary">{addresses.length} 个</StatusTag>}>
           <div style={{ display: "grid", gap: 10 }}>
-            {busy !== "load" && addresses.length === 0 ? <EmptyState title="还没有常用地址" description="可在下方添加第一个服务地址。" /> : addresses.map((address) => (
+            {!initialLoading && addresses.length === 0 ? <EmptyState title="还没有常用地址" description="可在下方添加第一个服务地址。" /> : addresses.map((address) => (
               <div className="customer-order-section" key={address.addressId}>
                 <div className="customer-order-actions"><strong>{address.contactName} · {address.contactPhoneMasked}</strong>{address.isDefault && <StatusTag tone="success">默认地址</StatusTag>}</div>
                 <span>{address.province} {address.city} {address.district} {address.detailAddress}</span>
@@ -154,7 +157,7 @@ export function CustomerProfilePage({ api, cityCode }: CustomerProfilePageProps)
             <FormField label="区县"><Input value={form.district} onChange={(event) => setForm({ ...form, district: event.target.value })} /></FormField>
             <FormField label="详细地址"><Input value={form.detailAddress} onChange={(event) => setForm({ ...form, detailAddress: event.target.value })} /></FormField>
             <label style={{ alignItems: "center", display: "flex", gap: 8, fontSize: 14 }}><input type="checkbox" checked={Boolean(form.isDefault)} onChange={(event) => setForm({ ...form, isDefault: event.target.checked })} />设为默认地址</label>
-            <div className="customer-order-actions"><Button variant="primary" disabled={busy !== null || !addressReady} onClick={() => void saveAddress()}>{busy === "address" ? "正在保存" : editingId ? "更新地址" : "添加地址"}</Button>{editingId && <Button onClick={() => { setEditingId(null); setForm(emptyAddress(cityCode)); }}>取消编辑</Button>}</div>
+            <div className="customer-order-actions"><Button variant="primary" disabled={busy !== null || !addressReady} onClick={() => void saveAddress()}>{savingAddress ? "正在保存" : editingId ? "更新地址" : "添加地址"}</Button>{editingId && <Button onClick={() => { setEditingId(null); setForm(emptyAddress(cityCode)); }}>取消编辑</Button>}</div>
           </div>
         </Card>
       </CustomerProfileTemplate>

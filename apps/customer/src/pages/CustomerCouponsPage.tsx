@@ -44,6 +44,10 @@ export function CustomerCouponsPage({ api, onSelectForQuote }: CustomerCouponsPa
     const now = new Date();
     return items.map((item) => toCustomerCouponGrantViewModel(item, now));
   }, [items]);
+  const showingAvailable = view === "available";
+  const isLoading = state === "loading";
+  const loadFailed = state === "error";
+  const loadSucceeded = state === "success";
 
   return (
     <CustomerRouteShell currentRoute="coupons">
@@ -56,21 +60,21 @@ export function CustomerCouponsPage({ api, onSelectForQuote }: CustomerCouponsPa
       </header>
 
       <div className="customer-coupons__toolbar" role="tablist" aria-label="优惠券范围">
-        <button type="button" role="tab" aria-selected={view === "available"} onClick={() => setView("available")}>可使用</button>
-        <button type="button" role="tab" aria-selected={view === "all"} onClick={() => setView("all")}>全部</button>
+        <button type="button" role="tab" aria-selected={showingAvailable} onClick={() => setView("available")}>可使用</button>
+        <button type="button" role="tab" aria-selected={!showingAvailable} onClick={() => setView("all")}>全部</button>
       </div>
 
-      {state === "loading" && <p role="status">正在读取优惠券…</p>}
-      {state === "error" && (
+      {isLoading && <p role="status">正在读取优惠券…</p>}
+      {loadFailed && (
         <section role="alert" className="customer-coupons__error">
           <p>{error}</p>
           <button type="button" onClick={() => void load()}>重试</button>
         </section>
       )}
-      {state === "success" && viewModels.length === 0 && (
-        <p role="status">{view === "available" ? "当前没有可使用的优惠券" : "当前没有优惠券记录"}</p>
+      {loadSucceeded && viewModels.length === 0 && (
+        <p role="status">{showingAvailable ? "当前没有可使用的优惠券" : "当前没有优惠券记录"}</p>
       )}
-      {state === "success" && viewModels.length > 0 && (
+      {loadSucceeded && viewModels.length > 0 && (
         <ul className="customer-coupons__list" aria-label="优惠券列表">
           {viewModels.map((item) => (
             <li key={item.couponGrantId} className="customer-coupons__card">

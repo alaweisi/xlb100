@@ -85,6 +85,15 @@ const conversationStatusLabel: Record<string, string> = { queueing: "排队中",
 const senderLabel: Record<string, string> = { customer: "我", worker: "师傅", agent: "客服", system: "系统" };
 const eventLabel: Record<string, string> = { created: "工单已创建", commented: "新增消息", assigned: "已分配客服", claimed: "客服已接单", status_changed: "状态已更新", escalated: "工单已升级", resolved: "工单已解决", reopened: "工单已重开", closed: "工单已关闭", sla_breached: "处理时效已超时" };
 
+function supportActorLabel(actorType: string): string {
+  if (senderLabel[actorType]) return senderLabel[actorType];
+  return actorType === "admin" || actorType === "operator" ? "客服" : "系统";
+}
+
+function isClosedTicket(status?: string): boolean {
+  return status === "closed";
+}
+
 export function CustomerSupportPage({ api }: { api: CustomerSupportApi }) {
   const intake =
     typeof window === "undefined"
@@ -306,6 +315,9 @@ export function CustomerSupportPage({ api }: { api: CustomerSupportApi }) {
       dispatch({ type: "failed", message: supportError(error, "客服评价提交失败") });
     }
   }
+  const ticketsLoading = ui.busy === "list";
+  const selectedTicketClosed = isClosedTicket(detail?.ticket.status);
+
   return (
     <CustomerRouteShell currentRoute="support">
       <Card
@@ -458,7 +470,7 @@ export function CustomerSupportPage({ api }: { api: CustomerSupportApi }) {
           </Button>
         }
       >
-        {ui.busy === "list" && tickets.length === 0 ? (
+        {ticketsLoading && tickets.length === 0 ? (
           <LoadingState title="工单加载中" />
         ) : tickets.length === 0 ? (
           <EmptyState title="暂无客服工单" />
@@ -540,7 +552,7 @@ export function CustomerSupportPage({ api }: { api: CustomerSupportApi }) {
                     {event.content || "状态已更新"}
                   </p>
                   <small>
-                    {senderLabel[event.actorType] ?? (event.actorType === "admin" || event.actorType === "operator" ? "客服" : "系统")} · {new Date(event.createdAt).toLocaleString("zh-CN", { hour12: false })}
+                    {supportActorLabel(event.actorType)} · {new Date(event.createdAt).toLocaleString("zh-CN", { hour12: false })}
                   </small>
                 </div>
               ))
@@ -565,7 +577,7 @@ export function CustomerSupportPage({ api }: { api: CustomerSupportApi }) {
               >
                 重新开启
               </Button>
-              {detail.ticket.status === "closed" && <><Select aria-label="客服评价分数" value={String(csatScore)} onChange={(event) => setCsatScore(Number(event.target.value) as 1 | 2 | 3 | 4 | 5)}><option value="5">5 分</option><option value="4">4 分</option><option value="3">3 分</option><option value="2">2 分</option><option value="1">1 分</option></Select><Button disabled={busy} onClick={() => void submitCsat()}>提交客服评价</Button></>}
+              {selectedTicketClosed && <><Select aria-label="客服评价分数" value={String(csatScore)} onChange={(event) => setCsatScore(Number(event.target.value) as 1 | 2 | 3 | 4 | 5)}><option value="5">5 分</option><option value="4">4 分</option><option value="3">3 分</option><option value="2">2 分</option><option value="1">1 分</option></Select><Button disabled={busy} onClick={() => void submitCsat()}>提交客服评价</Button></>}
             </div>
           </div>
         </Card>

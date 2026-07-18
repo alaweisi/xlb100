@@ -157,6 +157,9 @@ export function App() {
     withdrawReviewAppeal: (reviewId, payload) => api.withdrawReviewAppeal(reviewId, payload),
   };
 
+  const isRequestingLoginCode = authBusy === "code";
+  const isLoggingIn = authBusy === "login";
+
   if (!session) {
     return (
       <IdentityGate
@@ -172,8 +175,8 @@ export function App() {
           {authNotice ? <p style={{ fontSize: 13, margin: 0 }}>{authNotice}</p> : null}
         </>}
         actions={<>
-          <Button onClick={handleRequestLoginCode} disabled={authBusy !== null || !loginPhone.trim()}>{authBusy === "code" ? "正在发送" : "获取验证码"}</Button>
-          <Button variant="primary" onClick={handleCustomerLogin} disabled={authBusy !== null || !loginPhone.trim() || !loginCode.trim()}>{authBusy === "login" ? "正在登录" : "登录并继续"}</Button>
+          <Button onClick={handleRequestLoginCode} disabled={authBusy !== null || !loginPhone.trim()}>{isRequestingLoginCode ? "正在发送" : "获取验证码"}</Button>
+          <Button variant="primary" onClick={handleCustomerLogin} disabled={authBusy !== null || !loginPhone.trim() || !loginCode.trim()}>{isLoggingIn ? "正在登录" : "登录并继续"}</Button>
         </>}
         error={authError}
       />

@@ -120,6 +120,10 @@ export function CustomerServicesPage({
     </Card>
   );
 
+  const catalogLoading = catalogState.status === "loading";
+  const catalogFailed = catalogState.status === "error";
+  const catalogReady = catalogState.status === "success";
+
   return (
     <CustomerServicesTemplate route="/customer/services" cityCode={cityCode} binding={binding} header={header}>
       <Card
@@ -134,8 +138,8 @@ export function CustomerServicesPage({
         <Tabs items={tabs} activeKey={activeCategoryId} onChange={setActiveCategoryId} density="compact" />
       </Card>
 
-      {catalogState.status === "loading" && <LoadingState title="服务加载中" description="正在读取实时服务目录" />}
-      {catalogState.status === "error" && (
+      {catalogLoading && <LoadingState title="服务加载中" description="正在读取实时服务目录" />}
+      {catalogFailed && (
         <ErrorState
           title="加载失败"
           description={catalogState.error}
@@ -149,11 +153,11 @@ export function CustomerServicesPage({
         />
       )}
 
-      {catalogState.status === "success" && catalogState.data.categories.length === 0 && (
+      {catalogReady && catalogState.data.categories.length === 0 && (
         <EmptyState title="暂无可用服务" description="当前城市暂未开放服务目录。" />
       )}
 
-      {catalogState.status === "success" && filteredSkus.length > 0 && (
+      {catalogReady && filteredSkus.length > 0 && (
         <section style={{ display: "grid", gap: 10 }}>
           <div style={{ alignItems: "center", color: "#64748b", display: "flex", justifyContent: "space-between" }}>
             <strong>服务项目</strong>
@@ -177,7 +181,7 @@ export function CustomerServicesPage({
         </section>
       )}
 
-      {catalogState.status === "success" && filteredSkus.length === 0 && (
+      {catalogReady && filteredSkus.length === 0 && (
         <EmptyState
           title="没有匹配的服务"
           description={searchQuery.trim() ? `未找到“${searchQuery}”相关服务` : "当前筛选条件下暂无服务"}

@@ -90,6 +90,10 @@ interface CreateOrderFormDetails {
   scheduledTimeSlot: ScheduledTimeSlot;
 }
 
+function hasUnknownSubmitResult(kind: string): boolean {
+  return kind === "offline" || kind === "timeout" || kind === "unknown";
+}
+
 export interface CustomerOrderCreatePageProps {
   api: {
     getPriceQuote(skuId: string): Promise<{ quote: PriceQuote }>;
@@ -424,21 +428,39 @@ export function CustomerOrderCreatePage({
       const mapped = toCustomerError(error, "订单提交失败");
       setSubmitState({
         status: "error",
-        error: mapped.kind === "offline" || mapped.kind === "timeout" || mapped.kind === "unknown"
+        error: hasUnknownSubmitResult(mapped.kind)
           ? "提交过程中连接中断，订单结果暂时无法确认。请使用当前页面重新提交，服务端会按同一请求标识去重。"
           : mapped.description,
       });
     }
   }
 
+  const catalogLoading = catalogState.status === "loading" || catalogState.status === "pending";
+  const catalogFailed = catalogState.status === "error";
+  const catalogReady = catalogState.status === "success";
+  const addressesLoading = addressState.status === "loading";
+  const addressesFailed = addressState.status === "error";
+  const addressesReady = addressState.status === "success";
+  const quoteLoading = quoteState.status === "loading";
+  const quoteFailed = quoteState.status === "error";
+  const quoteReady = quoteState.status === "success";
+  const couponsLoading = couponState.status === "loading";
+  const couponsFailed = couponState.status === "error";
+  const couponsReady = couponState.status === "success";
+  const decisionLoading = decisionState.status === "loading";
+  const decisionFailed = decisionState.status === "error";
+  const decisionReady = decisionState.status === "success";
+  const submitFailed = submitState.status === "error";
+  const submitReady = submitState.status === "success";
+
   return (
     <div className="customer-transaction-page">
     <CustomerOrderCreateTemplate route="/customer/order/create" cityCode={cityCode} binding={binding}>
-      {(catalogState.status === "loading" || catalogState.status === "pending") && (
+      {catalogLoading && (
         <LoadingState title="正在加载服务配置" description="读取当前城市实时服务目录" />
       )}
-      {catalogState.status === "error" && <ErrorState title="服务配置加载失败" description={catalogState.error} />}
-      {catalogState.status === "success" && allSkus.length === 0 && (
+      {catalogFailed && <ErrorState title="服务配置加载失败" description={catalogState.error} />}
+      {catalogReady && allSkus.length === 0 && (
         <EmptyState title="当前城市暂无可下单服务" description="请返回服务页刷新目录或切换城市。" />
       )}
       <section style={{ display: "grid", gap: 12 }}>
@@ -459,9 +481,9 @@ export function CustomerOrderCreatePage({
           <FormField label="服务数量" description="最少 1 份，最终金额以服务端报价为准">
             <QuantityStepper min={1} value={quantity} onChange={setQuantity} />
           </FormField>
-          {addressState.status === "loading" && <LoadingState title="正在加载常用地址" description="读取账号已保存的服务地址" />}
-          {addressState.status === "error" && <ErrorState title="常用地址暂不可用" description={addressState.error} />}
-          {addressState.status === "success" && addressState.addresses.length > 0 && (
+          {addressesLoading && <LoadingState title="正在加载常用地址" description="读取账号已保存的服务地址" />}
+          {addressesFailed && <ErrorState title="常用地址暂不可用" description={addressState.error} />}
+          {addressesReady && addressState.addresses.length > 0 && (
             <FormField label="常用地址" description="选择后仍需补充完整手机号，服务端只返回脱敏号码">
               <Select
                 value={selectedAddressId}
@@ -552,8 +574,8 @@ export function CustomerOrderCreatePage({
           />
         )}
 
-        {quoteState.status === "loading" && <LoadingState title="正在获取报价" description="读取当前服务和数量的实时价格" />}
-        {quoteState.status === "error" && (
+        {quoteLoading && <LoadingState title="正在获取报价" description="读取当前服务和数量的实时价格" />}
+        {quoteFailed && (
           <ErrorState
             title="报价获取失败"
             description={quoteState.error}
@@ -565,7 +587,7 @@ export function CustomerOrderCreatePage({
             }
           />
         )}
-        {quoteState.status === "success" && (
+        {quoteReady && (
           <CustomerQuoteCard
             label={selectedSku?.name ?? "当前报价"}
             price={<PriceText amount={quoteState.quote.basePrice} currency={quoteState.quote.currency} />}
@@ -580,32 +602,32 @@ export function CustomerOrderCreatePage({
           >
             <Select
               value={selectedCouponGrantId}
-              disabled={couponState.status !== "success"}
+              disabled={!couponsReady}
               onChange={(event) => setSelectedCouponGrantId(event.target.value)}
             >
               <option value="">不使用优惠券</option>
-              {couponState.status === "success" && couponState.grants.map((grant) => (
+              {couponsReady && couponState.grants.map((grant) => (
                 <option key={grant.couponGrantId} value={grant.couponGrantId}>
                   可用优惠券 · {new Date(grant.expiresAt).toLocaleDateString("zh-CN")} 到期
                 </option>
               ))}
             </Select>
           </FormField>
-          {couponState.status === "loading" && <LoadingState title="正在加载优惠券" description="读取当前账号可用优惠券" />}
-          {couponState.status === "error" && <ErrorState title="优惠券加载失败" description={couponState.error} />}
+          {couponsLoading && <LoadingState title="正在加载优惠券" description="读取当前账号可用优惠券" />}
+          {couponsFailed && <ErrorState title="优惠券加载失败" description={couponState.error} />}
           {selectedCouponGrantId && (
             <Button
               type="button"
-              disabled={decisionState.status === "loading" || quoteState.status !== "success"}
+              disabled={decisionLoading || !quoteReady}
               onClick={() => void applySelectedCoupon()}
             >
-              {decisionState.status === "loading" ? "正在校验优惠券" : "使用所选优惠券"}
+              {decisionLoading ? "正在校验优惠券" : "使用所选优惠券"}
             </Button>
           )}
-          {decisionState.status === "error" && (
+          {decisionFailed && (
             <ErrorState title="优惠券暂不可用" description={`${decisionState.error} 系统不会自动改为原价提交。`} />
           )}
-          {decisionState.status === "success" && (
+          {decisionReady && (
             <div className="customer-coupon-summary">
               <StatusTag tone="success">服务端校验通过</StatusTag>
               <span>原价：{formatServerMarketingMinor(decisionState.decision.grossAmountMinor)}</span>
@@ -622,14 +644,14 @@ export function CustomerOrderCreatePage({
             {
               key: "quote",
               title: "确认报价",
-              description: quoteState.status === "success" ? "实时报价已返回" : "等待报价",
-              state: quoteState.status === "success" ? "complete" : "current",
+              description: quoteReady ? "实时报价已返回" : "等待报价",
+              state: quoteReady ? "complete" : "current",
             },
             {
               key: "address",
               title: "填写地址",
               description: isAddressReady ? `${selectedDistrict} ${orderFormDetails.detailAddress}` : "等待完整地址和联系方式",
-              state: isAddressReady ? "complete" : quoteState.status === "success" ? "current" : "pending",
+              state: isAddressReady ? "complete" : quoteReady ? "current" : "pending",
             },
             {
               key: "schedule",
@@ -641,19 +663,19 @@ export function CustomerOrderCreatePage({
               key: "order",
               title: "创建订单",
               description:
-                submitState.status === "success"
+                submitReady
                   ? `订单已创建 ${submitState.order.orderId}`
-                  : submitState.status === "error"
+                  : submitFailed
                     ? "提交受阻"
                     : "等待提交",
               state:
-                submitState.status === "success" ? "complete" : submitState.status === "error" ? "blocked" : "pending",
+                submitReady ? "complete" : submitFailed ? "blocked" : "pending",
             },
             {
               key: "payment",
               title: "服务后支付",
               description:
-                submitState.status === "success"
+                submitReady
                   ? "等待服务完成并由顾客确认"
                   : "等待订单创建",
               state: "pending",
@@ -667,7 +689,7 @@ export function CustomerOrderCreatePage({
           density="compact"
         />
 
-        {submitState.status === "error" && (
+        {submitFailed && (
           <ErrorState
             title="订单提交失败"
             description={submitState.error}
@@ -676,7 +698,7 @@ export function CustomerOrderCreatePage({
             </Button>}
           />
         )}
-        {submitState.status === "success" && (
+        {submitReady && (
           <div style={{ display: "grid", gap: 10 }}>
             <StatusTag tone="success">订单号：{submitState.order.orderId}</StatusTag>
             <ServiceCard

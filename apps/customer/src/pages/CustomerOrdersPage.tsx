@@ -88,6 +88,45 @@ function appealStatusLabel(status: string): string {
     ?? "状态待确认";
 }
 
+function isSubmitting(state: { status: string }): boolean {
+  return state.status === "submitting";
+}
+
+function isSucceeded(state: { status: string }): boolean {
+  return state.status === "success";
+}
+
+function succeededState<T>(state: MutationState<T>): Extract<MutationState<T>, { status: "success" }> | null {
+  return state.status === "success" ? state : null;
+}
+
+function paymentStatusTone(status: string): "success" | "warning" {
+  return status === "paid" ? "success" : "warning";
+}
+
+function paymentStatusLabel(status: string): string {
+  if (status === "paid") return "支付成功";
+  if (status === "failed") return "支付失败";
+  if (status === "closed") return "支付已关闭";
+  return "等待支付结果";
+}
+
+function isVisibleReview(visibility?: string): boolean {
+  return visibility === "visible";
+}
+
+function isHiddenReview(visibility?: string): boolean {
+  return visibility === "hidden";
+}
+
+function isOpenAppeal(status: string): boolean {
+  return status === "open";
+}
+
+function appealStatusTone(status: string): "success" | "warning" {
+  return status === "upheld" ? "success" : "warning";
+}
+
 export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPageProps) {
   const binding = createCustomerUiBinding({ route: "orders", cityCode, hasOrderIds: orderIds.length > 0 });
   const initialOrderId = typeof window === "undefined"
@@ -318,6 +357,19 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
         const mayConfirm = order.status === "pending_dispatch";
         const mayPay = order.status === "service_completed" || order.status === "pending_payment";
         const mayReviewOrRefund = order.status === "paid";
+        const confirmSubmitting = isSubmitting(confirmState);
+        const paymentSubmitting = isSubmitting(paymentState);
+        const refundSubmitting = isSubmitting(refundState);
+        const reviewSubmitting = isSubmitting(reviewState);
+        const appealSubmitting = isSubmitting(appealState);
+        const confirmSucceeded = isSucceeded(confirmState);
+        const paymentResult = succeededState(paymentState);
+        const refundResult = succeededState(refundState);
+        const reviewResult = succeededState(reviewState);
+        const canAppealReview = persistedReview
+          ? isHiddenReview(persistedReview.visibility.visibility) && !persistedReview.appeals.some((appeal) => isOpenAppeal(appeal.status))
+          : false;
+        const showUnavailableStatus = !mayConfirm && !mayPay && !mayReviewOrRefund;
         return (
           <OrderCard
             key={order.orderId}
@@ -340,24 +392,23 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
                 <strong>服务确认与支付</strong>
                 <span>仅在服务实际完成后确认；支付结果只展示服务端返回状态。</span>
                 <div className="customer-order-actions">
-                  <Button disabled={!mayConfirm || confirmState.status === "submitting"} onClick={() => void confirmService(order.orderId)}>
-                    {confirmState.status === "submitting" ? "正在确认" : "确认服务已完成"}
+                  <Button disabled={!mayConfirm || confirmSubmitting} onClick={() => void confirmService(order.orderId)}>
+                    {confirmSubmitting ? "正在确认" : "确认服务已完成"}
                   </Button>
-                  <Button variant="primary" disabled={!mayPay || paymentState.status === "submitting"} onClick={() => void createPayment(order.orderId)}>
-                    {paymentState.status === "submitting" ? "正在创建支付单" : "进入支付"}
+                  <Button variant="primary" disabled={!mayPay || paymentSubmitting} onClick={() => void createPayment(order.orderId)}>
+                    {paymentSubmitting ? "正在创建支付单" : "进入支付"}
                   </Button>
                 </div>
-                {!mayConfirm && order.status === "pending_dispatch" ? null : !mayConfirm && !mayPay && order.status !== "paid"
-                  ? <StatusTag tone="muted">当前订单状态暂不可确认或支付</StatusTag> : null}
-                {confirmState.status === "success" && <StatusTag tone="success">服务已确认，订单状态已刷新</StatusTag>}
+                {showUnavailableStatus ? <StatusTag tone="muted">当前订单状态暂不可确认或支付</StatusTag> : null}
+                {confirmSucceeded && <StatusTag tone="success">服务已确认，订单状态已刷新</StatusTag>}
                 {renderMutationError(confirmState)}
-                {paymentState.status === "success" && (
+                {paymentResult && (
                   <div className="customer-review-inline">
-                    <StatusTag tone={paymentState.value.status === "paid" ? "success" : "warning"}>
-                      {paymentState.value.status === "paid" ? "支付成功" : paymentState.value.status === "failed" ? "支付失败" : paymentState.value.status === "closed" ? "支付已关闭" : "等待支付结果"}
+                    <StatusTag tone={paymentStatusTone(paymentResult.value.status)}>
+                      {paymentStatusLabel(paymentResult.value.status)}
                     </StatusTag>
-                    <StatusTag tone="muted">支付单：{paymentState.value.paymentOrderId}</StatusTag>
-                    {paymentState.resultUnknown && <StatusTag tone="warning">订单刷新失败，支付结果待确认</StatusTag>}
+                    <StatusTag tone="muted">支付单：{paymentResult.value.paymentOrderId}</StatusTag>
+                    {paymentResult.resultUnknown && <StatusTag tone="warning">订单刷新失败，支付结果待确认</StatusTag>}
                   </div>
                 )}
                 {renderMutationError(paymentState)}
@@ -370,7 +421,7 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
                   <div className="customer-review-stack">
                     <div className="customer-review-inline">
                       <StatusTag tone="success">{persistedReview.review.rating} 星</StatusTag>
-                      <StatusTag tone={persistedReview.visibility.visibility === "visible" ? "success" : "warning"}>
+                      <StatusTag tone={isVisibleReview(persistedReview.visibility.visibility) ? "success" : "warning"}>
                         {reviewVisibilityLabel(persistedReview.visibility.visibility)}
                       </StatusTag>
                     </div>
@@ -380,7 +431,7 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
                   <>
                     <Input
                       aria-label="评价星级"
-                      disabled={!mayReviewOrRefund || reviewState.status === "submitting"}
+                      disabled={!mayReviewOrRefund || reviewSubmitting}
                       max={5}
                       min={1}
                       type="number"
@@ -389,22 +440,22 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
                     />
                     <Textarea
                       aria-label="评价内容"
-                      disabled={!mayReviewOrRefund || reviewState.status === "submitting"}
+                      disabled={!mayReviewOrRefund || reviewSubmitting}
                       maxLength={500}
                       placeholder="请填写真实服务体验"
                       value={reviewComments[order.orderId] ?? ""}
                       onChange={(event) => setReviewComments((comments) => ({ ...comments, [order.orderId]: event.target.value }))}
                     />
-                    <Button disabled={!mayReviewOrRefund || reviewState.status === "submitting" || !reviewComments[order.orderId]?.trim()} onClick={() => void submitReview(order.orderId)}>
-                      {reviewState.status === "submitting" ? "正在提交评价" : "提交评价"}
+                    <Button disabled={!mayReviewOrRefund || reviewSubmitting || !reviewComments[order.orderId]?.trim()} onClick={() => void submitReview(order.orderId)}>
+                      {reviewSubmitting ? "正在提交评价" : "提交评价"}
                     </Button>
                   </>
                 )}
                 {!mayReviewOrRefund && <StatusTag tone="muted">支付完成后开放评价</StatusTag>}
-                {reviewState.status === "success" && <StatusTag tone="success">评价已提交{reviewState.idempotent ? "（服务端返回已有记录）" : ""}</StatusTag>}
+                {reviewResult && <StatusTag tone="success">评价已提交{reviewResult.idempotent ? "（服务端返回已有记录）" : ""}</StatusTag>}
                 {renderMutationError(reviewState)}
 
-                {persistedReview?.visibility.visibility === "hidden" && !persistedReview.appeals.some((appeal) => appeal.status === "open") && (
+                {persistedReview && canAppealReview && (
                   <div className="customer-review-stack">
                     <Textarea
                       aria-label="评价申诉原因"
@@ -413,15 +464,15 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
                       value={appealReasons[order.orderId] ?? ""}
                       onChange={(event) => setAppealReasons((reasons) => ({ ...reasons, [order.orderId]: event.target.value }))}
                     />
-                    <Button disabled={appealState.status === "submitting" || !appealReasons[order.orderId]?.trim()} onClick={() => void submitAppeal(order.orderId, persistedReview)}>
-                      {appealState.status === "submitting" ? "正在提交申诉" : "申请复核评价"}
+                    <Button disabled={appealSubmitting || !appealReasons[order.orderId]?.trim()} onClick={() => void submitAppeal(order.orderId, persistedReview)}>
+                      {appealSubmitting ? "正在提交申诉" : "申请复核评价"}
                     </Button>
                   </div>
                 )}
                 {persistedReview?.appeals.map((appeal) => (
                   <div className="customer-review-inline" key={appeal.appealId}>
-                    <StatusTag tone={appeal.status === "upheld" ? "success" : "warning"}>{appealStatusLabel(appeal.status)}</StatusTag>
-                    {appeal.status === "open" && <Button disabled={appealState.status === "submitting"} onClick={() => void withdrawAppeal(order.orderId, persistedReview)}>撤回申诉</Button>}
+                    <StatusTag tone={appealStatusTone(appeal.status)}>{appealStatusLabel(appeal.status)}</StatusTag>
+                    {isOpenAppeal(appeal.status) && <Button disabled={appealSubmitting} onClick={() => void withdrawAppeal(order.orderId, persistedReview)}>撤回申诉</Button>}
                   </div>
                 ))}
                 {renderMutationError(appealState)}
@@ -432,21 +483,21 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
                 <span>这里只提交退款申请，不代表已退款或已批准；后续状态以服务端处理结果为准。</span>
                 <Textarea
                   aria-label="退款原因"
-                  disabled={!mayReviewOrRefund || refundState.status === "submitting"}
+                  disabled={!mayReviewOrRefund || refundSubmitting}
                   maxLength={255}
                   placeholder="请填写退款原因（选填）"
                   value={refundReasons[order.orderId] ?? ""}
                   onChange={(event) => setRefundReasons((reasons) => ({ ...reasons, [order.orderId]: event.target.value }))}
                 />
-                <Button variant="primary" disabled={!mayReviewOrRefund || refundState.status === "submitting"} onClick={() => void submitRefund(order.orderId)}>
-                  {refundState.status === "submitting" ? "正在提交申请" : "提交退款申请"}
+                <Button variant="primary" disabled={!mayReviewOrRefund || refundSubmitting} onClick={() => void submitRefund(order.orderId)}>
+                  {refundSubmitting ? "正在提交申请" : "提交退款申请"}
                 </Button>
                 {!mayReviewOrRefund && <StatusTag tone="muted">支付完成后开放退款申请</StatusTag>}
-                {refundState.status === "success" && (
+                {refundResult && (
                   <div className="customer-review-inline">
                     <StatusTag tone="warning">退款申请已提交</StatusTag>
-                    <StatusTag tone="muted">申请号：{refundState.value.refundId}</StatusTag>
-                    {refundState.idempotent && <StatusTag tone="warning">服务端返回已有申请</StatusTag>}
+                    <StatusTag tone="muted">申请号：{refundResult.value.refundId}</StatusTag>
+                    {refundResult.idempotent && <StatusTag tone="warning">服务端返回已有申请</StatusTag>}
                   </div>
                 )}
                 {renderMutationError(refundState)}
