@@ -53,9 +53,10 @@ const manifest = {
   fullPageScreenshots: true,
   contractStateInterception: true,
   externalProviderExecuted: false,
+  visualChineseGate: { passed: false, rule: "截图正文、表单值和已选选项不得包含英文字母" },
   notes: [
     "截图来自实际 Worker Vite 应用与 Microsoft Edge；API 路由拦截只提供共享契约允许的确定性状态。",
-    "认证、提现、审核、打款、地图和外部 Provider 均未真实执行；结果态仅表示接口回执或既有合同状态。",
+    "认证、提现、审核、打款、地图和外部支付服务均未真实执行；结果态仅表示接口回执或既有合同状态。",
     "W-02 当前台账没有独立 Slice，因此只要求并记录 Carrier 基座。",
   ],
   carriers: Object.entries(carrierRoutes).map(([carrierId, route]) => ({ carrierId, route, sliceIds: slicesByCarrier[carrierId] ?? [] })),
@@ -122,7 +123,7 @@ function withdrawal(id, status, amount = 12000) {
     status,
     requestNote: "师傅工作台提交",
     reviewNote: status === "rejected" ? "账户信息需要复核" : status === "approved" ? "平台审核通过" : null,
-    markedPaidNote: status === "marked_paid" ? "仅为平台打款标记，不代表外部 Provider 已执行" : null,
+    markedPaidNote: status === "marked_paid" ? "仅为平台打款标记，不代表外部支付服务已执行" : null,
     requestedAt: at,
     reviewedAt: ["approved", "rejected", "marked_paid"].includes(status) ? later : null,
     reviewedByAdminId: ["approved", "rejected", "marked_paid"].includes(status) ? "admin-evidence" : null,
@@ -302,6 +303,11 @@ async function capture({ carrierId, variant, stage, label, route = carrierRoutes
   if (action) await action(page);
   await page.waitForTimeout(180);
   if (pageErrors.length) throw new Error(`${carrierId}/${variant} page error: ${pageErrors.join(" | ")}`);
+  const visibleValues = await page.locator("input:not([type=file]):not([type=checkbox]):not([type=radio]):not([type=hidden]), textarea").evaluateAll((elements) => elements.map((element) => element.value));
+  const selectedOptions = await page.locator("select").evaluateAll((elements) => elements.map((element) => element.selectedOptions[0]?.textContent ?? ""));
+  const visibleContent = [await page.locator("body").innerText(), ...visibleValues, ...selectedOptions].join("\n");
+  const visibleEnglish = visibleContent.match(/[A-Za-z]+(?:[A-Za-z0-9_-]*[A-Za-z0-9])?/g) ?? [];
+  if (visibleEnglish.length) throw new Error(`${carrierId}/${variant} visual Chinese gate failed: ${[...new Set(visibleEnglish)].join(", ")}`);
   const fileKey = `${carrierId}.${stage}.${variant}`;
   const fileName = `${fileKey}.png`;
   const relativePath = `${relativeEvidenceDir}/${fileName}`;
@@ -352,7 +358,9 @@ async function validateManifest() {
     requiredNonB0Stages: ["entry", "result", "recovery"],
     screenshotCount: manifest.evidence.length,
     screenshotFilesExist: true,
+    visualChineseGatePassed: true,
   };
+  manifest.visualChineseGate.passed = true;
 }
 
 const requireFromWorker = createRequire(path.join(workerRoot, "package.json"));
@@ -399,7 +407,7 @@ try {
       carrierId: "W-10", variant: status, stage: "result", label: `W-10 ${status} 本次会话合同回执`, sliceIds: w10Slices,
       action: async (page) => {
         await page.getByRole("button", { name: "提交认证申请" }).click();
-        await page.getByText(`cert-${status}`, { exact: false }).first().waitFor();
+        await page.getByText("本次会话申请记录", { exact: true }).waitFor();
       },
     });
   }

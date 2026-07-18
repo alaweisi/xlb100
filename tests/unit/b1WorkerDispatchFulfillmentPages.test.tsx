@@ -64,10 +64,12 @@ describe("B1 师傅端派单与履约生产界面", () => {
   it("Supporting Frame 按进行中与已结束状态筛选", () => {
     const accepted = { ...completed, fulfillmentId: "fulfillment-accepted", status: "accepted" as const, completedAt: null };
     render(<TasksPage fulfillments={[accepted, completed]} loading={false} error={null} onRefresh={vi.fn()} onOpenDetail={vi.fn()} />);
-    expect(screen.getByText("fulfillment-accepted")).toBeTruthy();
+    expect(screen.getByText(/履约单·\d{6}/)).toBeTruthy();
+    expect(screen.queryByText("fulfillment-accepted")).toBeNull();
     expect(screen.queryByText("fulfillment-b1")).toBeNull();
     fireEvent.click(screen.getByRole("tab", { name: /已结束/ }));
-    expect(screen.getByText("fulfillment-b1")).toBeTruthy();
+    expect(screen.getByText(/履约单·\d{6}/)).toBeTruthy();
+    expect(screen.queryByText("fulfillment-b1")).toBeNull();
     expect(screen.getByText(/打开查看顾客确认或争议结果/)).toBeTruthy();
   });
 

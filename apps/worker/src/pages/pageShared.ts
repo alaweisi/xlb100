@@ -28,6 +28,28 @@ export function formatAmount(amount: number): string {
   return `¥${amount.toFixed(2)}`;
 }
 
+export function formatBusinessCode(value: string | null | undefined, label: string): string {
+  if (!value) return `${label}·暂无`;
+  let hash = 2166136261;
+  for (const character of value) {
+    hash = Math.imul(hash ^ character.charCodeAt(0), 16777619) >>> 0;
+  }
+  return `${label}·${String(hash % 1_000_000).padStart(6, "0")}`;
+}
+
+export function formatCityName(cityCode: string): string {
+  const labels: Record<string, string> = { hangzhou: "杭州", shanghai: "上海", beijing: "北京" };
+  return labels[cityCode] ?? formatBusinessCode(cityCode, "城市");
+}
+
+export function formatServiceName(serviceCode: string): string {
+  const labels: Record<string, string> = {
+    home_service_basic: "基础上门服务",
+    sku_home_service_basic: "基础上门服务",
+  };
+  return labels[serviceCode] ?? formatBusinessCode(serviceCode, "服务");
+}
+
 export function uiStateIs(value: string | null | undefined, expected: string): boolean {
   return value === expected;
 }
@@ -76,11 +98,11 @@ const fulfillmentStatusLabels: Record<string, string> = {
 };
 
 export function dispatchStatusLabel(status: string): string {
-  return dispatchStatusLabels[status] ?? `未知状态（${status}）`;
+  return dispatchStatusLabels[status] ?? "未知状态";
 }
 
 export function fulfillmentStatusLabel(status: string): string {
-  return fulfillmentStatusLabels[status] ?? `未知状态（${status}）`;
+  return fulfillmentStatusLabels[status] ?? "未知状态";
 }
 
 export function formatDateTime(value: string | null | undefined): string {

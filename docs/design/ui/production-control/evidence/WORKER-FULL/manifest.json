@@ -1,6 +1,6 @@
 {
   "batch": "WORKER-FULL",
-  "capturedAt": "2026-07-18T16:32:44.175Z",
+  "capturedAt": "2026-07-18T16:57:42.953Z",
   "actualApp": true,
   "appUrl": "http://127.0.0.1:4322",
   "dedicatedPort": 4322,
@@ -13,9 +13,13 @@
   "fullPageScreenshots": true,
   "contractStateInterception": true,
   "externalProviderExecuted": false,
+  "visualChineseGate": {
+    "passed": true,
+    "rule": "截图正文、表单值和已选选项不得包含英文字母"
+  },
   "notes": [
     "截图来自实际 Worker Vite 应用与 Microsoft Edge；API 路由拦截只提供共享契约允许的确定性状态。",
-    "认证、提现、审核、打款、地图和外部 Provider 均未真实执行；结果态仅表示接口回执或既有合同状态。",
+    "认证、提现、审核、打款、地图和外部支付服务均未真实执行；结果态仅表示接口回执或既有合同状态。",
     "W-02 当前台账没有独立 Slice，因此只要求并记录 Carrier 基座。"
   ],
   "carriers": [
@@ -1606,6 +1610,7 @@
       "recovery"
     ],
     "screenshotCount": 39,
-    "screenshotFilesExist": true
+    "screenshotFilesExist": true,
+    "visualChineseGatePassed": true
   }
 }

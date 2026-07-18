@@ -5,7 +5,10 @@ import { workerWorkflowActions } from "../adapters/workflowBindings";
 import {
   dispatchStatusLabel,
   formatAmount,
+  formatBusinessCode,
+  formatCityName,
   formatDateTime,
+  formatServiceName,
   fulfillmentStatusLabel,
   helperText,
   statusTone,
@@ -23,7 +26,7 @@ export type WorkerEligibilityView = {
 export type WorkerWorkMode = "online" | "paused";
 
 function cityLabel(cityCode: string): string {
-  return cityCode === "hangzhou" ? "杭州" : cityCode === "shanghai" ? "上海" : cityCode === "beijing" ? "北京" : cityCode;
+  return formatCityName(cityCode);
 }
 
 function formatElapsed(createdAt: string, now: number): string {
@@ -180,9 +183,9 @@ export function HallPage({
                     </div>
                     <OfferTiming task={task} />
                     <dl className="worker-fact-grid">
-                      <div><dt>服务编号</dt><dd>{task.skuId}</dd></div>
-                      <div><dt>订单编号</dt><dd>{task.orderId}</dd></div>
-                      <div><dt>派单编号</dt><dd>{task.dispatchTaskId}</dd></div>
+                      <div><dt>服务编号</dt><dd>{formatBusinessCode(task.skuId, "服务")}</dd></div>
+                      <div><dt>订单编号</dt><dd>{formatBusinessCode(task.orderId, "订单")}</dd></div>
+                      <div><dt>派单编号</dt><dd>{formatBusinessCode(task.dispatchTaskId, "派单")}</dd></div>
                     </dl>
                     {blockReasons.length > 0 && <div className="worker-block-reason" role="note"><strong>暂不可接</strong><span>{blockReasons.join("；")}</span><a href="/worker/certification">查看服务资格</a></div>}
                     {uiStateIs(eligibility?.status, "loading") && <p className="worker-inline-note">正在向平台核验此服务资格，完成前不会开放接单。</p>}
@@ -247,9 +250,9 @@ export function TasksPage({ fulfillments, loading, error, networkOnline = true, 
           {filtered.length === 0 ? <Card style={workerPanelStyle}><EmptyState title={fulfillments.length === 0 ? "暂无履约任务" : "当前筛选下没有任务"} description={fulfillments.length === 0 ? "接单成功后，待服务、服务中和已完成任务会显示在这里。" : "可切换上方状态查看其他任务。"} /></Card> : (
             <div className="worker-task-list">
               {filtered.map((item) => <article className={`worker-task-card worker-task-card--${item.status}`} key={item.fulfillmentId}>
-                <div className="worker-task-card__topline"><div><span>{uiChoice(uiStateIs(item.status, "in_progress"), "当前作业", "履约任务")}</span><strong>{item.skuId}</strong></div><StatusTag tone={statusTone(item.status)}>{fulfillmentStatusLabel(item.status)}</StatusTag></div>
+                <div className="worker-task-card__topline"><div><span>{uiChoice(uiStateIs(item.status, "in_progress"), "当前作业", "履约任务")}</span><strong>{formatServiceName(item.skuId)}</strong></div><StatusTag tone={statusTone(item.status)}>{fulfillmentStatusLabel(item.status)}</StatusTag></div>
                 <p className="worker-next-step">{uiChoice(uiStateIs(item.status, "accepted"), "下一步：到达现场后开始服务并记录证据", uiChoice(uiStateIs(item.status, "in_progress"), "下一步：补齐服务证据并登记完工", uiChoice(uiStateIs(item.status, "completed"), "服务已完工，打开查看顾客确认或争议结果", "该任务已取消，仅可查看记录")))}</p>
-                <dl className="worker-fact-grid"><div><dt>订单编号</dt><dd>{item.orderId}</dd></div><div><dt>更新时间</dt><dd>{formatDateTime(item.updatedAt)}</dd></div><div><dt>履约编号</dt><dd>{item.fulfillmentId}</dd></div></dl>
+                <dl className="worker-fact-grid"><div><dt>订单编号</dt><dd>{formatBusinessCode(item.orderId, "订单")}</dd></div><div><dt>更新时间</dt><dd>{formatDateTime(item.updatedAt)}</dd></div><div><dt>履约编号</dt><dd>{formatBusinessCode(item.fulfillmentId, "履约单")}</dd></div></dl>
                 <Button onClick={() => onOpenDetail(item.fulfillmentId)} variant={uiStateIn(item.status, ["accepted", "in_progress"]) ? "primary" : undefined}>{uiChoice(uiStateIs(item.status, "accepted"), "去开始服务", uiChoice(uiStateIs(item.status, "in_progress"), "继续履约", "查看详情"))}</Button>
               </article>)}
             </div>

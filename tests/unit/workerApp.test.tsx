@@ -128,7 +128,7 @@ async function renderAndLogin() {
     target: { value: "123456" },
   });
   fireEvent.click(screen.getByRole("button", { name: "登录并进入任务大厅" }));
-  expect(await screen.findByText(/当前账号：worker-demo-hangzhou/)).toBeTruthy();
+  expect(await screen.findByText(/当前账号：师傅编号·\d{6}/)).toBeTruthy();
 }
 
 describe("Worker App API wiring", () => {
@@ -205,7 +205,8 @@ describe("Worker App API wiring", () => {
     fireEvent.change(screen.getByLabelText("短信验证码"), { target: { value: "123456" } });
 
     fireEvent.click(screen.getByRole("button", { name: "登录并进入任务大厅" }));
-    expect(await screen.findByText(/当前账号：worker-demo-hangzhou/)).toBeTruthy();
+    expect(await screen.findByText(/当前账号：师傅编号·\d{6}/)).toBeTruthy();
+    expect(screen.queryByText(/worker-demo-hangzhou/)).toBeNull();
     expect(mocks.workerLogin).toHaveBeenCalledWith("13800000001", "123456");
     expect(window.localStorage.getItem("xlb.worker.session")).toContain("test-worker-token");
   });
@@ -220,7 +221,7 @@ describe("Worker App API wiring", () => {
     fireEvent.click(screen.getByRole("button", { name: "登录并进入任务大厅" }));
 
     expect(await screen.findByText("验证码无效或已过期，请重新获取")).toBeTruthy();
-    expect(screen.queryByText(/当前账号：worker-demo-hangzhou/)).toBeNull();
+    expect(screen.queryByText(/当前账号：师傅编号·\d{6}/)).toBeNull();
   });
 
   it.each([
@@ -248,9 +249,12 @@ describe("Worker App API wiring", () => {
 
     await renderAndLogin();
 
-    expect(await screen.findByText("dispatch-1")).toBeTruthy();
-    expect(screen.getByText("order-1")).toBeTruthy();
-    expect(screen.getByText("sku_home_daily_2h")).toBeTruthy();
+    expect((await screen.findAllByText(/派单·\d{6}/)).length).toBeGreaterThan(0);
+    expect(screen.getByText(/订单·\d{6}/)).toBeTruthy();
+    expect(screen.getAllByText(/服务·\d{6}/).length).toBeGreaterThan(0);
+    expect(screen.queryByText("dispatch-1")).toBeNull();
+    expect(screen.queryByText("order-1")).toBeNull();
+    expect(screen.queryByText("sku_home_daily_2h")).toBeNull();
     expect(screen.getByText("¥128.00")).toBeTruthy();
     expect(mocks.getTaskPool).toHaveBeenCalledTimes(1);
     expect(mocks.createApiClient).toHaveBeenLastCalledWith(
@@ -269,7 +273,7 @@ describe("Worker App API wiring", () => {
     await renderAndLogin();
 
     expect(await screen.findByText("师傅身份验证")).toBeTruthy();
-    expect(screen.queryByText(/当前账号：worker-demo-hangzhou/)).toBeNull();
+    expect(screen.queryByText(/当前账号：师傅编号·\d{6}/)).toBeNull();
   });
 
   it("renders an empty task pool state", async () => {
@@ -289,7 +293,8 @@ describe("Worker App API wiring", () => {
 
     await renderAndLogin();
 
-    expect(await screen.findByText("ful-1")).toBeTruthy();
+    expect(await screen.findByText(/履约单·\d{6}/)).toBeTruthy();
+    expect(screen.queryByText("ful-1")).toBeNull();
     expect(screen.getAllByText("待开始").length).toBeGreaterThan(0);
     expect(mocks.getMyFulfillments).toHaveBeenCalledTimes(1);
   });
@@ -320,7 +325,7 @@ describe("Worker App API wiring", () => {
     await waitFor(() => {
       expect(mocks.acceptTask).toHaveBeenCalledWith("dispatch-1");
     });
-    expect(await screen.findByText(/接单成功：任务 dispatch-1 已承接/)).toBeTruthy();
+    expect(await screen.findByText(/接单成功：派单·\d{6} 已承接/)).toBeTruthy();
     expect(await screen.findByText("当前没有待接任务")).toBeTruthy();
     expect(mocks.getTaskPool).toHaveBeenCalledTimes(2);
     expect(mocks.getMyFulfillments).toHaveBeenCalledTimes(1);
@@ -373,13 +378,13 @@ describe("Worker App API wiring", () => {
     await waitFor(() => {
       expect(mocks.startFulfillment).toHaveBeenCalledWith("ful-1");
     });
-    expect(await screen.findByText(/已开始服务：履约单 ful-1 状态已同步/)).toBeTruthy();
+    expect(await screen.findByText(/已开始服务：履约单·\d{6} 状态已同步/)).toBeTruthy();
 
     fireEvent.click(await screen.findByRole("button", { name: "登记完工" }, { timeout: 5000 }));
     await waitFor(() => {
       expect(mocks.completeFulfillment).toHaveBeenCalledWith("ful-1", { completionNote: undefined });
     });
-    expect(await screen.findByText(/完工已登记：履约单 ful-1 正在等待顾客确认/)).toBeTruthy();
+    expect(await screen.findByText(/完工已登记：履约单·\d{6} 正在等待顾客确认/)).toBeTruthy();
     expect(mocks.getFulfillment).toHaveBeenCalledTimes(3);
     expect(mocks.getTaskPool).toHaveBeenCalledTimes(2);
     expect(mocks.getMyFulfillments).toHaveBeenCalledTimes(2);
@@ -401,7 +406,7 @@ describe("Worker App API wiring", () => {
         certName: "现场服务基础资格",
       });
     });
-    expect(await screen.findByText(/认证申请 cert-1 已提交，平台返回状态：待审核/)).toBeTruthy();
+    expect(await screen.findByText(/认证申请·\d{6} 已提交，平台返回状态：待审核/)).toBeTruthy();
   });
 
   it("loads the real wallet and submits a withdrawal request",async()=>{
@@ -420,8 +425,8 @@ describe("Worker App API wiring", () => {
   });
 
   it.each([
-    ["放弃邀约", mocks.rejectTask, { ok: true, task: { ...queuedTask, status: "reassigning" } }, /已放弃派单邀约 dispatch-1/],
-    ["模拟邀约超时", mocks.simulateTaskTimeout, { ok: true, task: { ...queuedTask, status: "reassigning" } }, /开发验证：派单邀约 dispatch-1 已进入超时状态/],
+    ["放弃邀约", mocks.rejectTask, { ok: true, task: { ...queuedTask, status: "reassigning" } }, /已放弃派单邀约·\d{6}/],
+    ["模拟邀约超时", mocks.simulateTaskTimeout, { ok: true, task: { ...queuedTask, status: "reassigning" } }, /开发验证：派单邀约·\d{6} 已进入超时状态/],
   ])("runs the %s simulation control", async (button, mutation, response, notice) => {
     mocks.getTaskPool.mockResolvedValue({ ok: true, cityCode: "hangzhou", tasks: [{ ...queuedTask, status: "offering" }] });
     mutation.mockResolvedValueOnce(response);

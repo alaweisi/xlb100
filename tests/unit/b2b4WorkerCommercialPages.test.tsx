@@ -31,6 +31,15 @@ describe("师傅端 B2～B4 商业化页面", () => {
     expect(onStart).toHaveBeenCalledWith("repair-assigned");
   });
 
+  it("兼容旧返工记录缺少投诉编号", () => {
+    render(<RepairOrdersPage
+      repairOrders={[{ repairOrderId: "repair-legacy", complaintId: undefined, orderId: "order-legacy", workerId: "worker-legacy", reason: "历史记录", serviceNote: null, status: "assigned", startedAt: null, completedAt: null, createdAt: "2026-07-18T00:00:00.000Z", updatedAt: "2026-07-18T00:00:00.000Z" } as never]}
+      loading={false} error={null} busyId={null} notes={{}} onRefresh={vi.fn()} onNoteChange={vi.fn()}
+      onStart={vi.fn()} onComplete={vi.fn()}
+    />);
+    expect(screen.getByText("投诉·暂无")).toBeTruthy();
+  });
+
   it("钱包诚实展示部分加载和提现边界，不声称已打款", () => {
     render(<WalletPage balance={{ availableAmount: 80, accruedAmount: 120, adjustedAmount: 0, requestedWithdrawalAmount: 40, markedPaidAmount: 0 } as never}
       bankAccounts={[]} withdrawals={[]} busy={false} error="钱包数据仅部分加载：提现记录暂不可用。" notice={null}
@@ -52,6 +61,10 @@ describe("师傅端 B2～B4 商业化页面", () => {
       error={null} notice="申请已提交" receipt={{ certificationId: "cert-1", workerId: "worker-1", cityCode: "hangzhou", certType: "basic", certName: "基础资格", status: "pending", submittedAt: "2026-07-18T00:00:00.000Z", createdAt: "2026-07-18T00:00:00.000Z", updatedAt: "2026-07-18T00:00:00.000Z" }}
       onCertTypeChange={vi.fn()} onCertNameChange={vi.fn()} onSubmit={vi.fn()} />);
     expect(screen.getAllByText("待审核").length).toBeGreaterThan(0);
+    expect(screen.getByText(/认证申请·\d{6}/)).toBeTruthy();
+    expect(screen.getByText(/师傅编号·\d{6}/)).toBeTruthy();
+    expect(screen.queryByText("cert-1")).toBeNull();
+    expect(screen.queryByText("worker-1")).toBeNull();
     expect(screen.getByText(/不会伪造“已通过”/)).toBeTruthy();
   });
 

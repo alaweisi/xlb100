@@ -4,7 +4,7 @@ import type {
   WorkerWithdrawalResponse,
 } from "@xlb/api-client";
 import { Button, Card, EmptyState, FormField, Input, Select, StatusTag } from "@xlb/ui";
-import { formatAmount, formatDateTime, helperText, mutedBoxStyle, statusTone, uiChoice, uiStateIs, workerPanelStyle } from "./pageShared";
+import { formatAmount, formatBusinessCode, formatDateTime, helperText, mutedBoxStyle, statusTone, uiChoice, uiStateIs, workerPanelStyle } from "./pageShared";
 
 const withdrawalLabels: Record<WorkerWithdrawalResponse["status"], string> = {
   requested: "待审核", approved: "已审核", rejected: "已拒绝", marked_paid: "已标记打款", cancelled: "已取消",
@@ -64,7 +64,7 @@ export function WalletPage({
     </Card>
 
     <Card title="提现记录" actions={<StatusTag tone="muted">{withdrawals.length} 条</StatusTag>} style={workerPanelStyle}>
-      {withdrawals.length === 0 ? <EmptyState title="暂无提现记录" description="成功提交的申请会显示在这里。" /> : <div className="worker-stack-list">{withdrawals.map((row) => <article className="worker-record-card" key={row.withdrawalId}><div className="worker-task-card__topline"><div><span>申请编号</span><strong>{row.withdrawalId}</strong></div><StatusTag tone={statusTone(row.status)}>{withdrawalLabels[row.status]}</StatusTag></div><dl className="worker-fact-grid"><div><dt>申请金额</dt><dd>{formatAmount(row.amount)}</dd></div><div><dt>申请时间</dt><dd>{formatDateTime(row.requestedAt)}</dd></div></dl>{row.reviewNote && <p style={helperText}>审核说明：{row.reviewNote}</p>}{row.markedPaidNote && <p style={helperText}>打款标记说明：{row.markedPaidNote}</p>}</article>)}</div>}
+      {withdrawals.length === 0 ? <EmptyState title="暂无提现记录" description="成功提交的申请会显示在这里。" /> : <div className="worker-stack-list">{withdrawals.map((row) => <article className="worker-record-card" key={row.withdrawalId}><div className="worker-task-card__topline"><div><span>申请编号</span><strong>{formatBusinessCode(row.withdrawalId, "提现单")}</strong></div><StatusTag tone={statusTone(row.status)}>{withdrawalLabels[row.status]}</StatusTag></div><dl className="worker-fact-grid"><div><dt>申请金额</dt><dd>{formatAmount(row.amount)}</dd></div><div><dt>申请时间</dt><dd>{formatDateTime(row.requestedAt)}</dd></div></dl>{row.reviewNote && <p style={helperText}>审核说明：{row.reviewNote}</p>}{row.markedPaidNote && <p style={helperText}>打款标记说明：{row.markedPaidNote}</p>}</article>)}</div>}
     </Card>
   </>;
 }

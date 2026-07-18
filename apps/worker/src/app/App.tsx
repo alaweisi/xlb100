@@ -36,7 +36,7 @@ import {
   type WorkerSession,
 } from "./workerAuth";
 
-import { helperText, workerPanelStyle } from "../pages/pageShared";
+import { formatBusinessCode, formatServiceName, helperText, workerPanelStyle } from "../pages/pageShared";
 import { useWorkerAuthStore } from "../features/auth/store";
 import type { WorkerSupportApi } from "../pages/WorkerSupportPage";
 import type { WorkerEligibilityView, WorkerWorkMode } from "../pages/TaskPages";
@@ -84,7 +84,7 @@ function readLocalWorkMode(): WorkerWorkMode {
 function translateEligibilityReason(reason: string): string {
   if (/qualification record indicates not eligible/i.test(reason)) return "当前服务资格记录标记为不满足要求。";
   const missing = reason.match(/Missing approved certification:\s*(.+)/i);
-  if (missing) return `缺少已审核通过的资格：${missing[1]}`;
+  if (missing) return `缺少已审核通过的资格：${formatServiceName(missing[1])}`;
   return /[A-Za-z]{4,}/.test(reason) ? "平台判定当前服务资格不满足要求，请进入资格页查看详情。" : reason;
 }
 
@@ -266,7 +266,7 @@ function SessionCard({
   return (
     <Card title="当前师傅身份" actions={<StatusTag tone="success">已登录</StatusTag>} className="worker-session-card" style={workerPanelStyle}>
       <div className="worker-session-content">
-        <p style={helperText}>当前账号：{session.userId}。已验证服务身份，可查看本城市任务。</p>
+        <p style={helperText}>当前账号：{formatBusinessCode(session.userId, "师傅编号")}。已验证服务身份，可查看本城市任务。</p>
         <FormField label="工作城市">
           <Select value={cityCode} onChange={(event) => onCityChange(event.target.value || DEFAULT_CITY_CODE)}>
             <option value="hangzhou">杭州</option><option value="shanghai">上海</option><option value="beijing">北京</option>
@@ -522,8 +522,8 @@ export function App() {
       try {
         const response = await api.acceptTask(dispatchTaskId);
         setAcceptNotice(response.idempotent
-          ? `重复接单请求已安全处理：任务 ${response.acceptance.dispatchTaskId} 已由你承接，无需再次操作。`
-          : `接单成功：任务 ${response.acceptance.dispatchTaskId} 已承接，履约单 ${response.fulfillment.fulfillmentId} 已创建。`);
+          ? `重复接单请求已安全处理：${formatBusinessCode(response.acceptance.dispatchTaskId, "派单")} 已由你承接，无需再次操作。`
+          : `接单成功：${formatBusinessCode(response.acceptance.dispatchTaskId, "派单")} 已承接，${formatBusinessCode(response.fulfillment.fulfillmentId, "履约单")} 已创建。`);
         await Promise.all([loadTaskPool(), loadFulfillments()]);
       } catch (error) {
         handleApiError(error, "接单未完成，请刷新确认后重试。", setAcceptError, true);
@@ -542,7 +542,7 @@ export function App() {
       setAcceptNotice(null);
       try {
         await api.rejectTask(dispatchTaskId);
-        setAcceptNotice(`已放弃派单邀约 ${dispatchTaskId}，平台将继续安排其他师傅。`);
+        setAcceptNotice(`已放弃${formatBusinessCode(dispatchTaskId, "派单邀约")}，平台将继续安排其他师傅。`);
         await loadTaskPool();
       } catch (error) {
         handleApiError(error, "放弃派单邀约未完成，请刷新确认后重试。", setAcceptError, true);
@@ -561,7 +561,7 @@ export function App() {
       setAcceptNotice(null);
       try {
         await api.simulateTaskTimeout(dispatchTaskId);
-        setAcceptNotice(`开发验证：派单邀约 ${dispatchTaskId} 已进入超时状态。`);
+        setAcceptNotice(`开发验证：${formatBusinessCode(dispatchTaskId, "派单邀约")} 已进入超时状态。`);
         await loadTaskPool();
       } catch (error) {
         handleApiError(error, "模拟超时未完成，请刷新确认。", setAcceptError, true);
@@ -588,8 +588,8 @@ export function App() {
       try {
         const response = await api.startFulfillment(fulfillmentId);
         setLifecycleNotice(response.idempotent
-          ? `重复请求已安全处理：履约单 ${response.fulfillment.fulfillmentId} 已处于服务中。`
-          : `已开始服务：履约单 ${response.fulfillment.fulfillmentId} 状态已同步。`);
+          ? `重复请求已安全处理：${formatBusinessCode(response.fulfillment.fulfillmentId, "履约单")} 已处于服务中。`
+          : `已开始服务：${formatBusinessCode(response.fulfillment.fulfillmentId, "履约单")} 状态已同步。`);
         await refreshFulfillmentState(fulfillmentId);
       } catch (error) {
         handleApiError(error, "开始服务未完成，请刷新确认后重试。", setLifecycleError, true);
@@ -609,8 +609,8 @@ export function App() {
       try {
         const response = await api.completeFulfillment(fulfillmentId, { completionNote });
         setLifecycleNotice(response.idempotent
-          ? `重复请求已安全处理：履约单 ${response.fulfillment.fulfillmentId} 已登记完工。`
-          : `完工已登记：履约单 ${response.fulfillment.fulfillmentId} 正在等待顾客确认。`);
+          ? `重复请求已安全处理：${formatBusinessCode(response.fulfillment.fulfillmentId, "履约单")} 已登记完工。`
+          : `完工已登记：${formatBusinessCode(response.fulfillment.fulfillmentId, "履约单")} 正在等待顾客确认。`);
         await refreshFulfillmentState(fulfillmentId);
       } catch (error) {
         handleApiError(error, "登记完工未完成，请刷新确认后重试。", setLifecycleError, true);
@@ -629,7 +629,7 @@ export function App() {
       setEvidenceNotice(null);
       try {
         const response = await api.uploadFulfillmentEvidence(fulfillmentId, file, metadata);
-        setEvidenceNotice(`证据 ${response.evidence.evidenceId} 已保存到私有存储。`);
+        setEvidenceNotice(`${formatBusinessCode(response.evidence.evidenceId, "证据")} 已保存到私有存储。`);
         await loadTaskEvidence(fulfillmentId);
       } catch (error) {
         handleApiError(error, "证据上传未完成，请刷新证据后再决定是否重试。", setEvidenceError, true);
@@ -648,7 +648,7 @@ export function App() {
       try {
         if (action === "start") await api.startAftersaleRepairOrder(repairOrderId);
         else await api.completeAftersaleRepairOrder(repairOrderId, note);
-        setRepairsNotice(action === "start" ? `返工单 ${repairOrderId} 已进入处理中。` : `返工单 ${repairOrderId} 已登记完成。`);
+        setRepairsNotice(action === "start" ? `${formatBusinessCode(repairOrderId, "返工单")} 已进入处理中。` : `${formatBusinessCode(repairOrderId, "返工单")} 已登记完成。`);
         await loadRepairOrders();
       } catch (error) {
         handleApiError(error, "返工操作未完成，请刷新确认后再重试。", setRepairsError, true);
@@ -670,7 +670,7 @@ export function App() {
         certName: certName.trim(),
       });
       setCertReceipt(response.certification);
-      setCertNotice(`认证申请 ${response.certification.certificationId} 已提交，平台返回状态：${certificationStatusLabel(response.certification.status)}。`);
+      setCertNotice(`${formatBusinessCode(response.certification.certificationId, "认证申请")} 已提交，平台返回状态：${certificationStatusLabel(response.certification.status)}。`);
     } catch (error) {
       handleApiError(error, "认证申请未完成，请刷新确认后再重试。", setCertError, true);
     } finally {
@@ -697,7 +697,7 @@ export function App() {
     try {
       const response = await api.createWithdrawalRequest({ bankAccountId: selectedBankAccountId, amount: Number(withdrawalAmount), requestNote: "师傅工作台提交" });
       setWithdrawalAmount("");
-      setWalletNotice(`提现申请 ${response.withdrawal.withdrawalId} 已提交，需等待平台审核；提交不代表已打款。`);
+      setWalletNotice(`${formatBusinessCode(response.withdrawal.withdrawalId, "提现申请")} 已提交，需等待平台审核；提交不代表已打款。`);
       await loadWallet();
     } catch (error) { handleApiError(error, "提现申请未完成，请刷新记录确认后再决定是否重试。", setWalletError, true); }
     finally { setWalletBusy(false); }
