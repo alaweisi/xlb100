@@ -8,6 +8,7 @@ import type {
   SelectHTMLAttributes,
   TextareaHTMLAttributes,
 } from "react";
+import { isValidElement, useId } from "react";
 
 import { tokens } from "../tokens/index.js";
 
@@ -658,6 +659,11 @@ export const SegmentedControl = Tabs;
 export interface TableColumn<Row> {
   key: string;
   title: ReactNode;
+  /**
+   * Plain-text label used when a responsive table presents each row as a card.
+   * Supply this when `title` is an icon or another React node without text.
+   */
+  mobileLabel?: string;
   render: (row: Row) => ReactNode;
   width?: number | string;
 }
@@ -669,19 +675,36 @@ export interface TableProps<Row> {
   emptyText?: ReactNode;
 }
 
+function tableColumnText(node: ReactNode): string {
+  if (typeof node === "string" || typeof node === "number") return String(node).trim();
+  if (Array.isArray(node)) return node.map(tableColumnText).filter(Boolean).join(" ").trim();
+  if (isValidElement<{ children?: ReactNode; "aria-label"?: string }>(node)) {
+    const ariaLabel = node.props["aria-label"];
+    if (ariaLabel?.trim()) return ariaLabel.trim();
+    return tableColumnText(node.props.children);
+  }
+  return "";
+}
+
 export function Table<Row>({ columns, rows, getRowKey, emptyText = "暂无记录" }: TableProps<Row>) {
+  const generatedTableId = useId().replace(/:/g, "");
+
   if (rows.length === 0) {
     return <EmptyState title={emptyText} />;
   }
 
+  const columnLabels = columns.map((column) => column.mobileLabel?.trim() || tableColumnText(column.title) || column.key);
+
   return (
-    <div style={{ overflowX: "auto", width: "100%" }}>
-      <table style={{ borderCollapse: "collapse", fontFamily, fontSize: 14, minWidth: "100%", tableLayout: "fixed" }}>
+    <div className="xlb-responsive-table-wrap" style={{ overflowX: "auto", width: "100%" }}>
+      <table className="xlb-responsive-table" style={{ borderCollapse: "collapse", fontFamily, fontSize: 14, minWidth: "100%", tableLayout: "fixed" }}>
         <thead>
           <tr>
-            {columns.map((column) => (
+            {columns.map((column, columnIndex) => (
               <th
+                id={`${generatedTableId}-${column.key}`}
                 key={column.key}
+                scope="col"
                 style={{
                   borderBottom: "1px solid #e5e7eb",
                   color: "#4b5563",
@@ -691,7 +714,7 @@ export function Table<Row>({ columns, rows, getRowKey, emptyText = "暂无记录
                   width: column.width,
                 }}
               >
-                {column.title}
+                {column.title || columnLabels[columnIndex]}
               </th>
             ))}
           </tr>
@@ -699,8 +722,14 @@ export function Table<Row>({ columns, rows, getRowKey, emptyText = "暂无记录
         <tbody>
           {rows.map((row, index) => (
             <tr key={getRowKey(row, index)}>
-              {columns.map((column) => (
-                <td key={column.key} style={{ borderBottom: "1px solid #f3f4f6", padding: "10px 12px", verticalAlign: "top" }}>
+              {columns.map((column, columnIndex) => (
+                <td
+                  data-column-key={column.key}
+                  data-label={columnLabels[columnIndex]}
+                  headers={`${generatedTableId}-${column.key}`}
+                  key={column.key}
+                  style={{ borderBottom: "1px solid #f3f4f6", padding: "10px 12px", verticalAlign: "top" }}
+                >
                   {column.render(row)}
                 </td>
               ))}
