@@ -152,6 +152,7 @@
     "ui:control:audit": "node scripts/ui-production/control.mjs audit",
     "ui:control:baseline": "node scripts/ui-production/control.mjs baseline",
     "ui:control:console": "node scripts/ui-production/control.mjs console",
+    "ui:control:record-full": "node scripts/ui-production/record-ui-full.mjs",
     "ui:control:capture": "node scripts/ui-production/capture-console.mjs",
     "ui:gate:ratchet": "node scripts/ui-production/control.mjs ratchet",
     "ui:gate:release": "node scripts/ui-production/control.mjs release",
