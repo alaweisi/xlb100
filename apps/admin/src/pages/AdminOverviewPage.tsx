@@ -10,6 +10,7 @@ import {
 import { ApiErrorPanel, Button, LoadingState, MetricCard, StatusTag } from "@xlb/ui";
 import { adminSettlementApi as api } from "../adminAuth";
 import { presentFailure, type OperationsFailure } from "../operationsPresentation";
+import "./mobile-ops.css";
 
 interface OverviewSnapshot {
   totalStatements: number;
@@ -80,7 +81,7 @@ export function AdminOverviewPage({
   );
 
   return (
-    <div className="admin-overview">
+    <div className="admin-overview mobile-ops">
       <section className="admin-overview-hero">
         <div>
           <span className="admin-overview-eyebrow">{cityName(cityCode)}城市工作台</span>

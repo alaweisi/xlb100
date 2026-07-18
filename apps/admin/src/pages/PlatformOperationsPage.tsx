@@ -13,6 +13,7 @@ import {
   type OperationsFailure,
 } from "../operationsPresentation";
 import "./operations-workbench.css";
+import "./mobile-ops.css";
 
 type SectionKey = "orders" | "catalog" | "certifications";
 
@@ -102,7 +103,8 @@ export function PlatformOperationsPage({ initialCityCode }: { initialCityCode?: 
   const isRefreshing = busy === "load";
 
   return (
-    <div className="operations-workbench">
+    <div className="operations-workbench mobile-ops">
+      <header className="mobile-ops__topbar"><div><span className="mobile-ops__eyebrow">平台运营</span><h1>今日处理队列</h1><p>订单核对、目录开关和师傅认证按任务卡逐项处理。</p></div><StatusTag tone={online ? "success" : "danger"}>{online ? "在线" : "离线"}</StatusTag></header>
       <Card title="平台运营联动工作台" actions={<><ScopeBadge scope={`城市：${cityLabel(cityCode)}`} /><StatusTag tone={online ? "success" : "danger"}>{online ? "服务已连接" : "当前离线"}</StatusTag></>}>
         <div className="operations-toolbar">
           <div className="operations-toolbar__copy"><p>订单、正式服务目录与师傅认证均读取现有城市级接口；目录开关与认证审核会写入真实业务记录。</p></div>

@@ -4,6 +4,7 @@ import { BUSINESS_WEBHOOK_EVENT_TYPES } from "@xlb/types";
 import { ApiErrorPanel, Button, Card, EmptyState, FormField, Input, ScopeBadge, Select, StatusTag, Table } from "@xlb/ui";
 import { adminOpsApi as api } from "../adminAuth";
 import { businessLabel, cityLabel, formatCurrency, formatDateTime, presentFailure, statusLabel, statusTone, useOnlineStatus } from "../operationsPresentation";
+import "./mobile-ops.css";
 
 const eventLabels: Record<BusinessWebhookEventType, string> = {
   "order.created": "订单已创建", "order.paid": "订单已支付", "fulfillment.started": "服务已开始", "fulfillment.completed": "服务已完成",
@@ -82,7 +83,9 @@ export function EnterpriseOpsPage({ initialCityCode }: { initialCityCode?: strin
 
   const selectedClient = clients.find(item => item.businessClientId === selected);
   const callbackValid = /^https:\/\//i.test(callbackUrl.trim());
-  return <div style={{ display: "grid", gap: 16 }}>
+  return <div className="mobile-ops">
+    <header className="mobile-ops__topbar"><div><span className="mobile-ops__eyebrow">企业运营</span><h1>企业客户任务台</h1><p>先选择企业，再进入凭据、协议、推送和账单详情。</p></div><StatusTag tone={online ? "success" : "danger"}>{online ? "在线" : "离线"}</StatusTag></header>
+    <p className="mobile-ops__oa-note"><strong>办公自动化系统承接边界：</strong>企业批量导入、复杂协议编排与密钥轮换计划后续由办公自动化系统承担；当前手机端保留客户创建、即时启停、凭据签发、推送重试与账单签发。</p>
     <Card title="企业客户运营" actions={<><ScopeBadge scope={`城市：${cityLabel(cityCode)}`} /><StatusTag tone={online ? "success" : "danger"}>{online ? "在线" : "离线"}</StatusTag><StatusTag tone="warning">不执行收付款</StatusTag></>}>
       <div style={{ display: "flex", gap: 8, alignItems: "end", flexWrap: "wrap" }}><FormField label="城市"><Select value={cityCode} onChange={event => setCityCode(event.target.value)}><option value="hangzhou">杭州</option><option value="shanghai">上海</option><option value="beijing">北京</option></Select></FormField><Button onClick={() => void loadClients()} disabled={!online || busy !== null}>刷新</Button><StatusTag tone="primary">凭据按企业与城市隔离</StatusTag></div>
     </Card>

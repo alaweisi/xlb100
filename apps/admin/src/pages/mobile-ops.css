@@ -1,0 +1,351 @@
+.mobile-ops {
+  --mobile-ops-ink: #211a24;
+  --mobile-ops-muted: #746c77;
+  --mobile-ops-line: #e8e0e8;
+  --mobile-ops-surface: #fff;
+  --mobile-ops-soft: #f8f4fa;
+  --mobile-ops-primary: #7540a8;
+  color: var(--mobile-ops-ink);
+  display: grid;
+  gap: 14px;
+  margin: 0 auto;
+  max-width: 920px;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.mobile-ops__topbar {
+  align-items: flex-start;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 2px 2px 0;
+}
+
+.mobile-ops--embedded { max-width: none; }
+
+.mobile-ops__topbar > div:first-child {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.mobile-ops__eyebrow {
+  color: #8a5a38;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .08em;
+}
+
+.mobile-ops__topbar h1 {
+  font-family: var(--xlb-font-family-serif);
+  font-size: 25px;
+  line-height: 32px;
+  margin: 0;
+}
+
+.mobile-ops__topbar p,
+.mobile-ops__oa-note {
+  color: var(--mobile-ops-muted);
+  font-size: 12px;
+  line-height: 19px;
+  margin: 0;
+}
+
+.mobile-ops__segments {
+  background: #f0ebf2;
+  border-radius: 14px;
+  display: grid;
+  gap: 4px;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  overflow-x: auto;
+  padding: 4px;
+  scrollbar-width: none;
+}
+
+.mobile-ops__segments > button,
+.mobile-ops .marketing-operations__tabs > button,
+.mobile-ops .review-moderation-actions > button {
+  background: transparent;
+  border: 0;
+  border-radius: 10px;
+  color: #675e6a;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  min-height: 44px;
+  padding: 8px 12px;
+  white-space: nowrap;
+}
+
+.mobile-ops__segments > button[aria-pressed="true"],
+.mobile-ops__segments > button[aria-selected="true"],
+.mobile-ops .marketing-operations__tabs > button[aria-selected="true"] {
+  background: var(--mobile-ops-surface);
+  box-shadow: 0 3px 10px rgba(43, 27, 48, .09);
+  color: var(--mobile-ops-primary);
+}
+
+.mobile-ops__oa-note {
+  background: #f7f2fa;
+  border: 1px solid #e4d8eb;
+  border-radius: 14px;
+  color: #654d73;
+  padding: 11px 13px;
+}
+
+.mobile-ops__oa-note strong { color: #523460; }
+
+.mobile-ops__confirm-bar {
+  align-items: center;
+  background: rgba(255, 255, 255, .96);
+  border-top: 1px solid var(--mobile-ops-line);
+  bottom: 0;
+  display: flex;
+  gap: 8px;
+  margin: 4px -12px -12px;
+  padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+  position: sticky;
+  z-index: 4;
+}
+
+.mobile-ops__confirm-bar > button { flex: 1; }
+
+.mobile-ops section {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.mobile-ops section > div:first-child {
+  min-width: 0;
+}
+
+.mobile-ops button,
+.mobile-ops input,
+.mobile-ops select,
+.mobile-ops textarea {
+  max-width: 100%;
+}
+
+.mobile-ops button,
+.mobile-ops input:not([type="checkbox"]):not([type="radio"]),
+.mobile-ops select {
+  min-height: 44px !important;
+}
+
+.mobile-ops textarea { min-height: 96px; }
+.mobile-ops code,
+.mobile-ops small,
+.mobile-ops td,
+.mobile-ops p { overflow-wrap: anywhere; }
+
+.mobile-ops .operations-kpi-grid,
+.mobile-ops .admin-overview-metrics {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.mobile-ops .operations-kpi,
+.mobile-ops .admin-overview-metrics > div {
+  min-height: 88px;
+}
+
+.mobile-ops .operations-kpi strong { font-size: 20px; }
+
+@media (max-width: 720px) {
+  .admin-app-root:has(.mobile-ops) > div {
+    grid-template-columns: minmax(0, 1fr) !important;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .admin-app-root:has(.mobile-ops) > div > aside {
+    bottom: 0;
+    display: block !important;
+    left: 0;
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom)) !important;
+    position: fixed;
+    right: 0;
+    z-index: 20;
+  }
+
+  .admin-app-root:has(.mobile-ops) > div > aside > strong { display: none; }
+  .admin-app-root:has(.mobile-ops) > div > aside > nav {
+    display: flex !important;
+    gap: 4px !important;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .admin-app-root:has(.mobile-ops) > div > aside > nav > a {
+    align-items: center;
+    display: flex;
+    flex: 0 0 78px;
+    font-size: 11px !important;
+    justify-content: center;
+    min-height: 44px;
+    padding: 6px !important;
+    text-align: center;
+  }
+
+  .admin-app-root:has(.mobile-ops) > div > div > header {
+    align-items: stretch !important;
+    display: grid !important;
+    gap: 8px !important;
+    min-height: 0 !important;
+    padding: 10px 14px !important;
+  }
+
+  .admin-app-root:has(.mobile-ops) > div > div > header > div:last-child {
+    display: flex !important;
+    flex-wrap: wrap;
+    gap: 6px !important;
+    width: 100%;
+  }
+
+  .admin-app-root:has(.mobile-ops) > div > div > main {
+    min-width: 0;
+    padding: 12px !important;
+  }
+
+  .mobile-ops {
+    gap: 12px;
+    max-width: 390px;
+    padding: 0 2px 84px;
+  }
+
+  .admin-app-root main.mobile-ops {
+    padding: 0 2px 84px !important;
+  }
+
+  .mobile-ops--embedded { padding-bottom: 0; }
+
+  .mobile-ops > section,
+  .mobile-ops > div > section,
+  .mobile-ops .marketing-operations__panel {
+    border-radius: 18px !important;
+    box-shadow: 0 8px 24px rgba(40, 27, 44, .055) !important;
+    padding: 14px !important;
+  }
+
+  .mobile-ops .admin-overview-hero {
+    align-items: flex-start;
+    display: grid;
+    gap: 10px;
+    padding: 2px;
+  }
+
+  .mobile-ops .admin-overview-identity { justify-items: start; }
+  .mobile-ops .admin-overview-hero h1 { font-size: 28px; line-height: 36px; }
+  .mobile-ops .admin-overview-section { padding: 14px; }
+  .mobile-ops .admin-overview-section h2 { font-size: 17px; line-height: 25px; }
+  .mobile-ops .admin-workbench-grid { grid-template-columns: 1fr; }
+  .mobile-ops .admin-workbench-grid button { min-height: 78px; padding: 13px; }
+
+  .mobile-ops .operations-form-grid,
+  .mobile-ops .dispatch-layout,
+  .mobile-ops .marketing-operations__actions {
+    grid-template-columns: 1fr !important;
+  }
+
+  .mobile-ops [style*="grid-template-columns"],
+  .mobile-ops [style*="display: flex"],
+  .mobile-ops [style*="display:flex"] {
+    min-width: 0 !important;
+  }
+
+  .mobile-ops [style*="min-width"] { min-width: 0 !important; }
+  .mobile-ops .operations-form-grid { grid-template-columns: 1fr; }
+  .mobile-ops .operations-inline-actions,
+  .mobile-ops .operations-toolbar,
+  .mobile-ops .operations-toolbar__actions,
+  .mobile-ops .marketing-operations__actions {
+    align-items: stretch;
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+
+  .mobile-ops .operations-inline-actions > button,
+  .mobile-ops .operations-toolbar__actions > button,
+  .mobile-ops .marketing-operations__actions > button { width: 100%; }
+
+  .mobile-ops section > div[style*="justify-content: space-between"] {
+    align-items: flex-start !important;
+    flex-direction: column;
+  }
+
+  .mobile-ops section > div[style*="justify-content: space-between"] > div:last-child {
+    flex-wrap: wrap;
+  }
+
+  .mobile-ops table,
+  .mobile-ops tbody,
+  .mobile-ops tr,
+  .mobile-ops td { display: block; width: 100%; }
+
+  .mobile-ops thead {
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    height: 1px;
+    overflow: hidden;
+    position: absolute;
+    white-space: nowrap;
+    width: 1px;
+  }
+
+  .mobile-ops table { table-layout: auto !important; }
+  .mobile-ops tbody { display: grid; gap: 10px; }
+  .mobile-ops tbody tr {
+    background: #fbf9fc;
+    border: 1px solid var(--mobile-ops-line);
+    border-radius: 14px;
+    box-sizing: border-box;
+    overflow: hidden;
+    padding: 6px 10px;
+  }
+
+  .mobile-ops tbody td {
+    border-bottom: 1px dashed #ebe4ec !important;
+    box-sizing: border-box;
+    min-width: 0;
+    padding: 8px 2px !important;
+  }
+
+  .mobile-ops tbody td:first-child { font-weight: 800; }
+  .mobile-ops tbody td:last-child { border-bottom: 0 !important; }
+  .mobile-ops tbody td button { width: 100%; }
+
+  .mobile-ops .marketing-operations__toolbar,
+  .mobile-ops .marketing-operations__header {
+    align-items: stretch;
+    display: grid;
+    gap: 10px;
+  }
+
+  .mobile-ops .marketing-operations__tabs {
+    display: grid;
+    grid-auto-columns: minmax(96px, 1fr);
+    grid-auto-flow: column;
+    overflow-x: auto;
+    padding: 4px;
+  }
+
+  .mobile-ops .marketing-operations__row {
+    border-radius: 14px;
+    display: grid;
+    gap: 8px;
+    padding: 12px;
+  }
+
+  .mobile-ops .review-moderation-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 721px) {
+  .mobile-ops__topbar,
+  .mobile-ops__oa-note { display: none; }
+}

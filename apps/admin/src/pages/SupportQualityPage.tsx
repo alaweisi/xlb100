@@ -4,6 +4,7 @@ import { ApiErrorPanel, Button, Card, EmptyState, FormField, Input, LoadingState
 import { adminOpsApi as api } from "../adminAuth";
 import { cityLabel, presentFailure, useOnlineStatus, type OperationsFailure } from "../operationsPresentation";
 import "./operations-workbench.css";
+import "./mobile-ops.css";
 
 const key = () => `quality-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
@@ -69,7 +70,8 @@ export function SupportQualityPage({ initialCityCode }: { initialCityCode?: stri
   const isPublishingRubric = busy === "rubric";
   const isSubmittingReview = busy === "review";
 
-  return <div className="operations-workbench">
+  return <div className="operations-workbench mobile-ops">
+    <header className="mobile-ops__topbar"><div><span className="mobile-ops__eyebrow">客服质检</span><h1>质量任务台</h1><p>先看移动指标，再发布量表或提交单笔质检。</p></div><StatusTag tone={online ? "success" : "danger"}>{online ? "在线" : "离线"}</StatusTag></header>
     <Card title="客服质量管理" actions={<><ScopeBadge scope={`城市：${cityLabel(initialCityCode)}`} /><StatusTag tone={online ? "success" : "danger"}>{online ? "服务已连接" : "当前离线"}</StatusTag></>}><Button onClick={() => void load()} disabled={loading}>{loading ? "刷新中…" : "刷新质量数据"}</Button></Card>
     {!online && <div className="operations-alert operations-alert--offline" role="status">网络已断开，无法发布量表或提交质检结果。</div>}
     {failure && <ApiErrorPanel title={failure.title} detail={failure.detail} action={<Button onClick={() => void load()}>刷新最新数据</Button>} />}

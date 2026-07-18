@@ -1,8 +1,9 @@
 import { useState } from "react";
 import type { SupportKbMutationResponse } from "@xlb/types";
-import { ApiErrorPanel, Button, Card, FormField, Input, StatusTag, Textarea } from "@xlb/ui";
+import { ApiErrorPanel, Button, Card, FormField, Input, Select, StatusTag, Textarea } from "@xlb/ui";
 import { adminOpsApi as api } from "../adminAuth";
 import { cityLabel, presentFailure, statusLabel, statusTone, useOnlineStatus } from "../operationsPresentation";
+import "./mobile-ops.css";
 
 const key = (prefix: string) => `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
@@ -47,20 +48,21 @@ export function SupportKnowledgeBasePage({ cityCode }: { cityCode: string }) {
   }
 
   const contentReady = slug.trim() && language.trim() && title.trim() && body.trim();
-  return <Card title="客服知识库" actions={<><StatusTag tone="primary">城市：{cityLabel(cityCode)}</StatusTag><StatusTag tone={online ? "success" : "danger"}>{online ? "在线" : "离线"}</StatusTag>{article && <><StatusTag tone={statusTone(article.article.lifecycleStatus)}>{statusLabel(article.article.lifecycleStatus)}</StatusTag><StatusTag tone={statusTone(article.version.reviewStatus)}>{statusLabel(article.version.reviewStatus)}</StatusTag></>}</>}>
+  return <Card className="mobile-ops mobile-ops--embedded" title="客服知识库" actions={<><StatusTag tone="primary">城市：{cityLabel(cityCode)}</StatusTag><StatusTag tone={online ? "success" : "danger"}>{online ? "在线" : "离线"}</StatusTag>{article && <><StatusTag tone={statusTone(article.article.lifecycleStatus)}>{statusLabel(article.article.lifecycleStatus)}</StatusTag><StatusTag tone={statusTone(article.version.reviewStatus)}>{statusLabel(article.version.reviewStatus)}</StatusTag></>}</>}>
     <div style={{ display: "grid", gap: 8 }}>
       <p>正文仅用于已审核的信息说明；新修订不可覆盖旧版本，发布必须使用服务端返回的版本号。</p>
+      <p className="mobile-ops__oa-note"><strong>办公自动化系统承接边界：</strong>文章批量迁移与大篇幅排版后续由办公自动化系统承担；手机端保留单篇创建、送审、批准、驳回和发布。</p>
       {!online && <ApiErrorPanel title="当前网络不可用" detail="知识库写入已停用。恢复网络后再继续操作。" />}
       {error && <ApiErrorPanel title={error.title} detail={error.detail} />}
       {notice && <p role="status">{notice}</p>}
       <FormField label="文章标识"><Input placeholder="输入服务端认可的文章标识" value={slug} onChange={event => setSlug(event.target.value)} /></FormField>
-      <FormField label="语言"><Input value={language} onChange={event => setLanguage(event.target.value)} /></FormField>
+      <FormField label="语言"><Select value={language} onChange={event => setLanguage(event.target.value)}><option value="zh-CN">简体中文</option></Select></FormField>
       <FormField label="标题"><Input value={title} onChange={event => setTitle(event.target.value)} /></FormField>
       <FormField label="信息说明（支持轻量标记语法）"><Textarea value={body} onChange={event => setBody(event.target.value)} /></FormField>
       <FormField label="关键词（逗号分隔）"><Input value={keywords} onChange={event => setKeywords(event.target.value)} /></FormField>
       <FormField label="意图标签（逗号分隔）"><Input value={intents} onChange={event => setIntents(event.target.value)} /></FormField>
       <FormField label="审核说明"><Textarea placeholder="批准或驳回时必填" value={note} onChange={event => setNote(event.target.value)} /></FormField>
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+      <div className="mobile-ops__confirm-bar">
         <Button variant="primary" disabled={!online || busy || !contentReady} onClick={() => void act("create")}>创建文章</Button>
         <Button disabled={!online || busy || !article || !title.trim() || !body.trim()} onClick={() => void act("revision")}>创建不可变新修订</Button>
         <Button disabled={!online || busy || !article || article.version.reviewStatus !== "draft"} onClick={() => void act("submit")}>提交审核</Button>

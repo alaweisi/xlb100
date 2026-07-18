@@ -32,6 +32,7 @@ import {
 } from "../adapters/marketingAdapter";
 import { businessLabel, cityLabel, formatDateTime, statusLabel, useOnlineStatus } from "../operationsPresentation";
 import "./marketing-operations.css";
+import "./mobile-ops.css";
 
 type Tab = "campaigns" | "rules" | "definitions" | "grants";
 type AdminMarketingRole = "admin" | "operator" | "auditor";
@@ -242,7 +243,7 @@ export function MarketingOperationsPage({ api, initialCityCode, role = "auditor"
   }
 
   return (
-    <main className="marketing-operations" aria-labelledby="marketing-operations-title">
+    <main className="marketing-operations mobile-ops" aria-labelledby="marketing-operations-title">
       <header>
         <h1 id="marketing-operations-title">营销活动与优惠券</h1>
         <p className="marketing-operations__muted">城市：{cityLabel(initialCityCode)} · 角色：{businessLabel(role)} · 金额单位：人民币分 · {online ? "在线" : "离线"}</p>

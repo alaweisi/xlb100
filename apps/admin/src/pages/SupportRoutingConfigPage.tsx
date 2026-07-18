@@ -6,6 +6,7 @@ import type {
 import { ApiErrorPanel, Button, Card, EmptyState, FormField, Input, LoadingState, Select, StatusTag, Table } from "@xlb/ui";
 import { adminOpsApi as api } from "../adminAuth";
 import { businessLabel, cityLabel, formatDateTime, presentFailure, useOnlineStatus } from "../operationsPresentation";
+import "./mobile-ops.css";
 
 const ticketTypes: SupportTicketType[] = ["order_question", "order_dispute", "service_complaint", "withdrawal_issue", "account_issue", "safety", "other"];
 const priorities: SupportTicketPriority[] = ["low", "normal", "high", "urgent", "critical"];
@@ -104,7 +105,8 @@ export function SupportRoutingConfigPage({ cityCode }: { cityCode: string }) {
     } catch (cause) { setError(presentFailure(cause, "调整服务时限").detail); setBusy(false); }
   }
 
-  return <div style={{ display: "grid", gap: 16 }}>
+  return <div className="mobile-ops mobile-ops--embedded">
+    <p className="mobile-ops__oa-note"><strong>办公自动化系统承接边界：</strong>多城市批量路由编排后续由办公自动化系统承担；手机端保留单个技能组、时限策略的创建、启停和即时修订。</p>
     <Card title="客服路由配置" actions={<><StatusTag tone="muted">城市：{cityLabel(cityCode)}</StatusTag><StatusTag tone={online ? "success" : "danger"}>{online ? "在线" : "离线"}</StatusTag></>}>
       <p style={{ marginTop: 0 }}>配置按城市隔离。仅在工单类型与语言均无匹配时，才使用不限定语言的默认技能组。</p>
       {!online && <ApiErrorPanel title="当前网络不可用" detail="配置写入已停用。恢复网络并刷新后再继续操作。" />}

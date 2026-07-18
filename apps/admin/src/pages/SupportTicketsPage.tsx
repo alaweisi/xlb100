@@ -7,6 +7,7 @@ import { SupportRoutingConfigPage } from "./SupportRoutingConfigPage";
 import { SupportKnowledgeBasePage } from "./SupportKnowledgeBasePage";
 import { businessLabel, cityLabel, formatDateTime, presentFailure, statusLabel, statusTone, useOnlineStatus } from "../operationsPresentation";
 import "./operations-workbench.css";
+import "./mobile-ops.css";
 
 const requestKey = (prefix: string) => `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 const tone = (status: SupportTicketStatus) => status === "resolved" || status === "closed" ? "success" : status === "escalated" ? "danger" : status === "processing" ? "primary" : "warning";
@@ -71,7 +72,9 @@ export function SupportTicketsPage({ initialCityCode }: { initialCityCode?: stri
   async function runBot(){if(!conversationDetail)return;const trigger=[...conversationDetail.messages].reverse().find(m=>m.senderType==="customer"||m.senderType==="worker");if(!trigger)return;try{const result=await api.runSupportBot(conversationDetail.conversation.conversationId,trigger.messageId);setBotRun(result.run);await refreshConversation(conversationDetail.conversation.conversationId);}catch(error){dispatch({type:"failed",message:supportFailure(error,"本地客服规则")});}}
   const isListingTickets = ui.busy === "list";
 
-  return <div className="operations-workbench">
+  return <div className="operations-workbench mobile-ops">
+    <header className="mobile-ops__topbar"><div><span className="mobile-ops__eyebrow">客服运营</span><h1>工单与会话</h1><p>按服务时限排序，打开任务后在详情底部完成处理。</p></div><StatusTag tone={online ? "success" : "danger"}>{online ? "在线" : "离线"}</StatusTag></header>
+    <p className="mobile-ops__oa-note"><strong>办公自动化系统承接边界：</strong>路由策略与知识库的批量维护后续由办公自动化系统承担；当前手机端保留即时领取、回复、转接、升级、解决和关闭工单。</p>
     <Card title="客服路由与服务时限"><Button onClick={() => setShowConfiguration(value => !value)}>{showConfiguration ? "收起路由配置" : "打开路由配置"}</Button></Card>
     <Card title="本地客服规则与知识库"><Button onClick={()=>setShowKnowledgeBase(v=>!v)}>{showKnowledgeBase?"收起知识库":"打开知识库"}</Button></Card>
     {showKnowledgeBase&&<SupportKnowledgeBasePage cityCode={cityCode}/>}

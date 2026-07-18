@@ -4,6 +4,7 @@ import { ApiErrorPanel, Button, Card, EmptyState, Input, LoadingState, ScopeBadg
 import { adminOpsApi, readStoredAdminSession } from "../adminAuth";
 import { businessLabel, cityLabel, presentFailure, statusLabel, statusTone, useOnlineStatus } from "../operationsPresentation";
 import "./review-moderation.css";
+import "./mobile-ops.css";
 
 const visibilityOptions: ReviewVisibility[] = ["pending_moderation", "visible", "hidden"];
 
@@ -123,7 +124,8 @@ export function ReviewModerationPage({ initialCityCode }: { initialCityCode?: st
 
   const isLoadingQueues = busy === "load";
 
-  return <div className="review-moderation-page">
+  return <div className="review-moderation-page mobile-ops">
+    <header className="mobile-ops__topbar"><div><span className="mobile-ops__eyebrow">内容治理</span><h1>评价与申诉</h1><p>从待办卡打开正文，填写原因后在卡片底部确认。</p></div><StatusTag tone={online ? "success" : "danger"}>{online ? "在线" : "离线"}</StatusTag></header>
     <Card title="评价审核与申诉" actions={<><ScopeBadge scope={`城市：${cityLabel(cityCode)}`} /><StatusTag tone={canModerate ? "success" : "warning"}>{canModerate ? "审核管理员" : "只读权限"}</StatusTag><StatusTag tone={online ? "success" : "danger"}>{online ? "在线" : "离线"}</StatusTag></>}>
       <p>评价正文按需读取；所有裁决携带版本号与幂等键。冲突时必须刷新后重新判断，不覆盖他人结果。</p>
       <div className="review-moderation-actions">{visibilityOptions.map(value => <Button key={value} variant={visibility === value ? "primary" : undefined} onClick={() => setVisibility(value)}>{statusLabel(value)}</Button>)}<Button disabled={busy !== null || !online} onClick={() => void load()}>刷新队列</Button></div>
