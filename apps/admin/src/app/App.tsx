@@ -9,23 +9,18 @@ import {
   type AdminSession,
 } from "../adminAuth";
 import {
-  AdminShell,
   Button,
   CityScopeGate,
   FormField,
-  GuardrailCard,
   IdentityGate,
   Input,
   LoadingState,
   PermissionState,
-  ScopeBadge,
   Select,
-  SideNav,
   StatusTag,
-  TopBar,
 } from "@xlb/ui";
-import { Bell, MagnifyingGlass } from "@phosphor-icons/react";
 import { presentFailure } from "../operationsPresentation";
+import { AdminMobileShell, type AdminMobileTool } from "./AdminMobileShell";
 
 const ADMIN_CITY_OPTIONS = ["hangzhou", "shanghai", "beijing"] as const;
 const ADMIN_ALLOWED_ROLES = new Set(["admin", "operator", "auditor"]);
@@ -76,6 +71,7 @@ export function App() {
   const [loginUsername, setLoginUsername] = useState(() => readStoredAdminSession()?.username ?? "admin_hz");
   const [loginCode, setLoginCode] = useState("");
   const [pendingCityCode, setPendingCityCode] = useState("hangzhou");
+  const [toolPanelOpen, setToolPanelOpen] = useState(false);
 
   const onHashChange = useCallback(() => {
     setView(parseView());
@@ -165,6 +161,19 @@ export function App() {
     window.location.hash = "";
   }, []);
 
+  const handleChangeCity = useCallback(() => {
+    window.localStorage.removeItem(ADMIN_CITY_SCOPE_STORAGE_KEY);
+    const rawHash = window.location.hash.replace(/^#/, "");
+    const queryIndex = rawHash.indexOf("?");
+    const targetPath = (queryIndex === -1 ? rawHash : rawHash.slice(0, queryIndex)) || "/";
+    const nextParams: Record<string, string> = {};
+    params.forEach((value, key) => {
+      if (key !== "cityCode") nextParams[key] = value;
+    });
+    window.location.hash = buildHash(targetPath, nextParams);
+    setParams(new URLSearchParams(nextParams));
+  }, [params]);
+
   const viewTitle = view.page === "workerWithdrawals"
     ? "师傅提现审核"
     : view.page === "support"
@@ -208,6 +217,7 @@ export function App() {
 
   if (!session) {
     return (
+      <main className="admin-mobile-gate admin-mobile-gate--identity">
       <IdentityGate
         visualRole="admin"
         title="后台身份验证"
@@ -233,14 +243,15 @@ export function App() {
         error={authError}
         notice={authNotice}
       />
+      </main>
     );
   }
 
   if (!ADMIN_ALLOWED_ROLES.has(session.role)) {
     return (
-      <main style={{ alignItems: "center", background: "var(--xlb-role-admin-page)", boxSizing: "border-box", display: "grid", justifyItems: "center", minHeight: "100dvh", padding: 24 }}>
+      <main className="admin-mobile-gate admin-mobile-gate--permission">
         <PermissionState
-          style={{ maxWidth: 720, width: "100%" }}
+          style={{ width: "100%" }}
           title="当前角色无权进入后台"
           description="系统不会透露任何业务对象是否存在。请切换到已授权的后台账号。"
           facts={`当前角色：${adminRoleLabel(session.role)}`}
@@ -252,9 +263,9 @@ export function App() {
 
   if (view.page === "dispatch" && session.role !== "operator") {
     return (
-      <main style={{ alignItems: "center", background: "var(--xlb-role-admin-page)", boxSizing: "border-box", display: "grid", justifyItems: "center", minHeight: "100dvh", padding: 24 }}>
+      <main className="admin-mobile-gate admin-mobile-gate--permission">
         <PermissionState
-          style={{ maxWidth: 720, width: "100%" }}
+          style={{ width: "100%" }}
           title="无权进入派单工作台"
           description="该工作台当前仅允许运营人员访问。"
           facts={`当前角色：${adminRoleLabel(session.role)}`}
@@ -267,6 +278,7 @@ export function App() {
 
   if (!cityCode) {
     return (
+      <main className="admin-mobile-gate admin-mobile-gate--city">
       <CityScopeGate
         title="选择后台工作城市"
         description="后台数据、操作权限和审计记录都按城市隔离。"
@@ -281,6 +293,7 @@ export function App() {
         }
         actions={<Button onClick={handleConfirmCityScope} variant="primary">进入该城市工作台</Button>}
       />
+      </main>
     );
   }
 
@@ -374,108 +387,65 @@ export function App() {
   const guardrailTone = ["orderTrace", "settlement", "detail", "exports", "governance"].includes(view.page) ? "只读治理" : "受控操作";
   const showGuardrail = view.page !== "dashboard";
 
+  const tools: AdminMobileTool[] = [
+    { key: "settlement", label: "结算运营", description: "结算单与风险复核", active: view.page === "settlement", onClick: navigateToSettlement },
+    { key: "detail", label: "结算单详情", description: "从结算列表选择记录", active: view.page === "detail", onClick: navigateToSettlement },
+    { key: "exports", label: "导出复核", description: "导出记录与审计", active: view.page === "exports", onClick: () => navigateToExports() },
+    { key: "governance", label: "结算治理", description: "只读计划与边界", active: view.page === "governance", onClick: navigateToGovernance },
+    { key: "orderTrace", label: "订单追踪", description: "查询完整证据链", active: view.page === "orderTrace", onClick: navigateToOrderTrace },
+    { key: "workerWithdrawals", label: "师傅提现", description: "审核与付款标记", active: view.page === "workerWithdrawals", onClick: navigateToWorkerWithdrawals },
+    { key: "aftersale", label: "售后运营", description: "投诉、返工与补偿", active: view.page === "aftersale", onClick: navigateToAftersale },
+    { key: "enterprise", label: "企业客户", description: "客户、凭据与账单", active: view.page === "enterprise", onClick: navigateToEnterprise },
+    { key: "dispatch", label: "城市派单", description: "任务与候选师傅", active: view.page === "dispatch", onClick: navigateToDispatch },
+    { key: "platformOperations", label: "平台运营", description: "订单、服务与师傅", active: view.page === "platformOperations", onClick: navigateToPlatformOperations },
+    { key: "support", label: "客服工作台", description: "工单、会话与路由", active: view.page === "support", onClick: navigateToSupport },
+    { key: "supportQuality", label: "客服质量", description: "质检量表与评分", active: view.page === "supportQuality", onClick: navigateToSupportQuality },
+    { key: "reviewModeration", label: "评价与口碑", description: "审核与申诉裁决", active: view.page === "reviewModeration", onClick: navigateToReviewModeration },
+    { key: "marketing", label: "营销优惠券", description: "活动、规则与发放", active: view.page === "marketing", onClick: navigateToMarketing },
+  ];
+
+  const activeNav = view.page === "dashboard"
+    ? "overview"
+    : ["orderTrace", "dispatch", "platformOperations"].includes(view.page)
+      ? "orders"
+      : ["support", "supportQuality", "reviewModeration"].includes(view.page)
+        ? "support"
+        : ["workerWithdrawals", "aftersale", "settlement", "detail", "exports", "governance"].includes(view.page)
+          ? "approvals"
+          : "tools";
+
   return (
     <div className="admin-app-root">
-    <AdminShell
-      sideNav={
-        <SideNav
-          title="喜乐帮后台"
-          style={{ background: "var(--xlb-role-admin-page)" }}
-          items={[
-            {
-              key: "overview",
-              label: "运营总览",
-              active: view.page === "dashboard",
-              href: "#",
-              onClick: navigateToDashboard,
-            },
-            {
-              key: "settlement",
-              label: "结算运营",
-              active: view.page === "settlement" || view.page === "detail",
-              href: "#/settlement-ops",
-              onClick: navigateToSettlement,
-            },
-            {
-              key: "exports",
-              label: "导出复核",
-              active: view.page === "exports",
-              href: "#/settlement-ops/exports",
-              onClick: () => navigateToExports(),
-            },
-            {
-              key: "governance",
-              label: "结算治理",
-              active: view.page === "governance",
-              href: "#/settlement-ops/governance",
-              onClick: navigateToGovernance,
-            },
-            {
-              key: "orderTrace",
-              label: "订单追踪",
-              active: view.page === "orderTrace",
-              href: "#/order-trace",
-              onClick: navigateToOrderTrace,
-            },
-            {
-              key: "workerWithdrawals",
-              label: "师傅提现",
-              active: view.page === "workerWithdrawals",
-              href: "#/worker-withdrawals",
-              onClick: navigateToWorkerWithdrawals,
-            },
-            {
-              key: "aftersale",
-              label: "售后运营",
-              active: view.page === "aftersale",
-              href: "#/aftersale",
-              onClick: navigateToAftersale,
-            },
-            { key:"enterprise",label:"企业客户",active:view.page==="enterprise",href:"#/enterprise",onClick:navigateToEnterprise },
-            { key:"dispatch",label:"城市派单",active:view.page==="dispatch",href:"#/dispatch",onClick:navigateToDispatch },
-            { key:"platformOperations",label:"订单、服务与师傅",active:view.page==="platformOperations",href:"#/platform-operations",onClick:navigateToPlatformOperations },
-            { key: "support", label: "客服工作台", active: view.page === "support", href: "#/support", onClick: navigateToSupport },
-            {key:"supportQuality",label:"客服质量",active:view.page==="supportQuality",href:"#/support-quality",onClick:navigateToSupportQuality},
-            {key:"reviewModeration",label:"评价与口碑",active:view.page==="reviewModeration",href:"#/review-moderation",onClick:navigateToReviewModeration},
-            {key:"marketing",label:"营销与优惠券",active:view.page==="marketing",href:"#/marketing",onClick:navigateToMarketing},
-          ]}
-        />
-      }
-      topBar={
-        <TopBar
-          title={viewTitle}
-          subtitle="运营管理与受控业务流程"
-          actions={
-            <>
-              <Button aria-label="打开订单全局搜索" onClick={navigateToOrderTrace}><MagnifyingGlass size={18} weight="regular" /></Button>
-              <Button aria-label="打开客服工作台" onClick={navigateToSupport}><Bell size={18} weight="regular" /></Button>
-              {cityCode && <ScopeBadge scope={`城市：${adminCityLabel(cityCode)}`} />}
-              <StatusTag tone="primary">运营账号</StatusTag>
-              <StatusTag tone="success">业务接口已接入</StatusTag>
-              <Button onClick={handleLogout}>退出登录</Button>
-            </>
-          }
-        />
-      }
-      style={{ background: "var(--xlb-surface-muted)" }}
-      contentStyle={{ display: "grid", gap: 16 }}
-    >
-      {showGuardrail ? <GuardrailCard
-        title="运营操作边界"
-        actions={<StatusTag tone={view.page === "orderTrace" ? "muted" : "warning"}>{guardrailTone}</StatusTag>}
-        style={{
-          borderColor: "#ddd6fe",
-          boxShadow: "0 12px 28px rgba(25, 18, 37, 0.08)",
-        }}
+      <AdminMobileShell
+        title={viewTitle}
+        cityLabel={adminCityLabel(cityCode)}
+        isDetail={view.page !== "dashboard"}
+        toolPanelOpen={toolPanelOpen}
+        tools={tools}
+        activeNav={activeNav}
+        accountLabel={`${adminRoleLabel(session.role)} · ${session.username}`}
+        onBack={navigateToDashboard}
+        onOpenOverview={navigateToDashboard}
+        onOpenOrders={session.role === "operator" ? navigateToDispatch : navigateToOrderTrace}
+        onOpenSupport={navigateToSupport}
+        onOpenApprovals={navigateToWorkerWithdrawals}
+        onOpenTools={() => setToolPanelOpen(true)}
+        onCloseTools={() => setToolPanelOpen(false)}
+        onSearch={navigateToOrderTrace}
+        onNotifications={navigateToSupport}
+        onChangeCity={handleChangeCity}
+        onLogout={handleLogout}
       >
-        <p style={{ color: "#4b5563", fontSize: 13, lineHeight: "20px", margin: 0 }}>
-          {guardrailCopy}
-        </p>
-      </GuardrailCard> : null}
-      <Suspense fallback={<LoadingState title="正在打开后台工作台" description="正在加载所需模块。" />}>
-        {content}
-      </Suspense>
-    </AdminShell>
+        {showGuardrail ? (
+          <details className="admin-mobile-guardrail">
+            <summary><span>运营操作边界</span><StatusTag tone={view.page === "orderTrace" ? "muted" : "warning"}>{guardrailTone}</StatusTag></summary>
+            <p>{guardrailCopy}</p>
+          </details>
+        ) : null}
+        <Suspense fallback={<LoadingState title="正在打开运营工作台" description="正在加载所需模块。" />}>
+          {content}
+        </Suspense>
+      </AdminMobileShell>
     </div>
   );
 }
