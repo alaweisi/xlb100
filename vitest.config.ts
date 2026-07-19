@@ -71,6 +71,10 @@ export default defineConfig({
         test: {
           name: "db-serial",
           include: ["tests/integration/**/*.test.ts", "tests/security/**/*.test.ts"],
+          // Security architecture gates launch PowerShell processes. Under the
+          // full Windows serial suite, process startup can exceed Vitest's 5s
+          // default even though the gate itself completes successfully.
+          testTimeout: 30_000,
           ...dbSerial,
         },
       },
