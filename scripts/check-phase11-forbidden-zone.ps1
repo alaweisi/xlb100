@@ -1,7 +1,12 @@
 # Phase 11 gate: preserve its customer/worker boundary. Later quality-gate phases may
 # update the root manifest when their own boundary gate is present.
+param(
+  [switch]$SelfTest
+)
+
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
+. (Join-Path $Root 'scripts/lib/later-ui-authorizations.ps1')
 
 $forbiddenDirs = @(
   "apps/customer",
@@ -62,30 +67,95 @@ $phase27dFrontendFiles = @(
   'apps/worker/src/pages/worker-notifications.css'
 )
 
+function Get-Phase11ForbiddenZoneViolations {
+  param(
+    [Parameter(Mandatory = $true)][string[]]$ChangedFiles,
+    [Parameter(Mandatory = $true)][string[]]$LaterUiAuthorizationFiles
+  )
+
+  $allowPhase23cFrontend = $ChangedFiles -contains 'db/migrations/045_phase23c_frontend_engineering.sql'
+  $violations = @()
+  foreach ($rawFile in $ChangedFiles) {
+    $file = $rawFile -replace '\\', '/'
+    foreach ($fd in $forbiddenDirs) {
+      $isForbiddenDir = $file.Equals($fd, [System.StringComparison]::Ordinal) -or
+        $file.StartsWith("$fd/", [System.StringComparison]::Ordinal)
+      $isPhase23cFrontend = $allowPhase23cFrontend -and ($file -match $phase23cFrontendPattern)
+      $isPhase24Support = $phase24SupportFiles -contains $file
+      $isPhase27dFrontend = $allowPhase27dFrontend -and $phase27dFrontendFiles -contains $file
+      $isPhase29Frontend = $allowPhase29Frontend -and $phase29FrontendFiles -contains $file
+      $isExplicitLaterUi = $LaterUiAuthorizationFiles -ccontains $file
+      if (
+        $isForbiddenDir -and
+        -not $isPhase23cFrontend -and
+        -not $isPhase24Support -and
+        -not $isPhase27dFrontend -and
+        -not $isPhase29Frontend -and
+        -not $isExplicitLaterUi
+      ) {
+        $violations += $file
+      }
+    }
+    foreach ($ff in $forbiddenFiles) {
+      if ($file -eq $ff -and $allowedLaterPhaseFiles -notcontains $file) {
+        $violations += $file
+      }
+    }
+  }
+
+  return @($violations | Sort-Object -Unique)
+}
+
+$laterUiAuthorizationFiles = @(Get-LaterUiAuthorizationFiles -RepositoryRoot $Root -CurrentStateText $currentState)
+
+if ($SelfTest) {
+  $expectedUnitAFiles = @(
+    'apps/customer/package.json',
+    'apps/customer/src/pages/CustomerHomePage.tsx',
+    'apps/customer/src/pages/CustomerOrdersPage.tsx',
+    'apps/customer/src/pages/CustomerServicesPage.tsx',
+    'apps/customer/src/pages/customer-order-create.css'
+  )
+  $positiveViolations = @(Get-Phase11ForbiddenZoneViolations `
+    -ChangedFiles $expectedUnitAFiles `
+    -LaterUiAuthorizationFiles $laterUiAuthorizationFiles)
+  if ($positiveViolations.Count -ne 0) {
+    throw "Phase11 self-test rejected exact Unit A files: $($positiveViolations -join ', ')"
+  }
+  Write-Host 'check-phase11-forbidden-zone: self-test exact Unit A authorization passed'
+
+  foreach ($negativeFile in @(
+      'apps/customer/src/pages/UnauthorizedCustomerPage.tsx',
+      'apps/worker/src/pages/UnauthorizedWorkerPage.tsx'
+    )) {
+    $negativeViolations = @(Get-Phase11ForbiddenZoneViolations `
+      -ChangedFiles @($negativeFile) `
+      -LaterUiAuthorizationFiles $laterUiAuthorizationFiles)
+    if ($negativeViolations.Count -ne 1 -or $negativeViolations[0] -ne $negativeFile) {
+      throw "Phase11 self-test did not reject unauthorized file: $negativeFile"
+    }
+  }
+  Write-Host 'check-phase11-forbidden-zone: self-test unauthorized Customer/Worker files rejected'
+
+  try {
+    Assert-ExactLaterUiAuthorizationPath -Path 'apps/customer/**' | Out-Null
+    throw 'Phase11 self-test accepted a broad Customer path'
+  } catch {
+    if ($_.Exception.Message -eq 'Phase11 self-test accepted a broad Customer path') { throw }
+  }
+  Write-Host 'check-phase11-forbidden-zone: self-test broad paths rejected'
+  exit 0
+}
+
 $changedFiles = & git -C $Root diff --name-only main...HEAD 2>$null
 if ($LASTEXITCODE -ne 0) {
   Write-Host "check-phase11-forbidden-zone: FAILED - git diff failed (is main branch available?)"
   exit 1
 }
-$allowPhase23cFrontend = $changedFiles -contains "db/migrations/045_phase23c_frontend_engineering.sql"
 
-$violations = @()
-foreach ($file in $changedFiles) {
-  foreach ($fd in $forbiddenDirs) {
-    $isPhase23cFrontend = $allowPhase23cFrontend -and (($file -replace '\\', '/') -match $phase23cFrontendPattern)
-    $isPhase24Support = $phase24SupportFiles -contains ($file -replace '\\', '/')
-    $isPhase27dFrontend = $allowPhase27dFrontend -and $phase27dFrontendFiles -contains ($file -replace '\\', '/')
-    $isPhase29Frontend = $allowPhase29Frontend -and $phase29FrontendFiles -contains ($file -replace '\\', '/')
-    if ($file.StartsWith($fd) -and -not $isPhase23cFrontend -and -not $isPhase24Support -and -not $isPhase27dFrontend -and -not $isPhase29Frontend) {
-      $violations += $file
-    }
-  }
-  foreach ($ff in $forbiddenFiles) {
-    if ($file -eq $ff -and $allowedLaterPhaseFiles -notcontains $file) {
-      $violations += $file
-    }
-  }
-}
+$violations = @(Get-Phase11ForbiddenZoneViolations `
+  -ChangedFiles $changedFiles `
+  -LaterUiAuthorizationFiles $laterUiAuthorizationFiles)
 
 if ($violations.Count -gt 0) {
   Write-Host "check-phase11-forbidden-zone: FAILED - forbidden files/dirs changed"
