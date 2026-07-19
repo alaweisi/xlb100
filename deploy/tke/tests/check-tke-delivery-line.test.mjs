@@ -66,6 +66,17 @@ test("production requires the COS double switch", () => {
   );
 });
 
+test("production requires the qcloud HTTPS edge contract", () => {
+  assert.throws(
+    () => validateDeploymentValues(ready.replace("className: qcloud", "className: nginx"), "production"),
+    /qcloud Ingress class/,
+  );
+  assert.throws(
+    () => validateDeploymentValues(ready.replace("ingress.cloud.tencent.com/auto-rewrite: \"true\"", "ingress.cloud.tencent.com/auto-rewrite: \"false\""), "production"),
+    /automatic HTTPS rewrite/,
+  );
+});
+
 test("values environment must match the requested environment", () => {
   assert.throws(() => validateDeploymentValues(ready, "staging"), /does not match/);
 });

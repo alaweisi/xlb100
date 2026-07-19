@@ -89,6 +89,10 @@ config:
       region: ap-guangzhou
 ingress:
   enabled: true
+  className: qcloud
+  annotations:
+    ingress.cloud.tencent.com/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
+    ingress.cloud.tencent.com/auto-rewrite: "true"
   tls:
     secretName: xlb-staging-tls
   hosts:

@@ -54,6 +54,8 @@ test("valid reviewed input generates deterministic Terraform, Helm, manifest, an
   assert.match(first.rendered[first.manifest.files.terraformVarFile], /billable_resources_acknowledgement = "CREATE-TKE-PRODUCTION"/);
   assert.match(first.rendered[first.manifest.files.backendConfig], /encrypt = true/);
   assert.match(first.rendered[first.manifest.files.valuesFile], /digest: sha256:1{64}/);
+  assert.match(first.rendered[first.manifest.files.valuesFile], /ingress\.cloud\.tencent\.com\/auto-rewrite: "true"/);
+  assert.match(first.rendered[first.manifest.files.valuesFile], /\{"HTTP":80\},\{"HTTPS":443\}/);
   assert.equal(first.manifest.bundleSha256, second.manifest.bundleSha256);
   assert.equal(first.inventory.files.length, 4);
   assert.match(first.manifest.bundleSha256, /^[a-f0-9]{64}$/);

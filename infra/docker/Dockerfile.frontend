@@ -37,10 +37,15 @@ COPY . .
 # Docker context where dependency artifacts do not exist yet.
 RUN pnpm --filter @xlb/$APP_NAME... build
 
+# The TKE CLB terminates TLS and routes directly to this container. Keep
+# browser security headers in the immutable image so they do not depend on a
+# manually edited load-balancer configuration.
+RUN cp infra/docker/frontend-serve.json apps/$APP_NAME/dist/serve.json
+
 FROM node:20-alpine AS runtime
 WORKDIR /app
 
-RUN npm install -g serve@14
+RUN npm install -g serve@14.2.6
 
 ARG APP_NAME=customer
 ENV APP_NAME=$APP_NAME

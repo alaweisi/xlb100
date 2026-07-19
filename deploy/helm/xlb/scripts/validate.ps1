@@ -105,6 +105,19 @@ Assert-Contains $rendered.production 'XLB_EXTERNAL_PROVIDER_EXECUTION_ENABLED:\s
   "production render must explicitly enable external COS execution"
 Assert-Contains $rendered.local 'XLB_EXTERNAL_PROVIDER_EXECUTION_ENABLED:\s+"false"' `
   "local render must keep external provider execution disabled"
+Assert-Contains $rendered.production 'ingress\.cloud\.tencent\.com/auto-rewrite:\s+"true"' `
+  "production qcloud Ingress must redirect HTTP to HTTPS"
+Assert-Contains $rendered.production 'ingress\.cloud\.tencent\.com/listen-ports:' `
+  "production qcloud Ingress must declare HTTP and HTTPS listeners"
+
+$realtimePathCount = [regex]::Matches($rendered.production, '(?m)^\s*- path:\s+/api/support/realtime\s*$').Count
+if ($realtimePathCount -ne 3) {
+  throw "production must route same-origin WebSocket on three frontend hosts; got $realtimePathCount"
+}
+$sameOriginApiPathCount = [regex]::Matches($rendered.production, '(?m)^\s*- path:\s+/api\s*$').Count
+if ($sameOriginApiPathCount -ne 3) {
+  throw "production must route same-origin API on three frontend hosts; got $sameOriginApiPathCount"
+}
 
 $pdbCount = [regex]::Matches($rendered.production, '(?m)^kind:\s+PodDisruptionBudget\s*$').Count
 if ($pdbCount -ne 4) {

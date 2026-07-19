@@ -13,6 +13,12 @@ export function loadUnitBSources() {
     smoke: read("deploy/production/smoke-prod.ps1"),
     env: read(".env.production.example"),
     deploy: read("deploy/production/deploy-prod.ps1"),
+    helmIngress: read("deploy/helm/xlb/templates/ingress.yaml"),
+    tkeProduction: read("deploy/environments/tke/values-production.yaml"),
+    tkeStaging: read("deploy/environments/tke/values-staging.yaml"),
+    frontendDocker: read("infra/docker/Dockerfile.frontend"),
+    frontendServe: read("infra/docker/frontend-serve.json"),
+    cloudBundle: read("deploy/tke/bundle/generate-cloud-bundle.mjs"),
   };
 }
 
@@ -22,7 +28,10 @@ export function validateUnitBProductionEdge(sources) {
     if (!source.includes(token)) errors.push(`${name} is missing: ${token}`);
   };
 
-  const { nginx, compose, smoke, env, deploy } = sources;
+  const {
+    nginx, compose, smoke, env, deploy, helmIngress, tkeProduction,
+    tkeStaging, frontendDocker, frontendServe, cloudBundle,
+  } = sources;
 
   if (nginx.includes("__DOMAIN__")) errors.push("nginx still contains the legacy __DOMAIN__ placeholder");
   requireToken("nginx", nginx, "map $http_upgrade $xlb_connection_upgrade");
@@ -99,6 +108,47 @@ export function validateUnitBProductionEdge(sources) {
 
   for (const token of ["PROD_GATEWAY_IMAGE", "TLS_FULLCHAIN_SECRET_FILE", "TLS_PRIVATE_KEY_SECRET_FILE"]) {
     requireToken("production deploy", deploy, token);
+  }
+
+  const frontendRangeStart = helmIngress.indexOf('{{- range $name := list "customer" "worker" "admin" }}');
+  const frontendRangeEnd = helmIngress.indexOf("{{- end }}", frontendRangeStart);
+  const frontendIngress = frontendRangeStart >= 0 && frontendRangeEnd > frontendRangeStart
+    ? helmIngress.slice(frontendRangeStart, frontendRangeEnd)
+    : "";
+  const realtimePath = frontendIngress.indexOf("path: /api/support/realtime");
+  const sameOriginApiPath = frontendIngress.indexOf("path: /api", realtimePath + 1);
+  const frontendFallbackPath = frontendIngress.indexOf("path: /", sameOriginApiPath + 1);
+  if (!(realtimePath >= 0 && sameOriginApiPath > realtimePath && frontendFallbackPath > sameOriginApiPath)) {
+    errors.push("TKE frontend hosts must route realtime, /api, then frontend fallback");
+  }
+  if (occurrences(frontendIngress, 'name: {{ include "xlb.fullname" $ }}-backend') !== 2) {
+    errors.push("TKE same-origin realtime and API routes must both target backend");
+  }
+  for (const [name, values] of [["production", tkeProduction], ["staging", tkeStaging]]) {
+    requireToken(`TKE ${name} values`, values, "className: qcloud");
+    requireToken(`TKE ${name} values`, values, "ingress.cloud.tencent.com/listen-ports");
+    requireToken(`TKE ${name} values`, values, "ingress.cloud.tencent.com/auto-rewrite");
+    requireToken(`TKE ${name} values`, values, "enabled: true");
+  }
+  requireToken("cloud bundle", cloudBundle, "ingress.cloud.tencent.com/listen-ports");
+  requireToken("cloud bundle", cloudBundle, "ingress.cloud.tencent.com/auto-rewrite");
+
+  requireToken("frontend image", frontendDocker, "serve@14.2.6");
+  requireToken("frontend image", frontendDocker, "cp infra/docker/frontend-serve.json apps/$APP_NAME/dist/serve.json");
+  try {
+    const serveConfig = JSON.parse(frontendServe);
+    const headers = Object.fromEntries((serveConfig.headers?.[0]?.headers ?? []).map(header => [header.key, header.value]));
+    for (const name of [
+      "Strict-Transport-Security", "Content-Security-Policy", "X-Content-Type-Options",
+      "Referrer-Policy", "Permissions-Policy",
+    ]) {
+      if (!headers[name]) errors.push(`frontend image security policy is missing ${name}`);
+    }
+    if (!headers["Content-Security-Policy"]?.includes("connect-src 'self'")) {
+      errors.push("frontend CSP must allow same-origin secure WebSocket connections");
+    }
+  } catch {
+    errors.push("frontend image security policy must be valid JSON");
   }
 
   return errors;

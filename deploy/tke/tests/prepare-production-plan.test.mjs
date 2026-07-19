@@ -42,6 +42,10 @@ config:
       bucket: xlb-production-objects-1234567890
       region: ap-guangzhou
 ingress:
+  className: qcloud
+  annotations:
+    ingress.cloud.tencent.com/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
+    ingress.cloud.tencent.com/auto-rewrite: "true"
   tls:
     secretName: xlb-production-tls
   hosts:
@@ -207,4 +211,3 @@ test("N8 inputs must stay under the ignored artifact root", () => {
   manifest.valuesFile = "deploy/environments/tke/values-production.yaml";
   assert.throws(() => buildProductionPlan({ repoRoot, manifest }), /gitignored \.artifacts/);
 });
-
