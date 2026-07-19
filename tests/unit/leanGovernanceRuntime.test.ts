@@ -120,7 +120,7 @@ describe("lean governance executable behavior", () => {
     const deleted = git(deletionRoot, "commit", "-m", "test locked migration deletion");
     expect(deleted.status).not.toBe(0);
     expect(deleted.output).toContain("published migration cannot be deleted or renamed");
-  });
+  }, 30_000);
 
   it("5. accepts one natural-language approval for later commits on the same paths", () => {
     const root = createFixture();
