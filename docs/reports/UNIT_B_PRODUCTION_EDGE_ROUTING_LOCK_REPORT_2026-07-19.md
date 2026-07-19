@@ -20,7 +20,7 @@ The Human authorized construction, Agent-cluster review, self-acceptance and a l
 - a production business Smoke skeleton;
 - related repository checks, tests and Lock evidence.
 
-The authorization did not include push, real deployment, production data, real Provider execution or public release. No authentication contract, database schema, payment, refund, ledger, amount rule or business state machine was changed.
+The authorization did not include push, real deployment, production data, real Provider execution or public release. No security contract, persistent schema, money-domain rule or business state machine was changed.
 
 ## 2. Delivered engineering controls
 

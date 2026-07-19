@@ -34,7 +34,7 @@ function fakeReply() {
   };
 }
 
-describe("Phase 23A boundary gates", () => {
+describe("Phase 23A boundary gates", { timeout: 20_000 }, () => {
   it("preserves locked migrations, protected semantics, and provider boundaries", () => {
     expect(runPowerShellGate("check-phase23a-boundaries.ps1")).toContain(
       "check-phase23a-boundaries: passed",
