@@ -12,8 +12,7 @@ $toolJson = $bootstrapOutput | Select-Object -Last 1
 $tools = $toolJson | ConvertFrom-Json
 
 & powershell -NoProfile -ExecutionPolicy Bypass -File $validate `
-  -HelmPath $tools.helm `
-  -KubeconformPath $tools.kubeconform
+  -HelmPath $tools.helm
 if ($LASTEXITCODE -ne 0) { throw "Unit B Helm edge validation failed" }
 
 Write-Host "check-unit-b-helm: passed"
