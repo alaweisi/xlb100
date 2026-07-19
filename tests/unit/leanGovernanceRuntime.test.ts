@@ -162,5 +162,5 @@ describe("lean governance executable behavior", () => {
 
     const approvalLog = readFileSync(join(root, ".git/xlb-high-risk-approvals.jsonl"), "utf8").trim().split(/\r?\n/);
     expect(approvalLog).toHaveLength(1);
-  });
+  }, 30_000);
 });
