@@ -136,7 +136,8 @@ test("Customer real order reaches the scoped inbox and read/archive/restore pers
     },
   });
   expect(order.ok(), await order.text()).toBeTruthy();
-  await projectProspectiveEvent(channel);
+  const orderId = ((await order.json()).order as { orderId: string }).orderId;
+  await projectProspectiveEvent(channel, orderId);
 
   const other = await loginCustomer(page.request, `139${String(Date.now() + 1).slice(-8)}`);
   const wrongOwner = await page.request.get(`${backend}/api/customer/notifications`, { headers: authenticatedHeaders(other) });
@@ -201,7 +202,7 @@ test("Worker real support resolution reaches the inbox without losing the UI ses
     },
   });
   expect(resolved.ok(), await resolved.text()).toBeTruthy();
-  await projectProspectiveEvent(channel);
+  await projectProspectiveEvent(channel, ticket.ticketId);
 
   const crossCity = await page.request.get(`${backend}/api/worker/notifications`, {
     headers: authenticatedHeaders(worker, "shanghai"),
