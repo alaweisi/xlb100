@@ -81,6 +81,9 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
+      - name: Production edge contract
+        run: pnpm test:unit-b-production-edge && node scripts/check-unit-b-production-edge.mjs
+
       - name: Test
         run: pnpm test
 
