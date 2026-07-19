@@ -3,14 +3,15 @@ document: XLB User Service Agreement Draft
 version: 0.1-engineering
 legal_status: DRAFT_NOT_LEGAL_ADVICE
 production_approved: false
+publication_status: NOT_FOR_PUBLICATION
+release_decision: NO_GO
+unresolved_placeholders: true
 locked_scope: Unit C W5A engineering baseline
 ---
 
 # 喜乐帮用户服务协议（工程草案）
 
 > **禁止直接发布或让用户勾选。** 真实运营主体、平台/自营定性、服务者法律关系、收费退款规则、保险税务、争议管辖和真实支付能力尚未确定。Unit C Lock 只冻结协议结构和待决事项。
-
-<!-- UNIT_C_AGREEMENT_REQUIRED: operator business_model order_contract price_payment invoice cancellation_refund service_safety privacy platform_rule_change dispute publication_gate no_final_interpretation -->
 
 版本：`0.1-engineering`
 
@@ -26,15 +27,15 @@ locked_scope: Unit C W5A engineering baseline
 
 ## 1. 合同主体与产品定位
 
-运营主体：`[发布阻断：待填写法定全称]`
+运营主体：`[发布阻断：待填写法定全称] [RELEASE_BLOCKER: operator_legal_name]`
 
-统一社会信用代码：`[发布阻断：待填写]`
+统一社会信用代码：`[发布阻断：待填写] [RELEASE_BLOCKER: operator_credit_code]`
 
-地址和联系方式：`[发布阻断：待填写]`
+地址和联系方式：`[发布阻断：待填写] [RELEASE_BLOCKER: operator_contact]`
 
-备案/许可信息：`[发布阻断：待填写适用信息]`
+备案/许可信息：`[发布阻断：待填写适用信息] [RELEASE_BLOCKER: filing_and_license]`
 
-喜乐帮业务模式：`[发布阻断：平台撮合 / 自营服务 / 混合模式，须由业务和律师确定]`。
+喜乐帮业务模式：`[发布阻断：平台撮合 / 自营服务 / 混合模式，须由业务和律师确定] [RELEASE_BLOCKER: business_model]`。
 
 - 如为平台撮合，必须说明平台、Customer 和独立 Worker/商户之间各自合同关系、服务责任和争议处理责任，不得把应由平台承担的法定义务全部转移给用户或服务者。
 - 如为自营，必须由真实运营主体承担服务合同相对方责任，不得用“仅提供技术服务”规避。
@@ -75,7 +76,7 @@ locked_scope: Unit C W5A engineering baseline
 
 在线支付、退款和真实打款当前尚未生产接入。正式版本只能描述实际已经验收的支付渠道和能力，不得把 mock、线下人工记录或“标记已支付”称为在线支付成功。
 
-支付服务由 `[待填写支付机构]` 提供时，应说明双方角色、支付协议、退款路径和异常对账方式。发票主体、开具时限、内容和申请入口：`[发布阻断：待财税确认]`。
+支付服务由 `[待填写支付机构]` 提供时，应说明双方角色、支付协议、退款路径和异常对账方式。发票主体、开具时限、内容和申请入口：`[发布阻断：待财税确认] [RELEASE_BLOCKER: invoice_policy]`。
 
 ## 6. 改期、取消、退款和售后
 
@@ -96,7 +97,7 @@ locked_scope: Unit C W5A engineering baseline
 
 候选派单阶段不应向全部 Worker 广播完整地址和电话；确定承接关系后，只向实际承接者提供履约所需最少信息，并在完单后收回不再需要的访问。虚拟号、地址最小化、紧急联系人和人身安全机制：`[发布阻断：待产品和运营落地]`。
 
-保险范围、承保主体、责任限额和理赔流程：`[发布阻断：不得在未投保时承诺已保险]`。
+保险范围、承保主体、责任限额和理赔流程：`[发布阻断：不得在未投保时承诺已保险] [RELEASE_BLOCKER: insurance_policy]`。
 
 ## 8. 完工确认、证据和争议
 
@@ -153,7 +154,7 @@ locked_scope: Unit C W5A engineering baseline
 
 本协议适用中华人民共和国大陆地区法律。用户可通过客服协商、消费者组织调解、向有关行政部门投诉、依法申请仲裁（如存在有效仲裁协议）或向有管辖权的人民法院起诉。
 
-具体管辖/仲裁条款：`[发布阻断：须结合真实运营主体所在地和消费者法定权利由律师确定]`。
+具体管辖/仲裁条款：`[发布阻断：须结合真实运营主体所在地和消费者法定权利由律师确定] [RELEASE_BLOCKER: dispute_venue]`。
 
 ## 17. 联系我们
 

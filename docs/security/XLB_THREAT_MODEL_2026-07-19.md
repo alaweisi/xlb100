@@ -1,12 +1,19 @@
+---
+document: XLB Threat Model
+version: 0.1-engineering
+engineering_status: LOCKED
+production_approved: false
+publication_status: INTERNAL_ENGINEERING_ONLY
+release_decision: NO_GO
+---
+
 # XLB 威胁模型与隐私安全上线门禁
 
-状态：**UNIT C LOCK CANDIDATE — 工程威胁基线，不是生产安全批准**
+状态：**UNIT C LOCKED — 工程威胁基线，不是生产安全批准**
 
 方法：资产/信任边界 + STRIDE + 隐私伤害分析
 
 基线日期：2026-07-19
-
-<!-- UNIT_C_THREAT_REQUIRED: assets trust_boundaries stride privacy launch_blockers auth_idor admin_city_scope mock_payment localstorage_xss retention_deletion provider_secrets -->
 
 ## 1. 目标与边界
 
@@ -114,6 +121,7 @@ flowchart TB
 | TM-33 | T/D | Redis Stream 畸形消息无法解析，达到重试上限后不能形成类型化 DLQ/ACK，可能长期滞留 PEL 并反复回收 | 正常消息 Zod 校验、MySQL 权威记录核对、重试基础 | 需要 raw-DLQ/隔离/ACK 语义和 poison-message 故障测试 | P1 | W0/W6 |
 | TM-34 | I/S | WebSocket ticket 位于 URL query，被 Ingress/代理访问日志记录；缺 Origin allowlist 或连接上限会放大劫持/DoS | 256-bit、60 秒、Redis 单次消费、参与者校验、64 KiB frame | URL 脱敏、Origin、每用户/IP 连接数、心跳和严格 frame schema 待验收 | P1 | W2/W6 |
 | TM-35 | S/I | Enterprise Webhook 加密 key 与 JWT secret 派生耦合；JWT 轮换可能使历史密文不可解，JWT 泄露扩大到 Webhook secret | AES-GCM、随机 IV、签名比较 | 需要独立 KMS/data key、key-id 和双密钥重包裹演练 | P1（启用 Webhook 前） | W4/W6 |
+| TM-36 | S/T | W1 若将 Bearer Token 改为 Cookie 但未同步建立 CSRF 防护，攻击者可诱导浏览器对订单、地址、客服或管理接口发起跨站写请求 | 当前使用 Authorization Bearer，浏览器不会自动跨站附带该 Header | Cookie 方案必须使用 `Secure`、`HttpOnly`、合适的 `SameSite`、Origin/Referer 校验和 CSRF token；不得只解决 XSS 而引入 CSRF | **P0（采用 Cookie 时）** | W1/W2 |
 
 ### 6.1 三项必须优先修复的可利用边界
 

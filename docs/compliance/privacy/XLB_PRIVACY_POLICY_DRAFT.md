@@ -3,6 +3,9 @@ document: XLB Privacy Policy Draft
 version: 0.1-engineering
 legal_status: DRAFT_NOT_LEGAL_ADVICE
 production_approved: false
+publication_status: NOT_FOR_PUBLICATION
+release_decision: NO_GO
+unresolved_placeholders: true
 locked_scope: Unit C W5A engineering baseline
 ---
 
@@ -10,15 +13,13 @@ locked_scope: Unit C W5A engineering baseline
 
 > **禁止直接发布。** 本文缺少真实运营主体、注册地址、联系方式、备案信息、真实第三方/SDK、最终业务模式和律师审阅。Unit C Lock 只冻结工程草案结构，不构成法律批准、用户同意或生产上线授权。
 
-<!-- UNIT_C_PRIVACY_REQUIRED: separate_consent consent_withdrawal account_cancellation third_party_sdk minors automated_decision cross_border retention_deletion rights security_incident publication_gate -->
-
 版本：`0.1-engineering`
 
 发布日期：`[待填写]`
 
 生效日期：`[待填写；不得早于充分告知和必要同意]`
 
-适用产品：喜乐帮 Customer、Worker、Admin，以及未来经明确列入的 App/小程序/Web 服务。
+适用产品：本公开草案面向喜乐帮 Customer 和 Worker，以及未来经明确列入的用户侧 App/小程序/Web 服务。Admin/Operator/Auditor 属内部管理身份，其账号、权限和管理操作审计应由独立的内部人员/运营者个人信息告知书承接；在该内部告知书完成前，不得把本公开草案视为已覆盖 Admin 处理活动。
 
 ## 摘要
 
@@ -26,17 +27,17 @@ locked_scope: Unit C W5A engineering baseline
 
 ## 1. 我们是谁
 
-个人信息处理者：`[发布阻断：待填写真实运营主体法定全称]`
+个人信息处理者：`[发布阻断：待填写真实运营主体法定全称] [RELEASE_BLOCKER: operator_legal_name]`
 
-统一社会信用代码：`[发布阻断：待填写]`
+统一社会信用代码：`[发布阻断：待填写] [RELEASE_BLOCKER: operator_credit_code]`
 
-注册地址/常用办公地址：`[发布阻断：待填写]`
+注册地址/常用办公地址：`[发布阻断：待填写] [RELEASE_BLOCKER: operator_address]`
 
-个人信息保护负责人或联系部门：`[发布阻断：待填写]`
+个人信息保护负责人或联系部门：`[发布阻断：待填写] [RELEASE_BLOCKER: privacy_owner]`
 
-联系电话：`[发布阻断：待填写]`
+联系电话：`[发布阻断：待填写] [RELEASE_BLOCKER: privacy_phone]`
 
-联系邮箱：`[发布阻断：待填写]`
+联系邮箱：`[发布阻断：待填写] [RELEASE_BLOCKER: privacy_email]`
 
 应用内入口：`[发布阻断：待实现“我的—隐私与账号”]`
 
@@ -60,6 +61,16 @@ locked_scope: Unit C W5A engineering baseline
 | 评价与申诉 | 评分、评论、可见性、申诉理由、审核记录 | 展示评价、治理违规和保障申诉 | 评价通常自愿；申诉处理必要 | 按展示、申诉和争议期限分层 |
 | 优惠/营销 | 账户/城市、优惠券、使用记录、营销选择 | 发放优惠、核算、经同意发送营销 | 营销非基础功能必要 | 退出营销后停止新营销；财务凭证按法定期限 |
 | 安全与日志 | IP、User-Agent、路由、时间、城市、appType、主体/trace 标识、错误 | 安全审计、反滥用、故障定位 | 安全运行所需，字段应最小化 | 采用分层短周期；安全事件另按调查期限 |
+
+### 2.1 不同角色的身份与管理数据
+
+| 角色 | 当前登录标识 | 角色特有处理 | 正式告知载体 |
+|---|---|---|---|
+| Customer | 手机号 | Customer ID、档案、地址、订单、售后、评价和优惠 | 本隐私政策 + 分场景告知/单独同意 |
+| Worker | 手机号及不可逆身份哈希 | Worker ID、城市绑定、资质、精确位置、履约、收款账户、信誉和申诉 | Worker 版本隐私政策/入驻告知 + 分场景单独同意；正式发布时可作为本政策角色附录 |
+| Admin/Operator/Auditor | 当前工程为用户名，不是手机号 | Admin ID、角色、`city_scopes`、登录安全记录、管理 mutation 的 actor/route/status 审计 | **独立内部人员/运营者个人信息告知书**；不得用 Customer 的“手机号注册必要”结论套用 |
+
+Admin 的管理操作审计用于权限、安全和追责，应明确访问者、期限和异议/更正边界。Admin 身份和权限模型仍需 W1 完成可信联系方式、MFA/SSO、账号状态和 Token 撤销；该处理在内部告知完成前持续阻断生产管理端启用。
 
 详细数据项、系统落点、访问角色和当前差距见 [XLB_PERSONAL_INFORMATION_INVENTORY.md](./XLB_PERSONAL_INFORMATION_INVENTORY.md)。
 
@@ -197,11 +208,11 @@ XLB 现有工程包含派单排序、营销优惠决策和评价/信誉基础。
 
 ## 17. 投诉与联系
 
-应用内隐私投诉入口：`[发布阻断：待实现]`
+应用内隐私投诉入口：`[发布阻断：待实现] [RELEASE_BLOCKER: privacy_complaint_entry]`
 
-隐私负责人：`[发布阻断：待填写]`
+隐私负责人：`[发布阻断：待填写] [RELEASE_BLOCKER: privacy_contact]`
 
-电话/邮箱/邮寄地址：`[发布阻断：待填写]`
+电话/邮箱/邮寄地址：`[发布阻断：待填写] [RELEASE_BLOCKER: privacy_contact_channels]`
 
 监管救济信息：`[发布前由律师按运营主体所在地确认]`
 

@@ -45,6 +45,20 @@
 | Phase 28 | LOCKED | xlb-phase28-review-reputation | Review moderation, appeal and Worker reputation foundation; production activation remains prohibited |
 | Phase 29 | LOCKED | xlb-phase29-marketing-coupon | Marketing/Coupon MVP with fixed-amount coupons and Order-owned price evidence; production activation remains prohibited |
 
+## Commercialization Unit C — Privacy Inventory, Draft Agreements, Threat Model (LOCKED)
+
+- **Authorization**: Human explicitly authorized Unit C construction, Agent cluster execution, autonomous acceptance and Lock on 2026-07-19.
+- **Branch/base**: `codex/unit-c-privacy-lock` from `863930fbc7b0f2cc683222770bc99eec55afc5af`.
+- **Construction commit**: `0de3fe04654018fc2941e52b494bef0a747f89fd`.
+- **Canonical tag**: `xlb-unit-c-privacy-foundation-v1` identifies the final Lock metadata commit.
+- **Locked artifacts**: 30-row personal-information inventory; privacy-policy and user-service-agreement engineering drafts; STRIDE/privacy threat model; repeatable `gate:unit-c-privacy`.
+- **Independent acceptance**: first review found two P1 findings (front-matter Gate bypass and incomplete Admin role disclosure); both were corrected. Final review returned `PASS` with `P0/P1/P2/P3 = 0/0/0/0`.
+- **Lock verification**: `pnpm gate:unit-c-privacy` PASS; adversarial `production_approved: yes` injection failed as expected; restored `false` candidate passed; Unit C diff hygiene and staged lean-risk check passed.
+- **Legal/production boundary**: engineering drafts remain `DRAFT_NOT_LEGAL_ADVICE`, `production_approved: false`, `NOT_FOR_PUBLICATION` and `NO_GO`. Operator identity, platform/self-operated legal characterization, real SDK/Provider flow, W5B rights/consent/deletion runtime and licensed-counsel review remain release blockers.
+- **New P0 engineering facts**: cross-app generic Order authorization, non-universal Admin database city-scope enforcement, and production registration of mock payment webhook require separate high-risk remediation. No fix is included in Unit C.
+- **Production state**: Phase 14 remains `ENGINEERING REMEDIATION LOCKED / PRODUCTION BLOCKED`; this Unit C Lock does not authorize Provider, deploy, push, production data, payment or public release.
+- **Report**: `docs/reports/UNIT_C_PRIVACY_FOUNDATION_LOCK_REPORT.md`.
+
 ## Phase 25 — Five-System UI Standardization (LOCKED)
 
 - **Entered**: 2026-07-12 by explicit human instruction.

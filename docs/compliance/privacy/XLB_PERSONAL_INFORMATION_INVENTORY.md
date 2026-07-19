@@ -1,12 +1,19 @@
+---
+document: XLB Personal Information Inventory
+version: 0.1-engineering
+engineering_status: LOCKED
+production_approved: false
+publication_status: INTERNAL_ENGINEERING_ONLY
+release_decision: NO_GO
+---
+
 # XLB 个人信息与重要数据清单
 
-状态：**UNIT C LOCK CANDIDATE — 工程盘点基线，不是生产保留/删除授权**
+状态：**UNIT C LOCKED — 工程盘点基线，不是生产保留/删除授权**
 
 盘点日期：2026-07-19
 
 覆盖范围：Customer、Worker、Admin、Enterprise、Fastify API、MySQL、Redis、对象存储、Outbox/Jobs、浏览器存储及计划中的外部 Provider。
-
-<!-- UNIT_C_INVENTORY_REQUIRED: identity otp_session browser_storage address_order precise_location media support review marketing finance enterprise outbox_logs backup data_subject_rights w5a_boundary -->
 
 ## 1. 使用规则
 
@@ -147,6 +154,12 @@ flowchart LR
 - 不接入真实 SMS、COS、Geo、支付或日志 Provider；
 - 不批准任何具体生产保留期限、法律保留或跨境安排；
 - 不允许把协议草案直接发布给用户。
+
+## 9.1 重要数据识别状态
+
+`IMPORTANT_DATA_CLASSIFICATION = NOT_DETERMINED`。
+
+本清单中的金融、位置、交易、运行和平台治理数据不能仅凭字段名称自行断言为国家“重要数据”，也不能自行断言一定不属于重要数据。正式生产前应结合运营地区、行业主管部门目录、数据规模、聚合程度、对公共利益/经济运行/社会秩序的影响以及监管通知，由数据安全负责人和律师完成识别；如被识别为重要数据，须另行建立目录、负责人、风险评估、申报/报告和处理活动控制。本 Unit C Lock 不作重要数据最终认定。
 
 ## 10. 主要代码证据
 
