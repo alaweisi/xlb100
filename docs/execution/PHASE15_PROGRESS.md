@@ -112,7 +112,7 @@ Manual confirmation points:
 - Whether Phase 15.2 should exactly reproduce the 390px mobile frames inside centered web containers or adapt more broadly for desktop.
 - Whether customer/worker desktop views should stay mobile-width during the first implementation pass.
 - Whether to prioritize customer home/services before worker grab hall, or build both shells in one controlled phase.
-- Whether admin desktop harmonization waits until after customer/worker route shell replacement.
+- Resolved by the five-surface constitution: Admin remains a mobile App; desktop harmonization belongs to OA.
 
 ## Phase 15.1B UI Gap Fill
 

@@ -25,7 +25,7 @@ before(() => {
   fixtureRoot = path.join(artifactsRoot, `bundle-test-${process.pid}`);
   mkdirSync(fixtureRoot, { recursive: true });
   imageLockFile = path.relative(repoRoot, path.join(fixtureRoot, "images.lock.json")).replaceAll("\\", "/");
-  const images = Object.fromEntries(["backend", "customer", "worker", "admin"].map((name, index) => [name, {
+  const images = Object.fromEntries(["backend", "customer", "worker", "admin", "oa", "dashboard"].map((name, index) => [name, {
     repository: `ccr.ccs.tencentyun.com/xlb/${name}`,
     digest: digest(String(index + 1)),
     sbomFile: `${path.relative(repoRoot, fixtureRoot).replaceAll("\\", "/")}/${name}.sbom.json`,

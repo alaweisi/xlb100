@@ -335,6 +335,8 @@ $requiredDirs = @(
   "apps/customer",
   "apps/worker",
   "apps/admin",
+  "apps/oa",
+  "apps/dashboard",
   "packages/types",
   "packages/validators",
   "packages/config",

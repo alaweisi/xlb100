@@ -23,6 +23,7 @@ import type {
   PlatformServiceIdentity,
   RecoverExpiredCouponReservationRequest,
   RequestContext,
+  Role,
 } from "@xlb/types";
 import {
   changeCouponDefinitionStatusRequestSchema,
@@ -43,6 +44,7 @@ import {
   platformServiceIdentitySchema,
 } from "@xlb/validators";
 import { assertCityScopedContext } from "../dal/scopedExecutor.js";
+import { canAccessAdminOperation } from "../auth/operationsAuthorization.js";
 import { withTransaction } from "../dal/transaction.js";
 import { eventOutboxRepository, EventOutboxRepository } from "../events/eventOutbox.js";
 import { generateEventId } from "../events/eventIds.js";
@@ -93,11 +95,11 @@ type TransactionRunner = <T>(callback: (connection: PoolConnection) => Promise<T
 
 function requireAdminRole(
   context: RequestContext,
-  roles: readonly string[],
+  roles: readonly Role[],
   operation: string,
 ): { cityCode: CityCode; actorId: string } {
   const cityCode = assertCityScopedContext(context);
-  if (context.appType !== "admin" || !roles.includes(context.role) || !context.userId) {
+  if (!canAccessAdminOperation(context, roles) || !context.userId) {
     throw new MarketingAuthorizationError(`${operation} requires an authorized city-scoped Admin identity`);
   }
   return { cityCode, actorId: context.userId };

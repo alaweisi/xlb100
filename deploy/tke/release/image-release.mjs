@@ -8,6 +8,8 @@ export const COMPONENTS = Object.freeze({
   customer: Object.freeze({ dockerfile: "infra/docker/Dockerfile.frontend", buildArgs: ["APP_NAME=customer", "APP_BASE=/customer/"] }),
   worker: Object.freeze({ dockerfile: "infra/docker/Dockerfile.frontend", buildArgs: ["APP_NAME=worker", "APP_BASE=/worker/"] }),
   admin: Object.freeze({ dockerfile: "infra/docker/Dockerfile.frontend", buildArgs: ["APP_NAME=admin", "APP_BASE=/admin/"] }),
+  oa: Object.freeze({ dockerfile: "infra/docker/Dockerfile.frontend", buildArgs: ["APP_NAME=oa", "APP_BASE=/oa/"] }),
+  dashboard: Object.freeze({ dockerfile: "infra/docker/Dockerfile.frontend", buildArgs: ["APP_NAME=dashboard", "APP_BASE=/dashboard/"] }),
 });
 
 const RELEASE_ID = /^[a-z0-9](?:[a-z0-9.-]{4,61}[a-z0-9])$/;

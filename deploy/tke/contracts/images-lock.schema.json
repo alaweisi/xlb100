@@ -13,12 +13,14 @@
     "images": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["backend", "customer", "worker", "admin"],
+      "required": ["backend", "customer", "worker", "admin", "oa", "dashboard"],
       "properties": {
         "backend": { "$ref": "#/definitions/image" },
         "customer": { "$ref": "#/definitions/image" },
         "worker": { "$ref": "#/definitions/image" },
-        "admin": { "$ref": "#/definitions/image" }
+        "admin": { "$ref": "#/definitions/image" },
+        "oa": { "$ref": "#/definitions/image" },
+        "dashboard": { "$ref": "#/definitions/image" }
       }
     }
   },

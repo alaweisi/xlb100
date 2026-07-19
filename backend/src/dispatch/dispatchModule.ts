@@ -4,6 +4,7 @@ import {
   getRequestContext,
 } from "../context/requestContextMiddleware.js";
 import { authorizeRequest } from "../gateway/authz.js";
+import { canAccessAdminOperation } from "../auth/operationsAuthorization.js";
 import {
   dispatchService,
   DispatchValidationError,
@@ -20,7 +21,7 @@ function authorizeDispatchOperator(context: ReturnType<typeof getRequestContext>
     return { ok: false as const, statusCode: authz.statusCode, error: authz.message };
   }
 
-  if (context.appType !== "admin" || context.role !== "operator") {
+  if (!canAccessAdminOperation(context, ["operator"])) {
     return {
       ok: false as const,
       statusCode: 403,

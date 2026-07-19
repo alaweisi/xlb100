@@ -86,6 +86,26 @@ frontends:
     resources:
       requests: { cpu: 25m, memory: 64Mi }
       limits: { cpu: 250m, memory: 256Mi }
+  oa:
+    replicaCount: 1
+    image:
+      repository: xlb/oa
+      tag: local
+      digest: ""
+      pullPolicy: IfNotPresent
+    resources:
+      requests: { cpu: 25m, memory: 64Mi }
+      limits: { cpu: 250m, memory: 256Mi }
+  dashboard:
+    replicaCount: 1
+    image:
+      repository: xlb/dashboard
+      tag: local
+      digest: ""
+      pullPolicy: IfNotPresent
+    resources:
+      requests: { cpu: 25m, memory: 64Mi }
+      limits: { cpu: 250m, memory: 256Mi }
 
 config:
   nodeEnv: development
@@ -135,6 +155,8 @@ ingress:
     customer: customer.xlb.local
     worker: worker.xlb.local
     admin: admin.xlb.local
+    oa: oa.xlb.local
+    dashboard: dashboard.xlb.local
 
 podSecurityContext:
   runAsNonRoot: true

@@ -15,8 +15,8 @@
 | customer | Vite shell / Phase 0 Ready | 主施工对象，需进入真实产品 UI |
 | worker | Vite shell / Phase 0 Ready | 主施工对象，需进入真实产品 UI |
 | admin | 部分真实 Settlement/Governance 页面 | 先收 API_BASE hotfix，再统一治理 UI |
-| dashboard | package/README placeholder / 地基阶段 | 先二次评估，不做假 MVP |
-| oa | package/README placeholder / 地基阶段 | 先二次评估，不做假 MVP |
+| dashboard | Phase 15 历史占位；当前已有总部只读大屏运行时 | 只接真实数据源，不做假实时指标 |
+| oa | Phase 15 历史占位；当前已有桌面网页运行时与独立总部登录 | 复用 Admin 业务能力；总部范围由 `__global__` 登录门禁与显式城市过滤共同约束 |
 
 共享层状态：
 

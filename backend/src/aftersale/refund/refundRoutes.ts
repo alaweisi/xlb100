@@ -4,6 +4,7 @@ import {
   getRequestContext,
 } from "../../context/requestContextMiddleware.js";
 import { authorizeRequest } from "../../gateway/authz.js";
+import { canAccessAdminOperation } from "../../auth/operationsAuthorization.js";
 import {
   refundService,
   RefundConflictError,
@@ -54,7 +55,7 @@ export async function registerRefundRoutes(app: FastifyInstance): Promise<void> 
       if (!authz.ok) {
         return reply.status(authz.statusCode).send({ ok: false, error: authz.message });
       }
-      if (context.appType !== "admin" || context.role !== "operator") {
+      if (!canAccessAdminOperation(context, ["operator"])) {
         return reply.status(403).send({
           ok: false,
           error: "refund approval requires admin operator",

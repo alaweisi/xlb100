@@ -1,6 +1,6 @@
 # 喜乐帮 / XLB
 
-三端 App（Customer · Worker · Admin）+ 后端 + 共享包 Monorepo。
+五端产品（Customer App · Worker App · Admin App · OA Web · Dashboard Wallboard）+ 后端 + 共享包 Monorepo。
 
 **本地路径：** `G:\xlb100`  
 **当前状态：** Phase 29 已锁定；Phase 14 生产就绪度仍在推进，staging/production 暂为 NO-GO。
@@ -31,6 +31,8 @@ pnpm --filter @xlb/backend dev      # http://localhost:3000
 pnpm --filter @xlb/customer dev     # http://localhost:5173
 pnpm --filter @xlb/worker dev       # http://localhost:5174
 pnpm --filter @xlb/admin dev        # http://localhost:5175
+pnpm --filter @xlb/oa dev           # http://localhost:5176
+pnpm --filter @xlb/dashboard dev    # http://localhost:5177
 ```
 
 ## 构建
@@ -64,16 +66,19 @@ docker compose -f deploy/compose/docker-compose.local.yml up -d
 docker compose -f deploy/compose/docker-compose.local.yml ps
 ```
 
-## 三端说明
+## 五端说明
 
 | App | 端口 | 说明 |
 |-----|------|------|
 | customer | 5173 | C 端 · 用户下单服务入口 |
 | worker | 5174 | W 端 · 师傅接单履约入口 |
 | admin | 5175 | A 端 · 运营审核管理入口 |
+| oa | 5176 | OA · 电脑端总部总后台，与 Admin 业务同源、权限级别独立治理 |
+| dashboard | 5177 | Dashboard · 总部 16:9 只读实时大屏 |
 
 ## 文档
 
 - [AGENTS.md](./AGENTS.md) — AI Agent 必读
 - [docs/CURRENT_STATE.md](./docs/CURRENT_STATE.md) — 当前 Phase、Lock 与生产边界事实源
 - [docs/architecture/](./docs/architecture/) — 架构约束
+- [五端产品宪法](./docs/architecture/01_XLB_FIVE_SURFACE_CONSTITUTION.md) — 端形态、权限和部署映射事实源

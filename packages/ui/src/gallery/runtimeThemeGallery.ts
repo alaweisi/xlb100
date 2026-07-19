@@ -20,7 +20,7 @@ export const runtimeThemeGalleryScenarios: readonly RuntimeThemeGalleryScenario[
   { id: "customer-campaign-mobile", role: "customer", mode: "light", state: "campaign", viewport: "mobile", capabilities: normal },
   { id: "customer-a11y-mobile", role: "customer", mode: "high-contrast", state: "asset-fallback", viewport: "mobile", capabilities: accessible },
   { id: "worker-default-mobile", role: "worker", mode: "dark", state: "default", viewport: "mobile", capabilities: normal },
-  { id: "admin-invalid-desktop", role: "admin", mode: "light", state: "invalid", viewport: "desktop", capabilities: normal },
+  { id: "admin-invalid-mobile", role: "admin", mode: "light", state: "invalid", viewport: "mobile", capabilities: normal },
   { id: "oa-kill-switch-desktop", role: "oa", mode: "light", state: "kill-switch", viewport: "desktop", capabilities: accessible },
   { id: "dashboard-expired-wallboard", role: "dashboard", mode: "large-display", state: "expired", viewport: "wallboard", capabilities: accessible },
 ]);

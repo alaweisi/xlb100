@@ -1,3 +1,4 @@
+/* Installable mobile operations app: keep the Admin surface inside the 430px mobile acceptance container. */
 :root {
   background: #ece8ee;
   color: #211c25;
@@ -387,6 +388,10 @@ textarea {
 .admin-mobile-gate select {
   min-height: 46px !important;
   width: 100%;
+}
+
+.admin-mobile-gate [data-visual-role="admin"] label > span:first-child {
+  color: rgba(255, 255, 255, 0.88) !important;
 }
 
 /* 首页改为手机运营总览。 */

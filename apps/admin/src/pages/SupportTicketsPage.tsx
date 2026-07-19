@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
 import type { AdminAddSupportTicketCommentRequest, AssignSupportTicketRequest, ClaimSupportTicketRequest, CloseSupportTicketRequest, EscalateSupportTicketRequest, ResolveSupportTicketRequest, SupportBotRun, SupportConversation, SupportConversationDetailResponse, SupportTicket, SupportTicketDetailResponse, SupportTicketListFilters, SupportTicketListResponse, SupportTicketMutationResponse, SupportTicketPriority, SupportTicketSource, SupportTicketStatus, SupportTicketType, SupportTicketWorkbenchView } from "@xlb/types";
 import { ApiErrorPanel, Button, Card, EmptyState, FormField, Input, LoadingState, ScopeBadge, Select, StatusTag, Table, Textarea } from "@xlb/ui";
-import { adminOpsApi as api } from "../adminAuth";
+import { adminOpsApi as api, readStoredAdminSession } from "../adminAuth";
 import { initialAdminSupportUiState, adminSupportUiReducer } from "../features/support/reducer";
 import { SupportRoutingConfigPage } from "./SupportRoutingConfigPage";
 import { SupportKnowledgeBasePage } from "./SupportKnowledgeBasePage";
@@ -34,7 +34,7 @@ const supportFailure = (error: unknown, subject: string) => {
 };
 
 function initialWorkbenchView(): SupportTicketWorkbenchView {
-  return typeof window !== "undefined" && window.localStorage.getItem("xlb.admin.role") === "admin"
+  return readStoredAdminSession()?.role === "admin"
     ? "all"
     : "mine";
 }

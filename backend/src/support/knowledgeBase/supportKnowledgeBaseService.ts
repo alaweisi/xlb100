@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import type { PoolConnection } from "mysql2/promise";
 import type { RequestContext } from "@xlb/types";
 import { withTransaction } from "../../dal/transaction.js";
+import { canAccessAdminOperation } from "../../auth/operationsAuthorization.js";
 import {
   supportKnowledgeBaseRepository, type KbVersion, type SupportKnowledgeBaseRepositoryPort,
 } from "./supportKnowledgeBaseRepository.js";
@@ -29,7 +30,7 @@ export function validateKnowledgeMarkdown(value:unknown):string {
   return markdown;
 }
 
-function identity(context:RequestContext){if(context.appType!=="admin"||!context.userId||!context.cityCode||context.cityCode==="__global__")throw new SupportKnowledgeBaseError("real-city Admin identity required",403);return{city:context.cityCode,user:context.userId};}
+function identity(context:RequestContext){if(!canAccessAdminOperation(context)||!context.userId||!context.cityCode||context.cityCode==="__global__")throw new SupportKnowledgeBaseError("real-city Admin or OA headquarters identity required",403);return{city:context.cityCode,user:context.userId};}
 
 export class SupportKnowledgeBaseService {
   constructor(private readonly repository:SupportKnowledgeBaseRepositoryPort=supportKnowledgeBaseRepository,

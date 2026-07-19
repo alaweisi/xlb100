@@ -19,3 +19,9 @@ createRoot(document.getElementById("root")!).render(
     </ThemeProvider>
   </StrictMode>,
 );
+
+if ("serviceWorker" in navigator && window.location.protocol === "https:") {
+  window.addEventListener("load", () => {
+    void navigator.serviceWorker.register("./sw.js", { scope: "./" });
+  });
+}

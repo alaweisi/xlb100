@@ -32,7 +32,7 @@
       "type": "stat",
       "title": "Unavailable deployment replicas",
       "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
-      "targets": [{"refId": "A", "expr": "sum(kube_deployment_spec_replicas{namespace=~\"$namespace\",deployment=~\".*-xlb-(backend|jobs|customer|worker|admin)\"} - kube_deployment_status_replicas_available{namespace=~\"$namespace\",deployment=~\".*-xlb-(backend|jobs|customer|worker|admin)\"})", "legendFormat": "unavailable"}],
+      "targets": [{"refId": "A", "expr": "sum(kube_deployment_spec_replicas{namespace=~\"$namespace\",deployment=~\".*-xlb-(backend|jobs|customer|worker|admin|oa|dashboard)\"} - kube_deployment_status_replicas_available{namespace=~\"$namespace\",deployment=~\".*-xlb-(backend|jobs|customer|worker|admin|oa|dashboard)\"})", "legendFormat": "unavailable"}],
       "fieldConfig": {"defaults": {"thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]}}, "overrides": []},
       "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
       "gridPos": {"h": 5, "w": 6, "x": 12, "y": 0}
@@ -93,7 +93,7 @@
       "type": "timeseries",
       "title": "Pod restarts in 15 minutes",
       "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
-      "targets": [{"refId": "A", "expr": "sum by (pod, container) (increase(kube_pod_container_status_restarts_total{namespace=~\"$namespace\",pod=~\".*-xlb-(backend|jobs|customer|worker|admin)-.*\"}[15m]))", "legendFormat": "{{pod}} / {{container}}"}],
+      "targets": [{"refId": "A", "expr": "sum by (pod, container) (increase(kube_pod_container_status_restarts_total{namespace=~\"$namespace\",pod=~\".*-xlb-(backend|jobs|customer|worker|admin|oa|dashboard)-.*\"}[15m]))", "legendFormat": "{{pod}} / {{container}}"}],
       "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
       "options": {"legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
       "gridPos": {"h": 8, "w": 8, "x": 16, "y": 13}
@@ -116,7 +116,7 @@
       "type": "timeseries",
       "title": "Container CPU / request",
       "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
-      "targets": [{"refId": "A", "expr": "sum by (pod, container) (rate(container_cpu_usage_seconds_total{namespace=~\"$namespace\",pod=~\".*-xlb-(backend|jobs|customer|worker|admin)-.*\",container!=\"\",image!=\"\"}[5m])) / clamp_min(sum by (pod, container) (kube_pod_container_resource_requests{namespace=~\"$namespace\",pod=~\".*-xlb-(backend|jobs|customer|worker|admin)-.*\",resource=\"cpu\",unit=\"core\"}), 0.001)", "legendFormat": "{{pod}} / {{container}}"}],
+      "targets": [{"refId": "A", "expr": "sum by (pod, container) (rate(container_cpu_usage_seconds_total{namespace=~\"$namespace\",pod=~\".*-xlb-(backend|jobs|customer|worker|admin|oa|dashboard)-.*\",container!=\"\",image!=\"\"}[5m])) / clamp_min(sum by (pod, container) (kube_pod_container_resource_requests{namespace=~\"$namespace\",pod=~\".*-xlb-(backend|jobs|customer|worker|admin|oa|dashboard)-.*\",resource=\"cpu\",unit=\"core\"}), 0.001)", "legendFormat": "{{pod}} / {{container}}"}],
       "fieldConfig": {"defaults": {"unit": "percentunit"}, "overrides": []},
       "options": {"legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
       "gridPos": {"h": 8, "w": 12, "x": 12, "y": 21}

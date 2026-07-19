@@ -1,6 +1,6 @@
 # XLB image release factory
 
-This workstream builds the four XLB application images and freezes registry
+This workstream builds the backend plus five XLB product-surface images and freezes registry
 digests into the Wave 0 `images-lock` contract. The default mode is a dry-run.
 The tool never performs registry login and never accepts registry credentials.
 
@@ -9,8 +9,8 @@ The tool never performs registry login and never accepts registry credentials.
 | Mode | Effect |
 | --- | --- |
 | `plan` | Writes a release manifest and image plan below `.artifacts/tke/`; runs no external command. |
-| `build` | Builds all four images into the local Docker daemon; performs no push and cannot create an image lock. |
-| `publish` | Builds and pushes all four images, reads registry digests, generates SBOM/scan evidence, and writes `images.lock.json`. |
+| `build` | Builds all six images (backend + five product surfaces) into the local Docker daemon; performs no push and cannot create an image lock. |
+| `publish` | Builds and pushes all six images, reads registry digests, generates SBOM/scan evidence, and writes `images.lock.json`. |
 | `freeze` | Reads an already-published release tag, generates evidence, and writes the immutable lock without rebuilding. |
 
 Copy `release-input.example.json` to an ignored path such as

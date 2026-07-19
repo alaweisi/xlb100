@@ -207,7 +207,7 @@ export class ReviewModerationRepository extends RepositoryBase {
     const [rows] = await connection.query<(RowDataPacket & { role: string })[]>(
       `SELECT au.role FROM admin_users au
        INNER JOIN admin_city_scopes acs
-         ON acs.admin_user_id=au.id AND acs.city_code=?
+         ON acs.admin_user_id=au.id AND (acs.city_code=? OR acs.city_code='__global__')
        WHERE au.id=? AND au.role IN ('admin','operator','auditor') LIMIT 1`,
       [cityCode, actorId],
     );

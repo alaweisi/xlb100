@@ -52,6 +52,18 @@ describe("手机运营 App 外壳", () => {
     }
   });
 
+  it("OA 复用相同业务页面但使用独立桌面侧栏且拥有完整工作台入口", async () => {
+    window.localStorage.setItem("xlb.oa.cityCode", "hangzhou");
+    auth.session = { token: "oa-token", userId: "oa-1", role: "admin", username: "oa_global" };
+    const { container } = render(<App surface="oa" />);
+
+    expect(await screen.findByText("喜乐帮 OA 总后台")).toBeTruthy();
+    expect(container.querySelector("aside")).not.toBeNull();
+    expect(screen.getByRole("link", { name: "城市派单" })).toBeTruthy();
+    expect(screen.queryByRole("navigation", { name: "运营应用主导航" })).toBeNull();
+    expect(screen.getByText("总部高权限工作台 · 与移动后台共用业务事实和操作契约")).toBeTruthy();
+  });
+
   it("从我的更多打开包含十四个工作台的全部工具面板", async () => {
     render(<App />);
     await screen.findByRole("heading", { name: "运营总览", level: 1 });

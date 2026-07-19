@@ -69,7 +69,7 @@ export class SupportAgentRepository extends RepositoryBase {
   async loadAdminRoleAndExplicitScope(connection: PoolConnection, cityCode: CityCode, adminUserId: string): Promise<{ role: string } | null> {
     const [rows] = await connection.query<(RowDataPacket & { role: string })[]>(
       `SELECT au.role FROM admin_users au
-       INNER JOIN admin_city_scopes acs ON acs.admin_user_id=au.id AND acs.city_code=?
+       INNER JOIN admin_city_scopes acs ON acs.admin_user_id=au.id AND (acs.city_code=? OR acs.city_code='__global__')
        WHERE au.id=? LIMIT 1`,
       [cityCode, adminUserId],
     );

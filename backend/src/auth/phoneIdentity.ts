@@ -15,7 +15,7 @@ export function hashPhoneIdentity(phone: string): string {
     .digest("hex");
 }
 
-export function hashAuthAuditIdentity(scope: "customer" | "admin" | "worker", identifier: string): string {
+export function hashAuthAuditIdentity(scope: "customer" | "admin" | "oa" | "dashboard" | "worker", identifier: string): string {
   return createHmac("sha256", loadEnv().authPhoneHashSecret)
     .update(`xlb:auth-audit:v1:${scope}:${identifier}`, "utf8")
     .digest("hex")

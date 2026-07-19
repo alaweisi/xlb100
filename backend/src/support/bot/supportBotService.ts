@@ -3,6 +3,7 @@ import type { RequestContext } from "@xlb/types";
 import { withTransaction } from "../../dal/transaction.js";
 import { deterministicSupportNluProvider } from "../../providers/nlu/deterministicSupportNluProvider.js";
 import type { SupportNluProvider } from "../../providers/nlu/supportNluProvider.js";
+import { canAccessAdminOperation } from "../../auth/operationsAuthorization.js";
 import {
   supportKnowledgeBaseRepository,
   type SupportKnowledgeBaseRepositoryPort,
@@ -33,7 +34,7 @@ export class SupportBotService {
 
   async run(context: RequestContext, conversationId: string, messageId: string) {
     if (
-      context.appType !== "admin"
+      !canAccessAdminOperation(context)
       || !context.userId
       || !context.cityCode
       || context.cityCode === "__global__"

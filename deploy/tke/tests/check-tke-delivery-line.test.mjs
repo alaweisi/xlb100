@@ -32,7 +32,7 @@ test("reviewed production values with immutable images pass", () => {
 
 test("production rejects a missing digest", () => {
   const invalid = ready.replace(/digest:\s*sha256:[a-f0-9]{64}/i, 'digest: ""');
-  assert.throws(() => validateDeploymentValues(invalid, "production"), /four immutable image digests/);
+  assert.throws(() => validateDeploymentValues(invalid, "production"), /six immutable image digests/);
 });
 
 test("production rejects a mutable tag", () => {

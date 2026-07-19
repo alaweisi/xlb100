@@ -34,6 +34,16 @@ frontends:
       repository: ccr.ccs.tencentyun.com/xlb/admin
       tag: ""
       digest: ${digest("d")}
+  oa:
+    image:
+      repository: ccr.ccs.tencentyun.com/xlb/oa
+      tag: ""
+      digest: ${digest("e")}
+  dashboard:
+    image:
+      repository: ccr.ccs.tencentyun.com/xlb/dashboard
+      tag: ""
+      digest: ${digest("f")}
 config:
   objectStorage:
     provider: cos
@@ -49,6 +59,8 @@ ingress:
     customer: customer.xlb.test
     worker: worker.xlb.test
     admin: admin.xlb.test
+    oa: oa.xlb.test
+    dashboard: dashboard.xlb.test
 `;
 }
 
@@ -67,6 +79,8 @@ function validN7Evidence() {
       customer: { repository: "ccr.ccs.tencentyun.com/xlb/customer", digest: digest("b") },
       worker: { repository: "ccr.ccs.tencentyun.com/xlb/worker", digest: digest("c") },
       admin: { repository: "ccr.ccs.tencentyun.com/xlb/admin", digest: digest("d") },
+      oa: { repository: "ccr.ccs.tencentyun.com/xlb/oa", digest: digest("e") },
+      dashboard: { repository: "ccr.ccs.tencentyun.com/xlb/dashboard", digest: digest("f") },
     },
     validatedChecks: {
       immutableImagePull: true,
@@ -207,4 +221,3 @@ test("N8 inputs must stay under the ignored artifact root", () => {
   manifest.valuesFile = "deploy/environments/tke/values-production.yaml";
   assert.throws(() => buildProductionPlan({ repoRoot, manifest }), /gitignored \.artifacts/);
 });
-

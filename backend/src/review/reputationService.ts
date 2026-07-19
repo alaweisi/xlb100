@@ -12,6 +12,7 @@ import {
 } from "@xlb/validators";
 import { assertCityScopedContext } from "../dal/scopedExecutor.js";
 import { withTransaction } from "../dal/transaction.js";
+import { canAccessAdminOperation } from "../auth/operationsAuthorization.js";
 import {
   platformDeliveryService,
   PlatformDeliveryService,
@@ -84,7 +85,7 @@ export class ReputationService {
     sourceRowCount: number; visibleRowCount: number; dryRunHash: string;
   }> {
     const cityCode = assertCityScopedContext(context);
-    if (context.appType !== "admin" || !["admin", "operator"].includes(context.role)
+    if (!canAccessAdminOperation(context, ["admin", "operator"])
       || !context.userId) {
       throw new ReviewForbiddenError("reputation rebuild dry-run requires scoped Admin or Operator");
     }

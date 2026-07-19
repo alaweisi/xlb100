@@ -16,6 +16,7 @@ import {
   supportTicketListFiltersSchema,
 } from "@xlb/validators";
 import { withTransaction } from "../../dal/transaction.js";
+import { canAccessAdminOperation } from "../../auth/operationsAuthorization.js";
 import { assertCityScopedContext } from "../../dal/scopedExecutor.js";
 import { eventOutboxRepository, type EventOutboxRepository } from "../../events/eventOutbox.js";
 import { generateEventId } from "../../events/eventIds.js";
@@ -72,13 +73,13 @@ function requesterIdentity(context: RequestContext): RequesterIdentity {
 }
 
 function requireAdminRead(context: RequestContext): void {
-  if (context.appType !== "admin" || !["admin", "operator", "auditor"].includes(context.role)) {
+  if (!canAccessAdminOperation(context, ["admin", "operator", "auditor"])) {
     throw new SupportTicketForbiddenError("support ticket read access requires an admin-scoped role");
   }
 }
 
 function requireAdminWrite(context: RequestContext): void {
-  if (context.appType !== "admin" || !["admin", "operator"].includes(context.role)) {
+  if (!canAccessAdminOperation(context, ["admin", "operator"])) {
     throw new SupportTicketForbiddenError("support ticket operations require admin or operator role");
   }
 }

@@ -5,7 +5,7 @@ This directory is the offline, provider-neutral N5 operations package. It does n
 ## Inputs verified from N1 and N2
 
 - The backend is selected through the `*-xlb-backend` ClusterIP Service on its named `http` port; the optional ServiceMonitor scrapes `/metrics`.
-- Workloads use names ending in `-xlb-backend`, `-xlb-jobs`, `-xlb-customer`, `-xlb-worker`, and `-xlb-admin`. Prometheus rules intentionally match those stable Helm names instead of depending on a kube-state-metrics label allowlist.
+- Workloads use names ending in `-xlb-backend`, `-xlb-jobs`, `-xlb-customer`, `-xlb-worker`, `-xlb-admin`, `-xlb-oa`, and `-xlb-dashboard`. Prometheus rules intentionally match those stable Helm names instead of depending on a kube-state-metrics label allowlist.
 - Application rules only reference `xlb_*` metric names that are rendered by `backend/src/observability/metrics.ts`.
 - Kubernetes rules use the explicit platform allowlist in `metric-contract.json`. They require kube-state-metrics and kubelet/cAdvisor collection and are not application metrics.
 

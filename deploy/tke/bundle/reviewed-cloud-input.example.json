@@ -27,8 +27,8 @@
   "stateBackend": { "region": "ap-guangzhou", "bucket": "xlb-terraform-state-100000000000", "prefix": "xlb/production/tke-infra", "encrypt": true, "acl": "private" },
   "helm": {
     "environment": "production", "region": "ap-guangzhou", "ingressClass": "qcloud",
-    "hosts": { "api": "api.xlb.test", "customer": "customer.xlb.test", "worker": "worker.xlb.test", "admin": "admin.xlb.test" },
-    "replicas": { "backend": 2, "jobs": 1, "customer": 2, "worker": 2, "admin": 2 }
+    "hosts": { "api": "api.xlb.test", "customer": "customer.xlb.test", "worker": "worker.xlb.test", "admin": "admin.xlb.test", "oa": "oa.xlb.test", "dashboard": "dashboard.xlb.test" },
+    "replicas": { "backend": 2, "jobs": 1, "customer": 2, "worker": 2, "admin": 2, "oa": 2, "dashboard": 2 }
   },
   "imageLockFile": ".artifacts/tke/releases/release-20260717-001/images.lock.json",
   "secretReferences": { "runtimeSecretName": "xlb-production-runtime", "tlsSecretName": "xlb-production-tls" },

@@ -30,6 +30,12 @@ export type {
 export { XLB_HEADERS, type XlbHeaderName } from "./headers.js";
 export type { Order, OrderPriceSnapshot, OrderStatus, ScheduledTimeSlot } from "./order.js";
 export type {
+  DashboardCityOperations,
+  DashboardOperationsResponse,
+  DashboardOperationsSnapshot,
+  DashboardOperationsTotals,
+} from "./dashboard.js";
+export type {
   PaymentOrder,
   PaymentStatus,
   PaymentProvider,

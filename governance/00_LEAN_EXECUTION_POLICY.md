@@ -12,6 +12,7 @@
 - Human 每个普通 Phase 最多介入一次。
 - 治理时间不应成为主要开发时间。
 - 自动化服务于交付，不以重复生成记录代替工程结果。
+- 所有前端施工遵守 `docs/architecture/01_XLB_FIVE_SURFACE_CONSTITUTION.md` 的五端边界；旧流程或阶段报告不得把 Admin 重新定义为桌面网页。
 
 ## 3. 普通开发
 

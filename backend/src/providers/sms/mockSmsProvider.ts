@@ -3,7 +3,7 @@ import { loadProviderReadinessConfig } from "@xlb/config";
 import type { ProviderFaultPlan } from "../providerSimulation.js";
 import { applyProviderFault, SimulatedProviderError } from "../providerSimulation.js";
 
-export type SmsPurpose = "customer_login" | "worker_login" | "admin_login";
+export type SmsPurpose = "customer_login" | "worker_login" | "admin_login" | "oa_login" | "dashboard_login";
 
 export interface SendLoginOtpInput {
   recipient: string;

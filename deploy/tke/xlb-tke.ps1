@@ -459,7 +459,7 @@ switch ($Action) {
     Assert-CurrentKubeContext $approvedContext
     & kubectl --context $KubeContext --namespace $namespace get deployment,pod,service,ingress
     if ($LASTEXITCODE -ne 0) { Fail "cluster smoke inventory failed" }
-    foreach ($deployment in @("backend", "customer", "worker", "admin", "jobs")) {
+    foreach ($deployment in @("backend", "customer", "worker", "admin", "oa", "dashboard", "jobs")) {
       & kubectl --context $KubeContext --namespace $namespace rollout status "deployment/$releaseName-xlb-$deployment" --timeout=180s
       if ($LASTEXITCODE -ne 0) { Fail "rollout smoke failed for $deployment" }
     }

@@ -44,6 +44,7 @@ describe("Phase 23A boundary gates", () => {
   it.each([
     "/api/auth/customer/code",
     "/api/auth/admin/code",
+    "/api/auth/oa/code",
     "/api/auth/worker/code",
   ])("rate limits the real OTP issue route %s by default", async route => {
     const guard = createRateLimitGuard({ now: () => 1_000 });
@@ -62,7 +63,7 @@ describe("Phase 23A boundary gates", () => {
   it("does not register debug OTP routes unconditionally in production", () => {
     const routes = source("backend/src/auth/authRoutes.ts");
     expect(routes).toMatch(/registerDebugRoutes\s*=\s*[^;]*(production|nodeEnv|NODE_ENV)/i);
-    expect(routes.match(/if\s*\(\s*registerDebugRoutes\s*\)\s*\{\s*app\.get\s*\(\s*["']\/api\/auth\/(customer|admin|worker)\/debug-code/gi)).toHaveLength(3);
+    expect(routes.match(/if\s*\(\s*registerDebugRoutes\s*\)\s*\{\s*app\.get\s*\(\s*["']\/api\/auth\/(customer|admin|oa|worker)\/debug-code/gi)).toHaveLength(4);
   });
 
   it("returns 404 for every debug OTP route in production even when the debug flag is requested", async () => {
@@ -87,6 +88,7 @@ describe("Phase 23A boundary gates", () => {
       for (const route of [
         "/api/auth/customer/debug-code?phone=13800000000",
         "/api/auth/admin/debug-code?username=operator",
+        "/api/auth/oa/debug-code?username=oa_global",
         "/api/auth/worker/debug-code?phone=13800000000",
       ]) {
         expect((await app.inject({ method: "GET", url: route })).statusCode).toBe(404);

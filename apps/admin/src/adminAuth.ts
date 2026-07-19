@@ -7,10 +7,17 @@ import {
 } from "@xlb/api-client";
 import { API_BASE } from "./apiBase";
 
-const TOKEN_STORAGE_KEY = "xlb.admin.token";
-const ADMIN_ID_STORAGE_KEY = "xlb.admin.userId";
-const ADMIN_ROLE_STORAGE_KEY = "xlb.admin.role";
-const ADMIN_USERNAME_STORAGE_KEY = "xlb.admin.username";
+export type OperationsSurface = "admin" | "oa";
+
+function resolveOperationsSurface(surface?: OperationsSurface): OperationsSurface {
+  if (surface) return surface;
+  if (typeof document !== "undefined" && document.documentElement.dataset.xlbSurface === "oa") return "oa";
+  return "admin";
+}
+
+function storageKey(surface: OperationsSurface, field: "token" | "userId" | "role" | "username"): string {
+  return `xlb.${surface}.${field}`;
+}
 
 export interface AdminSession {
   token: string;
@@ -19,52 +26,63 @@ export interface AdminSession {
   username: string;
 }
 
-export function readStoredAdminSession(): AdminSession | null {
+export function readStoredAdminSession(surface?: OperationsSurface): AdminSession | null {
   if (typeof window === "undefined") return null;
-  const token = window.localStorage.getItem(TOKEN_STORAGE_KEY);
-  const userId = window.localStorage.getItem(ADMIN_ID_STORAGE_KEY);
-  const role = window.localStorage.getItem(ADMIN_ROLE_STORAGE_KEY);
-  const username = window.localStorage.getItem(ADMIN_USERNAME_STORAGE_KEY) ?? "admin_hz";
+  const resolvedSurface = resolveOperationsSurface(surface);
+  const token = window.localStorage.getItem(storageKey(resolvedSurface, "token"));
+  const userId = window.localStorage.getItem(storageKey(resolvedSurface, "userId"));
+  const role = window.localStorage.getItem(storageKey(resolvedSurface, "role"));
+  const username = window.localStorage.getItem(storageKey(resolvedSurface, "username")) ?? (resolvedSurface === "oa" ? "oa_global" : "admin_hz");
   if (!token || !userId || !role) return null;
   return { token, userId, role, username };
 }
 
-function storeAdminSession(session: AdminSession): void {
+function storeAdminSession(session: AdminSession, surface: OperationsSurface): void {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(TOKEN_STORAGE_KEY, session.token);
-  window.localStorage.setItem(ADMIN_ID_STORAGE_KEY, session.userId);
-  window.localStorage.setItem(ADMIN_ROLE_STORAGE_KEY, session.role);
-  window.localStorage.setItem(ADMIN_USERNAME_STORAGE_KEY, session.username);
+  window.localStorage.setItem(storageKey(surface, "token"), session.token);
+  window.localStorage.setItem(storageKey(surface, "userId"), session.userId);
+  window.localStorage.setItem(storageKey(surface, "role"), session.role);
+  window.localStorage.setItem(storageKey(surface, "username"), session.username);
 }
 
-export function clearAdminSession(): void {
+export function clearAdminSession(surface?: OperationsSurface): void {
   if (typeof window === "undefined") return;
-  window.localStorage.removeItem(TOKEN_STORAGE_KEY);
-  window.localStorage.removeItem(ADMIN_ID_STORAGE_KEY);
-  window.localStorage.removeItem(ADMIN_ROLE_STORAGE_KEY);
+  const resolvedSurface = resolveOperationsSurface(surface);
+  window.localStorage.removeItem(storageKey(resolvedSurface, "token"));
+  window.localStorage.removeItem(storageKey(resolvedSurface, "userId"));
+  window.localStorage.removeItem(storageKey(resolvedSurface, "role"));
 }
 
-export async function requestAdminLoginCode(username = "admin_hz") {
+export async function requestAdminLoginCode(username = "admin_hz", surface: OperationsSurface = "admin") {
   const auth = createAuthApi(createApiClient({ baseUrl: API_BASE }));
-  const result = await auth.requestAdminLoginCode(username);
+  const result = surface === "oa"
+    ? await auth.requestOaLoginCode(username)
+    : await auth.requestAdminLoginCode(username);
   if (!result.ok) throw new Error(adminAuthErrorMessage(result.error, "验证码发送失败，请稍后重试"));
   if (typeof window !== "undefined") {
-    window.localStorage.setItem(ADMIN_USERNAME_STORAGE_KEY, username);
+    window.localStorage.setItem(storageKey(surface, "username"), username);
   }
   return result;
 }
 
-export async function loginAdminWithCode(username: string, code: string): Promise<AdminSession> {
+export async function loginAdminWithCode(username: string, code: string, surface: OperationsSurface = "admin"): Promise<AdminSession> {
   const auth = createAuthApi(createApiClient({ baseUrl: API_BASE }));
-  const result = await auth.adminLogin(username, code);
-  if (!result.ok) throw new Error(adminAuthErrorMessage(result.error, "运营应用登录失败，请核对验证码"));
+  const result = surface === "oa"
+    ? await auth.oaLogin(username, code)
+    : await auth.adminLogin(username, code);
+  if (!result.ok) {
+    const fallback = surface === "oa"
+      ? "OA 总后台登录失败，请核对验证码"
+      : "运营应用登录失败，请核对验证码";
+    throw new Error(adminAuthErrorMessage(result.error, fallback));
+  }
   const session: AdminSession = {
     token: result.token,
     userId: result.userId,
     role: result.role,
     username,
   };
-  storeAdminSession(session);
+  storeAdminSession(session, surface);
   return session;
 }
 

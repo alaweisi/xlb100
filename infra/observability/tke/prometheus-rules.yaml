@@ -82,28 +82,28 @@
       "rules": [
         {
           "alert": "XlbDeploymentReplicasUnavailable",
-          "expr": "kube_deployment_spec_replicas{deployment=~\".*-xlb-(backend|jobs|customer|worker|admin)\"} - kube_deployment_status_replicas_available{deployment=~\".*-xlb-(backend|jobs|customer|worker|admin)\"} > 0",
+          "expr": "kube_deployment_spec_replicas{deployment=~\".*-xlb-(backend|jobs|customer|worker|admin|oa|dashboard)\"} - kube_deployment_status_replicas_available{deployment=~\".*-xlb-(backend|jobs|customer|worker|admin|oa|dashboard)\"} > 0",
           "for": "5m",
           "labels": {"severity": "critical", "owner": "application-platform"},
           "annotations": {"summary": "XLB Deployment has unavailable replicas", "description": "Deployment {{ $labels.namespace }}/{{ $labels.deployment }} has fewer available replicas than requested.", "runbook": "docs/operations/TKE_NODE_FAILURE_RUNBOOK.md"}
         },
         {
           "alert": "XlbPodRestartBurst",
-          "expr": "sum by (namespace, pod, container) (increase(kube_pod_container_status_restarts_total{pod=~\".*-xlb-(backend|jobs|customer|worker|admin)-.*\"}[15m])) > 3",
+          "expr": "sum by (namespace, pod, container) (increase(kube_pod_container_status_restarts_total{pod=~\".*-xlb-(backend|jobs|customer|worker|admin|oa|dashboard)-.*\"}[15m])) > 3",
           "for": "2m",
           "labels": {"severity": "warning", "owner": "application-platform"},
           "annotations": {"summary": "XLB Pod is restarting repeatedly", "description": "Container {{ $labels.namespace }}/{{ $labels.pod }}/{{ $labels.container }} restarted more than three times in 15 minutes.", "runbook": "docs/operations/TKE_NODE_FAILURE_RUNBOOK.md"}
         },
         {
           "alert": "XlbContainerCpuNearRequest",
-          "expr": "sum by (namespace, pod, container) (rate(container_cpu_usage_seconds_total{pod=~\".*-xlb-(backend|jobs|customer|worker|admin)-.*\",container!=\"\",image!=\"\"}[5m])) / clamp_min(sum by (namespace, pod, container) (kube_pod_container_resource_requests{pod=~\".*-xlb-(backend|jobs|customer|worker|admin)-.*\",resource=\"cpu\",unit=\"core\"}), 0.001) > 0.9",
+          "expr": "sum by (namespace, pod, container) (rate(container_cpu_usage_seconds_total{pod=~\".*-xlb-(backend|jobs|customer|worker|admin|oa|dashboard)-.*\",container!=\"\",image!=\"\"}[5m])) / clamp_min(sum by (namespace, pod, container) (kube_pod_container_resource_requests{pod=~\".*-xlb-(backend|jobs|customer|worker|admin|oa|dashboard)-.*\",resource=\"cpu\",unit=\"core\"}), 0.001) > 0.9",
           "for": "15m",
           "labels": {"severity": "warning", "owner": "application-platform"},
           "annotations": {"summary": "XLB container CPU is near its request", "description": "Container {{ $labels.namespace }}/{{ $labels.pod }}/{{ $labels.container }} is using more than 90% of its requested CPU for 15 minutes.", "runbook": "docs/operations/TKE_NODE_FAILURE_RUNBOOK.md"}
         },
         {
           "alert": "XlbContainerMemoryNearLimit",
-          "expr": "sum by (namespace, pod, container) (container_memory_working_set_bytes{pod=~\".*-xlb-(backend|jobs|customer|worker|admin)-.*\",container!=\"\",image!=\"\"}) / clamp_min(sum by (namespace, pod, container) (kube_pod_container_resource_limits{pod=~\".*-xlb-(backend|jobs|customer|worker|admin)-.*\",resource=\"memory\",unit=\"byte\"}), 1) > 0.9",
+          "expr": "sum by (namespace, pod, container) (container_memory_working_set_bytes{pod=~\".*-xlb-(backend|jobs|customer|worker|admin|oa|dashboard)-.*\",container!=\"\",image!=\"\"}) / clamp_min(sum by (namespace, pod, container) (kube_pod_container_resource_limits{pod=~\".*-xlb-(backend|jobs|customer|worker|admin|oa|dashboard)-.*\",resource=\"memory\",unit=\"byte\"}), 1) > 0.9",
           "for": "10m",
           "labels": {"severity": "critical", "owner": "application-platform"},
           "annotations": {"summary": "XLB container memory is near its limit", "description": "Container {{ $labels.namespace }}/{{ $labels.pod }}/{{ $labels.container }} is above 90% of its memory limit.", "runbook": "docs/operations/TKE_NODE_FAILURE_RUNBOOK.md"}

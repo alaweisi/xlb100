@@ -168,6 +168,38 @@ services:
     ports:
       - "127.0.0.1:4175:4173"
 
+  oa:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.frontend
+      args:
+        APP_NAME: oa
+        APP_BASE: /oa/
+    container_name: xlb-oa-staging
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      NODE_ENV: ${NODE_ENV:-staging}
+    ports:
+      - "127.0.0.1:4176:4173"
+
+  dashboard:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.frontend
+      args:
+        APP_NAME: dashboard
+        APP_BASE: /dashboard/
+    container_name: xlb-dashboard-staging
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      NODE_ENV: ${NODE_ENV:-staging}
+    ports:
+      - "127.0.0.1:4177:4173"
+
   reverse-proxy:
     image: nginx:1.27-alpine
     container_name: xlb-staging-proxy
@@ -177,6 +209,8 @@ services:
       - customer
       - worker
       - admin
+      - oa
+      - dashboard
     ports:
       - "${STAGING_HTTP_PORT:-80}:80"
     volumes:

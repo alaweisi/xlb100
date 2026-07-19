@@ -2,7 +2,7 @@ import { createHash, createHmac, randomInt } from "node:crypto";
 import { loadEnv } from "@xlb/config";
 import { getRedisClient } from "../dal/redisClient.js";
 
-export type LoginOtpScope = "customer" | "admin" | "worker";
+export type LoginOtpScope = "customer" | "admin" | "oa" | "dashboard" | "worker";
 
 type OtpRecord = {
   codeHash: string;

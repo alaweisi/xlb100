@@ -4,6 +4,7 @@ import {
   getRequestContext,
 } from "../../context/requestContextMiddleware.js";
 import { authorizeRequest } from "../../gateway/authz.js";
+import { canAccessAdminOperation } from "../../auth/operationsAuthorization.js";
 import {
   aftersaleCaseService,
   AftersaleConflictError,
@@ -54,61 +55,61 @@ export async function registerAftersaleCaseRoutes(app: FastifyInstance): Promise
   app.get("/api/internal/aftersale/complaints",{preHandler},async(request,reply)=>{
     const context=getRequestContext(request);const authz=authorizeRequest(context);
     if(!authz.ok)return reply.status(authz.statusCode).send({ok:false,error:authz.message});
-    if(context.appType!=="admin"||!["admin","operator"].includes(context.role))return reply.status(403).send({ok:false,error:"complaint operations require admin operator"});
+    if(!canAccessAdminOperation(context,["admin","operator"]))return reply.status(403).send({ok:false,error:"complaint operations require admin operator or OA headquarters authority"});
     return {ok:true,complaints:await aftersaleCaseService.listForAdmin(context,request.query as {orderId?:string;status?:string})};
   });
   app.get("/api/internal/aftersale/complaints/:complaintId",{preHandler},async(request,reply)=>{
     const context=getRequestContext(request);const authz=authorizeRequest(context);
     if(!authz.ok)return reply.status(authz.statusCode).send({ok:false,error:authz.message});
-    if(context.appType!=="admin"||!["admin","operator"].includes(context.role))return reply.status(403).send({ok:false,error:"complaint detail requires admin operator"});
+    if(!canAccessAdminOperation(context,["admin","operator"]))return reply.status(403).send({ok:false,error:"complaint detail requires admin operator or OA headquarters authority"});
     try{return {ok:true,detail:await aftersaleCaseService.getForAdmin(context,(request.params as {complaintId:string}).complaintId)};}catch(error){return mapError(error,reply);}
   });
   app.post("/api/internal/aftersale/complaints/:complaintId/triage",{preHandler},async(request,reply)=>{
     const context=getRequestContext(request);const authz=authorizeRequest(context);
     if(!authz.ok)return reply.status(authz.statusCode).send({ok:false,error:authz.message});
-    if(context.appType!=="admin"||!["admin","operator"].includes(context.role))return reply.status(403).send({ok:false,error:"complaint triage requires admin operator"});
+    if(!canAccessAdminOperation(context,["admin","operator"]))return reply.status(403).send({ok:false,error:"complaint triage requires admin operator or OA headquarters authority"});
     try{return {ok:true,complaint:await aftersaleCaseService.triage(context,(request.params as {complaintId:string}).complaintId,request.body)};}catch(error){return mapError(error,reply);}
   });
   app.post("/api/internal/aftersale/complaints/:complaintId/resolve",{preHandler},async(request,reply)=>{
     const context=getRequestContext(request);const authz=authorizeRequest(context);
     if(!authz.ok)return reply.status(authz.statusCode).send({ok:false,error:authz.message});
-    if(context.appType!=="admin"||!["admin","operator"].includes(context.role))return reply.status(403).send({ok:false,error:"complaint resolution requires admin operator"});
+    if(!canAccessAdminOperation(context,["admin","operator"]))return reply.status(403).send({ok:false,error:"complaint resolution requires admin operator or OA headquarters authority"});
     try{return {ok:true,complaint:await aftersaleCaseService.resolve(context,(request.params as {complaintId:string}).complaintId,request.body)};}catch(error){return mapError(error,reply);}
   });
   app.post("/api/internal/aftersale/complaints/:complaintId/close",{preHandler},async(request,reply)=>{
     const context=getRequestContext(request);const authz=authorizeRequest(context);
     if(!authz.ok)return reply.status(authz.statusCode).send({ok:false,error:authz.message});
-    if(context.appType!=="admin"||!["admin","operator"].includes(context.role))return reply.status(403).send({ok:false,error:"complaint close requires admin operator"});
+    if(!canAccessAdminOperation(context,["admin","operator"]))return reply.status(403).send({ok:false,error:"complaint close requires admin operator or OA headquarters authority"});
     try{return {ok:true,complaint:await aftersaleCaseService.close(context,(request.params as {complaintId:string}).complaintId)};}catch(error){return mapError(error,reply);}
   });
   app.post("/api/internal/aftersale/complaints/:complaintId/notes",{preHandler},async(request,reply)=>{
     const context=getRequestContext(request);const authz=authorizeRequest(context);
     if(!authz.ok)return reply.status(authz.statusCode).send({ok:false,error:authz.message});
-    if(context.appType!=="admin"||!["admin","operator"].includes(context.role))return reply.status(403).send({ok:false,error:"customer-service note requires admin operator"});
+    if(!canAccessAdminOperation(context,["admin","operator"]))return reply.status(403).send({ok:false,error:"customer-service note requires admin operator or OA headquarters authority"});
     try{await aftersaleCaseService.addAdminNote(context,(request.params as {complaintId:string}).complaintId,request.body);return {ok:true};}catch(error){return mapError(error,reply);}
   });
   app.post("/api/internal/aftersale/complaints/:complaintId/repair-orders",{preHandler},async(request,reply)=>{
     const context=getRequestContext(request);const authz=authorizeRequest(context);
     if(!authz.ok)return reply.status(authz.statusCode).send({ok:false,error:authz.message});
-    if(context.appType!=="admin"||!["admin","operator"].includes(context.role))return reply.status(403).send({ok:false,error:"repair creation requires admin operator"});
+    if(!canAccessAdminOperation(context,["admin","operator"]))return reply.status(403).send({ok:false,error:"repair creation requires admin operator or OA headquarters authority"});
     try{return {ok:true,repairOrder:await aftersaleCaseService.createRepair(context,(request.params as {complaintId:string}).complaintId,request.body)};}catch(error){return mapError(error,reply);}
   });
   app.post("/api/internal/aftersale/complaints/:complaintId/liability-decisions",{preHandler},async(request,reply)=>{
     const context=getRequestContext(request);const authz=authorizeRequest(context);
     if(!authz.ok)return reply.status(authz.statusCode).send({ok:false,error:authz.message});
-    if(context.appType!=="admin"||!["admin","operator"].includes(context.role))return reply.status(403).send({ok:false,error:"liability decision requires admin operator"});
+    if(!canAccessAdminOperation(context,["admin","operator"]))return reply.status(403).send({ok:false,error:"liability decision requires admin operator or OA headquarters authority"});
     try{return {ok:true,...await aftersaleCaseService.decideLiability(context,(request.params as {complaintId:string}).complaintId,request.body)};}catch(error){return mapError(error,reply);}
   });
   app.post("/api/internal/aftersale/complaints/:complaintId/compensation-intents",{preHandler},async(request,reply)=>{
     const context=getRequestContext(request);const authz=authorizeRequest(context);
     if(!authz.ok)return reply.status(authz.statusCode).send({ok:false,error:authz.message});
-    if(context.appType!=="admin"||!["admin","operator"].includes(context.role))return reply.status(403).send({ok:false,error:"compensation proposal requires admin operator"});
+    if(!canAccessAdminOperation(context,["admin","operator"]))return reply.status(403).send({ok:false,error:"compensation proposal requires admin operator or OA headquarters authority"});
     try{return {ok:true,compensationIntent:await aftersaleCaseService.proposeCompensation(context,(request.params as {complaintId:string}).complaintId,request.body)};}catch(error){return mapError(error,reply);}
   });
   app.post("/api/internal/aftersale/compensation-intents/:compensationIntentId/review",{preHandler},async(request,reply)=>{
     const context=getRequestContext(request);const authz=authorizeRequest(context);
     if(!authz.ok)return reply.status(authz.statusCode).send({ok:false,error:authz.message});
-    if(context.appType!=="admin"||!["admin","operator"].includes(context.role))return reply.status(403).send({ok:false,error:"compensation review requires admin operator"});
+    if(!canAccessAdminOperation(context,["admin","operator"]))return reply.status(403).send({ok:false,error:"compensation review requires admin operator or OA headquarters authority"});
     try{return {ok:true,...await aftersaleCaseService.reviewCompensation(context,(request.params as {compensationIntentId:string}).compensationIntentId,request.body)};}catch(error){return mapError(error,reply);}
   });
 

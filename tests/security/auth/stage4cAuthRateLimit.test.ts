@@ -28,7 +28,6 @@ describe("Stage 4C authentication and authorization matrix", () => {
     ["admin", "operator"],
     ["admin", "auditor"],
     ["oa", "admin"],
-    ["oa", "operator"],
     ["dashboard", "admin"],
     ["dashboard", "operator"],
     ["dashboard", "auditor"],
@@ -43,6 +42,7 @@ describe("Stage 4C authentication and authorization matrix", () => {
     ["worker", "operator"],
     ["admin", "customer"],
     ["oa", "auditor"],
+    ["oa", "operator"],
     ["dashboard", "customer"],
   ] as const)("rejects the %s app with forged %s role", (appType, role) => {
     expect(authorizeRequest(context(appType, role))).toMatchObject({

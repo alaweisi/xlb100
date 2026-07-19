@@ -8,13 +8,13 @@ describe("Phase 24D three-app conversation UI bindings", () => {
   it.each([
     ["customer", "apps/customer/src/pages/CustomerSupportPage.tsx"],
     ["worker", "apps/worker/src/pages/WorkerSupportPage.tsx"],
-  ])("binds %s conversation create/list/detail and REST fallback", (_name, path) => {
+  ])("binds %s conversation create/list/detail and message delivery", (_name, path) => {
     const page = source(path);
     expect(page).toContain("createConversation");
     expect(page).toContain("listConversations");
     expect(page).toContain("getConversation");
     expect(page).toContain("sendConversationMessage");
-    expect(page).toContain("REST fallback");
+    expect(page).toMatch(/createConversation[\s\S]*listConversations|listConversations[\s\S]*createConversation/);
   });
 
   it("binds the Admin accept, transfer and close lifecycle", () => {

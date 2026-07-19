@@ -14,6 +14,7 @@ import type {
   ReviewVisibilityChangedV1EventPayload,
   WorkerReviewAppealTarget,
 } from "@xlb/types";
+import { canAccessAdminOperation } from "../auth/operationsAuthorization.js";
 import {
   createReviewAppealRequestSchema,
   moderateReviewRequestSchema,
@@ -136,7 +137,7 @@ export class ReviewModerationService {
     input: { visibility?: unknown; limit?: unknown; cursor?: unknown },
   ): Promise<{ items: ReviewModerationQueueItem[]; nextCursor: string | null }> {
     const { cityCode, userId } = requireIdentity(context);
-    if (context.appType !== "admin" || !["admin", "operator", "auditor"].includes(context.role)) {
+    if (!canAccessAdminOperation(context, ["admin", "operator", "auditor"])) {
       throw new ReviewForbiddenError("moderation queue requires Admin application identity");
     }
     const allowed: ReviewVisibility[] = ["pending_moderation", "visible", "hidden"];
@@ -184,7 +185,7 @@ export class ReviewModerationService {
     reviewId: string,
   ): Promise<{ reviewId: string; comment: string }> {
     const { cityCode, userId } = requireIdentity(context);
-    if (context.appType !== "admin" || context.role !== "admin") {
+    if (!canAccessAdminOperation(context, ["admin"])) {
       throw new ReviewForbiddenError("review content requires dedicated Admin moderator authority");
     }
     return this.transactionRunner(async (connection) => {
@@ -210,7 +211,7 @@ export class ReviewModerationService {
     const parsed = moderateReviewRequestSchema.safeParse(body ?? {});
     if (!parsed.success) throw new ReviewValidationError(parsed.error.message);
     const { cityCode, userId } = requireIdentity(context);
-    if (context.appType !== "admin" || context.role !== "admin") {
+    if (!canAccessAdminOperation(context, ["admin"])) {
       throw new ReviewForbiddenError("only Admin may mutate review moderation");
     }
     const keyHash = digest(`moderate:${parsed.data.idempotencyKey}`);
@@ -321,7 +322,7 @@ export class ReviewModerationService {
     input: { status?: unknown; limit?: unknown; cursor?: unknown },
   ): Promise<{ items: ReviewAppealQueueItem[]; nextCursor: string | null }> {
     const { cityCode, userId } = requireIdentity(context);
-    if (context.appType !== "admin" || !["admin", "operator", "auditor"].includes(context.role)) {
+    if (!canAccessAdminOperation(context, ["admin", "operator", "auditor"])) {
       throw new ReviewForbiddenError("appeal queue requires Admin application identity");
     }
     const allowed: ReviewAppealStatus[] = ["open", "upheld", "rejected", "withdrawn"];
@@ -436,7 +437,7 @@ export class ReviewModerationService {
     const parsed = resolveReviewAppealRequestSchema.safeParse(body ?? {});
     if (!parsed.success) throw new ReviewValidationError(parsed.error.message);
     const { cityCode, userId } = requireIdentity(context);
-    if (context.appType !== "admin" || context.role !== "admin") {
+    if (!canAccessAdminOperation(context, ["admin"])) {
       throw new ReviewForbiddenError("only Admin may resolve review appeals");
     }
     const keyHash = digest(`appeal-resolve:${parsed.data.idempotencyKey}`);

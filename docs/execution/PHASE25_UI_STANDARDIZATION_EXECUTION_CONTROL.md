@@ -12,14 +12,16 @@
 
 > 2026-07-12 global authorization supersedes the preceding incremental authorization: all nine main Phase 25 Gates are authorized for construction, with dependency-aware parallel execution and one final unified human acceptance. This does not authorize backend business-semantic changes, database migrations, provider integrations, fake business data, or OA/Dashboard runtime construction before their readiness facts exist.
 
+> 2026-07-19 five-surface correction supersedes the old form-factor and placeholder statements below: Customer、Worker、Admin are installable mobile Apps; OA is the desktop web super-admin; Dashboard is the HQ read-only wallboard. OA and Dashboard now have truthful runtimes. This correction does not authorize OA-specific higher-privilege authentication or invented Dashboard business metrics.
+
 ## 执行原则
 
 1. 一次只开放一个 Gate。
 2. 每个 Gate 必须有输入、允许文件、禁止文件、产物、自动验证、浏览器证据和人工接受。
 3. Gate 未接受时，不得提前施工下一 Gate。
 4. Customer 视觉服从用户液态玻璃 PNG；Customer 流程服从 Figma 与真实 API。
-5. Worker/Admin 视觉与页面结构服从 Figma；业务动作服从真实契约。
-6. OA/Dashboard 当前为占位目录；必须先通过 readiness gate，禁止用静态示例冒充工作流或实时数据。
+5. Worker/Admin 的模块与状态语义服从 Figma；Admin 必须重排为移动 App，业务动作服从真实契约。
+6. OA/Dashboard 已有独立运行时；仍禁止用静态示例冒充总部权限、工作流或实时业务数据。
 
 ## Gate 0 允许范围
 
@@ -104,7 +106,7 @@ design QA status:
 
 - Customer 主视口：390×844；长页另存 full-page 证据。
 - Worker：以 Figma 画板尺寸和实际移动断点双重验证。
-- Admin：1440×900 主证据，补充 1280px 与最小支持宽度。
+- Admin：390×844 主证据，补充 360px 与 430px 移动视口；不得用桌面宽屏证据代替。
 - OA：1440×900 主证据，补充 1280px；审批与任务详情必须有键盘证据。
 - Dashboard：1920×1080 与目标大屏分辨率；必须记录数据时间戳、刷新周期、stale/断流/重连证据。
 - 文件名：`<role>-<route>-<state>-<viewport>-<iteration>.png`。

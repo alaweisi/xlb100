@@ -149,23 +149,27 @@
         "ingressClass": { "$ref": "#/definitions/nonEmpty" },
         "hosts": {
           "type": "object", "additionalProperties": false,
-          "required": ["api", "customer", "worker", "admin"],
+          "required": ["api", "customer", "worker", "admin", "oa", "dashboard"],
           "properties": {
             "api": { "$ref": "#/definitions/hostname" },
             "customer": { "$ref": "#/definitions/hostname" },
             "worker": { "$ref": "#/definitions/hostname" },
-            "admin": { "$ref": "#/definitions/hostname" }
+            "admin": { "$ref": "#/definitions/hostname" },
+            "oa": { "$ref": "#/definitions/hostname" },
+            "dashboard": { "$ref": "#/definitions/hostname" }
           }
         },
         "replicas": {
           "type": "object", "additionalProperties": false,
-          "required": ["backend", "jobs", "customer", "worker", "admin"],
+          "required": ["backend", "jobs", "customer", "worker", "admin", "oa", "dashboard"],
           "properties": {
             "backend": { "type": "integer", "minimum": 1 },
             "jobs": { "const": 1 },
             "customer": { "type": "integer", "minimum": 1 },
             "worker": { "type": "integer", "minimum": 1 },
-            "admin": { "type": "integer", "minimum": 1 }
+            "admin": { "type": "integer", "minimum": 1 },
+            "oa": { "type": "integer", "minimum": 1 },
+            "dashboard": { "type": "integer", "minimum": 1 }
           }
         }
       }

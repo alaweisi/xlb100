@@ -4,13 +4,14 @@ import { AdminScopeError, assertAdminCanAccessCity } from "../dal/adminQueryGuar
 import { isAdminScopedRole } from "../city/cityScopeResolver.js";
 import { assertCityScopedContext } from "../dal/scopedExecutor.js";
 import { getMysqlPool } from "../dal/mysqlPool.js";
+import { canAccessAdminOperation } from "../auth/operationsAuthorization.js";
 
 export class AdminOperationsError extends Error {
   constructor(message: string, readonly statusCode: number) { super(message); this.name = "AdminOperationsError"; }
 }
 
 async function requireAdmin(context: RequestContext): Promise<string> {
-  if (context.appType !== "admin" || !isAdminScopedRole(context.role) || !context.userId) {
+  if (!canAccessAdminOperation(context) || !isAdminScopedRole(context.role) || !context.userId) {
     throw new AdminOperationsError("Admin operations require an authenticated admin role", 403);
   }
   const cityCode = assertCityScopedContext(context);

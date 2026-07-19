@@ -61,6 +61,28 @@ export function createAuthApi(client: ApiClient) {
         `/api/auth/admin/debug-code?${new URLSearchParams({ username }).toString()}`,
       );
     },
+    requestOaLoginCode(username: string) {
+      return client.post<LoginCodeResponse | LoginError>("/api/auth/oa/code", { username }, { validate: validateLoginCodeResponse, acceptedStatuses: AUTH_FAILURE_STATUSES });
+    },
+    oaLogin(username: string, code: string) {
+      return client.post<LoginResponse | LoginError>("/api/auth/oa/login", { username, code }, { validate: validateLoginResponse, acceptedStatuses: AUTH_FAILURE_STATUSES });
+    },
+    getOaDebugCode(username: string) {
+      return client.get<DebugLoginCodeResponse | LoginError>(
+        `/api/auth/oa/debug-code?${new URLSearchParams({ username }).toString()}`,
+      );
+    },
+    requestDashboardLoginCode(username: string) {
+      return client.post<LoginCodeResponse | LoginError>("/api/auth/dashboard/code", { username }, { validate: validateLoginCodeResponse, acceptedStatuses: AUTH_FAILURE_STATUSES });
+    },
+    dashboardLogin(username: string, code: string) {
+      return client.post<LoginResponse | LoginError>("/api/auth/dashboard/login", { username, code }, { validate: validateLoginResponse, acceptedStatuses: AUTH_FAILURE_STATUSES });
+    },
+    getDashboardDebugCode(username: string) {
+      return client.get<DebugLoginCodeResponse | LoginError>(
+        `/api/auth/dashboard/debug-code?${new URLSearchParams({ username }).toString()}`,
+      );
+    },
     requestWorkerLoginCode(phone: string) {
       return client.post<LoginCodeResponse | LoginError>("/api/auth/worker/code", { phone }, { validate: validateLoginCodeResponse, acceptedStatuses: AUTH_FAILURE_STATUSES });
     },

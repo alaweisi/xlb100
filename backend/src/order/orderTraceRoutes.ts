@@ -6,6 +6,7 @@ import {
   getRequestContext,
 } from "../context/requestContextMiddleware.js";
 import { authorizeRequest } from "../gateway/authz.js";
+import { canAccessAdminOperation } from "../auth/operationsAuthorization.js";
 
 type NullableDate = Date | null;
 
@@ -86,7 +87,7 @@ export async function registerOrderTraceRoutes(app: FastifyInstance): Promise<vo
       if (!authz.ok) {
         return reply.status(authz.statusCode).send({ ok: false, error: authz.message });
       }
-      if (context.appType !== "admin" || context.role !== "operator") {
+      if (!canAccessAdminOperation(context, ["operator"])) {
         return reply.status(403).send({
           ok: false,
           error: "order trace requires admin app with operator role",

@@ -23,5 +23,5 @@ locals {
   cos_bucket_name                 = var.create_cos_bucket ? tencentcloud_cos_bucket.objects[0].bucket : var.existing_cos_bucket_name
   managed_node_security_group_ids = length(tencentcloud_security_group.tke_nodes) > 0 ? [tencentcloud_security_group.tke_nodes[0].id] : []
   node_security_group_ids         = concat(local.managed_node_security_group_ids, var.existing_node_security_group_ids)
-  tcr_repositories                = toset(["backend", "customer", "worker", "admin"])
+  tcr_repositories                = toset(["backend", "customer", "worker", "admin", "oa", "dashboard"])
 }

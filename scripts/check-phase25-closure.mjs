@@ -14,7 +14,24 @@ const required = [
   "scripts/check-phase25-readiness-gates.mjs",
 ];
 for (const file of required) if (!existsSync(join(root, file))) throw new Error(`[phase25-closure] missing ${file}`);
-for (const app of ["oa", "dashboard"]) if (existsSync(join(root, "apps", app, "src"))) throw new Error(`[phase25-closure] forbidden fake ${app} runtime`);
+// Phase 25 originally kept OA and Dashboard as readiness-only placeholders.
+// The current product constitution promotes both to real, independently built
+// surfaces alongside the three installable apps. Keep this gate fail-closed by
+// requiring the exact five approved runtimes instead of forbidding the two new
+// surfaces or accepting arbitrary app directories.
+const approvedRuntimeSurfaces = ["customer", "worker", "admin", "oa", "dashboard"];
+for (const app of approvedRuntimeSurfaces) {
+  if (!existsSync(join(root, "apps", app, "src"))) {
+    throw new Error(`[phase25-closure] missing approved ${app} runtime`);
+  }
+}
+const runtimeSurfaces = readdirSync(join(root, "apps"), { withFileTypes: true })
+  .filter((entry) => entry.isDirectory() && existsSync(join(root, "apps", entry.name, "src")))
+  .map((entry) => entry.name)
+  .sort();
+if (runtimeSurfaces.join(",") !== [...approvedRuntimeSurfaces].sort().join(",")) {
+  throw new Error(`[phase25-closure] unapproved runtime surface set: ${runtimeSurfaces.join(",")}`);
+}
 execFileSync("git", ["rev-parse", "--verify", lockedHistoryRef], { cwd: root, stdio: "ignore" });
 // Closure scope is evaluated against immutable locked history. Using the
 // current working tree here made every legitimate post-lock maintenance

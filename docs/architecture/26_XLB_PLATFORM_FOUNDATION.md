@@ -17,7 +17,7 @@ Verified facts:
 - Pricing owns city/SKU base-price facts; Order owns the final quote snapshot and total; Payment copies the order total into payment facts.
 - Security rate limiting, settlement governance risk flags, Compliance qualification, Audit placeholders, and operational metrics are not a general Risk-Control domain.
 - Prometheus HTTP metrics intentionally expose only bounded `method`, `route`, and `status` labels. They are not BI storage.
-- OA and Dashboard remain Phase 0 placeholders with no `src` runtime or approved data/product contract.
+- The former Phase 0 placeholder statement is superseded: OA and Dashboard have independent `src` runtimes. OA uses dedicated OTP endpoints, isolated session storage, an `appType=oa` token and a database-backed global-scope login gate while reusing Admin business capability with explicit real-city filters. Dashboard consumes only real health/readiness/system-status signals until approved business read models exist.
 - No SMS, Push, WeChat, or Email Provider exists. Unconfigured channels must remain truthfully unavailable/not-configured.
 
 ## 2. Current truthful architecture

@@ -39,6 +39,20 @@ frontends:
       tag: ""
       digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
       pullPolicy: IfNotPresent
+  oa:
+    replicaCount: 1
+    image:
+      repository: ccr.ccs.tencentyun.com/xlb-placeholder/oa
+      tag: ""
+      digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+      pullPolicy: IfNotPresent
+  dashboard:
+    replicaCount: 1
+    image:
+      repository: ccr.ccs.tencentyun.com/xlb-placeholder/dashboard
+      tag: ""
+      digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+      pullPolicy: IfNotPresent
 
 config:
   nodeEnv: production
@@ -74,6 +88,8 @@ ingress:
     customer: customer.staging.example.invalid
     worker: worker.staging.example.invalid
     admin: admin.staging.example.invalid
+    oa: oa.staging.example.invalid
+    dashboard: dashboard.staging.example.invalid
 
 networkPolicy:
   # Enable only after TKE ingress source behavior is verified in N7.

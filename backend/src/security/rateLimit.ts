@@ -27,12 +27,14 @@ export type RateLimitOptions = {
 const otpCodeRoutes = new Set([
   "/api/auth/customer/code",
   "/api/auth/admin/code",
+  "/api/auth/oa/code",
   "/api/auth/worker/code",
 ]);
 
 const authLoginRoutes = new Set([
   "/api/auth/customer/login",
   "/api/auth/admin/login",
+  "/api/auth/oa/login",
   "/api/auth/worker/login",
 ]);
 

@@ -51,11 +51,11 @@ Worker global constraints: real worker identity, service city, certification/eli
 | `#/support` | Admin workbench system | Phase 24 queue/SLA/conversation APIs | mine/group/all, breached, claimed, realtime, resolved | Gate 5 |
 | `#/support-quality` | Admin audit/metric system | CSAT/quality APIs | empty, metrics, review queue, scored | Gate 5 |
 
-Admin global constraints: authenticated admin/operator, explicit city scope, role permission, audit/confirmation/idempotency visibility, dense desktop layout, no hidden backend errors, no fake execution success.
+Admin global constraints: authenticated admin/operator, explicit city scope, role permission, audit/confirmation/idempotency visibility, installable mobile layout with touch-safe compact tasks, no hidden backend errors, no fake execution success. Desktop batch operations belong to OA.
 
-## OA — Readiness Blocked
+## OA — Desktop Runtime Foundation
 
-Current repo state: `apps/oa` contains only `README.md` and `package.json`; there is no `src`, Vite runtime, OA API client, workflow contract, or standalone approved design source.
+Current repo state: `apps/oa` is an independent desktop Vite runtime that reuses Admin's real business pages and API contract. It authenticates through dedicated OA OTP routes, isolated session storage and an `appType=oa` token. Login requires an `admin` identity with the `__global__` scope; every workflow still sends an explicit real city.
 
 | Planned Surface | Required Product/Contract Source | Required States | Entry Condition | Gate |
 | --- | --- | --- | --- | --- |
@@ -68,9 +68,9 @@ Current repo state: `apps/oa` contains only `README.md` and `package.json`; ther
 
 OA global constraints: no fake approvals/tasks, no direct protected-domain mutation, every decision requires permission/audit/idempotency definition, and Admin identity may only be reused after explicit contract approval.
 
-## Realtime Dashboard — Readiness Blocked
+## Realtime Dashboard — Read-only Runtime Foundation
 
-Current repo state: `apps/dashboard` contains only `README.md` and `package.json`; there is no `src`, Vite runtime, Dashboard API client, dedicated metrics API, realtime transport, or standalone approved product frame.
+Current repo state: `apps/dashboard` is an independent 16:9 Vite wallboard. It polls real health/readiness/system-status sources and exposes live, partial, stale, disconnected and error states. Dedicated business aggregate APIs remain a readiness gap and must not be replaced by static numbers.
 
 | Planned Surface | Required Data Contract | Required Runtime States | Entry Condition | Gate |
 | --- | --- | --- | --- | --- |

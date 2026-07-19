@@ -68,8 +68,8 @@ function assertNoUnsafeContent(content, label) {
 
 function extractImageContract(values) {
   const matches = [...values.matchAll(/repository:\s*([^\s#]+)[\s\S]*?digest:\s*(sha256:[a-f0-9]{64})\b/gi)];
-  if (matches.length < 4) fail("production values must contain four repository/digest pairs");
-  const names = ["backend", "customer", "worker", "admin"];
+  if (matches.length < 6) fail("production values must contain six repository/digest pairs");
+  const names = ["backend", "customer", "worker", "admin", "oa", "dashboard"];
   return Object.fromEntries(names.map((name, index) => [name, {
     repository: stripQuotes(matches[index][1]),
     digest: matches[index][2].toLowerCase(),
@@ -77,7 +77,7 @@ function extractImageContract(values) {
 }
 
 function extractIngressHosts(values) {
-  const names = ["api", "customer", "worker", "admin"];
+  const names = ["api", "customer", "worker", "admin", "oa", "dashboard"];
   const hosts = {};
   for (const name of names) {
     const match = values.match(new RegExp(`^\\s{4}${name}:\\s*(.+?)\\s*$`, "m"));
@@ -115,7 +115,7 @@ function validateN7Evidence(evidence) {
     if (checks[name] !== true) fail(`N7 evidence is missing successful check: ${name}`);
   }
   const images = evidence.validatedImages ?? {};
-  for (const name of ["backend", "customer", "worker", "admin"]) {
+  for (const name of ["backend", "customer", "worker", "admin", "oa", "dashboard"]) {
     if (!images[name] || !/^sha256:[a-f0-9]{64}$/i.test(images[name].digest ?? "")) {
       fail(`N7 evidence is missing immutable image: ${name}`);
     }
@@ -375,4 +375,3 @@ if (isMain) {
     process.exitCode = 1;
   }
 }
-

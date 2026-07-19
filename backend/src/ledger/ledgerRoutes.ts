@@ -4,13 +4,14 @@ import {
   getRequestContext,
 } from "../context/requestContextMiddleware.js";
 import { ledgerService } from "./ledgerService.js";
+import { canAccessAdminOperation } from "../auth/operationsAuthorization.js";
 
 async function requireLedgerOperator(
   request: FastifyRequest,
   reply: FastifyReply,
 ): Promise<void> {
   const context = getRequestContext(request);
-  if (context.appType !== "admin" || context.role !== "operator") {
+  if (!canAccessAdminOperation(context, ["operator"])) {
     await reply.status(403).send({
       ok: false,
       error: "ledger requires admin operator",

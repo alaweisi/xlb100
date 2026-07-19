@@ -11,7 +11,10 @@ const adminApi = vi.hoisted(() => ({
   addSupportTicketComment: vi.fn(), escalateSupportTicket: vi.fn(),
   resolveSupportTicket: vi.fn(), closeSupportTicket: vi.fn(),
 }));
-vi.mock("../../apps/admin/src/adminAuth", () => ({ adminOpsApi: adminApi }));
+vi.mock("../../apps/admin/src/adminAuth", () => ({
+  adminOpsApi: adminApi,
+  readStoredAdminSession: vi.fn(() => null),
+}));
 import { SupportTicketsPage } from "../../apps/admin/src/pages/SupportTicketsPage";
 
 const at = "2026-07-12T08:00:00.000Z";

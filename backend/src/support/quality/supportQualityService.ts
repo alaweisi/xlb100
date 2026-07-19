@@ -4,6 +4,7 @@ import type { RequestContext } from "@xlb/types";
 import { withTransaction } from "../../dal/transaction.js";
 import { eventOutboxRepository } from "../../events/eventOutbox.js";
 import { generateEventId } from "../../events/eventIds.js";
+import { canAccessAdminOperation } from "../../auth/operationsAuthorization.js";
 export class SupportQualityError extends Error {
   constructor(
     message: string,
@@ -29,10 +30,10 @@ function requester(ctx: RequestContext) {
 }
 async function admin(ctx: RequestContext, c: PoolConnection) {
   const i = base(ctx);
-  if (ctx.appType !== "admin" || ctx.role !== "admin")
+  if (!canAccessAdminOperation(ctx, ["admin"]))
     throw new SupportQualityError("admin role required", 403);
   const [r] = await c.query<RowDataPacket[]>(
-    `SELECT 1 FROM admin_city_scopes WHERE admin_user_id=? AND city_code=? LIMIT 1`,
+    `SELECT 1 FROM admin_city_scopes WHERE admin_user_id=? AND (city_code=? OR city_code='__global__') LIMIT 1`,
     [i.user, i.city],
   );
   if (!r[0]) throw new SupportQualityError("explicit city scope required", 403);

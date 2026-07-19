@@ -32,7 +32,7 @@ export function validateDeploymentValues(content, environment) {
       if (value) fail(`${environment} images must not use tags`);
     }
     const digests = content.match(/digest:\s*sha256:[a-f0-9]{64}\b/gi) ?? [];
-    if (digests.length < 4) fail(`${environment} values require four immutable image digests`);
+    if (digests.length < 6) fail(`${environment} values require six immutable image digests`);
     if (!/existingSecret:\s*[a-z0-9][a-z0-9.-]+/i.test(content)) {
       fail(`${environment} values require runtimeSecrets.existingSecret`);
     }

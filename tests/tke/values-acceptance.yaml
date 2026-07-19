@@ -25,6 +25,12 @@ frontends:
   admin:
     replicaCount: 1
     image: { repository: xlb/admin, tag: local, digest: "", pullPolicy: IfNotPresent }
+  oa:
+    replicaCount: 1
+    image: { repository: xlb/oa, tag: local, digest: "", pullPolicy: IfNotPresent }
+  dashboard:
+    replicaCount: 1
+    image: { repository: xlb/dashboard, tag: local, digest: "", pullPolicy: IfNotPresent }
 
 config:
   nodeEnv: development

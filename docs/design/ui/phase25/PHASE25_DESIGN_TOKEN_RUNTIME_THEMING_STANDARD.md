@@ -35,7 +35,7 @@ L0 Foundation primitives
 | --- | --- | --- |
 | L0 Foundation | color palette、font scale、spacing、radius、elevation、motion duration | `packages/ui` |
 | L1 Semantic | `surface.page`、`text.primary`、`action.primary`、`status.danger` | `packages/ui` |
-| L2 Role | Customer glass、Worker task shell、Admin/OA desktop、Dashboard wallboard | `packages/ui` role theme |
+| L2 Role | Customer glass、Worker task shell、Admin mobile、OA desktop、Dashboard wallboard | `packages/ui` role theme |
 | L3 Mode | light、dark、high-contrast、large-display | theme resolver |
 | L4 Campaign | Spring Festival、Double 11、运营活动视觉覆盖 | resolved campaign bridge |
 | L5 Component | service-card、order-card、data-table、metric-tile | component recipe |
@@ -131,9 +131,9 @@ interface RuntimeThemeEnvelope {
 | --- | --- | --- |
 | Customer | Apple 服务卡片式液态玻璃 | 安全区、玻璃层级、活动 hero/灯笼/祝福语、报价可读性 |
 | Worker | Figma 深蓝任务/履约体系 | 户外可读性、任务优先级、在线/暂停、证据上传状态 |
-| Admin | Figma 桌面运营体系 | 高密表格、详情/抽屉、权限/审计、长期操作可读性 |
-| OA | 待批准协作系统 | 待办/审批/通知状态、组织与审计；readiness 前不建运行时 |
-| Dashboard | 待批准实时大屏 | 大屏模式、图表 palette、告警/新鲜度优先；readiness 前不造假数据 |
+| Admin | Figma 运营语义的移动 App 适配 | 触控卡片、移动列表/详情、权限/审计、短任务可读性 |
+| OA | 桌面网页总后台 | 独立总部身份与城市切换已落地；继续适配待办/审批/通知、组织与审计 |
+| Dashboard | 总部实时大屏 | 大屏模式、图表 palette、告警/新鲜度优先；无真实数据源时不造假数据 |
 
 五端共享 foundation 和 semantic token，但不强迫共用同一布局密度、材质或组件 recipe。
 

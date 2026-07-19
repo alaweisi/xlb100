@@ -4,7 +4,8 @@
 
 ## 项目边界
 
-- Monorepo：`apps/customer`、`apps/worker`、`apps/admin`、`backend`、`packages`、`db`、`infra`、`deploy`、`tests`、`docs`。
+- Monorepo：`apps/customer`、`apps/worker`、`apps/admin`、`apps/oa`、`apps/dashboard`、`backend`、`packages`、`db`、`infra`、`deploy`、`tests`、`docs`。
+- 五端产品宪法以 `docs/architecture/01_XLB_FIVE_SURFACE_CONSTITUTION.md` 为事实源：Customer、Worker、Admin 均为可安装移动 App；OA 是桌面网页总后台；Dashboard 是总部只读实时大屏。不得把 Admin 做成桌面网页，也不得把 OA 或 Dashboard 混入移动 App。
 - 包名前缀使用 `@xlb/*`，不得引入旧项目 `@sdj99`/`sdj99` 命名或复制旧项目半成品。
 - 不得绕过 `packages/types`、`packages/validators` 和 `@xlb/api-client` 建立重复契约。
 - 未经用户确认，不得凭空生成正式服务类目；正式类目来源仍是 `docs/catalog/OFFICIAL_SERVICE_CATALOG_SOURCE.md`。
@@ -68,6 +69,7 @@
 - 旧 managed-worktree、registry、lease、transition 和 Integration Queue 已归档且不生效；真正并行写入只使用普通 Git 分支/worktree 隔离。
 - Skill 按任务需要使用，不再机械执行完整 Skill 链。
 - 当前代码、Git commit 和测试结果优先于旧报告；冲突只在会导致真实风险时阻塞。
+- 任何涉及前端端形态、视口、导航、PWA、截图证据或部署路由的任务，先以五端产品宪法校验目标；旧文档中的“三端”“Admin 桌面后台”或 OA/Dashboard 永久占位描述均不再产生约束力。
 
 ## Human 交互
 

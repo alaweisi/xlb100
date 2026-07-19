@@ -8,8 +8,8 @@ storage, TLS certificates, or runtime credentials.
 
 - `backend`: Deployment and ClusterIP Service.
 - `jobs`: single-replica `Recreate` Deployment without a Service.
-- `customer`, `worker`, `admin`: Deployment and ClusterIP Service per app.
-- one configurable Ingress for the four public hosts.
+- `customer`, `worker`, `admin`, `oa`, `dashboard`: Deployment and ClusterIP Service per product surface.
+- one configurable Ingress for the API plus five product hosts.
 - optional PDB, HPA, NetworkPolicy, and ServiceMonitor resources.
 - an explicitly enabled migration Job; it is not a Helm lifecycle hook.
 

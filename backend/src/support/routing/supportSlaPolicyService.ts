@@ -10,6 +10,7 @@ import {
 } from "@xlb/validators";
 import { assertCityScopedContext } from "../../dal/scopedExecutor.js";
 import { withTransaction } from "../../dal/transaction.js";
+import { canAccessAdminOperation } from "../../auth/operationsAuthorization.js";
 import { supportAgentRepository, type SupportAgentRepository } from "../agentWorkbench/supportAgentRepository.js";
 import {
   supportSlaPolicyRepository, type SupportSlaPolicyCursor, type SupportSlaPolicyRepository,
@@ -38,8 +39,8 @@ function requireCity(context: RequestContext): CityCode {
 }
 
 function requireAdminIdentity(context: RequestContext): string {
-  if (context.appType !== "admin" || !context.userId) {
-    throw new SupportSlaPolicyForbiddenError("authenticated Admin app user required");
+  if (!canAccessAdminOperation(context) || !context.userId) {
+    throw new SupportSlaPolicyForbiddenError("authenticated Admin or OA headquarters user required");
   }
   return context.userId;
 }

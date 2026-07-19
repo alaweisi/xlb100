@@ -1,8 +1,8 @@
 {
   "name": "喜乐帮到家",
   "short_name": "喜乐帮",
-  "start_url": "/customer/",
-  "scope": "/customer/",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#fffaf0",
   "theme_color": "#f5efe0",
@@ -10,13 +10,13 @@
   "description": "喜乐帮到家 Customer App",
   "icons": [
     {
-      "src": "/icons/customer-icon-192.svg",
+      "src": "./icons/customer-icon-192.svg",
       "sizes": "192x192",
       "type": "image/svg+xml",
       "purpose": "any maskable"
     },
     {
-      "src": "/icons/customer-icon-512.svg",
+      "src": "./icons/customer-icon-512.svg",
       "sizes": "512x512",
       "type": "image/svg+xml",
       "purpose": "any maskable"

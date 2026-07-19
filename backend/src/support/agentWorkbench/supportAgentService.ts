@@ -16,6 +16,7 @@ import {
 } from "@xlb/validators";
 import { assertCityScopedContext } from "../../dal/scopedExecutor.js";
 import { withTransaction } from "../../dal/transaction.js";
+import { canAccessAdminOperation } from "../../auth/operationsAuthorization.js";
 import { supportAgentRepository, type SupportAgentRepository } from "./supportAgentRepository.js";
 
 type TransactionRunner = <T>(fn: (connection: PoolConnection) => Promise<T>) => Promise<T>;
@@ -41,7 +42,7 @@ function requireCity(context: RequestContext): CityCode {
 }
 
 function requireAdminUser(context: RequestContext): string {
-  if (context.appType !== "admin" || !context.userId) throw new SupportAgentForbiddenError("authenticated Admin app user required");
+  if (!canAccessAdminOperation(context) || !context.userId) throw new SupportAgentForbiddenError("authenticated Admin or OA headquarters user required");
   return context.userId;
 }
 

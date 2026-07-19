@@ -4,6 +4,7 @@ import {
   getRequestContext,
 } from "../../context/requestContextMiddleware.js";
 import { authorizeRequest } from "../../gateway/authz.js";
+import { canAccessAdminOperation } from "../../auth/operationsAuthorization.js";
 import { InvalidOrderTransitionError } from "../orderStateMachine.js";
 import {
   orderReverseService,
@@ -82,7 +83,7 @@ export async function registerOrderReverseRoutes(app: FastifyInstance): Promise<
     const context = getRequestContext(request);
     const authz = authorizeRequest(context);
     if (!authz.ok) return reply.status(authz.statusCode).send({ ok: false, error: authz.message });
-    if (context.appType !== "admin" || !["admin", "operator"].includes(context.role)) {
+    if (!canAccessAdminOperation(context, ["admin", "operator"])) {
       return reply.status(403).send({ ok: false, error: "reverse operations require admin operator" });
     }
     const query = request.query as { status?: string; reverseType?: string };
@@ -96,7 +97,7 @@ export async function registerOrderReverseRoutes(app: FastifyInstance): Promise<
       const context = getRequestContext(request);
       const authz = authorizeRequest(context);
       if (!authz.ok) return reply.status(authz.statusCode).send({ ok: false, error: authz.message });
-      if (context.appType !== "admin" || !["admin", "operator"].includes(context.role)) {
+      if (!canAccessAdminOperation(context, ["admin", "operator"])) {
         return reply.status(403).send({ ok: false, error: "reverse review requires admin operator" });
       }
       try {
@@ -121,7 +122,7 @@ export async function registerOrderReverseRoutes(app: FastifyInstance): Promise<
       const context = getRequestContext(request);
       const authz = authorizeRequest(context);
       if (!authz.ok) return reply.status(authz.statusCode).send({ ok: false, error: authz.message });
-      if (context.appType !== "admin" || !["admin", "operator"].includes(context.role)) {
+      if (!canAccessAdminOperation(context, ["admin", "operator"])) {
         return reply.status(403).send({ ok: false, error: "reverse apply requires admin operator" });
       }
       try {

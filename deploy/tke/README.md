@@ -162,7 +162,7 @@ pwsh deploy/tke/xlb-tke.ps1 -Action PrepareProduction -Environment production `
   -ProductionManifest .artifacts/tke/production/manifest.json
 ```
 
-The gate requires exact reuse of all four N7-validated image digests, verified
+The gate requires exact reuse of all six N7-validated image digests, verified
 backup/restore and object-sync evidence, a jobs single-active procedure, a
 Lighthouse rollback endpoint and the fixed 5/25/50/100 weighted rollout. It
 writes only ignored plan evidence. Infrastructure apply, no-traffic deploy,

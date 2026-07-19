@@ -25,6 +25,12 @@ frontends:
   admin:
     replicaCount: 1
     image: { repository: xlb/admin, tag: local, digest: "", pullPolicy: IfNotPresent }
+  oa:
+    replicaCount: 1
+    image: { repository: xlb/oa, tag: local, digest: "", pullPolicy: IfNotPresent }
+  dashboard:
+    replicaCount: 1
+    image: { repository: xlb/dashboard, tag: local, digest: "", pullPolicy: IfNotPresent }
 
 config:
   nodeEnv: development
@@ -55,6 +61,8 @@ ingress:
     customer: customer.xlb.local
     worker: worker.xlb.local
     admin: admin.xlb.local
+    oa: oa.xlb.local
+    dashboard: dashboard.xlb.local
 
 networkPolicy:
   enabled: false

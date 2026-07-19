@@ -38,7 +38,7 @@ test("release artifacts reject credentials and persisted authorizations", () => 
   assert.throws(() => validateContract("cloudBundle", cloud), /additional properties|credential/i);
 });
 
-test("image lock requires all four immutable images and rejects mutable tags", () => {
+test("image lock requires backend and all five product images and rejects mutable tags", () => {
   const missing = bundle();
   delete missing.imageLock.images.admin;
   assert.throws(() => validateContract("imageLock", missing.imageLock), /admin/);

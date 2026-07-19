@@ -11,6 +11,7 @@ import { enterpriseRepository } from "./enterpriseRepository.js";
 import { canonicalWebhookPayload, decryptEnterpriseSecret, encryptEnterpriseSecret, sha256, signWebhook } from "./enterpriseCrypto.js";
 import { assertSafeHttpsWebhookUrl, createWebhookProvider } from "./webhookProvider.js";
 import { recordWebhookRun } from "../observability/metrics.js";
+import { canAccessAdminOperation } from "../auth/operationsAuthorization.js";
 
 const id=(prefix:string)=>`${prefix}_${randomUUID().replaceAll("-","").slice(0,24)}`;
 const secret=()=>randomBytes(32).toString("base64url");
@@ -19,7 +20,7 @@ const canonical=canonicalWebhookPayload;
 export class EnterpriseError extends Error{constructor(message:string,readonly statusCode=400){super(message);this.name="EnterpriseError";}}
 
 function requireAdmin(context:RequestContext):CityCode{
-  if(context.appType!=="admin"||!["admin","operator"].includes(context.role)||!context.cityCode)throw new EnterpriseError("enterprise admin operation requires city-scoped admin or operator",403);
+  if(!canAccessAdminOperation(context,["admin","operator"])||!context.cityCode)throw new EnterpriseError("enterprise admin operation requires city-scoped admin, operator, or OA headquarters authority",403);
   return context.cityCode;
 }
 

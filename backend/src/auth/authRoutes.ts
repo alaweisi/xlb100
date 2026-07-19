@@ -5,11 +5,17 @@ import {
   adminLogin,
   customerLogin,
   debugAdminLoginCode,
+  debugOaLoginCode,
+  debugDashboardLoginCode,
   debugCustomerLoginCode,
   debugWorkerLoginCode,
   requestAdminLoginCode,
+  requestOaLoginCode,
+  requestDashboardLoginCode,
   requestCustomerLoginCode,
   requestWorkerLoginCode,
+  oaLogin,
+  dashboardLogin,
   workerLogin,
 } from "./authService.js";
 
@@ -60,6 +66,82 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       async (request: FastifyRequest, reply: FastifyReply) => {
         const query = (request.query ?? {}) as { phone?: string };
         const result = await debugCustomerLoginCode(query.phone ?? "");
+        if (!result.ok) return sendError(reply, result);
+        return result;
+      },
+    );
+  }
+
+  app.post(
+    "/api/auth/dashboard/code",
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const body = (request.body ?? {}) as LoginBody;
+      const result = await requestDashboardLoginCode(body.username ?? "");
+      if (!result.ok) return sendError(reply, result);
+      request.log.info({
+        securityEvent: "otp_issued",
+        authScope: "dashboard",
+        identityRef: hashAuthAuditIdentity("dashboard", body.username ?? ""),
+        expiresAt: result.expiresAt,
+      }, "dashboard login OTP issued");
+      return result;
+    },
+  );
+
+  app.post(
+    "/api/auth/dashboard/login",
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const body = (request.body ?? {}) as LoginBody;
+      const result = await dashboardLogin(body.username ?? "", body.code ?? "");
+      if (!result.ok) return sendError(reply, result);
+      return result;
+    },
+  );
+
+  if (registerDebugRoutes) {
+    app.get(
+      "/api/auth/dashboard/debug-code",
+      async (request: FastifyRequest, reply: FastifyReply) => {
+        const query = (request.query ?? {}) as { username?: string };
+        const result = await debugDashboardLoginCode(query.username ?? "");
+        if (!result.ok) return sendError(reply, result);
+        return result;
+      },
+    );
+  }
+
+  app.post(
+    "/api/auth/oa/code",
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const body = (request.body ?? {}) as LoginBody;
+      const result = await requestOaLoginCode(body.username ?? "");
+      if (!result.ok) return sendError(reply, result);
+      request.log.info({
+        securityEvent: "otp_issued",
+        authScope: "oa",
+        identityRef: hashAuthAuditIdentity("oa", body.username ?? ""),
+        expiresAt: result.expiresAt,
+      }, "OA headquarters login OTP issued");
+      return result;
+    },
+  );
+
+  app.post(
+    "/api/auth/oa/login",
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const body = (request.body ?? {}) as LoginBody;
+      const result = await oaLogin(body.username ?? "", body.code ?? "");
+      if (!result.ok) return sendError(reply, result);
+      return result;
+    },
+  );
+
+  if (registerDebugRoutes) {
+    app.get(
+      "/api/auth/oa/debug-code",
+      async (request: FastifyRequest, reply: FastifyReply) => {
+        const query = (request.query ?? {}) as { username?: string };
+        const result = await debugOaLoginCode(query.username ?? "");
         if (!result.ok) return sendError(reply, result);
         return result;
       },

@@ -9,6 +9,7 @@ import {
   type DebugLoginOtpResult,
 } from "./otpService.js";
 import { hashPhoneIdentity, validateMainlandPhone } from "./phoneIdentity.js";
+import { fetchAdminCityScopes, isGlobalAdminScope } from "../dal/adminQueryGuard.js";
 
 // Fixed-code login has been removed. Each login now uses a random,
 // one-time Redis OTP with TTL and attempt limits.
@@ -16,7 +17,7 @@ import { hashPhoneIdentity, validateMainlandPhone } from "./phoneIdentity.js";
 // remains blocked until legal entity, credentials and production activation.
 
 async function deliverMockLoginCode(
-  scope: "customer" | "admin" | "worker",
+  scope: "customer" | "admin" | "oa" | "dashboard" | "worker",
   recipient: string,
   code: string,
   expiresAt: string,
@@ -57,6 +58,17 @@ async function findAdmin(
     [username],
   );
   return rows.length > 0 ? rows[0] : null;
+}
+
+async function findOaHeadquartersAdmin(
+  username: string,
+): Promise<{ id: string; username: string; role: "admin" } | null> {
+  const admin = await findAdmin(username);
+  if (!admin || admin.role !== "admin") return null;
+  const scopes = await fetchAdminCityScopes(admin.id);
+  return isGlobalAdminScope(scopes)
+    ? { id: admin.id, username: admin.username, role: "admin" }
+    : null;
 }
 
 async function findWorkerByPhone(
@@ -148,6 +160,50 @@ export async function requestAdminLoginCode(
   };
 }
 
+export async function requestOaLoginCode(
+  username: string,
+): Promise<LoginCodeRequestResult | AuthError> {
+  const usernameResult = validateUsername(username);
+  if (!usernameResult.ok) return usernameResult;
+
+  const principal = await findOaHeadquartersAdmin(username);
+  if (!principal) {
+    return { ok: false, error: "OA headquarters account not found or unauthorized", statusCode: 404 };
+  }
+
+  const issued = await issueLoginOtp("oa", username);
+  if (!issued.ok) return issued;
+  await deliverMockLoginCode("oa", username, issued.code, issued.expiresAt);
+  return {
+    ok: true,
+    expiresAt: issued.expiresAt,
+    ttlSeconds: issued.ttlSeconds,
+    attemptsLeft: issued.attemptsLeft,
+  };
+}
+
+export async function requestDashboardLoginCode(
+  username: string,
+): Promise<LoginCodeRequestResult | AuthError> {
+  const usernameResult = validateUsername(username);
+  if (!usernameResult.ok) return usernameResult;
+
+  const principal = await findOaHeadquartersAdmin(username);
+  if (!principal) {
+    return { ok: false, error: "dashboard headquarters account not found or unauthorized", statusCode: 404 };
+  }
+
+  const issued = await issueLoginOtp("dashboard", username);
+  if (!issued.ok) return issued;
+  await deliverMockLoginCode("dashboard", username, issued.code, issued.expiresAt);
+  return {
+    ok: true,
+    expiresAt: issued.expiresAt,
+    ttlSeconds: issued.ttlSeconds,
+    attemptsLeft: issued.attemptsLeft,
+  };
+}
+
 export async function requestWorkerLoginCode(
   phone: string,
 ): Promise<LoginCodeRequestResult | AuthError> {
@@ -175,6 +231,14 @@ export function debugCustomerLoginCode(phone: string): Promise<DebugLoginOtpResu
 
 export function debugAdminLoginCode(username: string): Promise<DebugLoginOtpResult> {
   return readDebugLoginOtp("admin", username);
+}
+
+export function debugOaLoginCode(username: string): Promise<DebugLoginOtpResult> {
+  return readDebugLoginOtp("oa", username);
+}
+
+export function debugDashboardLoginCode(username: string): Promise<DebugLoginOtpResult> {
+  return readDebugLoginOtp("dashboard", username);
 }
 
 export function debugWorkerLoginCode(phone: string): Promise<DebugLoginOtpResult> {
@@ -213,6 +277,44 @@ export async function adminLogin(
 
   const token = createToken(admin.id, admin.role, "admin");
   return { ok: true, token, userId: admin.id, role: admin.role };
+}
+
+export async function oaLogin(
+  username: string,
+  code: string,
+): Promise<LoginResult | AuthError> {
+  const usernameResult = validateUsername(username);
+  if (!usernameResult.ok) return usernameResult;
+
+  const principal = await findOaHeadquartersAdmin(username);
+  if (!principal) {
+    return { ok: false, error: "OA headquarters account not found or unauthorized", statusCode: 404 };
+  }
+
+  const otp = await verifyLoginOtp("oa", username, code);
+  if (!otp.ok) return otp;
+
+  const token = createToken(principal.id, "admin", "oa");
+  return { ok: true, token, userId: principal.id, role: "admin" };
+}
+
+export async function dashboardLogin(
+  username: string,
+  code: string,
+): Promise<LoginResult | AuthError> {
+  const usernameResult = validateUsername(username);
+  if (!usernameResult.ok) return usernameResult;
+
+  const principal = await findOaHeadquartersAdmin(username);
+  if (!principal) {
+    return { ok: false, error: "dashboard headquarters account not found or unauthorized", statusCode: 404 };
+  }
+
+  const otp = await verifyLoginOtp("dashboard", username, code);
+  if (!otp.ok) return otp;
+
+  const token = createToken(principal.id, "admin", "dashboard");
+  return { ok: true, token, userId: principal.id, role: "admin" };
 }
 
 export async function workerLogin(

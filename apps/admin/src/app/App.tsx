@@ -9,6 +9,7 @@ import {
   type AdminSession,
 } from "../adminAuth";
 import {
+  AdminShell,
   Button,
   CityScopeGate,
   FormField,
@@ -16,15 +17,18 @@ import {
   Input,
   LoadingState,
   PermissionState,
+  ScopeBadge,
   Select,
+  SideNav,
   StatusTag,
+  TopBar,
 } from "@xlb/ui";
+import { Bell, MagnifyingGlass } from "@phosphor-icons/react";
 import { presentFailure } from "../operationsPresentation";
 import { AdminMobileShell, type AdminMobileTool } from "./AdminMobileShell";
 
 const ADMIN_CITY_OPTIONS = ["hangzhou", "shanghai", "beijing"] as const;
 const ADMIN_ALLOWED_ROLES = new Set(["admin", "operator", "auditor"]);
-const ADMIN_CITY_SCOPE_STORAGE_KEY = "xlb.admin.cityCode";
 
 function adminRoleLabel(role: string): string {
   if (role === "admin") return "平台管理员";
@@ -39,9 +43,13 @@ function adminCityLabel(cityCode: string): string {
   return "北京";
 }
 
-function readStoredAdminCityScope(): string | undefined {
+function cityScopeStorageKey(surface: "admin" | "oa"): string {
+  return `xlb.${surface}.cityCode`;
+}
+
+function readStoredAdminCityScope(surface: "admin" | "oa"): string | undefined {
   if (typeof window === "undefined") return undefined;
-  const stored = window.localStorage.getItem(ADMIN_CITY_SCOPE_STORAGE_KEY)?.trim();
+  const stored = window.localStorage.getItem(cityScopeStorageKey(surface))?.trim();
   return stored && ADMIN_CITY_OPTIONS.includes(stored as (typeof ADMIN_CITY_OPTIONS)[number]) ? stored : undefined;
 }
 
@@ -61,14 +69,19 @@ const ReviewModerationPage=lazy(()=>import("../pages/ReviewModerationPage").then
 const MarketingOperationsPage=lazy(()=>import("../pages/MarketingOperationsPage").then(module=>({default:module.MarketingOperationsPage})));
 const AdminOverviewPage=lazy(()=>import("../pages/AdminOverviewPage").then(module=>({default:module.AdminOverviewPage})));
 
-export function App() {
+export interface AdminAppProps {
+  surface?: "admin" | "oa";
+}
+
+export function App({ surface = "admin" }: AdminAppProps = {}) {
+  const isOa = surface === "oa";
   const [view, setView] = useState(parseView);
   const [params, setParams] = useState(parseHashParams);
-  const [session, setSession] = useState<AdminSession | null>(() => readStoredAdminSession());
+  const [session, setSession] = useState<AdminSession | null>(() => readStoredAdminSession(surface));
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [authNotice, setAuthNotice] = useState<string | null>(null);
-  const [loginUsername, setLoginUsername] = useState(() => readStoredAdminSession()?.username ?? "admin_hz");
+  const [loginUsername, setLoginUsername] = useState(() => readStoredAdminSession(surface)?.username ?? (isOa ? "oa_global" : "admin_hz"));
   const [loginCode, setLoginCode] = useState("");
   const [pendingCityCode, setPendingCityCode] = useState("hangzhou");
   const [toolPanelOpen, setToolPanelOpen] = useState(false);
@@ -88,36 +101,36 @@ export function App() {
     setAuthError(null);
     setAuthNotice(null);
     try {
-      const result = await requestAdminLoginCode(loginUsername);
+      const result = await requestAdminLoginCode(loginUsername, surface);
       setAuthNotice(`验证码已发送，${result.ttlSeconds} 秒内有效。`);
     } catch (error) {
       setAuthError(presentFailure(error, "验证码发送").detail);
     } finally {
       setAuthLoading(false);
     }
-  }, [loginUsername]);
+  }, [loginUsername, surface]);
 
   const handleLogin = useCallback(async () => {
     setAuthLoading(true);
     setAuthError(null);
     setAuthNotice(null);
     try {
-      const next = await loginAdminWithCode(loginUsername, loginCode);
+      const next = await loginAdminWithCode(loginUsername, loginCode, surface);
       setSession(next);
     } catch (error) {
-      setAuthError(presentFailure(error, "运营应用登录").detail);
+      setAuthError(presentFailure(error, isOa ? "OA 总后台登录" : "运营应用登录").detail);
     } finally {
       setAuthLoading(false);
     }
-  }, [loginCode, loginUsername]);
+  }, [isOa, loginCode, loginUsername, surface]);
 
   const handleLogout = useCallback(() => {
-    clearAdminSession();
+    clearAdminSession(surface);
     setSession(null);
     setLoginCode("");
-  }, []);
+  }, [surface]);
 
-  const cityCode = params.get("cityCode") || readStoredAdminCityScope();
+  const cityCode = params.get("cityCode") || readStoredAdminCityScope(surface);
 
   const navigateToDetail = useCallback((statementId: string, extra?: Record<string, string>) => {
     window.location.hash = buildHash(
@@ -162,7 +175,7 @@ export function App() {
   }, []);
 
   const handleChangeCity = useCallback(() => {
-    window.localStorage.removeItem(ADMIN_CITY_SCOPE_STORAGE_KEY);
+    window.localStorage.removeItem(cityScopeStorageKey(surface));
     const rawHash = window.location.hash.replace(/^#/, "");
     const queryIndex = rawHash.indexOf("?");
     const targetPath = (queryIndex === -1 ? rawHash : rawHash.slice(0, queryIndex)) || "/";
@@ -172,7 +185,7 @@ export function App() {
     });
     window.location.hash = buildHash(targetPath, nextParams);
     setParams(new URLSearchParams(nextParams));
-  }, [params]);
+  }, [params, surface]);
 
   const viewTitle = view.page === "workerWithdrawals"
     ? "师傅提现审核"
@@ -211,17 +224,17 @@ export function App() {
     const nextParams: Record<string, string> = {};
     params.forEach((value, key) => { nextParams[key] = value; });
     nextParams.cityCode = pendingCityCode;
-    window.localStorage.setItem(ADMIN_CITY_SCOPE_STORAGE_KEY, pendingCityCode);
+    window.localStorage.setItem(cityScopeStorageKey(surface), pendingCityCode);
     window.location.hash = buildHash(targetPath, nextParams);
-  }, [params, pendingCityCode]);
+  }, [params, pendingCityCode, surface]);
 
   if (!session) {
     return (
       <main className="admin-mobile-gate admin-mobile-gate--identity">
       <IdentityGate
         visualRole="admin"
-        title="运营身份验证"
-        description="验证账号与角色后进入受控运营工作台。"
+        title={isOa ? "OA 总后台身份验证" : "运营身份验证"}
+        description={isOa ? "仅接受拥有总部全局范围的 OA 管理员账号；OA 会话与移动后台完全隔离。" : "验证账号与角色后进入受控运营工作台。"}
         recoveryTarget={`目标工作台：${viewTitle}`}
         status={<StatusTag tone={authLoading ? "warning" : "primary"}>{authLoading ? "验证中" : "需要令牌"}</StatusTag>}
         form={
@@ -247,13 +260,13 @@ export function App() {
     );
   }
 
-  if (!ADMIN_ALLOWED_ROLES.has(session.role)) {
+  if ((isOa && session.role !== "admin") || (!isOa && !ADMIN_ALLOWED_ROLES.has(session.role))) {
     return (
       <main className="admin-mobile-gate admin-mobile-gate--permission">
         <PermissionState
-          style={{ width: "100%" }}
-          title="当前角色无权进入运营应用"
-          description="系统不会透露任何业务对象是否存在。请切换到已授权的运营账号。"
+          style={{ maxWidth: 720, width: "100%" }}
+          title={isOa ? "当前身份无权进入 OA" : "当前角色无权进入运营应用"}
+          description={isOa ? "OA 只接受服务端签发的总部管理员令牌。请切换到已配置全局范围的 OA 账号。" : "系统不会透露任何业务对象是否存在。请切换到已授权的后台账号。"}
           facts={`当前角色：${adminRoleLabel(session.role)}`}
           action={<Button onClick={handleLogout}>退出登录</Button>}
         />
@@ -261,7 +274,7 @@ export function App() {
     );
   }
 
-  if (view.page === "dispatch" && session.role !== "operator") {
+  if (!isOa && view.page === "dispatch" && session.role !== "operator") {
     return (
       <main className="admin-mobile-gate admin-mobile-gate--permission">
         <PermissionState
@@ -280,8 +293,8 @@ export function App() {
     return (
       <main className="admin-mobile-gate admin-mobile-gate--city">
       <CityScopeGate
-        title="选择运营城市"
-        description="运营数据、操作权限和审计记录都按城市隔离。"
+        title={isOa ? "选择 OA 工作范围" : "选择运营城市"}
+        description={isOa ? "总部账号可以切换到任一已启用城市；每次查询和操作仍绑定一个明确城市并进入审计记录。" : "后台数据、操作权限和审计记录都按城市隔离。"}
         currentScope="尚未选择城市范围"
         recoveryTarget={`确认后返回：${viewTitle}`}
         selector={
@@ -396,7 +409,7 @@ export function App() {
     { key: "workerWithdrawals", label: "师傅提现", description: "审核与付款标记", active: view.page === "workerWithdrawals", onClick: navigateToWorkerWithdrawals },
     { key: "aftersale", label: "售后运营", description: "投诉、返工与补偿", active: view.page === "aftersale", onClick: navigateToAftersale },
     { key: "enterprise", label: "企业客户", description: "客户、凭据与账单", active: view.page === "enterprise", onClick: navigateToEnterprise },
-    ...(session.role === "operator"
+    ...(session.role === "operator" || isOa
       ? [{ key: "dispatch", label: "城市派单", description: "任务与候选师傅", active: view.page === "dispatch", onClick: navigateToDispatch }]
       : []),
     { key: "platformOperations", label: "平台运营", description: "订单、服务与师傅", active: view.page === "platformOperations", onClick: navigateToPlatformOperations },
@@ -415,6 +428,63 @@ export function App() {
         : ["workerWithdrawals", "aftersale", "settlement", "detail", "exports", "governance"].includes(view.page)
           ? "approvals"
           : "tools";
+
+  if (isOa) {
+    return (
+      <div className="admin-app-root admin-app-root--oa">
+        <AdminShell
+          sideNav={
+            <SideNav
+              title="喜乐帮 OA 总后台"
+              items={[
+                {
+                  key: "overview",
+                  label: "总部运营总览",
+                  active: view.page === "dashboard",
+                  href: "#",
+                  onClick: navigateToDashboard,
+                },
+                ...tools.map((tool) => ({
+                  key: tool.key,
+                  label: tool.label,
+                  active: Boolean(tool.active),
+                  href: "#",
+                  onClick: tool.onClick,
+                })),
+              ]}
+            />
+          }
+          topBar={
+            <TopBar
+              title={viewTitle}
+              subtitle="总部高权限工作台 · 与移动后台共用业务事实和操作契约"
+              actions={
+                <>
+                  <Button aria-label="打开订单全局搜索" onClick={navigateToOrderTrace}><MagnifyingGlass size={18} /></Button>
+                  <Button aria-label="打开客服工作台" onClick={navigateToSupport}><Bell size={18} /></Button>
+                  <ScopeBadge scope={`城市：${adminCityLabel(cityCode)}`} />
+                  <Button onClick={handleChangeCity}>切换城市</Button>
+                  <Button onClick={handleLogout}>退出登录</Button>
+                </>
+              }
+            />
+          }
+          style={{ background: "var(--xlb-surface-muted)" }}
+          contentStyle={{ display: "grid", gap: 16 }}
+        >
+          {showGuardrail ? (
+            <details className="admin-mobile-guardrail">
+              <summary><span>总部操作边界</span><StatusTag tone={view.page === "orderTrace" ? "muted" : "warning"}>{guardrailTone}</StatusTag></summary>
+              <p>{guardrailCopy}</p>
+            </details>
+          ) : null}
+          <Suspense fallback={<LoadingState title="正在打开 OA 工作台" description="正在加载所需模块。" />}>
+            {content}
+          </Suspense>
+        </AdminShell>
+      </div>
+    );
+  }
 
   return (
     <div className="admin-app-root">

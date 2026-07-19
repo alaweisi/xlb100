@@ -3,6 +3,7 @@ import {
   createRequestContextMiddleware,
   getRequestContext,
 } from "../context/requestContextMiddleware.js";
+import { canAccessAdminOperation } from "../auth/operationsAuthorization.js";
 import { settlementPreparationService } from "./settlementPreparationService.js";
 import {
   confirmSettlementBatchRequestSchema,
@@ -79,7 +80,7 @@ import {
 
 async function requireSettlementOperator(request: FastifyRequest, reply: FastifyReply): Promise<void> {
   const context = getRequestContext(request);
-  if (context.appType !== "admin" || context.role !== "operator") {
+  if (!canAccessAdminOperation(context, ["operator"])) {
     await reply.status(403).send({ ok: false, error: "settlement preparation requires admin operator" });
   }
 }

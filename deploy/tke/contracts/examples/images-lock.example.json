@@ -27,6 +27,18 @@
       "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
       "sbomFile": ".artifacts/tke/releases/release-20260716-001/sbom/admin.cdx.json",
       "scanEvidenceFile": ".artifacts/tke/releases/release-20260716-001/scans/admin.json"
+    },
+    "oa": {
+      "repository": "ccr.ccs.tencentyun.com/xlb/oa",
+      "digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "sbomFile": ".artifacts/tke/releases/release-20260716-001/sbom/oa.cdx.json",
+      "scanEvidenceFile": ".artifacts/tke/releases/release-20260716-001/scans/oa.json"
+    },
+    "dashboard": {
+      "repository": "ccr.ccs.tencentyun.com/xlb/dashboard",
+      "digest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "sbomFile": ".artifacts/tke/releases/release-20260716-001/sbom/dashboard.cdx.json",
+      "scanEvidenceFile": ".artifacts/tke/releases/release-20260716-001/scans/dashboard.json"
     }
   }
 }

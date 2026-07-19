@@ -9,7 +9,7 @@ const APP_ROLES: Record<AppType, readonly Role[]> = {
   customer: ["customer"],
   worker: ["worker"],
   admin: ["admin", "operator", "auditor"],
-  oa: ["admin", "operator"],
+  oa: ["admin"],
   dashboard: ["admin", "operator", "auditor"],
 };
 

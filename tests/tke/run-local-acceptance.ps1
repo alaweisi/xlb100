@@ -144,7 +144,7 @@ try {
 
   if (-not $SkipImageBuild) {
     Invoke-Native docker @("build", "-f", "infra/docker/Dockerfile.backend", "-t", "xlb/backend:local", ".")
-    foreach ($app in @("customer", "worker", "admin")) {
+    foreach ($app in @("customer", "worker", "admin", "oa", "dashboard")) {
       Invoke-Native docker @(
         "build", "-f", "infra/docker/Dockerfile.frontend", "--build-arg", "APP_NAME=$app",
         "--build-arg", "APP_BASE=/", "-t", "xlb/${app}:local", "."
@@ -153,7 +153,7 @@ try {
   }
 
   Invoke-Native $script:kind @("create", "cluster", "--name", $clusterName, "--image", $manifest.nodeImage, "--wait", "180s")
-  foreach ($image in @("xlb/backend:local", "xlb/customer:local", "xlb/worker:local", "xlb/admin:local")) {
+  foreach ($image in @("xlb/backend:local", "xlb/customer:local", "xlb/worker:local", "xlb/admin:local", "xlb/oa:local", "xlb/dashboard:local")) {
     Invoke-Native $script:kind @("load", "docker-image", $image, "--name", $clusterName)
   }
 

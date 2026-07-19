@@ -15,6 +15,7 @@ import {
   CertificationValidationError,
 } from "./workerCertificationService.js";
 import { qualificationService } from "../qualification/qualificationService.js";
+import { canAccessAdminOperation } from "../../auth/operationsAuthorization.js";
 
 export class CertificationReviewForbiddenError extends Error {
   readonly statusCode = 403;
@@ -104,7 +105,7 @@ export class WorkerCertificationReviewService {
   }
 
   private assertAdminReviewContext(context: RequestContext): void {
-    if (context.appType !== "admin" || !isAdminScopedRole(context.role)) {
+    if (!canAccessAdminOperation(context) || !isAdminScopedRole(context.role)) {
       throw new CertificationReviewForbiddenError(
         "Certification review requires admin app with operator role",
       );

@@ -48,6 +48,7 @@ import { registerSupportModule } from "./support/supportModule.js";
 import { registerNotificationModule } from "./notification/notificationModule.js";
 import { registerMarketingModule } from "./marketing/marketingModule.js";
 import { XLB_RUNTIME_STATUS } from "./projectStatus.js";
+import { registerDashboardRoutes } from "./dashboard/dashboardRoutes.js";
 
 export type BuildAppOptions = {
   rateLimit?: RateLimitOptions;
@@ -159,7 +160,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     ok: true,
     project: "XLB",
     phase: XLB_RUNTIME_STATUS.phase,
-    apps: ["customer", "worker", "admin"],
+    apps: ["customer", "worker", "admin", "oa", "dashboard"],
     backend: "ready",
     foundation: XLB_RUNTIME_STATUS.foundation,
   }));
@@ -243,6 +244,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   await registerSupportModule(app);
   await registerNotificationModule(app);
   await registerMarketingModule(app);
+  await registerDashboardRoutes(app);
 
   return app;
 }

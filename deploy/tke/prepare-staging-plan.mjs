@@ -156,8 +156,10 @@ function parseHelmValues(content) {
     customer: yamlScalar(content, /^\s{4}customer:\s*(.+?)\s*$/m, "ingress.hosts.customer"),
     worker: yamlScalar(content, /^\s{4}worker:\s*(.+?)\s*$/m, "ingress.hosts.worker"),
     admin: yamlScalar(content, /^\s{4}admin:\s*(.+?)\s*$/m, "ingress.hosts.admin"),
+    oa: yamlScalar(content, /^\s{4}oa:\s*(.+?)\s*$/m, "ingress.hosts.oa"),
+    dashboard: yamlScalar(content, /^\s{4}dashboard:\s*(.+?)\s*$/m, "ingress.hosts.dashboard"),
   };
-  if (new Set(Object.values(ingressHosts)).size !== 4) fail("all four staging ingress hosts must be distinct");
+  if (new Set(Object.values(ingressHosts)).size !== 6) fail("all API and five product staging ingress hosts must be distinct");
   return {
     environment: yamlScalar(content, /^\s{2}environment:\s*(.+?)\s*$/m, "global.environment"),
     runtimeSecretName: yamlScalar(content, /^\s{2}existingSecret:\s*(.+?)\s*$/m, "runtimeSecrets.existingSecret"),

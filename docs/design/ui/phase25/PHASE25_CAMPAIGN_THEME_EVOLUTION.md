@@ -100,7 +100,7 @@ Gate 1 未全部通过前，不进入 Customer proof screen。
 - 明确“单一视觉赢家 + 可并行价格活动”的后端政策、priority/tie-break 与 revision；前端不合并多个视觉主题；
 - 报价前后、活动过期、重新报价与提交订单之间不出现前端自算金额；
 - 资产 404、慢加载、离线、版本切换和 kill switch；
-- 390px Customer、桌面 Admin/OA 和目标 Dashboard 分辨率无溢出、遮挡和布局跳动；
+- 390px Customer/Worker/Admin、桌面 OA 和目标 Dashboard 分辨率无溢出、遮挡和布局跳动；
 - WCAG 对比度、键盘焦点、屏幕阅读器语义、reduced motion；
 - Dashboard 装饰不降低指标辨识度，stale/disconnected 状态始终高于活动视觉；
 - 视觉回归同时保存默认主题和活动主题的同视口对比证据。
@@ -112,12 +112,12 @@ Gate 1 未全部通过前，不进入 Customer proof screen。
 
 | 项目 | 当前事实 | Phase 25 处理 |
 | --- | --- | --- |
-| Campaign 类型/校验器 | 已有三端 scope 骨架 | Gate 0 冻结差距；扩展五端须另行 contract approval |
+| Campaign 类型/校验器 | 已有三个移动 App scope 骨架 | OA/Dashboard 运行时已建立；活动主题扩展仍须遵守五端宪法与受保护状态优先级 |
 | ThemeProvider/Registry | 已有 token 合并和 fallback | Gate 1 审计并扩展，不让其访问 API 或时间 |
 | 春节/双11 token | 已有基础颜色骨架 | Gate 1 按角色、材质、状态和可访问性深化 |
 | 后端 Campaign 服务 | 未实现 | 不在前端伪造；进入后端正式 Phase 前先评审领域模型 |
 | 满减/折扣算法 | 前端无权实现 | 只消费权威 quote/pricing result |
 | 活动素材 manifest | 未实现 | Gate 1D 先定义安全契约与资产生产流程 |
-| OA/Dashboard scope | 类型尚未覆盖 | readiness 通过后再扩展，不提前造运行时 |
+| OA/Dashboard scope | 类型尚未覆盖 | 两端运行时已存在；主题 scope 在类型、权限和 API 契约通过后再扩展 |
 
 当前结论：动态活动能力属于 Phase 25 UI 系统工程的一部分，但真实活动激活和满减算法仍必须由后端正式能力提供。

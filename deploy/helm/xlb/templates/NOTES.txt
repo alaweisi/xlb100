@@ -9,3 +9,5 @@ Ingress hosts:
   customer: {{ .Values.ingress.hosts.customer }}
   worker: {{ .Values.ingress.hosts.worker }}
   admin: {{ .Values.ingress.hosts.admin }}
+  oa: {{ .Values.ingress.hosts.oa }}
+  dashboard: {{ .Values.ingress.hosts.dashboard }}

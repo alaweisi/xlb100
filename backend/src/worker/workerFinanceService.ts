@@ -14,6 +14,7 @@ import {
 } from "@xlb/validators";
 import { assertCityScopedContext } from "../dal/scopedExecutor.js";
 import { withTransaction } from "../dal/transaction.js";
+import { canAccessAdminOperation } from "../auth/operationsAuthorization.js";
 import {
   generateWorkerBankAccountId,
   generateWorkerWithdrawalId,
@@ -306,7 +307,7 @@ export class WorkerFinanceService {
     requireUserId: boolean,
   ): AdminFinanceContext {
     const cityCode = assertCityScopedContext(context);
-    if (context.appType !== "admin" || context.role !== "operator") {
+    if (!canAccessAdminOperation(context, ["operator"])) {
       throw new WorkerFinanceForbiddenError("worker finance admin actions require operator identity");
     }
     if (requireUserId && !context.userId) {

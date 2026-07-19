@@ -12,6 +12,7 @@ import {
 } from "@xlb/validators";
 import { assertCityScopedContext } from "../../dal/scopedExecutor.js";
 import { withTransaction } from "../../dal/transaction.js";
+import { canAccessAdminOperation } from "../../auth/operationsAuthorization.js";
 import { eventOutboxRepository, type EventOutboxRepository } from "../../events/eventOutbox.js";
 import {
   generateAftersaleTimelineEventId,
@@ -111,7 +112,7 @@ export class FulfillmentEvidenceService {
 
   async listForAdminOrder(context:RequestContext,orderId:string):Promise<FulfillmentEvidenceAggregate[]>{
     const cityCode=assertCityScopedContext(context);
-    if(context.appType!=="admin"||!["admin","operator"].includes(context.role))throw new FulfillmentEvidenceForbiddenError("evidence operations require admin or operator");
+    if(!canAccessAdminOperation(context,["admin","operator"]))throw new FulfillmentEvidenceForbiddenError("evidence operations require admin, operator, or OA headquarters authority");
     return this.repository.listAggregatesForOrder(cityCode,orderId);
   }
 
@@ -166,7 +167,7 @@ export class FulfillmentEvidenceService {
     if(!asset)throw new FulfillmentEvidenceNotFoundError(`Media asset not found: ${mediaAssetId}`);
     const access=await this.repository.findMediaAccess(cityCode,mediaAssetId);
     if(!access)throw new FulfillmentEvidenceNotFoundError(`Media access subject not found: ${mediaAssetId}`);
-    const allowed=(context.appType==="admin"&&["admin","operator"].includes(context.role))
+    const allowed=canAccessAdminOperation(context,["admin","operator"])
       ||(context.appType==="customer"&&context.role==="customer"&&context.userId===access.customerId)
       ||(context.appType==="worker"&&context.role==="worker"&&context.userId===access.workerId);
     if(!allowed)throw new FulfillmentEvidenceForbiddenError("media asset access denied");

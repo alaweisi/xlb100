@@ -19,6 +19,8 @@ spec:
         - {{ .Values.ingress.hosts.customer | quote }}
         - {{ .Values.ingress.hosts.worker | quote }}
         - {{ .Values.ingress.hosts.admin | quote }}
+        - {{ .Values.ingress.hosts.oa | quote }}
+        - {{ .Values.ingress.hosts.dashboard | quote }}
   {{- end }}
   rules:
     - host: {{ .Values.ingress.hosts.api | quote }}
@@ -31,7 +33,7 @@ spec:
                 name: {{ include "xlb.fullname" . }}-backend
                 port:
                   name: http
-    {{- range $name := list "customer" "worker" "admin" }}
+    {{- range $name := list "customer" "worker" "admin" "oa" "dashboard" }}
     - host: {{ index $.Values.ingress.hosts $name | quote }}
       http:
         paths:

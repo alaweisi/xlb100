@@ -76,6 +76,16 @@ frontends:
       repository: ccr.ccs.tencentyun.com/xlb/admin
       tag: ""
       digest: ${digest("d")}
+  oa:
+    image:
+      repository: ccr.ccs.tencentyun.com/xlb/oa
+      tag: ""
+      digest: ${digest("e")}
+  dashboard:
+    image:
+      repository: ccr.ccs.tencentyun.com/xlb/dashboard
+      tag: ""
+      digest: ${digest("f")}
 config:
   mysql:
       host: mysql.staging.internal
@@ -96,6 +106,8 @@ ingress:
     customer: customer.staging.xlb.test
     worker: worker.staging.xlb.test
     admin: admin.staging.xlb.test
+    oa: oa.staging.xlb.test
+    dashboard: dashboard.staging.xlb.test
 `;
 }
 
@@ -147,7 +159,7 @@ test("valid offline bundle produces a reviewable N7 plan without granting cloud 
   assert.equal(plan.n6AcceptanceCommit, N6_ACCEPTANCE_COMMIT);
   assert.equal(plan.cloudContract.region, "ap-guangzhou");
   assert.equal(plan.cloudContract.tke.mode, "create");
-  assert.equal(plan.cloudContract.immutableImageDigests.length, 4);
+  assert.equal(plan.cloudContract.immutableImageDigests.length, 6);
   assert.deepEqual(plan.authorizations, validManifest().authorizations);
   assert.match(plan.commands.realCloudPlanAfterAuthorization, /-ExecutePlan/);
   assert.doesNotMatch(plan.commands.realCloudPlanAfterAuthorization, /terraform\s+apply/i);
