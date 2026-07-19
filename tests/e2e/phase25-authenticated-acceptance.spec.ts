@@ -1,4 +1,31 @@
 import { expect, test } from "@playwright/test";
+import type { RowDataPacket } from "mysql2/promise";
+import { hashPhoneIdentity } from "../../backend/src/auth/phoneIdentity.js";
+import { getMysqlPool } from "../../backend/src/dal/mysqlPool.js";
+
+const workerPhone = "13800000001";
+let workerPhoneBefore: { phone_hash: string | null; phone_masked: string | null; updated_at: Date } | null = null;
+
+test.beforeAll(async () => {
+  const [rows] = await getMysqlPool().query<(RowDataPacket & { phone_hash: string | null; phone_masked: string | null; updated_at: Date })[]>(
+    "SELECT phone_hash,phone_masked,updated_at FROM worker_profiles WHERE worker_id='worker-demo-hangzhou'",
+  );
+  workerPhoneBefore = rows[0] ?? null;
+  if (!workerPhoneBefore) throw new Error("worker-demo-hangzhou fixture is missing");
+  await getMysqlPool().query(
+    "UPDATE worker_profiles SET phone_hash=?,phone_masked=? WHERE worker_id='worker-demo-hangzhou'",
+    [hashPhoneIdentity(workerPhone), "138****0001"],
+  );
+});
+
+test.afterAll(async () => {
+  if (workerPhoneBefore) {
+    await getMysqlPool().query(
+      "UPDATE worker_profiles SET phone_hash=?,phone_masked=?,updated_at=? WHERE worker_id='worker-demo-hangzhou'",
+      [workerPhoneBefore.phone_hash, workerPhoneBefore.phone_masked, workerPhoneBefore.updated_at],
+    );
+  }
+});
 
 async function customerSession(page: import("@playwright/test").Page) {
   const request = await page.request.post("http://localhost:3100/api/auth/customer/code", { data: { phone: "13800000001" } });

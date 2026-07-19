@@ -32,6 +32,7 @@ try {
 
 # ── Normal gate logic ─────────────────────────────────────────────
 $Root = Split-Path -Parent $PSScriptRoot
+. (Join-Path $Root 'scripts/lib/later-ui-authorizations.ps1')
 
 $forbiddenDirs = @(
   "apps/customer",
@@ -91,6 +92,7 @@ $phase27dFrontendFiles = @(
   'apps/worker/src/pages/WorkerNotificationsPage.tsx',
   'apps/worker/src/pages/worker-notifications.css'
 )
+$laterUiAuthorizationFiles = @(Get-LaterUiAuthorizationFiles -RepositoryRoot $Root -CurrentStateText $currentState)
 
 $changedFiles = & git -C $Root diff --name-only main...HEAD 2>$null
 if ($LASTEXITCODE -ne 0) {
@@ -107,7 +109,8 @@ foreach ($file in $changedFiles) {
     $isPhase24Support = $phase24SupportFiles -contains $normalized
     $isPhase27dFrontend = $allowPhase27dFrontend -and $phase27dFrontendFiles -contains $normalized
     $isPhase29Frontend = $allowPhase29Frontend -and $phase29FrontendFiles -contains $normalized
-    if ($normalized.StartsWith($fd) -and -not $isPhase23cFrontend -and -not $isPhase24Support -and -not $isPhase27dFrontend -and -not $isPhase29Frontend) {
+    $isExplicitLaterUi = $laterUiAuthorizationFiles -ccontains $normalized
+    if ($normalized.StartsWith($fd) -and -not $isPhase23cFrontend -and -not $isPhase24Support -and -not $isPhase27dFrontend -and -not $isPhase29Frontend -and -not $isExplicitLaterUi) {
       $violations += $file
     }
   }

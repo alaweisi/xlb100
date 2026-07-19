@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CouponGrant, CouponGrantListResponse } from "@xlb/types";
 import { sortCustomerCouponGrants, toCustomerCouponGrantViewModel } from "../adapters/marketingAdapter";
+import { CustomerRouteShell } from "./customerPageShell";
 import "./customer-coupons.css";
 
 type CouponView = "available" | "all";
@@ -41,7 +42,8 @@ export function CustomerCouponsPage({ api, onSelectForQuote }: CustomerCouponsPa
   }, [items]);
 
   return (
-    <main className="customer-coupons" aria-labelledby="customer-coupons-title">
+    <CustomerRouteShell currentRoute="coupons">
+      <main className="customer-coupons" aria-labelledby="customer-coupons-title">
       <header className="customer-coupons__header">
         <div>
           <h1 id="customer-coupons-title">我的优惠券</h1>
@@ -83,6 +85,7 @@ export function CustomerCouponsPage({ api, onSelectForQuote }: CustomerCouponsPa
           ))}
         </ul>
       )}
-    </main>
+      </main>
+    </CustomerRouteShell>
   );
 }

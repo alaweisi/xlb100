@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { CityCode, CustomerAddress, CustomerProfile, SaveCustomerAddressRequest } from "@xlb/types";
 import { Button, Card, CustomerProfileTemplate, EmptyState, FormField, Input, StatusTag } from "@xlb/ui";
 import { createCustomerUiBinding } from "../adapters/workflowAdapter";
+import { CustomerRouteShell } from "./customerPageShell";
 
 type ProfileApi = {
   getProfile(): Promise<{ ok: true; profile: CustomerProfile }>;
@@ -104,7 +105,8 @@ export function CustomerProfilePage({ api, cityCode }: CustomerProfilePageProps)
     form.district.trim() && form.detailAddress.trim().length >= 2;
 
   return (
-    <CustomerProfileTemplate route="/customer/profile" cityCode={cityCode} binding={binding}>
+    <CustomerRouteShell currentRoute="profile">
+      <CustomerProfileTemplate route="/customer/profile" cityCode={cityCode} binding={binding}>
       <Card title="Account" actions={<StatusTag tone="success">Real API</StatusTag>}>
         <div style={{ display: "grid", gap: 10 }}>
           <a href="/customer/notifications" className="notification-entry-link">消息中心</a>
@@ -152,6 +154,7 @@ export function CustomerProfilePage({ api, cityCode }: CustomerProfilePageProps)
       </Card>
       {notice && <div role="status" style={{ color: "#047857", fontSize: 13 }}>{notice}</div>}
       {error && <div role="alert" style={{ color: "#b91c1c", fontSize: 13 }}>{error}</div>}
-    </CustomerProfileTemplate>
+      </CustomerProfileTemplate>
+    </CustomerRouteShell>
   );
 }

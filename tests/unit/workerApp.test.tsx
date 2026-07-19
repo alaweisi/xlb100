@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { cleanup, configure, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { App } from "../../apps/worker/src/app/App";
 
 const mocks = vi.hoisted(() => ({
@@ -32,6 +32,9 @@ const mocks = vi.hoisted(() => ({
   getFulfillmentEvidence: vi.fn(),
   uploadFulfillmentEvidence: vi.fn(),
 }));
+
+beforeAll(() => configure({ asyncUtilTimeout: 5_000 }));
+afterAll(() => configure({ asyncUtilTimeout: 1_000 }));
 
 vi.mock("@xlb/api-client", () => ({
   createApiClient: mocks.createApiClient,

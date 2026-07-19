@@ -155,6 +155,7 @@ export function BottomNav({ items, placement = "static", style }: BottomNavProps
     >
       {items.map((item) => (
         <a
+          aria-current={item.active ? "page" : undefined}
           href={item.href ?? "#"}
           key={item.key}
           onClick={(event) => {
