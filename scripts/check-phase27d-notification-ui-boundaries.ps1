@@ -63,8 +63,24 @@ if (-not $customerShell.Contains('from "@xlb/api-client"')) {
 if ($customerShell -match 'packages/api-client/src') {
   throw "Customer runtime must not import API Client source files by relative path"
 }
-if ($customerShell -match 'customerRouteConfig[\s\S]{0,2000}notifications\s*:') {
-  throw "Customer bottom navigation must not gain an eighth Notification item"
+$primaryNavMatch = [regex]::Match(
+  $customerShell,
+  '(?s)export\s+const\s+customerPrimaryNavConfig\s*=\s*\[(?<entries>.*?)\]\s+as\s+const;'
+)
+if ($primaryNavMatch.Success) {
+  $primaryEntries = $primaryNavMatch.Groups['entries'].Value
+  $routeEntryCount = [regex]::Matches($primaryEntries, 'customerRouteConfig\.').Count
+  $literalHrefCount = [regex]::Matches($primaryEntries, '\bhref\s*:').Count
+  $notificationCount = [regex]::Matches($primaryEntries, '/customer/notifications').Count
+  if ($routeEntryCount + $literalHrefCount -ne 5 -or $notificationCount -ne 1) {
+    throw "Customer primary navigation must remain the bounded five-item model with one Notification destination"
+  }
+} elseif ($customerShell -match '(?s)customerRouteConfig\s*:[^=]+?=\s*\{(?<routes>.*?)\n\};') {
+  if ($Matches['routes'] -match '(?m)^\s*notifications\s*:') {
+    throw "Legacy Customer bottom navigation must not gain an eighth Notification item"
+  }
+} else {
+  throw "Customer navigation model is not structurally recognizable"
 }
 
 Write-Output "check-phase27d-notification-ui-boundaries: passed"

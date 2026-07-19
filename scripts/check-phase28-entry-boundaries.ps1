@@ -1,6 +1,7 @@
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
+. (Join-Path $PSScriptRoot 'lib/current-state.ps1')
 
 function Require-Contains {
   param([string]$Text, [string]$Needle, [string]$Label)
@@ -14,10 +15,9 @@ if ($LASTEXITCODE -ne 0 -or $tagCommit -ne $mergeBase) {
 }
 
 $state = Get-Content -Raw -Encoding UTF8 -LiteralPath 'docs/CURRENT_STATE.md'
-Require-Contains $state 'Phase 27 | LOCKED' 'Phase27 LOCKED truth'
-Require-Contains $state 'Phase 14 | IN PROGRESS' 'Phase14 IN PROGRESS truth'
-Require-Contains $state '64/100' 'Phase14 readiness score'
-Require-Contains $state 'staging/production `NO-GO`' 'production NO-GO truth'
+$phase27 = Get-XlbPhaseTableEntry -CurrentStateText $state -PhaseId 'Phase 27'
+$null = Assert-XlbPhaseStatusIn -Entry $phase27 -AllowedStatuses @('LOCKED')
+$null = Assert-XlbPhase14ProductionBlocked -CurrentStateText $state
 
 $phase29EntryPath = 'docs/reports/PHASE29_MARKETING_COUPON_ENTRY_REPORT.md'
 $phase29ArchitecturePath = 'docs/architecture/29_XLB_MARKETING_COUPON.md'

@@ -12,7 +12,7 @@ import {
   LocationSearchBar,
   ServiceCard,
 } from "@xlb/ui";
-import { CITY_OPTIONS, CustomerLoadable } from "./customerPageShell";
+import { CITY_OPTIONS, CustomerLoadable, CustomerRouteShell } from "./customerPageShell";
 import { cityDisplayLabel, representativeHomeSkus } from "../adapters/catalogAdapters";
 import { createCustomerUiBinding } from "../adapters/workflowAdapter";
 
@@ -92,18 +92,19 @@ export function CustomerHomePage({ cityCode, catalogState, onRetryCatalog }: Cus
   }
 
   return (
-    <CustomerHomeTemplate
-      route="/customer/"
-      cityCode={cityCode}
-      binding={binding}
-      actions={
-        <ActionDock
-          actions={openServicesAction ? [openServicesAction] : []}
-          onAction={() => (window.location.href = `/customer/services?${new URLSearchParams({ cityCode }).toString()}`)}
-          density="compact"
-        />
-      }
-    >
+    <CustomerRouteShell currentRoute="home">
+      <CustomerHomeTemplate
+        route="/customer/"
+        cityCode={cityCode}
+        binding={binding}
+        actions={
+          <ActionDock
+            actions={openServicesAction ? [openServicesAction] : []}
+            onAction={() => (window.location.href = `/customer/services?${new URLSearchParams({ cityCode }).toString()}`)}
+            density="compact"
+          />
+        }
+      >
       <HomeHeader
         cityCode={cityCode}
         onCityChange={onCityChange}
@@ -152,7 +153,8 @@ export function CustomerHomePage({ cityCode, catalogState, onRetryCatalog }: Cus
         </section>
       )}
 
-      <CustomerAnswerCard state={binding.state} />
-    </CustomerHomeTemplate>
+        <CustomerAnswerCard state={binding.state} />
+      </CustomerHomeTemplate>
+    </CustomerRouteShell>
   );
 }

@@ -1,5 +1,32 @@
 import { expect,test } from "@playwright/test";
 import type { Page } from "@playwright/test";
+import type { RowDataPacket } from "mysql2/promise";
+import { hashPhoneIdentity } from "../../backend/src/auth/phoneIdentity.js";
+import { getMysqlPool } from "../../backend/src/dal/mysqlPool.js";
+
+const workerPhone = "13800000001";
+let workerPhoneBefore: { phone_hash: string | null; phone_masked: string | null; updated_at: Date } | null = null;
+
+test.beforeAll(async()=>{
+  const [rows]=await getMysqlPool().query<(RowDataPacket&{phone_hash:string|null;phone_masked:string|null;updated_at:Date})[]>(
+    "SELECT phone_hash,phone_masked,updated_at FROM worker_profiles WHERE worker_id='worker-demo-hangzhou'",
+  );
+  workerPhoneBefore=rows[0]??null;
+  if(!workerPhoneBefore)throw new Error("worker-demo-hangzhou fixture is missing");
+  await getMysqlPool().query(
+    "UPDATE worker_profiles SET phone_hash=?,phone_masked=? WHERE worker_id='worker-demo-hangzhou'",
+    [hashPhoneIdentity(workerPhone),"138****0001"],
+  );
+});
+
+test.afterAll(async()=>{
+  if(workerPhoneBefore){
+    await getMysqlPool().query(
+      "UPDATE worker_profiles SET phone_hash=?,phone_masked=?,updated_at=? WHERE worker_id='worker-demo-hangzhou'",
+      [workerPhoneBefore.phone_hash,workerPhoneBefore.phone_masked,workerPhoneBefore.updated_at],
+    );
+  }
+});
 
 async function assertNoPageErrors(page: Page) {
   const errors:string[]=[];
@@ -35,8 +62,12 @@ test("worker location page reports private location through the Phase 20 API",as
   const assertClean=await assertNoPageErrors(page);
   await page.goto("http://localhost:5274/worker/profile?cityCode=hangzhou");
   await page.getByRole("button",{name:"Send code"}).click();
+  await expect(page.getByText("Code sent. It expires in 300s.")).toBeVisible();
   await page.getByRole("button",{name:"Fill debug code"}).click();
-  await page.getByRole("button",{name:"Login"}).click();
+  await expect(page.getByLabel("code",{exact:true})).toHaveValue(/^\d{6}$/);
+  const loginButton=page.getByRole("button",{name:"Login"});
+  await expect(loginButton).toBeEnabled();
+  await loginButton.click();
   await expect(page.getByRole("heading",{name:"Location & Availability"})).toBeVisible();
   await page.getByRole("button",{name:"Report current location"}).click();
   await expect(page.locator("strong",{hasText:"fresh"})).toBeVisible();

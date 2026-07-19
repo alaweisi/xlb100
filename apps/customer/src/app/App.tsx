@@ -156,6 +156,7 @@ export function App() {
         catalogState={catalogState}
         cityCode={cityCode}
         onOrderCreated={handleOrderCreated}
+        onRetryCatalog={handleRetryCatalog}
       />
     );
   }
