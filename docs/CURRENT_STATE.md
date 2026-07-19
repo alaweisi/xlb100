@@ -44,6 +44,19 @@
 | Phase 27B | INTEGRATED — LOCKED WITH PHASE27 | xlb-phase27-notification-foundation | Notification projection, scoped API and Customer/Worker inbox integrated under the Phase27 Lock |
 | Phase 28 | LOCKED | xlb-phase28-review-reputation | Review moderation, appeal and Worker reputation foundation; production activation remains prohibited |
 | Phase 29 | LOCKED | xlb-phase29-marketing-coupon | Marketing/Coupon MVP with fixed-amount coupons and Order-owned price evidence; production activation remains prohibited |
+| Commercialization Unit B | LOCKED — REPOSITORY ONLY | — | Production Nginx gateway, same-origin API/WebSocket routing and non-durable business Smoke skeleton; no production activation |
+
+## Commercialization Unit B — Production Edge Routing (LOCKED — REPOSITORY ONLY)
+
+- **Authorized**: 2026-07-19. Human authorized Unit B construction, Agent-cluster review, self-acceptance and local Lock commit.
+- **Scope**: Production Nginx gateway; Customer/Worker/Admin same-origin `/api/`; exact `/api/support/realtime` WebSocket Upgrade; CSP/security headers; production Compose gateway/TLS/digest controls; non-durable Customer catalog/quote/existing-order and WebSocket Smoke skeleton.
+- **Verification**: Unit B aggregate Gate PASS (5/5 negative/positive contract tests, non-root read-only container `nginx -t`, Smoke dry-run/token non-disclosure, Production Compose/repository readiness), typecheck 17/17, build 11/11, CI/supply 8/8, lint 0 errors with one pre-existing backend warning.
+- **Independent review**: implementation P0=0 after exact-file staging/Lock evidence closure. Review confirmed same-origin routing, public metrics denial, immutable gateway digest contract, TLS Secrets, non-root/read-only gateway and no durable order/payment mutation in Smoke.
+- **Global regression truth**: the one required full regression run remained RED outside Unit B: db/security tranche 197/200 files and 616/622 tests passed with 1 skipped; five failures are the pre-existing dirty Customer UI Phase25 hardcode increases and stale Phase27/28 exact Phase14 text gates. No Unit B test failed.
+- **Production truth unchanged**: `STAGING_RELEASE=NO_GO`, `PRODUCTION_RELEASE=NO_GO`, `PRODUCTION_ACTIVATION_ALLOWED=false`. No real DNS, certificate, CLB/WAF, TKE/Helm/Ingress, real production Smoke, production data, real Provider, push, deploy or public release was executed.
+- **Topology boundary**: checked-in Compose assumes Nginx terminates TLS and is the backend's single trusted proxy hop. A future L7 CLB/TKE topology must separately configure trusted real-IP CIDRs, `TRUST_PROXY_HOPS`, rate limiting and private metrics access.
+- **Tag**: none. Unit B authorization covered a local Lock commit, not tag/push/deploy.
+- **Report**: `docs/reports/UNIT_B_PRODUCTION_EDGE_ROUTING_LOCK_REPORT_2026-07-19.md`.
 
 ## Phase 25 — Five-System UI Standardization (LOCKED)
 
