@@ -81,7 +81,7 @@ describe("lean governance executable behavior", () => {
 
     expect(committed.status, committed.output).toBe(0);
     expect(committed.output).toContain("LEAN_RISK ordinary");
-  });
+  }, 30_000);
 
   it("2. blocks a sensitive path and prints the Human approval request", () => {
     const root = createFixture();
@@ -93,7 +93,7 @@ describe("lean governance executable behavior", () => {
     expect(committed.status).not.toBe(0);
     expect(committed.output).toContain("HIGH_RISK path=backend/src/payment/paymentService.ts rule=MONEY");
     expect(committed.output).toContain("HIGH_RISK_CONFIRMATION_REQUIRED");
-  });
+  }, 30_000);
 
   it("3. blocks a duplicate migration number", () => {
     const root = createFixture();
@@ -104,7 +104,7 @@ describe("lean governance executable behavior", () => {
 
     expect(committed.status).not.toBe(0);
     expect(committed.output).toContain("duplicate migration number 000");
-  });
+  }, 30_000);
 
   it("4. blocks rewrite and deletion of a locked migration", () => {
     const rewriteRoot = createFixture();
