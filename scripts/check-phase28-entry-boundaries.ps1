@@ -110,6 +110,15 @@ if ($phase29Authorized) { $expectedPhase28Migrations += '057_phase29_marketing_c
 if (Test-Path -LiteralPath 'db/migrations/058_stage2c2_migration_control.sql') {
   $expectedPhase28Migrations += '058_stage2c2_migration_control.sql'
 }
+$tkeCosMigrationPath = 'db/migrations/059_tke_cos_object_storage.sql'
+$tkeCosSourceCommit = '8c28d81fc81c84805368c969c590a77bf2a95b91'
+if (Test-Path -LiteralPath $tkeCosMigrationPath) {
+  $tkeCosHash = (git hash-object -- $tkeCosMigrationPath).Trim()
+  $lockedTkeCosHash = (git rev-parse "${tkeCosSourceCommit}:$tkeCosMigrationPath" 2>$null).Trim()
+  if ($LASTEXITCODE -eq 0 -and $tkeCosHash -eq $lockedTkeCosHash) {
+    $expectedPhase28Migrations += '059_tke_cos_object_storage.sql'
+  }
+}
 $actualMigrationNames = @($laterMigrations.Name | Sort-Object) -join ','
 $expectedMigrationNames = @($expectedPhase28Migrations | Sort-Object) -join ','
 if ($laterMigrations.Count -ne $expectedPhase28Migrations.Count -or

@@ -37,6 +37,14 @@ $phase29Authorized =
   (Get-Content -Raw -Encoding UTF8 -LiteralPath $phase29RegistryPath).Contains('Entry decisions D01-D24 are approved for continuous construction through independent acceptance.') -and
   (Test-Path -LiteralPath $phase29MigrationPath)
 $stage2c2Authorized = Test-Path -LiteralPath 'db/migrations/058_stage2c2_migration_control.sql'
+$tkeCosMigrationPath = 'db/migrations/059_tke_cos_object_storage.sql'
+$tkeCosSourceCommit = '8c28d81fc81c84805368c969c590a77bf2a95b91'
+$tkeCosAuthorized = $false
+if (Test-Path -LiteralPath $tkeCosMigrationPath) {
+  $tkeCosHash = (git hash-object -- $tkeCosMigrationPath).Trim()
+  $lockedTkeCosHash = (git rev-parse "${tkeCosSourceCommit}:$tkeCosMigrationPath" 2>$null).Trim()
+  $tkeCosAuthorized = $LASTEXITCODE -eq 0 -and $tkeCosHash -eq $lockedTkeCosHash
+}
 
 $migration054 = @(Get-ChildItem db/migrations -File | Where-Object { $_.Name -match '^054_' })
 $migration055Plus = @(Get-ChildItem db/migrations -File | Where-Object {
@@ -71,8 +79,14 @@ if ($migration055Plus.Count -ne 0) {
     $migration055Plus.Count -eq 4 -and
     @($migration055Plus.Name | Sort-Object) -join ',' -eq
       '055_phase27b_notification_projection_foundation.sql,056_phase28_review_reputation.sql,057_phase29_marketing_coupon.sql,058_stage2c2_migration_control.sql'
+  $expectedTkeCosMigrations =
+    $phase29Authorized -and $stage2c2Authorized -and $tkeCosAuthorized -and
+    $migration055Plus.Count -eq 5 -and
+    @($migration055Plus.Name | Sort-Object) -join ',' -eq
+      '055_phase27b_notification_projection_foundation.sql,056_phase28_review_reputation.sql,057_phase29_marketing_coupon.sql,058_stage2c2_migration_control.sql,059_tke_cos_object_storage.sql'
   if (-not $expectedPhase27bMigration -and -not $expectedPhase28Migrations -and
-      -not $expectedPhase29Migrations -and -not $expectedStage2c2Migrations) {
+      -not $expectedPhase29Migrations -and -not $expectedStage2c2Migrations -and
+      -not $expectedTkeCosMigrations) {
     throw "Phase27A forbids unauthorized migration 055 or later"
   }
 }
