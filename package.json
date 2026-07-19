@@ -128,6 +128,7 @@
     "check:production-readiness": "node scripts/check-stage5-engineering-audit.mjs --mode release",
     "check:production-repository-readiness": "node scripts/check-production-repository-readiness.mjs",
     "gate:stage5": "node scripts/run-stage5-engineering-audit.mjs",
+    "gate:unit-c-privacy": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-unit-c-privacy-foundation.ps1",
     "check:risk": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-lean-risk.ps1 -DiffMode WorkingTree",
     "check:migration-integrity": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-migration-integrity.ps1 -DiffMode WorkingTree",
     "preflight": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/preflight-architecture.ps1"
