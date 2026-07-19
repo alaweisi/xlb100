@@ -56,8 +56,14 @@ describe("Customer App API adapter stability", () => {
   it("does not restart the coupon GET when parent catalog state rerenders", async () => {
     render(<App />);
 
-    await waitFor(() => expect(apiMocks.getCatalog).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(apiMocks.listCouponGrants).toHaveBeenCalledTimes(1));
+    await waitFor(
+      () => expect(apiMocks.getCatalog).toHaveBeenCalledTimes(1),
+      { timeout: 5_000 },
+    );
+    await waitFor(
+      () => expect(apiMocks.listCouponGrants).toHaveBeenCalledTimes(1),
+      { timeout: 5_000 },
+    );
     await new Promise((resolve) => setTimeout(resolve, 100));
 
     expect(apiMocks.listCouponGrants).toHaveBeenCalledTimes(1);

@@ -50,6 +50,15 @@ if ($phase29Authorized) {
 if (Test-Path -LiteralPath 'db/migrations/058_stage2c2_migration_control.sql') {
   $expectedMigrations += '058_stage2c2_migration_control.sql'
 }
+$tkeCosMigrationPath = 'db/migrations/059_tke_cos_object_storage.sql'
+$tkeCosSourceCommit = '8c28d81fc81c84805368c969c590a77bf2a95b91'
+if (Test-Path -LiteralPath $tkeCosMigrationPath) {
+  $tkeCosHash = (git hash-object -- $tkeCosMigrationPath).Trim()
+  $lockedTkeCosHash = (git rev-parse "${tkeCosSourceCommit}:$tkeCosMigrationPath" 2>$null).Trim()
+  if ($LASTEXITCODE -eq 0 -and $tkeCosHash -eq $lockedTkeCosHash) {
+    $expectedMigrations += '059_tke_cos_object_storage.sql'
+  }
+}
 if ($migrations.Count -ne $expectedMigrations.Count) {
   throw "Phase27 completion migration ledger contains an unauthorized 054+ migration"
 }

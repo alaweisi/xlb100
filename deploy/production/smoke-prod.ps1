@@ -1,6 +1,6 @@
 # Production edge and non-durable business smoke. The realtime ticket is a
-# one-time Redis record; the script never writes durable business data or
-# executes order/payment/refund/payout actions.
+# one-time Redis record; every business assertion is read-only and leaves no
+# persistent domain mutation.
 param(
   [string]$EnvFile = ".env.production",
   [ValidateRange(3, 120)][int]$TimeoutSec = 15,

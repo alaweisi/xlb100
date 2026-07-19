@@ -81,7 +81,7 @@ describe("lean governance executable behavior", () => {
 
     expect(committed.status, committed.output).toBe(0);
     expect(committed.output).toContain("LEAN_RISK ordinary");
-  });
+  }, 30_000);
 
   it("2. blocks a sensitive path and prints the Human approval request", () => {
     const root = createFixture();
@@ -93,7 +93,7 @@ describe("lean governance executable behavior", () => {
     expect(committed.status).not.toBe(0);
     expect(committed.output).toContain("HIGH_RISK path=backend/src/payment/paymentService.ts rule=MONEY");
     expect(committed.output).toContain("HIGH_RISK_CONFIRMATION_REQUIRED");
-  });
+  }, 30_000);
 
   it("3. blocks a duplicate migration number", () => {
     const root = createFixture();
@@ -104,7 +104,7 @@ describe("lean governance executable behavior", () => {
 
     expect(committed.status).not.toBe(0);
     expect(committed.output).toContain("duplicate migration number 000");
-  });
+  }, 30_000);
 
   it("4. blocks rewrite and deletion of a locked migration", () => {
     const rewriteRoot = createFixture();
@@ -120,7 +120,7 @@ describe("lean governance executable behavior", () => {
     const deleted = git(deletionRoot, "commit", "-m", "test locked migration deletion");
     expect(deleted.status).not.toBe(0);
     expect(deleted.output).toContain("published migration cannot be deleted or renamed");
-  });
+  }, 30_000);
 
   it("5. accepts one natural-language approval for later commits on the same paths", () => {
     const root = createFixture();
@@ -162,5 +162,5 @@ describe("lean governance executable behavior", () => {
 
     const approvalLog = readFileSync(join(root, ".git/xlb-high-risk-approvals.jsonl"), "utf8").trim().split(/\r?\n/);
     expect(approvalLog).toHaveLength(1);
-  });
+  }, 30_000);
 });

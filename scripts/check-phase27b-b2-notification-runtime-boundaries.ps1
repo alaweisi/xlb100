@@ -47,8 +47,22 @@ $expectedStage2c2Migrations =
   $migration056Plus.Count -eq 3 -and
   @($migration056Plus.Name | Sort-Object) -join ',' -eq
     '056_phase28_review_reputation.sql,057_phase29_marketing_coupon.sql,058_stage2c2_migration_control.sql'
+$tkeCosMigrationPath = 'db/migrations/059_tke_cos_object_storage.sql'
+$tkeCosSourceCommit = '8c28d81fc81c84805368c969c590a77bf2a95b91'
+$tkeCosAuthorized = $false
+if (Test-Path -LiteralPath $tkeCosMigrationPath) {
+  $tkeCosHash = (git hash-object -- $tkeCosMigrationPath).Trim()
+  $lockedTkeCosHash = (git rev-parse "${tkeCosSourceCommit}:$tkeCosMigrationPath" 2>$null).Trim()
+  $tkeCosAuthorized = $LASTEXITCODE -eq 0 -and $tkeCosHash -eq $lockedTkeCosHash
+}
+$expectedTkeCosMigrations =
+  $phase29Authorized -and $tkeCosAuthorized -and
+  $migration056Plus.Count -eq 4 -and
+  @($migration056Plus.Name | Sort-Object) -join ',' -eq
+    '056_phase28_review_reputation.sql,057_phase29_marketing_coupon.sql,058_stage2c2_migration_control.sql,059_tke_cos_object_storage.sql'
 if ($migration056Plus.Count -ne 0 -and -not $expectedPhase28Migration -and
-    -not $expectedPhase29Migrations -and -not $expectedStage2c2Migrations) {
+    -not $expectedPhase29Migrations -and -not $expectedStage2c2Migrations -and
+    -not $expectedTkeCosMigrations) {
   throw "Phase27B B2 forbids unauthorized migration 056 or later"
 }
 $migration055Path = 'db/migrations/055_phase27b_notification_projection_foundation.sql'
