@@ -26,6 +26,10 @@ import { CustomerRouteShell } from "./customerPageShell";
 import "./customer-orders.css";
 
 interface CustomerOrderApi {
+  listOrders(query?: { cursor?: string; limit?: number }): Promise<{
+    orders: Order[];
+    nextCursor: string | null;
+  }>;
   getOrder(orderId: string): Promise<{ order: Order }>;
   confirmService(orderId: string): Promise<{ order: Order }>;
   createPaymentOrder(payload: { orderId: string }): Promise<{ paymentOrder: PaymentOrder }>;
@@ -65,7 +69,6 @@ interface CustomerOrderApi {
 export interface CustomerOrdersPageProps {
   api: CustomerOrderApi;
   cityCode: CityCode;
-  orderIds: string[];
 }
 
 type RefundUiState =
@@ -94,15 +97,13 @@ function orderStatusTone(status: string): "success" | "warning" | "muted" {
   return "muted";
 }
 
-export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPageProps) {
-  const binding = createCustomerUiBinding({
-    route: "orders",
-    cityCode,
-    hasOrderIds: orderIds.length > 0,
-  });
+export function CustomerOrdersPage({ api, cityCode }: CustomerOrdersPageProps) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
   const [refundReasons, setRefundReasons] = useState<Record<string, string>>({});
   const [refundStates, setRefundStates] = useState<Record<string, RefundUiState>>({});
   const [reviewRatings, setReviewRatings] = useState<Record<string, number>>({});
@@ -115,26 +116,30 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
   const [appealKeys, setAppealKeys] = useState<Record<string, string>>({});
   const [confirmStates, setConfirmStates] = useState<Record<string, ConfirmUiState>>({});
   const [paymentStates, setPaymentStates] = useState<Record<string, PaymentUiState>>({});
+  const binding = createCustomerUiBinding({
+    route: "orders",
+    cityCode,
+    hasOrderIds: orders.length > 0,
+  });
 
   useEffect(() => {
-    if (orderIds.length === 0) {
-      setOrders([]);
-      setError(null);
-      return;
-    }
-
     let cancelled = false;
     const load = async () => {
       setLoading(true);
       setError(null);
       try {
-        const results = await Promise.all(
-          orderIds.map((orderId) => api.getOrder(orderId).then((item) => item.order)),
-        );
+        const result = await api.listOrders({ limit: 20 });
         if (!cancelled) {
-          setOrders(results);
+          setOrders(result.orders);
+          setNextCursor(result.nextCursor);
           const reviewResults = await Promise.all(
-            results.map(async (order) => [order.orderId, (await api.getOrderReview(order.orderId)).review] as const),
+            result.orders.map(async (order) => {
+              try {
+                return [order.orderId, (await api.getOrderReview(order.orderId)).review] as const;
+              } catch {
+                return [order.orderId, null] as const;
+              }
+            }),
           );
           if (!cancelled) setReviewViews(Object.fromEntries(reviewResults));
         }
@@ -152,7 +157,35 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
     return () => {
       cancelled = true;
     };
-  }, [api, orderIds]);
+  }, [api, cityCode]);
+
+  async function loadMoreOrders() {
+    if (!nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    setLoadMoreError(null);
+    try {
+      const result = await api.listOrders({ cursor: nextCursor, limit: 20 });
+      setOrders((previous) => {
+        const known = new Set(previous.map((order) => order.orderId));
+        return [...previous, ...result.orders.filter((order) => !known.has(order.orderId))];
+      });
+      setNextCursor(result.nextCursor);
+      const reviewResults = await Promise.all(
+        result.orders.map(async (order) => {
+          try {
+            return [order.orderId, (await api.getOrderReview(order.orderId)).review] as const;
+          } catch {
+            return [order.orderId, null] as const;
+          }
+        }),
+      );
+      setReviewViews((previous) => ({ ...previous, ...Object.fromEntries(reviewResults) }));
+    } catch (err) {
+      setLoadMoreError(err instanceof Error ? err.message : "load more orders failed");
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   const sortedOrders = useMemo(() => {
     return [...orders].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
@@ -588,6 +621,15 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
             </OrderCard>
           );
         })}
+
+      {!loading && !error && nextCursor && (
+        <div style={{ display: "flex", justifyContent: "center" }}>
+          <Button disabled={loadingMore} onClick={() => void loadMoreOrders()}>
+            {loadingMore ? "Loading more" : "Load more orders"}
+          </Button>
+        </div>
+      )}
+      {loadMoreError && <ErrorState title="Load more orders failed" description={loadMoreError} />}
 
       <CustomerAnswerCard state={binding.state} />
       </CustomerOrdersTemplate>

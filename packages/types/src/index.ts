@@ -28,7 +28,14 @@ export type {
   PriceQuote,
 } from "./pricing.js";
 export { XLB_HEADERS, type XlbHeaderName } from "./headers.js";
-export type { Order, OrderPriceSnapshot, OrderStatus, ScheduledTimeSlot } from "./order.js";
+export type {
+  CustomerOrderListQuery,
+  CustomerOrderListResponse,
+  Order,
+  OrderPriceSnapshot,
+  OrderStatus,
+  ScheduledTimeSlot,
+} from "./order.js";
 export type {
   PaymentOrder,
   PaymentStatus,

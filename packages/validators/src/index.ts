@@ -99,9 +99,11 @@ export {
 } from "./pricingSchema.js";
 export {
   createOrderSchema,
+  customerOrderListQuerySchema,
   orderSchema,
   orderStatusSchema,
   type CreateOrderInput,
+  type CustomerOrderListQueryInput,
   type OrderInput,
 } from "./orderSchema.js";
 export {

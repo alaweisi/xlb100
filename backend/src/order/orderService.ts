@@ -1,5 +1,5 @@
 import type { CreateOrderInput } from "@xlb/validators";
-import type { Order } from "@xlb/types";
+import type { CustomerOrderListResponse, Order } from "@xlb/types";
 import type { RequestContext } from "@xlb/types";
 import type { PoolConnection } from "mysql2/promise";
 import { createOrderSchema } from "@xlb/validators";
@@ -17,6 +17,12 @@ import {
   marketingService,
   MarketingService,
 } from "../marketing/marketingService.js";
+import {
+  decodeCustomerOrderListCursor,
+  encodeCustomerOrderListCursor,
+  parseCustomerOrderListQuery,
+  requireCustomerOrderListScope,
+} from "./customerOrderListPolicy.js";
 
 export class OrderValidationError extends Error {
   readonly statusCode = 400;
@@ -378,6 +384,32 @@ export class OrderService {
       }
       return order;
     });
+  }
+
+  async listCustomerOrders(
+    context: RequestContext,
+    input: unknown,
+  ): Promise<CustomerOrderListResponse> {
+    const scope = requireCustomerOrderListScope(context);
+    const query = parseCustomerOrderListQuery(input);
+    const cursor = decodeCustomerOrderListCursor(query.cursor, scope);
+    const rows = await this.repository.listByCustomer(
+      context,
+      scope.cityCode as Order["cityCode"],
+      scope.customerId,
+      cursor,
+      query.limit + 1,
+    );
+    const hasMore = rows.length > query.limit;
+    const orders = hasMore ? rows.slice(0, query.limit) : rows;
+    const last = orders.at(-1);
+    return {
+      ok: true,
+      orders,
+      nextCursor: hasMore && last
+        ? encodeCustomerOrderListCursor(scope, { createdAt: last.createdAt, orderId: last.orderId })
+        : null,
+    };
   }
 
   async confirmServiceCompleted(context: RequestContext, orderId: string): Promise<Order> {

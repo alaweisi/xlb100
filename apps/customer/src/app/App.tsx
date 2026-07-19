@@ -125,7 +125,8 @@ export function App() {
     issueDiscountDecision: (payload) => api.issueDiscountDecision(payload),
   }), [api]);
 
-  const ordersApi: CustomerOrdersPageProps["api"] = {
+  const ordersApi = useMemo<CustomerOrdersPageProps["api"]>(() => ({
+    listOrders: (query) => api.listOrders(query),
     getOrder: (orderId) => api.getOrder(orderId),
     confirmService: (orderId) => api.confirmService(orderId),
     createPaymentOrder: (payload) => api.createPaymentOrder(payload),
@@ -135,7 +136,7 @@ export function App() {
     getOrderReview: (orderId) => api.getOrderReview(orderId),
     createReviewAppeal: (reviewId, payload) => api.createReviewAppeal(reviewId, payload),
     withdrawReviewAppeal: (reviewId, payload) => api.withdrawReviewAppeal(reviewId, payload),
-  };
+  }), [api]);
 
   if (!session) {
     return <main aria-busy="true" style={{ display: "grid", minHeight: "100vh", placeItems: "center" }}>Authenticating customer</main>;
@@ -162,7 +163,7 @@ export function App() {
   }
 
   if (currentRoute === "orders") {
-    return <CustomerOrdersPage api={ordersApi} cityCode={cityCode} orderIds={orderIds} />;
+    return <CustomerOrdersPage api={ordersApi} cityCode={cityCode} />;
   }
 
   if (currentRoute === "aftersale") {

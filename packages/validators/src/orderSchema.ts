@@ -14,6 +14,11 @@ export const orderStatusSchema = z.enum([
 
 export const scheduledTimeSlotSchema = z.enum(["morning", "afternoon", "evening"]);
 
+export const customerOrderListQuerySchema = z.object({
+  cursor: z.string().min(1).max(2_048).regex(/^[A-Za-z0-9_-]+$/).optional(),
+  limit: z.number().int().min(1).max(50).optional(),
+}).strict();
+
 export const createOrderSchema = z.object({
   customerId: z.string().min(1).max(64).optional(),
   skuId: z.string().min(1).max(128),
@@ -107,4 +112,5 @@ export const orderSchema = z.object({
 });
 
 export type CreateOrderInput = z.infer<typeof createOrderSchema>;
+export type CustomerOrderListQueryInput = z.infer<typeof customerOrderListQuerySchema>;
 export type OrderInput = z.infer<typeof orderSchema>;

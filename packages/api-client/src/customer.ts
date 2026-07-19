@@ -22,7 +22,7 @@ import type {
   SaveCustomerAddressRequest,
   UpdateCustomerProfileRequest,
 } from "@xlb/types";
-import { validateOrderResponse, validatePaymentMutationResponse, validatePaymentOrderResponse } from "./responseValidators.js";
+import { validateCustomerOrderListResponse, validateOrderResponse, validatePaymentMutationResponse, validatePaymentOrderResponse } from "./responseValidators.js";
 
 type CityCode = string;
 type PriceType = "fixed" | "range" | "from" | "estimate_from" | "onsite_quote";
@@ -351,6 +351,16 @@ export function createCustomerOrderApi(client: ApiClient) {
     },
     getOrder(orderId: string) {
       return client.get<{ ok: true; order: OrderResponse }>(`/api/orders/${orderId}`, { validate: validateOrderResponse });
+    },
+    listOrders(query: { cursor?: string; limit?: number } = {}) {
+      const params = new URLSearchParams();
+      if (query.cursor) params.set("cursor", query.cursor);
+      if (query.limit !== undefined) params.set("limit", String(query.limit));
+      const suffix = params.size > 0 ? `?${params.toString()}` : "";
+      return client.get<{ ok: true; orders: OrderResponse[]; nextCursor: string | null }>(
+        `/api/customer/orders${suffix}`,
+        { validate: validateCustomerOrderListResponse },
+      );
     },
     confirmService(orderId: string) {
       return client.post<{ ok: true; order: OrderResponse }>(

@@ -19,8 +19,35 @@ import {
   MarketingNotFoundError,
   MarketingValidationError,
 } from "../marketing/marketingService.js";
+import {
+  CustomerOrderListForbiddenError,
+  CustomerOrderListValidationError,
+} from "./customerOrderListPolicy.js";
 
 export async function registerOrderModule(app: FastifyInstance): Promise<void> {
+  app.get(
+    "/api/customer/orders",
+    { preHandler: createRequestContextMiddleware({ requireCityCode: true }) },
+    async (request, reply) => {
+      const context = getRequestContext(request);
+      const authz = authorizeRequest(context);
+      if (!authz.ok) {
+        return reply.status(authz.statusCode).send({ ok: false, error: authz.message });
+      }
+      try {
+        return await orderService.listCustomerOrders(context, request.query);
+      } catch (error) {
+        if (
+          error instanceof CustomerOrderListValidationError ||
+          error instanceof CustomerOrderListForbiddenError
+        ) {
+          return reply.status(error.statusCode).send({ ok: false, error: error.message });
+        }
+        throw error;
+      }
+    },
+  );
+
   app.post(
     "/api/orders",
     { preHandler: createRequestContextMiddleware({ requireCityCode: true }) },
