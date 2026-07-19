@@ -13,7 +13,7 @@ export type BuildContextOptions = {
 };
 
 export type BuildContextResult =
-  | { ok: true; context: RequestContext }
+  | { ok: true; context: RequestContext; tokenPayload: TokenPayload }
   | { ok: false; statusCode: 400 | 401; message: string; details?: unknown };
 
 function readHeader(
@@ -102,5 +102,5 @@ export function buildRequestContext(
     };
   }
 
-  return { ok: true, context: validated.data };
+  return { ok: true, context: validated.data, tokenPayload: token.payload };
 }

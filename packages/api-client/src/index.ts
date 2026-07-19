@@ -94,3 +94,10 @@ export { governanceEvidenceApi } from "./governanceEvidence.js";
 export { governanceReadinessApi } from "./governanceReadiness.js";
 export { governancePlannerApi, createGovernancePlannerApi } from "./governancePlanner.js";
 export { authApi, createAuthApi } from "./auth.js";
+export type {
+  DebugLoginCodeResponse,
+  LoginCodeResponse,
+  LoginError,
+  LoginResponse,
+  LogoutResponse,
+} from "./auth.js";

@@ -22,6 +22,7 @@ export interface ApiClientOptions {
   maxRetries?: number;
   retryDelayMs?: number;
   maxRetryAfterMs?: number;
+  onUnauthorized?: (error: ApiClientError) => void;
 }
 
 export interface ApiClient {
@@ -123,6 +124,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     maxRetries = 2,
     retryDelayMs = 100,
     maxRetryAfterMs = 5_000,
+    onUnauthorized,
   } = options;
 
   function resolveHeaders(path: string, method: string): Record<string, string> {
@@ -183,7 +185,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
         throw new ApiClientError({ kind, message: `API ${method} ${path} ${kind}`, method, path, cause });
       }
       if (!response.ok) {
-        throw new ApiClientError({
+        const error = new ApiClientError({
           kind: "http",
           message: `API ${method} ${path} failed: ${response.status}`,
           method,
@@ -192,6 +194,8 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
           responseBody: sanitizeErrorBody(text),
           retryAfterMs: parseRetryAfter(response.headers.get("Retry-After"), maxRetryAfterMs),
         });
+        if (response.status === 401) onUnauthorized?.(error);
+        throw error;
       }
 
       let parsed: unknown;

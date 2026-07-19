@@ -111,6 +111,21 @@ describe("API client reliability", () => {
       .rejects.toMatchObject({ kind: "response_format" });
   });
 
+  it("notifies the authenticated app when a request returns 401", async () => {
+    const onUnauthorized = vi.fn();
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(
+      JSON.stringify({ ok: false, error: "token expired" }),
+      { status: 401, headers: { "Content-Type": "application/json" } },
+    )));
+    const client = createApiClient({ baseUrl: "", maxRetries: 0, onUnauthorized });
+
+    const error = await client.get("/private").catch((caught: unknown) => caught) as ApiClientError;
+
+    expect(error).toMatchObject({ kind: "http", status: 401, path: "/private" });
+    expect(onUnauthorized).toHaveBeenCalledTimes(1);
+    expect(onUnauthorized).toHaveBeenCalledWith(error);
+  });
+
   it("removes the external abort listener after a completed request", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(json({ ok: true })));
     const controller = new AbortController();

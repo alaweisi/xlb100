@@ -31,6 +31,10 @@ export interface DebugLoginCodeResponse {
   attemptsLeft: number;
 }
 
+export interface LogoutResponse {
+  ok: true;
+}
+
 // ── API ──
 
 export function createAuthApi(client: ApiClient) {
@@ -40,6 +44,9 @@ export function createAuthApi(client: ApiClient) {
     },
     customerLogin(phone: string, code: string) {
       return client.post<LoginResponse | LoginError>("/api/auth/customer/login", { phone, code }, { validate: validateLoginResponse });
+    },
+    customerLogout() {
+      return client.post<LogoutResponse>("/api/auth/customer/logout", {});
     },
     getCustomerDebugCode(phone: string) {
       return client.get<DebugLoginCodeResponse | LoginError>(

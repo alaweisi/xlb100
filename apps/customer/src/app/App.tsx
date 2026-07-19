@@ -5,15 +5,18 @@ import type { CustomerOrdersPageProps } from "../pages/CustomerOrdersPage";
 import type { CustomerCouponsPageProps } from "../pages/CustomerCouponsPage";
 import type { CustomerSupportApi } from "../pages/CustomerSupportPage";
 import {
+  clearCustomerSession,
+  logoutCustomer,
+  readStoredCustomerSession,
+  type CustomerSession,
+} from "../features/auth/customerAuth";
+import {
   appendOrderId,
   createCustomerApiClient,
   CustomerLoadable,
   detectCustomerRoute,
-  loginCustomer,
   readCustomerCityCode,
   readOrderIds,
-  readStoredSession,
-  type CustomerSession,
   writeCustomerCityCode,
 } from "../pages/customerPageShell";
 
@@ -26,6 +29,7 @@ const CustomerServicesPage = lazy(() => import("../pages/CustomerServicesPage").
 const CustomerSupportPage = lazy(() => import("../pages/CustomerSupportPage").then((module) => ({ default: module.CustomerSupportPage })));
 const CustomerNotificationsPage = lazy(() => import("../pages/CustomerNotificationsPage").then((module) => ({ default: module.CustomerNotificationsPage })));
 const CustomerCouponsPage = lazy(() => import("../pages/CustomerCouponsPage").then((module) => ({ default: module.CustomerCouponsPage })));
+const CustomerLoginPage = lazy(() => import("../pages/CustomerLoginPage").then((module) => ({ default: module.CustomerLoginPage })));
 
 export function App() {
   const initialCityCode = useMemo(() => readCustomerCityCode(), []);
@@ -41,36 +45,33 @@ export function App() {
       ? [orderIdFromUrl, ...storedOrderIds.filter((orderId) => orderId !== orderIdFromUrl)]
       : storedOrderIds;
   });
-  const [session, setSession] = useState<CustomerSession | null>(() => readStoredSession());
+  const [session, setSession] = useState<CustomerSession | null>(() => readStoredCustomerSession());
+  const [sessionEndReason, setSessionEndReason] = useState<"expired" | undefined>();
   const currentRoute = useMemo(() => detectCustomerRoute(), []);
 
-  // Login on mount (idempotent: reuses stored token if still valid)
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      const storedSession = readStoredSession();
-      if (storedSession) {
-        if (!cancelled) setSession(storedSession);
-        return;
-      }
-      try {
-        const s = await loginCustomer();
-        if (!cancelled) setSession(s);
-      } catch (error) {
-        if (!cancelled) {
-          setCatalogState({
-            status: "error",
-            error: error instanceof Error ? error.message : "Customer login failed",
-          });
-        }
-      }
-    })();
-    return () => { cancelled = true; };
+  const endSession = useCallback((reason?: "expired") => {
+    clearCustomerSession();
+    setSession(null);
+    setSessionEndReason(reason);
+    setOrderIds([]);
+    setCatalogState({ status: "loading" });
   }, []);
 
+  const handleUnauthorized = useCallback(() => endSession("expired"), [endSession]);
+  const handleLogin = useCallback((nextSession: CustomerSession) => {
+    setSessionEndReason(undefined);
+    setSession(nextSession);
+    setOrderIds(readOrderIds());
+  }, []);
+  const handleLogout = useCallback(() => {
+    const currentSession = session;
+    endSession();
+    if (currentSession) void logoutCustomer(currentSession).catch(() => undefined);
+  }, [endSession, session]);
+
   const api = useMemo(
-    () => createCustomerApiClient(cityCode, session?.token),
-    [cityCode, session?.token],
+    () => createCustomerApiClient(cityCode, session?.token, handleUnauthorized),
+    [cityCode, handleUnauthorized, session?.token],
   );
   const setCityAndPersist = useCallback((next: CityCode) => {
     writeCustomerCityCode(next);
@@ -99,8 +100,12 @@ export function App() {
   }, [api, cityCode, session?.token]);
 
   useEffect(() => {
+    // Notifications load their own scoped data and do not consume the service
+    // catalog. Avoid leaving an unrelated catalog request in flight when this
+    // route reloads or closes (and avoid an unnecessary production request).
+    if (currentRoute === "notifications") return;
     void loadCatalog();
-  }, [loadCatalog]);
+  }, [currentRoute, loadCatalog]);
 
   const handleRetryCatalog = useCallback(() => {
     void loadCatalog();
@@ -138,7 +143,7 @@ export function App() {
   };
 
   if (!session) {
-    return <main aria-busy="true" style={{ display: "grid", minHeight: "100vh", placeItems: "center" }}>Authenticating customer</main>;
+    return <CustomerLoginPage reason={sessionEndReason} onLogin={handleLogin} />;
   }
 
   if (currentRoute === "home") {
@@ -203,5 +208,5 @@ export function App() {
     );
   }
 
-  return <CustomerProfilePage api={api} cityCode={cityCode} />;
+  return <CustomerProfilePage api={api} cityCode={cityCode} onLogout={handleLogout} />;
 }

@@ -11,6 +11,82 @@ body {
   font-family: var(--xlb-font-family-sans);
 }
 
+.customer-auth-page {
+  align-items: center;
+  background:
+    radial-gradient(circle at 80% 0%, color-mix(in srgb, var(--xlb-role-customer-ambient) 60%, transparent), transparent var(--xlb-dimension-d32)),
+    var(--xlb-role-customer-cream);
+  box-sizing: border-box;
+  display: grid;
+  min-height: 100dvh;
+  padding: var(--xlb-spacing-lg);
+}
+
+.customer-auth-panel {
+  display: grid;
+  gap: var(--xlb-dimension-d18);
+  margin: 0 auto;
+  max-width: var(--xlb-breakpoint-compact);
+  width: 100%;
+}
+
+.customer-auth-brand {
+  color: var(--xlb-role-customer-coffee);
+  font-size: var(--xlb-font-size-xl);
+  font-weight: var(--xlb-font-weight-bold);
+  letter-spacing: var(--xlb-font-letter-spacing-wide);
+  text-align: center;
+}
+
+.customer-auth-form {
+  display: grid;
+  gap: var(--xlb-spacing-md);
+}
+
+.customer-auth-form h1,
+.customer-auth-form p {
+  margin: 0;
+}
+
+.customer-auth-form p {
+  color: var(--xlb-color-text-muted);
+  margin-top: var(--xlb-dimension-d6);
+}
+
+.customer-auth-code-row {
+  align-items: end;
+  display: grid;
+  gap: var(--xlb-dimension-d10);
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.customer-auth-error,
+.customer-auth-session-notice,
+.customer-auth-success {
+  border-radius: var(--xlb-radius-md);
+  font-size: var(--xlb-font-size-compact);
+  padding: var(--xlb-dimension-d10) var(--xlb-dimension-d12);
+}
+
+.customer-auth-error {
+  background: color-mix(in srgb, var(--xlb-color-danger) 10%, transparent);
+  color: var(--xlb-color-danger);
+}
+
+.customer-auth-session-notice {
+  background: color-mix(in srgb, var(--xlb-color-warning) 14%, transparent);
+  color: var(--xlb-role-customer-coffee);
+}
+
+.customer-auth-success {
+  background: color-mix(in srgb, var(--xlb-color-success) 10%, transparent);
+  color: var(--xlb-color-success);
+}
+
+.customer-auth-privacy {
+  font-size: var(--xlb-font-size-sm);
+}
+
 .customer-app-root {
   background:
     radial-gradient(circle at 82% -8%, color-mix(in srgb, var(--xlb-role-customer-ambient) 60%, transparent), transparent 34rem),

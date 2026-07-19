@@ -25,6 +25,7 @@
     "test:ci-supply": "node --test scripts/audit-dependencies.test.mjs scripts/ci-supply.test.mjs",
     "check:contracts": "node scripts/check-contracts.mjs",
     "test:e2e:phase21": "playwright test tests/e2e/phase21-three-app-smoke.spec.ts",
+    "test:e2e:customer-auth": "playwright test --config playwright.customer-auth.config.ts",
     "test:e2e:phase22": "vitest run --project db-serial tests/integration/phase22CrossPhaseE2E.test.ts && playwright test tests/e2e/phase21-three-app-smoke.spec.ts",
     "test:security:phase22": "vitest run --project db-serial tests/security/phase22AuthorizationMatrix.test.ts",
     "test:performance:phase22": "vitest run --project performance-serial",

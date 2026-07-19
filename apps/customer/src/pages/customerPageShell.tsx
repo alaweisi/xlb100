@@ -1,5 +1,5 @@
 import { type ReactNode, useCallback, useEffect, useState } from "react";
-import { createApiClient, createAuthApi, customerApi } from "@xlb/api-client";
+import { createApiClient, customerApi, type ApiClientError } from "@xlb/api-client";
 import type { CatalogSnapshot, CityCode } from "@xlb/types";
 import { XLB_HEADERS } from "@xlb/types";
 import { BottomNav, MobileShell } from "@xlb/ui";
@@ -14,65 +14,16 @@ import {
   Wrench,
 } from "@phosphor-icons/react";
 
-// Phase 14: removed hardcoded CUSTOMER_ID; replaced with loginCustomer().
+import { getCustomerApiBase } from "../features/auth/customerAuth";
+
+// Phase 14: removed hardcoded CUSTOMER_ID; authenticated identity comes from the access token.
 // Legacy reference preserved for tests: "customer-demo-001" exists in customers table via seed 011.
 
-/** @deprecated Use loginCustomer() + session.userId instead. Kept for backward compat. */
+/** @deprecated Use the authenticated session identity instead. Kept for backward compatibility. */
 export const CUSTOMER_ID = "customer-demo-001";
 
 export const DEFAULT_CITY: CityCode = "hangzhou";
 
-const TOKEN_STORAGE_KEY = "xlb.customer.token";
-const CUSTOMER_PHONE_KEY = "xlb.customer.phone";
-
-export interface CustomerSession {
-  token: string;
-  userId: string;
-}
-
-export function readStoredSession(): CustomerSession | null {
-  if (typeof window === "undefined") return null;
-  const token = window.localStorage.getItem(TOKEN_STORAGE_KEY);
-  if (!token) return null;
-  // We don't verify the token here; the backend will reject expired/invalid tokens.
-  // userId is extracted from token on the backend side; we store it for UI display only.
-  const userId = window.localStorage.getItem("xlb.customer.userId") ?? "";
-  return { token, userId };
-}
-
-function storeSession(session: CustomerSession): void {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(TOKEN_STORAGE_KEY, session.token);
-  window.localStorage.setItem("xlb.customer.userId", session.userId);
-}
-
-/**
- * Login (or auto-register) using the non-production debug OTP readback.
- * Real SMS delivery remains a backend TODO after investor approval.
- */
-export async function loginCustomer(phone = "13800000001"): Promise<CustomerSession> {
-  const authApi = createAuthApi(
-    createApiClient({ baseUrl: "" }),
-  );
-  const codeRequest = await authApi.requestCustomerLoginCode(phone);
-  if (!codeRequest.ok) {
-    throw new Error(`Login code request failed: ${codeRequest.error}`);
-  }
-  const debugCode = await authApi.getCustomerDebugCode(phone);
-  if (!debugCode.ok) {
-    throw new Error(`Login debug code unavailable: ${debugCode.error}`);
-  }
-  const result = await authApi.customerLogin(phone, debugCode.code);
-  if (!result.ok) {
-    throw new Error(`Login failed: ${result.error}`);
-  }
-  const session: CustomerSession = { token: result.token, userId: result.userId };
-  storeSession(session);
-  if (typeof window !== "undefined") {
-    window.localStorage.setItem(CUSTOMER_PHONE_KEY, phone);
-  }
-  return session;
-}
 export const CITY_OPTIONS: ReadonlyArray<CityCode> = ["hangzhou", "shanghai", "beijing"];
 export const CITY_STORAGE_KEY = "xlb.customer.cityCode";
 export const ORDER_HISTORY_KEY = "xlb.customer.orderIds";
@@ -224,7 +175,11 @@ export function appendOrderId(orderId: string): string[] {
 
 export type CustomerPageApi = ReturnType<typeof createCustomerApiClient>;
 
-export function createCustomerApiClient(cityCode: CityCode, token?: string) {
+export function createCustomerApiClient(
+  cityCode: CityCode,
+  token?: string,
+  onUnauthorized?: (error: ApiClientError) => void,
+) {
   const headers: Record<string, string> = {
     [XLB_HEADERS.cityCode]: cityCode,
   };
@@ -233,8 +188,9 @@ export function createCustomerApiClient(cityCode: CityCode, token?: string) {
   }
   return customerApi.forClient(
     createApiClient({
-      baseUrl: "",
+      baseUrl: getCustomerApiBase(),
       headers,
+      onUnauthorized,
     }),
   );
 }

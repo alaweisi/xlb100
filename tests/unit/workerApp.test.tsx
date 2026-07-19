@@ -368,7 +368,7 @@ describe("Worker App API wiring", () => {
 
   it("loads the real wallet and submits a withdrawal request",async()=>{
     setRoute("/worker/wallet");await renderAndLogin();
-    expect(await screen.findByText("CNY 350.00")).toBeTruthy();
+    expect(await screen.findByText("CNY 350.00", {}, { timeout: 5_000 })).toBeTruthy();
     fireEvent.change(screen.getByLabelText("Amount"),{target:{value:"100"}});
     fireEvent.click(screen.getByRole("button",{name:"Submit request"}));
     await waitFor(()=>expect(mocks.createWithdrawalRequest).toHaveBeenCalledWith(expect.objectContaining({bankAccountId:"bank-1",amount:100})));

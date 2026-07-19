@@ -5,6 +5,7 @@ import { loginWorkerHeaders } from "./helpers/authTestHelper.js";
 import { getMysqlPool } from "../../backend/src/dal/mysqlPool.js";
 import { getRedisClient } from "../../backend/src/dal/redisClient.js";
 import { issueLoginOtp } from "../../backend/src/auth/otpService.js";
+import { verifyToken } from "../../backend/src/auth/tokenAuth.js";
 
 const runDb = process.env.XLB_SKIP_DB_TESTS !== "1";
 let phoneSeq = 0;
@@ -89,6 +90,51 @@ describe.skipIf(!runDb)("auth OTP integration", { timeout: 20000 }, () => {
       expect(replay.statusCode).toBe(401);
       expect(replay.json().ok).toBe(false);
     } finally {
+      await app.close();
+    }
+  });
+
+  it("revokes the customer access token on logout", async () => {
+    const app = await buildApp();
+    let revokedJti = "";
+    try {
+      const loginPhone = phone();
+      expect((await app.inject({
+        method: "POST",
+        url: "/api/auth/customer/code",
+        payload: { phone: loginPhone },
+      })).statusCode).toBe(200);
+      const debug = await app.inject({
+        method: "GET",
+        url: `/api/auth/customer/debug-code?phone=${encodeURIComponent(loginPhone)}`,
+      });
+      const login = await app.inject({
+        method: "POST",
+        url: "/api/auth/customer/login",
+        payload: { phone: loginPhone, code: debug.json().code },
+      });
+      expect(login.statusCode).toBe(200);
+      const token = login.json().token as string;
+      const verified = verifyToken(token);
+      expect(verified.ok).toBe(true);
+      if (verified.ok) revokedJti = verified.payload.jti;
+      const headers = {
+        authorization: `Bearer ${token}`,
+        "x-xlb-city-code": "hangzhou",
+      };
+
+      expect((await app.inject({ method: "GET", url: "/api/catalog", headers })).statusCode).toBe(200);
+      expect((await app.inject({
+        method: "POST",
+        url: "/api/auth/customer/logout",
+        headers,
+        payload: {},
+      })).statusCode).toBe(200);
+      const rejected = await app.inject({ method: "GET", url: "/api/catalog", headers });
+      expect(rejected.statusCode).toBe(401);
+      expect(rejected.json()).toMatchObject({ ok: false, error: "token revoked" });
+    } finally {
+      if (revokedJti) await getRedisClient().del(`xlb:auth:revoked:${revokedJti}`);
       await app.close();
     }
   });

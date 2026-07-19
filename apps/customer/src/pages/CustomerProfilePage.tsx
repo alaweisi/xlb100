@@ -16,6 +16,7 @@ type ProfileApi = {
 export interface CustomerProfilePageProps {
   api: ProfileApi;
   cityCode: CityCode;
+  onLogout?: () => void;
 }
 
 const emptyAddress: SaveCustomerAddressRequest = {
@@ -29,7 +30,7 @@ const emptyAddress: SaveCustomerAddressRequest = {
   isDefault: false,
 };
 
-export function CustomerProfilePage({ api, cityCode }: CustomerProfilePageProps) {
+export function CustomerProfilePage({ api, cityCode, onLogout }: CustomerProfilePageProps) {
   const binding = createCustomerUiBinding({ route: "profile", cityCode });
   const [profile, setProfile] = useState<CustomerProfile | null>(null);
   const [addresses, setAddresses] = useState<CustomerAddress[]>([]);
@@ -113,7 +114,10 @@ export function CustomerProfilePage({ api, cityCode }: CustomerProfilePageProps)
           <a href="/customer/coupons" className="notification-entry-link">我的优惠券</a>
           <div style={{ color: "#64748b", fontSize: 13 }}>{profile?.phoneMasked ?? "Loading account"}</div>
           <FormField label="Display name"><Input value={name} onChange={(event) => setName(event.target.value)} /></FormField>
-          <Button variant="primary" disabled={busy || !name.trim()} onClick={() => void saveProfile()}>Save profile</Button>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            <Button variant="primary" disabled={busy || !name.trim()} onClick={() => void saveProfile()}>Save profile</Button>
+            {onLogout && <Button onClick={onLogout}>Logout</Button>}
+          </div>
         </div>
       </Card>
 
