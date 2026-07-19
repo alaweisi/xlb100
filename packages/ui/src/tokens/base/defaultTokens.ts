@@ -2,7 +2,7 @@ import type { ThemeTokens } from "../tokenTypes.js";
 
 /** Marker consumed by the Phase 25 boundary gate. */
 export const CANONICAL_TOKEN_SOURCE = "packages/ui/src/tokens/base/defaultTokens.ts" as const;
-export const TOKEN_SCHEMA_VERSION = "25.2.0" as const;
+export const TOKEN_SCHEMA_VERSION = "25.3.0" as const;
 
 /**
  * The single compiled L0/L1 source. JSON, CSS variables and Figma mappings must
@@ -54,6 +54,20 @@ export const baseTokens = {
     focus: "0 0 0 3px rgba(37, 99, 235, 0.32)",
     ambient: "0 20px 60px rgba(15, 23, 42, 0.12)",
   },
+  /**
+   * Canonical one-dimensional scale for component geometry that does not map
+   * to spacing, control size, radius, stroke, or typography semantics.
+   */
+  dimension: {
+    d1: "1px", d2: "2px", d3: "3px", d4: "4px", d5: "5px", d6: "6px",
+    d8: "8px", d10: "10px", d11: "11px", d12: "12px", d13: "13px",
+    d14: "14px", d15: "15px", d16: "16px", d17: "17px", d18: "18px",
+    d19: "19px", d20: "20px", d21: "21px", d22: "22px", d24: "24px",
+    d26: "26px", d28: "28px", d32: "32px", d36: "36px", d38: "38px",
+    d42: "42px", d44: "44px", d48: "48px", d52: "52px", d58: "58px",
+    d62: "62px", d66: "66px", d74: "74px", d76: "76px", d82: "82px",
+    d92: "92px",
+  },
   spacing: { none: "0", xxs: "2px", xs: "4px", sm: "8px", md: "16px", lg: "24px", xl: "32px", xxl: "48px" },
   size: { controlSm: "32px", controlMd: "44px", controlLg: "52px", touchTarget: "44px", bottomNavigation: "92px" },
   grid: { columnsCompact: 4, columnsWide: 12, gutterCompact: "16px", gutterWide: "24px", maxContent: "1200px" },
@@ -65,9 +79,17 @@ export const baseTokens = {
     familySerif: "Noto Serif SC, Songti SC, serif",
     familyMono: "JetBrains Mono, ui-monospace, SFMono-Regular, Consolas, monospace",
     numeric: "tabular-nums",
-    size: { xs: "11px", sm: "12px", md: "14px", lg: "16px", xl: "20px", display: "32px" },
+    size: {
+      xxs: "10px", xs: "11px", sm: "12px", compact: "13px", md: "14px",
+      strong: "15px", lg: "16px", emphasis: "17px", xl: "20px",
+      title: "26px", pageTitle: "28px", display: "32px",
+    },
     weight: { regular: 400, medium: 600, bold: 700 },
-    lineHeight: { tight: "20px", normal: "24px", loose: "30px", display: "40px" },
+    lineHeight: {
+      micro: "16px", compact: "17px", caption: "18px", bodyCompact: "19px",
+      tight: "20px", bodyDense: "21px", bodySmall: "22px", normal: "24px",
+      loose: "30px", pageTitle: "38px", display: "40px",
+    },
     letterSpacing: { tight: "-0.01em", normal: "0", wide: "0.04em" },
   },
   blur: { none: "0", sm: "8px", md: "18px", lg: "32px" },

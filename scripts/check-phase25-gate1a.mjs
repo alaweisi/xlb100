@@ -36,12 +36,28 @@ const hardcodeMatchers = {
   colorLiteral: /#[0-9a-f]{3,8}\b|(?:rgb|hsl)a?\([^\r\n)]*\)/gi,
   dimensionLiteral: /\b(?:0|[1-9]\d*)(?:\.\d+)?(?:px|rem|em|vh|vw)\b/g,
   inlineStyle: /\bstyle\s*=\s*\{\{/g,
-  fontDeclaration: /\bfont-(?:family|size|weight|height)\s*:/gi,
+  // A declaration backed by a canonical CSS variable is not a hardcode. Raw
+  // font values, including shorthand-free keywords or numeric literals, remain
+  // counted and therefore fail the non-increasing baseline.
+  fontDeclaration: /\bfont-(?:family|size|weight|height)\s*:\s*[^;\r\n}]+/gi,
   numericZIndex: /\bz-index\s*:\s*-?\d+\b/gi,
 };
 
 function countMatches(source, matcher) {
   return [...source.matchAll(new RegExp(matcher.source, matcher.flags))].length;
+}
+
+export function countFontHardcodeDeclarations(source) {
+  const declarations = source.matchAll(new RegExp(
+    hardcodeMatchers.fontDeclaration.source,
+    hardcodeMatchers.fontDeclaration.flags,
+  ));
+  let count = 0;
+  for (const declaration of declarations) {
+    const value = declaration[0].slice(declaration[0].indexOf(":") + 1).trim();
+    if (!/^var\(\s*--xlb-[a-z0-9-]+\s*\)(?:\s*!important)?$/iu.test(value)) count += 1;
+  }
+  return count;
 }
 
 export function collectHardcodeInventory() {
@@ -54,12 +70,34 @@ export function collectHardcodeInventory() {
     for (const file of files) {
       const source = read(file);
       for (const [category, matcher] of Object.entries(hardcodeMatchers)) {
-        counts[category] += countMatches(source, matcher);
+        counts[category] += category === "fontDeclaration"
+          ? countFontHardcodeDeclarations(source)
+          : countMatches(source, matcher);
       }
     }
     inventory[app] = counts;
   }
   return inventory;
+}
+
+if (process.argv.includes("--self-test-hardcodes")) {
+  const fixtures = [
+    ["font-size: var(--xlb-font-size-body);", 0],
+    ["font-size:var( --xlb-font-size-body );", 0],
+    ["font-size: var(--xlb-font-size-body) !important;", 0],
+    ["font-size: var(--fake-font-size);", 1],
+    ["font-size: var(--xlb-font-size-body, 999px);", 1],
+    ["font-size: var(--fake-font-size) !important;", 1],
+    ["font-size: var(--xlb-font-size-body, 999px) !important;", 1],
+    ["font-size: 16px;", 1],
+    ["font-weight: 700", 1],
+  ];
+  for (const [source, expected] of fixtures) {
+    const actual = countFontHardcodeDeclarations(source);
+    if (actual !== expected) throw new Error(`font hardcode self-test failed: ${source} => ${actual}`);
+  }
+  process.stdout.write("[phase25-gate1a] hardcode matcher self-test passed\n");
+  process.exit(0);
 }
 
 if (process.argv.includes("--print-hardcodes")) {

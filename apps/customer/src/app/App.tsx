@@ -117,13 +117,13 @@ export function App() {
     [cityCode, setCityAndPersist],
   );
 
-  const orderCreateApi: CustomerOrderCreatePageProps["api"] = {
+  const orderCreateApi = useMemo<CustomerOrderCreatePageProps["api"]>(() => ({
     getPriceQuote: (skuId) => api.getPriceQuote(skuId),
     createOrder: (payload) => api.createOrder(payload),
     getOrder: (orderId) => api.getOrder(orderId),
     listCouponGrants: (query) => api.listCouponGrants(query),
     issueDiscountDecision: (payload) => api.issueDiscountDecision(payload),
-  };
+  }), [api]);
 
   const ordersApi: CustomerOrdersPageProps["api"] = {
     getOrder: (orderId) => api.getOrder(orderId),
@@ -156,6 +156,7 @@ export function App() {
         catalogState={catalogState}
         cityCode={cityCode}
         onOrderCreated={handleOrderCreated}
+        onRetryCatalog={handleRetryCatalog}
       />
     );
   }

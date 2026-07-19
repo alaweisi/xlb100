@@ -16,6 +16,7 @@ import {
 import {
   CITY_OPTIONS,
   CustomerLoadable,
+  CustomerRouteShell,
   setRouteSearchParams,
   useRouteSearchParams,
 } from "./customerPageShell";
@@ -117,7 +118,8 @@ export function CustomerServicesPage({
   );
 
   return (
-    <CustomerServicesTemplate route="/customer/services" cityCode={cityCode} binding={binding} header={header}>
+    <CustomerRouteShell currentRoute="services">
+      <CustomerServicesTemplate route="/customer/services" cityCode={cityCode} binding={binding} header={header}>
       <Card
         actions={
           <ActionDock
@@ -180,6 +182,7 @@ export function CustomerServicesPage({
         />
       )}
 
-    </CustomerServicesTemplate>
+      </CustomerServicesTemplate>
+    </CustomerRouteShell>
   );
 }

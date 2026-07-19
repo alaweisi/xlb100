@@ -1,8 +1,18 @@
-import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { createApiClient, createAuthApi, customerApi } from "@xlb/api-client";
 import type { CatalogSnapshot, CityCode } from "@xlb/types";
 import { XLB_HEADERS } from "@xlb/types";
 import { BottomNav, MobileShell } from "@xlb/ui";
+import {
+  BellSimple,
+  ClipboardText,
+  Headset,
+  House,
+  Plus,
+  SquaresFour,
+  UserCircle,
+  Wrench,
+} from "@phosphor-icons/react";
 
 // Phase 14: removed hardcoded CUSTOMER_ID; replaced with loginCustomer().
 // Legacy reference preserved for tests: "customer-demo-001" exists in customers table via seed 011.
@@ -85,16 +95,46 @@ export function readCustomerCityFromSearch(): CityCode | null {
 
 export const customerRouteConfig: Record<
   CustomerRoute,
-  { label: string; href: string; title: string; icon: string; prominent?: boolean }
+  { label: string; href: string; title: string; icon: ReactNode; prominent?: boolean }
 > = {
-  home: { label: "首页", href: "/customer/", title: "喜乐帮到家", icon: "⌂" },
-  services: { label: "服务", href: "/customer/services", title: "服务选择", icon: "⌕" },
-  createOrder: { label: "下单", href: "/customer/order/create", title: "确认订单", icon: "+", prominent: true },
-  orders: { label: "订单", href: "/customer/orders", title: "订单", icon: "▦" },
-  aftersale: { label: "售后", href: "/customer/aftersale", title: "售后服务", icon: "A" },
-  support: { label: "客服", href: "/customer/support", title: "客服工单", icon: "S" },
-  profile: { label: "我的", href: "/customer/profile", title: "我的", icon: "👤" },
+  home: { label: "首页", href: "/customer/", title: "喜乐帮到家", icon: <House size={22} /> },
+  services: { label: "服务", href: "/customer/services", title: "服务选择", icon: <SquaresFour size={22} /> },
+  createOrder: { label: "下单", href: "/customer/order/create", title: "确认订单", icon: <Plus size={28} weight="bold" />, prominent: true },
+  orders: { label: "订单", href: "/customer/orders", title: "订单", icon: <ClipboardText size={22} /> },
+  aftersale: { label: "售后", href: "/customer/aftersale", title: "售后服务", icon: <Wrench size={22} /> },
+  support: { label: "客服", href: "/customer/support", title: "客服工单", icon: <Headset size={22} /> },
+  profile: { label: "我的", href: "/customer/profile", title: "我的", icon: <UserCircle size={22} /> },
 };
+
+/**
+ * The one and only customer primary navigation model.
+ *
+ * Functional routes remain addressable, but secondary routes are grouped
+ * under these five stable destinations instead of becoming extra bottom tabs.
+ */
+export const customerPrimaryNavConfig = [
+  customerRouteConfig.home,
+  customerRouteConfig.orders,
+  { ...customerRouteConfig.createOrder, label: "新报修" },
+  { label: "消息", href: "/customer/notifications", title: "消息", icon: <BellSimple size={22} /> },
+  customerRouteConfig.profile,
+] as const;
+
+const customerPrimaryNavHrefByRoute: Readonly<Record<CustomerShellRoute, string>> = {
+  home: customerRouteConfig.home.href,
+  services: customerRouteConfig.home.href,
+  createOrder: customerRouteConfig.createOrder.href,
+  orders: customerRouteConfig.orders.href,
+  aftersale: customerRouteConfig.orders.href,
+  support: "/customer/notifications",
+  notifications: "/customer/notifications",
+  profile: customerRouteConfig.profile.href,
+  coupons: customerRouteConfig.profile.href,
+};
+
+export function resolveCustomerPrimaryNavHref(route: CustomerShellRoute): string {
+  return customerPrimaryNavHrefByRoute[route];
+}
 
 export function detectCustomerRoute(pathname = window.location.pathname): CustomerShellRoute {
   const trimmed = pathname.replace(/\/+$/, "") || "/";
@@ -201,7 +241,7 @@ export function createCustomerApiClient(cityCode: CityCode, token?: string) {
 
 function detectShellMode() {
   if (typeof window === "undefined") return "preview" as const;
-  const mediaMatch = window.matchMedia(MOBILE_SHELL_QUERY).matches;
+  const mediaMatch = typeof window.matchMedia === "function" && window.matchMedia(MOBILE_SHELL_QUERY).matches;
   const touchViewport = window.innerWidth <= 900 && window.navigator.maxTouchPoints > 0;
   return mediaMatch || touchViewport ? ("app" as const) : ("preview" as const);
 }
@@ -210,36 +250,19 @@ export function useCustomerShellMode() {
   const [mode, setMode] = useState<"preview" | "app">(detectShellMode());
 
   useEffect(() => {
-    const mediaQuery = window.matchMedia(MOBILE_SHELL_QUERY);
+    const mediaQuery = typeof window.matchMedia === "function" ? window.matchMedia(MOBILE_SHELL_QUERY) : null;
     const syncMode = () => setMode(detectShellMode());
 
     syncMode();
-    mediaQuery.addEventListener("change", syncMode);
+    mediaQuery?.addEventListener("change", syncMode);
     window.addEventListener("resize", syncMode);
     return () => {
-      mediaQuery.removeEventListener("change", syncMode);
+      mediaQuery?.removeEventListener("change", syncMode);
       window.removeEventListener("resize", syncMode);
     };
   }, []);
 
   return mode;
-}
-
-export function CustomerBottomNav({ currentRoute }: { currentRoute: CustomerShellRoute }) {
-  const items = useMemo(
-    () =>
-      (Object.keys(customerRouteConfig) as CustomerRoute[]).map((route) => ({
-        key: route,
-        label: customerRouteConfig[route].label,
-        active: route === currentRoute,
-        href: customerRouteConfig[route].href,
-        icon: customerRouteConfig[route].icon,
-        prominent: customerRouteConfig[route].prominent,
-      })),
-    [currentRoute],
-  );
-
-  return <BottomNav items={items} placement="static" />;
 }
 
 type CustomerRouteShellProps = {
@@ -249,20 +272,24 @@ type CustomerRouteShellProps = {
   fixedBottomNav?: boolean;
 };
 
-export function CustomerRouteShell({ currentRoute, topBar, children, fixedBottomNav = false }: CustomerRouteShellProps) {
+export function CustomerRouteShell({
+  currentRoute,
+  topBar,
+  children,
+  fixedBottomNav = false,
+}: CustomerRouteShellProps) {
   const shellMode = useCustomerShellMode();
   const isAppMode = shellMode === "app";
-  const bottomNav = <BottomNav items={Object.keys(customerRouteConfig).map((route) => {
-    const key = route as CustomerRoute;
-    return {
-      key,
-      label: customerRouteConfig[key].label,
-      active: key === currentRoute,
-      href: customerRouteConfig[key].href,
-      icon: customerRouteConfig[key].icon,
-      prominent: customerRouteConfig[key].prominent,
-    };
-  })} placement={fixedBottomNav || isAppMode ? "fixed" : "static"} />;
+  const activePrimaryHref = resolveCustomerPrimaryNavHref(currentRoute);
+  const navItems = customerPrimaryNavConfig.map((item) => ({
+    key: item.href,
+    label: item.label,
+    active: item.href === activePrimaryHref,
+    href: item.href,
+    icon: item.icon,
+    prominent: "prominent" in item ? item.prominent : false,
+  }));
+  const bottomNav = <BottomNav items={navItems} placement={fixedBottomNav || isAppMode ? "fixed" : "static"} />;
 
   return (
     <div className="customer-app-root" data-role="customer" data-shell-mode={isAppMode ? "app" : "preview"}>

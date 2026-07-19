@@ -62,4 +62,13 @@ describe("Phase 25 Gate 1A token-contract boundaries", () => {
       }
     }
   });
+
+  it("only exempts canonical xlb font variables without raw fallbacks", () => {
+    const output = execFileSync("node", ["scripts/check-phase25-gate1a.mjs", "--self-test-hardcodes"], {
+      cwd: root,
+      encoding: "utf8",
+    });
+
+    expect(output).toContain("hardcode matcher self-test passed");
+  });
 });

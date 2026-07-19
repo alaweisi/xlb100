@@ -22,6 +22,7 @@ import {
 } from "@xlb/ui";
 import { formatScheduledLabel } from "../adapters/orderAddressOptions";
 import { createCustomerUiBinding } from "../adapters/workflowAdapter";
+import { CustomerRouteShell } from "./customerPageShell";
 import "./customer-orders.css";
 
 interface CustomerOrderApi {
@@ -362,7 +363,8 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
   }
 
   return (
-    <CustomerOrdersTemplate route="/customer/orders" cityCode={cityCode} binding={binding}>
+    <CustomerRouteShell currentRoute="orders">
+      <CustomerOrdersTemplate route="/customer/orders" cityCode={cityCode} binding={binding}>
       {loading && <LoadingState title="Loading latest orders" description="Reading order API..." />}
       {error && <ErrorState title="Load orders failed" description={error} />}
       {!loading && !error && orders.length === 0 && (
@@ -588,6 +590,7 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
         })}
 
       <CustomerAnswerCard state={binding.state} />
-    </CustomerOrdersTemplate>
+      </CustomerOrdersTemplate>
+    </CustomerRouteShell>
   );
 }
