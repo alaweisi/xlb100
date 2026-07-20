@@ -228,11 +228,17 @@ for (const scenario of scenarios) {
     await page.waitForTimeout(150);
     workerShowcaseScreenshot = "C-01-home-worker-showcase-390x844.png";
     await page.screenshot({ path: path.join(outputDir, workerShowcaseScreenshot) });
-    workerShowcaseCheck = await showcase.evaluate((element) => ({
-      interactiveElements: element.querySelectorAll("a, button, input, select, textarea").length,
-      hasDisplayOnlyDisclosure: element.textContent?.includes("不能联系、指定或直接预约师傅") === true
-        && element.textContent?.includes("平台统一派单") === true,
-    }));
+    workerShowcaseCheck = await showcase.evaluate((element) => {
+      const disclosureText = [
+        element.textContent ?? "",
+        ...[...element.querySelectorAll("[aria-label]")].map((item) => item.getAttribute("aria-label") ?? ""),
+      ].join(" ");
+      return {
+        interactiveElements: element.querySelectorAll("a, button, input, select, textarea").length,
+        hasDisplayOnlyDisclosure: disclosureText.includes("不能联系、指定或直接预约师傅")
+          && disclosureText.includes("平台统一派单"),
+      };
+    });
   }
   const check = await inspect(page, scenario, scenario.auth !== false);
   results.push({ ...scenario, screenshot, workerShowcaseScreenshot, workerShowcaseCheck, check, unexpectedErrors });

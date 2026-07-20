@@ -1,27 +1,15 @@
-import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Armchair,
   BellSimple,
-  BugBeetle,
   CaretDown,
-  DesktopTower,
-  Drop,
-  Hammer,
-  HandHeart,
-  HouseLine,
-  Leaf,
-  Lightning,
-  LockKey,
+  CaretRight,
+  ClipboardText,
+  IdentificationCard,
   MagnifyingGlass,
   MapPin,
-  Pipe,
   ShieldCheck,
   Star,
-  Toolbox,
-  Truck,
-  TShirt,
-  WashingMachine,
-  Wrench,
+  Tag,
 } from "@phosphor-icons/react";
 import type {
   CatalogSnapshot,
@@ -36,7 +24,6 @@ import {
   ErrorState,
   LoadingState,
   LocationSearchBar,
-  ServiceCard,
 } from "@xlb/ui";
 import { CITY_OPTIONS, CustomerLoadable, CustomerRouteShell } from "./customerPageShell";
 import {
@@ -50,24 +37,36 @@ import { createCustomerUiBinding } from "../adapters/workflowAdapter";
 
 type City = CityCode;
 
-const categoryIcons: Readonly<Record<CustomerCategoryIconKey, ReactNode>> = {
-  "home-cleaning": <HouseLine size={30} weight="duotone" />,
-  "appliance-cleaning": <WashingMachine size={30} weight="duotone" />,
-  "appliance-repair": <Wrench size={30} weight="duotone" />,
-  installation: <Toolbox size={30} weight="duotone" />,
-  pipe: <Pipe size={30} weight="duotone" />,
-  lock: <LockKey size={30} weight="duotone" />,
-  utilities: <Lightning size={30} weight="duotone" />,
-  waterproofing: <Drop size={30} weight="duotone" />,
-  furniture: <Armchair size={30} weight="duotone" />,
-  renovation: <Hammer size={30} weight="duotone" />,
-  moving: <Truck size={30} weight="duotone" />,
-  "air-quality": <Leaf size={30} weight="duotone" />,
-  digital: <DesktopTower size={30} weight="duotone" />,
-  laundry: <TShirt size={30} weight="duotone" />,
-  care: <HandHeart size={30} weight="duotone" />,
-  "pest-control": <BugBeetle size={30} weight="duotone" />,
+const categoryIconSrc: Readonly<Record<CustomerCategoryIconKey, string>> = {
+  "home-cleaning": "/assets/home/categories/home-cleaning.png",
+  "appliance-cleaning": "/assets/home/categories/appliance-cleaning.png",
+  "appliance-repair": "/assets/home/categories/appliance-repair.png",
+  installation: "/assets/home/categories/installation.png",
+  pipe: "/assets/home/categories/pipe.png",
+  lock: "/assets/home/categories/lock.png",
+  utilities: "/assets/home/categories/utilities.png",
+  waterproofing: "/assets/home/categories/waterproofing.png",
+  furniture: "/assets/home/categories/furniture.png",
+  renovation: "/assets/home/categories/renovation.png",
+  moving: "/assets/home/categories/moving.png",
+  "air-quality": "/assets/home/categories/air-quality.png",
+  digital: "/assets/home/categories/digital.png",
+  laundry: "/assets/home/categories/laundry.png",
+  care: "/assets/home/categories/care.png",
+  "pest-control": "/assets/home/categories/pest-control.png",
 };
+
+const featuredImageBySkuId: Readonly<Record<string, string>> = {
+  sku_home_daily_2h: "/assets/home/recommendations/home-cleaning.png",
+  sku_ac_wall_basic: "/assets/home/recommendations/appliance-cleaning.png",
+  sku_lock_unlock_standard: "/assets/home/recommendations/lock-service.png",
+};
+
+const fallbackFeaturedImages = [
+  "/assets/home/recommendations/home-cleaning.png",
+  "/assets/home/recommendations/appliance-cleaning.png",
+  "/assets/home/recommendations/lock-service.png",
+] as const;
 
 function HomeTopBar({ unreadState }: { unreadState: CustomerLoadable<number> }) {
   const unreadCount = unreadState.status === "success" ? unreadState.data : 0;
@@ -84,8 +83,8 @@ function HomeTopBar({ unreadState }: { unreadState: CustomerLoadable<number> }) 
         <span>安心到家，服务就在身边</span>
       </div>
       <a className="customer-home-notifications" href="/customer/notifications" aria-label={label}>
-        <BellSimple size={28} weight="regular" aria-hidden="true" />
-        {unreadCount > 0 ? <span>{unreadCount > 99 ? "99+" : unreadCount}</span> : null}
+        <BellSimple size={30} weight="regular" aria-hidden="true" />
+        {unreadCount > 0 ? <span aria-hidden="true" /> : null}
       </a>
     </header>
   );
@@ -106,12 +105,12 @@ function HomeHeader({
 }) {
   return (
     <LocationSearchBar
-      cityLabel={cityNameByCode[cityCode]}
-      areaLabel={cityAreaByCode[cityCode]}
+      cityLabel={`${cityNameByCode[cityCode]} · ${cityAreaByCode[cityCode]}`}
       placeholder="搜索全部上门服务"
-      locationIcon={<MapPin size={18} weight="fill" />}
+      locationIcon={<span className="customer-home-location-icon"><MapPin size={20} weight="fill" /></span>}
       disclosureIcon={<CaretDown size={14} />}
       searchIcon={<MagnifyingGlass size={20} />}
+      searchIconPlacement="start"
       value={searchQuery}
       onSearchChange={onSearchChange}
       onSearchSubmit={onSearchSubmit}
@@ -229,7 +228,13 @@ export function CustomerHomePage({ api, cityCode, catalogState, onRetryCatalog }
                     key={category.categoryId}
                     aria-label={`${category.categoryName}，查看真实服务清单`}
                   >
-                    <span className="customer-home-category__icon" aria-hidden="true">{categoryIcons[category.iconKey]}</span>
+                    <img
+                      className="customer-home-category__image"
+                      src={categoryIconSrc[category.iconKey]}
+                      alt=""
+                      aria-hidden="true"
+                      loading="lazy"
+                    />
                     <span>{category.label}</span>
                   </a>
                 );
@@ -242,32 +247,43 @@ export function CustomerHomePage({ api, cityCode, catalogState, onRetryCatalog }
           <section className="customer-home-section" aria-labelledby="customer-home-featured-title">
             <div className="customer-home-section__heading">
               <h2 id="customer-home-featured-title">推荐服务</h2>
-              <span>来自当前城市服务目录</span>
+              <a href={`/customer/services?${new URLSearchParams({ cityCode }).toString()}`}>更多<CaretRight size={16} aria-hidden="true" /></a>
             </div>
             <div className="customer-home-featured-list">
-              {quickSkus.map((sku) => (
-                <ServiceCard
-                  key={sku.skuId}
-                  data-sku-id={sku.skuId}
-                  title={sku.name}
-                  subtitle={sku.subtitle}
-                  priceText="查看服务"
-                  actionLabel="选择"
-                  onClick={() => {
-                    const url = new URL("/customer/order/create", window.location.origin);
-                    url.searchParams.set("skuId", sku.skuId);
-                    window.location.href = url.pathname + url.search;
-                  }}
-                />
-              ))}
+              {quickSkus.map((sku, index) => {
+                const category = categories.find((item) => item.categoryId === sku.categoryId);
+                const params = new URLSearchParams({ skuId: sku.skuId });
+                return (
+                  <a
+                    className="customer-home-featured-card"
+                    data-sku-id={sku.skuId}
+                    href={`/customer/order/create?${params.toString()}`}
+                    key={sku.skuId}
+                  >
+                    <span className="customer-home-featured-card__media">
+                      <img
+                        src={featuredImageBySkuId[sku.skuId] ?? fallbackFeaturedImages[index % fallbackFeaturedImages.length]}
+                        alt=""
+                        loading="lazy"
+                      />
+                      {category ? <img className="customer-home-featured-card__badge" src={categoryIconSrc[category.iconKey]} alt="" aria-hidden="true" /> : null}
+                    </span>
+                    <span className="customer-home-featured-card__body">
+                      <strong>{sku.name}</strong>
+                      <span className="customer-home-featured-card__category">{sku.categoryName}</span>
+                      <span className="customer-home-featured-card__action">查看服务<CaretRight size={16} aria-hidden="true" /></span>
+                    </span>
+                  </a>
+                );
+              })}
             </div>
           </section>
         ) : null}
 
         <section className="customer-home-section" aria-labelledby="customer-home-workers-title">
           <div className="customer-home-section__heading">
-            <h2 id="customer-home-workers-title">服务师傅</h2>
-            <span>能力展示</span>
+            <h2 id="customer-home-workers-title">本城师傅</h2>
+            <span>仅展示能力</span>
           </div>
           {workerShowcaseState.status === "loading" ? <LoadingState title="师傅能力加载中" /> : null}
           {workerShowcaseState.status === "error" ? (
@@ -285,22 +301,34 @@ export function CustomerHomePage({ api, cityCode, catalogState, onRetryCatalog }
               <div className="customer-home-worker-list" aria-label="师傅能力展示列表">
                 {workerShowcaseState.data.items.map((worker) => (
                   <article className="customer-home-worker" key={worker.showcaseId}>
-                    <span className="customer-home-worker__avatar" aria-hidden="true"><Wrench size={24} weight="duotone" /></span>
-                    <div>
+                    <img className="customer-home-worker__avatar" src="/assets/home/workers/service-worker.png" alt="" aria-hidden="true" loading="lazy" />
+                    <div className="customer-home-worker__content">
                       <strong>{worker.displayName}</strong>
-                      <div className="customer-home-worker__rating" aria-label={worker.averageRating === null ? "暂无公开评分" : `评分 ${worker.averageRating}，共 ${worker.ratingCount} 条评价`}>
-                        <Star size={15} weight={worker.averageRating === null ? "regular" : "fill"} aria-hidden="true" />
-                        <span>{worker.averageRating === null ? "暂无评分" : `${worker.averageRating.toFixed(1)} · ${worker.ratingCount}条评价`}</span>
+                      <div className="customer-home-worker__meta">
+                        <span className="customer-home-worker__certification"><ShieldCheck size={14} weight="fill" aria-hidden="true" />{worker.certificationLabel}</span>
+                        <span className="customer-home-worker__rating" aria-label={worker.averageRating === null ? "暂无公开评分" : `评分 ${worker.averageRating}，共 ${worker.ratingCount} 条评价`}>
+                          <Star size={13} weight={worker.averageRating === null ? "regular" : "fill"} aria-hidden="true" />
+                          {worker.averageRating === null ? "暂无" : worker.averageRating.toFixed(1)}
+                        </span>
                       </div>
                       <p>{worker.skillCategoryNames.join(" · ") || "后台暂未登记服务技能"}</p>
                     </div>
-                    <span className="customer-home-worker__certification"><ShieldCheck size={16} weight="fill" aria-hidden="true" />{worker.certificationLabel}</span>
                   </article>
                 ))}
               </div>
-              <p className="customer-home-worker__disclosure">{workerShowcaseState.data.disclosure}</p>
+              <p className="customer-home-worker__disclosure" aria-label={workerShowcaseState.data.disclosure}>仅展示技能与评分，订单由平台统一派单</p>
             </>
           ) : null}
+        </section>
+
+        <section className="customer-home-assurance" aria-label="平台服务保障">
+          <div className="customer-home-assurance__items">
+            <span><IdentificationCard size={16} weight="duotone" aria-hidden="true" />实名认证</span>
+            <span><Tag size={16} weight="duotone" aria-hidden="true" />价格透明</span>
+            <span><ClipboardText size={16} weight="duotone" aria-hidden="true" />服务留痕</span>
+            <span><ShieldCheck size={16} weight="duotone" aria-hidden="true" />售后保障</span>
+          </div>
+          <p>{cityNameByCode[cityCode]}服务已开通</p>
         </section>
       </CustomerHomeTemplate>
     </CustomerRouteShell>

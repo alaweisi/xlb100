@@ -138,10 +138,11 @@ describe("customer homepage backend bindings", () => {
     const showcase = await screen.findByLabelText("师傅能力展示列表");
     expect(screen.getByText("张师傅")).toBeTruthy();
     expect(screen.getByText("家庭保洁 · 家电清洗")).toBeTruthy();
-    expect(screen.getByText("4.9 · 32条评价")).toBeTruthy();
+    expect(screen.getByLabelText("评分 4.9，共 32 条评价")).toBeTruthy();
     expect(showcase.querySelectorAll("a, button, input")).toHaveLength(0);
     expect(showcase.textContent).not.toMatch(/电话|联系师傅|预约师傅|指定师傅/);
-    expect(screen.getByText(workerShowcase.disclosure)).toBeTruthy();
+    expect(screen.getByLabelText(workerShowcase.disclosure)).toBeTruthy();
+    expect(screen.getByText("仅展示技能与评分，订单由平台统一派单")).toBeTruthy();
   });
 
   it("opens a homepage category link as the matching filtered SKU list", async () => {

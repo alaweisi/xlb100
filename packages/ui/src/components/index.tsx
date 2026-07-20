@@ -329,6 +329,7 @@ export interface LocationSearchBarProps extends Omit<HTMLAttributes<HTMLDivEleme
   locationIcon?: ReactNode;
   searchIcon?: ReactNode;
   disclosureIcon?: ReactNode;
+  searchIconPlacement?: "start" | "end";
 }
 
 export function LocationSearchBar({
@@ -342,6 +343,7 @@ export function LocationSearchBar({
   locationIcon,
   searchIcon,
   disclosureIcon,
+  searchIconPlacement = "end",
   style,
   ...props
 }: LocationSearchBarProps) {
@@ -353,6 +355,31 @@ export function LocationSearchBar({
       onSearchSubmit(value.trim());
     }
   }
+
+  const searchButton = canSubmit ? (
+    <button
+      aria-label="搜索服务"
+      type="button"
+      onClick={triggerSearchSubmit}
+      style={{
+        alignItems: "center",
+        background: "transparent",
+        border: 0,
+        color: "#526170",
+        cursor: "pointer",
+        display: "inline-flex",
+        flex: "0 0 auto",
+        fontFamily,
+        fontSize: 17,
+        height: 44,
+        justifyContent: "center",
+        padding: 0,
+        width: 44,
+      }}
+    >
+      {searchIcon ?? null}
+    </button>
+  ) : null;
 
   return (
     <div
@@ -415,6 +442,7 @@ export function LocationSearchBar({
           padding: "0 8px 0 12px",
         }}
       >
+        {searchIconPlacement === "start" ? searchButton : null}
         <input
           onChange={(event) => onSearchChange(event.target.value)}
           placeholder={placeholder}
@@ -438,31 +466,7 @@ export function LocationSearchBar({
             outline: "none",
           }}
         />
-        <span aria-hidden="true" style={{ color: "#94a3b8", fontSize: 17, flex: "0 0 auto" }}>
-          {canSubmit ? (
-            <button
-              aria-label="搜索服务"
-              type="button"
-              onClick={triggerSearchSubmit}
-              style={{
-                alignItems: "center",
-                background: "transparent",
-                border: 0,
-                color: "#3b82f6",
-                cursor: "pointer",
-                display: "inline-flex",
-                fontFamily,
-                fontSize: 17,
-                height: 44,
-                justifyContent: "center",
-                padding: 0,
-                width: 44,
-              }}
-            >
-              {searchIcon ?? null}
-            </button>
-          ) : null}
-        </span>
+        {searchIconPlacement === "end" ? searchButton : null}
       </div>
     </div>
   );
