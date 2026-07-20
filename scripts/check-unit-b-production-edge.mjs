@@ -19,6 +19,8 @@ export function loadUnitBSources() {
     frontendDocker: read("infra/docker/Dockerfile.frontend"),
     frontendServe: read("infra/docker/frontend-serve.json"),
     frontendServeStaging: read("infra/docker/frontend-serve.staging.json"),
+    cloudStagingNginx: read("infra/nginx/cloud-staging.conf"),
+    cloudStagingCompose: read("deploy/compose/docker-compose.staging.yml"),
     cloudBundle: read("deploy/tke/bundle/generate-cloud-bundle.mjs"),
   };
 }
@@ -31,8 +33,16 @@ export function validateUnitBProductionEdge(sources) {
 
   const {
     nginx, compose, smoke, env, deploy, helmIngress, tkeProduction,
-    tkeStaging, frontendDocker, frontendServe, frontendServeStaging, cloudBundle,
+    tkeStaging, frontendDocker, frontendServe, frontendServeStaging,
+    cloudStagingNginx, cloudStagingCompose, cloudBundle,
   } = sources;
+
+  if (/auth_basic|cloud-test\.htpasswd/iu.test(cloudStagingNginx)) {
+    errors.push("isolated cloud test must not require a shared HTTP Basic password");
+  }
+  if (/CLOUD_TEST_HTPASSWD_FILE|cloud-test\.htpasswd/iu.test(cloudStagingCompose)) {
+    errors.push("staging compose must not mount a shared HTTP Basic password file");
+  }
 
   if (nginx.includes("__DOMAIN__")) errors.push("nginx still contains the legacy __DOMAIN__ placeholder");
   requireToken("nginx", nginx, "map $http_upgrade $xlb_connection_upgrade");

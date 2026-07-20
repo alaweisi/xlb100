@@ -225,7 +225,6 @@ services:
       - "${STAGING_HTTP_PORT:-80}:80"
     volumes:
       - ../../infra/nginx/cloud-staging.conf:/etc/nginx/conf.d/default.conf:ro
-      - ${CLOUD_TEST_HTPASSWD_FILE:-../../.secrets/cloud-test.htpasswd}:/etc/nginx/cloud-test.htpasswd:ro
 
 volumes:
   xlb-staging-mysql-data:
