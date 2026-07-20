@@ -15,6 +15,14 @@ export interface CustomerSession {
   userId: string;
 }
 
+export interface CustomerOtpRequestResult extends LoginCodeResponse {
+  debugCode?: string;
+}
+
+const CLOUD_TEST_MODE = (
+  import.meta as ImportMeta & { env?: { VITE_XLB_CLOUD_TEST_MODE?: string } }
+).env?.VITE_XLB_CLOUD_TEST_MODE === "true";
+
 function normalizeApiBase(value: string | undefined): string {
   const raw = (value ?? "").trim().replace(/\/+$/, "");
   return raw.endsWith("/api") ? raw.slice(0, -4) : raw;
@@ -67,13 +75,20 @@ export function clearCustomerSession(clearAccountHistory = true): void {
   if (clearAccountHistory) window.localStorage.removeItem(CUSTOMER_ORDER_HISTORY_KEY);
 }
 
-export async function requestCustomerOtp(phone: string): Promise<LoginCodeResponse> {
+export async function requestCustomerOtp(phone: string): Promise<CustomerOtpRequestResult> {
   const normalizedPhone = phone.trim();
   if (!isValidCustomerPhone(normalizedPhone)) throw new Error("请输入正确的 11 位中国大陆手机号。");
-  return assertOk(
-    await createCustomerAuthClient().requestCustomerLoginCode(normalizedPhone),
+  const auth = createCustomerAuthClient();
+  const requested = assertOk(
+    await auth.requestCustomerLoginCode(normalizedPhone),
     "验证码发送失败，请稍后重试。",
   );
+  if (!CLOUD_TEST_MODE) return requested;
+  const debug = assertOk(
+    await auth.getCustomerDebugCode(normalizedPhone),
+    "云测验证码读取失败，请重新获取。",
+  );
+  return { ...requested, debugCode: debug.code };
 }
 
 export async function loginCustomerWithOtp(phone: string, code: string): Promise<CustomerSession> {

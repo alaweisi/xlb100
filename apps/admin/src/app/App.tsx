@@ -102,7 +102,10 @@ export function App({ surface = "admin" }: AdminAppProps = {}) {
     setAuthNotice(null);
     try {
       const result = await requestAdminLoginCode(loginUsername, surface);
-      setAuthNotice(`验证码已发送，${result.ttlSeconds} 秒内有效。`);
+      if (result.debugCode) setLoginCode(result.debugCode);
+      setAuthNotice(result.debugCode
+        ? `隔离云测验证码：${result.debugCode}，已自动填入。`
+        : `验证码已发送，${result.ttlSeconds} 秒内有效。`);
     } catch (error) {
       setAuthError(presentFailure(error, "验证码发送").detail);
     } finally {

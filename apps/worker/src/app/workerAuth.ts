@@ -1,7 +1,14 @@
-import { createApiClient, createAuthApi, workerApi } from "@xlb/api-client";
+import { createApiClient, createAuthApi, workerApi, type LoginCodeResponse } from "@xlb/api-client";
 
 const DEFAULT_WORKER_PHONE = "13800000001";
 const WORKER_SESSION_KEY = "xlb.worker.session";
+const CLOUD_TEST_MODE = (
+  import.meta as ImportMeta & { env?: { VITE_XLB_CLOUD_TEST_MODE?: string } }
+).env?.VITE_XLB_CLOUD_TEST_MODE === "true";
+
+interface WorkerLoginCodeResult extends LoginCodeResponse {
+  debugCode?: string;
+}
 
 export interface WorkerSession {
   token: string;
@@ -42,11 +49,14 @@ function authErrorMessage(error: string, fallback: string): string {
   return fallback;
 }
 
-export async function requestWorkerLoginCode(phone = DEFAULT_WORKER_PHONE) {
+export async function requestWorkerLoginCode(phone = DEFAULT_WORKER_PHONE): Promise<WorkerLoginCodeResult> {
   const auth = createWorkerAuthClient();
   const result = await auth.requestWorkerLoginCode(phone);
   if (!result.ok) throw new Error(authErrorMessage(result.error, "验证码发送失败，请稍后重试"));
-  return result;
+  if (!CLOUD_TEST_MODE) return result;
+  const debug = await auth.getWorkerDebugCode(phone);
+  if (!debug.ok) throw new Error(authErrorMessage(debug.error, "云测验证码读取失败，请重新获取"));
+  return { ...result, debugCode: debug.code };
 }
 
 export async function loginWorkerWithCode(phone: string, code: string): Promise<WorkerSession> {

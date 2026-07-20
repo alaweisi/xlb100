@@ -61,4 +61,21 @@ describe("CustomerLoginPage", () => {
     render(<CustomerLoginPage reason="expired" onLogin={vi.fn()} />);
     expect(screen.getByRole("status").textContent).toContain("登录状态已失效，请重新登录。");
   });
+
+  it("auto-fills an explicitly returned isolated cloud-test code", async () => {
+    authMocks.requestCustomerOtp.mockResolvedValueOnce({
+      ok: true,
+      expiresAt: "2030-01-01T00:05:00.000Z",
+      ttlSeconds: 300,
+      attemptsLeft: 5,
+      debugCode: "654321",
+    });
+    render(<CustomerLoginPage onLogin={vi.fn()} />);
+
+    fireEvent.change(screen.getByLabelText("手机号"), { target: { value: "13800138000" } });
+    fireEvent.click(screen.getByRole("button", { name: "获取验证码" }));
+
+    await screen.findByText("隔离云测验证码：654321，已自动填入。");
+    expect((screen.getByLabelText("短信验证码") as HTMLInputElement).value).toBe("654321");
+  });
 });

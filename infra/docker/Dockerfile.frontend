@@ -8,7 +8,10 @@ RUN corepack enable \
 
 ARG APP_NAME=customer
 ARG APP_BASE=/
+ARG FRONTEND_SERVE_CONFIG=infra/docker/frontend-serve.json
+ARG VITE_XLB_CLOUD_TEST_MODE=false
 ENV XLB_PUBLIC_BASE=$APP_BASE
+ENV VITE_XLB_CLOUD_TEST_MODE=$VITE_XLB_CLOUD_TEST_MODE
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
 COPY backend/package.json ./backend/package.json
@@ -42,7 +45,7 @@ RUN pnpm --filter @xlb/$APP_NAME... build
 # The TKE CLB terminates TLS and routes directly to this container. Keep
 # browser security headers in the immutable image so they do not depend on a
 # manually edited load-balancer configuration.
-RUN cp infra/docker/frontend-serve.json apps/$APP_NAME/dist/serve.json
+RUN cp "$FRONTEND_SERVE_CONFIG" apps/$APP_NAME/dist/serve.json
 
 FROM node:20-alpine AS runtime
 WORKDIR /app

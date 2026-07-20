@@ -12,6 +12,9 @@ type Snapshot = {
 
 const SYSTEM_ENDPOINTS = ["/health", "/health/ready", "/api/system/status"] as const;
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
+const CLOUD_TEST_MODE = (
+  import.meta as ImportMeta & { env?: { VITE_XLB_CLOUD_TEST_MODE?: string } }
+).env?.VITE_XLB_CLOUD_TEST_MODE === "true";
 const TOKEN_KEY = "xlb.dashboard.token";
 const USERNAME_KEY = "xlb.dashboard.username";
 
@@ -60,7 +63,14 @@ export function App() {
       const result = await auth.requestDashboardLoginCode(username.trim());
       if (!result.ok) throw new Error(result.error);
       window.localStorage.setItem(USERNAME_KEY, username.trim());
-      setAuthNotice(`验证码已发送，${result.ttlSeconds} 秒内有效。`);
+      if (CLOUD_TEST_MODE) {
+        const debug = await auth.getDashboardDebugCode(username.trim());
+        if (!debug.ok) throw new Error(debug.error);
+        setCode(debug.code);
+        setAuthNotice(`隔离云测验证码：${debug.code}，已自动填入。`);
+      } else {
+        setAuthNotice(`验证码已发送，${result.ttlSeconds} 秒内有效。`);
+      }
     } catch (error) {
       setAuthError(error instanceof Error ? error.message : "验证码发送失败，请稍后重试");
     } finally {

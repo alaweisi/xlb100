@@ -18,6 +18,7 @@ export function loadUnitBSources() {
     tkeStaging: read("deploy/environments/tke/values-staging.yaml"),
     frontendDocker: read("infra/docker/Dockerfile.frontend"),
     frontendServe: read("infra/docker/frontend-serve.json"),
+    frontendServeStaging: read("infra/docker/frontend-serve.staging.json"),
     cloudBundle: read("deploy/tke/bundle/generate-cloud-bundle.mjs"),
   };
 }
@@ -30,7 +31,7 @@ export function validateUnitBProductionEdge(sources) {
 
   const {
     nginx, compose, smoke, env, deploy, helmIngress, tkeProduction,
-    tkeStaging, frontendDocker, frontendServe, cloudBundle,
+    tkeStaging, frontendDocker, frontendServe, frontendServeStaging, cloudBundle,
   } = sources;
 
   if (nginx.includes("__DOMAIN__")) errors.push("nginx still contains the legacy __DOMAIN__ placeholder");
@@ -134,7 +135,8 @@ export function validateUnitBProductionEdge(sources) {
   requireToken("cloud bundle", cloudBundle, "ingress.cloud.tencent.com/auto-rewrite");
 
   requireToken("frontend image", frontendDocker, "serve@14.2.6");
-  requireToken("frontend image", frontendDocker, "cp infra/docker/frontend-serve.json apps/$APP_NAME/dist/serve.json");
+  requireToken("frontend image", frontendDocker, "ARG FRONTEND_SERVE_CONFIG=infra/docker/frontend-serve.json");
+  requireToken("frontend image", frontendDocker, "cp \"$FRONTEND_SERVE_CONFIG\" apps/$APP_NAME/dist/serve.json");
   try {
     const serveConfig = JSON.parse(frontendServe);
     const headers = Object.fromEntries((serveConfig.headers?.[0]?.headers ?? []).map(header => [header.key, header.value]));
@@ -149,6 +151,18 @@ export function validateUnitBProductionEdge(sources) {
     }
   } catch {
     errors.push("frontend image security policy must be valid JSON");
+  }
+  try {
+    const serveConfig = JSON.parse(frontendServeStaging);
+    const headers = Object.fromEntries((serveConfig.headers?.[0]?.headers ?? []).map(header => [header.key, header.value]));
+    if (!headers["Content-Security-Policy"]?.includes("connect-src 'self'")) {
+      errors.push("staging frontend CSP must allow same-origin API and WebSocket connections");
+    }
+    if (headers["Strict-Transport-Security"] || headers["Content-Security-Policy"]?.includes("upgrade-insecure-requests")) {
+      errors.push("HTTP staging frontend policy must not force unavailable HTTPS");
+    }
+  } catch {
+    errors.push("staging frontend security policy must be valid JSON");
   }
 
   return errors;

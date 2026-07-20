@@ -4,10 +4,18 @@ import {
   createAuthApi,
   governancePlannerApi,
   settlementApi,
+  type LoginCodeResponse,
 } from "@xlb/api-client";
 import { API_BASE } from "./apiBase";
 
 export type OperationsSurface = "admin" | "oa";
+const CLOUD_TEST_MODE = (
+  import.meta as ImportMeta & { env?: { VITE_XLB_CLOUD_TEST_MODE?: string } }
+).env?.VITE_XLB_CLOUD_TEST_MODE === "true";
+
+interface AdminLoginCodeResult extends LoginCodeResponse {
+  debugCode?: string;
+}
 
 function resolveOperationsSurface(surface?: OperationsSurface): OperationsSurface {
   if (surface) return surface;
@@ -53,7 +61,10 @@ export function clearAdminSession(surface?: OperationsSurface): void {
   window.localStorage.removeItem(storageKey(resolvedSurface, "role"));
 }
 
-export async function requestAdminLoginCode(username = "admin_hz", surface: OperationsSurface = "admin") {
+export async function requestAdminLoginCode(
+  username = "admin_hz",
+  surface: OperationsSurface = "admin",
+): Promise<AdminLoginCodeResult> {
   const auth = createAuthApi(createApiClient({ baseUrl: API_BASE }));
   const result = surface === "oa"
     ? await auth.requestOaLoginCode(username)
@@ -62,7 +73,12 @@ export async function requestAdminLoginCode(username = "admin_hz", surface: Oper
   if (typeof window !== "undefined") {
     window.localStorage.setItem(storageKey(surface, "username"), username);
   }
-  return result;
+  if (!CLOUD_TEST_MODE) return result;
+  const debug = surface === "oa"
+    ? await auth.getOaDebugCode(username)
+    : await auth.getAdminDebugCode(username);
+  if (!debug.ok) throw new Error(adminAuthErrorMessage(debug.error, "云测验证码读取失败，请重新获取"));
+  return { ...result, debugCode: debug.code };
 }
 
 export async function loginAdminWithCode(username: string, code: string, surface: OperationsSurface = "admin"): Promise<AdminSession> {

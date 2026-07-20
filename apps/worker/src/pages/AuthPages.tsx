@@ -34,7 +34,10 @@ export function WorkerLoginPage({
     setNotice(null);
     try {
       const result = await requestWorkerLoginCode(phone.trim());
-      setNotice(`验证码已发送，${result.ttlSeconds} 秒内有效。`);
+      if (result.debugCode) setCode(result.debugCode);
+      setNotice(result.debugCode
+        ? `隔离云测验证码：${result.debugCode}，已自动填入。`
+        : `验证码已发送，${result.ttlSeconds} 秒内有效。`);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "验证码发送失败，请稍后重试");
     } finally {
