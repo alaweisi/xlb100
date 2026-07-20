@@ -111,6 +111,9 @@ describe("customer homepage backend bindings", () => {
     await waitFor(() => {
       expect(screen.getByRole("link", { name: "打开消息中心，7 条未读消息" }).getAttribute("href")).toBe("/customer/notifications");
     });
+    expect(screen.getByRole("button", { name: "切换城市，当前杭州" })).toBeTruthy();
+    expect(screen.queryByText(/西湖区/)).toBeNull();
+    expect(screen.getByPlaceholderText("搜索全部上门服务")).toBeTruthy();
     for (const [index, name] of categoryNames.entries()) {
       const link = screen.getByRole("link", { name: `${name}，查看真实服务清单` });
       expect(link.getAttribute("href")).toContain(`categoryId=category-${index + 1}`);
@@ -147,6 +150,21 @@ describe("customer homepage backend bindings", () => {
 
   it("opens a homepage category link as the matching filtered SKU list", async () => {
     window.history.replaceState({}, "", "/customer/services?cityCode=hangzhou&categoryId=category-2");
+    render(
+      <CustomerServicesPage
+        cityCode="hangzhou"
+        catalogState={{ status: "success", data: catalog }}
+        onRetryCatalog={vi.fn()}
+      />,
+    );
+
+    expect(await screen.findByText("家电清洗标准服务")).toBeTruthy();
+    expect(screen.queryByText("家庭保洁标准服务")).toBeNull();
+    expect(screen.getByText("1 项")).toBeTruthy();
+  });
+
+  it("searches the complete catalog by category and SKU text from the homepage query", async () => {
+    window.history.replaceState({}, "", "/customer/services?cityCode=hangzhou&q=家电清洗");
     render(
       <CustomerServicesPage
         cityCode="hangzhou"

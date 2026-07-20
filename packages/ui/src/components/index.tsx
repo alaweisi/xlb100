@@ -399,6 +399,7 @@ export function LocationSearchBar({
       )}
     >
       <button
+        aria-label={`切换城市，当前${cityLabel}`}
         onClick={onCityClick}
         type="button"
         disabled={!onCityClick}

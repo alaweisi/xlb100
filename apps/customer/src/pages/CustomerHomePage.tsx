@@ -29,7 +29,6 @@ import { CITY_OPTIONS, CustomerLoadable, CustomerRouteShell } from "./customerPa
 import {
   type CustomerCategoryIconKey,
   catalogToHomeCategoryViewModels,
-  cityAreaByCode,
   cityNameByCode,
   featuredHomeSkus,
 } from "../adapters/catalogAdapters";
@@ -105,10 +104,10 @@ function HomeHeader({
 }) {
   return (
     <LocationSearchBar
-      cityLabel={`${cityNameByCode[cityCode]} · ${cityAreaByCode[cityCode]}`}
+      cityLabel={cityNameByCode[cityCode]}
       placeholder="搜索全部上门服务"
-      locationIcon={<span className="customer-home-location-icon"><MapPin size={20} weight="fill" /></span>}
-      disclosureIcon={<CaretDown size={14} />}
+      locationIcon={<span className="customer-home-location-icon"><MapPin size={16} weight="fill" /></span>}
+      disclosureIcon={<CaretDown size={12} />}
       searchIcon={<MagnifyingGlass size={20} />}
       searchIconPlacement="start"
       value={searchQuery}

@@ -285,16 +285,18 @@ body {
 .customer-home-location-icon {
   color: #ef3f2c;
   display: inline-flex;
+  flex: 0 0 auto;
 }
 
 .customer-template-frame[data-route="/customer/"] [data-ui="location-search"] > button:first-child {
-  flex-basis: 44% !important;
-  max-width: 44% !important;
+  flex-basis: 27% !important;
+  max-width: 27% !important;
+  padding-right: 4px !important;
 }
 
 .customer-template-frame[data-route="/customer/"] [data-ui="location-search"] > div:last-child {
   gap: 2px !important;
-  padding-left: 7px !important;
+  padding-left: 6px !important;
   padding-right: 4px !important;
 }
 

@@ -15,12 +15,14 @@ final result: passed
 2. Rebuilt the homepage against the approved screenshot with 16 individual service assets, three service photographs, a display-only worker avatar, compact glass surfaces, and the approved five-item bottom navigation.
 3. Second comparison found orange category labels, excessive worker-card height, and assurance content colliding with the navigation. Severity: P2.
 4. Corrected text color, compacted the worker showcase, tightened the assurance strip, and rendered the page again in Edge.
+5. User-directed refinement: reduced the homepage city control from 44% to 27%, changed its visible label from city plus district to city only, reduced the location and disclosure icons, and reassigned the released width to catalog search. Edge recapture confirms the search field is now the dominant control while the city remains immediately recognizable.
 
 ## Final review
 
 - No P0, P1, or P2 visual defects remain in the approved 390 x 844 state.
 - The 16 service categories keep their real catalog links.
 - Recommendation cards keep their real SKU order links.
+- Homepage search carries its query into the complete city catalog and matches authoritative category and SKU text; it is not a visual-only field.
 - Notifications and customer support keep their real routes.
 - Worker cards are read-only. They expose only alias, certification, rating, and skills; there is no phone, chat, booking, selection, assignment, or location control.
 - The implementation intentionally says `本城师傅` instead of `附近师傅`: the backend currently proves city coverage, not live distance, so the interface does not invent proximity.
