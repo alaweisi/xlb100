@@ -1,16 +1,17 @@
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
-import { createApiClient, createAuthApi, customerApi } from "@xlb/api-client";
+import { ApiClientError, createApiClient, customerApi } from "@xlb/api-client";
 import type { CatalogSnapshot, CityCode } from "@xlb/types";
 import { XLB_HEADERS } from "@xlb/types";
 import { BottomNav, MobileShell } from "@xlb/ui";
 import {
+  BellSimple,
   ChatCircleDots,
   ClipboardText,
-  Headset,
   House,
   Plus,
   UserCircle,
 } from "@phosphor-icons/react";
+import { getCustomerApiBase } from "../features/auth/customerAuth";
 
 // Phase 14: removed hardcoded CUSTOMER_ID; replaced with authenticated customer sessions.
 // Legacy reference preserved for tests: "customer-demo-001" exists in customers table via seed 011.
@@ -20,61 +21,6 @@ export const CUSTOMER_ID = "customer-demo-001";
 
 export const DEFAULT_CITY: CityCode = "hangzhou";
 
-const TOKEN_STORAGE_KEY = "xlb.customer.token";
-const CUSTOMER_PHONE_KEY = "xlb.customer.phone";
-
-export interface CustomerSession {
-  token: string;
-  userId: string;
-}
-
-export function readStoredSession(): CustomerSession | null {
-  if (typeof window === "undefined") return null;
-  const token = window.localStorage.getItem(TOKEN_STORAGE_KEY);
-  if (!token) return null;
-  // We don't verify the token here; the backend will reject expired/invalid tokens.
-  // userId is extracted from token on the backend side; we store it for UI display only.
-  const userId = window.localStorage.getItem("xlb.customer.userId") ?? "";
-  return { token, userId };
-}
-
-function storeSession(session: CustomerSession): void {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(TOKEN_STORAGE_KEY, session.token);
-  window.localStorage.setItem("xlb.customer.userId", session.userId);
-}
-
-export async function requestCustomerLoginCode(phone: string) {
-  const result = await createAuthApi(createApiClient({ baseUrl: "" })).requestCustomerLoginCode(phone);
-  if (!result.ok) throw new Error(customerAuthErrorMessage(result.error, "验证码发送失败，请稍后重试"));
-  return result;
-}
-
-export async function loginCustomerWithCode(phone: string, code: string): Promise<CustomerSession> {
-  const result = await createAuthApi(createApiClient({ baseUrl: "" })).customerLogin(phone, code);
-  if (!result.ok) {
-    throw new Error(customerAuthErrorMessage(result.error, "登录失败，请核对验证码后重试"));
-  }
-  const session: CustomerSession = { token: result.token, userId: result.userId };
-  storeSession(session);
-  if (typeof window !== "undefined") {
-    window.localStorage.setItem(CUSTOMER_PHONE_KEY, phone);
-  }
-  return session;
-}
-
-function customerAuthErrorMessage(error: string, fallback: string): string {
-  if (/invalid phone/i.test(error)) return "请输入正确的中国大陆手机号";
-  if (/too recently|cooldown/i.test(error)) return "验证码发送过于频繁，请稍后再试";
-  if (/invalid|expired|verification code|otp/i.test(error)) return "验证码无效或已过期，请重新获取";
-  return fallback;
-}
-
-export function clearCustomerSession(): void {
-  if (typeof window === "undefined") return;
-  window.localStorage.removeItem(TOKEN_STORAGE_KEY);
-  window.localStorage.removeItem("xlb.customer.userId");
-}
 export const CITY_OPTIONS: ReadonlyArray<CityCode> = ["hangzhou", "shanghai", "beijing"];
 export const CITY_STORAGE_KEY = "xlb.customer.cityCode";
 export const ORDER_HISTORY_KEY = "xlb.customer.orderIds";
@@ -108,16 +54,37 @@ export const customerRouteConfig: Record<
   profile: { label: "我的", href: "/customer/profile", title: "我的", icon: <UserCircle size={24} weight="regular" /> },
 };
 
-const customerPrimaryNavigation = [
-  { key: "home", label: "首页", href: "/customer/", icon: <House size={25} weight="regular" /> },
-  { key: "orders", label: "订单", href: "/customer/orders", icon: <ClipboardText size={25} weight="regular" /> },
-  { key: "services", label: "下单", href: "/customer/services", icon: <Plus size={24} weight="bold" />, prominent: true },
-  { key: "support", label: "客服", href: "/customer/support", icon: <Headset size={25} weight="regular" /> },
-  { key: "profile", label: "我的", href: "/customer/profile", icon: <UserCircle size={25} weight="regular" /> },
+export const customerPrimaryNavConfig = [
+  { label: "首页", href: "/customer/", icon: <House size={25} weight="regular" /> },
+  { label: "订单", href: "/customer/orders", icon: <ClipboardText size={25} weight="regular" /> },
+  { label: "新报修", href: "/customer/order/create", icon: <Plus size={24} weight="bold" />, prominent: true },
+  { label: "消息", href: "/customer/notifications", icon: <BellSimple size={25} weight="regular" /> },
+  { label: "我的", href: "/customer/profile", icon: <UserCircle size={25} weight="regular" /> },
 ] as const;
 
-function isPrimaryNavigationActive(itemKey: (typeof customerPrimaryNavigation)[number]["key"], currentRoute: CustomerShellRoute) {
-  return itemKey === currentRoute || (itemKey === "services" && currentRoute === "createOrder");
+const customerPrimaryNavHrefByRoute: Readonly<Record<CustomerShellRoute, string>> = {
+  home: "/customer/",
+  services: "/customer/",
+  createOrder: "/customer/order/create",
+  orders: "/customer/orders",
+  aftersale: "/customer/orders",
+  support: "/customer/notifications",
+  notifications: "/customer/notifications",
+  profile: "/customer/profile",
+  coupons: "/customer/profile",
+};
+
+export function resolveCustomerPrimaryNavHref(route: CustomerShellRoute): string {
+  return customerPrimaryNavHrefByRoute[route];
+}
+
+function customerPrimaryNavItems(currentRoute: CustomerShellRoute) {
+  const activeHref = resolveCustomerPrimaryNavHref(currentRoute);
+  return customerPrimaryNavConfig.map((item) => ({
+    ...item,
+    key: item.href,
+    active: item.href === activeHref,
+  }));
 }
 
 export function detectCustomerRoute(pathname = window.location.pathname): CustomerShellRoute {
@@ -208,7 +175,11 @@ export function appendOrderId(orderId: string): string[] {
 
 export type CustomerPageApi = ReturnType<typeof createCustomerApiClient>;
 
-export function createCustomerApiClient(cityCode: CityCode, token?: string) {
+export function createCustomerApiClient(
+  cityCode: CityCode,
+  token?: string,
+  onUnauthorized?: (error: ApiClientError) => void,
+) {
   const headers: Record<string, string> = {
     [XLB_HEADERS.cityCode]: cityCode,
   };
@@ -217,8 +188,9 @@ export function createCustomerApiClient(cityCode: CityCode, token?: string) {
   }
   return customerApi.forClient(
     createApiClient({
-      baseUrl: "",
+      baseUrl: getCustomerApiBase(),
       headers,
+      onUnauthorized,
     }),
   );
 }
@@ -254,11 +226,7 @@ export function useCustomerShellMode() {
 }
 
 export function CustomerBottomNav({ currentRoute }: { currentRoute: CustomerShellRoute }) {
-  const items = useMemo(
-    () =>
-      customerPrimaryNavigation.map((item) => ({ ...item, active: isPrimaryNavigationActive(item.key, currentRoute) })),
-    [currentRoute],
-  );
+  const items = useMemo(() => customerPrimaryNavItems(currentRoute), [currentRoute]);
 
   return <BottomNav items={items} placement="static" />;
 }
@@ -273,7 +241,7 @@ type CustomerRouteShellProps = {
 export function CustomerRouteShell({ currentRoute, topBar, children, fixedBottomNav = false }: CustomerRouteShellProps) {
   const shellMode = useCustomerShellMode();
   const isAppMode = shellMode === "app";
-  const bottomNav = <BottomNav items={customerPrimaryNavigation.map((item) => ({ ...item, active: isPrimaryNavigationActive(item.key, currentRoute) }))} placement={fixedBottomNav || isAppMode ? "fixed" : "static"} />;
+  const bottomNav = <BottomNav items={customerPrimaryNavItems(currentRoute)} placement={fixedBottomNav || isAppMode ? "fixed" : "static"} />;
 
   return (
     <div className="customer-app-root" data-role="customer" data-shell-mode={isAppMode ? "app" : "preview"}>

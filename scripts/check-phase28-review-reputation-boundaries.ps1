@@ -39,6 +39,15 @@ if ($phase29Authorized) { $expectedLater += '057_phase29_marketing_coupon.sql' }
 if (Test-Path -LiteralPath 'db/migrations/058_stage2c2_migration_control.sql') {
   $expectedLater += '058_stage2c2_migration_control.sql'
 }
+$tkeCosMigrationPath = 'db/migrations/059_tke_cos_object_storage.sql'
+$tkeCosSourceCommit = '8c28d81fc81c84805368c969c590a77bf2a95b91'
+if (Test-Path -LiteralPath $tkeCosMigrationPath) {
+  $tkeCosHash = (git hash-object -- $tkeCosMigrationPath).Trim()
+  $lockedTkeCosHash = (git rev-parse "${tkeCosSourceCommit}:$tkeCosMigrationPath" 2>$null).Trim()
+  if ($LASTEXITCODE -eq 0 -and $tkeCosHash -eq $lockedTkeCosHash) {
+    $expectedLater += '059_tke_cos_object_storage.sql'
+  }
+}
 $actualLaterNames = @($later.Name | Sort-Object) -join ','
 $expectedLaterNames = @($expectedLater | Sort-Object) -join ','
 if ($later.Count -ne $expectedLater.Count -or

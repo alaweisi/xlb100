@@ -41,6 +41,10 @@ const apiSteps = [
 
 const browserSteps = [
   {
+    name: "Customer OTP login, logout, and 401 recovery",
+    args: ["test:e2e:customer-auth"],
+  },
+  {
     name: "three-app persisted operations smoke",
     args: ["exec", "playwright", "test", "tests/e2e/phase21-three-app-smoke.spec.ts"],
   },

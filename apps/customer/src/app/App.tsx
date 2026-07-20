@@ -1,25 +1,25 @@
 import { lazy, useCallback, useEffect, useMemo, useState } from "react";
 import type { CatalogSnapshot, CityCode } from "@xlb/types";
-import { Button, FormField, IdentityGate, Input, StatusTag } from "@xlb/ui";
 import type { CustomerOrderCreatePageProps } from "../pages/CustomerOrderCreatePage";
 import type { CustomerOrdersPageProps } from "../pages/CustomerOrdersPage";
 import type { CustomerCouponsPageProps } from "../pages/CustomerCouponsPage";
 import type { CustomerSupportApi } from "../pages/CustomerSupportPage";
+import { toCustomerError } from "../adapters/customerError";
+import {
+  clearCustomerSession,
+  logoutCustomer,
+  readStoredCustomerSession,
+  type CustomerSession,
+} from "../features/auth/customerAuth";
 import {
   appendOrderId,
-  clearCustomerSession,
   createCustomerApiClient,
   CustomerLoadable,
   detectCustomerRoute,
-  loginCustomerWithCode,
   readCustomerCityCode,
   readOrderIds,
-  readStoredSession,
-  requestCustomerLoginCode,
-  type CustomerSession,
   writeCustomerCityCode,
 } from "../pages/customerPageShell";
-import { isUnauthorizedCustomerError, toCustomerError } from "../adapters/customerError";
 
 const CustomerHomePage = lazy(() => import("../pages/CustomerHomePage").then((module) => ({ default: module.CustomerHomePage })));
 const CustomerOrderCreatePage = lazy(() => import("../pages/CustomerOrderCreatePage").then((module) => ({ default: module.CustomerOrderCreatePage })));
@@ -30,6 +30,7 @@ const CustomerServicesPage = lazy(() => import("../pages/CustomerServicesPage").
 const CustomerSupportPage = lazy(() => import("../pages/CustomerSupportPage").then((module) => ({ default: module.CustomerSupportPage })));
 const CustomerNotificationsPage = lazy(() => import("../pages/CustomerNotificationsPage").then((module) => ({ default: module.CustomerNotificationsPage })));
 const CustomerCouponsPage = lazy(() => import("../pages/CustomerCouponsPage").then((module) => ({ default: module.CustomerCouponsPage })));
+const CustomerLoginPage = lazy(() => import("../pages/CustomerLoginPage").then((module) => ({ default: module.CustomerLoginPage })));
 
 export function App() {
   const initialCityCode = useMemo(() => readCustomerCityCode(), []);
@@ -45,46 +46,33 @@ export function App() {
       ? [orderIdFromUrl, ...storedOrderIds.filter((orderId) => orderId !== orderIdFromUrl)]
       : storedOrderIds;
   });
-  const [session, setSession] = useState<CustomerSession | null>(() => readStoredSession());
-  const [loginPhone, setLoginPhone] = useState("13800000001");
-  const [loginCode, setLoginCode] = useState("");
-  const [authBusy, setAuthBusy] = useState<"code" | "login" | null>(null);
-  const [authNotice, setAuthNotice] = useState<string | null>(null);
-  const [authError, setAuthError] = useState<string | null>(null);
+  const [session, setSession] = useState<CustomerSession | null>(() => readStoredCustomerSession());
+  const [sessionEndReason, setSessionEndReason] = useState<"expired" | undefined>();
   const currentRoute = useMemo(() => detectCustomerRoute(), []);
 
-  const targetName = currentRoute === "home" ? "首页" : currentRoute === "services" ? "服务选择" : currentRoute === "createOrder" ? "确认订单" : currentRoute === "orders" ? "订单" : currentRoute === "aftersale" ? "售后服务" : currentRoute === "support" ? "客服工单" : currentRoute === "notifications" ? "消息中心" : currentRoute === "coupons" ? "优惠券" : "我的";
+  const endSession = useCallback((reason?: "expired") => {
+    clearCustomerSession();
+    setSession(null);
+    setSessionEndReason(reason);
+    setOrderIds([]);
+    setCatalogState({ status: "loading" });
+  }, []);
 
-  const handleRequestLoginCode = useCallback(async () => {
-    setAuthBusy("code");
-    setAuthError(null);
-    setAuthNotice(null);
-    try {
-      const result = await requestCustomerLoginCode(loginPhone.trim());
-      setAuthNotice(`验证码已发送，${result.ttlSeconds} 秒内有效。`);
-    } catch (error) {
-      setAuthError(error instanceof Error ? error.message : "验证码发送失败，请稍后重试");
-    } finally {
-      setAuthBusy(null);
-    }
-  }, [loginPhone]);
-
-  const handleCustomerLogin = useCallback(async () => {
-    setAuthBusy("login");
-    setAuthError(null);
-    try {
-      const next = await loginCustomerWithCode(loginPhone.trim(), loginCode.trim());
-      setSession(next);
-    } catch (error) {
-      setAuthError(error instanceof Error ? error.message : "登录失败，请核对验证码后重试");
-    } finally {
-      setAuthBusy(null);
-    }
-  }, [loginCode, loginPhone]);
+  const handleUnauthorized = useCallback(() => endSession("expired"), [endSession]);
+  const handleLogin = useCallback((nextSession: CustomerSession) => {
+    setSessionEndReason(undefined);
+    setSession(nextSession);
+    setOrderIds(readOrderIds());
+  }, []);
+  const handleLogout = useCallback(() => {
+    const currentSession = session;
+    endSession();
+    if (currentSession) void logoutCustomer(currentSession).catch(() => undefined);
+  }, [endSession, session]);
 
   const api = useMemo(
-    () => createCustomerApiClient(cityCode, session?.token),
-    [cityCode, session?.token],
+    () => createCustomerApiClient(cityCode, session?.token, handleUnauthorized),
+    [cityCode, handleUnauthorized, session?.token],
   );
   const setCityAndPersist = useCallback((next: CityCode) => {
     writeCustomerCityCode(next);
@@ -105,12 +93,6 @@ export function App() {
       const result = await api.getCatalog();
       setCatalogState({ status: "success", data: result.catalog });
     } catch (error) {
-      if (isUnauthorizedCustomerError(error)) {
-        clearCustomerSession();
-        setSession(null);
-        setAuthError("登录状态已失效，请重新验证手机号。");
-        return;
-      }
       setCatalogState({
         status: "error",
         error: toCustomerError(error, "服务目录加载失败").description,
@@ -119,8 +101,12 @@ export function App() {
   }, [api, cityCode, session?.token]);
 
   useEffect(() => {
+    // Notifications load their own scoped data and do not consume the service
+    // catalog. Avoid leaving an unrelated catalog request in flight when this
+    // route reloads or closes (and avoid an unnecessary production request).
+    if (currentRoute === "notifications") return;
     void loadCatalog();
-  }, [loadCatalog]);
+  }, [currentRoute, loadCatalog]);
 
   const handleRetryCatalog = useCallback(() => {
     void loadCatalog();
@@ -137,14 +123,14 @@ export function App() {
     [cityCode, setCityAndPersist],
   );
 
-  const orderCreateApi: CustomerOrderCreatePageProps["api"] = {
+  const orderCreateApi = useMemo<CustomerOrderCreatePageProps["api"]>(() => ({
     getPriceQuote: (skuId) => api.getPriceQuote(skuId),
     createOrder: (payload) => api.createOrder(payload),
     getOrder: (orderId) => api.getOrder(orderId),
     listCouponGrants: (query) => api.listCouponGrants(query),
     issueDiscountDecision: (payload) => api.issueDiscountDecision(payload),
     listAddresses: () => api.listAddresses(),
-  };
+  }), [api]);
 
   const ordersApi: CustomerOrdersPageProps["api"] = {
     getOrder: (orderId) => api.getOrder(orderId),
@@ -157,30 +143,8 @@ export function App() {
     withdrawReviewAppeal: (reviewId, payload) => api.withdrawReviewAppeal(reviewId, payload),
   };
 
-  const isRequestingLoginCode = authBusy === "code";
-  const isLoggingIn = authBusy === "login";
-
   if (!session) {
-    return (
-      <IdentityGate
-        aria-busy={authBusy !== null}
-        visualRole="customer"
-        title="顾客身份验证"
-        description="使用手机号验证码登录；验证完成后会回到刚才准备打开的服务画面。"
-        recoveryTarget={`验证完成后返回：${targetName}`}
-        status={<StatusTag tone="primary">需要登录</StatusTag>}
-        form={<>
-          <FormField label="手机号"><Input value={loginPhone} onChange={(event) => setLoginPhone(event.target.value)} /></FormField>
-          <FormField label="短信验证码"><Input value={loginCode} onChange={(event) => setLoginCode(event.target.value)} /></FormField>
-          {authNotice ? <p style={{ fontSize: 13, margin: 0 }}>{authNotice}</p> : null}
-        </>}
-        actions={<>
-          <Button onClick={handleRequestLoginCode} disabled={authBusy !== null || !loginPhone.trim()}>{isRequestingLoginCode ? "正在发送" : "获取验证码"}</Button>
-          <Button variant="primary" onClick={handleCustomerLogin} disabled={authBusy !== null || !loginPhone.trim() || !loginCode.trim()}>{isLoggingIn ? "正在登录" : "登录并继续"}</Button>
-        </>}
-        error={authError}
-      />
-    );
+    return <CustomerLoginPage reason={sessionEndReason} onLogin={handleLogin} />;
   }
 
   if (currentRoute === "home") {
@@ -244,5 +208,5 @@ export function App() {
     );
   }
 
-  return <CustomerProfilePage api={api} cityCode={cityCode} />;
+  return <CustomerProfilePage api={api} cityCode={cityCode} onLogout={handleLogout} />;
 }

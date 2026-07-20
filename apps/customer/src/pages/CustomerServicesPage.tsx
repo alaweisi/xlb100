@@ -17,6 +17,7 @@ import { CaretDown, MagnifyingGlass, MapPin } from "@phosphor-icons/react";
 import {
   CITY_OPTIONS,
   CustomerLoadable,
+  CustomerRouteShell,
   setRouteSearchParams,
   useRouteSearchParams,
 } from "./customerPageShell";
@@ -125,7 +126,8 @@ export function CustomerServicesPage({
   const catalogReady = catalogState.status === "success";
 
   return (
-    <CustomerServicesTemplate route="/customer/services" cityCode={cityCode} binding={binding} header={header}>
+    <CustomerRouteShell currentRoute="services">
+      <CustomerServicesTemplate route="/customer/services" cityCode={cityCode} binding={binding} header={header}>
       <Card
         actions={
           <ActionDock
@@ -188,6 +190,7 @@ export function CustomerServicesPage({
         />
       )}
 
-    </CustomerServicesTemplate>
+      </CustomerServicesTemplate>
+    </CustomerRouteShell>
   );
 }

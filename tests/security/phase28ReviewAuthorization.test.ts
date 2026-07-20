@@ -185,7 +185,15 @@ describe("Phase28 Review authorization, city scope and idempotency", () => {
       createdAt: "2026-07-13T00:00:00.000Z",
       entityId: "review-1",
     });
-    const tampered = `${cursor.slice(0, -1)}${cursor.endsWith("x") ? "y" : "x"}`;
+    const envelope = Buffer.from(cursor, "base64url").toString("utf8");
+    const separator = envelope.lastIndexOf(".");
+    expect(separator).toBeGreaterThan(0);
+    const signature = envelope.slice(separator + 1);
+    const tamperedSignature = `${signature.startsWith("x") ? "y" : "x"}${signature.slice(1)}`;
+    const tampered = Buffer.from(
+      `${envelope.slice(0, separator + 1)}${tamperedSignature}`,
+      "utf8",
+    ).toString("base64url");
     expect(() => decodeReviewQueueCursor(tampered, scope))
       .toThrow(ReviewQueueCursorValidationError);
     expect(() => decodeReviewQueueCursor(cursor, { ...scope, cityCode: "shanghai" }))

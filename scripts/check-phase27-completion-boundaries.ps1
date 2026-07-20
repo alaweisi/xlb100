@@ -1,17 +1,12 @@
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
+. (Join-Path $PSScriptRoot 'lib/current-state.ps1')
 
 $currentState = Get-Content -Raw -Encoding UTF8 -LiteralPath 'docs/CURRENT_STATE.md'
-if (-not ($currentState.Contains('Phase 27 | PHASE27E EXIT VERIFICATION') -or
-          $currentState.Contains('Phase 27 | LOCKED'))) {
-  throw "Phase27 completion Gate requires Phase27E exit verification or final Lock state"
-}
-if (-not $currentState.Contains('Phase 14 | IN PROGRESS') -or
-    -not $currentState.Contains('64/100') -or
-    -not $currentState.Contains('staging/production `NO-GO`')) {
-  throw "Phase27 must preserve the Phase14 64/100 staging/production NO-GO truth"
-}
+$phase27 = Get-XlbPhaseTableEntry -CurrentStateText $currentState -PhaseId 'Phase 27'
+$null = Assert-XlbPhaseStatusIn -Entry $phase27 -AllowedStatuses @('PHASE27E EXIT VERIFICATION', 'LOCKED')
+$null = Assert-XlbPhase14ProductionBlocked -CurrentStateText $currentState
 
 $migrations = @(Get-ChildItem db/migrations -File | Where-Object {
   $_.Name -match '^(\d{3})_' -and [int]$Matches[1] -ge 54
@@ -54,6 +49,15 @@ if ($phase29Authorized) {
 }
 if (Test-Path -LiteralPath 'db/migrations/058_stage2c2_migration_control.sql') {
   $expectedMigrations += '058_stage2c2_migration_control.sql'
+}
+$tkeCosMigrationPath = 'db/migrations/059_tke_cos_object_storage.sql'
+$tkeCosSourceCommit = '8c28d81fc81c84805368c969c590a77bf2a95b91'
+if (Test-Path -LiteralPath $tkeCosMigrationPath) {
+  $tkeCosHash = (git hash-object -- $tkeCosMigrationPath).Trim()
+  $lockedTkeCosHash = (git rev-parse "${tkeCosSourceCommit}:$tkeCosMigrationPath" 2>$null).Trim()
+  if ($LASTEXITCODE -eq 0 -and $tkeCosHash -eq $lockedTkeCosHash) {
+    $expectedMigrations += '059_tke_cos_object_storage.sql'
+  }
 }
 if ($migrations.Count -ne $expectedMigrations.Count) {
   throw "Phase27 completion migration ledger contains an unauthorized 054+ migration"

@@ -87,12 +87,12 @@ async function mutateThroughUi(page: Page, title: string, english: boolean) {
   await expect(card()).toHaveCount(1);
 }
 
-let workerPhoneBefore: { phone_hash: string | null; phone_masked: string | null } | null = null;
+let workerPhoneBefore: { phone_hash: string | null; phone_masked: string | null; updated_at: Date } | null = null;
 const workerPhone = "13877770027";
 
 test.beforeAll(async () => {
-  const [rows] = await getMysqlPool().query<(RowDataPacket & { phone_hash: string | null; phone_masked: string | null })[]>(
-    "SELECT phone_hash,phone_masked FROM worker_profiles WHERE worker_id='worker-demo-hangzhou'",
+  const [rows] = await getMysqlPool().query<(RowDataPacket & { phone_hash: string | null; phone_masked: string | null; updated_at: Date })[]>(
+    "SELECT phone_hash,phone_masked,updated_at FROM worker_profiles WHERE worker_id='worker-demo-hangzhou'",
   );
   workerPhoneBefore = rows[0] ?? null;
   if (!workerPhoneBefore) throw new Error("worker-demo-hangzhou fixture is missing");
@@ -108,8 +108,8 @@ test.afterAll(async () => {
   } finally {
     if (workerPhoneBefore) {
       await getMysqlPool().query(
-        "UPDATE worker_profiles SET phone_hash=?,phone_masked=? WHERE worker_id='worker-demo-hangzhou'",
-        [workerPhoneBefore.phone_hash, workerPhoneBefore.phone_masked],
+        "UPDATE worker_profiles SET phone_hash=?,phone_masked=?,updated_at=? WHERE worker_id='worker-demo-hangzhou'",
+        [workerPhoneBefore.phone_hash, workerPhoneBefore.phone_masked, workerPhoneBefore.updated_at],
       );
     }
   }
@@ -136,7 +136,8 @@ test("Customer real order reaches the scoped inbox and read/archive/restore pers
     },
   });
   expect(order.ok(), await order.text()).toBeTruthy();
-  await projectProspectiveEvent(channel);
+  const orderId = ((await order.json()).order as { orderId: string }).orderId;
+  await projectProspectiveEvent(channel, orderId);
 
   const other = await loginCustomer(page.request, `139${String(Date.now() + 1).slice(-8)}`);
   const wrongOwner = await page.request.get(`${backend}/api/customer/notifications`, { headers: authenticatedHeaders(other) });
@@ -155,7 +156,7 @@ test("Customer real order reaches the scoped inbox and read/archive/restore pers
   await page.goto(`${customerApp}/customer/profile?cityCode=hangzhou`);
   await expect(page.getByRole("heading", { name: "Account" })).toBeVisible();
   expect((await catalogLoaded).ok()).toBeTruthy();
-  await page.locator("a[href='/customer/notifications']").click();
+  await page.getByRole("link", { name: "消息", exact: true }).click();
   await expect(page).toHaveURL(/\/customer\/notifications/);
   await mutateThroughUi(page, channel.title, false);
   await assertNoHorizontalOverflow(page);
@@ -201,7 +202,7 @@ test("Worker real support resolution reaches the inbox without losing the UI ses
     },
   });
   expect(resolved.ok(), await resolved.text()).toBeTruthy();
-  await projectProspectiveEvent(channel);
+  await projectProspectiveEvent(channel, ticket.ticketId);
 
   const crossCity = await page.request.get(`${backend}/api/worker/notifications`, {
     headers: authenticatedHeaders(worker, "shanghai"),

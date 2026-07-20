@@ -15,10 +15,13 @@ const requireTokens = (relative, tokens) => {
 };
 
 const compose = requireTokens("deploy/compose/docker-compose.prod.yml", [
-  "PROD_BACKEND_IMAGE:?", "MYSQL_PASSWORD_FILE", "REDIS_PASSWORD_FILE",
+  "PROD_BACKEND_IMAGE:?", "PROD_GATEWAY_IMAGE:?", "MYSQL_PASSWORD_FILE", "REDIS_PASSWORD_FILE",
   "MYSQL_TLS_ENABLED: \"true\"", "REDIS_TLS_ENABLED: \"true\"",
   "AUTO_RUN_CITY_CODES:?", "read_only: true", "cap_drop: [ALL]",
   "no-new-privileges:true", "resources:", "max-size: 20m",
+  "production.conf.template:/etc/nginx/templates/default.conf.template:ro",
+  "TLS_FULLCHAIN_SECRET_FILE:?", "TLS_PRIVATE_KEY_SECRET_FILE:?",
+  "PROD_HTTP_BIND_ADDRESS:?", "PROD_HTTPS_BIND_ADDRESS:?",
 ]);
 if (/^\s+build:/mu.test(compose)) throw new Error("production compose must not contain local image builds");
 if (/phase\d+|placeholder/iu.test(compose)) throw new Error("production compose must not contain placeholder image defaults");
@@ -26,13 +29,18 @@ if (/phase\d+|placeholder/iu.test(compose)) throw new Error("production compose 
 requireTokens(".env.production.example", [
   "AUTO_RUN_CITY_CODES=", "MYSQL_PASSWORD_SECRET_FILE=", "MYSQL_TLS_CA_SECRET_FILE=",
   "REDIS_PASSWORD_SECRET_FILE=", "REDIS_TLS_CA_SECRET_FILE=", "@sha256:",
+  "XLB_DOMAIN=", "PROD_GATEWAY_IMAGE=", "TLS_FULLCHAIN_SECRET_FILE=",
+  "TLS_PRIVATE_KEY_SECRET_FILE=", "PROD_SMOKE_CUSTOMER_TOKEN_FILE=",
 ]);
 const deploy = requireTokens("deploy/production/deploy-prod.ps1", [
-  "@sha256:[a-fA-F0-9]{64}$", "docker compose", "pull", "--no-build", "docker image inspect",
+  "@sha256:[a-fA-F0-9]{64}$", "PROD_GATEWAY_IMAGE", "TLS_FULLCHAIN_SECRET_FILE",
+  "TLS_PRIVATE_KEY_SECRET_FILE", "docker compose", "pull", "--no-build", "docker image inspect",
 ]);
 if (deploy.includes("--build")) throw new Error("production deploy must not build mutable images");
 requireTokens("deploy/production/smoke-prod.ps1", [
   "dataReliability.ready", "jobWorker.state", "frontend response is not an application HTML document",
+  "/api/system/status", "/api/catalog", "/api/pricing/quote", "/api/support/realtime-ticket",
+  "ClientWebSocket", "MaximumRedirection 0", "PROD_SMOKE_CUSTOMER_TOKEN_FILE",
 ]);
 requireTokens("deploy/production/check-release-window-data.ps1", [
   "RELEASE-WINDOW-READ-ONLY", "QuietWindowConfirmed", "ExpectedCommit",
@@ -59,6 +67,9 @@ requireTokens("infra/observability/alertmanager.production.yml.example", [
 JSON.parse(read("infra/observability/grafana-production-dashboard.json"));
 requireTokens("infra/nginx/production.conf.template", [
   "ssl_protocols TLSv1.2 TLSv1.3", "Strict-Transport-Security", "location = /metrics", "deny all",
+  "server_name customer.${XLB_DOMAIN}", "server_name worker.${XLB_DOMAIN}",
+  "server_name admin.${XLB_DOMAIN}", "location /api/", "location = /api/support/realtime",
+  "proxy_set_header Upgrade $http_upgrade", "Content-Security-Policy",
 ]);
 
 const temp = mkdtempSync(path.join(tmpdir(), "xlb-prod-config-"));
@@ -71,12 +82,15 @@ try {
     "BACKEND_PORT=3000", "MYSQL_HOST=mysql.prod.internal", "MYSQL_PORT=3306",
     "MYSQL_DATABASE=xlb_prod", "MYSQL_USER=xlb_prod", "REDIS_HOST=redis.prod.internal",
     "REDIS_PORT=6380", "AUTO_RUN_CITY_CODES=hangzhou",
-    `PROD_BACKEND_IMAGE=${digest}`, `PROD_CUSTOMER_IMAGE=${digest}`,
+    "XLB_DOMAIN=unit-b.test", "PROD_HTTP_BIND_ADDRESS=127.0.0.1",
+    "PROD_HTTPS_BIND_ADDRESS=127.0.0.1",
+    `PROD_BACKEND_IMAGE=${digest}`, `PROD_GATEWAY_IMAGE=${digest}`, `PROD_CUSTOMER_IMAGE=${digest}`,
     `PROD_WORKER_IMAGE=${digest}`, `PROD_ADMIN_IMAGE=${digest}`,
     ...[
       "MYSQL_PASSWORD_SECRET_FILE", "MYSQL_TLS_CA_SECRET_FILE", "REDIS_PASSWORD_SECRET_FILE",
       "REDIS_TLS_CA_SECRET_FILE", "JWT_SECRET_FILE", "JWT_KEYS_JSON_SECRET_FILE",
       "AUTH_PHONE_HASH_SECRET_FILE", "AUTH_OTP_PEPPER_SECRET_FILE",
+      "TLS_FULLCHAIN_SECRET_FILE", "TLS_PRIVATE_KEY_SECRET_FILE",
     ].map((name) => `${name}=${secretPath}`),
   ];
   writeFileSync(envFile, `${lines.join("\n")}\n`);

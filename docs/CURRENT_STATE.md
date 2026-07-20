@@ -44,6 +44,33 @@
 | Phase 27B | INTEGRATED — LOCKED WITH PHASE27 | xlb-phase27-notification-foundation | Notification projection, scoped API and Customer/Worker inbox integrated under the Phase27 Lock |
 | Phase 28 | LOCKED | xlb-phase28-review-reputation | Review moderation, appeal and Worker reputation foundation; production activation remains prohibited |
 | Phase 29 | LOCKED | xlb-phase29-marketing-coupon | Marketing/Coupon MVP with fixed-amount coupons and Order-owned price evidence; production activation remains prohibited |
+| Commercialization Unit B | LOCKED — REPOSITORY ONLY | — | Production Nginx gateway, same-origin API/WebSocket routing and non-durable business Smoke skeleton; no production activation |
+
+## Commercialization Unit B — Production Edge Routing (LOCKED — REPOSITORY ONLY)
+
+- **Authorized**: 2026-07-19. Human authorized Unit B construction, Agent-cluster review, self-acceptance and local Lock commit.
+- **Scope**: Production Nginx gateway; Customer/Worker/Admin same-origin `/api/`; exact `/api/support/realtime` WebSocket Upgrade; CSP/security headers; production Compose gateway/TLS/digest controls; non-durable Customer catalog/quote/existing-order and WebSocket Smoke skeleton.
+- **Verification**: Unit B aggregate Gate PASS (5/5 negative/positive contract tests, non-root read-only container `nginx -t`, Smoke dry-run/token non-disclosure, Production Compose/repository readiness), typecheck 17/17, build 11/11, CI/supply 8/8, lint 0 errors with one pre-existing backend warning.
+- **Independent review**: implementation P0=0 after exact-file staging/Lock evidence closure. Review confirmed same-origin routing, public metrics denial, immutable gateway digest contract, TLS Secrets, non-root/read-only gateway and no durable order/payment mutation in Smoke.
+- **Global regression truth**: the one required full regression run remained RED outside Unit B: db/security tranche 197/200 files and 616/622 tests passed with 1 skipped; five failures are the pre-existing dirty Customer UI Phase25 hardcode increases and stale Phase27/28 exact Phase14 text gates. No Unit B test failed.
+- **Production truth unchanged**: `STAGING_RELEASE=NO_GO`, `PRODUCTION_RELEASE=NO_GO`, `PRODUCTION_ACTIVATION_ALLOWED=false`. No real DNS, certificate, CLB/WAF, TKE/Helm/Ingress, real production Smoke, production data, real Provider, push, deploy or public release was executed.
+- **Topology boundary**: checked-in Compose assumes Nginx terminates TLS and is the backend's single trusted proxy hop. A future L7 CLB/TKE topology must separately configure trusted real-IP CIDRs, `TRUST_PROXY_HOPS`, rate limiting and private metrics access.
+- **Tag**: none. Unit B authorization covered a local Lock commit, not tag/push/deploy.
+- **Report**: `docs/reports/UNIT_B_PRODUCTION_EDGE_ROUTING_LOCK_REPORT_2026-07-19.md`.
+
+## Commercialization Unit C — Privacy Inventory, Draft Agreements, Threat Model (LOCKED)
+
+- **Authorization**: Human explicitly authorized Unit C construction, Agent cluster execution, autonomous acceptance and Lock on 2026-07-19.
+- **Branch/base**: `codex/unit-c-privacy-lock` from `863930fbc7b0f2cc683222770bc99eec55afc5af`.
+- **Construction commit**: `0de3fe04654018fc2941e52b494bef0a747f89fd`.
+- **Canonical tag**: `xlb-unit-c-privacy-foundation-v1` identifies the final Lock metadata commit.
+- **Locked artifacts**: 30-row personal-information inventory; privacy-policy and user-service-agreement engineering drafts; STRIDE/privacy threat model; repeatable `gate:unit-c-privacy`.
+- **Independent acceptance**: first review found two P1 findings (front-matter Gate bypass and incomplete Admin role disclosure); both were corrected. Final review returned `PASS` with `P0/P1/P2/P3 = 0/0/0/0`.
+- **Lock verification**: `pnpm gate:unit-c-privacy` PASS; adversarial `production_approved: yes` injection failed as expected; restored `false` candidate passed; Unit C diff hygiene and staged lean-risk check passed.
+- **Legal/production boundary**: engineering drafts remain `DRAFT_NOT_LEGAL_ADVICE`, `production_approved: false`, `NOT_FOR_PUBLICATION` and `NO_GO`. Operator identity, platform/self-operated legal characterization, real SDK/Provider flow, W5B rights/consent/deletion runtime and licensed-counsel review remain release blockers.
+- **New P0 engineering facts**: cross-app generic Order authorization, non-universal Admin database city-scope enforcement, and production registration of mock payment webhook require separate high-risk remediation. No fix is included in Unit C.
+- **Production state**: Phase 14 remains `ENGINEERING REMEDIATION LOCKED / PRODUCTION BLOCKED`; this Unit C Lock does not authorize Provider, deploy, push, production data, payment or public release.
+- **Report**: `docs/reports/UNIT_C_PRIVACY_FOUNDATION_LOCK_REPORT.md`.
 
 ## Phase 25 — Five-System UI Standardization (LOCKED)
 
@@ -439,6 +466,7 @@
 - **Closed internal findings**: Outbox monitoring semantics and query cost, persistent-test DB pollution, Vitest workspace deprecation, Redis realtime listener lifecycle, fresh-database Phase 16 derived data, Platform Delivery timestamp precision, immutable production images, file-backed secrets, MySQL/Redis TLS, container hardening, strong smoke and observability templates.
 - **Production status**: `STAGING_RELEASE=NO_GO`, `PRODUCTION_RELEASE=NO_GO`, `PRODUCTION_ACTIVATION_ALLOWED=false`.
 - **Remaining blockers**: real Secret Manager values, DNS/certificates/ingress, managed MySQL/Redis and backup topology, deployed monitoring/alert routing/on-call ownership, company entity, ICP, real Provider accounts/contracts/credentials and production release ownership.
+- **Unit A engineering gate Lock (2026-07-19)**: the Human explicitly authorized autonomous remediation and acceptance for full gates, hardcodes, Phase-state parsing and intermittent timeouts. Canonical CSS-token use replaced new raw Customer values without raising the hardcode baseline; Phase27/28 now parse the Phase table structurally; flaky PowerShell, Worker async, clean-DB browser fixtures, four-step Customer coupon flow and cursor-tamper tests were made deterministic. Final isolated `pnpm gate:stage5` passed in `423.2s`; the readiness matrix still reports 7 production blockers and release remains NO-GO. See `docs/reports/UNIT_A_ENGINEERING_GATE_LOCK_REPORT_2026-07-19.md`.
 - **Reference reports**: `docs/reports/STAGE5_ENGINEERING_AUDIT.md`, `docs/reports/OUTBOX_RELIABILITY_REMEDIATION.md`, `docs/reports/FRESH_DATABASE_BOOTSTRAP_REMEDIATION.md`, `docs/release/PRODUCTION_REPOSITORY_READINESS.md`.
 
 ## Phase 16 - SKU / Pricing / Fee Items / Installation Standards (COMPLETE)

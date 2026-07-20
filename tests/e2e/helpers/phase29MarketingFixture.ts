@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { RowDataPacket } from "mysql2/promise";
+import { hashPhoneIdentity } from "../../../backend/src/auth/phoneIdentity.js";
 import { getMysqlPool } from "../../../backend/src/dal/mysqlPool.js";
 import { runMigrations } from "../../../backend/src/dal/migrationRunner.js";
 
@@ -13,6 +14,7 @@ export const phase29Fixture = {
   publisher: { id: `p29e_publisher_${nonce}`, username: `p29e_publisher_${nonce}` },
   traceOperator: { id: `p29e_trace_${nonce}`, username: `p29e_trace_${nonce}` },
   customerPhone: `139${String(Date.now()).slice(-8)}`,
+  workerPhone: "13800000001",
   customerId: "",
   campaignId: "",
   ruleRevisionId: "",
@@ -26,6 +28,11 @@ export const phase29Fixture = {
 
 let workerStateBefore = "";
 let subscriptionStateBefore = "";
+let workerPhoneBefore: {
+  phone_hash: string | null;
+  phone_masked: string | null;
+  updated_at: Date;
+} | null = null;
 
 async function rowsJson(sql: string, params: unknown[] = []): Promise<string> {
   const [rows] = await getMysqlPool().query<RowDataPacket[]>(sql, params);
@@ -65,6 +72,19 @@ export async function setupPhase29MarketingFixture(): Promise<void> {
 
   workerStateBefore = await snapshotWorkerState();
   subscriptionStateBefore = await snapshotSubscriptions();
+  const [workerRows] = await pool.query<(RowDataPacket & {
+    phone_hash: string | null;
+    phone_masked: string | null;
+    updated_at: Date;
+  })[]>(
+    "SELECT phone_hash,phone_masked,updated_at FROM worker_profiles WHERE worker_id='worker-demo-hangzhou'",
+  );
+  workerPhoneBefore = workerRows[0] ?? null;
+  if (!workerPhoneBefore) throw new Error("worker-demo-hangzhou fixture is missing");
+  await pool.query(
+    "UPDATE worker_profiles SET phone_hash=?,phone_masked=? WHERE worker_id='worker-demo-hangzhou'",
+    [hashPhoneIdentity(phase29Fixture.workerPhone), "138****0001"],
+  );
   for (const actor of [phase29Fixture.creator, phase29Fixture.reviewer, phase29Fixture.publisher, phase29Fixture.traceOperator]) {
     await pool.query(
       "INSERT INTO admin_users(id,username,role,city_scopes_json) VALUES(?,?,?,JSON_ARRAY('hangzhou'))",
@@ -145,6 +165,13 @@ export async function cleanupPhase29MarketingFixture(): Promise<void> {
   );
   if (phase29Fixture.customerId) {
     await pool.query("DELETE FROM customers WHERE id=?", [phase29Fixture.customerId]);
+  }
+
+  if (workerPhoneBefore) {
+    await pool.query(
+      "UPDATE worker_profiles SET phone_hash=?,phone_masked=?,updated_at=? WHERE worker_id='worker-demo-hangzhou'",
+      [workerPhoneBefore.phone_hash, workerPhoneBefore.phone_masked, workerPhoneBefore.updated_at],
+    );
   }
 
   const workerStateAfter = await snapshotWorkerState();

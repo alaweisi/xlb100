@@ -22,7 +22,11 @@ const operatorUsername = `p28e_operator_${runKey}`;
 const reviewComment = `真实评价 ${runKey}：师傅按约完成服务，现场处理规范。`;
 
 type Session = { token: string; userId: string; role: string };
-let workerPhoneBefore: { phone_hash: string | null; phone_masked: string | null } | null = null;
+let workerPhoneBefore: {
+  phone_hash: string | null;
+  phone_masked: string | null;
+  updated_at: Date;
+} | null = null;
 
 function headers(session: Session, cityCode = "hangzhou") {
   return { Authorization: `Bearer ${session.token}`, "x-xlb-city-code": cityCode };
@@ -146,8 +150,8 @@ async function createReviewableOrder(
 test.beforeAll(async () => {
   const pool = getMysqlPool();
   const [rows] = await pool.query<(RowDataPacket & {
-    phone_hash: string | null; phone_masked: string | null;
-  })[]>("SELECT phone_hash,phone_masked FROM worker_profiles WHERE worker_id='worker-demo-hangzhou'");
+    phone_hash: string | null; phone_masked: string | null; updated_at: Date;
+  })[]>("SELECT phone_hash,phone_masked,updated_at FROM worker_profiles WHERE worker_id='worker-demo-hangzhou'");
   workerPhoneBefore = rows[0] ?? null;
   if (!workerPhoneBefore) throw new Error("worker-demo-hangzhou fixture is missing");
   await pool.query(
@@ -179,8 +183,8 @@ test.afterAll(async () => {
     await pool.query("DELETE FROM admin_users WHERE id IN (?,?)", [adminId, operatorId]);
     if (workerPhoneBefore) {
       await pool.query(
-        "UPDATE worker_profiles SET phone_hash=?,phone_masked=? WHERE worker_id='worker-demo-hangzhou'",
-        [workerPhoneBefore.phone_hash, workerPhoneBefore.phone_masked],
+        "UPDATE worker_profiles SET phone_hash=?,phone_masked=?,updated_at=? WHERE worker_id='worker-demo-hangzhou'",
+        [workerPhoneBefore.phone_hash, workerPhoneBefore.phone_masked, workerPhoneBefore.updated_at],
       );
     }
   }

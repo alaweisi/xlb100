@@ -2,6 +2,7 @@ import type { FastifyReply, FastifyRequest } from "fastify";
 import type { RequestContext } from "@xlb/types";
 import { XLB_HEADERS } from "@xlb/types";
 import { buildRequestContext } from "./requestContext.js";
+import { isTokenRevoked } from "../auth/tokenRevocation.js";
 
 declare module "fastify" {
   interface FastifyRequest {
@@ -34,6 +35,13 @@ export function createRequestContextMiddleware(
         ok: false,
         error: result.message,
         details: result.details,
+      });
+    }
+
+    if (await isTokenRevoked(result.tokenPayload.jti)) {
+      return reply.status(401).send({
+        ok: false,
+        error: "token revoked",
       });
     }
 

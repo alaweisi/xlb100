@@ -1,6 +1,8 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { loadEnv } from "@xlb/config";
 import { hashAuthAuditIdentity, maskPhone } from "./phoneIdentity.js";
+import { extractBearerToken, verifyToken } from "./tokenAuth.js";
+import { revokeToken } from "./tokenRevocation.js";
 import {
   adminLogin,
   customerLogin,
@@ -57,6 +59,21 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       const result = await customerLogin(body.phone ?? "", body.code ?? "");
       if (!result.ok) return sendError(reply, result);
       return result;
+    },
+  );
+
+  app.post(
+    "/api/auth/customer/logout",
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const bearer = extractBearerToken(request.headers);
+      if (!bearer.ok) return reply.status(401).send({ ok: false, error: bearer.error });
+      const verified = verifyToken(bearer.token);
+      if (!verified.ok) return reply.status(401).send({ ok: false, error: verified.error });
+      if (verified.payload.appType !== "customer" || verified.payload.role !== "customer") {
+        return reply.status(403).send({ ok: false, error: "Customer token required" });
+      }
+      await revokeToken(verified.payload);
+      return { ok: true as const };
     },
   );
 

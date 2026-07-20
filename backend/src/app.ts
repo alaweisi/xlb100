@@ -49,6 +49,7 @@ import { registerNotificationModule } from "./notification/notificationModule.js
 import { registerMarketingModule } from "./marketing/marketingModule.js";
 import { XLB_RUNTIME_STATUS } from "./projectStatus.js";
 import { registerDashboardRoutes } from "./dashboard/dashboardRoutes.js";
+import { closeTokenRevocationClient } from "./auth/tokenRevocation.js";
 
 export type BuildAppOptions = {
   rateLimit?: RateLimitOptions;
@@ -75,6 +76,9 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     },
     trustProxy: env.trustProxyHops > 0 ? env.trustProxyHops : false,
     bodyLimit: 1_048_576,
+  });
+  app.addHook("onClose", async () => {
+    await closeTokenRevocationClient();
   });
   await app.register(helmet, {
     contentSecurityPolicy: false,

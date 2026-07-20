@@ -1,6 +1,7 @@
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
+. (Join-Path $PSScriptRoot 'lib/current-state.ps1')
 
 function Require-Contains {
   param([string]$Text, [string]$Needle, [string]$Label)
@@ -14,10 +15,9 @@ if ($LASTEXITCODE -ne 0 -or $tagCommit -ne $mergeBase) {
 }
 
 $state = Get-Content -Raw -Encoding UTF8 -LiteralPath 'docs/CURRENT_STATE.md'
-Require-Contains $state 'Phase 27 | LOCKED' 'Phase27 LOCKED truth'
-Require-Contains $state 'Phase 14 | IN PROGRESS' 'Phase14 IN PROGRESS truth'
-Require-Contains $state '64/100' 'Phase14 readiness score'
-Require-Contains $state 'staging/production `NO-GO`' 'production NO-GO truth'
+$phase27 = Get-XlbPhaseTableEntry -CurrentStateText $state -PhaseId 'Phase 27'
+$null = Assert-XlbPhaseStatusIn -Entry $phase27 -AllowedStatuses @('LOCKED')
+$null = Assert-XlbPhase14ProductionBlocked -CurrentStateText $state
 
 $phase29EntryPath = 'docs/reports/PHASE29_MARKETING_COUPON_ENTRY_REPORT.md'
 $phase29ArchitecturePath = 'docs/architecture/29_XLB_MARKETING_COUPON.md'
@@ -109,6 +109,15 @@ $expectedPhase28Migrations = @('056_phase28_review_reputation.sql')
 if ($phase29Authorized) { $expectedPhase28Migrations += '057_phase29_marketing_coupon.sql' }
 if (Test-Path -LiteralPath 'db/migrations/058_stage2c2_migration_control.sql') {
   $expectedPhase28Migrations += '058_stage2c2_migration_control.sql'
+}
+$tkeCosMigrationPath = 'db/migrations/059_tke_cos_object_storage.sql'
+$tkeCosSourceCommit = '8c28d81fc81c84805368c969c590a77bf2a95b91'
+if (Test-Path -LiteralPath $tkeCosMigrationPath) {
+  $tkeCosHash = (git hash-object -- $tkeCosMigrationPath).Trim()
+  $lockedTkeCosHash = (git rev-parse "${tkeCosSourceCommit}:$tkeCosMigrationPath" 2>$null).Trim()
+  if ($LASTEXITCODE -eq 0 -and $tkeCosHash -eq $lockedTkeCosHash) {
+    $expectedPhase28Migrations += '059_tke_cos_object_storage.sql'
+  }
 }
 $actualMigrationNames = @($laterMigrations.Name | Sort-Object) -join ','
 $expectedMigrationNames = @($expectedPhase28Migrations | Sort-Object) -join ','

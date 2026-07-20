@@ -117,16 +117,40 @@ export async function createNotificationChannel(kind: NotificationFixtureKind): 
   return { kind, identity, subscriptionId, subscriberId, title };
 }
 
-export async function projectProspectiveEvent(channel: NotificationChannel): Promise<{ notificationId: string }> {
+export async function projectProspectiveEvent(
+  channel: NotificationChannel,
+  sourceAggregateId: string,
+): Promise<{ notificationId: string }> {
+  const pool = getMysqlPool();
+  const eventType = channel.kind === "customer_order" ? "order.created" : "support.ticket.resolved";
+  const [sourceRows] = await pool.query<(RowDataPacket & { event_id: string; created_at: Date })[]>(
+    `SELECT event_id,created_at
+       FROM event_outbox
+      WHERE city_code=? AND event_type=? AND aggregate_id=?
+      ORDER BY created_at ASC,event_id ASC
+      LIMIT 1`,
+    [cityCode, eventType, sourceAggregateId],
+  );
+  const source = sourceRows[0];
+  if (!source) {
+    throw new Error(`Phase27E ${eventType} source event is missing for ${sourceAggregateId}`);
+  }
+  await pool.query(
+    `UPDATE platform_event_subscriptions
+        SET live_start_created_at=?,live_start_event_id=?
+      WHERE city_code=? AND subscription_id=?`,
+    [source.created_at, source.event_id, cityCode, channel.subscriptionId],
+  );
+
   const platform = new PlatformDeliveryService();
-  const materialized = await platform.materializeCandidateBatch(channel.identity, channel.subscriptionId, 20);
-  if (materialized.inserted !== 1) {
+  const materialized = await platform.materializeCandidateBatch(channel.identity, channel.subscriptionId, 1);
+  if (materialized.scanned !== 1 || materialized.inserted !== 1 || materialized.rejected !== 0) {
     throw new Error(`Phase27E expected exactly one prospective ${channel.kind} delivery, got ${JSON.stringify(materialized)}`);
   }
   const result = await new NotificationProjectionWorker().runOnce(channel.identity, {
     subscriptionId: channel.subscriptionId,
     owner: `${runPrefix}_${channel.kind}_owner`,
-    limit: 20,
+    limit: 1,
     leaseSeconds: 30,
   });
   if (result.claimed !== 1 || result.projected !== 1 || result.acknowledged !== 1 || result.failed !== 0) {

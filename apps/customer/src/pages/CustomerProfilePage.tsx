@@ -16,7 +16,7 @@ type ProfileApi = {
   deleteAddress(addressId: string): Promise<{ ok: true; addressId: string; deleted: true }>;
 };
 
-export interface CustomerProfilePageProps { api: ProfileApi; cityCode: CityCode; }
+export interface CustomerProfilePageProps { api: ProfileApi; cityCode: CityCode; onLogout?: () => void; }
 
 function commandKey(prefix: string): string {
   return `${prefix}-${globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`}`;
@@ -36,7 +36,7 @@ function emptyAddress(cityCode: CityCode): SaveCustomerAddressRequest {
   };
 }
 
-export function CustomerProfilePage({ api, cityCode }: CustomerProfilePageProps) {
+export function CustomerProfilePage({ api, cityCode, onLogout }: CustomerProfilePageProps) {
   const binding = createCustomerUiBinding({ route: "profile", cityCode });
   const initialAddress = useMemo(() => emptyAddress(cityCode), [cityCode]);
   const [profile, setProfile] = useState<CustomerProfile | null>(null);
@@ -132,7 +132,10 @@ export function CustomerProfilePage({ api, cityCode }: CustomerProfilePageProps)
             <div className="customer-order-actions"><a href="/customer/notifications" className="notification-entry-link">消息中心</a><a href="/customer/coupons" className="notification-entry-link">我的优惠券</a></div>
             <div style={{ color: "#64748b", fontSize: 13 }}>{profile?.phoneMasked ?? "手机号待加载"}</div>
             <FormField label="显示名称"><Input value={name} onChange={(event) => setName(event.target.value)} /></FormField>
-            <Button variant="primary" disabled={busy !== null || !name.trim()} onClick={() => void saveProfile()}>{savingProfile ? "正在保存" : "保存个人资料"}</Button>
+            <div className="customer-order-actions">
+              <Button variant="primary" disabled={busy !== null || !name.trim()} onClick={() => void saveProfile()}>{savingProfile ? "正在保存" : "保存个人资料"}</Button>
+              {onLogout ? <Button onClick={onLogout}>退出登录</Button> : null}
+            </div>
           </div>
         </Card>
 

@@ -47,7 +47,10 @@ if ($Confirmation -ne $requiredConfirmation) {
 }
 
 $envValues = Read-EnvValues $envPath
-$imageNames = @("PROD_BACKEND_IMAGE", "PROD_CUSTOMER_IMAGE", "PROD_WORKER_IMAGE", "PROD_ADMIN_IMAGE")
+$imageNames = @(
+  "PROD_BACKEND_IMAGE", "PROD_GATEWAY_IMAGE", "PROD_CUSTOMER_IMAGE",
+  "PROD_WORKER_IMAGE", "PROD_ADMIN_IMAGE"
+)
 foreach ($name in $imageNames) {
   $value = [Environment]::GetEnvironmentVariable($name)
   if (-not $value) { $value = $envValues[$name] }
@@ -60,7 +63,8 @@ $secretFiles = @(
   "MYSQL_PASSWORD_SECRET_FILE", "MYSQL_TLS_CA_SECRET_FILE",
   "REDIS_PASSWORD_SECRET_FILE", "REDIS_TLS_CA_SECRET_FILE",
   "JWT_SECRET_FILE", "JWT_KEYS_JSON_SECRET_FILE",
-  "AUTH_PHONE_HASH_SECRET_FILE", "AUTH_OTP_PEPPER_SECRET_FILE"
+  "AUTH_PHONE_HASH_SECRET_FILE", "AUTH_OTP_PEPPER_SECRET_FILE",
+  "TLS_FULLCHAIN_SECRET_FILE", "TLS_PRIVATE_KEY_SECRET_FILE"
 )
 foreach ($name in $secretFiles) {
   $value = [Environment]::GetEnvironmentVariable($name)

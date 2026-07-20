@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "policy": "phase11-later-ui-exact-file-authorization",
+  "authorizations": [
+    {
+      "authorizationId": "unit-a-customer-ui-gate-remediation",
+      "decision": "human-approved",
+      "scope": "post-phase11-ui-only",
+      "requiredPhaseStates": [
+        {
+          "phaseId": "Phase 14",
+          "status": "ENGINEERING REMEDIATION LOCKED / PRODUCTION BLOCKED",
+          "tag": "xlb-stage5-engineering-remediation-v1"
+        },
+        {
+          "phaseId": "Phase 25",
+          "status": "LOCKED",
+          "tag": "xlb-phase25-ui-standardization-v1.0"
+        }
+      ],
+      "files": [
+        "apps/customer/package.json",
+        "apps/customer/src/pages/CustomerHomePage.tsx",
+        "apps/customer/src/pages/CustomerOrdersPage.tsx",
+        "apps/customer/src/pages/CustomerServicesPage.tsx",
+        "apps/customer/src/pages/customer-order-create.css"
+      ]
+    }
+  ]
+}

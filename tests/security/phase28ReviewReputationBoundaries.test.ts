@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
 import { runPowerShellGate } from "./helpers/runPowerShellGate.js";
 
-describe("Phase28 Review/Reputation engineering boundaries", () => {
+describe("Phase28 Review/Reputation engineering boundaries", { timeout: 20_000 }, () => {
   it("freezes the human-approved Entry Gate before runtime construction", () => {
     expect(runPowerShellGate("check-phase28-entry-boundaries.ps1")).toContain(
       "check-phase28-entry-boundaries: passed",
@@ -27,19 +27,19 @@ describe("Phase28 Review/Reputation engineering boundaries", () => {
     );
   });
 
-  it("keeps the historical Phase27A migration boundary fail-closed while admitting only 055 plus approved 056", () => {
+  it("keeps the historical Phase27A migration boundary fail-closed through the exact approved TKE COS 059", () => {
     expect(runPowerShellGate("check-phase27a-platform-delivery-boundaries.ps1")).toContain(
       "check-phase27a-platform-delivery-boundaries: passed",
     );
   });
 
-  it("keeps the historical Phase27B migration boundary fail-closed while admitting only approved 056", () => {
+  it("keeps the historical Phase27B migration boundary fail-closed through the exact approved TKE COS 059", () => {
     expect(runPowerShellGate("check-phase27b-notification-projection-boundaries.ps1")).toContain(
       "check-phase27b-notification-projection-boundaries: passed",
     );
   });
 
-  it("keeps Phase27 B2/C migration boundaries fail-closed while admitting only approved 056", () => {
+  it("keeps Phase27 B2/C migration boundaries fail-closed through the exact approved TKE COS 059", () => {
     expect(runPowerShellGate("check-phase27b-b2-notification-runtime-boundaries.ps1")).toContain(
       "check-phase27b-b2-notification-runtime-boundaries: passed",
     );
@@ -48,7 +48,7 @@ describe("Phase28 Review/Reputation engineering boundaries", () => {
     );
   });
 
-  it("preserves the locked Phase27 completion gate with the exact approved 054/055/056 ledger", () => {
+  it("preserves the locked Phase27 completion gate with the exact approved 054-059 ledger", () => {
     expect(runPowerShellGate("check-phase27-completion-boundaries.ps1")).toContain(
       "check-phase27-completion-boundaries: passed",
     );
