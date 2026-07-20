@@ -467,7 +467,7 @@ export function CustomerOrderCreatePage({
         <div style={{ display: "grid", gap: 10 }}>
           <strong>{`${addressOption.city} · ${cityAreaByCode[cityCode] ?? "当前服务区域"}`}</strong>
           <FormField label="服务项目" description="服务与价格均来自当前城市实时目录">
-            <Select value={selectedSkuId} onChange={(event) => setSelectedSkuId(event.target.value)}>
+            <Select aria-label="服务项目" value={selectedSkuId} onChange={(event) => setSelectedSkuId(event.target.value)}>
               <option value="" disabled>
                 请选择服务
               </option>
@@ -509,7 +509,7 @@ export function CustomerOrderCreatePage({
             </FormField>
           )}
           <FormField label="服务区域" description={`${orderFormDetails.addressProvince} / ${orderFormDetails.addressCity}`}>
-            <Select value={selectedDistrict} onChange={(event) => setSelectedDistrict(event.target.value)}>
+            <Select aria-label="服务区域" value={selectedDistrict} onChange={(event) => setSelectedDistrict(event.target.value)}>
               {[...new Set([selectedDistrict, ...addressOption.districts])].map((district) => (
                 <option key={district} value={district}>
                   {district}
@@ -519,6 +519,7 @@ export function CustomerOrderCreatePage({
           </FormField>
           <FormField label="详细地址" description="请填写小区、楼栋、单元和门牌号">
             <Textarea
+              aria-label="详细地址"
               value={detailAddress}
               onChange={(event) => setDetailAddress(event.target.value)}
               placeholder="示例小区3栋502室"
@@ -526,10 +527,11 @@ export function CustomerOrderCreatePage({
           </FormField>
           <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
             <FormField label="联系人">
-              <Input value={contactName} onChange={(event) => setContactName(event.target.value)} placeholder="联系人" />
+              <Input aria-label="联系人" value={contactName} onChange={(event) => setContactName(event.target.value)} placeholder="联系人" />
             </FormField>
             <FormField label="联系电话" error={contactPhone && !isContactPhoneValid ? "请输入 11 位手机号" : undefined}>
               <Input
+                aria-label="联系电话"
                 value={contactPhone}
                 onChange={(event) => setContactPhone(event.target.value)}
                 inputMode="tel"
@@ -539,7 +541,7 @@ export function CustomerOrderCreatePage({
           </div>
           <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
             <FormField label="服务日期">
-              <Select value={String(scheduleDayOffset)} onChange={(event) => setScheduleDayOffset(Number(event.target.value))}>
+              <Select aria-label="服务日期" value={String(scheduleDayOffset)} onChange={(event) => setScheduleDayOffset(Number(event.target.value))}>
                 {scheduleDayOptions.map((option) => (
                   <option key={option.offsetDays} value={option.offsetDays}>
                     {option.label}
@@ -549,6 +551,7 @@ export function CustomerOrderCreatePage({
             </FormField>
             <FormField label="服务时段" description={selectedTimeSlot.timeRange}>
               <Select
+                aria-label="服务时段"
                 value={scheduledTimeSlot}
                 onChange={(event) => setScheduledTimeSlot(event.target.value as ScheduledTimeSlot)}
               >
@@ -601,6 +604,7 @@ export function CustomerOrderCreatePage({
             description="优惠资格、服务范围、数量和价格版本均由服务端校验"
           >
             <Select
+              aria-label="优惠券"
               value={selectedCouponGrantId}
               disabled={!couponsReady}
               onChange={(event) => setSelectedCouponGrantId(event.target.value)}

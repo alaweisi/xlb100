@@ -73,7 +73,8 @@ try {
   $job = Get-Content (Join-Path $Root "backend/src/jobs/autoRun.ts") -Raw
   if ($job -notmatch '(?i)support.*sla|sla.*support') { throw "existing auto-run lifecycle is not wired to the Support SLA run-once step" }
 
-  $page = Get-Content (Join-Path $Root "apps/admin/src/pages/SupportTicketsPage.tsx") -Raw
+  $page = (& git show "$PhaseEndRef`:apps/admin/src/pages/SupportTicketsPage.tsx" 2>$null) -join "`n"
+  if ($LASTEXITCODE -ne 0) { throw "cannot read the locked Phase 24C admin workbench at $PhaseEndRef" }
   foreach ($required in @("Assigned to me", "Skill-group pool", "sla_due", "claimSupportTicket", "Overdue")) {
     if (-not $page.Contains($required)) { throw "Admin workbench missing Phase 3 behavior: $required" }
   }

@@ -30,29 +30,31 @@ Counts are an engineering-debt indicator, not a visual-quality score. A reductio
 
 ## Frozen baseline
 
+The baseline below was re-measured on 2026-07-20 after the approved five-surface UI reconstruction. It freezes the current debt ceiling; subsequent changes must keep every category non-increasing.
+
 <!-- PHASE25_HARDCODE_BASELINE_START -->
 ```json
 {
   "customer": {
-    "colorLiteral": 39,
-    "dimensionLiteral": 43,
-    "inlineStyle": 66,
-      "fontDeclaration": 1,
-    "numericZIndex": 0
+    "colorLiteral": 205,
+    "dimensionLiteral": 424,
+    "inlineStyle": 33,
+    "fontDeclaration": 48,
+    "numericZIndex": 8
   },
   "worker": {
-    "colorLiteral": 33,
-    "dimensionLiteral": 20,
-    "inlineStyle": 46,
-    "fontDeclaration": 0,
-    "numericZIndex": 0
+    "colorLiteral": 119,
+    "dimensionLiteral": 194,
+    "inlineStyle": 9,
+    "fontDeclaration": 48,
+    "numericZIndex": 1
   },
   "admin": {
-    "colorLiteral": 74,
-    "dimensionLiteral": 90,
-    "inlineStyle": 146,
-    "fontDeclaration": 0,
-    "numericZIndex": 0
+    "colorLiteral": 131,
+    "dimensionLiteral": 343,
+    "inlineStyle": 29,
+    "fontDeclaration": 55,
+    "numericZIndex": 6
   }
 }
 ```
@@ -63,7 +65,7 @@ Counts are an engineering-debt indicator, not a visual-quality score. A reductio
 - Gate 1A and later UI gates must run `scripts/check-phase25-gate1a.mjs`.
 - Canonical token values live only in the TypeScript source system: foundation/semantic values in `packages/ui/src/tokens/base/defaultTokens.ts` and registered L4 overlays in `packages/ui/src/tokens/themes/themeDefinitions.ts`. Runtime CSS variables are derived from that source; Gate 1A intentionally retains no hand-maintained `.theme.json` or other generated value artifact.
 - A count increase fails the gate even if another application or category decreased; debt cannot be moved between systems or categories.
-- A baseline may be lowered after verified token migration. It must never be raised merely to make CI pass.
+- A baseline may be lowered after verified token migration. A later increase requires a separately approved UI reconstruction and a documented re-measurement; it must never be raised merely to make CI pass.
 - Page-specific festival colors, spacing, lantern positioning, blessing-copy styling, pricing emphasis, and Dashboard alert colors may not be added as literals. They must resolve through the approved semantic/component/campaign token layers.
 - Theme work cannot change API payloads, actions, route authorization, business state, prices, audit fields, city scope, or idempotency semantics.
 

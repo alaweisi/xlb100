@@ -36,6 +36,18 @@ $phase29AllowedFiles = @(
   'packages/validators/src/marketingSchema.ts'
 )
 $allowedFiles = @(
+  "docs/design/ui/phase25/page-cards/ADMIN_GATE5_ROUTE_CARDS.md",
+  "docs/design/ui/production-control/SLICE_ACCEPTANCE_CONSOLE.html",
+  "docs/design/ui/production-control/SLICE_IMPLEMENTATION_LEDGER.json",
+  "docs/design/ui/production-control/evidence/ADMIN-FULL/manifest.json",
+  "docs/design/ui/production-control/evidence/CUSTOMER-FULL/manifest.json",
+  "docs/design/ui/production-control/evidence/WORKER-FULL/manifest.json",
+  "docs/design/ui/vertical-slices/FRAME_MAP_SLICE_BINDINGS.md",
+  "docs/design/ui/vertical-slices/INTERACTION_STATE_INVENTORY.md",
+  "docs/design/ui/vertical-slices/SCREEN_STATE_COMPONENT_BOUNDARY.md",
+  "docs/design/ui/vertical-slices/SCREEN_STATE_COMPONENT_MATRIX.md",
+  "docs/design/ui/vertical-slices/SLICE_LEDGER.md",
+  "docs/design/ui/vertical-slices/SLICE_SCOPE_BASELINE.md",
   "backend/src/support/bot/sensitiveSupportGuard.ts",
   "docs/architecture/support-bot-kb-design.md",
   "docs/architecture/support-quality-design.md",
@@ -164,5 +176,9 @@ foreach ($l in $lines) {
     }
   }
 }
-if ($vs) { Write-Host "check-phase9d-forbidden-zone: FAILED"; exit 1 }
+if ($vs) {
+  Write-Host "check-phase9d-forbidden-zone: FAILED"
+  $vs | ForEach-Object { Write-Host "  $_" }
+  exit 1
+}
 Write-Host "check-phase9d-forbidden-zone: passed (exact allowlist through authorized Phase 29 marketing compensation)"

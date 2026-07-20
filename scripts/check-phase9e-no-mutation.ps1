@@ -3,6 +3,7 @@ $ErrorActionPreference = "Stop"; $Root = Split-Path -Parent $PSScriptRoot
 $d = & git -C $Root diff main...HEAD -- backend/src/ packages/ docs/ ':!docs/release/' 2>$null
 $fb = @('mutate_settlement','commit_settlement','ledger_mutation','reverse_ledger','refund_execution','payout','execute_payout','paid_at','refunded_at','settled_at')
 $allowedFiles = @(
+  "docs/design/ui/phase25/page-cards/ADMIN_GATE5_ROUTE_CARDS.md",
   "docs/architecture/support-quality-design.md",
   "docs/reports/PHASE24_COMPLETION_REPORT.md",
   "apps/admin/src/pages/SupportTicketsPage.tsx",
@@ -95,5 +96,9 @@ foreach ($l in $lines) {
     foreach ($t in $fb) { if ($l -match $t) { $vs += "$($cf): $($l.Trim())"; break } }
   }
 }
-if ($vs) { Write-Host "check-phase9e-no-mutation: FAILED"; exit 1 }
+if ($vs) {
+  Write-Host "check-phase9e-no-mutation: FAILED"
+  $vs | ForEach-Object { Write-Host "  $_" }
+  exit 1
+}
 Write-Host "check-phase9e-no-mutation: passed (exact allowlist)"

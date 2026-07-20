@@ -167,6 +167,7 @@ describe("B1-05 订单详情与支付结果", () => {
     };
     const createPaymentOrder = vi.fn().mockResolvedValue({ paymentOrder: payment });
     const api = {
+      listOrders: vi.fn().mockResolvedValue({ orders: [orderFixture], nextCursor: null }),
       getOrder: vi.fn().mockResolvedValue({ order: orderFixture }),
       getOrderReview: vi.fn().mockResolvedValue({ review: null }),
       confirmService: vi.fn(),
@@ -176,9 +177,10 @@ describe("B1-05 订单详情与支付结果", () => {
       createReviewAppeal: vi.fn(),
       withdrawReviewAppeal: vi.fn(),
     };
-    render(<CustomerOrdersPage api={api} cityCode="hangzhou" orderIds={["order-real-1"]} />);
+    render(<CustomerOrdersPage api={api} cityCode="hangzhou" />);
 
     fireEvent.click(await screen.findByRole("button", { name: "进入支付" }));
+    expect(api.listOrders).toHaveBeenCalledWith({ limit: 20 });
     await waitFor(() => expect(createPaymentOrder).toHaveBeenCalledWith({ orderId: "order-real-1" }));
     expect(await screen.findByText("等待支付结果")).toBeTruthy();
     expect(screen.queryByText("支付成功")).toBeNull();

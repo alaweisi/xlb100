@@ -52,7 +52,7 @@ describe("Phase11 historical Customer/Worker boundary", () => {
 
     expect(manifest.schemaVersion).toBe(1);
     expect(manifest.policy).toBe("phase11-later-ui-exact-file-authorization");
-    expect(manifest.authorizations).toHaveLength(1);
+    expect(manifest.authorizations).toHaveLength(4);
     expect(manifest.authorizations[0]).toMatchObject({
       authorizationId: "unit-a-customer-ui-gate-remediation",
       decision: "human-approved",
@@ -70,13 +70,34 @@ describe("Phase11 historical Customer/Worker boundary", () => {
         },
       ],
     });
-    expect(manifest.authorizations.flatMap(({ files }) => files)).toEqual([
-      "apps/customer/package.json",
-      "apps/customer/src/pages/CustomerHomePage.tsx",
-      "apps/customer/src/pages/CustomerOrdersPage.tsx",
-      "apps/customer/src/pages/CustomerServicesPage.tsx",
-      "apps/customer/src/pages/customer-order-create.css",
-    ]);
+    const authorizationIds = manifest.authorizations.map(({ authorizationId }) => authorizationId);
+    const authorizedFiles = manifest.authorizations.flatMap(({ files }) => files);
+    expect(new Set(authorizationIds).size).toBe(authorizationIds.length);
+    expect(new Set(authorizedFiles).size).toBe(authorizedFiles.length);
+    for (const authorization of manifest.authorizations) {
+      expect(authorization).toMatchObject({
+        decision: "human-approved",
+        scope: "post-phase11-ui-only",
+      });
+      expect(authorization.files.length).toBeGreaterThan(0);
+      expect(authorization.files.length).toBeLessThanOrEqual(16);
+      expect(authorization.requiredPhaseStates.length).toBeGreaterThan(0);
+    }
+    expect(authorizedFiles).toEqual(
+      expect.arrayContaining([
+        "apps/customer/package.json",
+        "apps/customer/src/pages/CustomerHomePage.tsx",
+        "apps/customer/src/pages/CustomerOrdersPage.tsx",
+        "apps/customer/src/pages/CustomerServicesPage.tsx",
+        "apps/customer/src/pages/customer-order-create.css",
+        "apps/customer/index.html",
+        "apps/customer/public/manifest.webmanifest",
+        "apps/worker/index.html",
+        "apps/worker/public/icons/worker-icon-192.svg",
+        "apps/worker/public/manifest.webmanifest",
+        "apps/worker/src/pages/TaskPages.tsx",
+      ]),
+    );
     expect(JSON.stringify(manifest)).not.toMatch(/[?*]/);
   });
 });

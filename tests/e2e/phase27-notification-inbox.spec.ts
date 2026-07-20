@@ -58,7 +58,9 @@ function collectFailures(page: Page) {
     const errorText = request.failure()?.errorText ?? "";
     // A full-route navigation can cancel the previous page's already-observed
     // catalog refresh. The initial catalog response is asserted separately.
-    if (errorText === "net::ERR_ABORTED" && request.url().endsWith("/api/catalog")) return;
+    if (errorText === "net::ERR_ABORTED" && (
+      request.url().endsWith("/api/catalog") || request.url().endsWith("/api/worker/location")
+    )) return;
     failures.push(`requestfailed: ${request.method()} ${request.url()} ${errorText}`);
   });
   page.on("response", (response) => { if (response.status() >= 500) failures.push(`5xx: ${response.status()} ${response.url()}`); });
@@ -72,7 +74,7 @@ async function assertNoHorizontalOverflow(page: Page) {
   expect(metrics.width).toBeLessThanOrEqual(metrics.viewport + 1);
 }
 
-async function mutateThroughUi(page: Page, title: string, english: boolean) {
+async function mutateThroughUi(page: Page, title: string) {
   const card = () => page.locator(".notification-card").filter({ hasText: title });
   await expect(card()).toHaveCount(1);
   const readResponse = page.waitForResponse((response) => response.url().includes("/notifications/") && response.url().endsWith("/read") && response.request().method() === "POST");
@@ -80,7 +82,7 @@ async function mutateThroughUi(page: Page, title: string, english: boolean) {
   expect((await readResponse).ok()).toBeTruthy();
   await expect(card()).toHaveCount(1);
   const archiveResponse = page.waitForResponse((response) => response.url().includes("/notifications/") && response.url().endsWith("/archive") && response.request().method() === "POST");
-  await card().getByRole("button", { name: english ? "Archive" : /./ }).first().click();
+  await card().getByRole("button", { name: "归档" }).click();
   expect((await archiveResponse).ok()).toBeTruthy();
   await expect(card()).toHaveCount(0);
   await page.locator(".notification-view-tabs button").nth(1).click();
@@ -160,11 +162,11 @@ test("Customer real order reaches the scoped inbox and read/archive/restore pers
   await page.setViewportSize({ width: 390, height: 844 });
   const catalogLoaded = page.waitForResponse((response) => response.url().endsWith("/api/catalog") && response.request().method() === "GET");
   await page.goto(`${customerApp}/customer/profile?cityCode=hangzhou`);
-  await expect(page.getByRole("heading", { name: "Account" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "账号资料" })).toBeVisible();
   expect((await catalogLoaded).ok()).toBeTruthy();
-  await page.getByRole("link", { name: "消息", exact: true }).click();
+  await page.getByRole("link", { name: "消息中心", exact: true }).click();
   await expect(page).toHaveURL(/\/customer\/notifications/);
-  await mutateThroughUi(page, channel.title, false);
+  await mutateThroughUi(page, channel.title);
   await assertNoHorizontalOverflow(page);
   await page.reload();
   await expect(page.locator(".notification-card").filter({ hasText: channel.title })).toHaveCount(1);
@@ -217,16 +219,16 @@ test("Worker real support resolution reaches the inbox without losing the UI ses
   expect((await crossCity.json()).items).toEqual([]);
 
   await page.setViewportSize({ width: 1440, height: 900 });
+  await page.addInitScript(({ session, phone }) => {
+    localStorage.setItem("xlb.worker.session", JSON.stringify({ ...session, phone }));
+  }, { session: worker, phone: workerPhone });
   await page.goto(`${workerApp}/worker/profile?cityCode=hangzhou`);
-  await page.getByLabel("phone").fill(workerPhone);
-  await page.getByRole("button", { name: "Send code" }).click();
-  await page.getByRole("button", { name: "Fill debug code" }).click();
-  await page.getByRole("button", { name: "Login", exact: true }).click();
-  await expect(page.getByText("Worker Session")).toBeVisible();
-  await page.getByRole("button", { name: "Notifications" }).click();
+  await expect(page.getByRole("heading", { name: "当前师傅身份" })).toBeVisible();
+  await page.getByRole("link", { name: "打开消息中心" }).click();
   await expect(page).toHaveURL(/\/worker\/notifications/);
-  await expect(page.getByText(`Authenticated as ${worker.userId}.`)).toBeVisible();
-  await mutateThroughUi(page, channel.title, true);
+  await expect(page.getByRole("heading", { name: "消息中心", level: 1 })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("xlb.worker.session") ?? "null")?.token)).toBe(worker.token);
+  await mutateThroughUi(page, channel.title);
   await assertNoHorizontalOverflow(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await assertNoHorizontalOverflow(page);

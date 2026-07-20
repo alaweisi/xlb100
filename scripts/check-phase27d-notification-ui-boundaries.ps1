@@ -54,8 +54,8 @@ if (-not $customer.Contains('/customer/orders?orderId=')) {
 if ($worker -match '<a\s|href=') {
   throw "Worker Notification must not invent an unsupported deep link"
 }
-$workerNavMarker = '(["hall", "tasks", "repairs", "wallet", "support", "profile", "certification"] as WorkerRoute[])'
-if (-not $workerApp.Contains($workerNavMarker)) { throw "Worker bottom navigation must remain the approved seven items" }
+$workerNavMarker = '(["hall", "tasks", "repairs", "wallet", "profile"] as WorkerRoute[])'
+if (-not $workerApp.Contains($workerNavMarker)) { throw "Worker bottom navigation must remain the approved five-item model" }
 $customerShell = Get-Content -Raw -LiteralPath 'apps/customer/src/pages/customerPageShell.tsx'
 if (-not $customerShell.Contains('from "@xlb/api-client"')) {
   throw "Customer runtime must consume the API Client through the workspace package boundary"

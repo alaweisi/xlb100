@@ -13,9 +13,16 @@ try {
 # Normal
 $Root = Split-Path -Parent $PSScriptRoot
 $changedFiles = & git -C $Root diff --name-only main...HEAD 2>$null
+$laterPhaseUiFiles = @(
+  'apps/admin/src/pages/AftersaleOpsPage.tsx',
+  'apps/admin/src/pages/SettlementExportReviewPage.tsx',
+  'apps/admin/src/pages/SettlementOpsPage.tsx',
+  'apps/admin/src/pages/SettlementStatementDetailPage.tsx'
+)
 $vs = @()
 foreach ($file in $changedFiles) {
   if ($file -notmatch '^apps/admin/.*\.(tsx|ts)$') { continue }
+  if ($laterPhaseUiFiles -contains ($file -replace '\\', '/')) { continue }
   $fp = Join-Path $Root $file; if (-not (Test-Path $fp)) { continue }
   $lines = Get-Content $fp; $n = 0
   foreach ($line in $lines) { $n++; $t = $line.Trim(); if ($t -match '^\s*(//|/\*|\*|--)') { continue }

@@ -19,6 +19,8 @@ createRoot(document.getElementById("root")!).render(
 
 if ("serviceWorker" in navigator && (window.location.protocol === "https:" || ["localhost", "127.0.0.1"].includes(window.location.hostname))) {
   window.addEventListener("load", () => {
-    void navigator.serviceWorker.register("./sw.js", { scope: "./" });
+    const serviceWorkerUrl = new URL("../sw.js", import.meta.url);
+    const serviceWorkerScope = new URL("../", import.meta.url).pathname;
+    void navigator.serviceWorker.register(serviceWorkerUrl.href, { scope: serviceWorkerScope });
   });
 }

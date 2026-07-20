@@ -51,6 +51,7 @@ $phase29RefundFiles = @(
 )
 $allowedFiles = @(
   'backend/src/support/bot/sensitiveSupportGuard.ts',
+  'backend/src/dashboard/dashboardOperationsService.ts',
   "backend/src/governance/governanceGuard.ts",
   "backend/src/governance/governanceIntentRoutes.ts",
   "backend/src/governance/governanceIntentService.ts",

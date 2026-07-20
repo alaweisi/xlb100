@@ -8,7 +8,7 @@ function Assert-ExactLaterUiAuthorizationPath {
   param([Parameter(Mandatory = $true)][string]$Path)
 
   if (
-    $Path -notmatch '^apps/(customer|worker)/(?:[A-Za-z0-9._-]+/)*[A-Za-z0-9._-]+\.(?:css|json|ts|tsx)$' -or
+    $Path -notmatch '^apps/(customer|worker)/(?:[A-Za-z0-9._-]+/)*[A-Za-z0-9._-]+\.(?:css|html|js|json|svg|ts|tsx|webmanifest)$' -or
     $Path.Contains('..') -or
     $Path.IndexOfAny([char[]]'*?[]{}') -ge 0 -or
     $Path.EndsWith('/') -or

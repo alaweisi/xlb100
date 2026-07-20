@@ -8,23 +8,23 @@ function uniquePhone(offset = 0): string {
 }
 
 async function loginThroughCustomerUi(page: Page, phone: string): Promise<void> {
-  await page.getByLabel("Phone number").fill(phone);
-  await page.getByRole("button", { name: "Send code" }).click();
-  await expect(page.getByText(/Verification code sent/u)).toBeVisible();
+  await page.getByLabel("手机号").fill(phone);
+  await page.getByRole("button", { name: "获取验证码" }).click();
+  await expect(page.getByText(/验证码已发送/u)).toBeVisible();
 
   const debug = await page.request.get(
     `${backend}/api/auth/customer/debug-code?phone=${encodeURIComponent(phone)}`,
   );
   expect(debug.ok(), await debug.text()).toBeTruthy();
   const { code } = await debug.json() as { code: string };
-  await page.getByLabel("Verification code").fill(code);
-  await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page.getByRole("heading", { name: "Account" })).toBeVisible();
+  await page.getByLabel("短信验证码").fill(code);
+  await page.getByRole("button", { name: "登录并继续" }).click();
+  await expect(page.getByRole("button", { name: "退出登录" })).toBeVisible();
 }
 
 test("Customer uses manual OTP, can logout, and recovers from an authenticated 401", async ({ page }) => {
   await page.goto(`${customerApp}/customer/profile?cityCode=hangzhou`);
-  await expect(page.getByRole("heading", { name: "Customer login" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "欢迎回来" })).toBeVisible();
   await expect(page.getByRole("button", { name: /debug/iu })).toHaveCount(0);
 
   await loginThroughCustomerUi(page, uniquePhone());
@@ -37,8 +37,8 @@ test("Customer uses manual OTP, can logout, and recovers from an authenticated 4
     userId: localStorage.getItem("xlb.customer.userId")!,
   }));
 
-  await page.getByRole("button", { name: "Logout" }).click();
-  await expect(page.getByRole("heading", { name: "Customer login" })).toBeVisible();
+  await page.getByRole("button", { name: "退出登录" }).click();
+  await expect(page.getByRole("heading", { name: "欢迎回来" })).toBeVisible();
   await expect.poll(() => page.evaluate(() => ({
     token: localStorage.getItem("xlb.customer.token"),
     userId: localStorage.getItem("xlb.customer.userId"),
@@ -60,7 +60,7 @@ test("Customer uses manual OTP, can logout, and recovers from an authenticated 4
   });
   await page.reload();
 
-  await expect(page.getByRole("heading", { name: "Customer login" })).toBeVisible();
-  await expect(page.getByText("Your session expired. Please sign in again.")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "欢迎回来" })).toBeVisible();
+  await expect(page.getByText("登录状态已失效，请重新登录。")).toBeVisible();
   await expect.poll(() => page.evaluate(() => localStorage.getItem("xlb.customer.token"))).toBeNull();
 });

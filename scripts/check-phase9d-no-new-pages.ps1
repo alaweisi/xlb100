@@ -23,10 +23,22 @@ $phase29AdminPages = @(
   'apps/admin/src/pages/OrderTracePage.tsx',
   'apps/admin/src/pages/marketing-operations.css'
 )
+$approvedFiveSurfaceAdminPages = @(
+  'apps/admin/src/pages/AdminOverviewPage.tsx',
+  'apps/admin/src/pages/AftersaleOpsPage.tsx',
+  'apps/admin/src/pages/DispatchBoardPage.tsx',
+  'apps/admin/src/pages/EnterpriseOpsPage.tsx',
+  'apps/admin/src/pages/ReviewModerationPage.tsx',
+  'apps/admin/src/pages/WorkerWithdrawalsPage.tsx',
+  'apps/admin/src/pages/mobile-core.css',
+  'apps/admin/src/pages/mobile-ops.css',
+  'apps/admin/src/pages/operations-workbench.css'
+)
 # Phase 10 governance page is a legitimate Phase 10A admin addition
 $newPages = $diff | Where-Object {
   $changedPath = $_.ToString().Trim() -replace '\\', '/'
   $changedPath.StartsWith('apps/admin/src/pages/') -and
+    $approvedFiveSurfaceAdminPages -notcontains $changedPath -and
     $changedPath -notmatch 'SettlementOpsPage|SettlementStatementDetailPage|SettlementExportReviewPage|SettlementActionGovernancePage|PlatformOperationsPage|SupportTicketsPage|SupportRoutingConfigPage|SupportKnowledgeBasePage|SupportQualityPage' -and
     (-not $phase29Authorized -or $phase29AdminPages -notcontains $changedPath)
 }

@@ -3,7 +3,7 @@ import type { RowDataPacket } from "mysql2/promise";
 import { hashPhoneIdentity } from "../../backend/src/auth/phoneIdentity.js";
 import { getMysqlPool } from "../../backend/src/dal/mysqlPool.js";
 
-const workerPhone = "13800000001";
+const workerPhone = `138${String(Date.now()).slice(-8)}`;
 let workerPhoneBefore: { phone_hash: string | null; phone_masked: string | null; updated_at: Date } | null = null;
 
 test.beforeAll(async () => {
@@ -56,17 +56,22 @@ test("Phase 25 authenticated Customer acceptance evidence", async ({ page }, tes
   await customerSession(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("http://localhost:5273/customer/profile?cityCode=hangzhou");
-  await expect(page.getByRole("heading", { name: "Account" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "账号资料" })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath("customer-profile-authenticated-390x844.png"), fullPage: true });
 });
 
 test("Phase 25 authenticated Worker acceptance evidence", async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("http://localhost:5274/worker/profile?cityCode=hangzhou");
-  await page.getByRole("button", { name: "Send code" }).click();
-  await page.getByRole("button", { name: "Fill debug code" }).click();
-  await page.getByRole("button", { name: "Login" }).click();
-  await expect(page.getByRole("heading", { name: "Location & Availability" })).toBeVisible();
+  await page.getByLabel("手机号").fill(workerPhone);
+  await page.getByRole("button", { name: "获取验证码" }).click();
+  await expect(page.getByText(/验证码已发送/u)).toBeVisible();
+  const debug = await page.request.get(`http://localhost:3100/api/auth/worker/debug-code?phone=${workerPhone}`);
+  expect(debug.ok()).toBeTruthy();
+  const { code } = await debug.json() as { code: string };
+  await page.getByLabel("短信验证码").fill(code);
+  await page.getByRole("button", { name: "登录并进入任务大厅" }).click();
+  await expect(page.getByRole("heading", { name: "位置共享与接单半径" })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath("worker-profile-authenticated-390x844.png"), fullPage: true });
 });
 
@@ -74,6 +79,6 @@ test("Phase 25 authenticated Admin acceptance evidence", async ({ page }, testIn
   await adminSession(page);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("http://localhost:5275/#/platform-operations?cityCode=hangzhou");
-  await expect(page.getByRole("heading", { name: "Platform Operations" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "平台运营", level: 1 })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath("admin-platform-operations-authenticated-1440x900.png"), fullPage: true });
 });

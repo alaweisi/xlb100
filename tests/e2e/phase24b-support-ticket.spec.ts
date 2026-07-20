@@ -190,22 +190,28 @@ test("Customer creates, Admin resolves, and Customer reads the same persisted su
   await ensureSupportSkillGroup(page, adminSession);
 
   await page.goto("http://localhost:5273/customer/support?cityCode=hangzhou");
-  await expect(page.getByRole("heading", { name: "Customer Support" })).toBeVisible();
-  await page.getByLabel("Issue type").selectOption("safety");
-  await page.getByLabel("Priority").selectOption("critical");
-  await page.getByLabel("Subject").fill(subject);
-  await page.getByLabel("Description").fill("Created from the real Customer UI for cross-app support verification");
-  await page.getByRole("button", { name: "Submit issue" }).click();
-  await expect(page.getByText("Support ticket created")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "客服中心" })).toBeVisible();
+  await page.getByLabel("问题类型").selectOption("safety");
+  await page.getByLabel("紧急程度").selectOption("critical");
+  await page.getByLabel("问题标题").fill(subject);
+  await page.getByLabel("问题描述").fill("通过顾客端真实界面创建，用于跨端客服闭环验证");
+  const createTicketResponsePromise = page.waitForResponse(
+    (response) => response.url().endsWith("/api/support/tickets") && response.request().method() === "POST",
+    { timeout: 30_000 },
+  );
+  await page.getByRole("button", { name: "提交问题" }).click();
+  const createTicketResponse = await createTicketResponsePromise;
+  expect(createTicketResponse.ok(), await createTicketResponse.text()).toBeTruthy();
+  await expect(page.getByText("客服工单已创建")).toBeVisible({ timeout: 15_000 });
   await expect(page.getByRole("heading", { name: new RegExp(subject) })).toBeVisible();
 
   await page.goto("http://localhost:5275/#/support?cityCode=hangzhou");
-  await expect(page.getByRole("heading", { name: "Agent Workbench" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "City support tickets" })).toBeVisible();
-  await page.getByLabel("Priority").selectOption("critical");
-  await page.getByLabel("Type").selectOption("safety");
+  await expect(page.getByRole("heading", { name: "客服工作台", level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "客服工作台" })).toBeVisible();
+  await page.getByLabel("优先级").selectOption("critical");
+  await page.getByLabel("问题类型").selectOption("safety");
   const row = page.getByRole("row").filter({ hasText: subject });
-  await row.getByRole("button", { name: "Open" }).click();
+  await row.getByRole("button", { name: "打开" }).click();
   await expect(page.getByRole("heading", { name: new RegExp(subject) })).toBeVisible();
   const ticketList = await page.request.get(
     `${backend}/api/internal/support/tickets?view=all&sort=sla_due&priority=critical&type=safety&limit=100`,
@@ -216,20 +222,21 @@ test("Customer creates, Admin resolves, and Customer reads the same persisted su
   createdTicketId = ticket?.ticketId ?? null;
   expect(ticket?.assignedSkillGroupId).toBeTruthy();
   const assignedAgentId = await ensureAssignableAgent(page, adminSession, ticket.assignedSkillGroupId);
-  await page.getByLabel("Assigned agent ID").fill(assignedAgentId);
-  await page.getByRole("button", { name: "Assign" }).click();
-  await expect(page.getByText("assign completed")).toBeVisible();
-  await page.getByLabel("Resolution note").fill("Verified and answered by the support operator");
-  await page.getByRole("button", { name: "Resolve" }).click();
-  await expect(page.getByText("resolve completed")).toBeVisible();
+  await page.getByLabel("负责客服编号").fill(assignedAgentId);
+  await page.getByRole("button", { name: "分配" }).click();
+  await expect(page.getByText("分配工单已完成")).toBeVisible();
+  await page.getByLabel("解决代码").fill("operator_verified");
+  await page.getByLabel("解决说明").fill("客服人员已核验并完成答复");
+  await page.getByRole("button", { name: "记录解决结果" }).click();
+  await expect(page.getByText("解决工单已完成")).toBeVisible();
 
   await page.goto("http://localhost:5273/customer/support?cityCode=hangzhou");
   await expect(page.getByText(subject, { exact: true })).toBeVisible();
   const customerRow = page.getByRole("row").filter({ hasText: subject });
-  await expect(customerRow.getByText("resolved", { exact: true })).toBeVisible();
-  await customerRow.getByRole("button", { name: "View" }).click();
+  await expect(customerRow.getByText("已解决", { exact: true })).toBeVisible();
+  await customerRow.getByRole("button", { name: "查看" }).click();
   await expect(page.getByRole("heading", { name: new RegExp(subject) })).toBeVisible();
-  await expect(page.getByText("resolved", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText("Verified and answered by the support operator", { exact: true })).toBeVisible();
+  await expect(page.getByText("已解决", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("客服人员已核验并完成答复", { exact: true })).toBeVisible();
   assertClean();
 });

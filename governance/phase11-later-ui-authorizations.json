@@ -25,6 +25,94 @@
         "apps/customer/src/pages/CustomerServicesPage.tsx",
         "apps/customer/src/pages/customer-order-create.css"
       ]
+    },
+    {
+      "authorizationId": "investor-demo-customer-shell-reconstruction",
+      "decision": "human-approved",
+      "scope": "post-phase11-ui-only",
+      "requiredPhaseStates": [
+        {
+          "phaseId": "Phase 14",
+          "status": "ENGINEERING REMEDIATION LOCKED / PRODUCTION BLOCKED",
+          "tag": "xlb-stage5-engineering-remediation-v1"
+        },
+        {
+          "phaseId": "Phase 25",
+          "status": "LOCKED",
+          "tag": "xlb-phase25-ui-standardization-v1.0"
+        }
+      ],
+      "files": [
+        "apps/customer/index.html",
+        "apps/customer/public/manifest.webmanifest",
+        "apps/customer/public/sw.js",
+        "apps/customer/src/adapters/catalogAdapters.ts",
+        "apps/customer/src/adapters/customerError.ts",
+        "apps/customer/src/adapters/pricingAdapter.ts",
+        "apps/customer/src/adapters/workflowBindings.ts",
+        "apps/customer/src/features/auth/customerAuth.ts",
+        "apps/customer/src/main.tsx",
+        "apps/customer/src/pages/CustomerLoginPage.tsx",
+        "apps/customer/src/pages/customer-orders.css",
+        "apps/customer/vite.config.ts"
+      ]
+    },
+    {
+      "authorizationId": "investor-demo-worker-shell-reconstruction",
+      "decision": "human-approved",
+      "scope": "post-phase11-ui-only",
+      "requiredPhaseStates": [
+        {
+          "phaseId": "Phase 14",
+          "status": "ENGINEERING REMEDIATION LOCKED / PRODUCTION BLOCKED",
+          "tag": "xlb-stage5-engineering-remediation-v1"
+        },
+        {
+          "phaseId": "Phase 25",
+          "status": "LOCKED",
+          "tag": "xlb-phase25-ui-standardization-v1.0"
+        }
+      ],
+      "files": [
+        "apps/worker/index.html",
+        "apps/worker/package.json",
+        "apps/worker/public/icons/worker-icon-192.svg",
+        "apps/worker/public/icons/worker-icon-512.svg",
+        "apps/worker/public/manifest.webmanifest",
+        "apps/worker/public/sw.js",
+        "apps/worker/src/app/workerAuth.ts",
+        "apps/worker/src/app/workerFeedback.ts",
+        "apps/worker/src/app/worker-shell.css",
+        "apps/worker/src/features/auth/store.ts"
+      ]
+    },
+    {
+      "authorizationId": "investor-demo-worker-page-reconstruction",
+      "decision": "human-approved",
+      "scope": "post-phase11-ui-only",
+      "requiredPhaseStates": [
+        {
+          "phaseId": "Phase 14",
+          "status": "ENGINEERING REMEDIATION LOCKED / PRODUCTION BLOCKED",
+          "tag": "xlb-stage5-engineering-remediation-v1"
+        },
+        {
+          "phaseId": "Phase 25",
+          "status": "LOCKED",
+          "tag": "xlb-phase25-ui-standardization-v1.0"
+        }
+      ],
+      "files": [
+        "apps/worker/src/main.tsx",
+        "apps/worker/src/pages/AuthPages.tsx",
+        "apps/worker/src/pages/FinancePages.tsx",
+        "apps/worker/src/pages/FulfillmentPages.tsx",
+        "apps/worker/src/pages/ProfilePages.tsx",
+        "apps/worker/src/pages/TaskPages.tsx",
+        "apps/worker/src/pages/WorkerReputationPage.tsx",
+        "apps/worker/src/pages/pageShared.ts",
+        "apps/worker/vite.config.ts"
+      ]
     }
   ]
 }

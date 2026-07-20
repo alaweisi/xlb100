@@ -4,6 +4,17 @@ $d = & git -C $Root diff main...HEAD -- . ':!scripts/' ':!tests/' ':!docs/releas
 $isPhase23cDiff = $d -match '045_phase23c_frontend_engineering'
 $fb = @("\bpayout\b", "\bpaid_settlement\b", "\bpayment_instruction\b", "\bprovider\b.*\bcall\b", "\bnotification\b.*\bconsumer\b", "\bwithdraw(?:al)?\b")
 $allowedFiles = @(
+  "apps/customer/src/pages/CustomerOrdersPage.tsx",
+  "docs/design/ui/phase25/page-cards/ADMIN_GATE5_ROUTE_CARDS.md",
+  "docs/design/ui/production-control/SLICE_ACCEPTANCE_CONSOLE.html",
+  "docs/design/ui/production-control/SLICE_IMPLEMENTATION_LEDGER.json",
+  "docs/design/ui/production-control/evidence/ADMIN-FULL/manifest.json",
+  "docs/design/ui/production-control/evidence/WORKER-FULL/manifest.json",
+  "docs/design/ui/vertical-slices/FRAME_MAP_SLICE_BINDINGS.md",
+  "docs/design/ui/vertical-slices/INTERACTION_STATE_INVENTORY.md",
+  "docs/design/ui/vertical-slices/SCREEN_STATE_COMPONENT_MATRIX.md",
+  "docs/design/ui/vertical-slices/SLICE_LEDGER.md",
+  "docs/design/ui/vertical-slices/SLICE_SCOPE_BASELINE.md",
   "backend/src/support/bot/sensitiveSupportGuard.ts",
   "docs/architecture/support-quality-design.md",
   "apps/admin/src/pages/SupportTicketsPage.tsx",

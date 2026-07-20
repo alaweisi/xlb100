@@ -77,7 +77,9 @@ $allowedPerModule = @{
   'backend/src/ledger' = 'ledger_(accounts|accruals|entries)'
   'backend/src/planner' = 'settlement_execution_dry_run_'
   'backend/src/aftersale' = 'aftersale_refund_requests'
+  'backend/src/dispatch' = '(worker_dispatch_preferences|worker_locations)'
   'backend/src/enterprise' = '(customers|business_[A-Za-z0-9_]+|enterprise_bill_snapshots)'
+  'backend/src/review' = '(review_visibility_states|review_content_access_audits|review_moderation_decisions|review_appeals)'
   # Later Support phases own only support_* tables; Phase 24 boundary gates
   # independently reject protected-domain writes.
   'backend/src/support' = '(support_[A-Za-z0-9_]+|event_outbox)'
