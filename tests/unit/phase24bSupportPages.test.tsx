@@ -61,17 +61,17 @@ describe("Phase 24B support pages", () => {
     };
     render(<CustomerSupportPage api={api} />);
     await waitFor(() => expect(api.listTickets).toHaveBeenCalledTimes(1));
-    fireEvent.change(screen.getByLabelText("Subject"), { target: { value: "Need order help" } });
-    fireEvent.change(screen.getByLabelText("Description"), { target: { value: "The order timeline is unclear" } });
-    fireEvent.click(screen.getByRole("button", { name: "Submit issue" }));
+    fireEvent.change(screen.getByLabelText("问题标题"), { target: { value: "Need order help" } });
+    fireEvent.change(screen.getByLabelText("问题说明"), { target: { value: "The order timeline is unclear" } });
+    fireEvent.click(screen.getByRole("button", { name: "提交问题" }));
 
     expect(createTicket).toHaveBeenCalledWith(expect.objectContaining({
       type: "order_question", priority: "normal", subject: "Need order help",
       description: "The order timeline is unclear", idempotencyKey: expect.stringMatching(/^customer-ticket-/),
     }));
-    expect(screen.queryByText("Support ticket created")).toBeNull();
+    expect(screen.queryByText("客服工单已提交")).toBeNull();
     confirmCreate({ ok: true, ticket: ticket() });
-    expect(await screen.findByText("Support ticket created")).toBeTruthy();
+    expect(await screen.findByText("客服工单已提交")).toBeTruthy();
     expect(api.getTicket).toHaveBeenCalledWith("ticket-phase24b");
   });
 
@@ -82,12 +82,12 @@ describe("Phase 24B support pages", () => {
       getTicket: vi.fn(), addComment: vi.fn(), reopenTicket: vi.fn(),
     };
     render(<CustomerSupportPage api={api} />);
-    await screen.findByText("No support tickets");
-    fireEvent.change(screen.getByLabelText("Subject"), { target: { value: "Duplicate issue" } });
-    fireEvent.change(screen.getByLabelText("Description"), { target: { value: "This must be rejected by API" } });
-    fireEvent.click(screen.getByRole("button", { name: "Submit issue" }));
-    expect(await screen.findByText("API POST failed: 409")).toBeTruthy();
-    expect(screen.queryByText("Support ticket created")).toBeNull();
+    await screen.findByText("暂无客服工单");
+    fireEvent.change(screen.getByLabelText("问题标题"), { target: { value: "Duplicate issue" } });
+    fireEvent.change(screen.getByLabelText("问题说明"), { target: { value: "This must be rejected by API" } });
+    fireEvent.click(screen.getByRole("button", { name: "提交问题" }));
+    expect(await screen.findByText("暂时无法连接客服，请检查网络后重试。")).toBeTruthy();
+    expect(screen.queryByText("客服工单已提交")).toBeNull();
   });
 
   it("Worker opens its ticket and sends a requester-visible message through the API", async () => {

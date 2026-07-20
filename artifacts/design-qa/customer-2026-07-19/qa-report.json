@@ -1,0 +1,288 @@
+{
+  "generatedAt": "2026-07-19T10:07:07.097Z",
+  "baseUrl": "http://127.0.0.1:5173",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "checks": [
+    {
+      "name": "order-create-address",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "documentWidth": 390,
+      "horizontalOverflow": false,
+      "keyRects": {
+        "main": {
+          "left": 0,
+          "right": 390,
+          "width": 390
+        },
+        "runtimeSurface": {
+          "left": 14,
+          "right": 376,
+          "width": 362
+        },
+        "template": null,
+        "templateHeader": null,
+        "card": null,
+        "locationSearch": null,
+        "serviceCard": null
+      },
+      "smallTouchTargets": []
+    },
+    {
+      "name": "order-create-success",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "documentWidth": 390,
+      "horizontalOverflow": false,
+      "keyRects": {
+        "main": {
+          "left": 0,
+          "right": 390,
+          "width": 390
+        },
+        "runtimeSurface": {
+          "left": 14,
+          "right": 376,
+          "width": 362
+        },
+        "template": null,
+        "templateHeader": null,
+        "card": null,
+        "locationSearch": null,
+        "serviceCard": null
+      },
+      "smallTouchTargets": []
+    },
+    {
+      "name": "home-ready",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "documentWidth": 390,
+      "horizontalOverflow": false,
+      "keyRects": {
+        "main": {
+          "left": 0,
+          "right": 390,
+          "width": 390
+        },
+        "runtimeSurface": {
+          "left": 14,
+          "right": 376,
+          "width": 362
+        },
+        "template": {
+          "left": 14,
+          "right": 376,
+          "width": 362
+        },
+        "templateHeader": null,
+        "card": {
+          "left": 14,
+          "right": 376,
+          "width": 362
+        },
+        "locationSearch": {
+          "left": 31,
+          "right": 359,
+          "width": 328
+        },
+        "serviceCard": {
+          "left": 14,
+          "right": 376,
+          "width": 362
+        }
+      },
+      "smallTouchTargets": []
+    },
+    {
+      "name": "services-ready",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "documentWidth": 390,
+      "horizontalOverflow": false,
+      "keyRects": {
+        "main": {
+          "left": 0,
+          "right": 390,
+          "width": 390
+        },
+        "runtimeSurface": {
+          "left": 14,
+          "right": 376,
+          "width": 362
+        },
+        "template": {
+          "left": 14,
+          "right": 376,
+          "width": 362
+        },
+        "templateHeader": {
+          "left": 14,
+          "right": 376,
+          "width": 362
+        },
+        "card": {
+          "left": 14,
+          "right": 376,
+          "width": 362
+        },
+        "locationSearch": {
+          "left": 31,
+          "right": 359,
+          "width": 328
+        },
+        "serviceCard": {
+          "left": 14,
+          "right": 376,
+          "width": 362
+        }
+      },
+      "smallTouchTargets": []
+    },
+    {
+      "name": "home-loading",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "documentWidth": 390,
+      "horizontalOverflow": false,
+      "keyRects": {
+        "main": {
+          "left": 0,
+          "right": 390,
+          "width": 390
+        },
+        "runtimeSurface": {
+          "left": 14,
+          "right": 376,
+          "width": 362
+        },
+        "template": {
+          "left": 14,
+          "right": 376,
+          "width": 362
+        },
+        "templateHeader": null,
+        "card": {
+          "left": 14,
+          "right": 376,
+          "width": 362
+        },
+        "locationSearch": {
+          "left": 31,
+          "right": 359,
+          "width": 328
+        },
+        "serviceCard": null
+      },
+      "smallTouchTargets": []
+    },
+    {
+      "name": "services-empty",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "documentWidth": 390,
+      "horizontalOverflow": false,
+      "keyRects": {
+        "main": {
+          "left": 0,
+          "right": 390,
+          "width": 390
+        },
+        "runtimeSurface": {
+          "left": 14,
+          "right": 376,
+          "width": 362
+        },
+        "template": {
+          "left": 14,
+          "right": 376,
+          "width": 362
+        },
+        "templateHeader": {
+          "left": 14,
+          "right": 376,
+          "width": 362
+        },
+        "card": {
+          "left": 14,
+          "right": 376,
+          "width": 362
+        },
+        "locationSearch": {
+          "left": 31,
+          "right": 359,
+          "width": 328
+        },
+        "serviceCard": null
+      },
+      "smallTouchTargets": []
+    },
+    {
+      "name": "services-error",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "documentWidth": 390,
+      "horizontalOverflow": false,
+      "keyRects": {
+        "main": {
+          "left": 0,
+          "right": 390,
+          "width": 390
+        },
+        "runtimeSurface": {
+          "left": 14,
+          "right": 376,
+          "width": 362
+        },
+        "template": {
+          "left": 14,
+          "right": 376,
+          "width": 362
+        },
+        "templateHeader": {
+          "left": 14,
+          "right": 376,
+          "width": 362
+        },
+        "card": {
+          "left": 14,
+          "right": 376,
+          "width": 362
+        },
+        "locationSearch": {
+          "left": 31,
+          "right": 359,
+          "width": 328
+        },
+        "serviceCard": null
+      },
+      "smallTouchTargets": []
+    }
+  ],
+  "consoleErrors": [],
+  "expectedConsoleErrors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  ]
+}

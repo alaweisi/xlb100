@@ -72,48 +72,48 @@ function createAction(
 }
 
 export const customerWorkflowActions = {
-  retryCatalog: () => createAction("customer.catalog.retry", "Retry catalog", "api-derived", {
+  retryCatalog: () => createAction("customer.catalog.retry", "重新加载", "api-derived", {
     endpoint: "/api/catalog",
     method: "GET",
   }),
-  openServices: () => createAction("customer.services.open", "Open services", "api-derived"),
+  openServices: () => createAction("customer.services.open", "查看服务", "api-derived"),
   selectService: (skuId: string) =>
-    createAction("customer.catalog.selectSku", "Select service", "api-derived", {
+    createAction("customer.catalog.selectSku", "选择服务", "api-derived", {
       enabled: Boolean(skuId),
       disabledReasonCode: "STATE_NOT_ACTIONABLE",
       endpoint: "/customer/order/create",
       method: "GET",
     }),
   retryQuote: (skuId?: string) =>
-    createAction("customer.pricing.retryQuote", "Retry quote", "api-derived", {
+    createAction("customer.pricing.retryQuote", "重新获取报价", "api-derived", {
       enabled: Boolean(skuId),
       disabledReasonCode: skuId ? undefined : "API_NOT_AVAILABLE",
       endpoint: "/api/pricing/quote?skuId=:skuId",
       method: "GET",
     }),
   submitOrder: (quoteReady: boolean, selectedSkuId: boolean, submitting: boolean) =>
-    createAction("customer.order.submit", submitting ? "Submitting..." : "Submit order", "backend", {
+    createAction("customer.order.submit", submitting ? "正在提交…" : "提交预约", "backend", {
       enabled: quoteReady && selectedSkuId && !submitting,
       disabledReasonCode: quoteReady && selectedSkuId && !submitting ? undefined : "STATE_NOT_ACTIONABLE",
       endpoint: "/api/orders",
       method: "POST",
       idempotencyRequired: true,
     }),
-  viewOrders: () => createAction("customer.orders.open", "Open orders", "api-derived", {
+  viewOrders: () => createAction("customer.orders.open", "查看订单", "api-derived", {
     endpoint: "/customer/orders",
     method: "GET",
   }),
   retryOrderDetails: (hasOrderIds: boolean) =>
-    createAction("customer.orders.retryDetails", "Reload order detail", "api-derived", {
+    createAction("customer.orders.retryDetails", "重新加载订单", "api-derived", {
       enabled: hasOrderIds,
       disabledReasonCode: hasOrderIds ? undefined : "WORKFLOW_NOT_IMPLEMENTED",
       endpoint: "/api/orders/:orderId",
       method: "GET",
     }),
-  loadProfile: () => createAction("customer.profile.load", "Load profile", "api-derived", { endpoint: "/api/customer/profile", method: "GET" }),
-  saveProfile: () => createAction("customer.profile.save", "Save profile", "backend", { endpoint: "/api/customer/profile", method: "POST" }),
-  listAddresses: () => createAction("customer.address.list", "Load addresses", "api-derived", { endpoint: "/api/customer/addresses", method: "GET" }),
-  saveAddress: () => createAction("customer.address.save", "Save address", "backend", { endpoint: "/api/customer/addresses", method: "POST" }),
+  loadProfile: () => createAction("customer.profile.load", "加载资料", "api-derived", { endpoint: "/api/customer/profile", method: "GET" }),
+  saveProfile: () => createAction("customer.profile.save", "保存资料", "backend", { endpoint: "/api/customer/profile", method: "POST" }),
+  listAddresses: () => createAction("customer.address.list", "加载地址", "api-derived", { endpoint: "/api/customer/addresses", method: "GET" }),
+  saveAddress: () => createAction("customer.address.save", "保存地址", "backend", { endpoint: "/api/customer/addresses", method: "POST" }),
 };
 
 function getWorkflowRuntimeTokens() {

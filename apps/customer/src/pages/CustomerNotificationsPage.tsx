@@ -76,9 +76,9 @@ export function CustomerNotificationsPage({ api }: { api: CustomerNotificationAp
         : [...current, ...result.items.filter((item) => !current.some((existing) => existing.notificationId === item.notificationId))]);
       nextCursorRef.current = result.nextCursor;
       setNextCursor(result.nextCursor);
-    } catch (caught) {
+    } catch {
       if (sequence !== requestSequence.current) return;
-      setError(caught instanceof Error ? caught.message : "Unable to load notifications");
+      setError("消息暂时无法加载，请稍后重试");
       if (reset) setItems([]);
     } finally {
       if (sequence === requestSequence.current) {
@@ -117,14 +117,14 @@ export function CustomerNotificationsPage({ api }: { api: CustomerNotificationAp
           archived: view === "inbox",
         });
       }
-      setNotice(kind === "read" ? "Notification marked as read." : view === "inbox" ? "Notification archived." : "Notification restored.");
+      setNotice(kind === "read" ? "消息已标记为已读。" : view === "inbox" ? "消息已归档。" : "消息已恢复到收件箱。" );
       await load(true, view);
     } catch (caught) {
       if (isConflict(caught)) {
-        setNotice("Notification changed on another device. Latest state reloaded.");
+        setNotice("消息已在其他设备更新，当前页面已同步最新状态。" );
         await load(true, view);
       } else {
-        setError(caught instanceof Error ? caught.message : "Unable to update notification");
+        setError("消息暂时无法更新，请稍后重试");
       }
     } finally {
       busyRef.current = null;
@@ -133,12 +133,10 @@ export function CustomerNotificationsPage({ api }: { api: CustomerNotificationAp
   }, [api, load, view]);
 
   return (
-    <CustomerRouteShell
-      currentRoute="notifications"
-      topBar={<header className="notification-page-header"><h1>消息中心</h1><p>仅显示当前城市、当前账号的站内消息</p></header>}
-    >
-      <Card title="通知" actions={<StatusTag tone="success">Real API</StatusTag>}>
-        <div role="tablist" aria-label="Notification view" className="notification-view-tabs">
+    <CustomerRouteShell currentRoute="notifications">
+      <Card title="通知" actions={<StatusTag tone="success">实时同步</StatusTag>}>
+        <p className="notification-notice">仅显示当前城市、当前账号的站内消息。</p>
+        <div role="tablist" aria-label="消息范围" className="notification-view-tabs">
           <Button disabled={busyId !== null} aria-pressed={view === "inbox"} variant={view === "inbox" ? "primary" : undefined} onClick={() => changeView("inbox")}>收件箱</Button>
           <Button disabled={busyId !== null} aria-pressed={view === "archive"} variant={view === "archive" ? "primary" : undefined} onClick={() => changeView("archive")}>已归档</Button>
         </div>

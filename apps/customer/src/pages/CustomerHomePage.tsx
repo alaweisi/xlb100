@@ -1,10 +1,9 @@
 import { useMemo, useState } from "react";
+import { CaretDown, MagnifyingGlass, MapPin } from "@phosphor-icons/react";
 import type { CatalogSnapshot, CityCode } from "@xlb/types";
 import {
-  ActionDock,
   Button,
   Card,
-  CustomerAnswerCard,
   CustomerHomeTemplate,
   EmptyState,
   ErrorState,
@@ -12,8 +11,8 @@ import {
   LocationSearchBar,
   ServiceCard,
 } from "@xlb/ui";
-import { CITY_OPTIONS, CustomerLoadable } from "./customerPageShell";
-import { cityDisplayLabel, representativeHomeSkus } from "../adapters/catalogAdapters";
+import { CITY_OPTIONS, CustomerLoadable, CustomerRouteShell } from "./customerPageShell";
+import { cityAreaByCode, cityNameByCode, representativeHomeSkus } from "../adapters/catalogAdapters";
 import { createCustomerUiBinding } from "../adapters/workflowAdapter";
 
 type City = CityCode;
@@ -32,11 +31,14 @@ function HomeHeader({
   onSearchSubmit: (value: string) => void;
 }) {
   return (
-    <Card title="Service search">
+    <Card title="查找上门服务">
       <LocationSearchBar
-        cityLabel={cityCode}
-        areaLabel={cityDisplayLabel(cityCode)}
-        placeholder="Search cleaning, repair, moving"
+        cityLabel={cityNameByCode[cityCode]}
+        areaLabel={cityAreaByCode[cityCode]}
+        placeholder="搜索保洁、维修、搬家等服务"
+        locationIcon={<MapPin size={16} weight="fill" />}
+        disclosureIcon={<CaretDown size={14} />}
+        searchIcon={<MagnifyingGlass size={20} />}
         value={searchQuery}
         onSearchChange={onSearchChange}
         onSearchSubmit={onSearchSubmit}
@@ -62,22 +64,11 @@ export function CustomerHomePage({ cityCode, catalogState, onRetryCatalog }: Cus
     route: "home",
     cityCode,
   });
-  const actionById = useMemo(() => {
-    return binding.availableActions.reduce(
-      (acc, action) => {
-        acc[action.actionId] = action;
-        return acc;
-      },
-      {} as Record<string, (typeof binding.availableActions)[number]>,
-    );
-  }, [binding]);
-
   const quickSkus = useMemo(() => {
     if (catalogState.status !== "success") return [];
     return representativeHomeSkus(catalogState.data);
   }, [catalogState]);
 
-  const openServicesAction = actionById["customer.services.open"];
   const onCityChange = (next: City) => {
     window.location.href = `/customer/?${new URLSearchParams({ cityCode: next }).toString()}`;
   };
@@ -92,18 +83,12 @@ export function CustomerHomePage({ cityCode, catalogState, onRetryCatalog }: Cus
   }
 
   return (
-    <CustomerHomeTemplate
-      route="/customer/"
-      cityCode={cityCode}
-      binding={binding}
-      actions={
-        <ActionDock
-          actions={openServicesAction ? [openServicesAction] : []}
-          onAction={() => (window.location.href = `/customer/services?${new URLSearchParams({ cityCode }).toString()}`)}
-          density="compact"
-        />
-      }
-    >
+    <CustomerRouteShell currentRoute="home">
+      <CustomerHomeTemplate
+        route="/customer/"
+        cityCode={cityCode}
+        binding={binding}
+      >
       <HomeHeader
         cityCode={cityCode}
         onCityChange={onCityChange}
@@ -151,8 +136,7 @@ export function CustomerHomePage({ cityCode, catalogState, onRetryCatalog }: Cus
           ))}
         </section>
       )}
-
-      <CustomerAnswerCard state={binding.state} />
-    </CustomerHomeTemplate>
+      </CustomerHomeTemplate>
+    </CustomerRouteShell>
   );
 }

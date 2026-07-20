@@ -157,9 +157,9 @@ describe("Phase27D Customer/Worker notification pages", () => {
   });
 
   it.each([
-    { name: "Customer", Component: CustomerNotificationsPage, read: "标为已读", archiveTab: "已归档" },
-    { name: "Worker", Component: WorkerNotificationsPage, read: "Mark as read", archiveTab: "Archive" },
-  ])("prevents $name view changes while a mutation is pending", async ({ Component, read, archiveTab }) => {
+    { name: "Customer", Component: CustomerNotificationsPage, read: "标为已读", archiveTab: "已归档", tablistName: "消息范围" },
+    { name: "Worker", Component: WorkerNotificationsPage, read: "Mark as read", archiveTab: "Archive", tablistName: "Notification view" },
+  ])("prevents $name view changes while a mutation is pending", async ({ Component, read, archiveTab, tablistName }) => {
     const deferred = deferredMutation();
     const listNotifications = vi.fn().mockResolvedValue({ ok: true, items: [orderItem], nextCursor: null });
     const api = {
@@ -170,7 +170,7 @@ describe("Phase27D Customer/Worker notification pages", () => {
     render(<Component api={api} />);
 
     fireEvent.click(await screen.findByRole("button", { name: read }));
-    const archive = within(screen.getByRole("tablist", { name: "Notification view" }))
+    const archive = within(screen.getByRole("tablist", { name: tablistName }))
       .getByRole("button", { name: archiveTab });
     expect(archive).toHaveProperty("disabled", true);
     fireEvent.click(archive);

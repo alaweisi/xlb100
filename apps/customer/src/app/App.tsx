@@ -1,4 +1,6 @@
 import { lazy, useCallback, useEffect, useMemo, useState } from "react";
+import { CircleNotch, WarningCircle } from "@phosphor-icons/react";
+import { Button } from "@xlb/ui";
 import type { CatalogSnapshot, CityCode } from "@xlb/types";
 import type { CustomerOrderCreatePageProps } from "../pages/CustomerOrderCreatePage";
 import type { CustomerOrdersPageProps } from "../pages/CustomerOrdersPage";
@@ -6,6 +8,7 @@ import type { CustomerCouponsPageProps } from "../pages/CustomerCouponsPage";
 import type { CustomerSupportApi } from "../pages/CustomerSupportPage";
 import {
   appendOrderId,
+  CustomerAppViewport,
   createCustomerApiClient,
   CustomerLoadable,
   detectCustomerRoute,
@@ -42,11 +45,14 @@ export function App() {
       : storedOrderIds;
   });
   const [session, setSession] = useState<CustomerSession | null>(() => readStoredSession());
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [authAttempt, setAuthAttempt] = useState(0);
   const currentRoute = useMemo(() => detectCustomerRoute(), []);
 
   // Login on mount (idempotent: reuses stored token if still valid)
   useEffect(() => {
     let cancelled = false;
+    setAuthError(null);
     void (async () => {
       const storedSession = readStoredSession();
       if (storedSession) {
@@ -58,6 +64,7 @@ export function App() {
         if (!cancelled) setSession(s);
       } catch (error) {
         if (!cancelled) {
+          setAuthError(error instanceof Error ? error.message : "登录失败，请稍后重试");
           setCatalogState({
             status: "error",
             error: error instanceof Error ? error.message : "Customer login failed",
@@ -66,7 +73,7 @@ export function App() {
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [authAttempt]);
 
   const api = useMemo(
     () => createCustomerApiClient(cityCode, session?.token),
@@ -138,7 +145,18 @@ export function App() {
   };
 
   if (!session) {
-    return <main aria-busy="true" style={{ display: "grid", minHeight: "100vh", placeItems: "center" }}>Authenticating customer</main>;
+    return (
+      <CustomerAppViewport route="auth">
+        <main className="customer-auth-gate" aria-busy={!authError} aria-live="polite">
+          <span className={`customer-auth-gate__mark${authError ? " is-error" : ""}`} aria-hidden="true">
+            {authError ? <WarningCircle size={32} weight="fill" /> : <CircleNotch size={30} weight="bold" />}
+          </span>
+          <strong>{authError ? "暂时无法登录" : "正在安全登录"}</strong>
+          <p>{authError ? "请检查网络后重新尝试。" : "马上为你打开喜乐帮到家服务。"}</p>
+          {authError ? <Button variant="primary" onClick={() => setAuthAttempt((value) => value + 1)}>重新登录</Button> : null}
+        </main>
+      </CustomerAppViewport>
+    );
   }
 
   if (currentRoute === "home") {
@@ -156,6 +174,7 @@ export function App() {
         catalogState={catalogState}
         cityCode={cityCode}
         onOrderCreated={handleOrderCreated}
+        onRetryCatalog={handleRetryCatalog}
       />
     );
   }

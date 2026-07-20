@@ -129,6 +129,8 @@ export function Button({ variant = "secondary", style, children, ...props }: But
   return (
     <button
       type="button"
+      data-ui="button"
+      data-variant={variant}
       {...props}
       style={mergeStyle(
         {
@@ -166,6 +168,7 @@ export interface CardProps extends Omit<HTMLAttributes<HTMLElement>, "title"> {
 export function Card({ title, actions, style, children, ...props }: CardProps) {
   return (
     <section
+      data-ui="card"
       {...props}
       style={mergeStyle(
         {
@@ -204,19 +207,19 @@ const controlStyle: CSSProperties = {
 };
 
 export function Input({ style, ...props }: InputHTMLAttributes<HTMLInputElement>) {
-  return <input {...props} style={mergeStyle(controlStyle, style)} />;
+  return <input data-ui="control" {...props} style={mergeStyle(controlStyle, style)} />;
 }
 
 export function Select({ style, children, ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
   return (
-    <select {...props} style={mergeStyle(controlStyle, style)}>
+    <select data-ui="control" {...props} style={mergeStyle(controlStyle, style)}>
       {children}
     </select>
   );
 }
 
 export function Textarea({ style, ...props }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return <textarea {...props} style={mergeStyle({ ...controlStyle, minHeight: 88, resize: "vertical" }, style)} />;
+  return <textarea data-ui="control" {...props} style={mergeStyle({ ...controlStyle, minHeight: 88, resize: "vertical" }, style)} />;
 }
 
 export interface FormFieldProps {
@@ -228,7 +231,7 @@ export interface FormFieldProps {
 
 export function FormField({ label, children, description, error }: FormFieldProps) {
   return (
-    <label style={{ display: "grid", fontFamily, gap: 6 }}>
+    <label data-ui="form-field" style={{ display: "grid", fontFamily, gap: 6 }}>
       <span style={{ color: tokens.colors.text, fontSize: 13, fontWeight: 600 }}>{label}</span>
       {children}
       {description && !error && <span style={{ color: "#6b7280", fontSize: 12 }}>{description}</span>}
@@ -323,6 +326,9 @@ export interface LocationSearchBarProps extends Omit<HTMLAttributes<HTMLDivEleme
   onSearchChange: (value: string) => void;
   onCityClick?: () => void;
   onSearchSubmit?: (value: string) => void;
+  locationIcon?: ReactNode;
+  searchIcon?: ReactNode;
+  disclosureIcon?: ReactNode;
 }
 
 export function LocationSearchBar({
@@ -333,6 +339,9 @@ export function LocationSearchBar({
   onSearchChange,
   onCityClick,
   onSearchSubmit,
+  locationIcon,
+  searchIcon,
+  disclosureIcon,
   style,
   ...props
 }: LocationSearchBarProps) {
@@ -347,6 +356,7 @@ export function LocationSearchBar({
 
   return (
     <div
+      data-ui="location-search"
       {...props}
       style={mergeStyle(
         {
@@ -383,15 +393,15 @@ export function LocationSearchBar({
         }}
       >
         <span style={{ display: "grid", gap: 2, minWidth: 0 }}>
-          <span aria-hidden="true" style={{ color: "#6b7280", fontSize: 14, fontWeight: 700, letterSpacing: 0, whiteSpace: "nowrap" }}>
-            {`📍 ${cityLabel}`}
+          <span aria-hidden="true" style={{ alignItems: "center", color: "#6b7280", display: "inline-flex", fontSize: 14, fontWeight: 700, gap: 4, letterSpacing: 0, whiteSpace: "nowrap" }}>
+            {locationIcon}{cityLabel}
           </span>
           {safeAreaLabel ? (
             <span style={{ color: "#8a735b", fontSize: 12, whiteSpace: "nowrap" }}>{safeAreaLabel}</span>
           ) : null}
         </span>
         <span aria-hidden="true" style={{ color: "#6b7280", fontSize: 15, marginLeft: 4 }}>
-          ▾
+          {disclosureIcon ?? null}
         </span>
       </button>
       <div aria-hidden="true" style={{ alignSelf: "center", background: "#ead8bd", height: 24, width: 1 }} />
@@ -431,19 +441,25 @@ export function LocationSearchBar({
         <span aria-hidden="true" style={{ color: "#94a3b8", fontSize: 17, flex: "0 0 auto" }}>
           {canSubmit ? (
             <button
+              aria-label="搜索服务"
               type="button"
               onClick={triggerSearchSubmit}
               style={{
+                alignItems: "center",
                 background: "transparent",
                 border: 0,
                 color: "#3b82f6",
                 cursor: "pointer",
+                display: "inline-flex",
                 fontFamily,
                 fontSize: 17,
+                height: 44,
+                justifyContent: "center",
                 padding: 0,
+                width: 44,
               }}
             >
-              🔍
+              {searchIcon ?? null}
             </button>
           ) : null}
         </span>
@@ -527,6 +543,8 @@ export function Badge({ tone = "default", style, children, ...props }: BadgeProp
   const color = toneColors[tone];
   return (
     <span
+      data-ui="status-tag"
+      data-tone={tone}
       {...props}
       style={mergeStyle(
         {
@@ -593,6 +611,7 @@ export function Tabs({ items, activeKey, onChange, density = "default", style, .
   const compact = density === "compact";
   return (
     <div
+      data-ui="tabs"
       {...props}
       role="tablist"
       style={mergeStyle(
@@ -874,6 +893,8 @@ function StateBlock({ title, description, action, tone = "muted" }: StateProps &
   const color = toneColors[tone];
   return (
     <div
+      data-ui="state"
+      data-tone={tone}
       style={{
         background: color.background,
         border: `1px solid ${color.border}`,
@@ -1005,6 +1026,7 @@ export function ActionDock({
   const compact = density === "compact";
   return (
     <div
+      data-ui="action-dock"
       {...props}
       style={mergeStyle(
         {
@@ -1176,6 +1198,7 @@ export function RuntimeThemeSurface({ binding, style, children, ...props }: Runt
   return (
     <div
       {...props}
+      data-ui="runtime-surface"
       data-runtime-theme={binding.runtimeThemeTokens.activeThemeId}
       data-runtime-theme-affects={binding.runtimeThemeTokens.affects}
       data-workflow-actor={binding.actor}
@@ -1445,6 +1468,7 @@ export function ServiceCard({ title, subtitle, icon, priceText, actionLabel, onC
   const interactive = Boolean(onClick);
   return (
     <section
+      data-ui="service-card"
       {...props}
       onClick={onClick}
       onKeyDown={(event) => {

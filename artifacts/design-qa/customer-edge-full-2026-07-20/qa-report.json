@@ -1,0 +1,481 @@
+{
+  "generatedAt": "2026-07-20T13:27:04.067Z",
+  "browser": "Microsoft Edge",
+  "mobileViewport": {
+    "width": 390,
+    "height": 844
+  },
+  "scenarios": [
+    {
+      "carrier": "C-00",
+      "name": "auth-loading",
+      "route": "/customer/",
+      "mode": "auth-loading",
+      "auth": false,
+      "screenshot": "C-00-auth-loading-390x844.png",
+      "check": {
+        "expectedRoute": "/customer/",
+        "shell": true,
+        "shellRoute": "auth",
+        "frameWidth": 390,
+        "navigation": false,
+        "navigationRequired": false,
+        "documentWidth": 390,
+        "viewportWidth": 390,
+        "horizontalOverflow": false,
+        "smallTouchTargets": []
+      },
+      "unexpectedErrors": []
+    },
+    {
+      "carrier": "C-00",
+      "name": "auth-error",
+      "route": "/customer/",
+      "mode": "auth-error",
+      "auth": false,
+      "screenshot": "C-00-auth-error-390x844.png",
+      "check": {
+        "expectedRoute": "/customer/",
+        "shell": true,
+        "shellRoute": "auth",
+        "frameWidth": 390,
+        "navigation": false,
+        "navigationRequired": false,
+        "documentWidth": 390,
+        "viewportWidth": 390,
+        "horizontalOverflow": false,
+        "smallTouchTargets": []
+      },
+      "unexpectedErrors": []
+    },
+    {
+      "carrier": "C-01",
+      "name": "home-ready",
+      "route": "/customer/",
+      "mode": "ready",
+      "screenshot": "C-01-home-ready-390x844.png",
+      "check": {
+        "expectedRoute": "/customer/",
+        "shell": true,
+        "shellRoute": "home",
+        "frameWidth": 390,
+        "navigation": true,
+        "navigationRequired": true,
+        "documentWidth": 390,
+        "viewportWidth": 390,
+        "horizontalOverflow": false,
+        "smallTouchTargets": []
+      },
+      "unexpectedErrors": []
+    },
+    {
+      "carrier": "C-01",
+      "name": "home-empty",
+      "route": "/customer/",
+      "mode": "catalog-empty",
+      "screenshot": "C-01-home-empty-390x844.png",
+      "check": {
+        "expectedRoute": "/customer/",
+        "shell": true,
+        "shellRoute": "home",
+        "frameWidth": 390,
+        "navigation": true,
+        "navigationRequired": true,
+        "documentWidth": 390,
+        "viewportWidth": 390,
+        "horizontalOverflow": false,
+        "smallTouchTargets": []
+      },
+      "unexpectedErrors": []
+    },
+    {
+      "carrier": "C-02",
+      "name": "services-ready",
+      "route": "/customer/services",
+      "mode": "ready",
+      "screenshot": "C-02-services-ready-390x844.png",
+      "check": {
+        "expectedRoute": "/customer/services",
+        "shell": true,
+        "shellRoute": "services",
+        "frameWidth": 390,
+        "navigation": true,
+        "navigationRequired": true,
+        "documentWidth": 390,
+        "viewportWidth": 390,
+        "horizontalOverflow": false,
+        "smallTouchTargets": []
+      },
+      "unexpectedErrors": []
+    },
+    {
+      "carrier": "C-02",
+      "name": "services-error",
+      "route": "/customer/services",
+      "mode": "catalog-error",
+      "screenshot": "C-02-services-error-390x844.png",
+      "check": {
+        "expectedRoute": "/customer/services",
+        "shell": true,
+        "shellRoute": "services",
+        "frameWidth": 390,
+        "navigation": true,
+        "navigationRequired": true,
+        "documentWidth": 390,
+        "viewportWidth": 390,
+        "horizontalOverflow": false,
+        "smallTouchTargets": []
+      },
+      "unexpectedErrors": []
+    },
+    {
+      "carrier": "C-03",
+      "name": "order-create-ready",
+      "route": "/customer/order/create?skuId=sku-daily-2h",
+      "mode": "ready",
+      "screenshot": "C-03-order-create-ready-390x844.png",
+      "check": {
+        "expectedRoute": "/customer/order/create?skuId=sku-daily-2h",
+        "shell": true,
+        "shellRoute": "createOrder",
+        "frameWidth": 390,
+        "navigation": true,
+        "navigationRequired": true,
+        "documentWidth": 390,
+        "viewportWidth": 390,
+        "horizontalOverflow": false,
+        "smallTouchTargets": []
+      },
+      "unexpectedErrors": []
+    },
+    {
+      "carrier": "C-03",
+      "name": "order-create-quote-error",
+      "route": "/customer/order/create?skuId=sku-daily-2h",
+      "mode": "quote-error",
+      "screenshot": "C-03-order-create-quote-error-390x844.png",
+      "check": {
+        "expectedRoute": "/customer/order/create?skuId=sku-daily-2h",
+        "shell": true,
+        "shellRoute": "createOrder",
+        "frameWidth": 390,
+        "navigation": true,
+        "navigationRequired": true,
+        "documentWidth": 390,
+        "viewportWidth": 390,
+        "horizontalOverflow": false,
+        "smallTouchTargets": []
+      },
+      "unexpectedErrors": []
+    },
+    {
+      "carrier": "C-04",
+      "name": "orders-ready",
+      "route": "/customer/orders?orderId=order-edge-1",
+      "mode": "orders-ready",
+      "orderIds": true,
+      "screenshot": "C-04-orders-ready-390x844.png",
+      "check": {
+        "expectedRoute": "/customer/orders?orderId=order-edge-1",
+        "shell": true,
+        "shellRoute": "orders",
+        "frameWidth": 390,
+        "navigation": true,
+        "navigationRequired": true,
+        "documentWidth": 390,
+        "viewportWidth": 390,
+        "horizontalOverflow": false,
+        "smallTouchTargets": []
+      },
+      "unexpectedErrors": []
+    },
+    {
+      "carrier": "C-04",
+      "name": "orders-empty",
+      "route": "/customer/orders",
+      "mode": "ready",
+      "screenshot": "C-04-orders-empty-390x844.png",
+      "check": {
+        "expectedRoute": "/customer/orders",
+        "shell": true,
+        "shellRoute": "orders",
+        "frameWidth": 390,
+        "navigation": true,
+        "navigationRequired": true,
+        "documentWidth": 390,
+        "viewportWidth": 390,
+        "horizontalOverflow": false,
+        "smallTouchTargets": []
+      },
+      "unexpectedErrors": []
+    },
+    {
+      "carrier": "C-05",
+      "name": "aftersale-ready",
+      "route": "/customer/aftersale?orderId=order-edge-1",
+      "mode": "ready",
+      "orderIds": true,
+      "screenshot": "C-05-aftersale-ready-390x844.png",
+      "check": {
+        "expectedRoute": "/customer/aftersale?orderId=order-edge-1",
+        "shell": true,
+        "shellRoute": "aftersale",
+        "frameWidth": 390,
+        "navigation": true,
+        "navigationRequired": true,
+        "documentWidth": 390,
+        "viewportWidth": 390,
+        "horizontalOverflow": false,
+        "smallTouchTargets": []
+      },
+      "unexpectedErrors": []
+    },
+    {
+      "carrier": "C-05",
+      "name": "aftersale-error",
+      "route": "/customer/aftersale?orderId=order-edge-1",
+      "mode": "aftersale-error",
+      "orderIds": true,
+      "screenshot": "C-05-aftersale-error-390x844.png",
+      "check": {
+        "expectedRoute": "/customer/aftersale?orderId=order-edge-1",
+        "shell": true,
+        "shellRoute": "aftersale",
+        "frameWidth": 390,
+        "navigation": true,
+        "navigationRequired": true,
+        "documentWidth": 390,
+        "viewportWidth": 390,
+        "horizontalOverflow": false,
+        "smallTouchTargets": []
+      },
+      "unexpectedErrors": []
+    },
+    {
+      "carrier": "C-06",
+      "name": "support-ready",
+      "route": "/customer/support",
+      "mode": "ready",
+      "screenshot": "C-06-support-ready-390x844.png",
+      "check": {
+        "expectedRoute": "/customer/support",
+        "shell": true,
+        "shellRoute": "support",
+        "frameWidth": 390,
+        "navigation": true,
+        "navigationRequired": true,
+        "documentWidth": 390,
+        "viewportWidth": 390,
+        "horizontalOverflow": false,
+        "smallTouchTargets": []
+      },
+      "unexpectedErrors": []
+    },
+    {
+      "carrier": "C-06",
+      "name": "support-error",
+      "route": "/customer/support",
+      "mode": "support-error",
+      "screenshot": "C-06-support-error-390x844.png",
+      "check": {
+        "expectedRoute": "/customer/support",
+        "shell": true,
+        "shellRoute": "support",
+        "frameWidth": 390,
+        "navigation": true,
+        "navigationRequired": true,
+        "documentWidth": 390,
+        "viewportWidth": 390,
+        "horizontalOverflow": false,
+        "smallTouchTargets": []
+      },
+      "unexpectedErrors": []
+    },
+    {
+      "carrier": "C-07",
+      "name": "notifications-ready",
+      "route": "/customer/notifications",
+      "mode": "ready",
+      "screenshot": "C-07-notifications-ready-390x844.png",
+      "check": {
+        "expectedRoute": "/customer/notifications",
+        "shell": true,
+        "shellRoute": "notifications",
+        "frameWidth": 390,
+        "navigation": true,
+        "navigationRequired": true,
+        "documentWidth": 390,
+        "viewportWidth": 390,
+        "horizontalOverflow": false,
+        "smallTouchTargets": []
+      },
+      "unexpectedErrors": []
+    },
+    {
+      "carrier": "C-07",
+      "name": "notifications-error",
+      "route": "/customer/notifications",
+      "mode": "notifications-error",
+      "screenshot": "C-07-notifications-error-390x844.png",
+      "check": {
+        "expectedRoute": "/customer/notifications",
+        "shell": true,
+        "shellRoute": "notifications",
+        "frameWidth": 390,
+        "navigation": true,
+        "navigationRequired": true,
+        "documentWidth": 390,
+        "viewportWidth": 390,
+        "horizontalOverflow": false,
+        "smallTouchTargets": []
+      },
+      "unexpectedErrors": []
+    },
+    {
+      "carrier": "C-08",
+      "name": "coupons-ready",
+      "route": "/customer/coupons",
+      "mode": "ready",
+      "screenshot": "C-08-coupons-ready-390x844.png",
+      "check": {
+        "expectedRoute": "/customer/coupons",
+        "shell": true,
+        "shellRoute": "coupons",
+        "frameWidth": 390,
+        "navigation": true,
+        "navigationRequired": true,
+        "documentWidth": 390,
+        "viewportWidth": 390,
+        "horizontalOverflow": false,
+        "smallTouchTargets": []
+      },
+      "unexpectedErrors": []
+    },
+    {
+      "carrier": "C-08",
+      "name": "coupons-error",
+      "route": "/customer/coupons",
+      "mode": "coupons-error",
+      "screenshot": "C-08-coupons-error-390x844.png",
+      "check": {
+        "expectedRoute": "/customer/coupons",
+        "shell": true,
+        "shellRoute": "coupons",
+        "frameWidth": 390,
+        "navigation": true,
+        "navigationRequired": true,
+        "documentWidth": 390,
+        "viewportWidth": 390,
+        "horizontalOverflow": false,
+        "smallTouchTargets": []
+      },
+      "unexpectedErrors": []
+    },
+    {
+      "carrier": "C-09",
+      "name": "profile-ready",
+      "route": "/customer/profile",
+      "mode": "ready",
+      "screenshot": "C-09-profile-ready-390x844.png",
+      "check": {
+        "expectedRoute": "/customer/profile",
+        "shell": true,
+        "shellRoute": "profile",
+        "frameWidth": 390,
+        "navigation": true,
+        "navigationRequired": true,
+        "documentWidth": 390,
+        "viewportWidth": 390,
+        "horizontalOverflow": false,
+        "smallTouchTargets": []
+      },
+      "unexpectedErrors": []
+    },
+    {
+      "carrier": "C-09",
+      "name": "profile-error",
+      "route": "/customer/profile",
+      "mode": "profile-error",
+      "screenshot": "C-09-profile-error-390x844.png",
+      "check": {
+        "expectedRoute": "/customer/profile",
+        "shell": true,
+        "shellRoute": "profile",
+        "frameWidth": 390,
+        "navigation": true,
+        "navigationRequired": true,
+        "documentWidth": 390,
+        "viewportWidth": 390,
+        "horizontalOverflow": false,
+        "smallTouchTargets": []
+      },
+      "unexpectedErrors": []
+    }
+  ],
+  "desktopChecks": [
+    {
+      "route": "/customer/",
+      "frameWidth": 394,
+      "horizontalOverflow": false,
+      "shell": true,
+      "navigation": true
+    },
+    {
+      "route": "/customer/services",
+      "frameWidth": 394,
+      "horizontalOverflow": false,
+      "shell": true,
+      "navigation": true
+    },
+    {
+      "route": "/customer/order/create?skuId=sku-daily-2h",
+      "frameWidth": 394,
+      "horizontalOverflow": false,
+      "shell": true,
+      "navigation": true
+    },
+    {
+      "route": "/customer/orders",
+      "frameWidth": 394,
+      "horizontalOverflow": false,
+      "shell": true,
+      "navigation": true
+    },
+    {
+      "route": "/customer/aftersale",
+      "frameWidth": 394,
+      "horizontalOverflow": false,
+      "shell": true,
+      "navigation": true
+    },
+    {
+      "route": "/customer/support",
+      "frameWidth": 394,
+      "horizontalOverflow": false,
+      "shell": true,
+      "navigation": true
+    },
+    {
+      "route": "/customer/notifications",
+      "frameWidth": 394,
+      "horizontalOverflow": false,
+      "shell": true,
+      "navigation": true
+    },
+    {
+      "route": "/customer/coupons",
+      "frameWidth": 394,
+      "horizontalOverflow": false,
+      "shell": true,
+      "navigation": true
+    },
+    {
+      "route": "/customer/profile",
+      "frameWidth": 394,
+      "horizontalOverflow": false,
+      "shell": true,
+      "navigation": true
+    }
+  ],
+  "failures": []
+}

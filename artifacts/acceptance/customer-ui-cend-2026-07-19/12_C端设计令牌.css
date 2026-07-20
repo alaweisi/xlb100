@@ -1,0 +1,197 @@
+/**
+ * XLB Customer App — Design handoff tokens v1.0
+ *
+ * This file is a design/front-end handoff mapping, not a second runtime source.
+ * Production values must be represented in
+ * packages/ui/src/tokens/base/defaultTokens.ts and emitted by ThemeProvider.
+ */
+
+:root {
+  /* Brand / customer role */
+  --xlb-customer-accent: #b85f2a;
+  --xlb-customer-ink: #173f35;
+  --xlb-customer-cream: #fffaf0;
+  --xlb-customer-coffee: #2b2118;
+  --xlb-customer-ambient: #f6d9aa;
+
+  /* Customer semantic aliases */
+  --xlb-customer-action-primary: var(--xlb-customer-accent);
+  --xlb-customer-action-on-primary: #ffffff;
+  --xlb-customer-text-primary: var(--xlb-customer-coffee);
+  --xlb-customer-text-heading: var(--xlb-customer-ink);
+  --xlb-customer-text-secondary: #665b50;
+  --xlb-customer-text-muted: #81766b;
+  --xlb-customer-text-inverse: #ffffff;
+  --xlb-customer-surface-page: var(--xlb-customer-cream);
+  --xlb-customer-surface-card: #fffcf7;
+  --xlb-customer-surface-subtle: #f7ebd8;
+  --xlb-customer-surface-glass: rgba(255, 250, 240, 0.78);
+  --xlb-customer-surface-overlay: rgba(255, 252, 247, 0.96);
+  --xlb-customer-surface-scrim: rgba(43, 33, 24, 0.42);
+  --xlb-customer-border-subtle: #e8d9c3;
+  --xlb-customer-border-strong: #cdbb9f;
+
+  /* Protected semantics — campaign themes must not override these */
+  --xlb-focus-ring: #2563eb;
+  --xlb-info-fg: #1d4ed8;
+  --xlb-info-bg: #eff6ff;
+  --xlb-success-fg: #047857;
+  --xlb-success-bg: #ecfdf5;
+  --xlb-warning-fg: #b45309;
+  --xlb-warning-bg: #fff7ed;
+  --xlb-danger-fg: #b91c1c;
+  --xlb-danger-bg: #fef2f2;
+  --xlb-neutral-fg: #64748b;
+  --xlb-neutral-bg: #f1f5f9;
+
+  /* Typography */
+  --xlb-font-sans: "Noto Sans SC", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --xlb-font-serif: "Noto Serif SC", "Songti SC", serif;
+  --xlb-font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+  --xlb-font-size-micro: 11px;
+  --xlb-font-size-caption: 12px;
+  --xlb-font-size-body-sm: 14px;
+  --xlb-font-size-body: 16px;
+  --xlb-font-size-section-title: 20px;
+  --xlb-font-size-page-title: 28px;
+  --xlb-font-size-display: 32px;
+  --xlb-line-height-micro: 16px;
+  --xlb-line-height-caption: 18px;
+  --xlb-line-height-label: 20px;
+  --xlb-line-height-body-sm: 22px;
+  --xlb-line-height-body: 24px;
+  --xlb-line-height-section-title: 28px;
+  --xlb-line-height-page-title: 38px;
+  --xlb-line-height-display: 40px;
+  --xlb-font-weight-regular: 400;
+  --xlb-font-weight-medium: 600;
+  --xlb-font-weight-bold: 700;
+  --xlb-letter-spacing-normal: 0;
+  --xlb-letter-spacing-heading: 0.04em;
+
+  /* 4px foundation / 8px primary rhythm */
+  --xlb-space-0: 0;
+  --xlb-space-0-5: 2px;
+  --xlb-space-1: 4px;
+  --xlb-space-2: 8px;
+  --xlb-space-3: 12px;
+  --xlb-space-4: 16px;
+  --xlb-space-6: 24px;
+  --xlb-space-8: 32px;
+  --xlb-space-12: 48px;
+
+  /* Grid / viewport */
+  --xlb-grid-columns-compact: 4;
+  --xlb-grid-gutter-compact: 16px;
+  --xlb-page-padding-compact: 16px;
+  --xlb-page-padding-comfortable: 20px;
+  --xlb-content-max-customer: 430px;
+  --xlb-breakpoint-compact: 390px;
+  --xlb-breakpoint-mobile: 640px;
+
+  /* Radius / stroke */
+  --xlb-radius-none: 0;
+  --xlb-radius-sm: 6px;
+  --xlb-radius-md: 8px;
+  --xlb-radius-lg: 16px;
+  --xlb-radius-xl: 24px;
+  --xlb-radius-xxl: 28px;
+  --xlb-radius-pill: 999px;
+  --xlb-stroke-hairline: 1px;
+  --xlb-stroke-regular: 2px;
+  --xlb-stroke-emphasis: 3px;
+
+  /* Elevation / glass */
+  --xlb-shadow-sm: 0 1px 2px rgba(43, 33, 24, 0.08);
+  --xlb-shadow-md: 0 12px 28px rgba(43, 33, 24, 0.1);
+  --xlb-shadow-lg: 0 24px 54px rgba(43, 33, 24, 0.16);
+  --xlb-shadow-ambient: 0 20px 60px rgba(43, 33, 24, 0.12);
+  --xlb-shadow-focus: 0 0 0 3px rgba(37, 99, 235, 0.32);
+  --xlb-glass-blur: 18px;
+  --xlb-glass-saturation: 140%;
+  --xlb-glass-edge: rgba(255, 255, 255, 0.88);
+  --xlb-glass-inner: rgba(255, 255, 255, 0.42);
+
+  /* Controls / safe area */
+  --xlb-touch-target: 44px;
+  --xlb-control-sm: 32px;
+  --xlb-control-md: 44px;
+  --xlb-control-lg: 52px;
+  --xlb-bottom-nav-height: 72px;
+  --xlb-bottom-nav-total: calc(var(--xlb-bottom-nav-height) + env(safe-area-inset-bottom));
+  --xlb-primary-dock-gap: 8px;
+  --xlb-page-bottom-clearance: calc(var(--xlb-bottom-nav-total) + var(--xlb-control-lg) + 48px);
+
+  /* Icon */
+  --xlb-icon-sm: 16px;
+  --xlb-icon-md: 20px;
+  --xlb-icon-lg: 24px;
+  --xlb-icon-stroke: 1.75px;
+
+  /* Motion */
+  --xlb-motion-instant: 0ms;
+  --xlb-motion-fast: 120ms;
+  --xlb-motion-normal: 220ms;
+  --xlb-motion-slow: 360ms;
+  --xlb-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --xlb-ease-emphasized: cubic-bezier(0.2, 0, 0, 1.2);
+  --xlb-pressed-opacity: 0.84;
+  --xlb-disabled-opacity: 0.48;
+
+  /* Layering */
+  --xlb-z-base: 0;
+  --xlb-z-sticky: 100;
+  --xlb-z-overlay: 400;
+  --xlb-z-modal: 600;
+  --xlb-z-toast: 800;
+}
+
+/* Explicit opt-in: glass is a functional-layer material, not a card default. */
+.xlb-customer-glass {
+  background: var(--xlb-customer-surface-glass);
+  border: var(--xlb-stroke-hairline) solid var(--xlb-glass-edge);
+  box-shadow: inset 0 0 0 var(--xlb-stroke-hairline) var(--xlb-glass-inner), var(--xlb-shadow-ambient);
+  -webkit-backdrop-filter: blur(var(--xlb-glass-blur)) saturate(var(--xlb-glass-saturation));
+  backdrop-filter: blur(var(--xlb-glass-blur)) saturate(var(--xlb-glass-saturation));
+}
+
+.xlb-customer-focusable:focus-visible {
+  outline: var(--xlb-stroke-regular) solid var(--xlb-focus-ring);
+  outline-offset: var(--xlb-space-1);
+}
+
+@media (max-width: 390px) {
+  :root {
+    --xlb-page-padding-current: var(--xlb-page-padding-compact);
+  }
+}
+
+@media (min-width: 391px) {
+  :root {
+    --xlb-page-padding-current: var(--xlb-page-padding-comfortable);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --xlb-motion-fast: 0ms;
+    --xlb-motion-normal: 0ms;
+    --xlb-motion-slow: 0ms;
+  }
+}
+
+@media (prefers-contrast: more), (forced-colors: active) {
+  .xlb-customer-glass {
+    background: var(--xlb-customer-surface-card);
+    border-color: currentColor;
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .xlb-customer-glass {
+    background: var(--xlb-customer-surface-card);
+  }
+}

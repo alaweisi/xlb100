@@ -81,8 +81,8 @@ export function CustomerAftersalePage({ api, orderIds }: CustomerAftersalePagePr
       setReverseRequests(reverse.reverseRequests);
       setComplaints(complaint.complaints);
       setEvidenceAggregates(evidence.aggregates);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to load aftersale records");
+    } catch {
+      setError("售后记录暂时无法加载，请稍后重试");
     } finally {
       setBusy(null);
     }
@@ -108,11 +108,11 @@ export function CustomerAftersalePage({ api, orderIds }: CustomerAftersalePagePr
         idempotencyKey: requestKey("customer-reverse"),
         ...schedule,
       });
-      setNotice(`Reverse request ${response.reverseRequest.reverseRequestId} is ${response.reverseRequest.status}.`);
+      setNotice(`售后申请 ${response.reverseRequest.reverseRequestId} 已提交，当前状态：${response.reverseRequest.status}`);
       setReverseReason("");
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to submit reverse request");
+      setError(err instanceof Error ? err.message : "售后申请提交失败，请稍后重试");
     } finally { setBusy(null); }
   }
 
@@ -124,11 +124,11 @@ export function CustomerAftersalePage({ api, orderIds }: CustomerAftersalePagePr
         orderId, category, priority, description: description.trim(),
         idempotencyKey: requestKey("customer-complaint"),
       });
-      setNotice(`Complaint ${response.complaint.complaintId} is ${response.complaint.status}.`);
+      setNotice(`客诉 ${response.complaint.complaintId} 已提交，当前状态：${response.complaint.status}`);
       setDescription("");
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to submit complaint");
+      setError(err instanceof Error ? err.message : "客诉提交失败，请稍后重试");
     } finally { setBusy(null); }
   }
 
@@ -140,18 +140,18 @@ export function CustomerAftersalePage({ api, orderIds }: CustomerAftersalePagePr
         note: confirmationNote.trim() || undefined,
         complaintId: decision === "disputed" ? disputeComplaintId || undefined : undefined,
       });
-      setNotice(`Customer confirmation is ${response.confirmation.status}.`);
+      setNotice(`服务凭证已更新，当前状态：${response.confirmation.status}`);
       setConfirmationNote("");
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to update customer confirmation");
+      setError(err instanceof Error ? err.message : "服务凭证确认失败，请稍后重试");
     } finally { setBusy(null); }
   }
 
   return (
     <CustomerRouteShell currentRoute="aftersale">
       <div style={{ display: "grid", gap: 16 }}>
-        <Card title="售后服务" actions={<StatusTag tone="primary">Phase 17</StatusTag>}>
+        <Card title="售后服务" actions={<StatusTag tone="primary">进度可查询</StatusTag>}>
           <FormField label="订单">
             {orderIds.length > 0 ? (
               <Select value={orderId} onChange={(event) => setOrderId(event.target.value)}>{selectedOrderOptions}</Select>
@@ -175,7 +175,7 @@ export function CustomerAftersalePage({ api, orderIds }: CustomerAftersalePagePr
               </Select>
             </FormField>
             {reverseType === "reschedule" && (
-              <div style={{ display: "grid", gap: 12, gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)" }}>
+              <div className="customer-mobile-form">
                 <FormField label="新预约时间"><Input type="datetime-local" value={scheduledAt} onChange={(event) => setScheduledAt(event.target.value)} /></FormField>
                 <FormField label="时段"><Select value={timeSlot} onChange={(event) => setTimeSlot(event.target.value as typeof timeSlot)}><option value="morning">上午</option><option value="afternoon">下午</option><option value="evening">晚上</option></Select></FormField>
               </div>
@@ -187,7 +187,7 @@ export function CustomerAftersalePage({ api, orderIds }: CustomerAftersalePagePr
 
         <Card title="提交客诉">
           <div style={{ display: "grid", gap: 12 }}>
-            <div style={{ display: "grid", gap: 12, gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)" }}>
+            <div className="customer-mobile-form">
               <FormField label="问题类型"><Select value={category} onChange={(event) => setCategory(event.target.value as typeof category)}><option value="service_quality">服务质量</option><option value="price_dispute">价格争议</option><option value="material">材料问题</option><option value="timeliness">时效问题</option><option value="attitude">服务态度</option><option value="safety">安全问题</option><option value="damage">物品损坏</option><option value="other">其他</option></Select></FormField>
               <FormField label="优先级"><Select value={priority} onChange={(event) => setPriority(event.target.value as typeof priority)}><option value="normal">普通</option><option value="urgent">紧急</option><option value="critical">重大</option></Select></FormField>
             </div>
@@ -211,30 +211,30 @@ export function CustomerAftersalePage({ api, orderIds }: CustomerAftersalePagePr
             { key:"support",title:"客服工单",render:(item)=><a href={`/customer/support?orderId=${encodeURIComponent(item.orderId)}&complaintId=${encodeURIComponent(item.complaintId)}`}>转入客服跟进</a> },
           ]} />}
         </Card>
-        <Card title="Service Evidence" actions={<StatusTag tone="primary">Private local/mock storage</StatusTag>}>
+        <Card title="服务凭证" actions={<StatusTag tone="primary">仅当前订单可见</StatusTag>}>
           <div style={{ display: "grid", gap: 12 }}>
-            <FormField label="Confirmation note"><Textarea value={confirmationNote} onChange={(event) => setConfirmationNote(event.target.value)} /></FormField>
-            <FormField label="Complaint for dispute">
+            <FormField label="确认说明"><Textarea value={confirmationNote} onChange={(event) => setConfirmationNote(event.target.value)} /></FormField>
+            <FormField label="关联客诉">
               <Select value={disputeComplaintId} onChange={(event) => setDisputeComplaintId(event.target.value)}>
-                <option value="">Select an existing complaint</option>
+                <option value="">选择已有客诉</option>
                 {complaints.map((item)=><option key={item.complaintId} value={item.complaintId}>{item.complaintId}</option>)}
               </Select>
             </FormField>
-            {evidenceAggregates.length===0?<EmptyState title="No fulfillment evidence yet" />:evidenceAggregates.map((aggregate)=>(
+            {evidenceAggregates.length===0?<EmptyState title="暂无服务凭证" description="师傅提交服务记录后会显示在这里。" />:evidenceAggregates.map((aggregate)=>(
               <div key={aggregate.fulfillmentId} style={{ display: "grid", gap: 10, borderTop: "1px solid #e4e7ec", paddingTop: 12 }}>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
                   <strong>{aggregate.fulfillmentId}</strong>
-                  <StatusTag tone={aggregate.confirmation?.status === "confirmed" ? "success" : aggregate.confirmation?.status === "disputed" ? "danger" : "warning"}>{aggregate.confirmation?.status ?? "awaiting worker completion"}</StatusTag>
+                  <StatusTag tone={aggregate.confirmation?.status === "confirmed" ? "success" : aggregate.confirmation?.status === "disputed" ? "danger" : "warning"}>{aggregate.confirmation?.status === "confirmed" ? "已确认" : aggregate.confirmation?.status === "disputed" ? "有异议" : aggregate.confirmation?.status === "pending" ? "待确认" : "等待师傅完成服务"}</StatusTag>
                 </div>
-                {aggregate.evidence.length===0?<EmptyState title="No evidence nodes" />:<Table rows={aggregate.evidence} getRowKey={(item)=>item.evidenceId} columns={[
-                  {key:"node",title:"Node",render:(item)=>item.evidenceType},
-                  {key:"file",title:"File",render:(item)=>item.mediaAsset.originalFileName},
-                  {key:"provider",title:"Storage",render:(item)=>item.mediaAsset.storage.providerStatus},
-                  {key:"scan",title:"Scan",render:(item)=>item.mediaAsset.securityScanStatus},
+                {aggregate.evidence.length===0?<EmptyState title="暂无凭证记录" />:<Table rows={aggregate.evidence} getRowKey={(item)=>item.evidenceId} columns={[
+                  {key:"node",title:"节点",render:(item)=>item.evidenceType},
+                  {key:"file",title:"文件",render:(item)=>item.mediaAsset.originalFileName},
+                  {key:"provider",title:"存储",render:(item)=>item.mediaAsset.storage.providerStatus},
+                  {key:"scan",title:"安全检查",render:(item)=>item.mediaAsset.securityScanStatus},
                 ]}/>}
                 {aggregate.confirmation?.status === "pending" && <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  <Button variant="primary" disabled={busy!==null} onClick={()=>void decideConfirmation(aggregate.fulfillmentId,"confirmed")}>Confirm evidence</Button>
-                  <Button disabled={busy!==null||!disputeComplaintId||confirmationNote.trim().length<2} onClick={()=>void decideConfirmation(aggregate.fulfillmentId,"disputed")}>Dispute with complaint</Button>
+                  <Button variant="primary" disabled={busy!==null} onClick={()=>void decideConfirmation(aggregate.fulfillmentId,"confirmed")}>确认服务凭证</Button>
+                  <Button disabled={busy!==null||!disputeComplaintId||confirmationNote.trim().length<2} onClick={()=>void decideConfirmation(aggregate.fulfillmentId,"disputed")}>提交凭证异议</Button>
                 </div>}
               </div>
             ))}

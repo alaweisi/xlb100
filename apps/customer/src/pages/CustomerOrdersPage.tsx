@@ -10,7 +10,6 @@ import type {
 } from "@xlb/types";
 import {
   Button,
-  CustomerAnswerCard,
   CustomerOrdersTemplate,
   EmptyState,
   ErrorState,
@@ -22,6 +21,7 @@ import {
 } from "@xlb/ui";
 import { formatScheduledLabel } from "../adapters/orderAddressOptions";
 import { createCustomerUiBinding } from "../adapters/workflowAdapter";
+import { CustomerRouteShell } from "./customerPageShell";
 import "./customer-orders.css";
 
 interface CustomerOrderApi {
@@ -93,6 +93,21 @@ function orderStatusTone(status: string): "success" | "warning" | "muted" {
   return "muted";
 }
 
+const orderStatusLabel: Record<string, string> = {
+  pending_dispatch: "待派单",
+  service_completed: "待确认服务",
+  pending_payment: "待支付",
+  paid: "已支付",
+  cancelled: "已取消",
+  closed: "已关闭",
+};
+
+const reviewVisibilityLabel: Record<string, string> = {
+  pending_moderation: "审核中",
+  visible: "已公开",
+  hidden: "暂不展示",
+};
+
 export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPageProps) {
   const binding = createCustomerUiBinding({
     route: "orders",
@@ -139,7 +154,7 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
         }
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "load orders failed");
+          setError(err instanceof Error ? err.message : "订单加载失败，请稍后重试");
         }
       } finally {
         if (!cancelled) {
@@ -193,7 +208,7 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
     if (!comment) {
       setReviewStates((previous) => ({
         ...previous,
-        [orderId]: { status: "error", error: "Please enter your own review comment" },
+        [orderId]: { status: "error", error: "请填写真实的服务评价" },
       }));
       return;
     }
@@ -264,8 +279,8 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
       setAppealErrors((previous) => ({
         ...previous,
         [orderId]: cause && typeof cause === "object" && "status" in cause && cause.status === 409
-          ? "This moderation decision changed or already has an active appeal. Refresh the order and try again."
-          : cause instanceof Error ? cause.message : "Appeal failed",
+          ? "评价审核结果已更新或已有申诉，请刷新后重试"
+          : cause instanceof Error ? cause.message : "申诉提交失败",
       }));
     }
   }
@@ -362,11 +377,12 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
   }
 
   return (
-    <CustomerOrdersTemplate route="/customer/orders" cityCode={cityCode} binding={binding}>
-      {loading && <LoadingState title="Loading latest orders" description="Reading order API..." />}
-      {error && <ErrorState title="Load orders failed" description={error} />}
+    <CustomerRouteShell currentRoute="orders">
+      <CustomerOrdersTemplate route="/customer/orders" cityCode={cityCode} binding={binding}>
+      {loading && <LoadingState title="正在加载订单" description="正在读取最新订单状态" />}
+      {error && <ErrorState title="订单加载失败" description={error} />}
       {!loading && !error && orders.length === 0 && (
-        <EmptyState title="No order yet" description="Create an order first on /customer/order/create." />
+        <EmptyState title="还没有订单" description="选择需要的服务并完成预约后，订单会显示在这里。" />
       )}
       {!loading &&
         !error &&
@@ -387,50 +403,50 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
             <OrderCard
               key={order.orderId}
               title={order.skuName}
-              description={`Quantity ${order.quantity}${order.unit} / ${order.addressDistrict} ${order.detailAddress}`.trim()}
-              meta={`${formatScheduledLabel(order.scheduledAt, order.scheduledTimeSlot)} / ${order.contactName} ${order.contactPhone}`}
-              status={<StatusTag tone={orderStatusTone(order.status)}>{order.status}</StatusTag>}
-              priceText={`CNY ${order.totalAmount.toFixed(2)}`}
+              description={`${order.quantity}${order.unit} · ${order.addressDistrict} ${order.detailAddress}`.trim()}
+              meta={`${formatScheduledLabel(order.scheduledAt, order.scheduledTimeSlot)} · ${order.contactName} ${order.contactPhone}`}
+              status={<StatusTag tone={orderStatusTone(order.status)}>{orderStatusLabel[order.status] ?? order.status}</StatusTag>}
+              priceText={`¥${order.totalAmount.toFixed(2)}`}
               actions={
                 <Button
                   disabled={!isRefundRequestAllowed || refundState.status === "submitting"}
                   onClick={() => void submitRefundRequest(order.orderId)}
                   variant="primary"
                 >
-                  {refundState.status === "submitting" ? "Submitting" : "Request aftersale"}
+                  {refundState.status === "submitting" ? "正在提交" : "申请售后"}
                 </Button>
               }
             >
               <div style={{ display: "grid", gap: 8 }}>
                 <strong style={{ color: "#2b2118", fontSize: 13, lineHeight: "18px" }}>
-                  Service confirmation and mock payment
+                  服务确认与支付
                 </strong>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                   <Button
                     disabled={!isConfirmAllowed || confirmState.status === "submitting"}
                     onClick={() => void confirmService(order.orderId)}
                   >
-                    {confirmState.status === "submitting" ? "Confirming" : "Confirm service"}
+                    {confirmState.status === "submitting" ? "正在确认" : "确认服务完成"}
                   </Button>
                   <Button
                     disabled={!isPaymentAllowed || paymentState.status === "submitting"}
                     onClick={() => void payAfterService(order.orderId)}
                     variant="primary"
                   >
-                    {paymentState.status === "submitting" ? "Paying" : "Mock pay"}
+                    {paymentState.status === "submitting" ? "正在支付" : "支付服务费"}
                   </Button>
                 </div>
                 {confirmState.status === "success" && (
-                  <StatusTag tone="success">confirmed {confirmState.order.status}</StatusTag>
+                  <StatusTag tone="success">已确认服务完成</StatusTag>
                 )}
                 {confirmState.status === "error" && (
                   <span style={{ color: "#b42318", fontSize: 12, lineHeight: "18px" }}>{confirmState.error}</span>
                 )}
                 {paymentState.status === "success" && (
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                    <StatusTag tone="success">payment {paymentState.paymentOrder.status}</StatusTag>
+                    <StatusTag tone="success">支付成功</StatusTag>
                     <StatusTag tone="muted">{paymentState.paymentOrder.paymentOrderId}</StatusTag>
-                    {paymentState.idempotent && <StatusTag tone="warning">existing payment</StatusTag>}
+                    {paymentState.idempotent && <StatusTag tone="warning">请勿重复支付</StatusTag>}
                   </div>
                 )}
                 {paymentState.status === "error" && (
@@ -438,19 +454,19 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
                 )}
 
                 <strong style={{ color: "#2b2118", fontSize: 13, lineHeight: "18px" }}>
-                  Service review
+                  服务评价
                 </strong>
                 <span style={{ color: "#64748b", fontSize: 12, lineHeight: "18px" }}>
-                  Your review is immutable and enters moderation before it contributes to reputation.
+                  评价提交后不可修改，审核通过后公开展示。
                 </span>
                 {persistedReview && (
                   <div className="customer-review-stack">
                     <div className="customer-review-inline">
-                      <StatusTag tone="success">submitted {persistedReview.review.rating}/5</StatusTag>
+                      <StatusTag tone="success">已评价 {persistedReview.review.rating}/5</StatusTag>
                       <StatusTag tone={persistedReview.visibility.visibility === "visible" ? "success" : "warning"}>
-                        {persistedReview.visibility.visibility}
+                        {reviewVisibilityLabel[persistedReview.visibility.visibility] ?? persistedReview.visibility.visibility}
                       </StatusTag>
-                      <StatusTag tone="muted">version {persistedReview.visibility.moderationVersion}</StatusTag>
+                      <StatusTag tone="muted">审核版本 {persistedReview.visibility.moderationVersion}</StatusTag>
                     </div>
                     <span className="customer-review-comment">{persistedReview.review.comment}</span>
                   </div>
@@ -473,7 +489,7 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
                 <Textarea
                   disabled={!isReviewRequestAllowed || !!persistedReview || reviewState.status === "submitting" || reviewState.status === "success"}
                   maxLength={500}
-                  placeholder="Review comment"
+                  placeholder="写下本次服务的真实感受"
                   value={reviewComments[order.orderId] ?? ""}
                   onChange={(event) =>
                     setReviewComments((previous) => ({
@@ -493,18 +509,18 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
                     }
                     onClick={() => void submitReview(order.orderId)}
                   >
-                    {reviewState.status === "submitting" ? "Submitting review" : "Submit review"}
+                    {reviewState.status === "submitting" ? "正在提交评价" : "提交评价"}
                   </Button>
                 </div>
                 {!isReviewRequestAllowed && (
-                  <StatusTag tone="muted">Available after payment and worker completion</StatusTag>
+                  <StatusTag tone="muted">服务完成并支付后可评价</StatusTag>
                 )}
                 {reviewState.status === "success" && (
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                    <StatusTag tone="success">review {reviewState.review.status}</StatusTag>
+                    <StatusTag tone="success">评价已提交</StatusTag>
                     <StatusTag tone="muted">{reviewState.review.reviewId}</StatusTag>
                     <StatusTag tone="muted">{reviewState.review.rating}/5</StatusTag>
-                    {reviewState.idempotent && <StatusTag tone="warning">existing review</StatusTag>}
+                    {reviewState.idempotent && <StatusTag tone="warning">请勿重复评价</StatusTag>}
                   </div>
                 )}
                 {reviewState.status === "error" && (
@@ -515,7 +531,7 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
                     <div className="customer-review-stack">
                       <Textarea
                         maxLength={1_000}
-                        placeholder="Explain why this moderation decision should be reviewed"
+                        placeholder="请说明需要复核评价审核结果的原因"
                         value={appealReasons[order.orderId] ?? ""}
                         onChange={(event) => setAppealReasons((previous) => ({
                           ...previous,
@@ -526,11 +542,11 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
                         disabled={appealState === "submitting" || !appealReasons[order.orderId]?.trim()}
                         onClick={() => void submitReviewAppeal(order.orderId, persistedReview)}
                       >
-                        {appealState === "submitting" ? "Submitting appeal" : "Appeal moderation"}
+                        {appealState === "submitting" ? "正在提交申诉" : "申请复核"}
                       </Button>
                       {appealState === "error" && (
                         <span className="customer-review-error">
-                          {appealErrors[order.orderId] || "Appeal failed"}
+                          {appealErrors[order.orderId] || "申诉提交失败"}
                         </span>
                       )}
                     </div>
@@ -538,29 +554,29 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
                 {persistedReview?.appeals.map((appeal) => (
                   <div className="customer-review-inline" key={appeal.appealId}>
                     <StatusTag tone={appeal.status === "upheld" ? "success" : "warning"}>
-                      appeal {appeal.status}
+                      申诉状态：{appeal.status}
                     </StatusTag>
                     {appeal.status === "open" && (
                       <Button
                         disabled={appealState === "submitting"}
                         onClick={() => void withdrawReviewAppeal(order.orderId, persistedReview)}
                       >
-                        Withdraw appeal
+                        撤回申诉
                       </Button>
                     )}
                   </div>
                 ))}
 
                 <strong style={{ color: "#2b2118", fontSize: 13, lineHeight: "18px" }}>
-                  Aftersale request
+                  售后申请
                 </strong>
                 <span style={{ color: "#64748b", fontSize: 12, lineHeight: "18px" }}>
-                  Creates only a refund request with status=requested. Refund execution and approval are outside this stage.
+                  提交后进入售后审核；是否退款及退款进度以审核结果为准。
                 </span>
                 <Textarea
                   disabled={!isRefundRequestAllowed || refundState.status === "submitting"}
                   maxLength={255}
-                  placeholder="Reason, optional"
+                  placeholder="补充售后原因（选填）"
                   value={refundReasons[order.orderId] ?? ""}
                   onChange={(event) =>
                     setRefundReasons((previous) => ({
@@ -570,13 +586,13 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
                   }
                 />
                 {!isRefundRequestAllowed && (
-                  <StatusTag tone="muted">Available after payment, worker completion, and accrual readiness</StatusTag>
+                  <StatusTag tone="muted">服务完成并支付后可申请售后</StatusTag>
                 )}
                 {refundState.status === "success" && (
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                    <StatusTag tone="success">refund {refundState.refund.status}</StatusTag>
+                    <StatusTag tone="success">售后申请已提交</StatusTag>
                     <StatusTag tone="muted">{refundState.refund.refundId}</StatusTag>
-                    {refundState.idempotent && <StatusTag tone="warning">existing request</StatusTag>}
+                    {refundState.idempotent && <StatusTag tone="warning">已有相同申请</StatusTag>}
                   </div>
                 )}
                 {refundState.status === "error" && (
@@ -586,8 +602,7 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
             </OrderCard>
           );
         })}
-
-      <CustomerAnswerCard state={binding.state} />
-    </CustomerOrdersTemplate>
+      </CustomerOrdersTemplate>
+    </CustomerRouteShell>
   );
 }

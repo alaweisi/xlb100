@@ -16,11 +16,11 @@ describe("Customer profile operations page",()=>{
     };
     render(<CustomerProfilePage api={api} cityCode="hangzhou"/>);
     expect(await screen.findByText("138****0001")).toBeTruthy();
-    fireEvent.change(screen.getByLabelText("Contact"),{target:{value:"Lin"}});
-    fireEvent.change(screen.getByLabelText("Mobile"),{target:{value:"13800000001"}});
-    fireEvent.change(screen.getByLabelText("District"),{target:{value:"西湖区"}});
-    fireEvent.change(screen.getByLabelText("Detail address"),{target:{value:"文三路 1 号"}});
-    fireEvent.click(screen.getByRole("button",{name:"Add address"}));
+    fireEvent.change(screen.getByLabelText("联系人"),{target:{value:"Lin"}});
+    fireEvent.change(screen.getByLabelText("手机号"),{target:{value:"13800000001"}});
+    fireEvent.change(screen.getByLabelText("区县"),{target:{value:"西湖区"}});
+    fireEvent.change(screen.getByLabelText("详细地址"),{target:{value:"文三路 1 号"}});
+    fireEvent.click(screen.getByRole("button",{name:"添加地址"}));
     await waitFor(()=>expect(api.createAddress).toHaveBeenCalledWith(expect.objectContaining({contactName:"Lin",contactPhone:"13800000001",district:"西湖区",detailAddress:"文三路 1 号"})));
   });
 });
