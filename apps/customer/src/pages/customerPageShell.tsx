@@ -4,7 +4,6 @@ import type { CatalogSnapshot, CityCode } from "@xlb/types";
 import { XLB_HEADERS } from "@xlb/types";
 import { BottomNav, MobileShell } from "@xlb/ui";
 import {
-  BellSimple,
   CaretLeft,
   ClipboardText,
   Headset,
@@ -150,20 +149,20 @@ export const customerRouteConfig: Record<
  */
 export const customerPrimaryNavConfig = [
   customerRouteConfig.home,
+  customerRouteConfig.support,
+  { label: "下单", href: "/customer/services", title: "选择服务", icon: <Plus size={28} weight="bold" />, prominent: true },
   customerRouteConfig.orders,
-  { ...customerRouteConfig.createOrder, label: "新报修" },
-  { label: "消息", href: "/customer/notifications", title: "消息", icon: <BellSimple size={22} /> },
   customerRouteConfig.profile,
 ] as const;
 
 const customerPrimaryNavHrefByRoute: Readonly<Record<CustomerShellRoute, string>> = {
   home: customerRouteConfig.home.href,
-  services: customerRouteConfig.home.href,
-  createOrder: customerRouteConfig.createOrder.href,
+  services: customerRouteConfig.services.href,
+  createOrder: customerRouteConfig.services.href,
   orders: customerRouteConfig.orders.href,
   aftersale: customerRouteConfig.orders.href,
-  support: "/customer/notifications",
-  notifications: "/customer/notifications",
+  support: customerRouteConfig.support.href,
+  notifications: customerRouteConfig.support.href,
   profile: customerRouteConfig.profile.href,
   coupons: customerRouteConfig.profile.href,
 };

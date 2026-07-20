@@ -41,6 +41,7 @@ export function CustomerServicesPage({
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategoryId, setActiveCategoryId] = useState<string>("all");
   const routeSearchQuery = useRouteSearchParams("q");
+  const routeCategoryId = useRouteSearchParams("categoryId");
   const binding = createCustomerUiBinding({ route: "services", cityCode });
 
   const actionById = useMemo(() => {
@@ -56,6 +57,16 @@ export function CustomerServicesPage({
   useEffect(() => {
     setSearchQuery(routeSearchQuery ?? "");
   }, [routeSearchQuery]);
+
+  useEffect(() => {
+    if (catalogState.status !== "success") return;
+    const validCategoryId = routeCategoryId && catalogState.data.categories.some(
+      (category) => category.categoryId === routeCategoryId,
+    )
+      ? routeCategoryId
+      : "all";
+    setActiveCategoryId(validCategoryId);
+  }, [catalogState, routeCategoryId]);
 
   const allSkus = useMemo(() => {
     if (catalogState.status !== "success") return [];
@@ -93,11 +104,23 @@ export function CustomerServicesPage({
     setRouteSearchParams({ cityCode, q: trimmed || null });
   };
 
+  const updateRouteCategory = (nextCategoryId: string) => {
+    setActiveCategoryId(nextCategoryId);
+    setRouteSearchParams({
+      cityCode,
+      categoryId: nextCategoryId === "all" ? null : nextCategoryId,
+    });
+  };
+
   const onCityChange = () => {
     const nextIndex = (CITY_OPTIONS.indexOf(cityCode) + 1) % CITY_OPTIONS.length;
     const nextCity = CITY_OPTIONS[nextIndex];
     const params = catalogQueryParams(searchQuery);
-    window.location.href = `/customer/services?${new URLSearchParams({ cityCode: nextCity, ...(params.get("q") ? { q: params.get("q")! } : {}) })}`;
+    if (activeCategoryId !== "all") {
+      params.set("categoryId", activeCategoryId);
+    }
+    params.set("cityCode", nextCity);
+    window.location.href = `/customer/services?${params.toString()}`;
   };
 
   const retryAction = actionById["customer.catalog.retry"];
@@ -123,7 +146,7 @@ export function CustomerServicesPage({
     <CustomerRouteShell currentRoute="services">
       <CustomerServicesTemplate route="/customer/services" cityCode={cityCode} binding={binding} header={header}>
       <Card>
-        <Tabs items={tabs} activeKey={activeCategoryId} onChange={setActiveCategoryId} density="compact" />
+        <Tabs items={tabs} activeKey={activeCategoryId} onChange={updateRouteCategory} density="compact" />
       </Card>
 
       {catalogState.status === "loading" && <LoadingState title="服务加载中" description="正在读取当前城市可预约的服务" />}

@@ -3,7 +3,7 @@
 - 浏览器：Microsoft Edge
 - 手机画面：390×844
 - Carrier：10
-- 截图：20 张手机图 + 1 张宽屏防退化图
+- 截图：21 张手机图 + 1 张宽屏防退化图
 - 结果：通过
 
 - C-00 auth-loading → `C-00-auth-loading-390x844.png`

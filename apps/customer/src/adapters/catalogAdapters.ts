@@ -21,10 +21,27 @@ export interface CatalogCategoryViewModel {
   categoryId: string;
   categoryName: string;
   label: string;
-  icon: string;
-  tone: string;
+  iconKey: CustomerCategoryIconKey;
   examples: string;
 }
+
+export type CustomerCategoryIconKey =
+  | "home-cleaning"
+  | "appliance-cleaning"
+  | "appliance-repair"
+  | "installation"
+  | "pipe"
+  | "lock"
+  | "utilities"
+  | "waterproofing"
+  | "furniture"
+  | "renovation"
+  | "moving"
+  | "air-quality"
+  | "digital"
+  | "laundry"
+  | "care"
+  | "pest-control";
 
 type CatalogCategory = CatalogSnapshot["categories"][number];
 type CatalogItem = ServiceItem & CatalogCategory["items"][number];
@@ -43,12 +60,6 @@ export const cityNameByCode: Record<CityCode, string> = {
 
 export const cityDisplayLabel = (cityCode: CityCode): string => `${cityNameByCode[cityCode]} · ${cityAreaByCode[cityCode] ?? "市中心"}`;
 
-const defaultCategoryMeta = {
-  label: "服务",
-  icon: "🧰",
-  tone: "#b85f2a",
-};
-
 const fallbackCategoryOrder = [
   "家庭保洁",
   "家电清洗",
@@ -57,16 +68,35 @@ const fallbackCategoryOrder = [
   "管道疏通",
   "开锁换锁",
   "水电维修",
-  "搬家搬运",
-  "四害消杀",
-  "甲醛检测治理",
-  "洗衣洗鞋",
+  "防水补漏/精准测漏",
   "家具家居维修保养",
   "房屋修缮/局部改造",
-  "防水补漏/精准测漏",
-  "保姆月嫂/照护",
+  "搬家搬运/拆旧清运",
+  "甲醛检测治理",
   "数码办公维修",
+  "洗衣洗鞋",
+  "保姆月嫂/照护",
+  "四害消杀",
 ];
+
+const customerCategoryPresentation: Readonly<Record<string, { label: string; iconKey: CustomerCategoryIconKey }>> = {
+  "家庭保洁": { label: "家庭保洁", iconKey: "home-cleaning" },
+  "家电清洗": { label: "家电清洗", iconKey: "appliance-cleaning" },
+  "家电维修": { label: "家电维修", iconKey: "appliance-repair" },
+  "上门安装": { label: "上门安装", iconKey: "installation" },
+  "管道疏通": { label: "管道疏通", iconKey: "pipe" },
+  "开锁换锁": { label: "开锁换锁", iconKey: "lock" },
+  "水电维修": { label: "水电维修", iconKey: "utilities" },
+  "防水补漏/精准测漏": { label: "防水补漏", iconKey: "waterproofing" },
+  "家具家居维修保养": { label: "家具维修", iconKey: "furniture" },
+  "房屋修缮/局部改造": { label: "房屋修缮", iconKey: "renovation" },
+  "搬家搬运/拆旧清运": { label: "搬家清运", iconKey: "moving" },
+  "甲醛检测治理": { label: "甲醛治理", iconKey: "air-quality" },
+  "数码办公维修": { label: "数码维修", iconKey: "digital" },
+  "洗衣洗鞋": { label: "洗衣洗鞋", iconKey: "laundry" },
+  "保姆月嫂/照护": { label: "保姆照护", iconKey: "care" },
+  "四害消杀": { label: "四害消杀", iconKey: "pest-control" },
+};
 
 function dedupe(parts: Array<string | undefined>): string[] {
   const values = parts.filter(Boolean).map((item) => item!.trim()).filter(Boolean);
@@ -155,17 +185,22 @@ export function orderedHomeCategories(catalog: CatalogSnapshot): CatalogCategory
 }
 
 export function catalogToHomeCategoryViewModels(catalog: CatalogSnapshot): CatalogCategoryViewModel[] {
-  return catalog.categories.map((category) => ({
-    categoryId: category.categoryId,
-    categoryName: category.name,
-    label: (category.name.length > 4 ? category.name.slice(0, 4) : category.name) ?? category.name,
-    icon: defaultCategoryMeta.icon,
-    tone: defaultCategoryMeta.tone,
-    examples: category.items
-      .slice(0, 3)
-      .map((item) => item.name)
-      .join("、"),
-  }));
+  return orderedHomeCategories(catalog).map((category) => {
+    const presentation = customerCategoryPresentation[category.name] ?? {
+      label: category.name,
+      iconKey: "appliance-repair" as const,
+    };
+    return {
+      categoryId: category.categoryId,
+      categoryName: category.name,
+      label: presentation.label,
+      iconKey: presentation.iconKey,
+      examples: category.items
+        .slice(0, 3)
+        .map((item) => item.name)
+        .join("、"),
+    };
+  });
 }
 
 export function representativeHomeSkus(catalog: CatalogSnapshot): CatalogSkuViewModel[] {
@@ -185,6 +220,21 @@ export function representativeHomeSkus(catalog: CatalogSnapshot): CatalogSkuView
       ),
     ];
   });
+}
+
+const featuredHomeSkuIds = [
+  "sku_home_daily_2h",
+  "sku_ac_wall_basic",
+  "sku_lock_unlock_standard",
+] as const;
+
+export function featuredHomeSkus(catalog: CatalogSnapshot): CatalogSkuViewModel[] {
+  const allSkus = getCatalogSkus(catalog);
+  const byId = new Map(allSkus.map((sku) => [sku.skuId, sku]));
+  const featured = featuredHomeSkuIds
+    .map((skuId) => byId.get(skuId))
+    .filter((sku): sku is CatalogSkuViewModel => Boolean(sku));
+  return featured.length > 0 ? featured : representativeHomeSkus(catalog).slice(0, 3);
 }
 
 export function toCatalogDisplayModels(catalog: CatalogSnapshot, selectedSkuId?: string) {

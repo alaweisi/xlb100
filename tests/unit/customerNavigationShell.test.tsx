@@ -13,20 +13,20 @@ import {
 
 const expectedPrimaryNavigation = [
   { label: "首页", href: "/customer/" },
+  { label: "客服", href: "/customer/support" },
+  { label: "下单", href: "/customer/services" },
   { label: "订单", href: "/customer/orders" },
-  { label: "新报修", href: "/customer/order/create" },
-  { label: "消息", href: "/customer/notifications" },
   { label: "我的", href: "/customer/profile" },
 ] as const;
 
 const expectedActiveHrefByRoute: Readonly<Record<CustomerShellRoute, string>> = {
   home: "/customer/",
-  services: "/customer/",
-  createOrder: "/customer/order/create",
+  services: "/customer/services",
+  createOrder: "/customer/services",
   orders: "/customer/orders",
   aftersale: "/customer/orders",
-  support: "/customer/notifications",
-  notifications: "/customer/notifications",
+  support: "/customer/support",
+  notifications: "/customer/support",
   profile: "/customer/profile",
   coupons: "/customer/profile",
 };

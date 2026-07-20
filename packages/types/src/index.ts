@@ -318,6 +318,10 @@ export type {
   UpdateCustomerProfileRequest,
   SaveCustomerAddressRequest,
 } from "./customerOperations.js";
+export type {
+  CustomerWorkerShowcaseItem,
+  CustomerWorkerShowcaseResponse,
+} from "./customerWorkerShowcase.js";
 export type { AdminOrderSummary, AdminSkuOperationsRow } from "./adminOperations.js";
 export type {
   GovernanceActionKind,
