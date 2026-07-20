@@ -82,8 +82,8 @@ foreach ($entry in $values.GetEnumerator()) {
     "$($entry.Key) normal render must not create a migration Job"
 
   $deploymentCount = [regex]::Matches($rendered[$entry.Key], '(?m)^kind:\s+Deployment\s*$').Count
-  if ($deploymentCount -ne 5) {
-    throw "$($entry.Key) must render exactly five Deployments; got $deploymentCount"
+  if ($deploymentCount -ne 7) {
+    throw "$($entry.Key) must render exactly seven Deployments for backend, jobs, and five frontends; got $deploymentCount"
   }
 }
 
@@ -105,10 +105,23 @@ Assert-Contains $rendered.production 'XLB_EXTERNAL_PROVIDER_EXECUTION_ENABLED:\s
   "production render must explicitly enable external COS execution"
 Assert-Contains $rendered.local 'XLB_EXTERNAL_PROVIDER_EXECUTION_ENABLED:\s+"false"' `
   "local render must keep external provider execution disabled"
+Assert-Contains $rendered.production 'ingress\.cloud\.tencent\.com/auto-rewrite:\s+"true"' `
+  "production qcloud Ingress must redirect HTTP to HTTPS"
+Assert-Contains $rendered.production 'ingress\.cloud\.tencent\.com/listen-ports:' `
+  "production qcloud Ingress must declare HTTP and HTTPS listeners"
+
+$realtimePathCount = [regex]::Matches($rendered.production, '(?m)^\s*- path:\s+/api/support/realtime\s*$').Count
+if ($realtimePathCount -ne 5) {
+  throw "production must route same-origin WebSocket on five frontend hosts; got $realtimePathCount"
+}
+$sameOriginApiPathCount = [regex]::Matches($rendered.production, '(?m)^\s*- path:\s+/api\s*$').Count
+if ($sameOriginApiPathCount -ne 5) {
+  throw "production must route same-origin API on five frontend hosts; got $sameOriginApiPathCount"
+}
 
 $pdbCount = [regex]::Matches($rendered.production, '(?m)^kind:\s+PodDisruptionBudget\s*$').Count
-if ($pdbCount -ne 4) {
-  throw "production must render four PodDisruptionBudgets; got $pdbCount"
+if ($pdbCount -ne 6) {
+  throw "production must render six PodDisruptionBudgets; got $pdbCount"
 }
 
 $optional = Invoke-Helm @(
@@ -121,8 +134,8 @@ $optional = Invoke-Helm @(
   "--set", "networkPolicy.enabled=true"
 ) -Capture
 $hpaCount = [regex]::Matches($optional, '(?m)^kind:\s+HorizontalPodAutoscaler\s*$').Count
-if ($hpaCount -ne 4) {
-  throw "optional render must contain four HorizontalPodAutoscalers; got $hpaCount"
+if ($hpaCount -ne 6) {
+  throw "optional render must contain six HorizontalPodAutoscalers; got $hpaCount"
 }
 Assert-Contains $optional '(?m)^kind:\s+NetworkPolicy\s*$' `
   "optional render is missing NetworkPolicy"

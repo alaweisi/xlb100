@@ -37,6 +37,24 @@ TLS CA and COS keys can contain non-production dummy values for local runs when
 their features are disabled, but all keys remain mandatory so the mounted file
 contract is identical across environments.
 
+## Production edge contract
+
+For every Customer, Worker and Admin host, the Ingress sends
+`/api/support/realtime` and `/api` to the backend before the `/` frontend
+fallback. This preserves the browser same-origin API/WSS contract while the API
+host continues to route all paths to the backend.
+
+The checked-in TKE staging and production values use the `qcloud` Ingress
+class, declare HTTP 80 plus HTTPS 443, and enable TKE CLB automatic HTTP-to-HTTPS
+rewrite. Their `ingress.tls.secretName` is an external TKE certificate-reference
+Secret; for qcloud it must contain the Tencent Cloud certificate ID expected by
+the TKE Ingress controller. The Chart never creates that Secret or stores the
+certificate/private key.
+
+Frontend images carry the browser security-header policy in
+`infra/docker/frontend-serve.json`. CLB may add stricter headers through a
+reviewed personalized configuration, but it is not the sole enforcement point.
+
 ## Rendering
 
 ```powershell

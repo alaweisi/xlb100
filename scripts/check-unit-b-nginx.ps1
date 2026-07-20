@@ -57,6 +57,8 @@ try {
     "--add-host", "customer:127.0.0.1",
     "--add-host", "worker:127.0.0.1",
     "--add-host", "admin:127.0.0.1",
+    "--add-host", "oa:127.0.0.1",
+    "--add-host", "dashboard:127.0.0.1",
     "--env", "XLB_DOMAIN=unit-b.test",
     "--env", "NGINX_ENVSUBST_FILTER=^XLB_DOMAIN$",
     "--volume", "${template}:/etc/nginx/templates/default.conf.template:ro",

@@ -39,6 +39,15 @@ export function validateDeploymentValues(content, environment) {
     if (!/secretName:\s*[a-z0-9][a-z0-9.-]+/i.test(content)) {
       fail(`${environment} values require an ingress TLS Secret reference`);
     }
+    if (!/className:\s*["']?qcloud["']?\s*$/im.test(content)) {
+      fail(`${environment} values require the TKE qcloud Ingress class`);
+    }
+    if (!/ingress\.cloud\.tencent\.com\/listen-ports:[^\r\n]*HTTP[^\r\n]*80[^\r\n]*HTTPS[^\r\n]*443/i.test(content)) {
+      fail(`${environment} values require TKE CLB HTTP 80 and HTTPS 443 listeners`);
+    }
+    if (!/ingress\.cloud\.tencent\.com\/auto-rewrite:\s*["']?true["']?/i.test(content)) {
+      fail(`${environment} values require TKE CLB automatic HTTPS rewrite`);
+    }
     if (!/provider:\s*cos\b/i.test(content) || !/externalExecutionEnabled:\s*true\b/i.test(content)) {
       fail(`${environment} values require COS and the external execution switch together`);
     }

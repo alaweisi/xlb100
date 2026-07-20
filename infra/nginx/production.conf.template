@@ -1,38 +1,374 @@
 limit_req_zone $binary_remote_addr zone=xlb_api:10m rate=20r/s;
+limit_req_status 429;
+server_tokens off;
+
+map $http_upgrade $xlb_connection_upgrade {
+  default upgrade;
+  "" close;
+}
+
+server {
+  listen 80 default_server;
+  server_name _;
+  return 444;
+}
+
+server {
+  listen 443 ssl default_server;
+  server_name _;
+  ssl_certificate /run/secrets/tls_fullchain;
+  ssl_certificate_key /run/secrets/tls_private_key;
+  ssl_protocols TLSv1.2 TLSv1.3;
+  return 444;
+}
 
 server {
   listen 80;
-  server_name api.__DOMAIN__ customer.__DOMAIN__ worker.__DOMAIN__ admin.__DOMAIN__ oa.__DOMAIN__ dashboard.__DOMAIN__;
+  server_name api.${XLB_DOMAIN} customer.${XLB_DOMAIN} worker.${XLB_DOMAIN} admin.${XLB_DOMAIN} oa.${XLB_DOMAIN} dashboard.${XLB_DOMAIN};
   return 301 https://$host$request_uri;
 }
 
 server {
-  listen 443 ssl http2;
-  server_name api.__DOMAIN__;
-  ssl_certificate /run/xlb-tls/fullchain.pem;
-  ssl_certificate_key /run/xlb-tls/privkey.pem;
+  listen 443 ssl;
+  http2 on;
+  server_name api.${XLB_DOMAIN};
+
+  ssl_certificate /run/secrets/tls_fullchain;
+  ssl_certificate_key /run/secrets/tls_private_key;
   ssl_protocols TLSv1.2 TLSv1.3;
+  ssl_session_cache shared:XLB_TLS:10m;
+  ssl_session_timeout 1d;
+
   add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+  add_header X-Content-Type-Options "nosniff" always;
+  add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
   client_max_body_size 10m;
 
   location = /metrics {
-    allow 10.0.0.0/8;
-    allow 172.16.0.0/12;
-    allow 192.168.0.0/16;
+    # Metrics are scraped directly from backend:3000 on the private network.
+    # Never trust an RFC1918 load-balancer source address as public isolation.
     deny all;
-    proxy_pass http://backend:3000;
   }
+
+  location = /api/support/realtime {
+    limit_req zone=xlb_api burst=40 nodelay;
+    proxy_pass http://backend:3000;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $xlb_connection_upgrade;
+    proxy_connect_timeout 5s;
+    proxy_read_timeout 90s;
+    proxy_send_timeout 30s;
+    proxy_buffering off;
+  }
+
   location / {
     limit_req zone=xlb_api burst=40 nodelay;
+    proxy_http_version 1.1;
     proxy_set_header Host $host;
-    proxy_set_header X-Forwarded-Proto https;
+    proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_connect_timeout 5s;
+    proxy_read_timeout 60s;
+    proxy_send_timeout 30s;
     proxy_pass http://backend:3000;
   }
 }
 
-server { listen 443 ssl http2; server_name customer.__DOMAIN__; ssl_certificate /run/xlb-tls/fullchain.pem; ssl_certificate_key /run/xlb-tls/privkey.pem; ssl_protocols TLSv1.2 TLSv1.3; add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always; location / { proxy_pass http://customer:4173; } }
-server { listen 443 ssl http2; server_name worker.__DOMAIN__; ssl_certificate /run/xlb-tls/fullchain.pem; ssl_certificate_key /run/xlb-tls/privkey.pem; ssl_protocols TLSv1.2 TLSv1.3; add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always; location / { proxy_pass http://worker:4173; } }
-server { listen 443 ssl http2; server_name admin.__DOMAIN__; ssl_certificate /run/xlb-tls/fullchain.pem; ssl_certificate_key /run/xlb-tls/privkey.pem; ssl_protocols TLSv1.2 TLSv1.3; add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always; location / { proxy_pass http://admin:4173; } }
-server { listen 443 ssl http2; server_name oa.__DOMAIN__; ssl_certificate /run/xlb-tls/fullchain.pem; ssl_certificate_key /run/xlb-tls/privkey.pem; ssl_protocols TLSv1.2 TLSv1.3; add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always; location / { proxy_pass http://oa:4173; } }
-server { listen 443 ssl http2; server_name dashboard.__DOMAIN__; ssl_certificate /run/xlb-tls/fullchain.pem; ssl_certificate_key /run/xlb-tls/privkey.pem; ssl_protocols TLSv1.2 TLSv1.3; add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always; location / { proxy_pass http://dashboard:4173; } }
+# Browser clients use same-origin /api and /api/support/realtime routes. This
+# intentionally avoids a broad production CORS allowlist and build-time API URL.
+server {
+  listen 443 ssl;
+  http2 on;
+  server_name customer.${XLB_DOMAIN};
+
+  ssl_certificate /run/secrets/tls_fullchain;
+  ssl_certificate_key /run/secrets/tls_private_key;
+  ssl_protocols TLSv1.2 TLSv1.3;
+  ssl_session_cache shared:XLB_TLS:10m;
+  ssl_session_timeout 1d;
+
+  add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+  add_header X-Content-Type-Options "nosniff" always;
+  add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+  add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+  add_header Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; manifest-src 'self'; worker-src 'self' blob:; upgrade-insecure-requests" always;
+
+  client_max_body_size 10m;
+
+  location = /api/support/realtime {
+    limit_req zone=xlb_api burst=40 nodelay;
+    proxy_pass http://backend:3000;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $xlb_connection_upgrade;
+    proxy_connect_timeout 5s;
+    proxy_read_timeout 90s;
+    proxy_send_timeout 30s;
+    proxy_buffering off;
+  }
+
+  location /api/ {
+    limit_req zone=xlb_api burst=40 nodelay;
+    proxy_pass http://backend:3000;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_connect_timeout 5s;
+    proxy_read_timeout 60s;
+    proxy_send_timeout 30s;
+  }
+
+  location / {
+    proxy_pass http://customer:4173;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+}
+
+server {
+  listen 443 ssl;
+  http2 on;
+  server_name worker.${XLB_DOMAIN};
+
+  ssl_certificate /run/secrets/tls_fullchain;
+  ssl_certificate_key /run/secrets/tls_private_key;
+  ssl_protocols TLSv1.2 TLSv1.3;
+  ssl_session_cache shared:XLB_TLS:10m;
+  ssl_session_timeout 1d;
+
+  add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+  add_header X-Content-Type-Options "nosniff" always;
+  add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+  add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+  add_header Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; manifest-src 'self'; worker-src 'self' blob:; upgrade-insecure-requests" always;
+
+  client_max_body_size 10m;
+
+  location = /api/support/realtime {
+    limit_req zone=xlb_api burst=40 nodelay;
+    proxy_pass http://backend:3000;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $xlb_connection_upgrade;
+    proxy_connect_timeout 5s;
+    proxy_read_timeout 90s;
+    proxy_send_timeout 30s;
+    proxy_buffering off;
+  }
+
+  location /api/ {
+    limit_req zone=xlb_api burst=40 nodelay;
+    proxy_pass http://backend:3000;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_connect_timeout 5s;
+    proxy_read_timeout 60s;
+    proxy_send_timeout 30s;
+  }
+
+  location / {
+    proxy_pass http://worker:4173;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+}
+
+server {
+  listen 443 ssl;
+  http2 on;
+  server_name admin.${XLB_DOMAIN};
+
+  ssl_certificate /run/secrets/tls_fullchain;
+  ssl_certificate_key /run/secrets/tls_private_key;
+  ssl_protocols TLSv1.2 TLSv1.3;
+  ssl_session_cache shared:XLB_TLS:10m;
+  ssl_session_timeout 1d;
+
+  add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+  add_header X-Content-Type-Options "nosniff" always;
+  add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+  add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+  add_header Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; manifest-src 'self'; worker-src 'self' blob:; upgrade-insecure-requests" always;
+
+  client_max_body_size 10m;
+
+  location = /api/support/realtime {
+    limit_req zone=xlb_api burst=40 nodelay;
+    proxy_pass http://backend:3000;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $xlb_connection_upgrade;
+    proxy_connect_timeout 5s;
+    proxy_read_timeout 90s;
+    proxy_send_timeout 30s;
+    proxy_buffering off;
+  }
+
+  location /api/ {
+    limit_req zone=xlb_api burst=40 nodelay;
+    proxy_pass http://backend:3000;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_connect_timeout 5s;
+    proxy_read_timeout 60s;
+    proxy_send_timeout 30s;
+  }
+
+  location / {
+    proxy_pass http://admin:4173;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+}
+
+server {
+  listen 443 ssl;
+  http2 on;
+  server_name oa.${XLB_DOMAIN};
+
+  ssl_certificate /run/secrets/tls_fullchain;
+  ssl_certificate_key /run/secrets/tls_private_key;
+  ssl_protocols TLSv1.2 TLSv1.3;
+  ssl_session_cache shared:XLB_TLS:10m;
+  ssl_session_timeout 1d;
+
+  add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+  add_header X-Content-Type-Options "nosniff" always;
+  add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+  add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+  add_header Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; manifest-src 'self'; worker-src 'self' blob:; upgrade-insecure-requests" always;
+
+  client_max_body_size 10m;
+
+  location = /api/support/realtime {
+    limit_req zone=xlb_api burst=40 nodelay;
+    proxy_pass http://backend:3000;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $xlb_connection_upgrade;
+    proxy_connect_timeout 5s;
+    proxy_read_timeout 90s;
+    proxy_send_timeout 30s;
+    proxy_buffering off;
+  }
+
+  location /api/ {
+    limit_req zone=xlb_api burst=40 nodelay;
+    proxy_pass http://backend:3000;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_connect_timeout 5s;
+    proxy_read_timeout 60s;
+    proxy_send_timeout 30s;
+  }
+
+  location / {
+    proxy_pass http://oa:4173;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+}
+
+server {
+  listen 443 ssl;
+  http2 on;
+  server_name dashboard.${XLB_DOMAIN};
+
+  ssl_certificate /run/secrets/tls_fullchain;
+  ssl_certificate_key /run/secrets/tls_private_key;
+  ssl_protocols TLSv1.2 TLSv1.3;
+  ssl_session_cache shared:XLB_TLS:10m;
+  ssl_session_timeout 1d;
+
+  add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+  add_header X-Content-Type-Options "nosniff" always;
+  add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+  add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+  add_header Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; manifest-src 'self'; worker-src 'self' blob:; upgrade-insecure-requests" always;
+
+  client_max_body_size 10m;
+
+  location = /api/support/realtime {
+    limit_req zone=xlb_api burst=40 nodelay;
+    proxy_pass http://backend:3000;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $xlb_connection_upgrade;
+    proxy_connect_timeout 5s;
+    proxy_read_timeout 90s;
+    proxy_send_timeout 30s;
+    proxy_buffering off;
+  }
+
+  location /api/ {
+    limit_req zone=xlb_api burst=40 nodelay;
+    proxy_pass http://backend:3000;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_connect_timeout 5s;
+    proxy_read_timeout 60s;
+    proxy_send_timeout 30s;
+  }
+
+  location / {
+    proxy_pass http://dashboard:4173;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+}

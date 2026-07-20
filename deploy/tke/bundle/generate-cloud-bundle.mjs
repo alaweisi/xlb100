@@ -274,7 +274,9 @@ config:
 ingress:
   enabled: true
   className: ${yamlString(helm.ingressClass)}
-  annotations: {}
+  annotations:
+    ingress.cloud.tencent.com/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
+    ingress.cloud.tencent.com/auto-rewrite: "true"
   tls:
     enabled: true
     secretName: ${secretReferences.tlsSecretName}

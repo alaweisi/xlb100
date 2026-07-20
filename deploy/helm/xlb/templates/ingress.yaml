@@ -37,6 +37,23 @@ spec:
     - host: {{ index $.Values.ingress.hosts $name | quote }}
       http:
         paths:
+          # Keep browser API and realtime traffic same-origin. The longer
+          # realtime path is declared first for controllers that preserve
+          # manifest order; Prefix precedence also selects it over /api.
+          - path: /api/support/realtime
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "xlb.fullname" $ }}-backend
+                port:
+                  name: http
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "xlb.fullname" $ }}-backend
+                port:
+                  name: http
           - path: /
             pathType: Prefix
             backend:

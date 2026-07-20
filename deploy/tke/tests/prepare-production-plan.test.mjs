@@ -52,6 +52,10 @@ config:
       bucket: xlb-production-objects-1234567890
       region: ap-guangzhou
 ingress:
+  className: qcloud
+  annotations:
+    ingress.cloud.tencent.com/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
+    ingress.cloud.tencent.com/auto-rewrite: "true"
   tls:
     secretName: xlb-production-tls
   hosts:

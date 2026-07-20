@@ -39,3 +39,15 @@ test("rejects a production compose file without a gateway", () => {
   sources.compose = sources.compose.replace("PROD_GATEWAY_IMAGE:?", "REMOVED_GATEWAY_IMAGE:?");
   assert.match(validateUnitBProductionEdge(sources).join("\n"), /PROD_GATEWAY_IMAGE/u);
 });
+
+test("rejects TKE frontend hosts without same-origin WebSocket routing", () => {
+  const sources = loadUnitBSources();
+  sources.helmIngress = sources.helmIngress.replace("path: /api/support/realtime", "path: /broken-realtime");
+  assert.match(validateUnitBProductionEdge(sources).join("\n"), /TKE frontend hosts/u);
+});
+
+test("rejects a frontend image without CSP", () => {
+  const sources = loadUnitBSources();
+  sources.frontendServe = sources.frontendServe.replace("Content-Security-Policy", "Removed-Security-Policy");
+  assert.match(validateUnitBProductionEdge(sources).join("\n"), /Content-Security-Policy/u);
+});
