@@ -26,6 +26,10 @@ import { toCustomerError } from "../adapters/customerError";
 import "./customer-orders.css";
 
 interface CustomerOrderApi {
+  listOrders(query?: { cursor?: string; limit?: number }): Promise<{
+    orders: Order[];
+    nextCursor: string | null;
+  }>;
   getOrder(orderId: string): Promise<{ order: Order }>;
   confirmService(orderId: string): Promise<{ order: Order }>;
   createPaymentOrder(payload: { orderId: string }): Promise<{ paymentOrder: PaymentOrder }>;
@@ -52,7 +56,6 @@ interface CustomerOrderApi {
 export interface CustomerOrdersPageProps {
   api: CustomerOrderApi;
   cityCode: CityCode;
-  orderIds: string[];
 }
 
 type MutationState<T> =
@@ -127,14 +130,16 @@ function appealStatusTone(status: string): "success" | "warning" {
   return status === "upheld" ? "success" : "warning";
 }
 
-export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPageProps) {
-  const binding = createCustomerUiBinding({ route: "orders", cityCode, hasOrderIds: orderIds.length > 0 });
+export function CustomerOrdersPage({ api, cityCode }: CustomerOrdersPageProps) {
   const initialOrderId = typeof window === "undefined"
-    ? orderIds[0] ?? ""
-    : new URLSearchParams(window.location.search).get("orderId") ?? orderIds[0] ?? "";
+    ? ""
+    : new URLSearchParams(window.location.search).get("orderId") ?? "";
   const [selectedOrderId, setSelectedOrderId] = useState(initialOrderId);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<{ title: string; description: string } | null>(null);
   const [partialNotice, setPartialNotice] = useState<string | null>(null);
   const [reviewViews, setReviewViews] = useState<Record<string, CustomerOrderReviewView | null>>({});
@@ -148,35 +153,58 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
   const [appealReasons, setAppealReasons] = useState<Record<string, string>>({});
   const [appealStates, setAppealStates] = useState<Record<string, MutationState<ReviewAppeal>>>({});
   const [idempotencyKeys, setIdempotencyKeys] = useState<Record<string, string>>({});
+  const binding = createCustomerUiBinding({ route: "orders", cityCode, hasOrderIds: orders.length > 0 });
 
   const loadOrders = useCallback(async () => {
-    if (orderIds.length === 0) {
-      setOrders([]);
-      setLoadError(null);
-      return;
-    }
     setLoading(true);
     setLoadError(null);
     setPartialNotice(null);
-    const results = await Promise.allSettled(orderIds.map((orderId) => api.getOrder(orderId)));
-    const loaded = results.flatMap((result) => result.status === "fulfilled" ? [result.value.order] : []);
-    const failures = results.filter((result) => result.status === "rejected");
-    if (loaded.length === 0 && failures[0]?.status === "rejected") {
-      const mapped = toCustomerError(failures[0].reason, "订单加载失败");
+    setLoadMoreError(null);
+    try {
+      const result = await api.listOrders({ limit: 20 });
+      const loaded = result.orders;
+      setOrders(loaded);
+      setNextCursor(result.nextCursor);
+      const reviews = await Promise.allSettled(
+        loaded.map(async (order) => [order.orderId, (await api.getOrderReview(order.orderId)).review] as const),
+      );
+      const reviewFailures = reviews.filter((review) => review.status === "rejected");
+      setReviewViews(Object.fromEntries(reviews.flatMap((review) => review.status === "fulfilled" ? [review.value] : [])));
+      if (reviewFailures.length > 0) setPartialNotice(`有 ${reviewFailures.length} 个订单的评价状态暂时无法读取。`);
+      setSelectedOrderId((current) => loaded.some((order) => order.orderId === current) ? current : loaded[0]?.orderId ?? "");
+    } catch (error) {
+      const mapped = toCustomerError(error, "订单加载失败");
       setLoadError({ title: mapped.title, description: mapped.description });
       setOrders([]);
+      setNextCursor(null);
+    } finally {
       setLoading(false);
-      return;
     }
-    setOrders(loaded);
-    if (failures.length > 0) setPartialNotice(`有 ${failures.length} 个历史订单暂时无法读取，可稍后刷新。`);
-    const reviews = await Promise.allSettled(
-      loaded.map(async (order) => [order.orderId, (await api.getOrderReview(order.orderId)).review] as const),
+  }, [api, cityCode]);
+
+  const loadMoreOrders = useCallback(async () => {
+    if (!nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    setLoadMoreError(null);
+    try {
+      const result = await api.listOrders({ cursor: nextCursor, limit: 20 });
+      const known = new Set(orders.map((order) => order.orderId));
+      const added = result.orders.filter((order) => !known.has(order.orderId));
+      setOrders((current) => [...current, ...added]);
+      setNextCursor(result.nextCursor);
+      const reviews = await Promise.allSettled(
+        added.map(async (order) => [order.orderId, (await api.getOrderReview(order.orderId)).review] as const),
     );
-    setReviewViews(Object.fromEntries(reviews.flatMap((result) => result.status === "fulfilled" ? [result.value] : [])));
-    setSelectedOrderId((current) => loaded.some((order) => order.orderId === current) ? current : loaded[0]?.orderId ?? "");
-    setLoading(false);
-  }, [api, orderIds]);
+      setReviewViews((current) => ({
+        ...current,
+        ...Object.fromEntries(reviews.flatMap((review) => review.status === "fulfilled" ? [review.value] : [])),
+      }));
+    } catch (error) {
+      setLoadMoreError(toCustomerError(error, "更多订单加载失败").description);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [api, loadingMore, nextCursor, orders]);
 
   useEffect(() => { void loadOrders(); }, [loadOrders]);
 
@@ -321,7 +349,7 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
       {loading && <LoadingState title="正在加载订单" description="读取订单详情与评价状态" />}
       {loadError && <ErrorState title={loadError.title} description={loadError.description} action={<Button onClick={() => void loadOrders()}>重新加载</Button>} />}
       {!loading && !loadError && orders.length === 0 && (
-        <EmptyState title="还没有可显示的订单" description="完成首次下单后，订单会保存在当前设备并从服务端读取详情。" />
+        <EmptyState title="还没有可显示的订单" description="订单会从服务端同步展示，不依赖当前设备的本地记录。" />
       )}
       {partialNotice && <div className="customer-order-notice" role="status">{partialNotice}</div>}
 
@@ -506,6 +534,15 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
           </OrderCard>
         );
       })() : null}
+
+      {!loading && !loadError && nextCursor ? (
+        <div className="customer-order-actions">
+          <Button disabled={loadingMore} onClick={() => void loadMoreOrders()}>
+            {loadingMore ? "正在加载更多" : "加载更多订单"}
+          </Button>
+        </div>
+      ) : null}
+      {loadMoreError ? <ErrorState title="更多订单加载失败" description={loadMoreError} action={<Button onClick={() => void loadMoreOrders()}>重新加载</Button>} /> : null}
 
       <CustomerAnswerCard state={binding.state} />
     </CustomerOrdersTemplate>

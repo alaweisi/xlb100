@@ -39,6 +39,17 @@ export interface Order {
   updatedAt: string;
 }
 
+export interface CustomerOrderListQuery {
+  cursor?: string;
+  limit?: number;
+}
+
+export interface CustomerOrderListResponse {
+  ok: true;
+  orders: Order[];
+  nextCursor: string | null;
+}
+
 export interface OrderPriceSnapshot {
   priceRuleId: string;
   skuId: string;

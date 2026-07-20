@@ -109,6 +109,11 @@ export type InsertOrderInput = {
   status: OrderStatus;
 };
 
+export type CustomerOrderListPosition = {
+  createdAt: string;
+  orderId: string;
+};
+
 export class OrderRepository extends RepositoryBase {
   constructor(pool?: Pool) {
     super(pool);
@@ -238,6 +243,52 @@ export class OrderRepository extends RepositoryBase {
     );
 
     return rows[0] ? mapOrder(rows[0]) : null;
+  }
+
+  async listByCustomer(
+    context: RequestContext,
+    cityCode: CityCode,
+    customerId: string,
+    cursor: CustomerOrderListPosition | undefined,
+    limit: number,
+  ): Promise<Order[]> {
+    this.requireContext(context);
+    assertCityScopedContext(context);
+    if (
+      context.appType !== "customer" ||
+      context.role !== "customer" ||
+      context.userId !== customerId ||
+      context.cityCode !== cityCode
+    ) {
+      throw new Error("customer order query scope mismatch");
+    }
+
+    const cursorClause = cursor
+      ? "AND (orders.created_at < ? OR (orders.created_at = ? AND orders.order_id < ?))"
+      : "";
+    const cursorParams = cursor
+      ? [new Date(cursor.createdAt), new Date(cursor.createdAt), cursor.orderId]
+      : [];
+    const [rows] = await this.pool.query<OrderRow[]>(
+      `SELECT orders.order_id, orders.city_code, orders.customer_id, orders.sku_id,
+              orders.sku_name, orders.quantity, orders.unit,
+              orders.address_province, orders.address_city, orders.address_district,
+              orders.detail_address, orders.contact_name, orders.contact_phone,
+              orders.scheduled_at, orders.scheduled_time_slot,
+              orders.price_rule_id, orders.price_text, orders.price_type,
+              orders.base_price, orders.currency, orders.total_amount,
+              ops.quote_snapshot,
+              orders.status, orders.created_at, orders.updated_at
+       FROM orders
+       LEFT JOIN order_price_snapshots ops
+         ON ops.order_id = orders.order_id AND ops.city_code = orders.city_code
+       WHERE orders.city_code = ? AND orders.customer_id = ?
+       ${cursorClause}
+       ORDER BY orders.created_at DESC, orders.order_id DESC
+       LIMIT ?`,
+      [cityCode, customerId, ...cursorParams, limit],
+    );
+    return rows.map(mapOrder);
   }
 
   async updateStatus(

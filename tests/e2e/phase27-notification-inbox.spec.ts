@@ -54,7 +54,13 @@ function collectFailures(page: Page) {
   const failures: string[] = [];
   page.on("pageerror", (error) => failures.push(`pageerror: ${error.message}`));
   page.on("console", (message) => { if (message.type() === "error") failures.push(`console: ${message.text()}`); });
-  page.on("requestfailed", (request) => failures.push(`requestfailed: ${request.method()} ${request.url()} ${request.failure()?.errorText ?? ""}`));
+  page.on("requestfailed", (request) => {
+    const errorText = request.failure()?.errorText ?? "";
+    // A full-route navigation can cancel the previous page's already-observed
+    // catalog refresh. The initial catalog response is asserted separately.
+    if (errorText === "net::ERR_ABORTED" && request.url().endsWith("/api/catalog")) return;
+    failures.push(`requestfailed: ${request.method()} ${request.url()} ${errorText}`);
+  });
   page.on("response", (response) => { if (response.status() >= 500) failures.push(`5xx: ${response.status()} ${response.url()}`); });
   return () => expect(failures, "browser console/page/request/5xx failures").toEqual([]);
 }
