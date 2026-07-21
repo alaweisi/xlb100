@@ -3,6 +3,7 @@ import { join } from "node:path";
 import {
   HOME_CAPTURE_CASES,
   HOME_EVIDENCE_ROOT,
+  HOME_QA_ITERATION,
   homeComparisonName,
   homeReportName,
   homeScreenshotName,
@@ -12,7 +13,7 @@ import {
 const root = process.cwd();
 const allowFailed = process.argv.includes("--allow-failed");
 const iterationArg = process.argv.find((arg) => arg.startsWith("--iteration="));
-const iteration = iterationArg?.slice("--iteration=".length) ?? process.env.CUSTOMER_HOME_QA_ITERATION ?? "01";
+const iteration = iterationArg?.slice("--iteration=".length) ?? process.env.CUSTOMER_HOME_QA_ITERATION ?? HOME_QA_ITERATION;
 const errors = [];
 let failedReports = 0;
 

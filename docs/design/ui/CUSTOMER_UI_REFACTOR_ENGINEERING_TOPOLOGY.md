@@ -1,6 +1,6 @@
 # 顾客端全业务切片设计系统统一与视觉重构 — 工程施工拓扑
 
-> 状态：**P1 GATE 1 PASSED / READY FOR P2**
+> 状态：**P2 GATE 2 PASSED / READY FOR P3**
 > 施工对象：仅 `apps/customer` 及其直接消费的顾客端 `packages/ui` 能力
 > 明确排除：`apps/worker`、`apps/admin`、`apps/oa`、`apps/dashboard`
 > 视觉母体：[`CUSTOMER_HOME_VISUAL_TRUTH.md`](./CUSTOMER_HOME_VISUAL_TRUTH.md)
@@ -176,7 +176,7 @@ flowchart TD
 | --- | --- |
 | Gate 0 | 唯一主页 PNG 与哈希可复核；范围只含 Customer；基线提交 clean |
 | Gate 1 | **PASS（2026-07-21）** — Customer token/recipe/共享组件可消费；16 类资产映射完整；无 Emoji/截图裁切占位 |
-| Gate 2 | 主页在 390×844 达成视觉证明；320 与 430 无溢出；Shell、状态、焦点和安全区可用 |
+| Gate 2 | **PASS（2026-07-21）** — 主页在 390×844 达成同屏视觉证明；320×844、430×932 与 partial 状态无溢出；Shell、状态、焦点、安全区、强对比、减少动效与无 blur 回退可用；P0/P1/P2/P3 = 0/0/0/0 |
 | Gate 3 | 服务发现、优惠券、创建订单深链闭环；报价与优惠结果来自权威接口 |
 | Gate 4 | 订单、支付、确认、评价、退款、售后、客服状态与动作保持后端权威语义 |
 | Gate 5 | 通知、我的、地址及跨路由恢复可用；底部五导航仍是唯一一级导航 |
@@ -202,6 +202,15 @@ Gate 1 已于 2026-07-21 在唯一集成线 `codex/customer-ui-refactor` 完成 
 - 三条支线均以 P0 `9fde5878` 为共同祖先，文件交集为 0，合流无冲突。
 - Gate 1 聚合验证通过：Phase 25 design/Gate 1A/Gate 1B、UI/Customer typecheck、Customer 依赖拓扑生产构建、QA 基础设施检查和 199 文件 / 1104 项 unit-contract 回归。
 - P2 只可从 Gate 1 集成线最新提交创建；主页运行态实现、390×844 截图与视觉对比仍属于 P2，P1 不虚报实际截图证据。
+
+Gate 2 已于 2026-07-21 在同一集成线完成第二轮 A → B → C 串行合流与关门校正：
+
+- A2 `3565e741`：唯一 App Shell、五项主导航、认证/离线/城市/深链恢复和安全区；合流提交 `3390d166`。
+- B2 `cad95a0b`：锁定主页母版、16 类真实目录映射、诚实推荐/附近师傅空态和信任保障；合流提交 `788f1f66`。
+- C2 `6dad3465`：真实浏览器证据、状态检查器和同屏比较；合流提交 `17e0c8eb`。
+- 集成线收敛了主页密度、底部导航 canonical token、320 窄屏类目缩放和 real-API-derived partial 夹具；没有把主页布局复制到其他页面。
+- 最终接受轮次为 Round 09；Round 01 保留预集成失败基线，Round 02–08 保留为人工视觉校正轨迹，不作为 Gate 2 PASS 证据。
+- P3 只能从 Gate 2 关门提交创建；不得从任一 A2/B2/C2 支线或更早中间证据轮次创建。
 
 ## 10. 完成定义
 

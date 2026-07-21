@@ -1,7 +1,7 @@
 export const HOME_AUTHORITY_SHA256 = "32cb6d243e8c7dd1b662110ebf2d9cfc79fe568ea23611097a4e4b2d6e3af74c";
 export const HOME_AUTHORITY_PATH = "docs/design/ui/references/customer-home-visual-truth.png";
 export const HOME_EVIDENCE_ROOT = "docs/design/ui/phase25/evidence/customer";
-export const HOME_QA_ITERATION = "01";
+export const HOME_QA_ITERATION = "09";
 
 export const HOME_CATEGORY_NAMES = Object.freeze([
   "家庭保洁",

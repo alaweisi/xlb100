@@ -1,6 +1,6 @@
 # 顾客端全业务切片的设计系统统一与视觉重构 — 施工范围清单
 
-> 状态：**SCOPE FROZEN / READY FOR SEQUENCED CONSTRUCTION**
+> 状态：**P2 GATE 2 PASSED / READY FOR WAVE 3**
 > 适用端：仅 `apps/customer`
 > 排除端：`apps/worker`、`apps/admin`、`apps/oa`、`apps/dashboard`
 > 视觉母体：[`CUSTOMER_HOME_VISUAL_TRUTH.md`](./CUSTOMER_HOME_VISUAL_TRUTH.md)
@@ -71,22 +71,22 @@
 
 | 状态 | Slice ID | 载体/边界 | 权威输入 | 必须覆盖的状态/动作 | 视觉重构结果 |
 | --- | --- | --- | --- | --- | --- |
-| [ ] | CUST-SHELL-001 | App 认证 Gate | session/auth API | authenticating、authenticated、recoverable error、expired/permission | 品牌化稳定 Gate；不把认证失败伪装成目录错误 |
-| [ ] | CUST-SHELL-002 | `CustomerRouteShell` | 当前路由映射 | 9 路由、五项主导航、active state、safe area | 统一顶部/底部功能层玻璃、中心 +、真机/预览模式 |
-| [ ] | CUST-SHELL-003 | 城市与深链恢复 | city scope、query params、local storage | 城市切换、非法 city、`skuId/orderId/couponGrantId` 恢复 | 与主页位置搜索控件同语言，恢复路径可见 |
-| [ ] | CUST-STATE-001 | 全局 Loading/Empty/Error | `@xlb/ui` 状态组件 | loading、empty、error、retry、partial、stale、offline | 稳定布局、明确原因和恢复动作 |
-| [ ] | CUST-STATE-002 | 全局业务异常 | API/权限/幂等事实 | permission、conflict、duplicate、unknown result | 受保护语义，不用 Toast/颜色单独承载 |
-| [ ] | CUST-A11Y-001 | Overlay 与键盘/读屏 | Modal/Drawer/BottomSheet | focus trap、restore focus、Esc、label、announcement | 玻璃回退、强对比、reduced-motion 完整 |
+| [x] | CUST-SHELL-001 | App 认证 Gate | session/auth API | authenticating、authenticated、recoverable error、expired/permission | 品牌化稳定 Gate；不把认证失败伪装成目录错误 |
+| [x] | CUST-SHELL-002 | `CustomerRouteShell` | 当前路由映射 | 9 路由、五项主导航、active state、safe area | 统一顶部/底部功能层玻璃、中心 +、真机/预览模式 |
+| [x] | CUST-SHELL-003 | 城市与深链恢复 | city scope、query params、local storage | 城市切换、非法 city、`skuId/orderId/couponGrantId` 恢复 | 与主页位置搜索控件同语言，恢复路径可见 |
+| [x] | CUST-STATE-001 | 全局 Loading/Empty/Error | `@xlb/ui` 状态组件 | loading、empty、error、retry、partial、stale、offline | 稳定布局、明确原因和恢复动作 |
+| [x] | CUST-STATE-002 | 全局业务异常 | API/权限/幂等事实 | permission、conflict、duplicate、unknown result | 受保护语义，不用 Toast/颜色单独承载 |
+| [x] | CUST-A11Y-001 | Overlay 与键盘/读屏 | Modal/Drawer/BottomSheet | focus trap、restore focus、Esc、label、announcement | 玻璃回退、强对比、reduced-motion 完整 |
 
 ### Wave 2 — 主页母版
 
 | 状态 | Slice ID | 区域/边界 | 权威输入 | 必须覆盖的状态/动作 | 视觉重构结果 |
 | --- | --- | --- | --- | --- | --- |
-| [ ] | CUST-HOME-001 | 品牌头、通知、位置搜索 | city、通知入口、目录搜索 | ready、search input、city change、notification deep link | 1:1 对齐锁定主页顶部层级与功能玻璃 |
-| [ ] | CUST-HOME-002 | 4×4 全部服务 | 官方目录/API | loading、empty、error、ready、category open | 16 类 3D 图像卡、真实名称/顺序、44px 目标 |
-| [ ] | CUST-HOME-003 | 推荐服务横向流 | 推荐 API（当前未确认） | loading、empty、error、ready、open service | 无权威接口前隐藏或诚实空态；禁止模拟推荐 |
-| [ ] | CUST-HOME-004 | 附近师傅横向流 | 师傅/距离/可接单 API（当前未确认） | permission、loading、empty、error、ready、stale | 无权威接口前隐藏或诚实空态；禁止假师傅 |
-| [ ] | CUST-HOME-005 | 信任保障与底部导航 | 平台能力事实、路由 | four trust items、service availability note、five nav actions | 对齐主页信任条和 `首页/客服/+/订单/我的` |
+| [x] | CUST-HOME-001 | 品牌头、通知、位置搜索 | city、通知入口、目录搜索 | ready、search input、city change、notification deep link | 1:1 对齐锁定主页顶部层级与功能玻璃 |
+| [x] | CUST-HOME-002 | 4×4 全部服务 | 官方目录/API | loading、empty、error、ready、category open | 16 类 3D 图像卡、真实名称/顺序、44px 目标 |
+| [x] | CUST-HOME-003 | 推荐服务横向流 | 推荐 API（当前未确认） | loading、empty、error、ready、open service | 无权威接口前隐藏或诚实空态；禁止模拟推荐 |
+| [x] | CUST-HOME-004 | 附近师傅横向流 | 师傅/距离/可接单 API（当前未确认） | permission、loading、empty、error、ready、stale | 无权威接口前隐藏或诚实空态；禁止假师傅 |
+| [x] | CUST-HOME-005 | 信任保障与底部导航 | 平台能力事实、路由 | four trust items、service availability note、five nav actions | 对齐主页信任条和 `首页/客服/+/订单/我的` |
 
 ### Wave 3 — 服务发现与创建订单
 

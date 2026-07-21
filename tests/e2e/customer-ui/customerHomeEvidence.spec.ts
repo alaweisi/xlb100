@@ -37,6 +37,23 @@ async function openHome(page: Page) {
   await expect(page.locator("body")).not.toContainText("Authenticating customer");
 }
 
+async function installPartialCatalogFixture(page: Page) {
+  await page.route("**/api/catalog", async (route) => {
+    const response = await route.fetch();
+    const payload = JSON.parse((await response.body()).toString("utf8")) as {
+      catalog?: { categories?: unknown[] };
+    };
+    if (payload.catalog?.categories) {
+      payload.catalog.categories = payload.catalog.categories.slice(0, 3);
+    }
+    await route.fulfill({
+      response,
+      body: JSON.stringify(payload),
+      headers: { ...response.headers(), "content-type": "application/json; charset=utf-8" },
+    });
+  }, { times: 1 });
+}
+
 async function inspectHome(page: Page, state: string, consoleErrors: string[]) {
   const bodyText = await page.locator("body").innerText();
   const findings: Finding[] = [];
@@ -46,7 +63,7 @@ async function inspectHome(page: Page, state: string, consoleErrors: string[]) {
   if (!hasText("全部服务")) findings.push({ severity: "P1", summary: "缺少“全部服务”主区域。", owner: "B2 Home" });
 
   const missingCategories = HOME_CATEGORY_NAMES.filter((name: string) => !hasText(name));
-  if (missingCategories.length > 0) {
+  if (state !== "partial" && missingCategories.length > 0) {
     findings.push({
       severity: "P1",
       summary: `正式 16 类目未完整呈现，缺少 ${missingCategories.length} 项：${missingCategories.slice(0, 4).join("、")}`,
@@ -55,8 +72,15 @@ async function inspectHome(page: Page, state: string, consoleErrors: string[]) {
   }
 
   const categoryImages = await page.locator("img[src*='/assets/service-categories/']").count();
-  if (categoryImages < 16) {
+  if (state !== "partial" && categoryImages < 16) {
     findings.push({ severity: "P2", summary: `语义 3D 类目图像仅检测到 ${categoryImages}/16。`, owner: "B2 Home" });
+  }
+  if (state === "partial" && (categoryImages !== 3 || !hasText("当前已开放 3 项正式服务"))) {
+    findings.push({
+      severity: "P1",
+      summary: `partial 状态必须呈现 3 个真实类目与明确开放数量，当前检测到 ${categoryImages}/3。`,
+      owner: "B2 Home / C2 QA",
+    });
   }
 
   for (const label of ["实名认证", "价格透明", "服务留痕", "售后保障"]) {
@@ -158,6 +182,7 @@ test.describe.serial("Customer Home C2 rendered evidence", () => {
     test(`${captureCase.state} ${captureCase.width}x${captureCase.height}`, async ({ page, context }) => {
       const consoleErrors = collectConsoleErrors(page);
       await installCustomerQaSession(page, backendUrl);
+      if (captureCase.state === "partial") await installPartialCatalogFixture(page);
       await page.setViewportSize({ width: captureCase.width, height: captureCase.height });
       await openHome(page);
       await assertNoHorizontalOverflow(page);
@@ -180,6 +205,7 @@ test.describe.serial("Customer Home C2 rendered evidence", () => {
         viewport: { width: captureCase.width, height: captureCase.height },
         screenshot: `${HOME_EVIDENCE_ROOT}/${homeScreenshotName(captureCase, iteration)}`,
         authoritySha256: HOME_AUTHORITY_SHA256,
+        dataSource: captureCase.state === "partial" ? "real-api-derived-partial-fixture" : "real-api",
         capturedAt: new Date().toISOString(),
         checks: inspection.checks,
         consoleErrors,

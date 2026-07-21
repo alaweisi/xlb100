@@ -1,0 +1,28 @@
+{
+  "version": "1.0.0",
+  "role": "customer",
+  "surface": "home",
+  "route": "/customer/",
+  "state": "available",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "screenshot": "docs/design/ui/phase25/evidence/customer/customer-home-available-390x844-08.png",
+  "authoritySha256": "32cb6d243e8c7dd1b662110ebf2d9cfc79fe568ea23611097a4e4b2d6e3af74c",
+  "dataSource": "real-api",
+  "capturedAt": "2026-07-21T13:12:51.959Z",
+  "checks": {
+    "primaryInteraction": true,
+    "noHorizontalOverflow": true,
+    "safeAreaClear": true,
+    "keyboardFocus": true,
+    "touchTargets": true,
+    "reducedMotion": true,
+    "forcedColors": true,
+    "noBlurFallback": true
+  },
+  "consoleErrors": [],
+  "findings": [],
+  "result": "passed"
+}

@@ -55,10 +55,10 @@ export const baseTokens = {
     ambient: "0 20px 60px rgba(15, 23, 42, 0.12)",
   },
   spacing: { none: "0", xxs: "2px", xs: "4px", sm: "8px", md: "16px", lg: "24px", xl: "32px", xxl: "48px" },
-  size: { controlSm: "32px", controlMd: "44px", controlLg: "52px", touchTarget: "44px", bottomNavigation: "92px" },
+  size: { controlSm: "32px", controlMd: "44px", controlLg: "52px", touchTarget: "44px", bottomNavigation: "60px" },
   grid: { columnsCompact: 4, columnsWide: 12, gutterCompact: "16px", gutterWide: "24px", maxContent: "1200px" },
   breakpoint: { compact: "390px", medium: "768px", wide: "1280px", wallboard: "1920px" },
-  safeArea: { top: "0px", right: "0px", bottom: "0px", left: "0px", bottomNavigation: "92px" },
+  safeArea: { top: "0px", right: "0px", bottom: "0px", left: "0px", bottomNavigation: "60px" },
   font: {
     family: "Noto Sans SC, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif",
     familySans: "Noto Sans SC, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif",

@@ -1,8 +1,8 @@
 # Customer UI visual QA evidence
 
 > C1 status: **INFRASTRUCTURE READY**
-> C2 status: **HOME EVIDENCE CONTRACT READY — ACCEPTANCE DEPENDS ON A2/B2 INTEGRATION**
-> Actual visual acceptance: recorded per immutable iteration report
+> C2 status: **GATE 2 ACCEPTED — ROUND 09 IS THE FINAL HOME PROOF**
+> Actual visual acceptance: Round 09; P0/P1/P2/P3 = 0/0/0/0
 > Role boundary: Customer only
 
 This directory is the canonical evidence root for the Customer full-slice visual refactor. C1 establishes the contract and tooling; it does not fabricate screenshots or mark `CUST-QA-001..005` complete.
@@ -56,7 +56,7 @@ The strict command is expected to remain red until the corresponding page/state 
 
 ## C2 Home commands
 
-Capture the real Customer Home route at 320×844, 390×844 and 430×932, plus the 390×844 partial-risk state. This command writes immutable iteration `01` screenshots, schema-shaped reports and a same-screen comparison board:
+Capture the real Customer Home route at 320×844, 390×844 and 430×932, plus the 390×844 partial-risk state. The current contract writes immutable accepted iteration `09` screenshots, schema-shaped reports and a same-screen comparison board:
 
 ```powershell
 pnpm capture:customer-home
@@ -76,12 +76,12 @@ pnpm gate:customer-home
 
 C2 owns only test, evidence and QA files. It must not repair `CustomerHomePage.tsx`, the Customer Shell, shared components or tokens; findings are assigned back to A2/B2 and recaptured in a later iteration.
 
-After A2/B2 integration, preserve round `01` and write round `02`:
+Round `01` is the pre-integration negative baseline. Rounds `02`–`08` are retained as serial visual-correction evidence and are not accepted proof. The default command now targets accepted Round `09`:
 
 ```powershell
-$env:CUSTOMER_HOME_QA_ITERATION="02"
+$env:CUSTOMER_HOME_QA_ITERATION="09"
 pnpm capture:customer-home
-node scripts/check-customer-home-evidence.mjs --iteration=02
+node scripts/check-customer-home-evidence.mjs --iteration=09
 ```
 
 ## Capture and review protocol
