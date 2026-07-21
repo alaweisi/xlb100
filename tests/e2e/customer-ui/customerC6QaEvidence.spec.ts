@@ -4,7 +4,8 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { assertNoHorizontalOverflow, collectConsoleErrors } from "./qaHarness";
 
-const evidenceRoot = "docs/design/ui/phase25/evidence/customer/c6";
+const evidenceRoot = process.env.XLB_CUSTOMER_C6_EVIDENCE_DIR
+  ?? "docs/design/ui/phase25/evidence/customer/c6";
 const truthPath = "docs/design/ui/references/customer-home-visual-truth.png";
 const at = "2026-07-22T08:00:00.000Z";
 

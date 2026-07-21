@@ -137,11 +137,11 @@
 
 | 状态 | Slice ID | 验收面 | 必须完成 |
 | --- | --- | --- | --- |
-| [ ] | CUST-QA-001 | 9 个页面载体 | 每个载体 ready/default + 最高风险 loading/error/success 状态截图 |
-| [ ] | CUST-QA-002 | 视觉一致性 | 与主页真相同屏比较；P0/P1/P2 全部修复，P3 可登记后续 |
-| [ ] | CUST-QA-003 | 响应式与安全区 | 320、390×844、430 宽度无横向溢出、无遮挡、键盘可用 |
-| [ ] | CUST-QA-004 | 无障碍与回退 | focus、读屏名称、对比度、forced-colors、reduced-motion、无 blur 回退 |
-| [ ] | CUST-QA-005 | 工程验证 | 顾客端相关单测、typecheck、lint、build 和已有 E2E 通过 |
+| [x] | CUST-QA-001 | 9 个页面载体 | 每个载体 ready/default + 最高风险 loading/error/success 状态截图 |
+| [x] | CUST-QA-002 | 视觉一致性 | 与主页真相同屏比较；P0/P1/P2 全部修复，P3 可登记后续 |
+| [x] | CUST-QA-003 | 响应式与安全区 | 320、390×844、430 宽度无横向溢出、无遮挡、键盘可用 |
+| [x] | CUST-QA-004 | 无障碍与回退 | focus、读屏名称、对比度、forced-colors、reduced-motion、无 blur 回退 |
+| [x] | CUST-QA-005 | 工程验证 | 顾客端相关单测、typecheck、lint、build 和已有 E2E 通过 |
 
 ## 6. 推荐施工顺序
 
