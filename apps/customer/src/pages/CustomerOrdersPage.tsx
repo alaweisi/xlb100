@@ -23,6 +23,7 @@ import type {
 import { Button, EmptyState, ErrorState, RuntimeThemeSurface, Textarea } from "@xlb/ui";
 import { formatScheduledLabel } from "../adapters/orderAddressOptions";
 import { createCustomerUiBinding } from "../adapters/workflowAdapter";
+import { buildCustomerDeepLink } from "../routes/customerDeepLinks";
 import "./customer-orders.css";
 
 interface CustomerOrderApi {
@@ -407,7 +408,7 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
 
       {!loading && !failedOrderIds.length && !orders.length ? (
         <EmptyState
-          action={<a className="customer-orders__empty-action" href={`/customer/order/create?cityCode=${cityCode}`}>预约上门服务</a>}
+          action={<a className="customer-orders__empty-action" href={buildCustomerDeepLink("createOrder", { cityCode })}>预约上门服务</a>}
           description="完成首次预约后，服务进度会出现在这里。"
           productRole="customer"
           title="还没有订单"

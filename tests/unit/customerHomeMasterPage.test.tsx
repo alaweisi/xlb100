@@ -50,6 +50,9 @@ describe("CustomerHomePage master", () => {
 
     expect(screen.getByRole("heading", { level: 1, name: "喜乐帮" })).not.toBeNull();
     expect(screen.getByRole("search")).not.toBeNull();
+    expect(screen.getByRole("link", { name: "查看通知" }).getAttribute("href")).toBe(
+      "/customer/notifications?cityCode=hangzhou",
+    );
     expect(screen.getByRole("heading", { level: 2, name: "全部服务" })).not.toBeNull();
     for (const categoryName of OFFICIAL_SERVICE_CATEGORY_NAMES) {
       expect(screen.getByRole("button", { name: `查看${categoryName}服务` })).not.toBeNull();

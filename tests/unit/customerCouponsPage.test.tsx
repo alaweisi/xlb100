@@ -33,6 +33,7 @@ describe("Customer Coupons C3 slice", () => {
     render(
       <CustomerCouponsPage
         api={{ listCouponGrants: vi.fn().mockResolvedValue({ ok: true, couponGrants: [availableGrant] }) }}
+        cityCode="hangzhou"
         onSelectForQuote={onSelectForQuote}
       />,
     );
@@ -55,6 +56,7 @@ describe("Customer Coupons C3 slice", () => {
     render(
       <CustomerCouponsPage
         api={{ listCouponGrants: vi.fn().mockResolvedValue({ ok: true, couponGrants: [staleGrant] }) }}
+        cityCode="hangzhou"
         onSelectForQuote={vi.fn()}
       />,
     );
@@ -67,9 +69,12 @@ describe("Customer Coupons C3 slice", () => {
 
   it("switches server filters and distinguishes available/all empty states", async () => {
     const listCouponGrants = vi.fn().mockResolvedValue({ ok: true, couponGrants: [] });
-    render(<CustomerCouponsPage api={{ listCouponGrants }} />);
+    render(<CustomerCouponsPage api={{ listCouponGrants }} cityCode="hangzhou" />);
 
     expect(await screen.findByText("当前没有可使用的优惠券")).toBeTruthy();
+    expect(screen.getByRole("link", { name: /浏览上门服务/ }).getAttribute("href")).toBe(
+      "/customer/services?cityCode=hangzhou",
+    );
     fireEvent.click(screen.getByRole("tab", { name: "全部记录" }));
     expect(await screen.findByText("当前没有优惠券记录")).toBeTruthy();
     expect(listCouponGrants).toHaveBeenNthCalledWith(1, { status: "available" });
@@ -80,7 +85,7 @@ describe("Customer Coupons C3 slice", () => {
     const listCouponGrants = vi.fn()
       .mockRejectedValueOnce(new Error("coupon API unavailable"))
       .mockResolvedValueOnce({ ok: true, couponGrants: [] });
-    render(<CustomerCouponsPage api={{ listCouponGrants }} />);
+    render(<CustomerCouponsPage api={{ listCouponGrants }} cityCode="hangzhou" />);
 
     expect((await screen.findByRole("alert")).textContent).toContain("暂时无法完成请求");
     expect(document.body.textContent).not.toContain("coupon API unavailable");

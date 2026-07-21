@@ -42,6 +42,7 @@ import {
 } from "../adapters/catalogAdapters";
 import { toCustomerQuoteViewModel } from "../adapters/pricingAdapter";
 import { createCustomerUiBinding } from "../adapters/workflowAdapter";
+import { assignCustomerDeepLink } from "../routes/customerDeepLinks";
 import {
   buildScheduledAt,
   formatScheduledLabel,
@@ -165,7 +166,7 @@ function BookingTopBar({ step, cityCode }: { step: BookingStep; cityCode: CityCo
       <button
         aria-label="返回服务列表"
         className="order-create-icon-button"
-        onClick={() => { window.location.href = "/customer/services"; }}
+        onClick={() => assignCustomerDeepLink("services", { cityCode })}
         type="button"
       >
         <ArrowLeft aria-hidden="true" size={24} weight="bold" />
@@ -744,7 +745,7 @@ export function CustomerOrderCreatePage({
         <div><dt>服务地址</dt><dd>{`${submitState.orderDetail.addressDistrict} ${submitState.orderDetail.detailAddress}`}</dd></div>
         <div><dt>订单状态</dt><dd><StatusTag tone={statusTone(submitState.orderDetail.status)}>{submitState.orderDetail.status}</StatusTag></dd></div>
       </dl>
-      <Button variant="primary" onClick={() => { window.location.href = "/customer/orders"; }}>查看订单</Button>
+      <Button variant="primary" onClick={() => assignCustomerDeepLink("orders", { cityCode })}>查看订单</Button>
     </section>
   ) : null;
 

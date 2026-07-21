@@ -9,9 +9,10 @@ import {
   Ticket,
   XCircle,
 } from "@phosphor-icons/react";
-import type { CouponGrant, CouponGrantListResponse } from "@xlb/types";
+import type { CityCode, CouponGrant, CouponGrantListResponse } from "@xlb/types";
 import { Button, EmptyState, ErrorState, LoadingState, StateBadge, Tabs } from "@xlb/ui";
 import { sortCustomerCouponGrants, toCustomerCouponGrantViewModel } from "../adapters/marketingAdapter";
+import { buildCustomerDeepLink } from "../routes/customerDeepLinks";
 import { describeCustomerAppError, type CustomerAppFailure } from "./customerPageShell";
 import "./customer-coupons.css";
 
@@ -23,10 +24,11 @@ export interface CustomerCouponsPageApi {
 
 export interface CustomerCouponsPageProps {
   api: CustomerCouponsPageApi;
+  cityCode: CityCode;
   onSelectForQuote?: (couponGrantId: string) => void;
 }
 
-export function CustomerCouponsPage({ api, onSelectForQuote }: CustomerCouponsPageProps) {
+export function CustomerCouponsPage({ api, cityCode, onSelectForQuote }: CustomerCouponsPageProps) {
   const [view, setView] = useState<CouponView>("available");
   const [items, setItems] = useState<CouponGrant[]>([]);
   const [state, setState] = useState<"loading" | "success" | "error">("loading");
@@ -118,7 +120,7 @@ export function CustomerCouponsPage({ api, onSelectForQuote }: CustomerCouponsPa
       {state === "success" && viewModels.length === 0 && (
         <EmptyState
           action={(
-            <a className="customer-coupons__service-link" href="/customer/services">
+            <a className="customer-coupons__service-link" href={buildCustomerDeepLink("services", { cityCode })}>
               浏览上门服务<ArrowRight aria-hidden="true" weight="bold" />
             </a>
           )}

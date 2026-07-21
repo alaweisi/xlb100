@@ -19,6 +19,7 @@ import {
   type CatalogSkuViewModel,
 } from "../adapters/catalogAdapters";
 import { createCustomerUiBinding } from "../adapters/workflowAdapter";
+import { assignCustomerDeepLink, buildCustomerDeepLink } from "../routes/customerDeepLinks";
 import {
   CITY_OPTIONS,
   type CustomerLoadable,
@@ -33,10 +34,8 @@ function nextCity(cityCode: CityCode): CityCode {
 }
 
 function goToServicesForCity(cityCode: CityCode, query: string) {
-  const params = new URLSearchParams({ cityCode });
   const normalizedQuery = query.trim();
-  if (normalizedQuery) params.set("q", normalizedQuery);
-  window.location.assign(`/customer/services?${params.toString()}`);
+  assignCustomerDeepLink("services", { cityCode, q: normalizedQuery || null });
 }
 
 function CatalogSkeleton() {
@@ -335,7 +334,7 @@ export function CustomerServicesPage({
             <p>{getCatalogSkuDisplayLabel(selectedSku).subtitle}</p>
           </div>
           <a
-            href={`/customer/order/create?${new URLSearchParams({ cityCode, skuId: selectedSku.skuId }).toString()}`}
+            href={buildCustomerDeepLink("createOrder", { cityCode, skuId: selectedSku.skuId })}
           >
             <span>继续预约</span>
             <ArrowRight aria-hidden="true" weight="bold" />

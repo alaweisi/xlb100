@@ -22,6 +22,7 @@ describe("Phase29 Marketing Customer/Admin surfaces", () => {
     const onSelectForQuote = vi.fn();
     render(<CustomerCouponsPage
       api={{ listCouponGrants: vi.fn().mockResolvedValue({ ok: true, couponGrants: [grant] }) }}
+      cityCode="hangzhou"
       onSelectForQuote={onSelectForQuote}
     />);
     expect(await screen.findByText("可使用")).toBeTruthy();
@@ -38,6 +39,7 @@ describe("Phase29 Marketing Customer/Admin surfaces", () => {
         ok: true,
         couponGrants: [expiredAvailableGrant],
       }) }}
+      cityCode="hangzhou"
       onSelectForQuote={vi.fn()}
     />);
 
@@ -55,7 +57,7 @@ describe("Phase29 Marketing Customer/Admin surfaces", () => {
     const listCouponGrants = vi.fn()
       .mockRejectedValueOnce(new Error("coupon API unavailable"))
       .mockResolvedValueOnce({ ok: true, couponGrants: [] });
-    render(<CustomerCouponsPage api={{ listCouponGrants }} />);
+    render(<CustomerCouponsPage api={{ listCouponGrants }} cityCode="hangzhou" />);
     expect((await screen.findByRole("alert")).textContent).toContain("暂时无法完成请求");
     expect(document.body.textContent).not.toContain("coupon API unavailable");
     fireEvent.click(screen.getByRole("button", { name: "重试" }));

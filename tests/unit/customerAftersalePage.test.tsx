@@ -132,21 +132,26 @@ afterEach(() => cleanup());
 
 describe("CustomerAftersalePage", () => {
   it("renders customer-facing Phase17 states without leaking storage implementation copy", async () => {
-    render(<CustomerAftersalePage api={createApi()} orderIds={["order-b4-01"]} />);
+    render(<CustomerAftersalePage api={createApi()} cityCode="hangzhou" orderIds={["order-b4-01"]} />);
 
     expect(await screen.findByText("待平台审核")).toBeTruthy();
     expect(screen.getByText("处理中")).toBeTruthy();
     expect(screen.getByText("等待你确认")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "转入客服跟进" }).getAttribute("href")).toBe(
+      "/customer/support?cityCode=hangzhou&orderId=order-b4-01&complaintId=complaint-b4-01",
+    );
     expect(screen.getByText("履约图片由平台私密保存，仅用于当前订单确认与售后处理。")).toBeTruthy();
     expect(screen.queryByText(/local|mock|providerStatus|Service Evidence/i)).toBeNull();
   });
 
   it("shows an honest no-order state and does not call aftersale endpoints", () => {
     const api = createApi();
-    render(<CustomerAftersalePage api={api} orderIds={[]} />);
+    render(<CustomerAftersalePage api={api} cityCode="hangzhou" orderIds={[]} />);
 
     expect(screen.getByText("还没有可处理的订单")).toBeTruthy();
-    expect(screen.getByRole("link", { name: "查看我的订单" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "查看我的订单" }).getAttribute("href")).toBe(
+      "/customer/orders?cityCode=hangzhou",
+    );
     expect(api.listOrderReverseRequests).not.toHaveBeenCalled();
     expect(api.listAftersaleComplaints).not.toHaveBeenCalled();
     expect(api.getOrderFulfillmentEvidence).not.toHaveBeenCalled();
@@ -154,7 +159,7 @@ describe("CustomerAftersalePage", () => {
 
   it("submits a reverse request with the authoritative contract and waits for server confirmation", async () => {
     const api = createApi();
-    render(<CustomerAftersalePage api={api} orderIds={["order-b4-01"]} />);
+    render(<CustomerAftersalePage api={api} cityCode="hangzhou" orderIds={["order-b4-01"]} />);
     await screen.findByText("待平台审核");
 
     fireEvent.change(screen.getByLabelText("申请原因"), { target: { value: "需要调整服务安排" } });
@@ -172,7 +177,7 @@ describe("CustomerAftersalePage", () => {
 
   it("requires a complaint link for a dispute and preserves Phase17 decision payload", async () => {
     const api = createApi();
-    render(<CustomerAftersalePage api={api} orderIds={["order-b4-01"]} />);
+    render(<CustomerAftersalePage api={api} cityCode="hangzhou" orderIds={["order-b4-01"]} />);
     await screen.findByText("等待你确认");
 
     fireEvent.change(screen.getByLabelText("争议关联客诉"), { target: { value: "complaint-b4-01" } });
@@ -189,7 +194,7 @@ describe("CustomerAftersalePage", () => {
   it("standardizes load failures without exposing raw service errors", async () => {
     const api = createApi();
     api.listOrderReverseRequests = vi.fn().mockRejectedValue(new Error("database host leaked"));
-    render(<CustomerAftersalePage api={api} orderIds={["order-b4-01"]} />);
+    render(<CustomerAftersalePage api={api} cityCode="hangzhou" orderIds={["order-b4-01"]} />);
 
     expect(await screen.findByText("暂时无法完成请求")).toBeTruthy();
     expect(screen.getByText(/已填写的内容仍保留在页面中/)).toBeTruthy();
