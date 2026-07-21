@@ -2,7 +2,7 @@ import type { ThemeTokens } from "../tokenTypes.js";
 
 /** Marker consumed by the Phase 25 boundary gate. */
 export const CANONICAL_TOKEN_SOURCE = "packages/ui/src/tokens/base/defaultTokens.ts" as const;
-export const TOKEN_SCHEMA_VERSION = "25.4.0" as const;
+export const TOKEN_SCHEMA_VERSION = "25.5.0" as const;
 
 /**
  * The single compiled L0/L1 source. JSON, CSS variables and Figma mappings must
@@ -65,14 +65,29 @@ export const baseTokens = {
     familySerif: "Noto Serif SC, Songti SC, serif",
     familyMono: "JetBrains Mono, ui-monospace, SFMono-Regular, Consolas, monospace",
     numeric: "tabular-nums",
-    size: { xs: "11px", sm: "12px", md: "14px", lg: "16px", xl: "20px", pageTitle: "28px", display: "32px" },
+    size: {
+      xxs: "10px", xs: "11px", sm: "12px", caption: "13px", md: "14px", label: "15px",
+      lg: "16px", bodyLg: "17px", xl: "20px", successTitle: "26px", pageTitle: "28px", display: "32px",
+    },
     weight: { regular: 400, medium: 600, bold: 700 },
-    lineHeight: { tight: "20px", normal: "24px", loose: "30px", pageTitle: "38px", display: "40px" },
+    lineHeight: {
+      compact: "16px", caption: "17px", supportive: "18px", tight: "20px", body: "21px",
+      description: "22px", normal: "24px", loose: "30px", pageTitle: "38px", display: "40px",
+    },
     letterSpacing: { tight: "-0.01em", normal: "0", wide: "0.04em" },
   },
   blur: { none: "0", sm: "8px", md: "18px", lg: "32px" },
   opacity: { disabled: 0.48, muted: 0.7, solid: 1 },
-  zIndex: { base: 0, sticky: 100, overlay: 400, modal: 600, toast: 800 },
+  zIndex: { below: -1, base: 0, above: 1, sticky: 100, overlay: 400, modal: 600, toast: 800 },
+  measure: {
+    px5: "5px", px6: "6px", px10: "10px", px11: "11px", px12: "12px", px13: "13px",
+    px14: "14px", px15: "15px", px17: "17px", px18: "18px", px19: "19px", px21: "21px",
+    px22: "22px", px26: "26px", px28: "28px", px38: "38px", px42: "42px", px58: "58px",
+    px62: "62px", px66: "66px", px74: "74px", px76: "76px", px82: "82px", px92: "92px",
+    rem1: "1rem", rem1_25: "1.25rem", rem3: "3rem", rem3_75: "3.75rem", rem4: "4rem",
+    rem4_5: "4.5rem", rem5_5: "5.5rem", rem12: "12rem", rem28: "28rem", rem32: "32rem",
+    rem34: "34rem", rem44: "44rem", rem46: "46rem",
+  },
   motion: {
     duration: { instant: "0ms", fast: "120ms", normal: "220ms", slow: "360ms" },
     easing: { standard: "cubic-bezier(0.2, 0, 0, 1)", emphasized: "cubic-bezier(0.2, 0, 0, 1.2)" },

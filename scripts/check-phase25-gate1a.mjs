@@ -36,7 +36,9 @@ const hardcodeMatchers = {
   colorLiteral: /#[0-9a-f]{3,8}\b|(?:rgb|hsl)a?\([^\r\n)]*\)/gi,
   dimensionLiteral: /\b(?:0|[1-9]\d*)(?:\.\d+)?(?:px|rem|em|vh|vw)\b/g,
   inlineStyle: /\bstyle\s*=\s*\{\{/g,
-  fontDeclaration: /\bfont-(?:family|size|weight|height)\s*:/gi,
+  // A declaration backed directly by the canonical runtime variable is not a hardcode.
+  // Literal values, shorthands and computed expressions remain counted and must migrate.
+  fontDeclaration: /\bfont-(?:family|size|weight|height)\s*:(?!\s*var\()[^;]+;/gi,
   numericZIndex: /\bz-index\s*:\s*-?\d+\b/gi,
 };
 

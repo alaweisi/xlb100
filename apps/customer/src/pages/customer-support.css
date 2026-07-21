@@ -31,7 +31,7 @@
 
 .customer-support__hero::before {
   position: absolute;
-  z-index: -1;
+  z-index: var(--xlb-z-index-below);
   inset: 0;
   content: "";
   background:
@@ -44,7 +44,7 @@
 .customer-support__hero-heading {
   display: grid;
   gap: var(--xlb-spacing-sm);
-  max-width: 46rem;
+  max-width: var(--xlb-measure-rem46);
 }
 
 .customer-support__eyebrow,
@@ -121,7 +121,7 @@
   position: sticky;
   z-index: var(--xlb-z-index-sticky);
   top: var(--xlb-spacing-xs);
-  width: min(100%, 34rem);
+  width: min(100%, var(--xlb-measure-rem34));
   margin-inline: auto;
   box-shadow: var(--xlb-glass-ambient-shadow);
   backdrop-filter: blur(var(--xlb-glass-backdrop-blur)) saturate(var(--xlb-glass-saturation));
@@ -394,7 +394,7 @@
 
 .customer-support__timeline-dot {
   position: relative;
-  z-index: 1;
+  z-index: var(--xlb-z-index-above);
   width: var(--xlb-icon-md);
   height: var(--xlb-icon-md);
   border: var(--xlb-stroke-regular) solid var(--xlb-color-surface);
@@ -497,7 +497,7 @@
 .customer-support__messages {
   display: grid;
   gap: var(--xlb-spacing-sm);
-  max-height: 32rem;
+  max-height: var(--xlb-measure-rem32);
   overflow-y: auto;
   padding: var(--xlb-spacing-sm);
   border-radius: var(--xlb-radius-xl);
@@ -509,7 +509,7 @@
   justify-self: start;
   display: grid;
   gap: var(--xlb-spacing-xxs);
-  width: min(88%, 34rem);
+  width: min(88%, var(--xlb-measure-rem34));
   padding: var(--xlb-spacing-sm) var(--xlb-spacing-md);
   border: var(--xlb-stroke-hairline) solid var(--xlb-role-customer-component-card-border);
   border-radius: var(--xlb-radius-xl) var(--xlb-radius-xl) var(--xlb-radius-xl) var(--xlb-radius-lg);
@@ -544,7 +544,7 @@
   font-size: var(--xlb-font-size-sm);
 }
 
-@supports not ((backdrop-filter: blur(1rem)) or (-webkit-backdrop-filter: blur(1rem))) {
+@supports not ((backdrop-filter: blur(var(--xlb-measure-rem1))) or (-webkit-backdrop-filter: blur(var(--xlb-measure-rem1)))) {
   .customer-support__view-switch,
   .customer-support__message-dock,
   .customer-support__chat-composer {

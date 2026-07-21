@@ -1,6 +1,6 @@
 # 顾客端全业务切片的设计系统统一与视觉重构 — 施工范围清单
 
-> 状态：**P5 GATE 5 PASSED / READY FOR P6**
+> 状态：**P7 CLOSED / RELEASE INTEGRATION PENDING**
 > 适用端：仅 `apps/customer`
 > 排除端：`apps/worker`、`apps/admin`、`apps/oa`、`apps/dashboard`
 > 视觉母体：[`CUSTOMER_HOME_VISUAL_TRUTH.md`](./CUSTOMER_HOME_VISUAL_TRUTH.md)

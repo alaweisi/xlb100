@@ -23,7 +23,7 @@ The gate walks `.css`, `.ts`, and `.tsx` files in stable sorted order and counts
 | `colorLiteral` | Hex, `rgb/rgba`, and `hsl/hsla` literals | Semantic color/surface/text/border/status tokens |
 | `dimensionLiteral` | `px`, `rem`, `em`, `vh`, and `vw` literals | Space, size, grid, breakpoint, radius, stroke, blur, and typography tokens |
 | `inlineStyle` | JSX `style={{ ... }}` declarations | Token-aware components, recipes, or typed CSS-variable bindings |
-| `fontDeclaration` | CSS font family/size/weight/height declarations | Typography semantic tokens |
+| `fontDeclaration` | CSS font family/size/weight/height declarations whose value is not a direct canonical `var(...)` reference | Typography semantic tokens |
 | `numericZIndex` | Numeric CSS `z-index` declarations | Named elevation/overlay layer tokens |
 
 Counts are an engineering-debt indicator, not a visual-quality score. A reduction is valid only when workflow behavior, accessibility, responsive layout, and visual evidence continue to pass their owning Gate.

@@ -1,17 +1,12 @@
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
+. (Join-Path $PSScriptRoot 'lib/current-state.ps1')
 
 $currentState = Get-Content -Raw -Encoding UTF8 -LiteralPath 'docs/CURRENT_STATE.md'
-if (-not ($currentState.Contains('Phase 27 | PHASE27E EXIT VERIFICATION') -or
-          $currentState.Contains('Phase 27 | LOCKED'))) {
-  throw "Phase27 completion Gate requires Phase27E exit verification or final Lock state"
-}
-if (-not $currentState.Contains('Phase 14 | IN PROGRESS') -or
-    -not $currentState.Contains('64/100') -or
-    -not $currentState.Contains('staging/production `NO-GO`')) {
-  throw "Phase27 must preserve the Phase14 64/100 staging/production NO-GO truth"
-}
+$phase27 = Get-XlbPhaseTableEntry -CurrentStateText $currentState -PhaseId 'Phase 27'
+$null = Assert-XlbPhaseStatusIn -Entry $phase27 -AllowedStatuses @('PHASE27E EXIT VERIFICATION', 'LOCKED')
+$null = Assert-XlbPhase14ProductionBlocked -CurrentStateText $currentState
 
 $migrations = @(Get-ChildItem db/migrations -File | Where-Object {
   $_.Name -match '^(\d{3})_' -and [int]$Matches[1] -ge 54

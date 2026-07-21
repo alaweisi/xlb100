@@ -24,7 +24,7 @@
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: var(--xlb-spacing-lg);
-  min-height: 12rem;
+  min-height: var(--xlb-measure-rem12);
   padding: var(--xlb-spacing-xl);
   border: var(--xlb-stroke-hairline) solid var(--xlb-role-customer-component-card-border);
   border-radius: var(--xlb-radius-xxl);
@@ -34,7 +34,7 @@
 
 .customer-profile__hero::before {
   position: absolute;
-  z-index: -1;
+  z-index: var(--xlb-z-index-below);
   inset: 0;
   content: "";
   background:
@@ -45,8 +45,8 @@
 
 .customer-profile__avatar {
   display: grid;
-  width: 5.5rem;
-  height: 5.5rem;
+  width: var(--xlb-measure-rem5_5);
+  height: var(--xlb-measure-rem5_5);
   place-items: center;
   border: var(--xlb-stroke-hairline) solid var(--xlb-role-customer-component-card-border);
   border-radius: var(--xlb-radius-pill);
@@ -56,8 +56,8 @@
 }
 
 .customer-profile__avatar svg {
-  width: 3.75rem;
-  height: 3.75rem;
+  width: var(--xlb-measure-rem3_75);
+  height: var(--xlb-measure-rem3_75);
 }
 
 .customer-profile__hero-copy,
@@ -148,7 +148,7 @@
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: var(--xlb-spacing-xxs) var(--xlb-spacing-sm);
-  min-height: 5.5rem;
+  min-height: var(--xlb-measure-rem5_5);
   padding: var(--xlb-spacing-md);
   border: var(--xlb-stroke-hairline) solid var(--xlb-role-customer-component-card-border);
   border-radius: var(--xlb-role-customer-component-card-radius);
@@ -372,8 +372,8 @@
 }
 
 .customer-profile__default-option input {
-  width: 1.25rem;
-  height: 1.25rem;
+  width: var(--xlb-measure-rem1_25);
+  height: var(--xlb-measure-rem1_25);
   accent-color: var(--xlb-role-customer-accent);
 }
 
@@ -399,13 +399,13 @@
   }
 
   .customer-profile__avatar {
-    width: 4.5rem;
-    height: 4.5rem;
+    width: var(--xlb-measure-rem4_5);
+    height: var(--xlb-measure-rem4_5);
   }
 
   .customer-profile__avatar svg {
-    width: 3rem;
-    height: 3rem;
+    width: var(--xlb-measure-rem3);
+    height: var(--xlb-measure-rem3);
   }
 
   .customer-profile__quick-links,
@@ -451,8 +451,8 @@
   }
 
   .customer-profile__avatar {
-    width: 4rem;
-    height: 4rem;
+    width: var(--xlb-measure-rem4);
+    height: var(--xlb-measure-rem4);
   }
 
   .customer-profile__quick-links {
@@ -485,7 +485,7 @@
   .customer-profile__readonly-field,
   .customer-profile__city-fields > div,
   .customer-profile__default-option {
-    border: 1px solid CanvasText;
+    border: var(--xlb-stroke-hairline) solid CanvasText;
     box-shadow: none;
   }
 

@@ -80,7 +80,7 @@
   font: var(--xlb-font-weight-regular) var(--xlb-font-size-sm) / var(--xlb-font-line-height-loose) var(--xlb-font-family-sans);
 }
 
-@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+@supports ((-webkit-backdrop-filter: blur(var(--xlb-stroke-hairline))) or (backdrop-filter: blur(var(--xlb-stroke-hairline)))) {
   .customer-aftersale__hero,
   .customer-aftersale__order-bar,
   .customer-aftersale__section-nav {

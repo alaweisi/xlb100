@@ -275,7 +275,7 @@ textarea {
   }
 }
 
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+@supports not ((backdrop-filter: blur(var(--xlb-stroke-hairline))) or (-webkit-backdrop-filter: blur(var(--xlb-stroke-hairline)))) {
   .customer-bottom-nav {
     background: var(--xlb-role-customer-component-overlay-fallback-background) !important;
   }
