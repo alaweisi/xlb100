@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "customer-ui-qa-report.schema.json",
+  "title": "Customer UI visual QA report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "role",
+    "surface",
+    "route",
+    "state",
+    "viewport",
+    "screenshot",
+    "authoritySha256",
+    "capturedAt",
+    "checks",
+    "consoleErrors",
+    "findings",
+    "result"
+  ],
+  "properties": {
+    "version": { "const": "1.0.0" },
+    "role": { "const": "customer" },
+    "surface": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+    "route": { "type": "string", "pattern": "^/customer/" },
+    "state": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+    "viewport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["width", "height"],
+      "properties": {
+        "width": { "enum": [320, 390, 430] },
+        "height": { "enum": [844, 932] }
+      }
+    },
+    "screenshot": { "type": "string", "pattern": "^docs/design/ui/phase25/evidence/customer/customer-.*\\.png$" },
+    "authoritySha256": { "const": "32cb6d243e8c7dd1b662110ebf2d9cfc79fe568ea23611097a4e4b2d6e3af74c" },
+    "capturedAt": { "type": "string", "format": "date-time" },
+    "checks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "primaryInteraction",
+        "noHorizontalOverflow",
+        "safeAreaClear",
+        "keyboardFocus",
+        "touchTargets",
+        "reducedMotion",
+        "forcedColors",
+        "noBlurFallback"
+      ],
+      "properties": {
+        "primaryInteraction": { "type": "boolean" },
+        "noHorizontalOverflow": { "type": "boolean" },
+        "safeAreaClear": { "type": "boolean" },
+        "keyboardFocus": { "type": "boolean" },
+        "touchTargets": { "type": "boolean" },
+        "reducedMotion": { "type": "boolean" },
+        "forcedColors": { "type": "boolean" },
+        "noBlurFallback": { "type": "boolean" }
+      }
+    },
+    "consoleErrors": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["severity", "summary"],
+        "properties": {
+          "severity": { "enum": ["P0", "P1", "P2", "P3"] },
+          "summary": { "type": "string", "minLength": 1 },
+          "owner": { "type": "string" }
+        }
+      }
+    },
+    "result": { "enum": ["passed", "failed"] }
+  }
+}
