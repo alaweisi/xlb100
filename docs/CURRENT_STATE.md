@@ -46,6 +46,7 @@
 | Phase 29 | LOCKED | xlb-phase29-marketing-coupon | Marketing/Coupon MVP with fixed-amount coupons and Order-owned price evidence; production activation remains prohibited |
 | Commercialization Unit B | LOCKED — REPOSITORY ONLY | — | Production Nginx gateway, same-origin API/WebSocket routing and non-durable business Smoke skeleton; no production activation |
 | Customer UI full-slice refactor P0 | BASELINE FROZEN — READY FOR P1 | — | Customer-only visual authority, design system, 9 route carriers, 44 slices and multi-worktree topology |
+| Customer UI full-slice refactor P1 | GATE 1 PASSED — READY FOR P2 | — | Customer shared token/recipe/components, 16 official service assets with stable mapping, and 9-route/3-viewport QA infrastructure; runtime homepage screenshots remain P2 |
 
 ## Commercialization Unit B — Production Edge Routing (LOCKED — REPOSITORY ONLY)
 

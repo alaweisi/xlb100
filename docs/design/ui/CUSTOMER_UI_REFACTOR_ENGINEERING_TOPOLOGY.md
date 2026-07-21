@@ -1,6 +1,6 @@
 # 顾客端全业务切片设计系统统一与视觉重构 — 工程施工拓扑
 
-> 状态：**P0 BASELINE FROZEN / READY FOR P1**
+> 状态：**P1 GATE 1 PASSED / READY FOR P2**
 > 施工对象：仅 `apps/customer` 及其直接消费的顾客端 `packages/ui` 能力
 > 明确排除：`apps/worker`、`apps/admin`、`apps/oa`、`apps/dashboard`
 > 视觉母体：[`CUSTOMER_HOME_VISUAL_TRUTH.md`](./CUSTOMER_HOME_VISUAL_TRUTH.md)
@@ -175,7 +175,7 @@ flowchart TD
 | Gate | 必须通过的事实 |
 | --- | --- |
 | Gate 0 | 唯一主页 PNG 与哈希可复核；范围只含 Customer；基线提交 clean |
-| Gate 1 | Customer token/recipe/共享组件可消费；16 类资产映射完整；无 Emoji/截图裁切占位 |
+| Gate 1 | **PASS（2026-07-21）** — Customer token/recipe/共享组件可消费；16 类资产映射完整；无 Emoji/截图裁切占位 |
 | Gate 2 | 主页在 390×844 达成视觉证明；320 与 430 无溢出；Shell、状态、焦点和安全区可用 |
 | Gate 3 | 服务发现、优惠券、创建订单深链闭环；报价与优惠结果来自权威接口 |
 | Gate 4 | 订单、支付、确认、评价、退款、售后、客服状态与动作保持后端权威语义 |
@@ -194,17 +194,14 @@ flowchart TD
 
 ## 9. 当前启动状态
 
-P0 完成后：
+Gate 1 已于 2026-07-21 在唯一集成线 `codex/customer-ui-refactor` 完成 A → B → C 串行合流：
 
-- 预留根目录 `G:/xlb100-worktrees/customer-ui-refactor` 尚不存在，可作为本批次新命名空间。
-- 仓库已存在 `codex/customer-ui-prod` 等历史顾客端分支/工作树；它们不是本批次基线，不删除、不复用。
-- 本轮主页真相、设计系统、范围清单、页面卡与本拓扑已隔离为 `codex/customer-ui-refactor` 的 P0 基线；页面实现和无关改动未混入该基线。
-
-P1 三工作树只可从 P0 集成提交创建，并继续满足：
-
-1. 明确保留当前所有用户改动，不做 reset、checkout 覆盖或跨工作树搬运。
-2. 验证三个槽位路径与计划分支均未被占用。
-3. 依据 P1 文件白名单创建三条工作树，开始首个并行波次。
+- A1 `e6f0b51b`：顾客端共享 token、recipe、组件样式和 Overlay 焦点能力；合流提交 `4ad01318`。
+- B1 `6a13f3ec`：16 类官方服务陶瓷 3D 透明资产、manifest、稳定映射和资产契约；合流提交 `e19a8006`。
+- C1 `0eaa2363`：9 路由 × 3 视口、36 个计划证据项的 QA 基础设施；合流提交 `60023b50`。
+- 三条支线均以 P0 `9fde5878` 为共同祖先，文件交集为 0，合流无冲突。
+- Gate 1 聚合验证通过：Phase 25 design/Gate 1A/Gate 1B、UI/Customer typecheck、Customer 依赖拓扑生产构建、QA 基础设施检查和 199 文件 / 1104 项 unit-contract 回归。
+- P2 只可从 Gate 1 集成线最新提交创建；主页运行态实现、390×844 截图与视觉对比仍属于 P2，P1 不虚报实际截图证据。
 
 ## 10. 完成定义
 

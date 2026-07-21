@@ -64,8 +64,8 @@
 | --- | --- | --- | --- | --- | --- |
 | [x] | CUST-DS-001 | 主页视觉真相与继承规则 | 锁定主页 PNG、用户裁决 | 单一主页真相、旧基准删除、防回归哈希 | 唯一来源可复验 |
 | [x] | CUST-DS-002 | 顾客端基础色与材料 Token | `baseTokens`、Customer material recipe | 暖奶油/墨绿/陶橙、功能层玻璃与回退规则 | Token 测试通过 |
-| [ ] | CUST-DS-003 | 顾客端组件 Recipe | `@xlb/ui` 现有组件 | Button/Input/Card/Tabs/State/Overlay 全部消费 Customer role/component token | 清除顾客端硬编码视觉值 |
-| [ ] | CUST-ASSET-001 | 16 个一级服务类目资产 | 官方目录 + 唯一主页图像语言 | 16 个独立语义 3D PNG/WebP 资产及稳定映射 | 无 Emoji/重复图标；尺寸、裁切、alt 合格 |
+| [x] | CUST-DS-003 | 顾客端组件 Recipe | `@xlb/ui` 现有组件 | Button/Input/Card/Tabs/State/Overlay 全部消费 Customer role/component token | 清除顾客端硬编码视觉值 |
+| [x] | CUST-ASSET-001 | 16 个一级服务类目资产 | 官方目录 + 唯一主页图像语言 | 16 个独立语义 3D PNG/WebP 资产及稳定映射 | 无 Emoji/重复图标；尺寸、裁切、alt 合格 |
 
 ### Wave 1 — App Shell 与共享状态
 
