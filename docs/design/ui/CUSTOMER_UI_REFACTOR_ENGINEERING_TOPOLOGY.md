@@ -1,6 +1,6 @@
 # 顾客端全业务切片设计系统统一与视觉重构 — 工程施工拓扑
 
-> 状态：**P3 GATE 3 PASSED / READY FOR P4**
+> 状态：**P4 GATE 4 PASSED / READY FOR P5**
 > 施工对象：仅 `apps/customer` 及其直接消费的顾客端 `packages/ui` 能力
 > 明确排除：`apps/worker`、`apps/admin`、`apps/oa`、`apps/dashboard`
 > 视觉母体：[`CUSTOMER_HOME_VISUAL_TRUTH.md`](./CUSTOMER_HOME_VISUAL_TRUTH.md)
@@ -177,8 +177,8 @@ flowchart TD
 | Gate 0 | 唯一主页 PNG 与哈希可复核；范围只含 Customer；基线提交 clean |
 | Gate 1 | **PASS（2026-07-21）** — Customer token/recipe/共享组件可消费；16 类资产映射完整；无 Emoji/截图裁切占位 |
 | Gate 2 | **PASS（2026-07-21）** — 主页在 390×844 达成同屏视觉证明；320×844、430×932 与 partial 状态无溢出；Shell、状态、焦点、安全区、强对比、减少动效与无 blur 回退可用；P0/P1/P2/P3 = 0/0/0/0 |
-| Gate 3 | 服务发现、优惠券、创建订单深链闭环；报价与优惠结果来自权威接口 |
-| Gate 4 | 订单、支付、确认、评价、退款、售后、客服状态与动作保持后端权威语义 |
+| Gate 3 | **PASS（2026-07-22）** — 服务发现、优惠券、创建订单深链闭环；报价与优惠结果来自权威接口 |
+| Gate 4 | **PASS（2026-07-22）** — 订单、支付、确认、评价、退款、售后、客服状态与动作保持后端权威语义；A4 → B4 → C4 无冲突合流，36/36 聚焦测试、生产构建与浏览器验收通过 |
 | Gate 5 | 通知、我的、地址及跨路由恢复可用；底部五导航仍是唯一一级导航 |
 | Gate 6 | 9 页面载体均有 default/ready 与最高风险状态证据；P0/P1/P2 缺陷为 0 |
 | Gate 7 | 44 切片全部满足 Definition of Done；相关 test/typecheck/lint/build 通过 |

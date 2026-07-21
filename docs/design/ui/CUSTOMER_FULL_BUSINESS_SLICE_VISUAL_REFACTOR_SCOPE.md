@@ -1,6 +1,6 @@
 # 顾客端全业务切片的设计系统统一与视觉重构 — 施工范围清单
 
-> 状态：**P3 GATE 3 PASSED / READY FOR WAVE 4**
+> 状态：**P4 GATE 4 PASSED / READY FOR P5**
 > 适用端：仅 `apps/customer`
 > 排除端：`apps/worker`、`apps/admin`、`apps/oa`、`apps/dashboard`
 > 视觉母体：[`CUSTOMER_HOME_VISUAL_TRUTH.md`](./CUSTOMER_HOME_VISUAL_TRUTH.md)
@@ -104,23 +104,23 @@
 
 | 状态 | Slice ID | 载体/边界 | 权威输入 | 必须覆盖的状态/动作 | 视觉重构结果 |
 | --- | --- | --- | --- | --- | --- |
-| [ ] | CUST-ORDERS-001 | 订单列表与订单卡 | order API/state machine | loading、empty、error、partial、all backend states | 卡片先显示当前状态、责任人和下一步，不做按钮仓库 |
-| [ ] | CUST-CONFIRM-001 | 服务确认 | confirm API/state guard | guarded、submitting、success、error/conflict | 确认动作使用明确结果区，不用瞬时 Toast |
-| [ ] | CUST-PAY-001 | 支付入口与结果 | payment order/provider response | unavailable、submitting、unknown、success、failure/duplicate | 金额与 Provider 事实可追溯；视觉主次不误导 |
-| [ ] | CUST-REVIEW-001 | 评价创建/已评价 | review API | guarded、validation、submitting、success、error、persisted | 评分控件可访问，成功结果持久展示 |
-| [ ] | CUST-REVIEW-002 | 评价申诉与撤回 | appeal API/status | no appeal、open、submitting、conflict、withdrawn、resolved | 申诉状态与可行动作分层，不堆在订单主卡 |
-| [ ] | CUST-REFUND-001 | 退款/售后申请入口 | refund API/state guard | guarded、validation、submitting、success、error/duplicate | 危险/逆向动作与普通操作视觉分离 |
+| [x] | CUST-ORDERS-001 | 订单列表与订单卡 | order API/state machine | loading、empty、error、partial、all backend states | 卡片先显示当前状态、责任人和下一步，不做按钮仓库 |
+| [x] | CUST-CONFIRM-001 | 服务确认 | confirm API/state guard | guarded、submitting、success、error/conflict | 确认动作使用明确结果区，不用瞬时 Toast |
+| [x] | CUST-PAY-001 | 支付入口与结果 | payment order/provider response | unavailable、submitting、unknown、success、failure/duplicate | 金额与 Provider 事实可追溯；视觉主次不误导 |
+| [x] | CUST-REVIEW-001 | 评价创建/已评价 | review API | guarded、validation、submitting、success、error、persisted | 评分控件可访问，成功结果持久展示 |
+| [x] | CUST-REVIEW-002 | 评价申诉与撤回 | appeal API/status | no appeal、open、submitting、conflict、withdrawn、resolved | 申诉状态与可行动作分层，不堆在订单主卡 |
+| [x] | CUST-REFUND-001 | 退款/售后申请入口 | refund API/state guard | guarded、validation、submitting、success、error/duplicate | 危险/逆向动作与普通操作视觉分离 |
 
 ### Wave 5 — 售后与客服
 
 | 状态 | Slice ID | 载体/边界 | 权威输入 | 必须覆盖的状态/动作 | 视觉重构结果 |
 | --- | --- | --- | --- | --- | --- |
-| [ ] | CUST-AFTER-001 | 订单选择与逆向申请 | reverse request API | no order、loading、validation、submitting、applied/rejected/error | 移动卡片/列表替代桌面 Table；原因与恢复清晰 |
-| [ ] | CUST-AFTER-002 | 客诉创建与记录 | complaint API | validation、submitting、open/processing/resolved/closed、error | 优先级/状态不只靠颜色，记录可扫读 |
-| [ ] | CUST-AFTER-003 | 履约证据与确认争议 | evidence/confirmation API | empty、loading、pending、confirmed、disputed、error | 媒体证据、时间线和确认动作分区；禁止工程文案外露 |
-| [ ] | CUST-SUPPORT-001 | 工单创建与列表 | support ticket API | loading、empty、validation、submitting、open/escalated/resolved/closed、error | 客服作为一级目的地；表单、列表与状态统一 |
-| [ ] | CUST-SUPPORT-002 | 工单详情/评论/重开/CSAT | ticket detail API | loading、event empty、comment submitting、reopen guard、closed/CSAT | 详情时间线、输入 Dock 和持久结果清晰 |
-| [ ] | CUST-SUPPORT-003 | 实时会话 | conversation/message API | no conversation、loading、open、sending、partial/realtime error、closed | 会话使用稳定消息层；断流/重试不伪装实时 |
+| [x] | CUST-AFTER-001 | 订单选择与逆向申请 | reverse request API | no order、loading、validation、submitting、applied/rejected/error | 移动卡片/列表替代桌面 Table；原因与恢复清晰 |
+| [x] | CUST-AFTER-002 | 客诉创建与记录 | complaint API | validation、submitting、open/processing/resolved/closed、error | 优先级/状态不只靠颜色，记录可扫读 |
+| [x] | CUST-AFTER-003 | 履约证据与确认争议 | evidence/confirmation API | empty、loading、pending、confirmed、disputed、error | 媒体证据、时间线和确认动作分区；禁止工程文案外露 |
+| [x] | CUST-SUPPORT-001 | 工单创建与列表 | support ticket API | loading、empty、validation、submitting、open/escalated/resolved/closed、error | 客服作为一级目的地；表单、列表与状态统一 |
+| [x] | CUST-SUPPORT-002 | 工单详情/评论/重开/CSAT | ticket detail API | loading、event empty、comment submitting、reopen guard、closed/CSAT | 详情时间线、输入 Dock 和持久结果清晰 |
+| [x] | CUST-SUPPORT-003 | 实时会话 | conversation/message API | no conversation、loading、open、sending、partial/realtime error、closed | 会话使用稳定消息层；断流/重试不伪装实时 |
 
 ### Wave 6 — 通知、优惠券、我的与地址
 
