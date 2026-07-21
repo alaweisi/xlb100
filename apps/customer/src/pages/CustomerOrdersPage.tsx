@@ -23,6 +23,7 @@ import {
 import { formatScheduledLabel } from "../adapters/orderAddressOptions";
 import { createCustomerUiBinding } from "../adapters/workflowAdapter";
 import { toCustomerError } from "../adapters/customerError";
+import { CustomerRouteShell } from "./customerPageShell";
 import "./customer-orders.css";
 
 interface CustomerOrderApi {
@@ -344,8 +345,9 @@ export function CustomerOrdersPage({ api, cityCode }: CustomerOrdersPageProps) {
     : null;
 
   return (
-    <div className="customer-transaction-page">
-    <CustomerOrdersTemplate route="/customer/orders" cityCode={cityCode} binding={binding}>
+    <CustomerRouteShell currentRoute="orders">
+      <div className="customer-transaction-page">
+      <CustomerOrdersTemplate route="/customer/orders" cityCode={cityCode} binding={binding}>
       {loading && <LoadingState title="正在加载订单" description="读取订单详情与评价状态" />}
       {loadError && <ErrorState title={loadError.title} description={loadError.description} action={<Button onClick={() => void loadOrders()}>重新加载</Button>} />}
       {!loading && !loadError && orders.length === 0 && (
@@ -546,7 +548,8 @@ export function CustomerOrdersPage({ api, cityCode }: CustomerOrdersPageProps) {
       {loadMoreError ? <ErrorState title="更多订单加载失败" description={loadMoreError} action={<Button onClick={() => void loadMoreOrders()}>重新加载</Button>} /> : null}
 
       <CustomerAnswerCard state={binding.state} />
-    </CustomerOrdersTemplate>
-    </div>
+      </CustomerOrdersTemplate>
+      </div>
+    </CustomerRouteShell>
   );
 }

@@ -5,6 +5,7 @@ import { Button, Card, CustomerProfileTemplate, EmptyState, FormField, Input, Lo
 import { createCustomerUiBinding } from "../adapters/workflowAdapter";
 import { toCustomerError } from "../adapters/customerError";
 import { getOrderAddressOption } from "../adapters/orderAddressOptions";
+import { CustomerRouteShell } from "./customerPageShell";
 import "./customer-orders.css";
 import "./customer-coupons.css";
 
@@ -122,8 +123,9 @@ export function CustomerProfilePage({ api, cityCode, onLogout }: CustomerProfile
   const savingAddress = busy === "address";
 
   return (
-    <div className="customer-transaction-page">
-      <CustomerProfileTemplate route="/customer/profile" cityCode={cityCode} binding={binding}>
+    <CustomerRouteShell currentRoute="profile">
+      <div className="customer-transaction-page">
+        <CustomerProfileTemplate route="/customer/profile" cityCode={cityCode} binding={binding}>
         {initialLoading && !profile ? <LoadingState title="正在加载个人资料" description="读取账号与常用地址" /> : null}
         {error ? <div className="customer-review-error" role="alert"><strong>{error.title}</strong><span>{error.description}</span><Button onClick={() => void load()}>重新加载</Button></div> : null}
         {notice ? <div className="customer-order-notice" role="status">{notice}</div> : null}
@@ -175,7 +177,8 @@ export function CustomerProfilePage({ api, cityCode, onLogout }: CustomerProfile
             <div className="customer-order-actions"><Button variant="primary" disabled={busy !== null || !addressReady} onClick={() => void saveAddress()}>{savingAddress ? "正在保存" : editingId ? "更新地址" : "添加地址"}</Button>{editingId && <Button onClick={() => { setEditingId(null); setForm(emptyAddress(cityCode)); }}>取消编辑</Button>}</div>
           </div>
         </Card>
-      </CustomerProfileTemplate>
-    </div>
+        </CustomerProfileTemplate>
+      </div>
+    </CustomerRouteShell>
   );
 }

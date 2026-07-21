@@ -1,4 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  ArrowLeft,
+  CalendarBlank,
+  Check,
+  CheckCircle,
+  Clock,
+  HouseLine,
+  MapPinLine,
+  ShieldCheck,
+  WarningCircle,
+} from "@phosphor-icons/react";
 import type {
   CatalogSnapshot,
   CityCode,
@@ -10,27 +21,20 @@ import type {
   ScheduledTimeSlot,
 } from "@xlb/types";
 import {
-  ActionDock,
   Button,
-  CustomerAnswerCard,
   CustomerOrderCreateTemplate,
-  CustomerQuoteCard,
   EmptyState,
   ErrorState,
-  FormField,
   Input,
   LoadingState,
   PriceText,
   QuantityStepper,
   Select,
-  ServiceCard,
   StatusTag,
   Textarea,
-  WorkflowTimeline,
 } from "@xlb/ui";
 import type { CustomerLoadable } from "./customerPageShell";
 import {
-  cityAreaByCode,
   dedupeCatalogSkusByName,
   getCatalogSkuDisplayLabel,
   getCatalogSkus as normalizeCatalogSkus,
@@ -45,13 +49,15 @@ import {
   scheduleDayOptions,
   serviceTimeSlots,
 } from "../adapters/orderAddressOptions";
-import { useSearchParamSku } from "./customerPageShell";
+import { CustomerRouteShell, useSearchParamSku } from "./customerPageShell";
 import {
   formatServerMarketingMinor,
   isCustomerCouponGrantSelectable,
 } from "../adapters/marketingAdapter";
 import { toCustomerError } from "../adapters/customerError";
-import "./customer-orders.css";
+import "./customer-order-create.css";
+
+type BookingStep = 1 | 2 | 3 | 4;
 
 type QuoteState =
   | { status: "pending" }
@@ -88,6 +94,94 @@ interface CreateOrderFormDetails {
   contactPhone: string;
   scheduledAt: string;
   scheduledTimeSlot: ScheduledTimeSlot;
+}
+
+const bookingSteps: ReadonlyArray<{ step: BookingStep; label: string }> = [
+  { step: 1, label: "服务" },
+  { step: 2, label: "地址" },
+  { step: 3, label: "时间" },
+  { step: 4, label: "确认" },
+];
+
+function formatDayOption(offsetDays: number, fallbackLabel: string): string {
+  const date = new Date();
+  date.setDate(date.getDate() + offsetDays);
+  const datePart = date.toLocaleDateString("zh-CN", { month: "numeric", day: "numeric" });
+  const weekday = date.toLocaleDateString("zh-CN", { weekday: "short" });
+  return `${fallbackLabel} ${datePart} ${weekday}`;
+}
+
+function BookingTopBar({ step }: { step: BookingStep }) {
+  return (
+    <header className="order-create-topbar">
+      <button
+        aria-label="返回服务列表"
+        className="order-create-icon-button"
+        onClick={() => { window.location.href = "/customer/services"; }}
+        type="button"
+      >
+        <ArrowLeft aria-hidden="true" size={24} weight="bold" />
+      </button>
+      <strong>预约服务</strong>
+      <span aria-label={`当前第 ${step} 步，共 4 步`}>{`${step} / 4`}</span>
+    </header>
+  );
+}
+
+function BookingProgress({
+  activeStep,
+  maxAccessibleStep,
+  onStepChange,
+}: {
+  activeStep: BookingStep;
+  maxAccessibleStep: BookingStep;
+  onStepChange: (step: BookingStep) => void;
+}) {
+  return (
+    <ol aria-label="预约进度" className="order-create-progress">
+      {bookingSteps.map(({ step, label }) => {
+        const isComplete = step < activeStep;
+        const isActive = step === activeStep;
+        const isAccessible = step <= maxAccessibleStep;
+        return (
+          <li className={isComplete ? "is-complete" : isActive ? "is-active" : ""} key={step}>
+            <button
+              aria-current={isActive ? "step" : undefined}
+              aria-label={`${label}${isComplete ? "，已完成" : isActive ? "，当前步骤" : ""}`}
+              disabled={!isAccessible}
+              onClick={() => onStepChange(step)}
+              type="button"
+            >
+              <span>{isComplete ? <Check aria-hidden="true" size={17} weight="bold" /> : step}</span>
+              <small>{label}</small>
+            </button>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+function StepHeading({ title, description }: { title: string; description: string }) {
+  return (
+    <header className="order-create-step-heading">
+      <h2>{title}</h2>
+      <p>{description}</p>
+    </header>
+  );
+}
+
+function ReviewRow({ icon, label, value, meta }: { icon: ReactNode; label: string; value: string; meta?: string }) {
+  return (
+    <div className="order-create-review-row">
+      <span aria-hidden="true" className="order-create-review-icon">{icon}</span>
+      <span>
+        <small>{label}</small>
+        <strong>{value}</strong>
+        {meta ? <em>{meta}</em> : null}
+      </span>
+    </div>
+  );
 }
 
 function hasUnknownSubmitResult(kind: string): boolean {
@@ -152,16 +246,6 @@ function orderStatusLabel(status: string): string {
   } as Record<string, string>)[status] ?? "状态待确认";
 }
 
-function priceTypeLabel(priceType: string): string {
-  return ({
-    fixed: "固定价",
-    range: "区间价",
-    from: "起步价",
-    estimate_from: "预估起价",
-    onsite_quote: "上门报价",
-  } as Record<string, string>)[priceType] ?? "实时报价";
-}
-
 function createOrderRequestPayload(skuId: string, quantity: number, details: CreateOrderFormDetails) {
   return {
     // Phase 14: customerId no longer sent from client;
@@ -179,6 +263,7 @@ export function CustomerOrderCreatePage({
   onOrderCreated,
 }: CustomerOrderCreatePageProps) {
   const initialSkuId = useSearchParamSku();
+  const [activeStep, setActiveStep] = useState<BookingStep>(() => initialSkuId ? 2 : 1);
   const [selectedSkuId, setSelectedSkuId] = useState(initialSkuId ?? "");
   const [quantity, setQuantity] = useState(1);
   const [selectedDistrict, setSelectedDistrict] = useState(() => getOrderAddressOption(cityCode).districts[0]);
@@ -245,16 +330,6 @@ export function CustomerOrderCreatePage({
     submitting: submitState.status === "submitting",
   });
 
-  const actionById = useMemo(() => {
-    return binding.availableActions.reduce(
-      (map, action) => {
-        map[action.actionId] = action;
-        return map;
-      },
-      {} as Record<string, (typeof binding.availableActions)[number]>,
-    );
-  }, [binding]);
-
   const isContactPhoneValid = /^1[3-9]\d{9}$/.test(orderFormDetails.contactPhone);
   const isAddressReady =
     Boolean(orderFormDetails.addressDistrict) &&
@@ -273,6 +348,7 @@ export function CustomerOrderCreatePage({
     isScheduleReady &&
     (!selectedCouponGrantId || hasCurrentDecision) &&
     submitState.status !== "submitting";
+  const maxAccessibleStep: BookingStep = !selectedSku ? 1 : isAddressReady ? 4 : 2;
 
   useEffect(() => {
     if (!api.listAddresses) {
@@ -435,57 +511,84 @@ export function CustomerOrderCreatePage({
     }
   }
 
-  const catalogLoading = catalogState.status === "loading" || catalogState.status === "pending";
-  const catalogFailed = catalogState.status === "error";
-  const catalogReady = catalogState.status === "success";
-  const addressesLoading = addressState.status === "loading";
-  const addressesFailed = addressState.status === "error";
-  const addressesReady = addressState.status === "success";
-  const quoteLoading = quoteState.status === "loading";
-  const quoteFailed = quoteState.status === "error";
-  const quoteReady = quoteState.status === "success";
-  const couponsLoading = couponState.status === "loading";
-  const couponsFailed = couponState.status === "error";
-  const couponsReady = couponState.status === "success";
-  const decisionLoading = decisionState.status === "loading";
-  const decisionFailed = decisionState.status === "error";
-  const decisionReady = decisionState.status === "success";
-  const submitFailed = submitState.status === "error";
-  const submitReady = submitState.status === "success";
+  function changeStep(step: BookingStep) {
+    if (step > maxAccessibleStep) return;
+    clearSubmitError();
+    setActiveStep(step);
+  }
 
-  return (
-    <div className="customer-transaction-page">
-    <CustomerOrderCreateTemplate route="/customer/order/create" cityCode={cityCode} binding={binding}>
-      {catalogLoading && (
-        <LoadingState title="正在加载服务配置" description="读取当前城市实时服务目录" />
-      )}
-      {catalogFailed && <ErrorState title="服务配置加载失败" description={catalogState.error} />}
-      {catalogReady && allSkus.length === 0 && (
-        <EmptyState title="当前城市暂无可下单服务" description="请返回服务页刷新目录或切换城市。" />
-      )}
-      <section style={{ display: "grid", gap: 12 }}>
-        <div style={{ display: "grid", gap: 10 }}>
-          <strong>{`${addressOption.city} · ${cityAreaByCode[cityCode] ?? "当前服务区域"}`}</strong>
-          <FormField label="服务项目" description="服务与价格均来自当前城市实时目录">
-            <Select aria-label="服务项目" value={selectedSkuId} onChange={(event) => setSelectedSkuId(event.target.value)}>
-              <option value="" disabled>
-                请选择服务
-              </option>
-              {optionSkus.map((sku) => (
-                <option key={sku.skuId} value={sku.skuId}>
-                  {getCatalogSkuDisplayLabel(sku).optionLabel}
-                </option>
-              ))}
-            </Select>
-          </FormField>
-          <FormField label="服务数量" description="最少 1 份，最终金额以服务端报价为准">
-            <QuantityStepper min={1} value={quantity} onChange={setQuantity} />
-          </FormField>
-          {addressesLoading && <LoadingState title="正在加载常用地址" description="读取账号已保存的服务地址" />}
-          {addressesFailed && <ErrorState title="常用地址暂不可用" description={addressState.error} />}
-          {addressesReady && addressState.addresses.length > 0 && (
-            <FormField label="常用地址" description="选择后仍需补充完整手机号，服务端只返回脱敏号码">
+  function handlePrimaryAction() {
+    clearSubmitError();
+    if (activeStep === 1 && selectedSku) setActiveStep(2);
+    else if (activeStep === 2 && isAddressReady) setActiveStep(3);
+    else if (activeStep === 3 && isScheduleReady) setActiveStep(4);
+    else if (activeStep === 4 && quoteState.status === "error") retryQuote();
+    else if (activeStep === 4) void submitOrder();
+  }
+
+  const primaryLabel = activeStep === 1
+    ? "下一步：填写地址"
+    : activeStep === 2
+      ? "下一步：选择时间"
+      : activeStep === 3
+        ? "下一步：确认预约"
+        : quoteState.status === "error"
+          ? "重新获取报价"
+          : submitState.status === "submitting" ? "正在提交预约…" : "提交预约";
+  const primaryDisabled = activeStep === 1
+    ? !selectedSku
+    : activeStep === 2
+      ? !isAddressReady
+      : activeStep === 3
+        ? !isScheduleReady
+        : quoteState.status === "error" ? false : !canSubmit;
+
+  const selectedServiceSummary = selectedSku ? (
+    <section className="order-create-service-summary">
+      <span aria-hidden="true"><HouseLine size={22} /></span>
+      <div><small>已选服务</small><strong>{selectedSku.name}</strong><em>{selectedSkuSummary?.subtitle}</em></div>
+      <button onClick={() => changeStep(1)} type="button">修改</button>
+    </section>
+  ) : null;
+
+  let stepContent: ReactNode;
+  if (activeStep === 1) {
+    stepContent = (
+      <section className="order-create-step" data-step="service">
+        <StepHeading title="选择服务" description="服务名称和可用范围均来自当前城市正式服务目录" />
+        {catalogState.status === "loading" || catalogState.status === "pending" ? <div className="order-create-state"><LoadingState title="服务目录加载中" description="正在读取当前城市可预约服务" /></div> : null}
+        {catalogState.status === "error" ? <div className="order-create-state"><ErrorState title="服务目录加载失败" description={catalogState.error} /></div> : null}
+        {catalogState.status === "success" && optionSkus.length === 0 ? <div className="order-create-state"><EmptyState title="暂无可预约服务" description="当前城市暂时没有可用服务，请稍后再试" /></div> : null}
+        {catalogState.status === "success" && optionSkus.length > 0 ? (
+          <div className="order-create-form-group">
+            <label className="order-create-field order-create-field-stacked">
+              <span>服务项目</span>
+              <Select aria-label="服务项目" value={selectedSkuId} onChange={(event) => setSelectedSkuId(event.target.value)}>
+                <option value="">请选择服务</option>
+                {optionSkus.map((sku) => <option key={sku.skuId} value={sku.skuId}>{getCatalogSkuDisplayLabel(sku).optionLabel}</option>)}
+              </Select>
+            </label>
+            <div className="order-create-field order-create-quantity-row">
+              <span><strong>服务数量</strong><small>最少 1 份</small></span>
+              <QuantityStepper min={1} value={quantity} onChange={setQuantity} />
+            </div>
+            {selectedSku ? <div className="order-create-selected-detail" role="status"><CheckCircle aria-hidden="true" size={20} weight="fill" /><span><strong>{selectedSku.name}</strong><small>{selectedSkuSummary?.subtitle}</small></span></div> : null}
+          </div>
+        ) : null}
+      </section>
+    );
+  } else if (activeStep === 2) {
+    stepContent = (
+      <section className="order-create-step" data-step="address">
+        <StepHeading title="填写地址" description="请填写服务地址，便于师傅准时上门" />
+        <div className="order-create-form-group">
+          {addressState.status === "loading" ? <div className="order-create-state"><LoadingState title="正在加载常用地址" description="读取账号已保存的服务地址" /></div> : null}
+          {addressState.status === "error" ? <div className="order-create-state"><ErrorState title="常用地址暂不可用" description={addressState.error} /></div> : null}
+          {addressState.status === "success" && addressState.addresses.length > 0 ? (
+            <label className="order-create-field order-create-field-stacked">
+              <span>常用地址</span>
               <Select
+                aria-label="常用地址"
                 value={selectedAddressId}
                 onChange={(event) => {
                   const addressId = event.target.value;
@@ -499,229 +602,69 @@ export function CustomerOrderCreatePage({
                   }
                 }}
               >
-                <option value="">填写新地址</option>
-                {addressState.addresses.map((address) => (
-                  <option key={address.addressId} value={address.addressId}>
-                    {address.isDefault ? "默认 · " : ""}{address.district} {address.detailAddress} · {address.contactName} {address.contactPhoneMasked}
-                  </option>
-                ))}
+                <option value="">手动填写新地址</option>
+                {addressState.addresses.map((address) => <option key={address.addressId} value={address.addressId}>{`${address.isDefault ? "默认 · " : ""}${address.contactName} · ${address.district}${address.detailAddress} · ${address.contactPhoneMasked}`}</option>)}
               </Select>
-            </FormField>
-          )}
-          <FormField label="服务区域" description={`${orderFormDetails.addressProvince} / ${orderFormDetails.addressCity}`}>
-            <Select aria-label="服务区域" value={selectedDistrict} onChange={(event) => setSelectedDistrict(event.target.value)}>
-              {[...new Set([selectedDistrict, ...addressOption.districts])].map((district) => (
-                <option key={district} value={district}>
-                  {district}
-                </option>
-              ))}
-            </Select>
-          </FormField>
-          <FormField label="详细地址" description="请填写小区、楼栋、单元和门牌号">
-            <Textarea
-              aria-label="详细地址"
-              value={detailAddress}
-              onChange={(event) => setDetailAddress(event.target.value)}
-              placeholder="示例小区3栋502室"
-            />
-          </FormField>
-          <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
-            <FormField label="联系人">
-              <Input aria-label="联系人" value={contactName} onChange={(event) => setContactName(event.target.value)} placeholder="联系人" />
-            </FormField>
-            <FormField label="联系电话" error={contactPhone && !isContactPhoneValid ? "请输入 11 位手机号" : undefined}>
-              <Input
-                aria-label="联系电话"
-                value={contactPhone}
-                onChange={(event) => setContactPhone(event.target.value)}
-                inputMode="tel"
-                placeholder="13800000001"
-              />
-            </FormField>
-          </div>
-          <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
-            <FormField label="服务日期">
-              <Select aria-label="服务日期" value={String(scheduleDayOffset)} onChange={(event) => setScheduleDayOffset(Number(event.target.value))}>
-                {scheduleDayOptions.map((option) => (
-                  <option key={option.offsetDays} value={option.offsetDays}>
-                    {option.label}
-                  </option>
-                ))}
-              </Select>
-            </FormField>
-            <FormField label="服务时段" description={selectedTimeSlot.timeRange}>
-              <Select
-                aria-label="服务时段"
-                value={scheduledTimeSlot}
-                onChange={(event) => setScheduledTimeSlot(event.target.value as ScheduledTimeSlot)}
-              >
-                {serviceTimeSlots.map((slot) => (
-                  <option key={slot.slot} value={slot.slot}>
-                    {slot.label} {slot.timeRange}
-                  </option>
-                ))}
-              </Select>
-            </FormField>
-          </div>
+            </label>
+          ) : null}
+          <label className="order-create-field"><span>所在区域</span><Select aria-label="所在区域" value={selectedDistrict} onChange={(event) => setSelectedDistrict(event.target.value)}>{addressOption.districts.map((district) => <option key={district} value={district}>{district}</option>)}</Select></label>
+          <label className="order-create-field order-create-field-textarea"><span>详细地址</span><span><Textarea aria-label="详细地址" maxLength={60} onChange={(event) => setDetailAddress(event.target.value)} placeholder="请填写小区、楼栋、门牌号等" value={detailAddress} /><small>{`${detailAddress.length}/60`}</small></span></label>
+          <label className="order-create-field"><span>联系人</span><Input aria-label="联系人" autoComplete="name" onChange={(event) => setContactName(event.target.value)} placeholder="请填写联系人姓名" value={contactName} /></label>
+          <label className="order-create-field"><span>手机号</span><span><Input aria-describedby="order-phone-hint" aria-invalid={Boolean(contactPhone) && !isContactPhoneValid} aria-label="手机号" autoComplete="tel" inputMode="tel" maxLength={11} onChange={(event) => setContactPhone(event.target.value.replace(/\D/g, ""))} placeholder="请填写常用手机号" value={contactPhone} />{contactPhone && !isContactPhoneValid ? <small className="is-error" id="order-phone-hint">请输入 11 位中国大陆手机号</small> : null}</span></label>
         </div>
-
-        {selectedSku && (
-          <ServiceCard
-            title={selectedSku.name}
-            subtitle={selectedSkuSummary?.subtitle ?? [selectedSku.categoryPathLabel, selectedSku.unit].filter(Boolean).join(" / ")}
-            status={<StatusTag tone="success">已选择</StatusTag>}
-            actionLabel="更换服务"
-            onClick={() => {
-              window.location.href = `/customer/services?${new URLSearchParams({ cityCode }).toString()}`;
-            }}
-          />
-        )}
-
-        {quoteLoading && <LoadingState title="正在获取报价" description="读取当前服务和数量的实时价格" />}
-        {quoteFailed && (
-          <ErrorState
-            title="报价获取失败"
-            description={quoteState.error}
-            action={
-              <ActionDock
-                actions={actionById["customer.pricing.retryQuote"] ? [actionById["customer.pricing.retryQuote"]] : []}
-                onAction={() => retryQuote()}
-              />
-            }
-          />
-        )}
-        {quoteReady && (
-          <CustomerQuoteCard
-            label={selectedSku?.name ?? "当前报价"}
-            price={<PriceText amount={quoteState.quote.basePrice} currency={quoteState.quote.currency} />}
-            meta={`${quoteState.quoteViewModel.priceText} · ${priceTypeLabel(quoteState.quoteViewModel.priceType)} · ${quoteState.quoteViewModel.sourceLabel}`}
-          />
-        )}
-
-        <section className="customer-coupon-selection" aria-label="优惠券选择">
-          <FormField
-            label="优惠券"
-            description="优惠资格、服务范围、数量和价格版本均由服务端校验"
-          >
-            <Select
-              aria-label="优惠券"
-              value={selectedCouponGrantId}
-              disabled={!couponsReady}
-              onChange={(event) => setSelectedCouponGrantId(event.target.value)}
-            >
-              <option value="">不使用优惠券</option>
-              {couponsReady && couponState.grants.map((grant) => (
-                <option key={grant.couponGrantId} value={grant.couponGrantId}>
-                  可用优惠券 · {new Date(grant.expiresAt).toLocaleDateString("zh-CN")} 到期
-                </option>
-              ))}
-            </Select>
-          </FormField>
-          {couponsLoading && <LoadingState title="正在加载优惠券" description="读取当前账号可用优惠券" />}
-          {couponsFailed && <ErrorState title="优惠券加载失败" description={couponState.error} />}
-          {selectedCouponGrantId && (
-            <Button
-              type="button"
-              disabled={decisionLoading || !quoteReady}
-              onClick={() => void applySelectedCoupon()}
-            >
-              {decisionLoading ? "正在校验优惠券" : "使用所选优惠券"}
-            </Button>
-          )}
-          {decisionFailed && (
-            <ErrorState title="优惠券暂不可用" description={`${decisionState.error} 系统不会自动改为原价提交。`} />
-          )}
-          {decisionReady && (
-            <div className="customer-coupon-summary">
-              <StatusTag tone="success">服务端校验通过</StatusTag>
-              <span>原价：{formatServerMarketingMinor(decisionState.decision.grossAmountMinor)}</span>
-              <span>优惠：-{formatServerMarketingMinor(decisionState.decision.discountAmountMinor)}</span>
-              <strong>应付：{formatServerMarketingMinor(decisionState.decision.netAmountMinor)}</strong>
-              <small>本次优惠结果有效至 {new Date(decisionState.decision.expiresAt).toLocaleString("zh-CN")}</small>
-            </div>
-          )}
+        <section className="order-create-next-preview" aria-label="下一步预约时间">
+          <h3>下一步：预约时间</h3>
+          <div><CalendarBlank aria-hidden="true" size={21} /><span>服务日期</span><strong>{formatDayOption(scheduleDayOffset, scheduleDayOptions.find((item) => item.offsetDays === scheduleDayOffset)?.label ?? "已选")}</strong></div>
+          <div><Clock aria-hidden="true" size={21} /><span>服务时段</span><strong>{`${selectedTimeSlot.label} ${selectedTimeSlot.timeRange}`}</strong></div>
         </section>
-
-        <WorkflowTimeline
-          items={[
-            { key: "catalog", title: "选择服务", description: selectedSku ? "服务已选择" : "等待选择服务", state: selectedSku ? "complete" : "current" },
-            {
-              key: "quote",
-              title: "确认报价",
-              description: quoteReady ? "实时报价已返回" : "等待报价",
-              state: quoteReady ? "complete" : "current",
-            },
-            {
-              key: "address",
-              title: "填写地址",
-              description: isAddressReady ? `${selectedDistrict} ${orderFormDetails.detailAddress}` : "等待完整地址和联系方式",
-              state: isAddressReady ? "complete" : quoteReady ? "current" : "pending",
-            },
-            {
-              key: "schedule",
-              title: "预约时间",
-              description: isScheduleReady ? formatScheduledLabel(orderFormDetails.scheduledAt, orderFormDetails.scheduledTimeSlot) : "等待预约时间",
-              state: isScheduleReady ? "complete" : isAddressReady ? "current" : "pending",
-            },
-            {
-              key: "order",
-              title: "创建订单",
-              description:
-                submitReady
-                  ? `订单已创建 ${submitState.order.orderId}`
-                  : submitFailed
-                    ? "提交受阻"
-                    : "等待提交",
-              state:
-                submitReady ? "complete" : submitFailed ? "blocked" : "pending",
-            },
-            {
-              key: "payment",
-              title: "服务后支付",
-              description:
-                submitReady
-                  ? "等待服务完成并由顾客确认"
-                  : "等待订单创建",
-              state: "pending",
-            },
-          ]}
-        />
-
-        <ActionDock
-          actions={actionById["customer.order.submit"] ? [actionById["customer.order.submit"]] : []}
-          onAction={() => void submitOrder()}
-          density="compact"
-        />
-
-        {submitFailed && (
-          <ErrorState
-            title="订单提交失败"
-            description={submitState.error}
-            action={<Button type="button" onClick={() => void submitOrder()}>
-              重新提交
-            </Button>}
-          />
-        )}
-        {submitReady && (
-          <div style={{ display: "grid", gap: 10 }}>
-            <StatusTag tone="success">订单号：{submitState.order.orderId}</StatusTag>
-            <ServiceCard
-              title={submitState.order.skuName}
-              subtitle={`${submitState.orderDetail.quantity} ${submitState.orderDetail.unit} / ${submitState.orderDetail.addressDistrict} ${submitState.orderDetail.detailAddress} / ${formatScheduledLabel(submitState.orderDetail.scheduledAt, submitState.orderDetail.scheduledTimeSlot)}`}
-              status={<StatusTag tone={statusTone(submitState.orderDetail.status)}>{orderStatusLabel(submitState.orderDetail.status)}</StatusTag>}
-              priceText={<PriceText amount={submitState.orderDetail.totalAmount} currency={submitState.orderDetail.currency} />}
-              actionLabel="查看订单详情"
-              onClick={() => {
-                window.location.href = "/customer/orders";
-              }}
-            />
-            <StatusTag tone="warning">服务完成并确认后方可进入支付</StatusTag>
-          </div>
-        )}
       </section>
+    );
+  } else if (activeStep === 3) {
+    stepContent = (
+      <section className="order-create-step" data-step="schedule">
+        <StepHeading title="选择上门时间" description="请选择方便接待师傅的日期和时间段" />
+        <fieldset className="order-create-choice-group"><legend>服务日期</legend><div className="order-create-choice-grid">{scheduleDayOptions.map((option) => <button aria-pressed={scheduleDayOffset === option.offsetDays} className={scheduleDayOffset === option.offsetDays ? "is-selected" : ""} key={option.offsetDays} onClick={() => setScheduleDayOffset(option.offsetDays)} type="button"><CalendarBlank aria-hidden="true" size={20} /><span>{formatDayOption(option.offsetDays, option.label)}</span></button>)}</div></fieldset>
+        <fieldset className="order-create-choice-group"><legend>服务时段</legend><div className="order-create-choice-grid">{serviceTimeSlots.map((slot) => <button aria-pressed={scheduledTimeSlot === slot.slot} className={scheduledTimeSlot === slot.slot ? "is-selected" : ""} key={slot.slot} onClick={() => setScheduledTimeSlot(slot.slot)} type="button"><Clock aria-hidden="true" size={20} /><span>{`${slot.label} ${slot.timeRange}`}</span></button>)}</div></fieldset>
+        <div className="order-create-schedule-note"><ShieldCheck aria-hidden="true" size={20} /><span>师傅接单后，具体上门安排会在订单中持续更新。</span></div>
+      </section>
+    );
+  } else {
+    stepContent = (
+      <section className="order-create-step" data-step="confirm">
+        <StepHeading title="确认预约" description="请核对服务信息，提交后将进入真实订单流程" />
+        <section className="order-create-review-list" aria-label="预约信息">
+          <ReviewRow icon={<HouseLine size={21} />} label="服务" value={selectedSku?.name ?? "未选择"} meta={`${quantity} ${selectedSku?.unit ?? ""}`.trim()} />
+          <ReviewRow icon={<MapPinLine size={21} />} label="服务地址" value={`${selectedDistrict} ${orderFormDetails.detailAddress}`} meta={`${orderFormDetails.contactName} ${orderFormDetails.contactPhone}`} />
+          <ReviewRow icon={<CalendarBlank size={21} />} label="上门时间" value={formatScheduledLabel(orderFormDetails.scheduledAt, orderFormDetails.scheduledTimeSlot)} />
+        </section>
+        <section className="order-create-quote" aria-label="服务报价">
+          <header><span>服务端报价</span><small>最终以提交时服务端确认为准</small></header>
+          {quoteState.status === "loading" || quoteState.status === "pending" ? <LoadingState title="正在获取报价" description="请稍候，正在读取服务端价格" /> : null}
+          {quoteState.status === "error" ? <ErrorState title="报价获取失败" description={quoteState.error} /> : null}
+          {quoteState.status === "success" ? <div className="order-create-quote-value"><span><strong>{quoteState.quote.priceText}</strong><small>{quoteState.quote.priceType}</small></span><PriceText amount={quoteState.quote.basePrice} currency={quoteState.quote.currency} /></div> : null}
+        </section>
+        {couponState.status === "success" && couponState.grants.length > 0 ? <section className="order-create-coupon"><label><span>优惠券（可选）</span><Select value={selectedCouponGrantId} onChange={(event) => setSelectedCouponGrantId(event.target.value)}><option value="">不使用优惠券</option>{couponState.grants.map((grant) => <option key={grant.couponGrantId} value={grant.couponGrantId}>{`${grant.issuanceReason} / ${new Date(grant.expiresAt).toLocaleDateString("zh-CN")} 到期`}</option>)}</Select></label>{selectedCouponGrantId ? <Button disabled={decisionState.status === "loading" || quoteState.status !== "success"} onClick={() => void applySelectedCoupon()}>{decisionState.status === "loading" ? "正在校验…" : "校验并使用"}</Button> : null}{decisionState.status === "error" ? <p className="order-create-inline-error" role="alert">{decisionState.error}</p> : null}{decisionState.status === "success" ? <div className="order-create-coupon-result" role="status"><StatusTag tone="success">服务端已校验</StatusTag><span>{`优惠 -${formatServerMarketingMinor(decisionState.decision.discountAmountMinor)}`}</span><strong>{`实付 ${formatServerMarketingMinor(decisionState.decision.netAmountMinor)}`}</strong></div> : null}</section> : null}
+        {couponState.status === "error" ? <p className="order-create-optional-error">优惠券暂不可用，不影响按原价预约。</p> : null}
+        {submitState.status === "error" ? <div className="order-create-submit-error" role="alert"><WarningCircle aria-hidden="true" size={20} /><span>{submitState.error}</span></div> : null}
+      </section>
+    );
+  }
 
-      <CustomerAnswerCard state={binding.state} />
-    </CustomerOrderCreateTemplate>
-    </div>
+  const successContent = submitState.status === "success" ? (
+    <section className="order-create-success" aria-live="polite">
+      <CheckCircle aria-hidden="true" size={58} weight="fill" /><span>预约已提交</span><h2>{submitState.order.skuName}</h2><p>订单已由服务端确认创建，后续进度可在订单页查看。</p>
+      <dl><div><dt>订单号</dt><dd>{submitState.order.orderId}</dd></div><div><dt>上门时间</dt><dd>{formatScheduledLabel(submitState.orderDetail.scheduledAt, submitState.orderDetail.scheduledTimeSlot)}</dd></div><div><dt>服务地址</dt><dd>{`${submitState.orderDetail.addressDistrict} ${submitState.orderDetail.detailAddress}`}</dd></div><div><dt>订单状态</dt><dd><StatusTag tone={statusTone(submitState.orderDetail.status)}>{orderStatusLabel(submitState.orderDetail.status)}</StatusTag></dd></div></dl>
+      <Button variant="primary" onClick={() => { window.location.href = "/customer/orders"; }}>查看订单</Button>
+    </section>
+  ) : null;
+
+  return (
+    <CustomerRouteShell currentRoute="createOrder" topBar={<BookingTopBar step={submitState.status === "success" ? 4 : activeStep} />}>
+      <CustomerOrderCreateTemplate route="/customer/order/create" cityCode={cityCode} binding={binding}>
+        <BookingProgress activeStep={submitState.status === "success" ? 4 : activeStep} maxAccessibleStep={submitState.status === "success" ? 4 : maxAccessibleStep} onStepChange={submitState.status === "success" ? () => undefined : changeStep} />
+        {successContent ?? <>{activeStep > 1 ? selectedServiceSummary : null}{stepContent}<div className="order-create-primary-dock"><Button aria-disabled={primaryDisabled} disabled={primaryDisabled} onClick={handlePrimaryAction} variant="primary">{primaryLabel}</Button></div></>}
+      </CustomerOrderCreateTemplate>
+    </CustomerRouteShell>
   );
+
 }

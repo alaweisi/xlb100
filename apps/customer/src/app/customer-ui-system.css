@@ -35,6 +35,59 @@ body {
   font-family: "Noto Sans SC", "PingFang SC", system-ui, -apple-system, sans-serif;
 }
 
+/* The login gate is part of the same customer product, even before the App shell exists. */
+.customer-auth-page {
+  background: var(--customer-cream) !important;
+  color: var(--customer-coffee);
+}
+
+.customer-auth-panel {
+  max-width: 390px !important;
+}
+
+.customer-auth-brand {
+  color: var(--customer-ink) !important;
+  font-family: "Noto Serif SC", "Songti SC", serif;
+  font-size: 30px !important;
+}
+
+.customer-auth-page [data-ui="card"] {
+  background: var(--customer-glass) !important;
+  border: 1px solid var(--customer-glass-edge) !important;
+  border-radius: 24px !important;
+  box-shadow: inset 0 0 0 1px rgba(213, 182, 141, 0.34), var(--customer-shadow-glass) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(135%);
+  backdrop-filter: blur(20px) saturate(135%);
+}
+
+.customer-auth-page [data-ui="control"] {
+  background: rgba(255, 255, 255, 0.7) !important;
+  border-color: var(--customer-border-strong) !important;
+  border-radius: var(--customer-radius-control) !important;
+  color: var(--customer-coffee) !important;
+  font-size: 16px !important;
+  min-height: 48px !important;
+}
+
+.customer-auth-page [data-ui="button"] {
+  border-radius: 999px !important;
+  min-height: 48px !important;
+  padding-inline: 18px !important;
+}
+
+.customer-auth-page [data-ui="button"][data-variant="primary"] {
+  background: var(--customer-accent) !important;
+  border-color: var(--customer-accent) !important;
+  box-shadow: 0 10px 24px rgba(201, 101, 33, 0.22);
+  color: #fff !important;
+}
+
+.customer-auth-page [data-ui="status-tag"] {
+  background: #fff2e7 !important;
+  border-color: #e7ad7d !important;
+  color: #984514 !important;
+}
+
 .customer-auth-gate {
   align-content: center;
   background: var(--customer-cream);
@@ -1024,8 +1077,13 @@ body {
   display: grid;
   gap: 10px;
   grid-template-columns: 24px minmax(0, 1fr) 20px;
+  min-height: 44px;
   padding: 4px 12px;
   text-decoration: none;
+}
+
+.customer-app-root label:has(> input[type="checkbox"]) {
+  min-height: 44px;
 }
 
 .customer-profile-address {
