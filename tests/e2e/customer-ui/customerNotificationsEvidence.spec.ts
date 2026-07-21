@@ -143,10 +143,10 @@ test.describe.serial("Customer A5 notification rendered evidence", () => {
     await expect(page.locator("body")).not.toContainText(/Real API|rowVersion|idempotency|not-wired/i);
 
     const orderLink = page.getByRole("link", { name: "查看订单" });
-    await expect(orderLink).toHaveAttribute("href", "/customer/orders?orderId=order-a5-evidence");
+    await expect(orderLink).toHaveAttribute("href", "/customer/orders?cityCode=hangzhou&orderId=order-a5-evidence");
     await expect(orderLink).toHaveAttribute("data-target-resolution", "exact");
     const supportLink = page.getByRole("link", { name: "前往客服" });
-    await expect(supportLink).toHaveAttribute("href", "/customer/support");
+    await expect(supportLink).toHaveAttribute("href", "/customer/support?cityCode=hangzhou");
     await expect(supportLink).toHaveAttribute("data-target-resolution", "section");
 
     for (const viewport of [

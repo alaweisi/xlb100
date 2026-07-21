@@ -50,6 +50,7 @@
 | Customer UI full-slice refactor P2 | GATE 2 PASSED — READY FOR P3 | — | Customer App Shell and locked Home master integrated A→B→C; final Round 09 real-browser evidence passes at 320×844, 390×844 partial/available and 430×932 with P0/P1/P2/P3 = 0/0/0/0 |
 | Customer UI full-slice refactor P3 | GATE 3 PASSED — READY FOR P4 | — | Service discovery, stepped order creation and coupons integrated A→B→C; focused tests 20/20 and rendered browser checks 4/4 pass with real catalog verification, server-authoritative quote/order semantics and Customer-only visual inheritance |
 | Customer UI full-slice refactor P4 | GATE 4 PASSED — READY FOR P5 | — | Orders/payment/confirmation/review/refund, aftersale and support integrated A4→B4→C4 without conflicts; focused tests 36/36, Customer typecheck/lint, four-project production build, design gate and integrated browser checks pass; Customer-only visual inheritance preserved |
+| Customer UI full-slice refactor P5 | GATE 5 PASSED — READY FOR P6 | — | Notifications, profile/address and city-scoped cross-route recovery integrated A5→B5→C5 without conflicts; 14 focused files / 76 tests, Customer typecheck/lint, four-project production build, design/QA infrastructure gates and integrated browser checks pass; five bottom destinations remain the only top-level navigation |
 
 ## Commercialization Unit B — Production Edge Routing (LOCKED — REPOSITORY ONLY)
 

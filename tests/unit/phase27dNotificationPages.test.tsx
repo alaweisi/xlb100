@@ -3,7 +3,10 @@ import React from "react";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { NotificationInboxItem } from "@xlb/types";
-import { CustomerNotificationsPage } from "../../apps/customer/src/pages/CustomerNotificationsPage";
+import {
+  CustomerNotificationsPage,
+  type CustomerNotificationApi,
+} from "../../apps/customer/src/pages/CustomerNotificationsPage";
 import { WorkerNotificationsPage } from "../../apps/worker/src/pages/WorkerNotificationsPage";
 
 const timestamp = "2026-07-13T12:00:00.000Z";
@@ -57,6 +60,10 @@ function deferredMutation() {
   return { promise, resolve };
 }
 
+function CustomerNotificationsPageForTest({ api }: { api: CustomerNotificationApi }) {
+  return <CustomerNotificationsPage api={api} cityCode="330100" />;
+}
+
 describe("Phase27D Customer/Worker notification pages", () => {
   beforeEach(() => {
     Object.defineProperty(window, "matchMedia", { configurable: true, value: vi.fn(matchMedia) });
@@ -73,11 +80,11 @@ describe("Phase27D Customer/Worker notification pages", () => {
       markNotificationRead: vi.fn((_id, _body) => mutationResult(2)),
       setNotificationArchived: vi.fn((_id, _body) => mutationResult(2)),
     };
-    render(<CustomerNotificationsPage api={api} />);
+    render(<CustomerNotificationsPage api={api} cityCode="330100" />);
 
     expect(await screen.findByLabelText("未读消息：Order created")).toBeTruthy();
     expect(screen.getByRole("link", { name: "查看订单" }).getAttribute("href"))
-      .toBe("/customer/orders?orderId=order-1");
+      .toBe("/customer/orders?cityCode=330100&orderId=order-1");
     expect(screen.queryByRole("link", { name: /ticket/i })).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "加载更多" }));
@@ -93,7 +100,7 @@ describe("Phase27D Customer/Worker notification pages", () => {
     }));
     const markNotificationRead = vi.fn((_id, _body) => mutationResult(2));
     const setNotificationArchived = vi.fn((_id, _body) => mutationResult(2));
-    render(<CustomerNotificationsPage api={{ listNotifications, markNotificationRead, setNotificationArchived }} />);
+    render(<CustomerNotificationsPage api={{ listNotifications, markNotificationRead, setNotificationArchived }} cityCode="330100" />);
 
     fireEvent.click(await screen.findByRole("button", { name: "标为已读" }));
     await waitFor(() => expect(markNotificationRead).toHaveBeenCalledWith("notification-order-1", {
@@ -159,7 +166,7 @@ describe("Phase27D Customer/Worker notification pages", () => {
   it.each([
     {
       name: "Customer",
-      Component: CustomerNotificationsPage,
+      Component: CustomerNotificationsPageForTest,
       read: "标为已读",
       archiveTab: "已归档",
       tablistLabel: "消息分类",

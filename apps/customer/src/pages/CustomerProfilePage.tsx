@@ -26,6 +26,7 @@ import {
   StatusTag,
 } from "@xlb/ui";
 import { getOrderAddressOption } from "../adapters/orderAddressOptions";
+import { buildCustomerDeepLink } from "../routes/customerDeepLinks";
 import { describeCustomerAppError, type CustomerAppFailure } from "./customerPageShell";
 import "./customer-profile.css";
 
@@ -281,12 +282,12 @@ export function CustomerProfilePage({ api, cityCode }: CustomerProfilePageProps)
       </section>
 
       <nav className="customer-profile__quick-links" aria-label="我的快捷入口">
-        <a href="/customer/notifications">
+        <a href={buildCustomerDeepLink("notifications", { cityCode })}>
           <span><Bell weight="duotone" /></span>
           <strong>消息中心</strong>
           <small>查看服务进展</small>
         </a>
-        <a href="/customer/coupons">
+        <a href={buildCustomerDeepLink("coupons", { cityCode })}>
           <span><Ticket weight="duotone" /></span>
           <strong>我的优惠券</strong>
           <small>使用资格以报价为准</small>

@@ -2,7 +2,7 @@
 
 | Field | Contract |
 | --- | --- |
-| route / role | `/customer/support` / customer only |
+| route / role | `/customer/support` / customer |
 | visual source | Inherit `docs/design/ui/CUSTOMER_HOME_VISUAL_TRUTH.md`: warm cream canvas, dark ink-green hierarchy, orange primary actions, stable Apple-service cards, and Liquid Glass only on interaction layers |
 | workflow / API source | Phase 24 ticket, conversation, message, reopen, and CSAT bindings through `@xlb/api-client`; server-confirmed results remain authoritative |
 | states | initial loading, empty, open, processing, waiting requester, escalated, resolved, reopened, closed, queueing, active, transferred, offline/error, retry, disabled, and confirmed success |

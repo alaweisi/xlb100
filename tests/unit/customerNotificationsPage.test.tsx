@@ -74,17 +74,17 @@ describe("CustomerNotificationsPage A5", () => {
   afterEach(() => cleanup());
 
   it("uses product copy and only claims an exact destination when the target is restorable", async () => {
-    const { container } = render(<CustomerNotificationsPage api={createApi()} />);
+    const { container } = render(<CustomerNotificationsPage api={createApi()} cityCode="330100" />);
 
     expect(await screen.findByRole("heading", { name: "消息中心" })).toBeTruthy();
     expect(container.textContent).not.toMatch(/Real API|rowVersion|idempotency/i);
 
     const orderLink = screen.getByRole("link", { name: "查看订单" });
-    expect(orderLink.getAttribute("href")).toBe("/customer/orders?orderId=order-a5");
+    expect(orderLink.getAttribute("href")).toBe("/customer/orders?cityCode=330100&orderId=order-a5");
     expect(orderLink.getAttribute("data-target-resolution")).toBe("exact");
 
     const supportLink = screen.getByRole("link", { name: "前往客服" });
-    expect(supportLink.getAttribute("href")).toBe("/customer/support");
+    expect(supportLink.getAttribute("href")).toBe("/customer/support?cityCode=330100");
     expect(supportLink.getAttribute("data-target-resolution")).toBe("section");
   });
 
@@ -94,7 +94,7 @@ describe("CustomerNotificationsPage A5", () => {
       if (unavailable) throw new Error("notification API unavailable");
       return { ok: true as const, items: [], nextCursor: null };
     });
-    render(<CustomerNotificationsPage api={createApi({ listNotifications })} />);
+    render(<CustomerNotificationsPage api={createApi({ listNotifications })} cityCode="330100" />);
 
     expect(await screen.findByText("消息暂时无法加载")).toBeTruthy();
     unavailable = false;
@@ -113,7 +113,7 @@ describe("CustomerNotificationsPage A5", () => {
       if (cursorAttempts === 1) throw new Error("pagination unavailable");
       return { ok: true as const, items: [ticketItem], nextCursor: null };
     });
-    render(<CustomerNotificationsPage api={createApi({ listNotifications })} />);
+    render(<CustomerNotificationsPage api={createApi({ listNotifications })} cityCode="330100" />);
 
     fireEvent.click(await screen.findByRole("button", { name: "加载更多" }));
     expect(await screen.findByText("更多消息暂时未加载")).toBeTruthy();
@@ -136,7 +136,7 @@ describe("CustomerNotificationsPage A5", () => {
       ok: true,
       result: { outcome: "already_applied", rowVersion: 2 },
     });
-    render(<CustomerNotificationsPage api={createApi({ listNotifications, markNotificationRead })} />);
+    render(<CustomerNotificationsPage api={createApi({ listNotifications, markNotificationRead })} cityCode="330100" />);
 
     fireEvent.click(await screen.findByRole("button", { name: "标为已读" }));
     expect(await screen.findByText("该消息此前已标为已读，现已同步最新状态。")).toBeTruthy();
@@ -157,7 +157,7 @@ describe("CustomerNotificationsPage A5", () => {
       });
     const conflict = Object.assign(new Error("notification state conflict"), { status: 409 });
     const markNotificationRead = vi.fn().mockRejectedValue(conflict);
-    render(<CustomerNotificationsPage api={createApi({ listNotifications, markNotificationRead })} />);
+    render(<CustomerNotificationsPage api={createApi({ listNotifications, markNotificationRead })} cityCode="330100" />);
 
     fireEvent.click(await screen.findByRole("button", { name: "标为已读" }));
     expect(await screen.findByText("消息已在其他设备更新，现已加载服务端最新状态。")).toBeTruthy();

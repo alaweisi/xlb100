@@ -12,6 +12,7 @@ import {
   WarningCircle,
 } from "@phosphor-icons/react";
 import type {
+  CityCode,
   NotificationArchiveRequest,
   NotificationInboxItem,
   NotificationInboxListQuery,
@@ -30,12 +31,18 @@ import {
   describeCustomerAppError,
   type CustomerAppFailure,
 } from "./customerPageShell";
+import { buildCustomerDeepLink } from "../routes/customerDeepLinks";
 import "./customer-notifications.css";
 
 export interface CustomerNotificationApi {
   listNotifications(query?: NotificationInboxListQuery): Promise<NotificationInboxListResponse>;
   markNotificationRead(notificationId: string, body: NotificationMarkReadRequest): Promise<NotificationStateMutationResponse>;
   setNotificationArchived(notificationId: string, body: NotificationArchiveRequest): Promise<NotificationStateMutationResponse>;
+}
+
+export interface CustomerNotificationsPageProps {
+  api: CustomerNotificationApi;
+  cityCode: CityCode;
 }
 
 type View = "inbox" | "archive";
@@ -82,16 +89,16 @@ function notificationKindLabel(item: NotificationInboxItem): string {
   return item.reference.kind === "order_created" ? "订单动态" : "客服动态";
 }
 
-function referenceAction(item: NotificationInboxItem): NotificationReferenceAction {
+function referenceAction(item: NotificationInboxItem, cityCode: CityCode): NotificationReferenceAction {
   if (item.reference.kind === "order_created") {
     return {
-      href: `/customer/orders?orderId=${encodeURIComponent(item.reference.orderId)}`,
+      href: buildCustomerDeepLink("orders", { cityCode, orderId: item.reference.orderId }),
       label: "查看订单",
       restoresExactTarget: true,
     };
   }
   return {
-    href: "/customer/support",
+    href: buildCustomerDeepLink("support", { cityCode }),
     label: "前往客服",
     restoresExactTarget: false,
   };
@@ -124,7 +131,7 @@ function successMessage(
   return alreadyApplied ? "该消息此前已恢复，现已同步最新状态。" : "已恢复到收件箱。";
 }
 
-export function CustomerNotificationsPage({ api }: { api: CustomerNotificationApi }) {
+export function CustomerNotificationsPage({ api, cityCode }: CustomerNotificationsPageProps) {
   const [view, setView] = useState<View>("inbox");
   const [items, setItems] = useState<NotificationInboxItem[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -336,7 +343,7 @@ export function CustomerNotificationsPage({ api }: { api: CustomerNotificationAp
           <ol aria-busy={loading || loadingMore} className="customer-notifications__list">
             {items.map((item) => {
               const unread = item.readAt === null;
-              const action = referenceAction(item);
+              const action = referenceAction(item, cityCode);
               const isBusy = busyId === item.notificationId;
               const itemFailure = rowFailure?.notificationId === item.notificationId ? rowFailure.failure : null;
               return (

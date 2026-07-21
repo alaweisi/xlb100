@@ -222,7 +222,7 @@ export function App() {
     };
     routeContent = <CustomerSupportPage api={supportApi} />;
   } else if (currentRoute === "notifications") {
-    routeContent = <CustomerNotificationsPage api={api} />;
+    routeContent = <CustomerNotificationsPage api={api} cityCode={cityCode} />;
   } else if (currentRoute === "coupons") {
     const couponsApi: CustomerCouponsPageProps["api"] = {
       listCouponGrants: (query) => api.listCouponGrants(query),
