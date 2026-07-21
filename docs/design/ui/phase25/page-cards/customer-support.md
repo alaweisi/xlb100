@@ -3,7 +3,7 @@
 | Field | Contract |
 | --- | --- |
 | route / role | `/customer/support` / customer |
-| visual source | Customer liquid-glass PNG extension; Phase 24 flow |
+| visual source | Inherit `docs/design/ui/CUSTOMER_HOME_VISUAL_TRUTH.md`; Phase 24 contract controls workflow |
 | workflow / API source | ticket, conversation, message, reopen, and CSAT bindings through `@xlb/api-client` |
 | states | empty, open, assigned, realtime, resolved, reopened, error |
 | actions | create ticket/conversation, send message, reopen, submit CSAT where allowed |

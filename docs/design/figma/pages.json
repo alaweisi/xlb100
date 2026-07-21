@@ -11,7 +11,7 @@
     "totalProductFrames": 50
   },
   "customer": [
-    { "id": "1:228", "name": "Customer / Home / Default", "snapshot": "frames/customer/customer_home_default_1-228.png" },
+    { "id": "1:228", "name": "Customer / Home / Default", "status": "superseded", "replacement": "docs/design/ui/references/customer-home-visual-truth.png" },
     { "id": "1:411", "name": "Customer / Services / Default" },
     { "id": "1:594", "name": "Customer / CreateOrder / Default" },
     { "id": "1:719", "name": "Customer / CreateOrder / Loading" },

@@ -2,7 +2,7 @@ import type { ThemeTokens } from "../tokenTypes.js";
 
 /** Marker consumed by the Phase 25 boundary gate. */
 export const CANONICAL_TOKEN_SOURCE = "packages/ui/src/tokens/base/defaultTokens.ts" as const;
-export const TOKEN_SCHEMA_VERSION = "25.2.0" as const;
+export const TOKEN_SCHEMA_VERSION = "25.3.0" as const;
 
 /**
  * The single compiled L0/L1 source. JSON, CSS variables and Figma mappings must
@@ -12,7 +12,7 @@ export const baseTokens = {
   color: {
     brand: "#2563eb",
     brandContrast: "#ffffff",
-    accent: "#b85f2a",
+    accent: "#e97116",
     neutral: "#64748b",
     info: "#2563eb",
     success: "#047857",
@@ -100,17 +100,17 @@ export const baseTokens = {
     ambientShadow: "0 20px 60px rgba(15, 23, 42, 0.12)",
   },
   campaign: {
-    accent: "#b85f2a",
+    accent: "#e97116",
     ambient: "#fff7ed",
     banner: { background: "#fff7ed", text: "#7c2d12" },
     badge: { background: "#c2410c", text: "#ffffff" },
     decoration: { opacity: 0, intensity: 0 },
-    navigation: { accent: "#b85f2a" },
+    navigation: { accent: "#e97116" },
   },
   role: {
     customer: {
-      accent: "#b85f2a", ink: "#173f35", cream: "#fffaf0", coffee: "#2b2118",
-      ambient: "#f6d9aa", glassTint: "rgba(255, 250, 240, 0.74)",
+      accent: "#e97116", ink: "#18342d", cream: "#fefaf5", coffee: "#334155",
+      ambient: "#f4e8db", glassTint: "rgba(254, 250, 245, 0.82)",
     },
     worker: {
       accent: "#2f9bff", page: "#08172b", panel: "#203a5b", text: "#f8fbff", muted: "#b8c8dc",

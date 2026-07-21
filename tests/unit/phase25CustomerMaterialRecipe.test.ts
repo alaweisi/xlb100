@@ -10,8 +10,8 @@ function hasCanonicalTokenPath(path: string): boolean {
   return typeof cursor === "string" || typeof cursor === "number";
 }
 
-describe("Phase 25 Customer liquid-glass material recipe", () => {
-  it("is grounded in the checked-in Customer visual authority", () => {
+describe("Phase 25 Customer material recipe", () => {
+  it("is grounded in the locked Customer Home visual truth", () => {
     expect(Object.isFrozen(customerLiquidGlassMaterialRecipe)).toBe(true);
     expect(customerLiquidGlassMaterialRecipe).toMatchObject({
       id: "customer-liquid-glass",
@@ -19,7 +19,7 @@ describe("Phase 25 Customer liquid-glass material recipe", () => {
       readiness: "ready",
       density: "comfortable",
       viewportToken: "breakpoint.compact",
-      sourceAuthority: "docs/design/ui/phase25/references/customer-apple-liquid-glass-source.png",
+      sourceAuthority: "docs/design/ui/references/customer-home-visual-truth.png",
     });
   });
 
@@ -86,7 +86,6 @@ describe("Phase 25 Customer liquid-glass material recipe", () => {
     ]));
     expect(customerLiquidGlassMaterialRecipe.typographyTokens).toEqual(expect.arrayContaining([
       "font.familySans",
-      "font.familySerif",
       "role.customer.ink",
     ]));
   });

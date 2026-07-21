@@ -22,6 +22,6 @@ This directory stores the local Phase 15.0C design intake snapshot exported from
 
 ## Boundary
 
-This snapshot is an implementation input, not a generated UI implementation. Phase 15.2 page construction must use this local snapshot and Figma MCP as source of truth. Codex must not freely redesign customer, worker, or admin pages from memory.
+This directory is a historical intake snapshot, not a current cross-app visual authority. In particular, the former `Customer / Home / Default` PNG has been removed and superseded by `docs/design/ui/references/customer-home-visual-truth.png`; all Customer Home and descendant Customer visual work starts from `docs/design/ui/CUSTOMER_HOME_VISUAL_TRUTH.md`. Worker and Admin records remain scoped to their own roles and must never be used as Customer visual input.
 
 Do not commit Figma access tokens, MCP credentials, private asset URLs, or short-lived screenshot URLs.

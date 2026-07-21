@@ -2,7 +2,7 @@ import type { MaterialRecipe } from "../tokenTypes.js";
 import { defineMaterialRecipe } from "./defineMaterialRecipe.js";
 
 /**
- * Customer material contract derived from the checked-in visual authority.
+ * Customer material contract derived from the locked Customer Home visual truth.
  *
  * This recipe is intentionally declarative: it references canonical token
  * paths only and carries no route, workflow, price, permission, or campaign
@@ -11,7 +11,7 @@ import { defineMaterialRecipe } from "./defineMaterialRecipe.js";
 export const customerLiquidGlassMaterialRecipe = defineMaterialRecipe({
   id: "customer-liquid-glass",
   role: "customer",
-  sourceAuthority: "docs/design/ui/phase25/references/customer-apple-liquid-glass-source.png",
+  sourceAuthority: "docs/design/ui/references/customer-home-visual-truth.png",
   readiness: "ready",
   density: "comfortable",
   viewportToken: "breakpoint.compact",
@@ -43,7 +43,6 @@ export const customerLiquidGlassMaterialRecipe = defineMaterialRecipe({
   ],
   typographyTokens: [
     "font.familySans",
-    "font.familySerif",
     "font.size.sm",
     "font.size.md",
     "font.size.lg",

@@ -7,7 +7,7 @@ Every production-facing page is assembled from four inputs:
 | input | responsibility |
 | --- | --- |
 | `WorkflowUiBinding` | workflow state, backend source, available actions, disabled reasons, audit/idempotency/city-scope flags |
-| Figma template | layout, hierarchy, density, visual intent, route frame matching |
+| Selected role visual authority + page card | layout, hierarchy, density, visual intent and route inheritance; Customer Home uses `CUSTOMER_HOME_VISUAL_TRUTH.md` |
 | Runtime Theme Tokens | visual skin through CSS variables |
 | `packages/ui` components | reusable rendering primitives and workflow expression components |
 
@@ -20,7 +20,9 @@ Every production-facing page is assembled from four inputs:
 ## Source Of Truth Rules
 
 - Business actions come from workflow binding and backend API facts.
-- Figma decides layout and visual expression. It does not authorize business actions.
+- The selected role visual authority decides layout and visual expression. For Customer Home, the only source is `docs/design/ui/references/customer-home-visual-truth.png`; historical Figma frames do not authorize Customer visuals or business actions.
+- Customer route carriers and child slices follow `docs/design/ui/CUSTOMER_FULL_BUSINESS_SLICE_VISUAL_REFACTOR_SCOPE.md`; inheriting the Home language never means copying the Home layout.
+- Customer full-slice construction follows `docs/design/ui/CUSTOMER_UI_REFACTOR_ENGINEERING_TOPOLOGY.md`; phase order is serial, while a phase may use at most three non-overlapping writer worktrees.
 - Campaign decides the active visual theme. It does not alter workflow state or business process.
 - `packages/ui` renders components, tokens, and CSS variables only.
 - App route code adapts backend/API facts into workflow view models and passes visual tokens into the UI layer.

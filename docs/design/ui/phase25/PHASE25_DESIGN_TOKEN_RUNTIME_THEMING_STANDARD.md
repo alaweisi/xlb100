@@ -35,7 +35,7 @@ L0 Foundation primitives
 | --- | --- | --- |
 | L0 Foundation | color palette、font scale、spacing、radius、elevation、motion duration | `packages/ui` |
 | L1 Semantic | `surface.page`、`text.primary`、`action.primary`、`status.danger` | `packages/ui` |
-| L2 Role | Customer glass、Worker task shell、Admin/OA desktop、Dashboard wallboard | `packages/ui` role theme |
+| L2 Role | Customer Home visual truth、Worker task shell、Admin/OA desktop、Dashboard wallboard | `packages/ui` role theme |
 | L3 Mode | light、dark、high-contrast、large-display | theme resolver |
 | L4 Campaign | Spring Festival、Double 11、运营活动视觉覆盖 | resolved campaign bridge |
 | L5 Component | service-card、order-card、data-table、metric-tile | component recipe |
@@ -129,7 +129,7 @@ interface RuntimeThemeEnvelope {
 
 | System | Base Role Theme | Runtime Theme重点 |
 | --- | --- | --- |
-| Customer | Apple 服务卡片式液态玻璃 | 安全区、玻璃层级、活动 hero/灯笼/祝福语、报价可读性 |
+| Customer | 唯一主页真相派生的暖奶油、墨绿、明亮陶橙、3D 类目图像与功能层玻璃 | 安全区、4×4 类目、五项导航、活动覆盖层、报价可读性 |
 | Worker | Figma 深蓝任务/履约体系 | 户外可读性、任务优先级、在线/暂停、证据上传状态 |
 | Admin | Figma 桌面运营体系 | 高密表格、详情/抽屉、权限/审计、长期操作可读性 |
 | OA | 待批准协作系统 | 待办/审批/通知状态、组织与审计；readiness 前不建运行时 |

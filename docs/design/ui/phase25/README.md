@@ -1,6 +1,8 @@
 # Phase 25 UI Design Sources
 
-- `references/customer-apple-liquid-glass-source.png`: Customer visual authority supplied by the user.
+- `../CUSTOMER_HOME_VISUAL_TRUTH.md`: locked Customer Home authority and inheritance rules.
+- `../references/customer-home-visual-truth.png`: the only Customer Home visual source selected by the user.
+- `../CUSTOMER_FULL_BUSINESS_SLICE_VISUAL_REFACTOR_SCOPE.md`: all nine Customer route carriers, child slices, construction waves and acceptance checklist.
 - `PHASE25_ROUTE_CONTRACT_MATRIX.md`: route construction admission matrix.
 - `PHASE25_DESIGN_TOKEN_RUNTIME_THEMING_STANDARD.md`: five-system Design Token-driven Runtime Theming foundation and Gate 1 acceptance contract.
 - `PHASE25_CAMPAIGN_THEME_EVOLUTION.md`: campaign, festival, promotion presentation, asset-slot, and backend/frontend boundary contract.

@@ -45,6 +45,7 @@
 | Phase 28 | LOCKED | xlb-phase28-review-reputation | Review moderation, appeal and Worker reputation foundation; production activation remains prohibited |
 | Phase 29 | LOCKED | xlb-phase29-marketing-coupon | Marketing/Coupon MVP with fixed-amount coupons and Order-owned price evidence; production activation remains prohibited |
 | Commercialization Unit B | LOCKED — REPOSITORY ONLY | — | Production Nginx gateway, same-origin API/WebSocket routing and non-durable business Smoke skeleton; no production activation |
+| Customer UI full-slice refactor P0 | BASELINE FROZEN — READY FOR P1 | — | Customer-only visual authority, design system, 9 route carriers, 44 slices and multi-worktree topology |
 
 ## Commercialization Unit B — Production Edge Routing (LOCKED — REPOSITORY ONLY)
 
@@ -76,7 +77,7 @@
 - **Global construction authorization**: the human explicitly authorized full Phase 25 construction on 2026-07-12. The normal per-Gate human-acceptance pauses are waived; all nine main Gates may proceed in parallel where dependencies permit, with one final unified completion acceptance. All Phase 25 hard boundaries and OA/Dashboard no-fake-runtime rules remain mandatory.
 - **Gate 8 unified acceptance**: construction, aggregate gates, full test, authenticated three-app browser evidence, and architecture preflight are complete. Lock verification passed: Phase25 closure gate, typecheck, build, 342 test files / 1,373 tests (plus 1 existing todo), preflight, and diff hygiene; see `docs/reports/PHASE25_GATE8_UNIFIED_ACCEPTANCE_REPORT.md`.
 - **Lock metadata correction**: the final Lock conclusion on `main` commit `be9f569` and tag `xlb-phase25-ui-standardization-v1.0` supersedes the interim Gate 1A/1B/1C “eligible,” “blocked,” or “awaiting human acceptance” exit wording. The final verification passed the Phase25 closure gate, typecheck, build, 342 files / 1,373 tests with 1 existing todo, preflight, and diff hygiene; see `docs/reports/PHASE25_LOCK_METADATA_CORRECTION_REPORT.md`.
-- **Customer visual authority**: user-supplied Apple-style liquid-glass service-card PNG. Figma supplies Customer workflow/page-state references but does not override the supplied Customer visual language.
+- **Customer visual authority**: `docs/design/ui/references/customer-home-visual-truth.png` and `docs/design/ui/CUSTOMER_HOME_VISUAL_TRUTH.md` are the only current Customer Home visual truth. Historical Customer Figma frames and the retired Phase 25 PNG are not visual or workflow authorities; current code, API/shared contracts, validators and page cards decide Customer workflow and state coverage.
 - **Worker/Admin authority**: Figma file `WrIq7mTPz9zB5EJkftS3sY`, rooted at node `1:2`, plus the checked-in snapshots under `docs/design/figma/`.
 - **System set**: Customer App, Worker App, Admin App, OA collaboration system, and realtime Dashboard wallboard.
 - **OA/Dashboard current fact**: both are Phase 0 placeholders with no `src`, frontend runtime, dedicated API client, or approved standalone Figma frames; construction is gated by product/design/API readiness and may not use fake workflow or fake realtime data.

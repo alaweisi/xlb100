@@ -3,7 +3,7 @@
 | Field | Contract |
 | --- | --- |
 | route / role | `/customer/profile` / customer |
-| visual source | Customer liquid-glass PNG extension; Figma profile workflow |
+| visual source | Inherit `docs/design/ui/CUSTOMER_HOME_VISUAL_TRUTH.md`; current profile/address contract controls workflow |
 | workflow / API source | profile and address bindings through `@xlb/api-client` |
 | states | loading, display, editing, invalid, saving, saved, error |
 | actions | edit profile; create, update, and delete address through existing guards |

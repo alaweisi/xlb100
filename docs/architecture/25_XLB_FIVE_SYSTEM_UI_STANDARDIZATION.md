@@ -8,20 +8,22 @@ Phase 25 把 Customer、Worker、Admin、OA、Dashboard 的前端建设从页面
 
 | 端 | 视觉事实源 | 工作流事实源 | 冲突处理 |
 | --- | --- | --- | --- |
-| Customer | 用户提供的 Apple 风格液态玻璃服务卡片 PNG | Figma Customer 画板、Flow Map、当前 API/Workflow Binding | PNG 决定视觉；Figma 决定流程与状态；API 决定可执行能力 |
+| Customer | `docs/design/ui/references/customer-home-visual-truth.png` 与 `CUSTOMER_HOME_VISUAL_TRUTH.md` | 当前代码、API/Workflow Binding、共享类型/校验器与页面卡 | 唯一 PNG 决定主页视觉；设计系统派生后续切片语言；权威契约决定流程、状态与动作 |
 | Worker | Figma Worker 画板及本地导出 | Worker API、任务/履约/资质状态机 | Figma 决定视觉与页面结构；后端决定数据和动作 |
 | Admin | Figma Admin 画板及本地导出 | Admin API、city scope、权限、审计与治理契约 | Figma 决定视觉；权限/审计边界不可被视觉覆盖 |
 | OA | Phase 25 待确认的 OA 产品画板；不得从 Admin 页面臆造 | 待批准的审批、任务、通知、组织与审计契约 | 没有产品画板和 API 契约时只允许设计与 gap report |
 | Dashboard | Phase 25 待确认的大屏画板；现有 Figma Flow Map 只作信息架构参考 | 待批准的指标字典、聚合 API、刷新/推送和数据新鲜度契约 | 没有实时数据源时禁止静态数字冒充实时大屏 |
 
-Customer 视觉源归档到 `docs/design/ui/phase25/references/`。Figma 文件为 `WrIq7mTPz9zB5EJkftS3sY`，根节点 `1:2`；仓库快照位于 `docs/design/figma/`。
+Customer 唯一主页视觉源位于 `docs/design/ui/references/customer-home-visual-truth.png`。历史 Figma 文件与 `docs/design/figma/` 快照不再授权 Customer 主页视觉、流程或状态；Worker/Admin 仍按各自角色事实源执行。
 
-## 3. Apple 风格液态玻璃定义
+## 3. Customer 主页材料语言定义
 
-Phase 25 所称“液态玻璃”不是简单 `blur()`：
+Customer 继承主页设计语言，而不是复制主页布局：
 
-- 背景具有暖色环境光与可感知的层次；
-- 卡片使用半透明材质、边缘高光、内外双层描边和柔和投影；
+- 页面使用暖奶油底、墨绿信任色、深灰正文与明亮陶橙关键动作；
+- Liquid Glass 只用于导航、搜索/筛选、操作 Dock 与浮层等功能层；
+- 服务、订单、表单与长内容卡使用稳定暖白表面，避免高透明和强模糊；
+- 正式一级类目使用语义匹配的独立 3D 图像，不使用 Emoji 或重复工具图标；
 - 前景文本与图标保持清晰，不因透明材质降低信息可读性；
 - 滚动内容与固定导航具有不同的深度层级；
 - 按压、聚焦、禁用、加载、错误、成功状态使用同一材质体系；

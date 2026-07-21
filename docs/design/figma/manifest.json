@@ -26,6 +26,9 @@
     "localEffectStyleCount": 0,
     "localVariableCollectionCount": 0
   },
+  "currentAuthorityOverrides": {
+    "customerHome": "docs/design/ui/references/customer-home-visual-truth.png"
+  },
   "frameBreakdown": {
     "customer": 14,
     "worker": 20,
@@ -35,7 +38,6 @@
     "support": 5
   },
   "exportedPngs": [
-    "docs/design/figma/frames/customer/customer_home_default_1-228.png",
     "docs/design/figma/frames/worker/worker_grabhall_online_1-1515.png",
     "docs/design/figma/frames/admin/admin_dashboard_default_1-2875.png",
     "docs/design/figma/frames/admin/admin_complaint_default_1-3649.png",

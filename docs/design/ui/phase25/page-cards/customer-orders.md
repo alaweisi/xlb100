@@ -3,7 +3,7 @@
 | Field | Contract |
 | --- | --- |
 | route / role | `/customer/orders` / customer |
-| visual source | Customer liquid-glass PNG extension; Figma Orders/Detail workflow |
+| visual source | Inherit `docs/design/ui/CUSTOMER_HOME_VISUAL_TRUTH.md`; current order contract controls workflow |
 | workflow / API source | order, payment, confirmation, review, refund-request bindings through `@xlb/api-client` |
 | states | empty and every backend order, payment, fulfillment state; guarded error |
 | actions | open, pay only when allowed, confirm, review, request refund only when allowed |

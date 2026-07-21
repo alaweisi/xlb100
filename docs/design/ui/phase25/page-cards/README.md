@@ -1,6 +1,15 @@
 # Phase 25 Customer page cards
 
-These cards admit the seven Customer routes to Gates 2 and 3. The liquid-glass
-PNG is the visual authority; existing `@xlb/api-client` bindings remain the
-workflow authority. Screenshots are stored under `../evidence/customer/` using
-the Phase 25 naming convention after browser capture.
+These cards cover all nine current Customer route carriers. Every Customer
+slice starts with `docs/design/ui/CUSTOMER_HOME_VISUAL_TRUTH.md` and inherits the
+single visual source at
+`docs/design/ui/references/customer-home-visual-truth.png`. A route's page card,
+current code and `@xlb/api-client`/shared contracts remain its workflow and state
+authority. Historical Customer Figma frames and the removed Phase 25 homepage
+PNG are not visual sources. Screenshots are stored under
+`../evidence/customer/` after browser capture.
+
+The construction order and child-slice inventory are defined by
+`docs/design/ui/CUSTOMER_FULL_BUSINESS_SLICE_VISUAL_REFACTOR_SCOPE.md`; a route
+carrier may contain several independently verifiable regions, overlays and
+state components.

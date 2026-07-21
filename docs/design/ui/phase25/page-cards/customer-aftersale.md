@@ -3,7 +3,7 @@
 | Field | Contract |
 | --- | --- |
 | route / role | `/customer/aftersale` / customer |
-| visual source | Customer liquid-glass PNG extension; Phase 17 flow |
+| visual source | Inherit `docs/design/ui/CUSTOMER_HOME_VISUAL_TRUTH.md`; Phase 17 contract controls workflow |
 | workflow / API source | Phase 17 reverse, complaint, and evidence bindings through `@xlb/api-client` |
 | states | guarded, actionable, reviewing, repair, resolved, closed |
 | actions | request cancellation/reschedule, complaint, note, and eligible evidence action |

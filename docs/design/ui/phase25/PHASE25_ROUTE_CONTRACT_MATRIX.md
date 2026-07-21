@@ -8,17 +8,19 @@
 
 | Route | Visual Source | Workflow / API Source | Required States | Primary Actions | Gate |
 | --- | --- | --- | --- | --- | --- |
-| `/customer/` | `references/customer-apple-liquid-glass-source.png` | `GET /api/catalog`; Customer Home workflow | loading, empty, error, available | city, search, category, open service | Gate 2 proof screen |
-| `/customer/services` | Customer liquid-glass extension | `GET /api/catalog`; client query/category filter | loading, error, no-result, list, selected | search, filter, select SKU | Gate 3 |
-| `/customer/order/create` | Customer liquid-glass extension; Figma CreateOrder workflow | quote, address, order APIs | invalid, quoting, quote-ready, submitting, created, error | SKU, quantity, address, schedule, create | Gate 3 |
-| `/customer/orders` | Customer liquid-glass extension; Figma Orders/Detail workflow | order, payment, confirmation, review APIs | empty and all backend order/payment/fulfillment states | open, pay where allowed, confirm, review | Gate 3 |
-| `/customer/aftersale` | Customer liquid-glass extension | Phase 17 reverse/complaint/evidence APIs | guarded, actionable, reviewing, repair, resolved, closed | cancel/reschedule request, complaint, note, evidence | Gate 3 |
-| `/customer/support` | Customer liquid-glass extension | Phase 24 ticket/conversation/CSAT APIs | empty, open, assigned, realtime, resolved, reopened | create, comment/message, reopen, rate | Gate 3 |
-| `/customer/profile` | Customer liquid-glass extension | profile/address APIs | loading, display, editing, invalid, saving, error | edit profile, CRUD address | Gate 3 |
+| `/customer/` | `docs/design/ui/references/customer-home-visual-truth.png` | `GET /api/catalog`; Customer Home workflow | loading, empty, error, available, partial | city, search, category, notifications, support, create order, open service | Gate 2 proof screen |
+| `/customer/services` | Inherit `CUSTOMER_HOME_VISUAL_TRUTH.md`; route page card controls structure | `GET /api/catalog`; client query/category filter | loading, error, no-result, list, selected | search, filter, select SKU | Gate 3 |
+| `/customer/order/create` | Inherit Customer Home language; current contract/page card controls workflow | quote, address, order APIs | invalid, quoting, quote-ready, submitting, created, error | SKU, quantity, address, schedule, create | Gate 3 |
+| `/customer/orders` | Inherit Customer Home language; current contract/page card controls workflow | order, payment, confirmation, review APIs | empty and all backend order/payment/fulfillment states | open, pay where allowed, confirm, review | Gate 3 |
+| `/customer/aftersale` | Inherit Customer Home language; Phase 17 contract controls workflow | Phase 17 reverse/complaint/evidence APIs | guarded, actionable, reviewing, repair, resolved, closed | cancel/reschedule request, complaint, note, evidence | Gate 3 |
+| `/customer/support` | Inherit Customer Home language; Phase 24 contract controls workflow | Phase 24 ticket/conversation/CSAT APIs | empty, open, assigned, realtime, resolved, reopened | create, comment/message, reopen, rate | Gate 3 |
+| `/customer/notifications` | Inherit Customer Home language; notification page card controls structure | notification list/read/archive/restore APIs | loading, inbox/archive empty, error, ready, loading-more, conflict | switch view, mark read, archive/restore, load more, follow target | Gate 3 |
+| `/customer/coupons` | Inherit Customer Home language; coupon page card controls structure | coupon grant list and discount-decision APIs | loading, empty, error, available, used, expired, stale | switch view, select for quote, recover deep link | Gate 3 |
+| `/customer/profile` | Inherit Customer Home language; current contract/page card controls workflow | profile/address APIs | loading, display, editing, invalid, saving, error | edit profile, CRUD address | Gate 3 |
 
-Customer global constraints: authenticated identity, `city_code`, `@xlb/api-client`, five-item navigation, safe area, no engineering copy, no fabricated price/order/worker data.
+Customer global constraints: authenticated identity, `city_code`, `@xlb/api-client`, five-item navigation `首页/客服/新报修/订单/我的`, top notification entry, safe area, no engineering copy, no fabricated price/order/worker data. The official catalog remains the only category authority.
 
-Customer campaign constraints: festival/activity visuals are an overlay on the approved liquid-glass system. Pages consume resolved campaign and authoritative quote results only; they do not decide dates, eligibility, city scope, discount amounts, or asset URLs ad hoc. Standard slots and fallbacks are defined in `PHASE25_CAMPAIGN_THEME_EVOLUTION.md`.
+Customer campaign constraints: festival/activity visuals are an overlay on the locked Customer Home visual language. Pages consume resolved campaign and authoritative quote results only; they do not decide dates, eligibility, city scope, discount amounts, or asset URLs ad hoc. Standard slots and fallbacks are defined in `PHASE25_CAMPAIGN_THEME_EVOLUTION.md`.
 
 ## Worker
 

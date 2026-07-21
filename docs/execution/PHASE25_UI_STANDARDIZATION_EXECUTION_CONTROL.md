@@ -3,21 +3,23 @@
 ## 当前状态
 
 - Phase: 25
-- Status: Gate 1B / IMPLEMENTATION VERIFIED — AWAITING HUMAN ACCEPTANCE
+- Status: LOCKED（历史 Phase 25）；Customer 全业务视觉重构 P0 基线已另行冻结
 - Branch: `codex/phase25-ui-standardization`
-- Runtime construction: AUTHORIZED FOR GATE 1B MATERIAL/ROLE RECIPES ONLY
+- Runtime construction: Customer 后续施工服从 `docs/design/ui/CUSTOMER_UI_REFACTOR_ENGINEERING_TOPOLOGY.md`
 - Production: NO-GO
 
 > 2026-07-12 authorization update: Gate 1B has human acceptance; Gate 1C Runtime Resolver & Bridge is in progress. Only shared resolution and an app-agnostic bridge are authorized. App roots, routes/pages, API-client/backend work, campaign publication, and asset slots remain blocked.
 
 > 2026-07-12 global authorization supersedes the preceding incremental authorization: all nine main Phase 25 Gates are authorized for construction, with dependency-aware parallel execution and one final unified human acceptance. This does not authorize backend business-semantic changes, database migrations, provider integrations, fake business data, or OA/Dashboard runtime construction before their readiness facts exist.
 
+> 2026-07-21 Customer authority correction: `docs/design/ui/references/customer-home-visual-truth.png` is the only Customer Home visual truth. Historical Customer Figma frames and the retired Phase 25 PNG no longer decide Customer visual, workflow or state coverage; current code/API/contracts/page cards remain authoritative for behavior.
+
 ## 执行原则
 
 1. 一次只开放一个 Gate。
 2. 每个 Gate 必须有输入、允许文件、禁止文件、产物、自动验证、浏览器证据和人工接受。
 3. Gate 未接受时，不得提前施工下一 Gate。
-4. Customer 视觉服从用户液态玻璃 PNG；Customer 流程服从 Figma 与真实 API。
+4. Customer 主页视觉服从唯一真相 PNG；后续页面继承其设计语言；Customer 流程、状态和动作服从当前代码、真实 API、共享契约、校验器与页面卡。
 5. Worker/Admin 视觉与页面结构服从 Figma；业务动作服从真实契约。
 6. OA/Dashboard 当前为占位目录；必须先通过 readiness gate，禁止用静态示例冒充工作流或实时数据。
 
