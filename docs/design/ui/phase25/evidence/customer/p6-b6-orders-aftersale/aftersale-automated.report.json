@@ -1,0 +1,44 @@
+{
+  "version": "1.0.0",
+  "lane": "P6-B6",
+  "role": "customer",
+  "surface": "aftersale",
+  "route": "/customer/aftersale?orderId=order-b6-aftersale",
+  "authority": "docs/design/ui/references/customer-home-visual-truth.png",
+  "dataSource": "contract-faithful-local-route-fixture",
+  "viewports": [
+    {
+      "width": 320,
+      "height": 844,
+      "label": "320x844"
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "label": "390x844"
+    },
+    {
+      "width": 430,
+      "height": 932,
+      "label": "430x932"
+    }
+  ],
+  "states": [
+    "records-ready",
+    "evidence-pending",
+    "server-confirmed-completion"
+  ],
+  "checks": {
+    "singleCustomerShell": true,
+    "phase17StatusSemantics": true,
+    "serverConfirmedDecision": true,
+    "noImplementationLeakage": true,
+    "noHorizontalOverflow": true,
+    "touchTargets": true,
+    "keyboardFocus": true,
+    "reducedMotion": true,
+    "forcedColors": true,
+    "consoleClean": true
+  },
+  "result": "automated-checks-passed"
+}
