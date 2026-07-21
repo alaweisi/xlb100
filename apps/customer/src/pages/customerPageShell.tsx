@@ -321,7 +321,7 @@ export function describeCustomerDeepLink(
     return "正在恢复链接中的订单，当前状态以服务端返回为准。";
   }
   if (route === "createOrder" && (context.skuId || context.couponGrantId)) {
-    return "正在恢复链接中的服务或优惠选择，最终价格以服务端报价为准。";
+    return "已读取链接中的服务或优惠参数，最终可用项和价格以服务端返回为准。";
   }
   return null;
 }

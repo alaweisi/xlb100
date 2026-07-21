@@ -268,7 +268,7 @@
   box-shadow: none !important;
   color: var(--xlb-role-customer-coffee) !important;
   font-size: 14px !important;
-  min-height: 36px !important;
+  min-height: var(--xlb-size-touch-target) !important;
   outline: 0;
   padding: 0 !important;
 }
@@ -317,6 +317,20 @@
 .order-create-quantity-row > span small {
   color: var(--xlb-text-secondary);
   font-size: 11px;
+}
+
+.order-create-quantity-row > div:last-child {
+  grid-template-columns: var(--xlb-size-touch-target) 1fr var(--xlb-size-touch-target) !important;
+}
+
+.order-create-quantity-row [data-xlb-component="button"],
+.customer-order-create-template [data-xlb-component="button"] {
+  min-height: var(--xlb-size-touch-target) !important;
+  min-width: var(--xlb-size-touch-target);
+}
+
+.order-create-coupon select {
+  min-height: var(--xlb-size-touch-target) !important;
 }
 
 .order-create-selected-detail {

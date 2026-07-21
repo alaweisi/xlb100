@@ -4,8 +4,10 @@ import path from "node:path";
 
 const evidenceDir = path.resolve(
   process.cwd(),
-  "docs/design/ui/phase25/evidence/customer/p6-a-discovery-order",
+  process.env.XLB_CUSTOMER_P6A_EVIDENCE_DIR
+    ?? "docs/design/ui/phase25/evidence/customer/p6-a-discovery-order",
 );
+const enforceGate = process.env.XLB_CUSTOMER_P6A_ENFORCE === "1";
 const officialCatalogPath = path.resolve(process.cwd(), "docs/catalog/服务类目完整清单.tsv");
 
 type QaMode = {
@@ -217,6 +219,8 @@ async function openOrderConfirm(page: Page) {
   await page.goto(`/customer/order/create?cityCode=hangzhou&skuId=${encodeURIComponent(firstSku.skuId)}`);
   await expect(page.getByRole("heading", { name: "填写地址" })).toBeVisible();
   await expect(page.getByText(firstSku.name, { exact: true }).first()).toBeVisible();
+  await expect(page.locator(".customer-shell-banner")).toContainText("已读取链接中的服务或优惠参数");
+  await expect(page.locator(".customer-shell-banner")).not.toContainText("正在恢复");
   await page.getByLabel("详细地址").fill("西湖区文三路 138 号 2 幢 501 室");
   await page.getByLabel("联系人").fill("顾客 QA");
   await page.getByLabel("手机号").fill("13800000001");
@@ -316,16 +320,22 @@ test("A6 发现与下单视觉 QA：三档视口、关键状态与可用性证�
   await expect(page.getByText("报价获取失败")).toBeVisible();
   await capture(page, "order-quote-error-390x844", metrics);
 
+  const undersizedTargets = metrics.flatMap((metric) =>
+    metric.undersizedTargets.map((target) => ({ ...target, scenario: metric.name })),
+  );
+
   fs.writeFileSync(
     path.join(evidenceDir, "a6-runtime-metrics.json"),
     `${JSON.stringify({
       generatedAt: new Date().toISOString(),
-      sourceCommit: "2cad1ac2846dfe39c2b84c9f1b0a7a3f1fce03b1",
+      sourceCommit: process.env.XLB_CUSTOMER_QA_SOURCE_COMMIT ?? "working-tree",
       officialCatalogSource: "docs/catalog/服务类目完整清单.tsv",
       fixtureCategoryCount: catalog.categories.length,
       fixtureSkuCount: catalog.categories.reduce((sum, category) => sum + category.items.reduce((inner, item) => inner + item.skus.length, 0), 0),
-      visualGate: "fail",
-      severityCounts: { p0: 0, p1: 1, p2: 1, p3: 0 },
+      visualGate: undersizedTargets.length === 0 ? "pass" : "fail",
+      severityCounts: undersizedTargets.length === 0
+        ? { p0: 0, p1: 0, p2: 0, p3: 0 }
+        : { p0: 0, p1: 1, p2: 0, p3: 0 },
       consoleErrors,
       expectedNetworkErrors,
       metrics,
@@ -334,4 +344,7 @@ test("A6 发现与下单视觉 QA：三档视口、关键状态与可用性证�
   );
 
   expect(consoleErrors, "No console errors or uncaught page errors are allowed").toEqual([]);
+  if (enforceGate) {
+    expect(undersizedTargets, "All visible interactive targets must be at least 44×44px").toEqual([]);
+  }
 });

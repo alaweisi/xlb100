@@ -110,11 +110,14 @@ describe("Customer A2 app shell", () => {
 
     const resolution = resolveCustomerCityCode("unknown", "hangzhou");
     expect(resolution).toEqual({ cityCode: "hangzhou", issue: "invalid-query", requestedCityCode: "unknown" });
-    expect(describeCustomerDeepLink("createOrder", {
+    const deepLinkDescription = describeCustomerDeepLink("createOrder", {
       skuId: "sku-1",
       orderId: null,
       couponGrantId: null,
-    })).toContain("服务端报价");
+    });
+    expect(deepLinkDescription).toContain("已读取链接中的服务或优惠参数");
+    expect(deepLinkDescription).toContain("服务端返回");
+    expect(deepLinkDescription).not.toContain("正在恢复");
 
     render(
       <ThemeProvider>
@@ -122,7 +125,7 @@ describe("Customer A2 app shell", () => {
       </ThemeProvider>,
     );
     expect(screen.getByText(/链接中的城市暂不可用/)).toBeTruthy();
-    expect(screen.getByText(/最终价格以服务端报价为准/)).toBeTruthy();
+    expect(screen.getByText(/最终可用项和价格以服务端返回为准/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "使用当前城市" }));
     expect(new URLSearchParams(window.location.search).get("cityCode")).toBe("hangzhou");
   });
