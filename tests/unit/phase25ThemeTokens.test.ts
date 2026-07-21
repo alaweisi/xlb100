@@ -21,7 +21,7 @@ import { RUNTIME_CAMPAIGN_TOKEN_PATHS } from "@xlb/types";
 describe("Phase 25 Gate 1A token contract", () => {
   it("freezes one canonical source and the complete L0-L7 taxonomy", () => {
     expect(CANONICAL_TOKEN_SOURCE).toBe("packages/ui/src/tokens/base/defaultTokens.ts");
-    expect(TOKEN_SCHEMA_VERSION).toBe("25.3.0");
+    expect(TOKEN_SCHEMA_VERSION).toBe("25.4.0");
     expect(TOKEN_LAYER_TAXONOMY.map((layer) => layer.id)).toEqual([
       "L0", "L1", "L2", "L3", "L4", "L5", "L6", "L7",
     ]);

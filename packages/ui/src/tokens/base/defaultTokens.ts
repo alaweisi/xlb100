@@ -2,7 +2,7 @@ import type { ThemeTokens } from "../tokenTypes.js";
 
 /** Marker consumed by the Phase 25 boundary gate. */
 export const CANONICAL_TOKEN_SOURCE = "packages/ui/src/tokens/base/defaultTokens.ts" as const;
-export const TOKEN_SCHEMA_VERSION = "25.3.0" as const;
+export const TOKEN_SCHEMA_VERSION = "25.4.0" as const;
 
 /**
  * The single compiled L0/L1 source. JSON, CSS variables and Figma mappings must
@@ -65,9 +65,9 @@ export const baseTokens = {
     familySerif: "Noto Serif SC, Songti SC, serif",
     familyMono: "JetBrains Mono, ui-monospace, SFMono-Regular, Consolas, monospace",
     numeric: "tabular-nums",
-    size: { xs: "11px", sm: "12px", md: "14px", lg: "16px", xl: "20px", display: "32px" },
+    size: { xs: "11px", sm: "12px", md: "14px", lg: "16px", xl: "20px", pageTitle: "28px", display: "32px" },
     weight: { regular: 400, medium: 600, bold: 700 },
-    lineHeight: { tight: "20px", normal: "24px", loose: "30px", display: "40px" },
+    lineHeight: { tight: "20px", normal: "24px", loose: "30px", pageTitle: "38px", display: "40px" },
     letterSpacing: { tight: "-0.01em", normal: "0", wide: "0.04em" },
   },
   blur: { none: "0", sm: "8px", md: "18px", lg: "32px" },
@@ -111,6 +111,40 @@ export const baseTokens = {
     customer: {
       accent: "#e97116", ink: "#18342d", cream: "#fefaf5", coffee: "#334155",
       ambient: "#f4e8db", glassTint: "rgba(254, 250, 245, 0.82)",
+      component: {
+        button: {
+          primaryBackground: "#e97116", primaryText: "#ffffff",
+          secondaryBackground: "#fffdfb", secondaryBorder: "#cdbb9f", secondaryText: "#334155",
+          ghostText: "#18342d", dangerBackground: "#b91c1c", dangerText: "#ffffff",
+          radius: "999px", minHeight: "44px", primaryMinHeight: "52px", paddingInline: "20px",
+        },
+        input: {
+          background: "#fffdfb", border: "#cdbb9f", text: "#334155", placeholder: "#81766b",
+          radius: "16px", minHeight: "48px", paddingInline: "16px",
+        },
+        card: {
+          background: "#fffdfb", border: "#e8d9c3", text: "#334155", heading: "#18342d",
+          radius: "24px", shadow: "0 12px 28px rgba(43, 33, 24, 0.10)", padding: "16px",
+        },
+        tabs: {
+          background: "rgba(254, 250, 245, 0.82)", border: "#e8d9c3",
+          activeBackground: "#fffdfb", activeText: "#18342d", inactiveText: "#665b50",
+          radius: "999px", minHeight: "44px", gap: "4px",
+        },
+        state: {
+          background: "#fffdfb", border: "#e8d9c3", text: "#334155", mutedText: "#665b50",
+          infoBackground: "#eff6ff", infoText: "#1d4ed8",
+          successBackground: "#ecfdf5", successText: "#047857",
+          warningBackground: "#fff7ed", warningText: "#b45309",
+          dangerBackground: "#fef2f2", dangerText: "#b91c1c",
+          radius: "24px", padding: "24px",
+        },
+        overlay: {
+          background: "rgba(255, 252, 247, 0.96)", fallbackBackground: "#fffdfb",
+          border: "#e8d9c3", text: "#334155", scrim: "rgba(43, 33, 24, 0.42)",
+          radius: "24px", shadow: "0 24px 54px rgba(43, 33, 24, 0.16)", blur: "18px",
+        },
+      },
     },
     worker: {
       accent: "#2f9bff", page: "#08172b", panel: "#203a5b", text: "#f8fbff", muted: "#b8c8dc",

@@ -1,5 +1,5 @@
 /**
- * XLB Customer App — Design handoff tokens v1.1
+ * XLB Customer App — Design handoff tokens v1.2
  *
  * This file is a design/front-end handoff mapping, not a second runtime source.
  * Production values must be represented in
@@ -121,6 +121,29 @@
   --xlb-bottom-nav-total: calc(var(--xlb-bottom-nav-height) + env(safe-area-inset-bottom));
   --xlb-primary-dock-gap: 8px;
   --xlb-page-bottom-clearance: calc(var(--xlb-bottom-nav-total) + var(--xlb-control-lg) + 48px);
+
+  /* L5/L6 Customer component recipe aliases */
+  --xlb-role-customer-component-button-primary-background: var(--xlb-customer-accent);
+  --xlb-role-customer-component-button-primary-text: var(--xlb-customer-text-inverse);
+  --xlb-role-customer-component-button-secondary-background: var(--xlb-customer-surface-card);
+  --xlb-role-customer-component-button-secondary-border: var(--xlb-customer-border-strong);
+  --xlb-role-customer-component-button-secondary-text: var(--xlb-customer-text-primary);
+  --xlb-role-customer-component-button-radius: var(--xlb-radius-pill);
+  --xlb-role-customer-component-button-min-height: var(--xlb-control-md);
+  --xlb-role-customer-component-button-primary-min-height: var(--xlb-control-lg);
+  --xlb-role-customer-component-input-background: var(--xlb-customer-surface-card);
+  --xlb-role-customer-component-input-border: var(--xlb-customer-border-strong);
+  --xlb-role-customer-component-input-radius: var(--xlb-radius-lg);
+  --xlb-role-customer-component-input-min-height: 48px;
+  --xlb-role-customer-component-card-background: var(--xlb-customer-surface-card);
+  --xlb-role-customer-component-card-border: var(--xlb-customer-border-subtle);
+  --xlb-role-customer-component-card-radius: var(--xlb-radius-xl);
+  --xlb-role-customer-component-tabs-background: var(--xlb-customer-surface-glass);
+  --xlb-role-customer-component-tabs-radius: var(--xlb-radius-pill);
+  --xlb-role-customer-component-state-radius: var(--xlb-radius-xl);
+  --xlb-role-customer-component-overlay-background: var(--xlb-customer-surface-overlay);
+  --xlb-role-customer-component-overlay-fallback-background: var(--xlb-customer-surface-card);
+  --xlb-role-customer-component-overlay-radius: var(--xlb-radius-xl);
 
   /* Icon */
   --xlb-icon-sm: 16px;
