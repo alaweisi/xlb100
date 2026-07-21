@@ -317,6 +317,7 @@ export function CustomerSupportPage({ api }: { api: CustomerSupportApi }) {
   }
   return (
     <CustomerRouteShell currentRoute="support">
+      <div className="customer-support-stack">
       {ui.error && (
         <ApiErrorPanel title="客服请求失败" detail="暂时无法连接客服，请检查网络后重试。" />
       )}
@@ -579,6 +580,7 @@ export function CustomerSupportPage({ api }: { api: CustomerSupportApi }) {
           </div>
         </Card>
       )}
+      </div>
     </CustomerRouteShell>
   );
 }

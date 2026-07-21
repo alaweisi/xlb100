@@ -401,6 +401,7 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
 
           return (
             <OrderCard
+              className="customer-order-card"
               key={order.orderId}
               title={order.skuName}
               description={`${order.quantity}${order.unit} · ${order.addressDistrict} ${order.detailAddress}`.trim()}

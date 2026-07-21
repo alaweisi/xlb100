@@ -134,7 +134,7 @@ export function CustomerNotificationsPage({ api }: { api: CustomerNotificationAp
 
   return (
     <CustomerRouteShell currentRoute="notifications">
-      <Card title="通知" actions={<StatusTag tone="success">实时同步</StatusTag>}>
+      <Card className="customer-notifications-surface" title="通知" actions={<StatusTag tone="success">实时同步</StatusTag>}>
         <p className="notification-notice">仅显示当前城市、当前账号的站内消息。</p>
         <div role="tablist" aria-label="消息范围" className="notification-view-tabs">
           <Button disabled={busyId !== null} aria-pressed={view === "inbox"} variant={view === "inbox" ? "primary" : undefined} onClick={() => changeView("inbox")}>收件箱</Button>

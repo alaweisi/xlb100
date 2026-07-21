@@ -183,9 +183,9 @@ export function Card({ title, actions, style, children, ...props }: CardProps) {
       )}
     >
       {(title || actions) && (
-        <div style={{ alignItems: "center", display: "flex", gap: 12, justifyContent: "space-between", marginBottom: 12 }}>
-          {title && <h2 style={{ fontSize: 16, lineHeight: "22px", margin: 0 }}>{title}</h2>}
-          {actions && <div style={{ display: "flex", gap: 8 }}>{actions}</div>}
+        <div data-ui="card-header" style={{ alignItems: "center", display: "flex", gap: 12, justifyContent: "space-between", marginBottom: 12 }}>
+          {title && <h2 data-ui="card-heading" style={{ fontSize: 16, lineHeight: "22px", margin: 0 }}>{title}</h2>}
+          {actions && <div data-ui="card-actions" style={{ display: "flex", gap: 8 }}>{actions}</div>}
         </div>
       )}
       {children}
@@ -692,8 +692,8 @@ export function Table<Row>({ columns, rows, getRowKey, emptyText = "暂无记录
   }
 
   return (
-    <div style={{ overflowX: "auto", width: "100%" }}>
-      <table style={{ borderCollapse: "collapse", fontFamily, fontSize: 14, minWidth: "100%", tableLayout: "fixed" }}>
+    <div data-ui="table" style={{ overflowX: "auto", width: "100%" }}>
+      <table data-ui="table-element" style={{ borderCollapse: "collapse", fontFamily, fontSize: 14, minWidth: "100%", tableLayout: "fixed" }}>
         <thead>
           <tr>
             {columns.map((column) => (
@@ -717,7 +717,11 @@ export function Table<Row>({ columns, rows, getRowKey, emptyText = "暂无记录
           {rows.map((row, index) => (
             <tr key={getRowKey(row, index)}>
               {columns.map((column) => (
-                <td key={column.key} style={{ borderBottom: "1px solid #f3f4f6", padding: "10px 12px", verticalAlign: "top" }}>
+                <td
+                  data-label={typeof column.title === "string" ? column.title : column.key}
+                  key={column.key}
+                  style={{ borderBottom: "1px solid #f3f4f6", padding: "10px 12px", verticalAlign: "top" }}
+                >
                   {column.render(row)}
                 </td>
               ))}
@@ -1533,6 +1537,7 @@ export function OrderCard({ title, status, description, meta, priceText, actions
   return (
     <Card
       {...props}
+      data-card-kind="order"
       style={mergeStyle(
         {
           display: "grid",

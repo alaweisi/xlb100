@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { CaretDown, MagnifyingGlass, MapPin } from "@phosphor-icons/react";
+import { CaretDown, CaretRight, MagnifyingGlass, MapPin } from "@phosphor-icons/react";
 import type { CatalogSnapshot, CityCode } from "@xlb/types";
 import {
   ActionDock,
@@ -20,8 +20,9 @@ import {
   setRouteSearchParams,
   useRouteSearchParams,
 } from "./customerPageShell";
-import { cityAreaByCode, cityNameByCode, getCatalogSkuDisplayLabel, getCatalogSkus } from "../adapters/catalogAdapters";
+import { catalogToHomeCategoryViewModels, cityAreaByCode, cityNameByCode, getCatalogSkuDisplayLabel, getCatalogSkus } from "../adapters/catalogAdapters";
 import { createCustomerUiBinding } from "../adapters/workflowAdapter";
+import { customerCategoryIconSrc } from "./customerVisualAssets";
 
 type CatalogCategoryTab = {
   key: string;
@@ -71,6 +72,16 @@ export function CustomerServicesPage({
   const allSkus = useMemo(() => {
     if (catalogState.status !== "success") return [];
     return getCatalogSkus(catalogState.data);
+  }, [catalogState]);
+
+  const categoryVisualById = useMemo(() => {
+    if (catalogState.status !== "success") return new Map<string, string>();
+    return new Map(
+      catalogToHomeCategoryViewModels(catalogState.data).map((category) => [
+        category.categoryId,
+        customerCategoryIconSrc[category.iconKey],
+      ]),
+    );
   }, [catalogState]);
 
   const tabs = useMemo<CatalogCategoryTab[]>(() => {
@@ -126,7 +137,7 @@ export function CustomerServicesPage({
   const retryAction = actionById["customer.catalog.retry"];
 
   const header = (
-    <Card title="发现服务">
+    <Card className="customer-services-search-card" title="发现服务">
       <LocationSearchBar
         cityLabel={cityNameByCode[cityCode]}
         areaLabel={cityAreaByCode[cityCode]}
@@ -145,9 +156,9 @@ export function CustomerServicesPage({
   return (
     <CustomerRouteShell currentRoute="services">
       <CustomerServicesTemplate route="/customer/services" cityCode={cityCode} binding={binding} header={header}>
-      <Card>
+        <section className="customer-services-filter" aria-label="服务分类筛选">
         <Tabs items={tabs} activeKey={activeCategoryId} onChange={updateRouteCategory} density="compact" />
-      </Card>
+      </section>
 
       {catalogState.status === "loading" && <LoadingState title="服务加载中" description="正在读取当前城市可预约的服务" />}
       {catalogState.status === "error" && (
@@ -169,8 +180,8 @@ export function CustomerServicesPage({
       )}
 
       {catalogState.status === "success" && filteredSkus.length > 0 && (
-        <section style={{ display: "grid", gap: 10 }}>
-          <div style={{ alignItems: "center", color: "#64748b", display: "flex", justifyContent: "space-between" }}>
+        <section className="customer-services-list">
+          <div className="customer-services-list__heading">
             <strong>服务列表</strong>
             <StatusTag tone="success">{`${filteredSkus.length} 项`}</StatusTag>
           </div>
@@ -181,6 +192,10 @@ export function CustomerServicesPage({
                 key={sku.skuId}
                 title={sku.name}
                 subtitle={skuDisplay.subtitle}
+                icon={categoryVisualById.get(sku.categoryId) ? (
+                  <img className="customer-services-card__icon" src={categoryVisualById.get(sku.categoryId)} alt="" aria-hidden="true" />
+                ) : null}
+                actionLabel={<span className="customer-services-card__action">查看服务<CaretRight aria-hidden="true" size={16} /></span>}
                 status={<StatusTag tone="muted">可预约</StatusTag>}
                 onClick={() => {
                   const params = new URLSearchParams({ skuId: sku.skuId });

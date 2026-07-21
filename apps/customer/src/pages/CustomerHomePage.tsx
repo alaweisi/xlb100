@@ -27,33 +27,14 @@ import {
 } from "@xlb/ui";
 import { CITY_OPTIONS, CustomerLoadable, CustomerRouteShell } from "./customerPageShell";
 import {
-  type CustomerCategoryIconKey,
   catalogToHomeCategoryViewModels,
   cityNameByCode,
   featuredHomeSkus,
 } from "../adapters/catalogAdapters";
 import { createCustomerUiBinding } from "../adapters/workflowAdapter";
+import { customerCategoryIconSrc } from "./customerVisualAssets";
 
 type City = CityCode;
-
-const categoryIconSrc: Readonly<Record<CustomerCategoryIconKey, string>> = {
-  "home-cleaning": "/assets/home/categories/home-cleaning.png",
-  "appliance-cleaning": "/assets/home/categories/appliance-cleaning.png",
-  "appliance-repair": "/assets/home/categories/appliance-repair.png",
-  installation: "/assets/home/categories/installation.png",
-  pipe: "/assets/home/categories/pipe.png",
-  lock: "/assets/home/categories/lock.png",
-  utilities: "/assets/home/categories/utilities.png",
-  waterproofing: "/assets/home/categories/waterproofing.png",
-  furniture: "/assets/home/categories/furniture.png",
-  renovation: "/assets/home/categories/renovation.png",
-  moving: "/assets/home/categories/moving.png",
-  "air-quality": "/assets/home/categories/air-quality.png",
-  digital: "/assets/home/categories/digital.png",
-  laundry: "/assets/home/categories/laundry.png",
-  care: "/assets/home/categories/care.png",
-  "pest-control": "/assets/home/categories/pest-control.png",
-};
 
 const featuredImageBySkuId: Readonly<Record<string, string>> = {
   sku_home_daily_2h: "/assets/home/recommendations/home-cleaning.png",
@@ -229,7 +210,7 @@ export function CustomerHomePage({ api, cityCode, catalogState, onRetryCatalog }
                   >
                     <img
                       className="customer-home-category__image"
-                      src={categoryIconSrc[category.iconKey]}
+                    src={customerCategoryIconSrc[category.iconKey]}
                       alt=""
                       aria-hidden="true"
                       loading="lazy"
@@ -265,7 +246,7 @@ export function CustomerHomePage({ api, cityCode, catalogState, onRetryCatalog }
                         alt=""
                         loading="lazy"
                       />
-                      {category ? <img className="customer-home-featured-card__badge" src={categoryIconSrc[category.iconKey]} alt="" aria-hidden="true" /> : null}
+                      {category ? <img className="customer-home-featured-card__badge" src={customerCategoryIconSrc[category.iconKey]} alt="" aria-hidden="true" /> : null}
                     </span>
                     <span className="customer-home-featured-card__body">
                       <strong>{sku.name}</strong>

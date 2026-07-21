@@ -43,7 +43,7 @@ export function CustomerCouponsPage({ api, onSelectForQuote }: CustomerCouponsPa
 
   return (
     <CustomerRouteShell currentRoute="coupons">
-      <main className="customer-coupons" aria-labelledby="customer-coupons-title">
+      <main className="customer-coupons customer-coupons-surface" aria-labelledby="customer-coupons-title">
       <header className="customer-coupons__header">
         <div>
           <h1 id="customer-coupons-title">我的优惠券</h1>

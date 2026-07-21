@@ -1,21 +1,21 @@
 # 顾客端 62 条切片 → Carrier → Edge 截图证据
 
-本文件是顾客端视觉整改的验收索引。它不把 62 条业务切片误写成 62 个网址，而是把每条切片绑定到实际承载页面（Carrier）和真实 Edge 截图。
+本文件是顾客端视觉重构的验收索引。62 条业务切片不等于 62 个网址；每条切片均绑定到实际承载页面（Carrier）和真实 Edge 截图。
 
-- 视觉权威：`docs/design/ui/phase25/references/customer-apple-liquid-glass-source.png`
+- 视觉权威：`docs/design/ui/visual-authority/customer-home-search-dominant-candidate-2026-07-21.png`
 - 目标画面：390×844 安装型移动 App
 - 浏览器：Microsoft Edge
 - 截图目录：`artifacts/design-qa/customer-edge-full-2026-07-20/`
 - 自动报告：`artifacts/design-qa/customer-edge-full-2026-07-20/qa-report.json`
-- 规则：每个 Carrier 至少一张正常状态、一张高风险状态；全部正式路由另做 1440 宽屏防退化门禁。
+- 规则：每个 Carrier 至少一张正常状态、一张最高风险状态；9 条正式路由另做 1440×900 防桌面退化检查。
 
 | # | 切片 ID | Carrier / 页面 | 正常状态截图 | 高风险状态截图 |
 |---:|---|---|---|---|
 | 1 | `C.AUTH.SESSION.REQUIRED` | C-00 登录门 | `C-00-auth-loading-390x844.png` | `C-00-auth-error-390x844.png` |
-| 2 | `C.CATALOG.HOME.EMPTY` | C-01 首页 | `C-01-home-ready-390x844.png` | `C-01-home-empty-390x844.png` |
-| 3 | `C.CATALOG.HOME.AVAILABLE` | C-01 首页 | `C-01-home-ready-390x844.png` | `C-01-home-empty-390x844.png` |
-| 4 | `C.CATALOG.BROWSE.AVAILABLE` | C-02 服务浏览 | `C-02-services-ready-390x844.png` | `C-02-services-error-390x844.png` |
-| 5 | `C.CATALOG.SEARCH.NO_RESULT` | C-02 服务浏览 | `C-02-services-ready-390x844.png` | `C-02-services-error-390x844.png` |
+| 2 | `C.CATALOG.HOME.EMPTY` | C-01 主页 | `C-01-home-ready-390x844.png` | `C-01-home-empty-390x844.png` |
+| 3 | `C.CATALOG.HOME.AVAILABLE` | C-01 主页 | `C-01-home-ready-390x844.png` | `C-01-home-empty-390x844.png` |
+| 4 | `C.CATALOG.BROWSE.AVAILABLE` | C-02 服务目录 | `C-02-services-ready-390x844.png` | `C-02-services-error-390x844.png` |
+| 5 | `C.CATALOG.SEARCH.NO_RESULT` | C-02 服务目录 | `C-02-services-ready-390x844.png` | `C-02-services-error-390x844.png` |
 | 6 | `C.ORDER.QUOTE.READY` | C-03 预约下单 | `C-03-order-create-ready-390x844.png` | `C-03-order-create-quote-error-390x844.png` |
 | 7 | `C.ORDER.QUOTE.INVALIDATED` | C-03 预约下单 | `C-03-order-create-ready-390x844.png` | `C-03-order-create-quote-error-390x844.png` |
 | 8 | `C.ORDER.CREATE.PENDING_DISPATCH` | C-03 预约下单 | `C-03-order-create-ready-390x844.png` | `C-03-order-create-quote-error-390x844.png` |
@@ -76,10 +76,10 @@
 
 ## 自动门禁结果
 
-- 9 条正式顾客路由全部存在 `data-customer-shell="true"`。
-- 390×844 下 20 个场景均无横向滚动。
+- 9 条正式顾客路由全部存在统一 Customer App Shell。
+- 390×844 的 20 个正常/高风险场景均无横向滚动。
 - 已登录页面全部保留固定底部主导航；登录门也位于同一手机画布。
-- 可见按钮、链接和表单控件触控高度均不小于 44px。
-- 1440×900 下 9 条路由的 App 画布宽度均不超过 430px；`P0-order-create-wide-shell-1440x900.png` 证明下单页不会再铺满宽屏。
+- 可见按钮、链接和表单控件未发现小于 44px 的触控目标。
+- 1440×900 下 9 条路由的 App 画布宽度均不超过 430px；下单页不会再铺满宽屏。
 
-说明：截图证明 Carrier 的移动壳层、正常与高风险呈现；具体状态机与权限仍以现有 API、类型、单元测试和后端契约为准，本轮没有改造或伪造业务状态。
+说明：截图证明 Carrier 的移动壳层、正常与高风险呈现；具体业务状态、金额与权限仍以现有 API、类型、单元测试和后端契约为准，本轮没有改造或伪造业务状态。

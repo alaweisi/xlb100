@@ -150,7 +150,7 @@ export function CustomerAftersalePage({ api, orderIds }: CustomerAftersalePagePr
 
   return (
     <CustomerRouteShell currentRoute="aftersale">
-      <div style={{ display: "grid", gap: 16 }}>
+      <div className="customer-aftersale-stack">
         <Card title="售后服务" actions={<StatusTag tone="primary">进度可查询</StatusTag>}>
           <FormField label="订单">
             {orderIds.length > 0 ? (

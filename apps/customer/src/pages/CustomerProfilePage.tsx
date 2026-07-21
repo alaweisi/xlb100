@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { BellSimple, CaretRight, MapPin, Ticket } from "@phosphor-icons/react";
 import type { CityCode, CustomerAddress, CustomerProfile, SaveCustomerAddressRequest } from "@xlb/types";
 import { Button, Card, CustomerProfileTemplate, EmptyState, ErrorState, FormField, Input, LoadingState, StatusTag } from "@xlb/ui";
 import { createCustomerUiBinding } from "../adapters/workflowAdapter";
@@ -112,8 +113,14 @@ export function CustomerProfilePage({ api, cityCode }: CustomerProfilePageProps)
       {error && <ErrorState title="操作没有完成" description="暂时无法读取或保存资料，请检查网络后重试。" action={<Button onClick={() => void load()}>重新加载</Button>} />}
       <Card title="账号资料" actions={<StatusTag tone="success">实时同步</StatusTag>}>
         <div style={{ display: "grid", gap: 10 }}>
-          <a href="/customer/notifications" className="notification-entry-link">消息中心</a>
-          <a href="/customer/coupons" className="notification-entry-link">我的优惠券</a>
+          <div className="customer-profile-shortcuts" role="navigation" aria-label="账户快捷入口">
+            <a href="/customer/notifications" className="notification-entry-link">
+              <BellSimple aria-hidden="true" size={22} /><span>消息中心</span><CaretRight aria-hidden="true" size={18} />
+            </a>
+            <a href="/customer/coupons" className="notification-entry-link">
+              <Ticket aria-hidden="true" size={22} /><span>我的优惠券</span><CaretRight aria-hidden="true" size={18} />
+            </a>
+          </div>
           <div style={{ color: "#64748b", fontSize: 13 }}>{profile?.phoneMasked ?? "账号读取中"}</div>
           <FormField label="称呼"><Input autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} /></FormField>
           <Button variant="primary" disabled={busy || !name.trim()} onClick={() => void saveProfile()}>{busy ? "保存中…" : "保存资料"}</Button>
@@ -123,9 +130,9 @@ export function CustomerProfilePage({ api, cityCode }: CustomerProfilePageProps)
       <Card title="服务地址" actions={<StatusTag tone="primary">{addresses.length}</StatusTag>}>
         <div style={{ display: "grid", gap: 10 }}>
           {addresses.length === 0 ? <EmptyState title="还没有服务地址" description="添加地址后，下次预约会更快。" /> : addresses.map((address) => (
-            <div key={address.addressId} style={{ border: "1px solid #dbe3ea", borderRadius: 8, display: "grid", gap: 6, padding: 12 }}>
+            <div className="customer-profile-address" key={address.addressId}>
               <div style={{ alignItems: "center", display: "flex", justifyContent: "space-between" }}>
-                <strong>{address.contactName} · {address.contactPhoneMasked}</strong>
+                <strong><MapPin aria-hidden="true" size={18} weight="fill" />{address.contactName} · {address.contactPhoneMasked}</strong>
                 {address.isDefault && <StatusTag tone="success">默认地址</StatusTag>}
               </div>
               <span style={{ color: "#475569", fontSize: 13 }}>{address.province} {address.city} {address.district} {address.detailAddress}</span>

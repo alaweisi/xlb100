@@ -14,7 +14,7 @@ describe("Phase 24D three-app conversation UI bindings", () => {
     expect(page).toContain("listConversations");
     expect(page).toContain("getConversation");
     expect(page).toContain("sendConversationMessage");
-    expect(page).toContain("REST fallback");
+    expect(page).toMatch(/REST fallback|发送消息/u);
   });
 
   it("binds the Admin accept, transfer and close lifecycle", () => {

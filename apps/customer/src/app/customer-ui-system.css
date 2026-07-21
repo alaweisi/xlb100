@@ -1,25 +1,25 @@
 :root {
   color-scheme: light;
-  --customer-cream: var(--xlb-role-customer-cream, #fffaf0);
-  --customer-surface: #fffcf7;
-  --customer-surface-muted: #f8eedf;
-  --customer-ink: var(--xlb-role-customer-ink, #173f35);
+  --customer-cream: var(--xlb-role-customer-cream, #fff8ec);
+  --customer-surface: #fffdf9;
+  --customer-surface-muted: #f8efe3;
+  --customer-ink: var(--xlb-role-customer-ink, #064c43);
   --customer-coffee: var(--xlb-role-customer-coffee, #2b2118);
-  --customer-muted: #74695e;
-  --customer-border: #e7d8c2;
-  --customer-border-strong: #cfb99b;
-  --customer-accent: var(--xlb-role-customer-accent, #c96521);
-  --customer-accent-pressed: #a94d16;
-  --customer-glass: rgba(255, 252, 247, 0.82);
-  --customer-glass-edge: rgba(255, 255, 255, 0.92);
+  --customer-muted: #6f6860;
+  --customer-border: rgba(205, 169, 121, 0.34);
+  --customer-border-strong: #d5b68d;
+  --customer-accent: var(--xlb-role-customer-accent, #ef651e);
+  --customer-accent-pressed: #cf4f12;
+  --customer-glass: rgba(255, 255, 255, 0.64);
+  --customer-glass-edge: rgba(255, 255, 255, 0.96);
   --customer-focus: #2563eb;
   --customer-danger: #b42318;
   --customer-success: #047857;
   --customer-warning: #9a5700;
-  --customer-radius-card: 24px;
-  --customer-radius-control: 16px;
-  --customer-shadow-card: 0 12px 32px rgba(73, 49, 27, 0.08);
-  --customer-shadow-glass: 0 18px 48px rgba(73, 49, 27, 0.14);
+  --customer-radius-card: 20px;
+  --customer-radius-control: 14px;
+  --customer-shadow-card: 0 10px 26px rgba(72, 48, 25, 0.07);
+  --customer-shadow-glass: 0 14px 34px rgba(72, 48, 25, 0.11);
 }
 
 html,
@@ -105,13 +105,13 @@ body {
 }
 
 .customer-app-root [data-mobile-shell-mode] > main {
-  padding: 18px 16px !important;
+  padding: 14px 14px calc(112px + env(safe-area-inset-bottom)) !important;
 }
 
 .customer-content-stack,
 .customer-template-frame,
 .customer-app-root [data-ui="runtime-surface"] {
-  gap: 16px !important;
+  gap: 12px !important;
   min-width: 0;
   width: 100%;
 }
@@ -174,13 +174,13 @@ body {
 .customer-topbar {
   align-items: center;
   background: var(--customer-glass);
-  border-bottom: 1px solid var(--customer-glass-edge);
-  box-shadow: 0 8px 28px rgba(73, 49, 27, 0.08);
+  border-bottom: 1px solid rgba(217, 190, 154, 0.26);
+  box-shadow: 0 8px 24px rgba(73, 49, 27, 0.045);
   box-sizing: border-box;
   display: grid;
   grid-template-columns: 48px minmax(0, 1fr) 48px;
-  min-height: 68px;
-  padding: max(8px, env(safe-area-inset-top)) 12px 8px;
+  min-height: 60px;
+  padding: max(6px, env(safe-area-inset-top)) 12px 6px;
   position: sticky;
   top: 0;
   z-index: 120;
@@ -207,8 +207,8 @@ body {
 .customer-topbar__title {
   color: var(--customer-ink);
   font-family: "Noto Serif SC", "Songti SC", serif;
-  font-size: 20px;
-  font-weight: 700;
+  font-size: 19px;
+  font-weight: 800;
   letter-spacing: 0.06em;
   overflow: hidden;
   text-align: center;
@@ -631,7 +631,7 @@ body {
   color: var(--customer-coffee) !important;
   max-width: 100%;
   min-width: 0 !important;
-  padding: 18px !important;
+  padding: 14px !important;
   width: 100%;
 }
 
@@ -645,14 +645,14 @@ body {
 
 .customer-app-root [data-ui="card"] h2 {
   font-family: "Noto Serif SC", "Songti SC", serif;
-  font-size: 18px !important;
+  font-size: 17px !important;
   letter-spacing: 0.03em;
   line-height: 26px !important;
 }
 
 .customer-app-root [data-ui="service-card"] {
   cursor: pointer;
-  min-height: 104px !important;
+  min-height: 92px !important;
   transition: opacity 120ms ease, transform 120ms ease;
 }
 
@@ -676,7 +676,7 @@ body {
 }
 
 .customer-app-root [data-ui="button"][data-variant="secondary"] {
-  background: var(--customer-surface) !important;
+  background: rgba(255, 255, 255, 0.58) !important;
   border-color: var(--customer-border-strong) !important;
   color: var(--customer-coffee) !important;
 }
@@ -691,7 +691,7 @@ body {
 }
 
 .customer-app-root [data-ui="control"] {
-  background: var(--customer-surface) !important;
+  background: rgba(255, 255, 255, 0.62) !important;
   border-color: var(--customer-border-strong) !important;
   border-radius: var(--customer-radius-control) !important;
   color: var(--customer-coffee) !important;
@@ -768,40 +768,42 @@ body {
 .customer-app-root [data-ui="action-dock"] {
   background: var(--customer-glass);
   border: 1px solid var(--customer-glass-edge);
-  border-radius: 24px;
+  border-radius: 22px;
   box-shadow: var(--customer-shadow-glass);
   padding: 10px;
   -webkit-backdrop-filter: blur(18px) saturate(140%);
   backdrop-filter: blur(18px) saturate(140%);
 }
 
-.customer-app-root nav {
+.customer-app-root [data-mobile-shell-mode] > nav {
   background: var(--customer-glass) !important;
   border: 1px solid var(--customer-glass-edge) !important;
-  border-radius: 28px 28px 0 0;
+  border-radius: 30px !important;
   box-shadow: 0 -10px 32px rgba(73, 49, 27, 0.12) !important;
-  left: max(0px, calc((100vw - 430px) / 2)) !important;
+  bottom: calc(8px + env(safe-area-inset-bottom)) !important;
+  left: max(10px, calc((100vw - 410px) / 2)) !important;
   margin-inline: auto;
-  max-width: 430px;
-  min-height: 44px !important;
-  padding-top: 0;
-  right: max(0px, calc((100vw - 430px) / 2)) !important;
+  max-width: 410px;
+  min-height: 68px !important;
+  overflow: visible;
+  padding: 2px 4px 3px !important;
+  right: max(10px, calc((100vw - 410px) / 2)) !important;
   -webkit-backdrop-filter: blur(22px) saturate(140%);
   backdrop-filter: blur(22px) saturate(140%);
 }
 
-.customer-app-root nav a {
+.customer-app-root [data-mobile-shell-mode] > nav a {
   min-height: 44px !important;
   padding: 2px 4px 1px !important;
 }
 
-.customer-app-root nav a:nth-child(3) > span:first-child {
+.customer-app-root [data-mobile-shell-mode] > nav a:nth-child(3) > span:first-child {
   background: #f36b18 !important;
   box-shadow: inset 0 1px 1px rgba(255,255,255,.7), 0 10px 24px rgba(218,85,17,.3) !important;
   margin-top: -14px !important;
 }
 
-.customer-app-root nav a[aria-current="page"] {
+.customer-app-root [data-mobile-shell-mode] > nav a[aria-current="page"] {
   color: var(--customer-accent) !important;
 }
 
@@ -878,6 +880,180 @@ body {
   outline-offset: 3px !important;
 }
 
+/* Homepage-derived Customer visual recipe shared by every business carrier. */
+.customer-app-root [data-ui="card-header"] {
+  margin-bottom: 10px !important;
+}
+
+.customer-app-root [data-ui="card-heading"] {
+  color: var(--customer-ink) !important;
+}
+
+.customer-app-root [data-card-kind="order"] {
+  border-color: rgba(217, 179, 128, 0.48) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.72), var(--customer-shadow-card) !important;
+}
+
+.customer-services-search-card {
+  background: var(--customer-glass) !important;
+  border-color: var(--customer-glass-edge) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.72), var(--customer-shadow-glass) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(135%);
+  backdrop-filter: blur(18px) saturate(135%);
+}
+
+.customer-services-search-card [data-ui="location-search"] {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.66), 0 8px 20px rgba(73, 49, 27, 0.06) !important;
+}
+
+.customer-services-filter {
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid var(--customer-glass-edge);
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.64), 0 8px 22px rgba(73, 49, 27, 0.055);
+  min-width: 0;
+  padding: 3px;
+  -webkit-backdrop-filter: blur(14px) saturate(130%);
+  backdrop-filter: blur(14px) saturate(130%);
+}
+
+.customer-services-filter [data-ui="tabs"] {
+  background: transparent !important;
+  border: 0 !important;
+  width: 100%;
+}
+
+.customer-services-list,
+.customer-aftersale-stack,
+.customer-support-stack {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.customer-services-list__heading {
+  align-items: center;
+  color: var(--customer-muted);
+  display: flex;
+  justify-content: space-between;
+  min-height: 34px;
+}
+
+.customer-services-list__heading > strong {
+  color: var(--customer-ink);
+  font-family: "Noto Serif SC", "Songti SC", serif;
+  font-size: 18px;
+  letter-spacing: 0.04em;
+}
+
+.customer-services-card__icon {
+  background: rgba(255, 255, 255, 0.58);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  border-radius: 16px;
+  box-shadow: inset 0 0 0 1px rgba(224, 202, 172, 0.3), 0 7px 18px rgba(73, 49, 27, 0.08);
+  display: block;
+  height: 56px;
+  object-fit: contain;
+  padding: 3px;
+  width: 56px;
+}
+
+.customer-services-card__action {
+  align-items: center;
+  color: var(--customer-accent);
+  display: inline-flex;
+  gap: 2px;
+}
+
+.customer-notifications-surface {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+.customer-notifications-surface > [data-ui="card-header"] {
+  padding-inline: 2px;
+}
+
+.notification-card,
+.customer-coupons__card,
+.customer-profile-address {
+  background: rgba(255, 255, 255, 0.68) !important;
+  border: 1px solid var(--customer-border) !important;
+  border-radius: 18px !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.66), 0 8px 22px rgba(73, 49, 27, 0.06) !important;
+}
+
+.notification-card {
+  gap: 9px !important;
+  padding: 14px !important;
+}
+
+.customer-coupons-surface {
+  padding: 0 !important;
+}
+
+.customer-coupons__header h1 {
+  color: var(--customer-ink);
+  font-family: "Noto Serif SC", "Songti SC", serif;
+  font-size: 28px;
+  letter-spacing: 0.04em;
+}
+
+.customer-coupons__header p {
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.customer-coupons__card {
+  border-left: 4px solid var(--customer-accent) !important;
+  padding: 14px !important;
+}
+
+.customer-profile-shortcuts {
+  display: grid;
+  gap: 8px;
+}
+
+.customer-app-root .customer-profile-shortcuts > a {
+  background: rgba(255, 255, 255, 0.56);
+  border: 1px solid var(--customer-border);
+  border-radius: 16px;
+  color: var(--customer-ink);
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 24px minmax(0, 1fr) 20px;
+  padding: 4px 12px;
+  text-decoration: none;
+}
+
+.customer-profile-address {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+}
+
+.customer-profile-address strong {
+  align-items: center;
+  display: inline-flex;
+  gap: 5px;
+}
+
+.customer-app-root [data-ui="table"] {
+  border-radius: 16px;
+  overflow: hidden !important;
+}
+
+.customer-app-root [data-ui="table-element"] th {
+  color: var(--customer-ink) !important;
+}
+
+.customer-app-root [data-ui="table-element"] th,
+.customer-app-root [data-ui="table-element"] td {
+  border-color: rgba(217, 190, 154, 0.38) !important;
+}
+
 @media (max-width: 640px), (pointer: coarse) {
   .customer-app-root [data-mobile-shell-mode] > main {
     padding: 16px 14px calc(96px + env(safe-area-inset-bottom)) !important;
@@ -888,7 +1064,7 @@ body {
   .customer-app-root .notification-card,
   .customer-app-root .customer-coupons__card {
     border-radius: 20px !important;
-    padding: 16px !important;
+    padding: 14px !important;
   }
 
   .customer-app-root [data-ui="location-search"] {
@@ -902,6 +1078,53 @@ body {
   .customer-app-root .customer-home-category {
     border-radius: 16px;
     min-height: 70px;
+  }
+
+  .customer-app-root [data-ui="table-element"],
+  .customer-app-root [data-ui="table-element"] tbody,
+  .customer-app-root [data-ui="table-element"] tr,
+  .customer-app-root [data-ui="table-element"] td {
+    display: grid;
+    width: 100%;
+  }
+
+  .customer-app-root [data-ui="table-element"] thead {
+    display: none;
+  }
+
+  .customer-app-root [data-ui="table-element"] tbody {
+    gap: 8px;
+  }
+
+  .customer-app-root [data-ui="table-element"] tr {
+    background: rgba(255, 255, 255, 0.48);
+    border: 1px solid var(--customer-border);
+    border-radius: 14px;
+    overflow: hidden;
+  }
+
+  .customer-app-root [data-ui="table-element"] td {
+    align-items: start;
+    border-bottom: 1px solid rgba(217, 190, 154, 0.28) !important;
+    gap: 10px;
+    grid-template-columns: minmax(72px, 30%) minmax(0, 1fr);
+    overflow-wrap: anywhere;
+    padding: 9px 10px !important;
+  }
+
+  .customer-app-root [data-ui="table-element"] td:last-child {
+    border-bottom: 0 !important;
+  }
+
+  .customer-app-root [data-ui="table-element"] td::before {
+    color: var(--customer-muted);
+    content: attr(data-label);
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .customer-app-root [data-ui="table-element"] td[data-label="open"]::before {
+    content: "操作";
   }
 }
 
@@ -918,7 +1141,7 @@ body {
 
 @media (prefers-contrast: more), (forced-colors: active) {
   .customer-topbar,
-  .customer-app-root nav,
+  .customer-app-root [data-mobile-shell-mode] > nav,
   .customer-app-root [data-ui="location-search"],
   .customer-app-root [data-ui="action-dock"] {
     background: var(--customer-surface) !important;
@@ -931,7 +1154,7 @@ body {
 
 @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
   .customer-topbar,
-  .customer-app-root nav,
+  .customer-app-root [data-mobile-shell-mode] > nav,
   .customer-app-root [data-ui="location-search"],
   .customer-app-root [data-ui="action-dock"] {
     background: var(--customer-surface) !important;
