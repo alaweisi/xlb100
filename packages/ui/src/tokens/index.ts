@@ -39,6 +39,8 @@ export {
   TOKEN_LAYER_TAXONOMY,
 } from "./themes/themeDefinitions.js";
 export { customerLiquidGlassMaterialRecipe } from "./recipes/customerMaterialRecipe.js";
+export { customerComponentRecipe } from "./recipes/customerComponentRecipes.js";
+export type { CustomerComponentRecipe } from "./recipes/customerComponentRecipes.js";
 export {
   adminDenseOperationsRecipe,
   dashboardReadinessRecipe,

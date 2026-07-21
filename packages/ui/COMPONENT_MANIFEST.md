@@ -1,4 +1,4 @@
-# @xlb/ui Component Manifest (Phase 15.3V - Structure Landing)
+# @xlb/ui Component Manifest (Customer UI A1 - Shared Design System)
 
 ## Scope and Principle
 
@@ -14,11 +14,19 @@ This manifest records the package-level presentation surface after five-layer st
 ### Tokens
 - `packages/ui/src/tokens/`
 - Base token values, theme overrides, `ThemeProvider`, `themeRegistry`, and token types.
+- The canonical Customer component recipe is `customerComponentRecipe`. It only
+  references `--xlb-role-customer-component-*` variables; literal values remain
+  in the token source and CSS handoff file.
 
 ### Primitives
 - `packages/ui/src/components/primitives/`
 - Rendering atoms and generic controls (`Button`, `Card`, `Badge`, `Input`, `Select`, `Textarea`, ...).
 - No business imports. No API imports.
+- Shared controls keep `productRole="neutral"` as the compatibility default.
+  Customer slices opt in with `productRole="customer"` to inherit the homepage
+  language without copying its layout.
+- Customer controls provide at least 44px touch targets, protected focus-visible
+  treatment and reduced-motion/high-contrast/no-backdrop-filter fallbacks.
 
 ### Patterns
 - `packages/ui/src/components/patterns/`
@@ -65,3 +73,14 @@ This manifest records the package-level presentation surface after five-layer st
 
 - Registered components in this phase are aligned with exports in `packages/ui/src/index.ts` and layer directories.
 - Storybook is not wired yet; manifest defines the contract for future Storybook/contract-mock coverage.
+
+## Customer A1 State and Overlay Contract
+
+- `LoadingState`, `EmptyState`, and `ErrorState` expose persistent status/alert
+  regions and support recovery actions without changing business behavior.
+- `Modal`, `Drawer`, and `BottomSheet` share dialog semantics, initial focus,
+  focus trapping, optional Escape/scrim close, and focus restoration.
+- Overlay surfaces use the Customer glass recipe when opted in and retain a
+  solid fallback when blur or contrast capabilities are unavailable.
+- App shell composition, page orchestration and route-level state integration
+  remain outside this A1 package boundary.

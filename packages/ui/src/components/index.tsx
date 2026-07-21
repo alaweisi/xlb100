@@ -8,8 +8,10 @@ import type {
   SelectHTMLAttributes,
   TextareaHTMLAttributes,
 } from "react";
+import { useId } from "react";
 
-import { tokens } from "../tokens/index.js";
+import { customerComponentRecipe, tokens } from "../tokens/index.js";
+import { useDialogFocus } from "./overlayFocus.js";
 
 export {
   AppErrorBoundary,
@@ -19,6 +21,9 @@ export {
 
 export type Tone = "default" | "primary" | "success" | "warning" | "danger" | "muted";
 export type RoleTone = "customer" | "worker" | "admin" | "neutral";
+export interface ProductRoleProps {
+  productRole?: RoleTone;
+}
 export type UiWorkflowActor = "customer" | "worker" | "admin";
 export type UiWorkflowDisabledReason =
   | "API_NOT_AVAILABLE"
@@ -119,35 +124,76 @@ function mergeStyle(base: CSSProperties, override?: CSSProperties): CSSPropertie
   return { ...base, ...override };
 }
 
-export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+function componentRoleAttributes(component: string, productRole: RoleTone) {
+  return {
+    "data-xlb-component": component,
+    "data-xlb-product-role": productRole,
+  } as const;
+}
+
+function customerStateTone(tone: Tone): { background: string; border: string; text: string } {
+  const state = customerComponentRecipe.state;
+  if (tone === "primary") return { background: state.infoBackground, border: state.infoText, text: state.infoText };
+  if (tone === "success") return { background: state.successBackground, border: state.successText, text: state.successText };
+  if (tone === "warning") return { background: state.warningBackground, border: state.warningText, text: state.warningText };
+  if (tone === "danger") return { background: state.dangerBackground, border: state.dangerText, text: state.dangerText };
+  return { background: state.background, border: state.border, text: state.text };
+}
+
+export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement>, ProductRoleProps {
   variant?: "primary" | "secondary" | "ghost" | "danger";
 }
 
-export function Button({ variant = "secondary", style, children, ...props }: ButtonProps) {
+export function Button({ variant = "secondary", productRole = "neutral", style, children, ...props }: ButtonProps) {
   const isPrimary = variant === "primary";
   const isDanger = variant === "danger";
+  const isCustomer = productRole === "customer";
+  const recipe = customerComponentRecipe.button;
+  const customerBackground = isPrimary
+    ? recipe.primaryBackground
+    : isDanger
+      ? recipe.dangerBackground
+      : variant === "secondary"
+        ? recipe.secondaryBackground
+        : "transparent";
+  const customerBorder = isPrimary
+    ? recipe.primaryBackground
+    : isDanger
+      ? recipe.dangerBackground
+      : variant === "ghost"
+        ? "transparent"
+        : recipe.secondaryBorder;
+  const customerText = isPrimary
+    ? recipe.primaryText
+    : isDanger
+      ? recipe.dangerText
+      : variant === "ghost"
+        ? recipe.ghostText
+        : recipe.secondaryText;
   return (
     <button
+      {...componentRoleAttributes("button", productRole)}
+      data-xlb-interactive="true"
       type="button"
       {...props}
       style={mergeStyle(
         {
           alignItems: "center",
-          background: isPrimary ? tokens.colors.primary : isDanger ? "#dc2626" : "transparent",
+          background: isCustomer ? customerBackground : isPrimary ? tokens.colors.primary : isDanger ? "#dc2626" : "transparent",
           border: variant === "ghost" ? "1px solid transparent" : "1px solid #d1d5db",
-          borderColor: isPrimary ? tokens.colors.primary : isDanger ? "#dc2626" : "#d1d5db",
-          borderRadius: radius,
-          color: isPrimary || isDanger ? "#ffffff" : tokens.colors.text,
+          borderColor: isCustomer ? customerBorder : isPrimary ? tokens.colors.primary : isDanger ? "#dc2626" : "#d1d5db",
+          borderRadius: isCustomer ? recipe.radius : radius,
+          color: isCustomer ? customerText : isPrimary || isDanger ? "#ffffff" : tokens.colors.text,
           cursor: props.disabled ? "not-allowed" : "pointer",
           display: "inline-flex",
-          fontFamily,
-          fontSize: 14,
+          fontFamily: isCustomer ? "var(--xlb-font-family-sans)" : fontFamily,
+          fontSize: isCustomer ? "var(--xlb-font-size-md)" : 14,
           fontWeight: 600,
           gap: 8,
           justifyContent: "center",
-          minHeight: 36,
-          opacity: props.disabled ? 0.56 : 1,
-          padding: "0 14px",
+          minHeight: isCustomer ? (isPrimary || isDanger ? recipe.primaryMinHeight : recipe.minHeight) : 36,
+          opacity: props.disabled ? (isCustomer ? customerComponentRecipe.protected.disabledOpacity : 0.56) : 1,
+          padding: isCustomer ? `0 ${recipe.paddingInline}` : "0 14px",
           whiteSpace: "nowrap",
         },
         style,
@@ -158,30 +204,34 @@ export function Button({ variant = "secondary", style, children, ...props }: But
   );
 }
 
-export interface CardProps extends Omit<HTMLAttributes<HTMLElement>, "title"> {
+export interface CardProps extends Omit<HTMLAttributes<HTMLElement>, "title">, ProductRoleProps {
   title?: ReactNode;
   actions?: ReactNode;
 }
 
-export function Card({ title, actions, style, children, ...props }: CardProps) {
+export function Card({ title, actions, productRole = "neutral", style, children, ...props }: CardProps) {
+  const isCustomer = productRole === "customer";
+  const recipe = customerComponentRecipe.card;
   return (
     <section
+      {...componentRoleAttributes("card", productRole)}
       {...props}
       style={mergeStyle(
         {
-          background: "#ffffff",
-          border: "1px solid #e5e7eb",
-          borderRadius: radius,
-          boxShadow: shadow,
-          fontFamily,
-          padding: tokens.spacing.md,
+          background: isCustomer ? recipe.background : "#ffffff",
+          border: `1px solid ${isCustomer ? recipe.border : "#e5e7eb"}`,
+          borderRadius: isCustomer ? recipe.radius : radius,
+          boxShadow: isCustomer ? recipe.shadow : shadow,
+          color: isCustomer ? recipe.text : tokens.colors.text,
+          fontFamily: isCustomer ? "var(--xlb-font-family-sans)" : fontFamily,
+          padding: isCustomer ? recipe.padding : tokens.spacing.md,
         },
         style,
       )}
     >
       {(title || actions) && (
         <div style={{ alignItems: "center", display: "flex", gap: 12, justifyContent: "space-between", marginBottom: 12 }}>
-          {title && <h2 style={{ fontSize: 16, lineHeight: "22px", margin: 0 }}>{title}</h2>}
+          {title && <h2 style={{ color: isCustomer ? recipe.heading : undefined, fontSize: 16, lineHeight: "24px", margin: 0 }}>{title}</h2>}
           {actions && <div style={{ display: "flex", gap: 8 }}>{actions}</div>}
         </div>
       )}
@@ -203,20 +253,45 @@ const controlStyle: CSSProperties = {
   width: "100%",
 };
 
-export function Input({ style, ...props }: InputHTMLAttributes<HTMLInputElement>) {
-  return <input {...props} style={mergeStyle(controlStyle, style)} />;
+export interface InputProps extends InputHTMLAttributes<HTMLInputElement>, ProductRoleProps {}
+export interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement>, ProductRoleProps {}
+export interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement>, ProductRoleProps {}
+
+function roleControlStyle(productRole: RoleTone): CSSProperties {
+  if (productRole !== "customer") return controlStyle;
+  const recipe = customerComponentRecipe.input;
+  return {
+    ...controlStyle,
+    background: recipe.background,
+    borderColor: recipe.border,
+    borderRadius: recipe.radius,
+    color: recipe.text,
+    fontFamily: "var(--xlb-font-family-sans)",
+    minHeight: recipe.minHeight,
+    paddingInline: recipe.paddingInline,
+  };
 }
 
-export function Select({ style, children, ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
+export function Input({ productRole = "neutral", style, ...props }: InputProps) {
+  return <input {...componentRoleAttributes("input", productRole)} {...props} style={mergeStyle(roleControlStyle(productRole), style)} />;
+}
+
+export function Select({ productRole = "neutral", style, children, ...props }: SelectProps) {
   return (
-    <select {...props} style={mergeStyle(controlStyle, style)}>
+    <select {...componentRoleAttributes("select", productRole)} {...props} style={mergeStyle(roleControlStyle(productRole), style)}>
       {children}
     </select>
   );
 }
 
-export function Textarea({ style, ...props }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return <textarea {...props} style={mergeStyle({ ...controlStyle, minHeight: 88, resize: "vertical" }, style)} />;
+export function Textarea({ productRole = "neutral", style, ...props }: TextareaProps) {
+  return (
+    <textarea
+      {...componentRoleAttributes("textarea", productRole)}
+      {...props}
+      style={mergeStyle({ ...roleControlStyle(productRole), minHeight: 88, resize: "vertical" }, style)}
+    />
+  );
 }
 
 export interface FormFieldProps {
@@ -582,28 +657,32 @@ export interface TabItem {
   disabled?: boolean;
 }
 
-export interface TabsProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChange"> {
+export interface TabsProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChange">, ProductRoleProps {
   items: TabItem[];
   activeKey: string;
   onChange: (key: string) => void;
   density?: "default" | "compact";
 }
 
-export function Tabs({ items, activeKey, onChange, density = "default", style, ...props }: TabsProps) {
+export function Tabs({ items, activeKey, onChange, density = "default", productRole = "neutral", style, ...props }: TabsProps) {
   const compact = density === "compact";
+  const isCustomer = productRole === "customer";
+  const recipe = customerComponentRecipe.tabs;
   return (
     <div
+      {...componentRoleAttributes("tabs", productRole)}
+      data-xlb-material={isCustomer ? "glass" : undefined}
       {...props}
       role="tablist"
       style={mergeStyle(
         {
-          background: "#f3f4f6",
-          border: "1px solid #e5e7eb",
-          borderRadius: 999,
+          background: isCustomer ? recipe.background : "#f3f4f6",
+          border: `1px solid ${isCustomer ? recipe.border : "#e5e7eb"}`,
+          borderRadius: isCustomer ? recipe.radius : 999,
           boxSizing: "border-box",
           display: "inline-flex",
-          fontFamily,
-          gap: 4,
+          fontFamily: isCustomer ? "var(--xlb-font-family-sans)" : fontFamily,
+          gap: isCustomer ? recipe.gap : 4,
           maxWidth: "100%",
           overflowX: "auto",
           padding: 4,
@@ -613,26 +692,46 @@ export function Tabs({ items, activeKey, onChange, density = "default", style, .
     >
       {items.map((item) => {
         const active = item.key === activeKey;
+        const enabledItems = items.filter((candidate) => !candidate.disabled);
         return (
           <button
+            {...componentRoleAttributes("tab", productRole)}
             aria-selected={active}
             disabled={item.disabled}
             key={item.key}
             onClick={() => onChange(item.key)}
+            onKeyDown={(event) => {
+              if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+              event.preventDefault();
+              const currentIndex = enabledItems.findIndex((candidate) => candidate.key === item.key);
+              const nextIndex = event.key === "Home"
+                ? 0
+                : event.key === "End"
+                  ? enabledItems.length - 1
+                  : (currentIndex + (event.key === "ArrowRight" ? 1 : -1) + enabledItems.length) % enabledItems.length;
+              const next = enabledItems[nextIndex];
+              if (!next) return;
+              onChange(next.key);
+              const tabButtons = event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]');
+              const nextButton = Array.from(tabButtons ?? []).find((button) => button.dataset.xlbTabKey === next.key);
+              nextButton?.focus();
+            }}
             role="tab"
+            data-xlb-tab-key={item.key}
+            tabIndex={active ? 0 : -1}
             type="button"
             style={{
-              background: active ? "#ffffff" : "transparent",
+              background: active ? (isCustomer ? recipe.activeBackground : "#ffffff") : "transparent",
               border: 0,
-              borderRadius: 999,
+              borderRadius: isCustomer ? recipe.radius : 999,
               boxShadow: active ? shadow : "none",
-              color: active ? tokens.colors.text : "#6b7280",
+              color: active ? (isCustomer ? recipe.activeText : tokens.colors.text) : (isCustomer ? recipe.inactiveText : "#6b7280"),
               cursor: item.disabled ? "not-allowed" : "pointer",
               flex: "0 0 auto",
-              fontFamily,
+              fontFamily: isCustomer ? "var(--xlb-font-family-sans)" : fontFamily,
               fontSize: compact ? 12 : 14,
               fontWeight: active ? 700 : 600,
-              minHeight: compact ? 28 : 34,
+              minHeight: isCustomer ? recipe.minHeight : compact ? 28 : 34,
               opacity: item.disabled ? 0.5 : 1,
               padding: compact ? "0 10px" : "0 14px",
               whiteSpace: "nowrap",
@@ -705,92 +804,212 @@ export function Table<Row>({ columns, rows, getRowKey, emptyText = "暂无记录
   );
 }
 
-export interface ModalProps {
+export interface ModalProps extends ProductRoleProps {
   open: boolean;
+  onClose?: () => void;
   title?: ReactNode;
   children: ReactNode;
   footer?: ReactNode;
+  closeLabel?: string;
+  ariaLabel?: string;
+  style?: CSSProperties;
 }
 
-export function Modal({ open, title, children, footer }: ModalProps) {
+export function Modal({
+  open,
+  onClose,
+  title,
+  children,
+  footer,
+  closeLabel = "关闭",
+  ariaLabel = "对话框",
+  productRole = "neutral",
+  style,
+}: ModalProps) {
+  const titleId = useId();
+  const { dialogRef, onDialogKeyDown } = useDialogFocus<HTMLElement>(open, onClose);
   if (!open) return null;
+  const isCustomer = productRole === "customer";
+  const recipe = customerComponentRecipe.overlay;
   return (
-    <div style={{ background: "rgba(15, 23, 42, 0.35)", inset: 0, padding: 24, position: "fixed", zIndex: 50 }}>
-      <Card style={{ margin: "8vh auto 0", maxWidth: 560 }}>
-        {title && <h2 style={{ fontSize: 18, margin: "0 0 12px" }}>{title}</h2>}
+    <div
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose?.();
+      }}
+      style={{ background: isCustomer ? recipe.scrim : "rgba(15, 23, 42, 0.35)", inset: 0, padding: 24, position: "fixed", zIndex: "var(--xlb-z-index-modal, 600)" }}
+    >
+      <section
+        {...componentRoleAttributes("modal", productRole)}
+        aria-label={title ? undefined : ariaLabel}
+        aria-labelledby={title ? titleId : undefined}
+        aria-modal="true"
+        data-xlb-material={isCustomer ? "glass" : undefined}
+        onKeyDown={onDialogKeyDown}
+        ref={dialogRef}
+        role="dialog"
+        tabIndex={-1}
+        style={mergeStyle({
+          background: isCustomer ? recipe.background : "#ffffff",
+          border: `1px solid ${isCustomer ? recipe.border : "#e5e7eb"}`,
+          borderRadius: isCustomer ? recipe.radius : radius,
+          boxShadow: isCustomer ? recipe.shadow : shadow,
+          color: isCustomer ? recipe.text : tokens.colors.text,
+          fontFamily: isCustomer ? "var(--xlb-font-family-sans)" : fontFamily,
+          margin: "8vh auto 0",
+          maxHeight: "84vh",
+          maxWidth: 560,
+          overflow: "auto",
+          padding: isCustomer ? "var(--xlb-spacing-lg)" : tokens.spacing.lg,
+        }, style)}
+      >
+        {(title || onClose) && (
+          <header style={{ alignItems: "center", display: "flex", gap: 12, justifyContent: "space-between", marginBottom: 16 }}>
+            {title && <h2 id={titleId} style={{ fontSize: 20, lineHeight: "28px", margin: 0 }}>{title}</h2>}
+            {onClose && <Button onClick={onClose} productRole={productRole} variant="ghost">{closeLabel}</Button>}
+          </header>
+        )}
         {children}
         {footer && <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>{footer}</div>}
-      </Card>
+      </section>
     </div>
   );
 }
 
-export interface DrawerProps {
+export interface DrawerProps extends ProductRoleProps {
   open: boolean;
+  onClose?: () => void;
   title?: ReactNode;
   children: ReactNode;
+  closeLabel?: string;
+  ariaLabel?: string;
+  footer?: ReactNode;
+  style?: CSSProperties;
 }
 
-export function Drawer({ open, title, children }: DrawerProps) {
+export function Drawer({
+  open,
+  onClose,
+  title,
+  children,
+  closeLabel = "关闭",
+  ariaLabel = "侧边面板",
+  footer,
+  productRole = "neutral",
+  style,
+}: DrawerProps) {
+  const titleId = useId();
+  const { dialogRef, onDialogKeyDown } = useDialogFocus<HTMLElement>(open, onClose);
   if (!open) return null;
+  const isCustomer = productRole === "customer";
+  const recipe = customerComponentRecipe.overlay;
   return (
-    <aside
-      style={{
-        background: "#ffffff",
-        borderLeft: "1px solid #e5e7eb",
-        bottom: 0,
-        boxShadow: "-8px 0 24px rgba(15, 23, 42, 0.12)",
-        fontFamily,
-        maxWidth: "100%",
-        padding: tokens.spacing.lg,
-        position: "fixed",
-        right: 0,
-        top: 0,
-        width: 420,
-        zIndex: 40,
+    <div
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose?.();
       }}
+      style={{ background: isCustomer ? recipe.scrim : "rgba(15, 23, 42, 0.35)", inset: 0, position: "fixed", zIndex: "var(--xlb-z-index-overlay, 400)" }}
     >
-      {title && <h2 style={{ fontSize: 18, margin: "0 0 16px" }}>{title}</h2>}
-      {children}
-    </aside>
+      <aside
+        {...componentRoleAttributes("drawer", productRole)}
+        aria-label={title ? undefined : ariaLabel}
+        aria-labelledby={title ? titleId : undefined}
+        aria-modal="true"
+        data-xlb-material={isCustomer ? "glass" : undefined}
+        onKeyDown={onDialogKeyDown}
+        ref={dialogRef}
+        role="dialog"
+        tabIndex={-1}
+        style={mergeStyle({
+          background: isCustomer ? recipe.background : "#ffffff",
+          borderLeft: `1px solid ${isCustomer ? recipe.border : "#e5e7eb"}`,
+          bottom: 0,
+          boxShadow: isCustomer ? recipe.shadow : "-8px 0 24px rgba(15, 23, 42, 0.12)",
+          color: isCustomer ? recipe.text : tokens.colors.text,
+          fontFamily: isCustomer ? "var(--xlb-font-family-sans)" : fontFamily,
+          maxWidth: "100%",
+          overflow: "auto",
+          padding: tokens.spacing.lg,
+          position: "absolute",
+          right: 0,
+          top: 0,
+          width: 420,
+        }, style)}
+      >
+        {(title || onClose) && (
+          <header style={{ alignItems: "center", display: "flex", gap: 12, justifyContent: "space-between", marginBottom: 16 }}>
+            {title && <h2 id={titleId} style={{ fontSize: 20, lineHeight: "28px", margin: 0 }}>{title}</h2>}
+            {onClose && <Button onClick={onClose} productRole={productRole} variant="ghost">{closeLabel}</Button>}
+          </header>
+        )}
+        {children}
+        {footer && <footer style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 18 }}>{footer}</footer>}
+      </aside>
+    </div>
   );
 }
 
-export interface BottomSheetProps {
+export interface BottomSheetProps extends ProductRoleProps {
   open: boolean;
   onClose?: () => void;
   title?: ReactNode;
   children: ReactNode;
   footer?: ReactNode;
   style?: CSSProperties;
+  closeLabel?: string;
+  ariaLabel?: string;
 }
 
-export function BottomSheet({ open, onClose, title, children, footer, style }: BottomSheetProps) {
+export function BottomSheet({
+  open,
+  onClose,
+  title,
+  children,
+  footer,
+  style,
+  closeLabel = "关闭",
+  ariaLabel = "底部面板",
+  productRole = "neutral",
+}: BottomSheetProps) {
+  const titleId = useId();
+  const { dialogRef, onDialogKeyDown } = useDialogFocus<HTMLElement>(open, onClose);
   if (!open) return null;
+  const isCustomer = productRole === "customer";
+  const recipe = customerComponentRecipe.overlay;
   return (
     <div
-      aria-modal="true"
-      role="dialog"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose?.();
+      }}
       style={{
         alignItems: "end",
-        background: "rgba(15, 23, 42, 0.36)",
+        background: isCustomer ? recipe.scrim : "rgba(15, 23, 42, 0.36)",
         display: "grid",
         inset: 0,
         padding: "16px 12px 0",
         position: "fixed",
-        zIndex: 50,
+        zIndex: "var(--xlb-z-index-modal, 600)",
       }}
     >
       <section
+        {...componentRoleAttributes("bottom-sheet", productRole)}
+        aria-label={title ? undefined : ariaLabel}
+        aria-labelledby={title ? titleId : undefined}
+        aria-modal="true"
+        data-xlb-material={isCustomer ? "glass" : undefined}
+        onKeyDown={onDialogKeyDown}
+        ref={dialogRef}
+        role="dialog"
+        tabIndex={-1}
         style={mergeStyle(
           {
-            background: "#ffffff",
-            border: "1px solid #e5e7eb",
+            background: isCustomer ? recipe.background : "#ffffff",
+            border: `1px solid ${isCustomer ? recipe.border : "#e5e7eb"}`,
             borderBottom: 0,
-            borderRadius: "24px 24px 0 0",
-            boxShadow: "0 -12px 32px rgba(15, 23, 42, 0.16)",
+            borderRadius: isCustomer ? `${recipe.radius} ${recipe.radius} 0 0` : "24px 24px 0 0",
+            boxShadow: isCustomer ? recipe.shadow : "0 -12px 32px rgba(15, 23, 42, 0.16)",
             boxSizing: "border-box",
-            fontFamily,
+            color: isCustomer ? recipe.text : tokens.colors.text,
+            fontFamily: isCustomer ? "var(--xlb-font-family-sans)" : fontFamily,
             margin: "0 auto",
             maxHeight: "86vh",
             maxWidth: 520,
@@ -803,29 +1022,9 @@ export function BottomSheet({ open, onClose, title, children, footer, style }: B
       >
         {(title || onClose) && (
           <header style={{ alignItems: "center", display: "flex", gap: 12, justifyContent: "space-between", marginBottom: 16 }}>
-            {title && <h2 style={{ fontSize: 18, lineHeight: "24px", margin: 0 }}>{title}</h2>}
+            {title && <h2 id={titleId} style={{ fontSize: 20, lineHeight: "28px", margin: 0 }}>{title}</h2>}
             {onClose && (
-              <button
-                aria-label="Close"
-                onClick={onClose}
-                type="button"
-                style={{
-                  background: "#f3f4f6",
-                  border: "1px solid #e5e7eb",
-                  borderRadius: 999,
-                  color: tokens.colors.text,
-                  cursor: "pointer",
-                  flex: "0 0 auto",
-                  fontSize: 16,
-                  height: 32,
-                  lineHeight: "30px",
-                  padding: 0,
-                  textAlign: "center",
-                  width: 32,
-                }}
-              >
-                ×
-              </button>
+              <Button onClick={onClose} productRole={productRole} variant="ghost">{closeLabel}</Button>
             )}
           </header>
         )}
@@ -864,43 +1063,58 @@ export function Toast({ tone = "default", style, children, ...props }: ToastProp
   );
 }
 
-export interface StateProps {
+export interface StateProps extends Omit<HTMLAttributes<HTMLDivElement>, "title">, ProductRoleProps {
   title?: ReactNode;
   description?: ReactNode;
   action?: ReactNode;
 }
 
-function StateBlock({ title, description, action, tone = "muted" }: StateProps & { tone?: Tone }) {
-  const color = toneColors[tone];
+function StateBlock({
+  title,
+  description,
+  action,
+  tone = "muted",
+  productRole = "neutral",
+  style,
+  ...props
+}: StateProps & { tone?: Tone }) {
+  const isCustomer = productRole === "customer";
+  const color = isCustomer ? customerStateTone(tone) : toneColors[tone];
+  const recipe = customerComponentRecipe.state;
   return (
     <div
-      style={{
-        background: color.background,
-        border: `1px solid ${color.border}`,
-        borderRadius: radius,
-        color: color.text,
-        fontFamily,
-        padding: tokens.spacing.lg,
-        textAlign: "center",
-      }}
+      {...componentRoleAttributes("state", productRole)}
+      {...props}
+      style={mergeStyle(
+        {
+          background: color.background,
+          border: `1px solid ${color.border}`,
+          borderRadius: isCustomer ? recipe.radius : radius,
+          color: color.text,
+          fontFamily: isCustomer ? "var(--xlb-font-family-sans)" : fontFamily,
+          padding: isCustomer ? recipe.padding : tokens.spacing.lg,
+          textAlign: "center",
+        },
+        style,
+      )}
     >
-      {title && <strong style={{ display: "block", fontSize: 15, marginBottom: description ? 4 : 0 }}>{title}</strong>}
-      {description && <p style={{ fontSize: 13, margin: "4px 0 0" }}>{description}</p>}
+      {title && <strong style={{ display: "block", fontSize: isCustomer ? 16 : 15, lineHeight: "24px", marginBottom: description ? 4 : 0 }}>{title}</strong>}
+      {description && <p style={{ color: isCustomer ? recipe.mutedText : undefined, fontSize: isCustomer ? 14 : 13, lineHeight: "22px", margin: "4px 0 0" }}>{description}</p>}
       {action && <div style={{ marginTop: 12 }}>{action}</div>}
     </div>
   );
 }
 
 export function EmptyState(props: StateProps) {
-  return <StateBlock tone="muted" {...props} />;
+  return <StateBlock aria-live="polite" role="status" tone="muted" {...props} />;
 }
 
 export function ErrorState(props: StateProps) {
-  return <StateBlock tone="danger" {...props} />;
+  return <StateBlock aria-live="assertive" role="alert" tone="danger" {...props} />;
 }
 
-export function LoadingState({ title = "加载中", description }: StateProps) {
-  return <StateBlock tone="primary" title={title} description={description} />;
+export function LoadingState({ title = "加载中", description, ...props }: StateProps) {
+  return <StateBlock aria-busy="true" aria-live="polite" role="status" tone="primary" title={title} description={description} {...props} />;
 }
 
 export function Skeleton({ style, ...props }: HTMLAttributes<HTMLDivElement>) {
