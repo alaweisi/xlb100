@@ -216,6 +216,10 @@ body {
   width: 100%;
 }
 
+.customer-template-frame[data-route="/customer/"] > header {
+  display: none !important;
+}
+
 .customer-app-root [data-ui="runtime-surface"] > div {
   background: transparent !important;
   border: 0 !important;

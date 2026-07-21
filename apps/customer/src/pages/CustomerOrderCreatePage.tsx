@@ -410,6 +410,14 @@ export function CustomerOrderCreatePage({
   }, [catalogState.status, allSkus, skus, selectedSkuId]);
 
   useEffect(() => {
+    if (!initialSkuId || catalogState.status !== "success") return;
+    if (allSkus.some((sku) => sku.skuId === initialSkuId)) {
+      setSelectedSkuId(initialSkuId);
+      setActiveStep((current) => current === 1 ? 2 : current);
+    }
+  }, [allSkus, catalogState.status, initialSkuId]);
+
+  useEffect(() => {
     if (!selectedSkuId) {
       setQuoteState({ status: "pending" });
       return;

@@ -71,7 +71,10 @@ try {
     } catch (error) {
       renderTimeout = error instanceof Error ? error.message : String(error);
     }
-    await page.waitForTimeout(1_500);
+    if (!scenario.fail && scenario.authenticated !== false) {
+      await page.waitForLoadState("networkidle", { timeout: 12_000 }).catch(() => undefined);
+    }
+    await page.waitForTimeout(800);
     const metrics = await page.evaluate(({ authenticated }) => {
       const visible = (element) => {
         const rect = element.getBoundingClientRect();
