@@ -15,6 +15,7 @@ import type {
   FulfillmentEvidenceAggregateResponse,
   OrderReverseResponse,
 } from "@xlb/api-client";
+import type { CityCode } from "@xlb/types";
 import {
   Button,
   EmptyState,
@@ -27,9 +28,11 @@ import {
   Textarea,
 } from "@xlb/ui";
 import { describeCustomerAppError, type CustomerAppFailure } from "./customerPageShell";
+import { buildCustomerDeepLink } from "../routes/customerDeepLinks";
 import "./customer-aftersale.css";
 
 export interface CustomerAftersalePageProps {
+  cityCode: CityCode;
   orderIds: string[];
   api: {
     createOrderReverseRequest(orderId: string, body: {
@@ -158,7 +161,7 @@ function confirmationTone(status: string | undefined): "success" | "warning" | "
   return "muted";
 }
 
-export function CustomerAftersalePage({ api, orderIds }: CustomerAftersalePageProps) {
+export function CustomerAftersalePage({ api, cityCode, orderIds }: CustomerAftersalePageProps) {
   const availableOrderIds = useMemo(() => [...new Set(orderIds.filter(Boolean))], [orderIds]);
   const [orderId, setOrderId] = useState(availableOrderIds[0] ?? "");
   const [reverseType, setReverseType] = useState<"cancel" | "reschedule" | "reassign">("cancel");
@@ -332,7 +335,7 @@ export function CustomerAftersalePage({ api, orderIds }: CustomerAftersalePagePr
 
       {availableOrderIds.length === 0 ? (
         <EmptyState
-          action={<a className="customer-aftersale__state-link" href="/customer/orders">查看我的订单</a>}
+          action={<a className="customer-aftersale__state-link" href={buildCustomerDeepLink("orders", { cityCode })}>查看我的订单</a>}
           description="完成下单后，可从订单进入取消、改期、客诉和履约确认。"
           productRole="customer"
           title="还没有可处理的订单"
@@ -589,7 +592,11 @@ export function CustomerAftersalePage({ api, orderIds }: CustomerAftersalePagePr
                       {item.resolutionNote ? <span className="customer-aftersale__record-note">处理说明：{item.resolutionNote}</span> : null}
                       <div className="customer-aftersale__record-footer">
                         <span className="customer-aftersale__record-id">客诉单：{item.complaintId}</span>
-                        <a href={`/customer/support?orderId=${encodeURIComponent(item.orderId)}&complaintId=${encodeURIComponent(item.complaintId)}`}>
+                        <a href={buildCustomerDeepLink("support", {
+                          cityCode,
+                          orderId: item.orderId,
+                          complaintId: item.complaintId,
+                        })}>
                           转入客服跟进
                         </a>
                       </div>

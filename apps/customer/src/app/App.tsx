@@ -6,6 +6,7 @@ import type { CustomerOrderCreatePageProps } from "../pages/CustomerOrderCreateP
 import type { CustomerOrdersPageProps } from "../pages/CustomerOrdersPage";
 import type { CustomerCouponsPageProps } from "../pages/CustomerCouponsPage";
 import type { CustomerSupportApi } from "../pages/CustomerSupportPage";
+import { assignCustomerDeepLink, replaceCustomerDeepLink } from "../routes/customerDeepLinks";
 import {
   appendOrderId,
   clearStoredSession,
@@ -162,9 +163,7 @@ export function App() {
   const handleOrderCreated = useCallback((orderId: string) => {
     setOrderIds(() => appendOrderId(orderId));
     setCityAndPersist(cityCode);
-    const params = new URLSearchParams(window.location.search);
-    params.set("orderId", orderId);
-    window.history.replaceState({}, "", `/customer/orders?${params.toString()}`);
+    replaceCustomerDeepLink("orders", { cityCode, orderId });
   }, [cityCode, setCityAndPersist]);
 
   if (authState.status !== "authenticated") {
@@ -207,7 +206,7 @@ export function App() {
   } else if (currentRoute === "orders") {
     routeContent = <CustomerOrdersPage api={ordersApi} cityCode={cityCode} orderIds={orderIds} />;
   } else if (currentRoute === "aftersale") {
-    routeContent = <CustomerAftersalePage api={api} orderIds={orderIds} />;
+    routeContent = <CustomerAftersalePage api={api} cityCode={cityCode} orderIds={orderIds} />;
   } else if (currentRoute === "support") {
     const supportApi: CustomerSupportApi = {
       createTicket: (input) => api.createSupportTicket(input),
@@ -231,8 +230,9 @@ export function App() {
     routeContent = (
       <CustomerCouponsPage
         api={couponsApi}
+        cityCode={cityCode}
         onSelectForQuote={(couponGrantId) => {
-          window.location.assign(`/customer/order/create?couponGrantId=${encodeURIComponent(couponGrantId)}`);
+          assignCustomerDeepLink("createOrder", { cityCode, couponGrantId });
         }}
       />
     );

@@ -14,6 +14,7 @@ import type { CatalogSnapshot, CityCode } from "@xlb/types";
 import { RuntimeThemeSurface } from "@xlb/ui";
 import { CUSTOMER_SERVICE_CATEGORY_ASSETS } from "../assets/serviceCategoryAssets";
 import { createCustomerUiBinding } from "../adapters/workflowAdapter";
+import { assignCustomerDeepLink, buildCustomerDeepLink } from "../routes/customerDeepLinks";
 import { CITY_OPTIONS, type CustomerLoadable } from "./customerPageShell";
 import "./customer-home.css";
 
@@ -61,10 +62,6 @@ const CATEGORY_DISPLAY_NAMES: Readonly<Record<string, string>> = {
 function nextCity(cityCode: City): City {
   const nextIndex = (CITY_OPTIONS.indexOf(cityCode) + 1) % CITY_OPTIONS.length;
   return CITY_OPTIONS[nextIndex] ?? CITY_OPTIONS[0];
-}
-
-function goTo(pathname: string, params: Record<string, string>) {
-  window.location.href = `${pathname}?${new URLSearchParams(params).toString()}`;
 }
 
 function SectionHeading({
@@ -184,10 +181,8 @@ export function CustomerHomePage({ cityCode, catalogState, onRetryCatalog }: Cus
   const binding = createCustomerUiBinding({ route: "home", cityCode });
 
   function navigateToServices(query = "") {
-    const params: Record<string, string> = { cityCode };
     const trimmed = query.trim();
-    if (trimmed) params.q = trimmed;
-    goTo("/customer/services", params);
+    assignCustomerDeepLink("services", { cityCode, q: trimmed || null });
   }
 
   function submitSearch(event: FormEvent<HTMLFormElement>) {
@@ -216,7 +211,7 @@ export function CustomerHomePage({ cityCode, catalogState, onRetryCatalog }: Cus
         </div>
         <a
           className="customer-home__notification"
-          href={`/customer/notifications?${new URLSearchParams({ cityCode }).toString()}`}
+          href={buildCustomerDeepLink("notifications", { cityCode })}
           aria-label="查看通知"
           title="查看通知"
         >
@@ -229,7 +224,7 @@ export function CustomerHomePage({ cityCode, catalogState, onRetryCatalog }: Cus
         <button
           className="customer-home__location"
           type="button"
-          onClick={() => goTo("/customer/", { cityCode: nextCity(cityCode) })}
+          onClick={() => assignCustomerDeepLink("home", { cityCode: nextCity(cityCode) })}
           aria-label={`当前城市${CITY_NAMES[cityCode]}，区域${CITY_AREAS[cityCode]}，点击切换城市`}
         >
           <MapPin aria-hidden="true" weight="fill" />
