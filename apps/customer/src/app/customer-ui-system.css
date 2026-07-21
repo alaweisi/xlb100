@@ -216,7 +216,8 @@ body {
   width: 100%;
 }
 
-.customer-template-frame[data-route="/customer/"] > header {
+.customer-template-frame[data-route="/customer/"] > header,
+.customer-template-frame[data-route="/customer/"] > .customer-template-context {
   display: none !important;
 }
 

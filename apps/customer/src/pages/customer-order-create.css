@@ -192,6 +192,7 @@
   cursor: pointer;
   font: inherit;
   min-height: var(--xlb-size-touch-target);
+  min-width: var(--xlb-size-touch-target);
   padding: 0 var(--xlb-dimension-d4);
 }
 
