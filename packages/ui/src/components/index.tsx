@@ -4,12 +4,11 @@ import type {
   FormEvent,
   HTMLAttributes,
   InputHTMLAttributes,
-  isValidElement,
   ReactNode,
   SelectHTMLAttributes,
   TextareaHTMLAttributes,
 } from "react";
-import { useId } from "react";
+import { isValidElement, useId } from "react";
 
 import { customerComponentRecipe, tokens } from "../tokens/index.js";
 import { useDialogFocus } from "./overlayFocus.js";
