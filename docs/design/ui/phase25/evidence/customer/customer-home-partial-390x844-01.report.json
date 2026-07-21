@@ -1,0 +1,103 @@
+{
+  "version": "1.0.0",
+  "role": "customer",
+  "surface": "home",
+  "route": "/customer/",
+  "state": "partial",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "screenshot": "docs/design/ui/phase25/evidence/customer/customer-home-partial-390x844-01.png",
+  "authoritySha256": "32cb6d243e8c7dd1b662110ebf2d9cfc79fe568ea23611097a4e4b2d6e3af74c",
+  "capturedAt": "2026-07-21T12:10:53.142Z",
+  "checks": {
+    "primaryInteraction": true,
+    "noHorizontalOverflow": true,
+    "safeAreaClear": false,
+    "keyboardFocus": true,
+    "touchTargets": false,
+    "reducedMotion": true,
+    "forcedColors": true,
+    "noBlurFallback": true
+  },
+  "consoleErrors": [],
+  "findings": [
+    {
+      "severity": "P1",
+      "summary": "缺少主页品牌标题“喜乐帮”。",
+      "owner": "B2 Home"
+    },
+    {
+      "severity": "P1",
+      "summary": "缺少“全部服务”主区域。",
+      "owner": "B2 Home"
+    },
+    {
+      "severity": "P1",
+      "summary": "正式 16 类目未完整呈现，缺少 4 项：防水补漏/精准测漏、搬家搬运/拆旧清运、数码办公维修、保姆月嫂/照护",
+      "owner": "B2 Home"
+    },
+    {
+      "severity": "P2",
+      "summary": "语义 3D 类目图像仅检测到 0/16。",
+      "owner": "B2 Home"
+    },
+    {
+      "severity": "P2",
+      "summary": "信任保障缺少“实名认证”。",
+      "owner": "B2 Home"
+    },
+    {
+      "severity": "P2",
+      "summary": "信任保障缺少“价格透明”。",
+      "owner": "B2 Home"
+    },
+    {
+      "severity": "P2",
+      "summary": "信任保障缺少“服务留痕”。",
+      "owner": "B2 Home"
+    },
+    {
+      "severity": "P2",
+      "summary": "信任保障缺少“售后保障”。",
+      "owner": "B2 Home"
+    },
+    {
+      "severity": "P1",
+      "summary": "五项主导航缺少“首页”。",
+      "owner": "A2 Shell"
+    },
+    {
+      "severity": "P1",
+      "summary": "五项主导航缺少“客服”。",
+      "owner": "A2 Shell"
+    },
+    {
+      "severity": "P1",
+      "summary": "五项主导航缺少“订单”。",
+      "owner": "A2 Shell"
+    },
+    {
+      "severity": "P1",
+      "summary": "五项主导航缺少“我的”。",
+      "owner": "A2 Shell"
+    },
+    {
+      "severity": "P1",
+      "summary": "五项主导航缺少中心新报修入口。",
+      "owner": "A2 Shell"
+    },
+    {
+      "severity": "P1",
+      "summary": "主页暴露英文或工程态文案。",
+      "owner": "B2 Home"
+    },
+    {
+      "severity": "P2",
+      "summary": "2 个可见交互目标小于 44×44。",
+      "owner": "A2 Shell / B2 Home"
+    }
+  ],
+  "result": "failed"
+}

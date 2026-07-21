@@ -1,7 +1,8 @@
 # Customer UI visual QA evidence
 
 > C1 status: **INFRASTRUCTURE READY**
-> Actual visual acceptance: **NOT STARTED**
+> C2 status: **HOME EVIDENCE CONTRACT READY — ACCEPTANCE DEPENDS ON A2/B2 INTEGRATION**
+> Actual visual acceptance: recorded per immutable iteration report
 > Role boundary: Customer only
 
 This directory is the canonical evidence root for the Customer full-slice visual refactor. C1 establishes the contract and tooling; it does not fabricate screenshots or mark `CUST-QA-001..005` complete.
@@ -52,6 +53,36 @@ node scripts/check-customer-ui-qa-infrastructure.mjs --strict-evidence
 ```
 
 The strict command is expected to remain red until the corresponding page/state has a real API-backed or honest error/empty fixture and an actual browser capture.
+
+## C2 Home commands
+
+Capture the real Customer Home route at 320×844, 390×844 and 430×932, plus the 390×844 partial-risk state. This command writes immutable iteration `01` screenshots, schema-shaped reports and a same-screen comparison board:
+
+```powershell
+pnpm capture:customer-home
+```
+
+Validate an evidence round while allowing a truthful failed visual result before A2/B2 integration:
+
+```powershell
+node scripts/check-customer-home-evidence.mjs --allow-failed
+```
+
+Gate 2 uses the enforcing command after A2 and B2 are integrated. Any P0/P1/P2 finding makes it red:
+
+```powershell
+pnpm gate:customer-home
+```
+
+C2 owns only test, evidence and QA files. It must not repair `CustomerHomePage.tsx`, the Customer Shell, shared components or tokens; findings are assigned back to A2/B2 and recaptured in a later iteration.
+
+After A2/B2 integration, preserve round `01` and write round `02`:
+
+```powershell
+$env:CUSTOMER_HOME_QA_ITERATION="02"
+pnpm capture:customer-home
+node scripts/check-customer-home-evidence.mjs --iteration=02
+```
 
 ## Capture and review protocol
 

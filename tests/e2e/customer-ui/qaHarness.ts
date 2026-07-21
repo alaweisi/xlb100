@@ -62,6 +62,6 @@ export async function captureCustomerUiEvidence(
 ) {
   const target = join(root, item.evidencePath);
   await mkdir(dirname(target), { recursive: true });
-  await page.screenshot({ path: target, fullPage: true, animations: "disabled" });
+  await page.screenshot({ path: target, fullPage: false, animations: "disabled" });
   return target;
 }
