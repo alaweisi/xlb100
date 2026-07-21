@@ -1,14 +1,20 @@
-import { lazy, useCallback, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import type { CatalogSnapshot, CityCode } from "@xlb/types";
+import { Button, ErrorState, LoadingState } from "@xlb/ui";
 import type { CustomerOrderCreatePageProps } from "../pages/CustomerOrderCreatePage";
 import type { CustomerOrdersPageProps } from "../pages/CustomerOrdersPage";
 import type { CustomerCouponsPageProps } from "../pages/CustomerCouponsPage";
 import type { CustomerSupportApi } from "../pages/CustomerSupportPage";
 import {
   appendOrderId,
+  clearStoredSession,
   createCustomerApiClient,
-  CustomerLoadable,
+  type CustomerAppFailure,
+  type CustomerLoadable,
+  CustomerRouteShell,
   detectCustomerRoute,
+  describeCustomerAppError,
   loginCustomer,
   readCustomerCityCode,
   readOrderIds,
@@ -27,51 +33,94 @@ const CustomerSupportPage = lazy(() => import("../pages/CustomerSupportPage").th
 const CustomerNotificationsPage = lazy(() => import("../pages/CustomerNotificationsPage").then((module) => ({ default: module.CustomerNotificationsPage })));
 const CustomerCouponsPage = lazy(() => import("../pages/CustomerCouponsPage").then((module) => ({ default: module.CustomerCouponsPage })));
 
+export type CustomerAuthState =
+  | { status: "authenticating" }
+  | { status: "authenticated"; session: CustomerSession }
+  | { status: "error"; failure: CustomerAppFailure };
+
+export function CustomerAuthGate({
+  state,
+  onRetry,
+}: {
+  state: Exclude<CustomerAuthState, { status: "authenticated" }>;
+  onRetry: () => void;
+}) {
+  return (
+    <CustomerRouteShell currentRoute="home" showBottomNav={false}>
+      <section aria-labelledby="customer-auth-title" className="customer-auth-gate">
+        <div className="customer-auth-brand">
+          <p aria-hidden="true" className="customer-auth-monogram">喜</p>
+          <div>
+            <h1 id="customer-auth-title">喜乐帮</h1>
+            <p>安心到家，服务就在身边</p>
+          </div>
+        </div>
+        {state.status === "authenticating" ? (
+          <LoadingState
+            description="正在安全确认顾客身份，请稍候。"
+            productRole="customer"
+            title="正在连接喜乐帮"
+          />
+        ) : (
+          <ErrorState
+            action={(
+              <Button onClick={onRetry} productRole="customer" variant="primary">
+                {state.failure.retryLabel}
+              </Button>
+            )}
+            description={state.failure.description}
+            productRole="customer"
+            title={state.failure.title}
+          />
+        )}
+        <p className="customer-auth-assurance">身份信息仅用于当前顾客端服务与城市范围校验。</p>
+      </section>
+    </CustomerRouteShell>
+  );
+}
+
 export function App() {
   const initialCityCode = useMemo(() => readCustomerCityCode(), []);
   const [cityCode, setCityCode] = useState<CityCode>(initialCityCode);
   const [catalogState, setCatalogState] = useState<CustomerLoadable<CatalogSnapshot>>({ status: "loading" });
   const [orderIds, setOrderIds] = useState<string[]>(() => {
     const storedOrderIds = readOrderIds();
-    const orderIdFromUrl =
-      typeof window === "undefined"
-        ? ""
-        : new URLSearchParams(window.location.search).get("orderId")?.trim() ?? "";
+    const orderIdFromUrl = typeof window === "undefined"
+      ? ""
+      : new URLSearchParams(window.location.search).get("orderId")?.trim() ?? "";
     return orderIdFromUrl
       ? [orderIdFromUrl, ...storedOrderIds.filter((orderId) => orderId !== orderIdFromUrl)]
       : storedOrderIds;
   });
-  const [session, setSession] = useState<CustomerSession | null>(() => readStoredSession());
+  const [authState, setAuthState] = useState<CustomerAuthState>({ status: "authenticating" });
+  const [authAttempt, setAuthAttempt] = useState(0);
   const currentRoute = useMemo(() => detectCustomerRoute(), []);
 
-  // Login on mount (idempotent: reuses stored token if still valid)
   useEffect(() => {
     let cancelled = false;
-    void (async () => {
-      const storedSession = readStoredSession();
+    setAuthState({ status: "authenticating" });
+
+    const authenticate = async () => {
+      const storedSession = authAttempt === 0 ? readStoredSession() : null;
       if (storedSession) {
-        if (!cancelled) setSession(storedSession);
+        if (!cancelled) setAuthState({ status: "authenticated", session: storedSession });
         return;
       }
       try {
-        const s = await loginCustomer();
-        if (!cancelled) setSession(s);
+        const session = await loginCustomer();
+        if (!cancelled) setAuthState({ status: "authenticated", session });
       } catch (error) {
-        if (!cancelled) {
-          setCatalogState({
-            status: "error",
-            error: error instanceof Error ? error.message : "Customer login failed",
-          });
-        }
+        if (!cancelled) setAuthState({ status: "error", failure: describeCustomerAppError(error) });
       }
-    })();
-    return () => { cancelled = true; };
-  }, []);
+    };
 
-  const api = useMemo(
-    () => createCustomerApiClient(cityCode, session?.token),
-    [cityCode, session?.token],
-  );
+    void authenticate();
+    return () => { cancelled = true; };
+  }, [authAttempt]);
+
+  const session = authState.status === "authenticated" ? authState.session : null;
+  const api = useMemo(() => createCustomerApiClient(cityCode, session?.token), [cityCode, session?.token]);
+
   const setCityAndPersist = useCallback((next: CityCode) => {
     writeCustomerCityCode(next);
     setCityCode(next);
@@ -82,19 +131,20 @@ export function App() {
       setCatalogState({ status: "loading" });
       return;
     }
-    setCatalogState((previous) =>
-      previous.status === "success" && previous.data?.cityCode === cityCode
-        ? { status: "loading", data: previous.data }
-        : { status: "loading" },
-    );
+    setCatalogState((previous) => previous.status === "success" && previous.data?.cityCode === cityCode
+      ? { status: "loading", data: previous.data }
+      : { status: "loading" });
     try {
       const result = await api.getCatalog();
       setCatalogState({ status: "success", data: result.catalog });
     } catch (error) {
-      setCatalogState({
-        status: "error",
-        error: error instanceof Error ? error.message : "Unable to load catalog",
-      });
+      const failure = describeCustomerAppError(error);
+      if (failure.kind === "expired" || failure.kind === "permission") {
+        clearStoredSession();
+        setAuthState({ status: "error", failure });
+        return;
+      }
+      setCatalogState({ status: "error", error: failure.description });
     }
   }, [api, cityCode, session?.token]);
 
@@ -102,20 +152,24 @@ export function App() {
     void loadCatalog();
   }, [loadCatalog]);
 
-  const handleRetryCatalog = useCallback(() => {
-    void loadCatalog();
-  }, [loadCatalog]);
+  const handleRetryCatalog = useCallback(() => { void loadCatalog(); }, [loadCatalog]);
+  const handleRetryAuth = useCallback(() => {
+    clearStoredSession();
+    setCatalogState({ status: "loading" });
+    setAuthAttempt((attempt) => attempt + 1);
+  }, []);
 
-  const handleOrderCreated = useCallback(
-    (orderId: string) => {
-      setOrderIds(() => appendOrderId(orderId));
-      setCityAndPersist(cityCode);
-      const params = new URLSearchParams(window.location.search);
-      params.set("orderId", orderId);
-      window.history.replaceState({}, "", `/customer/orders?${params.toString()}`);
-    },
-    [cityCode, setCityAndPersist],
-  );
+  const handleOrderCreated = useCallback((orderId: string) => {
+    setOrderIds(() => appendOrderId(orderId));
+    setCityAndPersist(cityCode);
+    const params = new URLSearchParams(window.location.search);
+    params.set("orderId", orderId);
+    window.history.replaceState({}, "", `/customer/orders?${params.toString()}`);
+  }, [cityCode, setCityAndPersist]);
+
+  if (authState.status !== "authenticated") {
+    return <CustomerAuthGate onRetry={handleRetryAuth} state={authState} />;
+  }
 
   const orderCreateApi: CustomerOrderCreatePageProps["api"] = {
     getPriceQuote: (skuId) => api.getPriceQuote(skuId),
@@ -124,7 +178,6 @@ export function App() {
     listCouponGrants: (query) => api.listCouponGrants(query),
     issueDiscountDecision: (payload) => api.issueDiscountDecision(payload),
   };
-
   const ordersApi: CustomerOrdersPageProps["api"] = {
     getOrder: (orderId) => api.getOrder(orderId),
     confirmService: (orderId) => api.confirmService(orderId),
@@ -137,20 +190,13 @@ export function App() {
     withdrawReviewAppeal: (reviewId, payload) => api.withdrawReviewAppeal(reviewId, payload),
   };
 
-  if (!session) {
-    return <main aria-busy="true" style={{ display: "grid", minHeight: "100vh", placeItems: "center" }}>Authenticating customer</main>;
-  }
-
+  let routeContent: ReactNode;
   if (currentRoute === "home") {
-    return <CustomerHomePage cityCode={cityCode} catalogState={catalogState} onRetryCatalog={handleRetryCatalog} />;
-  }
-
-  if (currentRoute === "services") {
-    return <CustomerServicesPage cityCode={cityCode} catalogState={catalogState} onRetryCatalog={handleRetryCatalog} />;
-  }
-
-  if (currentRoute === "createOrder") {
-    return (
+    routeContent = <CustomerHomePage catalogState={catalogState} cityCode={cityCode} onRetryCatalog={handleRetryCatalog} />;
+  } else if (currentRoute === "services") {
+    routeContent = <CustomerServicesPage catalogState={catalogState} cityCode={cityCode} onRetryCatalog={handleRetryCatalog} />;
+  } else if (currentRoute === "createOrder") {
+    routeContent = (
       <CustomerOrderCreatePage
         api={orderCreateApi}
         catalogState={catalogState}
@@ -158,41 +204,31 @@ export function App() {
         onOrderCreated={handleOrderCreated}
       />
     );
-  }
-
-  if (currentRoute === "orders") {
-    return <CustomerOrdersPage api={ordersApi} cityCode={cityCode} orderIds={orderIds} />;
-  }
-
-  if (currentRoute === "aftersale") {
-    return <CustomerAftersalePage api={api} orderIds={orderIds} />;
-  }
-
-  if (currentRoute === "support") {
+  } else if (currentRoute === "orders") {
+    routeContent = <CustomerOrdersPage api={ordersApi} cityCode={cityCode} orderIds={orderIds} />;
+  } else if (currentRoute === "aftersale") {
+    routeContent = <CustomerAftersalePage api={api} orderIds={orderIds} />;
+  } else if (currentRoute === "support") {
     const supportApi: CustomerSupportApi = {
       createTicket: (input) => api.createSupportTicket(input),
       listTickets: (filters) => api.listSupportTickets(filters),
       getTicket: (ticketId) => api.getSupportTicket(ticketId),
       addComment: (ticketId, input) => api.addSupportTicketComment(ticketId, input),
       reopenTicket: (ticketId, input) => api.reopenSupportTicket(ticketId, input),
-      submitCsat: (ticketId,input) => api.submitSupportTicketCsat(ticketId,input),
+      submitCsat: (ticketId, input) => api.submitSupportTicketCsat(ticketId, input),
       createConversation: (input) => api.createSupportConversation(input),
       listConversations: () => api.listSupportConversations(),
       getConversation: (conversationId) => api.getSupportConversation(conversationId),
       sendConversationMessage: (conversationId, input) => api.sendSupportMessage(conversationId, input),
     };
-    return <CustomerSupportPage api={supportApi} />;
-  }
-
-  if (currentRoute === "notifications") {
-    return <CustomerNotificationsPage api={api} />;
-  }
-
-  if (currentRoute === "coupons") {
+    routeContent = <CustomerSupportPage api={supportApi} />;
+  } else if (currentRoute === "notifications") {
+    routeContent = <CustomerNotificationsPage api={api} />;
+  } else if (currentRoute === "coupons") {
     const couponsApi: CustomerCouponsPageProps["api"] = {
       listCouponGrants: (query) => api.listCouponGrants(query),
     };
-    return (
+    routeContent = (
       <CustomerCouponsPage
         api={couponsApi}
         onSelectForQuote={(couponGrantId) => {
@@ -200,7 +236,23 @@ export function App() {
         }}
       />
     );
+  } else {
+    routeContent = <CustomerProfilePage api={api} cityCode={cityCode} />;
   }
 
-  return <CustomerProfilePage api={api} cityCode={cityCode} />;
+  return (
+    <CustomerRouteShell currentRoute={currentRoute}>
+      <Suspense
+        fallback={(
+          <LoadingState
+            description="正在准备当前页面，请稍候。"
+            productRole="customer"
+            title="正在加载服务"
+          />
+        )}
+      >
+        {routeContent}
+      </Suspense>
+    </CustomerRouteShell>
+  );
 }
