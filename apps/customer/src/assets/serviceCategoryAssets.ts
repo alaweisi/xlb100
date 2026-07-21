@@ -21,10 +21,18 @@ export type OfficialServiceCategoryName = typeof OFFICIAL_SERVICE_CATEGORY_NAMES
 
 export interface CustomerServiceCategoryAsset {
   readonly categoryName: OfficialServiceCategoryName;
-  readonly src: `/assets/service-categories/${string}.png`;
+  readonly src: string;
   readonly alt: string;
   readonly width: 512;
   readonly height: 512;
+}
+
+export function buildCustomerServiceCategoryAssetSrc(
+  slug: string,
+  publicBase = import.meta.env.BASE_URL || "/",
+): string {
+  const normalizedBase = publicBase.endsWith("/") ? publicBase : `${publicBase}/`;
+  return `${normalizedBase}assets/service-categories/${slug}.png`;
 }
 
 function defineAsset(
@@ -34,7 +42,7 @@ function defineAsset(
 ): CustomerServiceCategoryAsset {
   return Object.freeze({
     categoryName,
-    src: `/assets/service-categories/${slug}.png`,
+    src: buildCustomerServiceCategoryAssetSrc(slug),
     alt,
     width: 512,
     height: 512,

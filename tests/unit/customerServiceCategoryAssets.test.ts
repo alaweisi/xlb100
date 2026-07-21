@@ -2,6 +2,7 @@ import { readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  buildCustomerServiceCategoryAssetSrc,
   CUSTOMER_SERVICE_CATEGORY_ASSET_BY_NAME,
   CUSTOMER_SERVICE_CATEGORY_ASSETS,
   getCustomerServiceCategoryAsset,
@@ -38,6 +39,15 @@ function readPngHeader(filePath: string) {
 }
 
 describe("Customer service category assets", () => {
+  it("resolves category images under the configured deployment base", () => {
+    expect(buildCustomerServiceCategoryAssetSrc("home-cleaning", "/customer/")).toBe(
+      "/customer/assets/service-categories/home-cleaning.png",
+    );
+    expect(buildCustomerServiceCategoryAssetSrc("home-cleaning", "/customer")).toBe(
+      "/customer/assets/service-categories/home-cleaning.png",
+    );
+  });
+
   it("locks the exact 16-category official catalog order", () => {
     expect(OFFICIAL_SERVICE_CATEGORY_NAMES).toEqual([
       "家庭保洁",
