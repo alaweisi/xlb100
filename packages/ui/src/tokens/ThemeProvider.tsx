@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import { mergeThemeTokens, resolveTheme } from "./themeRegistry.js";
 import { baseTokens } from "./base/defaultTokens.js";
 import type { ThemeProviderProps, ThemeTokenPrimitive, ThemeTokens } from "./tokenTypes.js";
+import { COMPONENT_SYSTEM_STYLES } from "../components/componentSystemStyles.js";
 
 function toCssVariableName(path: string[]): string {
   return `--xlb-${path
@@ -51,6 +52,7 @@ export function ThemeProvider({
       data-theme-requested-id={themeId === effectiveThemeId ? undefined : themeId}
       style={{ ...createThemeStyle(tokens), ...style }}
     >
+      <style data-xlb-component-system="true">{COMPONENT_SYSTEM_STYLES}</style>
       {children}
     </div>
   );

@@ -1,12 +1,13 @@
-# Phase 25 Customer Liquid Glass Material Specification
+# Phase 25 Customer Visual Material Specification
 
 ## Authority and boundary
 
-The checked-in visual authority is
-`docs/design/ui/phase25/references/customer-apple-liquid-glass-source.png`.
-It overrides Figma for Customer visual language. Figma remains the authority for
-workflow structure and state coverage. The source was visually inspected before
-this specification and recipe were authored.
+The only checked-in Customer Home visual authority is
+`docs/design/ui/references/customer-home-visual-truth.png`, governed by
+`docs/design/ui/CUSTOMER_HOME_VISUAL_TRUTH.md`. It supersedes every historical
+Customer Home Figma export and the former Phase 25 visual PNG. Workflow
+structure and state coverage come from current code, API contracts, shared
+types, validators and page cards—not from historical visual files.
 
 Gate 1B defines material references only. It does not authorize pages, CSS,
 components, app-root integration, campaign assets, navigation, remote theme
@@ -14,22 +15,30 @@ resolution, or changes to workflow semantics.
 
 ## Source-grounded observations
 
-- Target composition: a 390 px compact canvas, aligned with the Figma
-  `390x844` content-canvas foundation. Bottom navigation reserves 92 px plus the
-  device safe area.
-- Environment: cream base with restrained warm amber ambient light. Warm light
-  is background illumination, not a replacement for status colors.
-- Glass hierarchy: page ambience, translucent content surfaces, elevated glass
-  cards, and the floating navigation layer. The hierarchy is created by tint,
-  blur, edge light, inner stroke, and ambient shadow rather than opacity alone.
+- Target composition: the 853 × 1844 source maps to the 390 × 844 compact
+  acceptance viewport. Bottom navigation reserves 92 px plus the device safe
+  area; the page body remains vertically scrollable.
+- Environment: warm off-white `#FEFAF5`, ink green `#18342D`, slate body text
+  and bright clay-orange `#E97116`. Decorative warmth never replaces protected
+  status colors.
+- Homepage hierarchy: brand/notification header, combined location-search bar,
+  a contract-backed 4 × 4 service-category grid, horizontally scrolling
+  recommended services, horizontally scrolling nearby-worker cards, trust
+  strip, then the five-item navigation.
+- Glass hierarchy: translucent material is limited to functional controls,
+  elevated navigation and light containment. Service, recommendation and worker
+  cards prioritize stable warm-white readability.
 - Glass edge: a bright outer highlight plus a softer inner stroke. Both must be
   token-driven; page-level one-off borders are prohibited.
 - Shape: large rounded cards use the canonical 24/28 px family; pills use the
   canonical pill radius.
-- Typography: Noto Serif SC is reserved for expressive display headings; Noto
-  Sans SC handles controls and dense reading. Ink green and coffee provide the
-  primary neutral hierarchy. Tabular numeric settings remain available for
+- Typography: the source uses a clear sans-serif hierarchy. Noto Sans SC handles
+  brand, headings, controls and dense reading; no serif heading is required by
+  the Customer Home truth. Tabular numeric settings remain available for
   changing values.
+- Service imagery: each formal category receives a distinct semantic 3D image
+  in the selected ivory/green/clay-orange language. Emoji, repeated wrench
+  glyphs and unrelated line icons are not acceptable substitutes.
 - Interaction: every actionable target remains at least the canonical 44 px
   touch target. Visual glow must never reduce focus-ring contrast.
 
@@ -73,8 +82,9 @@ reservation, change safe-area handling, or alter any business fact.
 - every recipe reference resolves to a canonical primitive token;
 - source path, Customer role, compact viewport, comfortable density, and all
   four fallbacks are frozen by a focused unit test;
-- double-edge glass, warm ambience, 390 px composition, safe-area reservation,
-  92 px bottom navigation, typography, and 44 px touch contract are represented;
+- the warm off-white/ink-green/bright-orange palette, functional glass,
+  sans-serif hierarchy, 4 × 4 service grid, safe-area reservation, 92 px bottom
+  navigation and 44 px touch contract are represented;
 - the serialized recipe contains no business-domain or route vocabulary;
 - browser fidelity and screenshot comparison are deferred until a later gate
   authorizes component/page implementation.

@@ -4,6 +4,7 @@ Set-Location $root
 
 $requiredFiles = @(
   'apps/customer/src/pages/CustomerNotificationsPage.tsx',
+  'apps/customer/src/routes/customerDeepLinks.ts',
   'apps/worker/src/pages/WorkerNotificationsPage.tsx',
   'apps/worker/src/pages/worker-notifications.css',
   'tests/unit/phase27dNotificationPages.test.tsx'
@@ -13,6 +14,7 @@ foreach ($file in $requiredFiles) {
 }
 
 $customer = Get-Content -Raw -LiteralPath 'apps/customer/src/pages/CustomerNotificationsPage.tsx'
+$customerDeepLinks = Get-Content -Raw -LiteralPath 'apps/customer/src/routes/customerDeepLinks.ts'
 $worker = Get-Content -Raw -LiteralPath 'apps/worker/src/pages/WorkerNotificationsPage.tsx'
 $customerApp = Get-Content -Raw -LiteralPath 'apps/customer/src/app/App.tsx'
 $workerApp = Get-Content -Raw -LiteralPath 'apps/worker/src/app/App.tsx'
@@ -48,7 +50,12 @@ if ($ui -match '(?i)mock|fake notification|demo notification') {
 if ($ui.Contains('getNotificationUnreadCount')) {
   throw "Phase27D must not invent an unread badge/count surface"
 }
-if (-not $customer.Contains('/customer/orders?orderId=')) {
+$usesLegacyOrderLink = $customer.Contains('/customer/orders?orderId=')
+$usesCanonicalOrderLink =
+  $customer.Contains('buildCustomerDeepLink("orders"') -and
+  $customerDeepLinks.Contains('orders: "/customer/orders"') -and
+  $customerDeepLinks.Contains('orders: ["cityCode", "orderId"]')
+if (-not ($usesLegacyOrderLink -or $usesCanonicalOrderLink)) {
   throw "Customer order-created navigation must use the existing safe route"
 }
 if ($worker -match '<a\s|href=') {

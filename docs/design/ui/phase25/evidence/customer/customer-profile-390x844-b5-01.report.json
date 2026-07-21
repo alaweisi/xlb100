@@ -1,0 +1,30 @@
+{
+  "version": "1.0.0",
+  "role": "customer",
+  "surface": "profile-and-address",
+  "route": "/customer/profile",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "dataSource": "contract-faithful-api-fixture",
+  "authority": "docs/design/ui/references/customer-home-visual-truth.png",
+  "states": [
+    "ready",
+    "address-list",
+    "address-editor",
+    "protected-phone-reentry"
+  ],
+  "checks": {
+    "realCustomerRoute": true,
+    "oneCustomerShell": true,
+    "noHorizontalOverflow": true,
+    "touchTargets": true,
+    "keyboardFocus": true,
+    "reducedMotion": true,
+    "forcedColors": true,
+    "noEngineeringCopy": true,
+    "consoleClean": true
+  },
+  "result": "passed"
+}

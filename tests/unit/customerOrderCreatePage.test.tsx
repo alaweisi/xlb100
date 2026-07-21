@@ -2,6 +2,7 @@
 import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ApiClientError } from "@xlb/api-client";
 import type { CatalogSnapshot, Order, PriceQuote } from "@xlb/types";
 import { CustomerOrderCreatePage, type CustomerOrderCreatePageProps } from "../../apps/customer/src/pages/CustomerOrderCreatePage";
 
@@ -94,6 +95,14 @@ function createApi(): CustomerOrderCreatePageProps["api"] {
   };
 }
 
+function enterRequiredBookingDetails() {
+  fireEvent.change(screen.getByLabelText("详细地址"), { target: { value: "文三路 100 号" } });
+  fireEvent.change(screen.getByLabelText("联系人"), { target: { value: "测试用户" } });
+  fireEvent.change(screen.getByLabelText("手机号"), { target: { value: "13800000001" } });
+  fireEvent.click(screen.getByRole("button", { name: "下一步：选择时间" }));
+  fireEvent.click(screen.getByRole("button", { name: "下一步：确认预约" }));
+}
+
 beforeEach(() => {
   window.history.replaceState({}, "", "/customer/order/create");
   Object.defineProperty(window, "matchMedia", {
@@ -114,15 +123,17 @@ beforeEach(() => {
 describe("CustomerOrderCreatePage", () => {
   it("renders explicit loading, empty, and error catalog states", () => {
     const api = createApi();
+    const onRetryCatalog = vi.fn();
     const { rerender } = render(
       <CustomerOrderCreatePage
         api={api}
         catalogState={{ status: "loading" }}
         cityCode="hangzhou"
         onOrderCreated={vi.fn()}
+        onRetryCatalog={onRetryCatalog}
       />,
     );
-    expect(screen.getByText("正在加载服务配置")).toBeTruthy();
+    expect(screen.getByText("服务目录加载中")).toBeTruthy();
 
     rerender(
       <CustomerOrderCreatePage
@@ -130,9 +141,10 @@ describe("CustomerOrderCreatePage", () => {
         catalogState={{ status: "success", data: { cityCode: "hangzhou", categories: [] } }}
         cityCode="hangzhou"
         onOrderCreated={vi.fn()}
+        onRetryCatalog={onRetryCatalog}
       />,
     );
-    expect(screen.getByText("当前城市暂无可下单服务")).toBeTruthy();
+    expect(screen.getByText("暂无可预约服务")).toBeTruthy();
 
     rerender(
       <CustomerOrderCreatePage
@@ -140,13 +152,15 @@ describe("CustomerOrderCreatePage", () => {
         catalogState={{ status: "error", error: "catalog unavailable" }}
         cityCode="hangzhou"
         onOrderCreated={vi.fn()}
+        onRetryCatalog={onRetryCatalog}
       />,
     );
-    expect(screen.getByText("服务配置加载失败")).toBeTruthy();
-    expect(screen.getByText("catalog unavailable")).toBeTruthy();
+    expect(screen.getByText("服务目录加载失败")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "重新加载" }));
+    expect(onRetryCatalog).toHaveBeenCalledTimes(1);
   });
 
-  it("completes the server-verified booking flow and shows success only after confirmation", async () => {
+  it("completes the stepped booking flow and shows success only after server confirmation", async () => {
     const api = createApi();
     const onOrderCreated = vi.fn();
     render(
@@ -158,21 +172,86 @@ describe("CustomerOrderCreatePage", () => {
       />,
     );
 
+    expect((screen.getByRole("button", { name: "下一步：填写地址" }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByText("请先选择一项可预约服务")).toBeTruthy();
     fireEvent.change(screen.getByLabelText("服务项目"), { target: { value: "sku-1" } });
+    fireEvent.click(screen.getByRole("button", { name: "下一步：填写地址" }));
+
     fireEvent.change(screen.getByLabelText("详细地址"), { target: { value: "文三路 100 号" } });
     fireEvent.change(screen.getByLabelText("联系人"), { target: { value: "测试用户" } });
-    fireEvent.change(screen.getByLabelText("联系电话"), { target: { value: "13800000001" } });
+    fireEvent.change(screen.getByLabelText("手机号"), { target: { value: "123" } });
+    expect(screen.getByText("请输入 11 位中国大陆手机号")).toBeTruthy();
+    expect((screen.getByRole("button", { name: "下一步：选择时间" }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.change(screen.getByLabelText("手机号"), { target: { value: "13800000001" } });
+    fireEvent.click(screen.getByRole("button", { name: "下一步：选择时间" }));
+    fireEvent.click(screen.getByRole("button", { name: "下一步：确认预约" }));
 
-    await waitFor(() => expect(api.getPriceQuote).toHaveBeenCalledWith("sku-1"));
-    const submitButton = await screen.findByRole("button", { name: "提交订单" });
-    await waitFor(() => expect((submitButton as HTMLButtonElement).disabled).toBe(false));
-    expect(screen.queryByText("订单号：order-1")).toBeNull();
-    fireEvent.click(submitButton);
+    expect(await screen.findByText("服务端实时报价")).toBeTruthy();
+    await waitFor(() => expect((screen.getByRole("button", { name: "提交预约" }) as HTMLButtonElement).disabled).toBe(false));
+    expect(screen.queryByText("预约已提交")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "提交预约" }));
 
     await waitFor(() => expect(api.createOrder).toHaveBeenCalledTimes(1));
     expect(api.getOrder).toHaveBeenCalledWith("order-1");
     expect(onOrderCreated).toHaveBeenCalledWith("order-1");
-    expect(await screen.findByText("订单号：order-1")).toBeTruthy();
-    expect(screen.getByText("服务完成并确认后方可进入支付")).toBeTruthy();
+    expect(await screen.findByText("预约已提交")).toBeTruthy();
+    expect(screen.getByText("order-1")).toBeTruthy();
+  });
+
+  it("supports quote retry without losing the booking draft", async () => {
+    const api = createApi();
+    api.getPriceQuote = vi.fn()
+      .mockRejectedValueOnce(new Error("pricing unavailable"))
+      .mockResolvedValueOnce({ quote });
+    render(
+      <CustomerOrderCreatePage
+        api={api}
+        catalogState={{ status: "success", data: catalog }}
+        cityCode="hangzhou"
+        onOrderCreated={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("服务项目"), { target: { value: "sku-1" } });
+    fireEvent.click(screen.getByRole("button", { name: "下一步：填写地址" }));
+    enterRequiredBookingDetails();
+
+    expect(await screen.findByText("报价获取失败")).toBeTruthy();
+    expect(screen.getByText("请先重新获取报价")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "重新获取" }));
+    expect(await screen.findByText("服务端实时报价")).toBeTruthy();
+    expect(api.getPriceQuote).toHaveBeenCalledTimes(2);
+    expect(screen.getByText("文三路 100 号", { exact: false })).toBeTruthy();
+  });
+
+  it("surfaces authoritative duplicate submission semantics and does not claim success", async () => {
+    const api = createApi();
+    api.createOrder = vi.fn().mockRejectedValue(new ApiClientError({
+      kind: "http",
+      message: "duplicate",
+      method: "POST",
+      path: "/api/orders",
+      status: 409,
+      responseBody: "duplicate idempotency key",
+    }));
+    render(
+      <CustomerOrderCreatePage
+        api={api}
+        catalogState={{ status: "success", data: catalog }}
+        cityCode="hangzhou"
+        onOrderCreated={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("服务项目"), { target: { value: "sku-1" } });
+    fireEvent.click(screen.getByRole("button", { name: "下一步：填写地址" }));
+    enterRequiredBookingDetails();
+    await waitFor(() => expect((screen.getByRole("button", { name: "提交预约" }) as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(screen.getByRole("button", { name: "提交预约" }));
+
+    expect(await screen.findByText("请勿重复提交")).toBeTruthy();
+    expect(screen.getByText("服务端已收到相同请求，请先查看最新结果。")).toBeTruthy();
+    expect(api.getOrder).not.toHaveBeenCalled();
+    expect(screen.queryByText("预约已提交")).toBeNull();
   });
 });

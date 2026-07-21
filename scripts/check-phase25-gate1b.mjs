@@ -43,7 +43,8 @@ const recipeTests = [
   "tests/unit/phase25RuntimeCapabilityRecipes.test.ts",
 ];
 const sourceDocuments = [
-  "docs/design/ui/phase25/references/customer-apple-liquid-glass-source.png",
+  "docs/design/ui/CUSTOMER_HOME_VISUAL_TRUTH.md",
+  "docs/design/ui/references/customer-home-visual-truth.png",
   "docs/design/ui/phase25/PHASE25_CUSTOMER_GLASS_MATERIAL_SPEC.md",
   "docs/design/ui/phase25/PHASE25_ROLE_MATERIAL_MATRIX.md",
   "docs/design/figma/source.md",

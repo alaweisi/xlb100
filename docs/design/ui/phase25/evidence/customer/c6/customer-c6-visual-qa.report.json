@@ -1,0 +1,49 @@
+{
+  "version": "1.0.0",
+  "qaLane": "P6-C6",
+  "role": "customer",
+  "surfaces": [
+    "support",
+    "notifications",
+    "profile",
+    "addresses"
+  ],
+  "authority": "docs/design/ui/references/customer-home-visual-truth.png",
+  "viewportMatrix": [
+    320,
+    390,
+    430
+  ],
+  "evidence": [
+    "docs/design/ui/phase25/evidence/customer/c6/01-support-ready-390x844.png",
+    "docs/design/ui/phase25/evidence/customer/c6/02-support-ticket-detail-390x844.png",
+    "docs/design/ui/phase25/evidence/customer/c6/03-support-conversation-390x844.png",
+    "docs/design/ui/phase25/evidence/customer/c6/04-notifications-ready-390x844.png",
+    "docs/design/ui/phase25/evidence/customer/c6/05-notifications-conflict-390x844.png",
+    "docs/design/ui/phase25/evidence/customer/c6/06-profile-ready-390x844.png",
+    "docs/design/ui/phase25/evidence/customer/c6/07-profile-address-editor-390x844.png",
+    "docs/design/ui/phase25/evidence/customer/c6/08-support-home-comparison.png",
+    "docs/design/ui/phase25/evidence/customer/c6/09-notifications-home-comparison.png",
+    "docs/design/ui/phase25/evidence/customer/c6/10-profile-home-comparison.png"
+  ],
+  "checks": {
+    "uniqueCustomerShell": true,
+    "homeDesignLanguageComparison": true,
+    "noHorizontalOverflow": true,
+    "touchTargetsAtLeast44": true,
+    "keyboardFocus": true,
+    "reducedMotion": true,
+    "forcedColors": true,
+    "authoritativeMutationCopy": true,
+    "notificationConflictRecovery": true,
+    "protectedAddressEditing": true,
+    "noEngineeringCopy": true,
+    "consoleClean": true
+  },
+  "automatedResult": "passed",
+  "severityCounts": {
+    "P0": 0,
+    "P1": 0,
+    "P2": 0
+  }
+}

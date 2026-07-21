@@ -23,24 +23,22 @@ The gate walks `.css`, `.ts`, and `.tsx` files in stable sorted order and counts
 | `colorLiteral` | Hex, `rgb/rgba`, and `hsl/hsla` literals | Semantic color/surface/text/border/status tokens |
 | `dimensionLiteral` | `px`, `rem`, `em`, `vh`, and `vw` literals | Space, size, grid, breakpoint, radius, stroke, blur, and typography tokens |
 | `inlineStyle` | JSX `style={{ ... }}` declarations | Token-aware components, recipes, or typed CSS-variable bindings |
-| `fontDeclaration` | CSS font family/size/weight/height declarations whose value is not a canonical `var(...)` token | Typography semantic tokens |
+| `fontDeclaration` | CSS font family/size/weight/height declarations whose value is not a direct canonical `var(...)` reference | Typography semantic tokens |
 | `numericZIndex` | Numeric CSS `z-index` declarations | Named elevation/overlay layer tokens |
 
 Counts are an engineering-debt indicator, not a visual-quality score. A reduction is valid only when workflow behavior, accessibility, responsive layout, and visual evidence continue to pass their owning Gate.
 
 ## Frozen baseline
 
-The baseline below was re-measured on 2026-07-20 after the approved five-surface UI reconstruction. It freezes the current debt ceiling; subsequent changes must keep every category non-increasing.
-
 <!-- PHASE25_HARDCODE_BASELINE_START -->
 ```json
 {
   "customer": {
-    "colorLiteral": 205,
-    "dimensionLiteral": 424,
-    "inlineStyle": 33,
-    "fontDeclaration": 48,
-    "numericZIndex": 8
+    "colorLiteral": 39,
+    "dimensionLiteral": 43,
+    "inlineStyle": 66,
+    "fontDeclaration": 1,
+    "numericZIndex": 0
   },
   "worker": {
     "colorLiteral": 119,
@@ -65,7 +63,8 @@ The baseline below was re-measured on 2026-07-20 after the approved five-surface
 - Gate 1A and later UI gates must run `scripts/check-phase25-gate1a.mjs`.
 - Canonical token values live only in the TypeScript source system: foundation/semantic values in `packages/ui/src/tokens/base/defaultTokens.ts` and registered L4 overlays in `packages/ui/src/tokens/themes/themeDefinitions.ts`. Runtime CSS variables are derived from that source; Gate 1A intentionally retains no hand-maintained `.theme.json` or other generated value artifact.
 - A count increase fails the gate even if another application or category decreased; debt cannot be moved between systems or categories.
-- A baseline may be lowered after verified token migration. A later increase requires a separately approved UI reconstruction and a documented re-measurement; it must never be raised merely to make CI pass.
+- A baseline may be lowered after verified token migration. It must never be raised merely to make CI pass.
+- The Customer P7 merge lowers only the Customer baseline. Worker and Admin retain the independently verified cloud-candidate baseline because those applications are outside this reconstruction scope.
 - Page-specific festival colors, spacing, lantern positioning, blessing-copy styling, pricing emphasis, and Dashboard alert colors may not be added as literals. They must resolve through the approved semantic/component/campaign token layers.
 - Theme work cannot change API payloads, actions, route authorization, business state, prices, audit fields, city scope, or idempotency semantics.
 

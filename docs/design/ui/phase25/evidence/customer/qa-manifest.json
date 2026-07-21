@@ -1,0 +1,108 @@
+{
+  "version": "1.0.0",
+  "role": "customer",
+  "authority": {
+    "path": "docs/design/ui/references/customer-home-visual-truth.png",
+    "sha256": "32cb6d243e8c7dd1b662110ebf2d9cfc79fe568ea23611097a4e4b2d6e3af74c"
+  },
+  "evidenceRoot": "docs/design/ui/phase25/evidence/customer",
+  "reportSchema": "docs/design/ui/phase25/evidence/customer/qa-report.schema.json",
+  "filePattern": "customer-{surface}-{state}-{width}x{height}-{iteration}.png",
+  "requiredChecks": [
+    "authority-hash",
+    "primary-interaction",
+    "console-errors",
+    "no-horizontal-overflow",
+    "safe-area-clear",
+    "keyboard-focus",
+    "touch-targets",
+    "reduced-motion",
+    "forced-colors",
+    "no-blur-fallback"
+  ],
+  "viewports": [
+    {
+      "id": "narrow-320",
+      "width": 320,
+      "height": 844,
+      "capture": "default"
+    },
+    {
+      "id": "target-390x844",
+      "width": 390,
+      "height": 844,
+      "capture": "default-and-risk"
+    },
+    {
+      "id": "wide-430",
+      "width": 430,
+      "height": 932,
+      "capture": "default"
+    }
+  ],
+  "surfaces": [
+    {
+      "id": "home",
+      "route": "/customer/",
+      "pageCard": "docs/design/ui/phase25/page-cards/customer-home.md",
+      "defaultState": "available",
+      "riskState": "partial"
+    },
+    {
+      "id": "services",
+      "route": "/customer/services",
+      "pageCard": "docs/design/ui/phase25/page-cards/customer-services.md",
+      "defaultState": "list",
+      "riskState": "error"
+    },
+    {
+      "id": "order-create",
+      "route": "/customer/order/create",
+      "pageCard": "docs/design/ui/phase25/page-cards/customer-order-create.md",
+      "defaultState": "quote-ready",
+      "riskState": "error"
+    },
+    {
+      "id": "orders",
+      "route": "/customer/orders",
+      "pageCard": "docs/design/ui/phase25/page-cards/customer-orders.md",
+      "defaultState": "populated",
+      "riskState": "guarded-error"
+    },
+    {
+      "id": "aftersale",
+      "route": "/customer/aftersale",
+      "pageCard": "docs/design/ui/phase25/page-cards/customer-aftersale.md",
+      "defaultState": "actionable",
+      "riskState": "error"
+    },
+    {
+      "id": "support",
+      "route": "/customer/support",
+      "pageCard": "docs/design/ui/phase25/page-cards/customer-support.md",
+      "defaultState": "open",
+      "riskState": "realtime-error"
+    },
+    {
+      "id": "notifications",
+      "route": "/customer/notifications",
+      "pageCard": "docs/design/ui/phase25/page-cards/customer-notifications.md",
+      "defaultState": "ready",
+      "riskState": "conflict"
+    },
+    {
+      "id": "coupons",
+      "route": "/customer/coupons",
+      "pageCard": "docs/design/ui/phase25/page-cards/customer-coupons.md",
+      "defaultState": "available",
+      "riskState": "stale"
+    },
+    {
+      "id": "profile",
+      "route": "/customer/profile",
+      "pageCard": "docs/design/ui/phase25/page-cards/customer-profile.md",
+      "defaultState": "display",
+      "riskState": "validation"
+    }
+  ]
+}

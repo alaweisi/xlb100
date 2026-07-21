@@ -141,11 +141,18 @@ describe("B1-02 服务配置、地址与报价", () => {
     />);
 
     expect(await screen.findByText("目录返回服务")).toBeTruthy();
-    expect(await screen.findByText(/每次 88 元/)).toBeTruthy();
-    expect((screen.getByPlaceholderText("示例小区3栋502室") as HTMLTextAreaElement).value).toBe("");
-    expect((screen.getByPlaceholderText("联系人") as HTMLInputElement).value).toBe("");
+    expect((screen.getByPlaceholderText("请填写小区、楼栋、门牌号等") as HTMLTextAreaElement).value).toBe("");
+    expect((screen.getByLabelText("联系人") as HTMLInputElement).value).toBe("");
     expect(screen.queryByText(/演示用户|演示小区/)).toBeNull();
     expect(getPriceQuote).toHaveBeenCalledWith("sku-real-1");
+
+    fireEvent.change(screen.getByLabelText("详细地址"), { target: { value: "云栖小区 1 幢 101" } });
+    fireEvent.change(screen.getByLabelText("联系人"), { target: { value: "李女士" } });
+    fireEvent.change(screen.getByLabelText("手机号"), { target: { value: "13800000001" } });
+    fireEvent.click(screen.getByRole("button", { name: "下一步：选择时间" }));
+    fireEvent.click(screen.getByRole("button", { name: "下一步：确认预约" }));
+    expect(await screen.findByText("服务端实时报价")).toBeTruthy();
+    expect(await screen.findByText(/每次 88 元/)).toBeTruthy();
   });
 });
 
@@ -179,10 +186,11 @@ describe("B1-05 订单详情与支付结果", () => {
     };
     render(<CustomerOrdersPage api={api} cityCode="hangzhou" />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "进入支付" }));
+    fireEvent.click(await screen.findByRole("button", { name: "立即支付" }));
+    fireEvent.click(await screen.findByRole("button", { name: "确认支付" }));
     expect(api.listOrders).toHaveBeenCalledWith({ limit: 20 });
     await waitFor(() => expect(createPaymentOrder).toHaveBeenCalledWith({ orderId: "order-real-1" }));
-    expect(await screen.findByText("等待支付结果")).toBeTruthy();
+    expect(await screen.findByText("支付单已创建，请按支付渠道完成支付，并刷新确认结果。")).toBeTruthy();
     expect(screen.queryByText("支付成功")).toBeNull();
     expect(api).not.toHaveProperty("mockPaySuccess");
   });

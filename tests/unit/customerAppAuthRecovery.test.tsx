@@ -55,7 +55,7 @@ beforeEach(() => {
 describe("Customer App authentication recovery", () => {
   it("clears the session and account history when any authenticated API returns 401", async () => {
     render(<App />);
-    await screen.findByRole("heading", { name: "账号资料" });
+    await screen.findByRole("heading", { name: "我的" });
     expect(notifyUnauthorized).toBeTypeOf("function");
 
     act(() => notifyUnauthorized?.({ status: 401 } as ApiClientError));
@@ -69,7 +69,7 @@ describe("Customer App authentication recovery", () => {
 
   it("provides an explicit logout action that removes the local bearer session", async () => {
     render(<App />);
-    await screen.findByRole("heading", { name: "账号资料" });
+    await screen.findByRole("heading", { name: "我的" });
 
     fireEvent.click(screen.getByRole("button", { name: "退出登录" }));
 

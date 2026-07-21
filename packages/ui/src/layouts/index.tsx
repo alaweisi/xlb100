@@ -131,12 +131,16 @@ export interface BottomNavProps {
   items: NavItem[];
   placement?: "static" | "fixed";
   style?: CSSProperties;
+  ariaLabel?: string;
+  className?: string;
 }
 
-export function BottomNav({ items, placement = "static", style }: BottomNavProps) {
+export function BottomNav({ items, placement = "static", style, ariaLabel, className }: BottomNavProps) {
   const fixed = placement === "fixed";
   return (
     <nav
+      aria-label={ariaLabel}
+      className={className}
       style={mergeStyle(
         {
           background: "#ffffff",

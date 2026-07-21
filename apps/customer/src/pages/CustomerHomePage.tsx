@@ -1,24 +1,174 @@
-import { useMemo, useState } from "react";
-import type { CatalogSnapshot, CityCode } from "@xlb/types";
+import { type FormEvent, useMemo, useState } from "react";
 import {
-  Broom,
+  Bell,
   CaretDown,
-  CircleNotch,
-  Hammer,
-  Headset,
-  Heart,
+  CaretRight,
+  ClipboardText,
+  IdentificationCard,
   MagnifyingGlass,
   MapPin,
   ShieldCheck,
-  Truck,
-  Wrench,
-  ArrowClockwise,
-  ArrowRight,
+  Tag,
 } from "@phosphor-icons/react";
-import { CITY_OPTIONS, CustomerLoadable, CustomerRouteShell } from "./customerPageShell";
-import { cityDisplayLabel, representativeHomeSkus } from "../adapters/catalogAdapters";
+import type { CatalogSnapshot, CityCode } from "@xlb/types";
+import { RuntimeThemeSurface } from "@xlb/ui";
+import { CUSTOMER_SERVICE_CATEGORY_ASSETS } from "../assets/serviceCategoryAssets";
+import { createCustomerUiBinding } from "../adapters/workflowAdapter";
+import { assignCustomerDeepLink, buildCustomerDeepLink } from "../routes/customerDeepLinks";
+import { CITY_OPTIONS, type CustomerLoadable } from "./customerPageShell";
+import "./customer-home.css";
 
 type City = CityCode;
+type CatalogCategory = CatalogSnapshot["categories"][number];
+
+const CITY_NAMES: Readonly<Record<City, string>> = {
+  hangzhou: "杭州",
+  shanghai: "上海",
+  beijing: "北京",
+};
+
+const CITY_AREAS: Readonly<Record<City, string>> = {
+  hangzhou: "西湖区",
+  shanghai: "静安区",
+  beijing: "朝阳区",
+};
+
+const TRUST_ITEMS = [
+  { label: "实名认证", Icon: IdentificationCard },
+  { label: "价格透明", Icon: Tag },
+  { label: "服务留痕", Icon: ClipboardText },
+  { label: "售后保障", Icon: ShieldCheck },
+] as const;
+
+const CATEGORY_DISPLAY_NAMES: Readonly<Record<string, string>> = {
+  "家庭保洁": "家庭保洁",
+  "家电清洗": "家电清洗",
+  "家电维修": "家电维修",
+  "上门安装": "上门安装",
+  "管道疏通": "管道疏通",
+  "开锁换锁": "开锁换锁",
+  "水电维修": "水电维修",
+  "防水补漏/精准测漏": "防水补漏",
+  "家具家居维修保养": "家具维修",
+  "房屋修缮/局部改造": "房屋修缮",
+  "搬家搬运/拆旧清运": "搬家清运",
+  "甲醛检测治理": "甲醛治理",
+  "数码办公维修": "数码维修",
+  "洗衣洗鞋": "洗衣洗鞋",
+  "保姆月嫂/照护": "保姆照护",
+  "四害消杀": "四害消杀",
+};
+
+function nextCity(cityCode: City): City {
+  const nextIndex = (CITY_OPTIONS.indexOf(cityCode) + 1) % CITY_OPTIONS.length;
+  return CITY_OPTIONS[nextIndex] ?? CITY_OPTIONS[0];
+}
+
+function SectionHeading({
+  id,
+  title,
+  actionLabel,
+  onAction,
+}: {
+  id: string;
+  title: string;
+  actionLabel?: string;
+  onAction?: () => void;
+}) {
+  return (
+    <div className="customer-home__section-heading">
+      <h2 id={id}>{title}</h2>
+      {actionLabel && onAction ? (
+        <button className="customer-home__section-action" type="button" onClick={onAction}>
+          <span>{actionLabel}</span>
+          <CaretRight aria-hidden="true" weight="bold" />
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+function CategoryGrid({
+  categories,
+  onOpenCategory,
+}: {
+  categories: CatalogCategory[];
+  onOpenCategory: (categoryName: string) => void;
+}) {
+  const categoryByName = useMemo(
+    () => new Map(categories.map((category) => [category.name, category])),
+    [categories],
+  );
+  const availableCategories = CUSTOMER_SERVICE_CATEGORY_ASSETS.flatMap((asset) => {
+    const category = categoryByName.get(asset.categoryName);
+    return category ? [{ asset, category }] : [];
+  });
+
+  return (
+    <div className="customer-home__category-grid" aria-label="全部服务类目">
+      {availableCategories.map(({ asset, category }) => (
+        <button
+          className="customer-home__category-card"
+          key={category.categoryId}
+          type="button"
+          onClick={() => onOpenCategory(category.name)}
+          aria-label={`查看${category.name}服务`}
+        >
+          <img
+            src={asset.src}
+            alt={asset.alt}
+            width={asset.width}
+            height={asset.height}
+            loading="eager"
+          />
+          <span className="customer-home__category-label" aria-hidden="true">
+            {CATEGORY_DISPLAY_NAMES[category.name] ?? category.name}
+          </span>
+          <span className="customer-home__visually-hidden">{category.name}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function CatalogLoading() {
+  return (
+    <div className="customer-home__category-grid" aria-label="服务类目正在加载" aria-busy="true">
+      {CUSTOMER_SERVICE_CATEGORY_ASSETS.map((asset) => (
+        <div className="customer-home__category-card customer-home__category-card--loading" key={asset.categoryName}>
+          <span className="customer-home__skeleton customer-home__skeleton--image" />
+          <span className="customer-home__skeleton customer-home__skeleton--label" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function HonestState({
+  title,
+  description,
+  actionLabel,
+  onAction,
+}: {
+  title: string;
+  description: string;
+  actionLabel?: string;
+  onAction?: () => void;
+}) {
+  return (
+    <div className="customer-home__honest-state" role="status">
+      <div>
+        <strong>{title}</strong>
+        <p>{description}</p>
+      </div>
+      {actionLabel && onAction ? (
+        <button type="button" onClick={onAction}>
+          {actionLabel}
+        </button>
+      ) : null}
+    </div>
+  );
+}
 
 export interface CustomerHomePageProps {
   cityCode: City;
@@ -28,176 +178,147 @@ export interface CustomerHomePageProps {
 
 export function CustomerHomePage({ cityCode, catalogState, onRetryCatalog }: CustomerHomePageProps) {
   const [searchQuery, setSearchQuery] = useState("");
+  const binding = createCustomerUiBinding({ route: "home", cityCode });
 
-  const quickSkus = useMemo(() => {
-    if (catalogState.status !== "success") return [];
-    return representativeHomeSkus(catalogState.data);
-  }, [catalogState]);
-
-  const onCityChange = (next: City) => {
-    window.location.href = `/customer/?${new URLSearchParams({ cityCode: next }).toString()}`;
-  };
-
-  function navigateToServices(query: string) {
+  function navigateToServices(query = "") {
     const trimmed = query.trim();
-    const params = new URLSearchParams({ cityCode: cityCode });
-    if (trimmed) {
-      params.set("q", trimmed);
-    }
-    window.location.href = `/customer/services?${params.toString()}`;
+    assignCustomerDeepLink("services", { cityCode, q: trimmed || null });
   }
 
-  const catalogReady = catalogState.status === "success";
-  const catalogLoading = catalogState.status === "loading";
-  const catalogFailed = catalogState.status === "error";
+  function submitSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    navigateToServices(searchQuery);
+  }
+
+  const catalogIsEmpty =
+    catalogState.status === "success" && catalogState.data.categories.length === 0;
+  const availableCategoryCount = useMemo(() => {
+    if (catalogState.status !== "success") return 0;
+    const catalogNames = new Set(catalogState.data.categories.map((category) => category.name));
+    return CUSTOMER_SERVICE_CATEGORY_ASSETS.filter((asset) => catalogNames.has(asset.categoryName)).length;
+  }, [catalogState]);
 
   return (
-    <CustomerRouteShell currentRoute="home">
-      <section className="customer-home" aria-label="顾客首页">
-        <div className="customer-home-hero">
-          <button
-            aria-label={`当前城市 ${cityDisplayLabel(cityCode)}，点击切换城市`}
-            className="customer-location-inline"
-            onClick={() => {
-              const nextIndex = (CITY_OPTIONS.indexOf(cityCode) + 1) % CITY_OPTIONS.length;
-              onCityChange(CITY_OPTIONS[nextIndex]);
-            }}
-            type="button"
-          >
-            <MapPin size={17} weight="regular" />
-            <span>{cityDisplayLabel(cityCode)}</span>
-            <CaretDown size={13} weight="fill" />
-          </button>
-
-          <div className="customer-home-title-row">
-            <div>
-              <h1>安心到家修缮</h1>
-            </div>
-            <ShieldCheck aria-label="平台保障" size={42} weight="regular" />
-          </div>
-
-          <form
-            className="customer-location-search-glass"
-            onSubmit={(event) => {
-              event.preventDefault();
-              navigateToServices(searchQuery);
-            }}
-          >
-            <button aria-label="提交搜索" className="customer-search-icon-submit" type="submit">
-              <MagnifyingGlass aria-hidden="true" size={24} weight="regular" />
-            </button>
-            <input
-              aria-label="搜索服务"
-              onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="输入服务名称或关键词"
-              value={searchQuery}
-            />
-          </form>
+    <RuntimeThemeSurface
+      className="customer-home"
+      binding={binding}
+      style={{ display: "block", gap: 0 }}
+    >
+      <header className="customer-home__header">
+        <div>
+          <h1>喜乐帮</h1>
+          <p>安心到家，服务就在身边</p>
         </div>
+        <a
+          className="customer-home__notification"
+          href={buildCustomerDeepLink("notifications", { cityCode })}
+          aria-label="查看通知"
+          title="查看通知"
+        >
+          <Bell aria-hidden="true" weight="regular" />
+          <span aria-hidden="true" />
+        </a>
+      </header>
 
-        {catalogReady && quickSkus.length > 0 ? (
-          <>
-            <section aria-label="可用服务" className="customer-service-grid">
-              {quickSkus.slice(0, 8).map((sku, index) => {
-                const Icon = [Broom, Wrench, Hammer, Truck, Wrench, Hammer, Wrench, ShieldCheck][index] ?? Wrench;
-                return (
-                  <button
-                    aria-label={`选择${sku.name}`}
-                    className="customer-service-card"
-                    key={sku.skuId}
-                    onClick={() => {
-                      const url = new URL("/customer/order/create", window.location.origin);
-                      url.searchParams.set("skuId", sku.skuId);
-                      window.location.href = url.pathname + url.search;
-                    }}
-                    type="button"
-                  >
-                    <Icon aria-hidden="true" size={36} weight="regular" />
-                    <strong>{sku.categoryName}</strong>
-                  </button>
-                );
-              })}
-            </section>
-            <section className="customer-home-state customer-home-coverage">
-              <span className="customer-coverage-badge">本地服务</span>
-              <h2>{cityDisplayLabel(cityCode)}服务已开放</h2>
-              <p>当前可预约 {catalogState.data.categories.length} 类正式服务，具体项目以实时目录为准。</p>
-              <button aria-label="查看全部服务" className="customer-coverage-action" onClick={() => navigateToServices("")} type="button">
-                <ArrowRight size={23} weight="bold" />
-              </button>
-            </section>
+      <form className="customer-home__search" role="search" onSubmit={submitSearch}>
+        <button
+          className="customer-home__location"
+          type="button"
+          onClick={() => assignCustomerDeepLink("home", { cityCode: nextCity(cityCode) })}
+          aria-label={`当前城市${CITY_NAMES[cityCode]}，区域${CITY_AREAS[cityCode]}，点击切换城市`}
+        >
+          <MapPin aria-hidden="true" weight="fill" />
+          <span>{CITY_NAMES[cityCode]} · {CITY_AREAS[cityCode]}</span>
+          <CaretDown aria-hidden="true" weight="bold" />
+        </button>
+        <span className="customer-home__search-divider" aria-hidden="true" />
+        <label className="customer-home__search-field">
+          <span className="customer-home__visually-hidden">搜索全部上门服务</span>
+          <MagnifyingGlass aria-hidden="true" />
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="搜索全部上门服务"
+          />
+        </label>
+      </form>
 
-            <section aria-label="推荐服务" className="customer-featured-section">
-              <h2>推荐服务</h2>
-              <button
-                className="customer-featured-service"
-                onClick={() => {
-                  const url = new URL("/customer/order/create", window.location.origin);
-                  url.searchParams.set("skuId", quickSkus[0].skuId);
-                  window.location.href = url.pathname + url.search;
-                }}
-                type="button"
-              >
-                <span className="customer-featured-icon"><Wrench size={30} weight="regular" /></span>
-                <span className="customer-featured-copy">
-                  <strong>{quickSkus[0].name}</strong>
-                  <small>{quickSkus[0].categoryPathLabel}</small>
-                  <em>{cityDisplayLabel(cityCode)}可预约 · 服务单位：{quickSkus[0].unit}</em>
-                </span>
-                <ArrowRight className="customer-featured-arrow" size={21} weight="bold" />
-              </button>
-            </section>
-          </>
-        ) : null}
+      <main className="customer-home__main">
+        <section className="customer-home__section" aria-labelledby="customer-home-all-services">
+          <SectionHeading
+            id="customer-home-all-services"
+            title="全部服务"
+            actionLabel="查看全部"
+            onAction={() => navigateToServices()}
+          />
 
-        {catalogLoading ? (
-          <section aria-busy="true" className="customer-home-state customer-home-loading">
-            <CircleNotch aria-hidden="true" className="customer-state-spinner" size={30} weight="bold" />
-            <h2>服务目录加载中</h2>
-            <p>正在读取当前城市可用服务</p>
-          </section>
-        ) : null}
-
-        {catalogFailed ? (
-          <section className="customer-home-state" role="alert">
-            <MapPin aria-hidden="true" size={54} weight="thin" />
-            <h2>服务目录加载失败</h2>
-            <p>{catalogState.error}</p>
-            <button className="customer-retry-button" onClick={onRetryCatalog} type="button">
-              <ArrowClockwise size={20} weight="bold" />重试
-            </button>
-          </section>
-        ) : null}
-
-        {catalogReady && catalogState.data.categories.length === 0 ? (
-          <section className="customer-home-state">
-            <MapPin aria-hidden="true" size={58} weight="thin" />
-            <h2>当前城市暂无可用服务，请稍后重试</h2>
-            <p>我们正在为你拓展更多优质服务，敬请期待</p>
-            <button className="customer-retry-button" onClick={onRetryCatalog} type="button">
-              <ArrowClockwise size={20} weight="bold" />刷新重试
-            </button>
-          </section>
-        ) : null}
-
-        <section aria-label="平台保障" className="customer-trust-section">
-          <h2>平台保障</h2>
-          <div className="customer-trust-strip">
-          <span><ShieldCheck size={21} weight="regular" /><span><strong>实名认证</strong><small>服务更安心</small></span></span>
-          <span><Heart size={21} weight="regular" /><span><strong>严格筛选</strong><small>专业平台认证</small></span></span>
-          <span><Headset size={21} weight="regular" /><span><strong>售后保障</strong><small>问题快速响应</small></span></span>
-          </div>
+          {catalogState.status === "loading" || catalogState.status === "pending" ? <CatalogLoading /> : null}
+          {catalogState.status === "error" ? (
+            <HonestState
+              title="服务目录暂时没有加载成功"
+              description="请检查网络后重试，已获取的数据不会被伪造或补齐。"
+              actionLabel="重新加载"
+              onAction={onRetryCatalog}
+            />
+          ) : null}
+          {catalogIsEmpty ? (
+            <HonestState
+              title="当前城市暂未开放服务"
+              description="我们会在服务目录正式开放后第一时间呈现。"
+            />
+          ) : null}
+          {catalogState.status === "success" && !catalogIsEmpty && availableCategoryCount > 0 ? (
+            <CategoryGrid categories={catalogState.data.categories} onOpenCategory={navigateToServices} />
+          ) : null}
+          {catalogState.status === "success" && !catalogIsEmpty && availableCategoryCount === 0 ? (
+            <HonestState
+              title="当前目录暂不可展示"
+              description="目录与正式服务类目尚未对齐，我们不会用临时类目替代。"
+              actionLabel="重新加载"
+              onAction={onRetryCatalog}
+            />
+          ) : null}
+          {catalogState.status === "success" && availableCategoryCount > 0 && availableCategoryCount < CUSTOMER_SERVICE_CATEGORY_ASSETS.length ? (
+            <p className="customer-home__partial-note" role="status">
+              当前已开放 {availableCategoryCount} 项正式服务，其余类目将在目录开放后显示。
+            </p>
+          ) : null}
         </section>
 
-        <section aria-label="客服协助" className="customer-assistance-card">
-          <Headset aria-hidden="true" size={29} weight="regular" />
-          <span>
-            <strong>没有找到合适的服务？</strong>
-            <small>客服可协助确认服务类目与预约流程</small>
-          </span>
-          <a href="/customer/support">咨询客服 <ArrowRight size={16} weight="bold" /></a>
+        <section className="customer-home__section" aria-labelledby="customer-home-recommended">
+          <SectionHeading
+            id="customer-home-recommended"
+            title="推荐服务"
+            actionLabel="更多"
+            onAction={() => navigateToServices()}
+          />
+          <HonestState
+            title="推荐服务即将上线"
+            description="当前暂无权威推荐数据，你可以先浏览全部服务。"
+            actionLabel="浏览服务"
+            onAction={() => navigateToServices()}
+          />
         </section>
-      </section>
-    </CustomerRouteShell>
+
+        <section className="customer-home__section" aria-labelledby="customer-home-nearby">
+          <SectionHeading id="customer-home-nearby" title="附近师傅" />
+          <HonestState
+            title="附近师傅信息暂未开放"
+            description="距离、认证和可接单状态将在权威接口接入后展示。"
+          />
+        </section>
+
+        <section className="customer-home__trust" aria-label="平台服务保障">
+          {TRUST_ITEMS.map(({ label, Icon }) => (
+            <div key={label}>
+              <Icon aria-hidden="true" weight="regular" />
+              <span>{label}</span>
+            </div>
+          ))}
+          <p>杭州服务已开通</p>
+        </section>
+      </main>
+    </RuntimeThemeSurface>
   );
 }

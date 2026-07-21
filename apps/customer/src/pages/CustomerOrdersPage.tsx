@@ -1,4 +1,16 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  ArrowClockwise,
+  CalendarBlank,
+  CaretRight,
+  Clock,
+  CurrencyCircleDollar,
+  MapPin,
+  Package,
+  ShieldCheck,
+  Star,
+  WarningCircle,
+} from "@phosphor-icons/react";
 import type {
   CityCode,
   CustomerOrderReviewView,
@@ -8,28 +20,14 @@ import type {
   RefundRequest,
   ReviewAppeal,
 } from "@xlb/types";
-import {
-  Button,
-  CustomerAnswerCard,
-  CustomerOrdersTemplate,
-  EmptyState,
-  ErrorState,
-  Input,
-  LoadingState,
-  OrderCard,
-  StatusTag,
-  Textarea,
-} from "@xlb/ui";
+import { Button, EmptyState, ErrorState, RuntimeThemeSurface, Textarea } from "@xlb/ui";
 import { formatScheduledLabel } from "../adapters/orderAddressOptions";
 import { createCustomerUiBinding } from "../adapters/workflowAdapter";
-import { toCustomerError } from "../adapters/customerError";
+import { buildCustomerDeepLink } from "../routes/customerDeepLinks";
 import "./customer-orders.css";
 
 interface CustomerOrderApi {
-  listOrders(query?: { cursor?: string; limit?: number }): Promise<{
-    orders: Order[];
-    nextCursor: string | null;
-  }>;
+  listOrders(query?: { cursor?: string; limit?: number }): Promise<{ orders: Order[]; nextCursor: string | null }>;
   getOrder(orderId: string): Promise<{ order: Order }>;
   confirmService(orderId: string): Promise<{ order: Order }>;
   createPaymentOrder(payload: { orderId: string }): Promise<{ paymentOrder: PaymentOrder }>;
@@ -58,494 +56,513 @@ export interface CustomerOrdersPageProps {
   cityCode: CityCode;
 }
 
-type MutationState<T> =
-  | { status: "idle" | "submitting" }
-  | { status: "success"; value: T; idempotent?: boolean; resultUnknown?: boolean }
-  | { status: "error"; title: string; error: string };
+type OrderFilter = "all" | "active" | "action" | "complete";
+type OrderPanel = "details" | "confirm" | "payment" | "review" | "refund" | "appeal";
+type AsyncState = "idle" | "submitting" | "success" | "error";
+type PaymentState = AsyncState | "unknown";
 
-function orderStatusTone(status: string): "success" | "warning" | "danger" | "muted" {
-  if (status === "paid") return "success";
-  if (status === "cancelled") return "danger";
-  if (status === "pending_payment" || status === "pending_dispatch" || status === "service_completed") return "warning";
-  return "muted";
+const ORDER_STATUS: Record<Order["status"], { label: string; step: string; tone: string }> = {
+  draft: { label: "待提交", step: "订单尚未进入派单", tone: "muted" },
+  pending_dispatch: { label: "服务进行中", step: "等待师傅完成服务，完成后请确认", tone: "active" },
+  service_completed: { label: "待支付", step: "服务已确认，请完成支付", tone: "attention" },
+  pending_payment: { label: "支付处理中", step: "支付结果待确认，请勿重复支付", tone: "attention" },
+  paid: { label: "已完成", step: "服务已支付，可评价或申请售后", tone: "success" },
+  cancelled: { label: "已取消", step: "订单已经结束", tone: "muted" },
+};
+
+const FILTERS: Array<{ key: OrderFilter; label: string }> = [
+  { key: "all", label: "全部" },
+  { key: "active", label: "进行中" },
+  { key: "action", label: "待操作" },
+  { key: "complete", label: "已完成" },
+];
+
+function isFilterMatch(order: Order, filter: OrderFilter) {
+  if (filter === "active") return ["pending_dispatch", "pending_payment"].includes(order.status);
+  if (filter === "action") return ["draft", "service_completed"].includes(order.status);
+  if (filter === "complete") return ["paid", "cancelled"].includes(order.status);
+  return true;
 }
 
-function orderStatusLabel(status: string): string {
-  return ({
-    draft: "待提交",
-    pending_dispatch: "服务进行中",
-    service_completed: "待支付",
-    pending_payment: "支付处理中",
-    paid: "已支付",
-    cancelled: "已取消",
-  } as Record<string, string>)[status] ?? "状态待确认";
+function isUncertainCommandError(cause: unknown) {
+  if (!cause || typeof cause !== "object" || !("kind" in cause)) return false;
+  return ["network", "timeout", "cancelled", "response_format"].includes(String(cause.kind));
 }
 
-function reviewVisibilityLabel(visibility: string): string {
-  return ({ pending_moderation: "审核中", visible: "已展示", hidden: "未展示" } as Record<string, string>)[visibility]
-    ?? "状态待确认";
+function isConflict(cause: unknown) {
+  return Boolean(cause && typeof cause === "object" && "status" in cause && cause.status === 409);
 }
 
-function appealStatusLabel(status: string): string {
-  return ({ open: "申诉处理中", upheld: "申诉成立", rejected: "申诉未通过", withdrawn: "已撤回" } as Record<string, string>)[status]
-    ?? "状态待确认";
+function friendlyError(cause: unknown, fallback: string) {
+  if (isConflict(cause)) return "订单状态刚刚发生变化，请刷新后再试。";
+  if (cause && typeof cause === "object" && "kind" in cause && cause.kind === "timeout") {
+    return "请求超时，请检查网络后重试。";
+  }
+  return fallback;
 }
 
-function isSubmitting(state: { status: string }): boolean {
-  return state.status === "submitting";
-}
-
-function isSucceeded(state: { status: string }): boolean {
-  return state.status === "success";
-}
-
-function succeededState<T>(state: MutationState<T>): Extract<MutationState<T>, { status: "success" }> | null {
-  return state.status === "success" ? state : null;
-}
-
-function paymentStatusTone(status: string): "success" | "warning" {
-  return status === "paid" ? "success" : "warning";
-}
-
-function paymentStatusLabel(status: string): string {
-  if (status === "paid") return "支付成功";
-  if (status === "failed") return "支付失败";
-  if (status === "closed") return "支付已关闭";
-  return "等待支付结果";
-}
-
-function isVisibleReview(visibility?: string): boolean {
-  return visibility === "visible";
-}
-
-function isHiddenReview(visibility?: string): boolean {
-  return visibility === "hidden";
-}
-
-function isOpenAppeal(status: string): boolean {
-  return status === "open";
-}
-
-function appealStatusTone(status: string): "success" | "warning" {
-  return status === "upheld" ? "success" : "warning";
+function OrderSkeleton() {
+  return (
+    <div aria-busy="true" aria-label="订单正在加载" className="customer-orders__skeletons">
+      {[0, 1].map((item) => (
+        <div className="customer-orders__skeleton-card" key={item}>
+          <span className="customer-orders__skeleton customer-orders__skeleton--title" />
+          <span className="customer-orders__skeleton customer-orders__skeleton--line" />
+          <span className="customer-orders__skeleton customer-orders__skeleton--action" />
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export function CustomerOrdersPage({ api, cityCode }: CustomerOrdersPageProps) {
-  const initialOrderId = typeof window === "undefined"
-    ? ""
-    : new URLSearchParams(window.location.search).get("orderId") ?? "";
-  const [selectedOrderId, setSelectedOrderId] = useState(initialOrderId);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
-  const [loadError, setLoadError] = useState<{ title: string; description: string } | null>(null);
-  const [partialNotice, setPartialNotice] = useState<string | null>(null);
+  const [failedOrderIds, setFailedOrderIds] = useState<string[]>([]);
+  const [loadRevision, setLoadRevision] = useState(0);
+  const [activeFilter, setActiveFilter] = useState<OrderFilter>("all");
+  const [panels, setPanels] = useState<Record<string, OrderPanel | null>>({});
   const [reviewViews, setReviewViews] = useState<Record<string, CustomerOrderReviewView | null>>({});
-  const [confirmStates, setConfirmStates] = useState<Record<string, MutationState<Order>>>({});
-  const [paymentStates, setPaymentStates] = useState<Record<string, MutationState<PaymentOrder>>>({});
-  const [refundStates, setRefundStates] = useState<Record<string, MutationState<RefundRequest>>>({});
-  const [refundReasons, setRefundReasons] = useState<Record<string, string>>({});
-  const [reviewStates, setReviewStates] = useState<Record<string, MutationState<OrderReview>>>({});
+  const [reviewLoadErrors, setReviewLoadErrors] = useState<Record<string, boolean>>({});
+  const [confirmStates, setConfirmStates] = useState<Record<string, AsyncState>>({});
+  const [confirmMessages, setConfirmMessages] = useState<Record<string, string>>({});
+  const [paymentStates, setPaymentStates] = useState<Record<string, PaymentState>>({});
+  const [paymentMessages, setPaymentMessages] = useState<Record<string, string>>({});
   const [reviewRatings, setReviewRatings] = useState<Record<string, number>>({});
   const [reviewComments, setReviewComments] = useState<Record<string, string>>({});
+  const [reviewStates, setReviewStates] = useState<Record<string, AsyncState>>({});
+  const [reviewMessages, setReviewMessages] = useState<Record<string, string>>({});
+  const [refundReasons, setRefundReasons] = useState<Record<string, string>>({});
+  const [refundStates, setRefundStates] = useState<Record<string, AsyncState>>({});
+  const [refundMessages, setRefundMessages] = useState<Record<string, string>>({});
   const [appealReasons, setAppealReasons] = useState<Record<string, string>>({});
-  const [appealStates, setAppealStates] = useState<Record<string, MutationState<ReviewAppeal>>>({});
-  const [idempotencyKeys, setIdempotencyKeys] = useState<Record<string, string>>({});
+  const [appealStates, setAppealStates] = useState<Record<string, AsyncState>>({});
+  const [appealMessages, setAppealMessages] = useState<Record<string, string>>({});
+  const [appealKeys, setAppealKeys] = useState<Record<string, string>>({});
   const binding = createCustomerUiBinding({ route: "orders", cityCode, hasOrderIds: orders.length > 0 });
 
-  const loadOrders = useCallback(async () => {
-    setLoading(true);
-    setLoadError(null);
-    setPartialNotice(null);
-    setLoadMoreError(null);
-    try {
-      const result = await api.listOrders({ limit: 20 });
-      const loaded = result.orders;
-      setOrders(loaded);
-      setNextCursor(result.nextCursor);
-      const reviews = await Promise.allSettled(
-        loaded.map(async (order) => [order.orderId, (await api.getOrderReview(order.orderId)).review] as const),
-      );
-      const reviewFailures = reviews.filter((review) => review.status === "rejected");
-      setReviewViews(Object.fromEntries(reviews.flatMap((review) => review.status === "fulfilled" ? [review.value] : [])));
-      if (reviewFailures.length > 0) setPartialNotice(`有 ${reviewFailures.length} 个订单的评价状态暂时无法读取。`);
-      setSelectedOrderId((current) => loaded.some((order) => order.orderId === current) ? current : loaded[0]?.orderId ?? "");
-    } catch (error) {
-      const mapped = toCustomerError(error, "订单加载失败");
-      setLoadError({ title: mapped.title, description: mapped.description });
-      setOrders([]);
-      setNextCursor(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [api, cityCode]);
-
-  const loadMoreOrders = useCallback(async () => {
-    if (!nextCursor || loadingMore) return;
-    setLoadingMore(true);
-    setLoadMoreError(null);
-    try {
-      const result = await api.listOrders({ cursor: nextCursor, limit: 20 });
-      const known = new Set(orders.map((order) => order.orderId));
-      const added = result.orders.filter((order) => !known.has(order.orderId));
-      setOrders((current) => [...current, ...added]);
-      setNextCursor(result.nextCursor);
-      const reviews = await Promise.allSettled(
-        added.map(async (order) => [order.orderId, (await api.getOrderReview(order.orderId)).review] as const),
-    );
-      setReviewViews((current) => ({
-        ...current,
-        ...Object.fromEntries(reviews.flatMap((review) => review.status === "fulfilled" ? [review.value] : [])),
-      }));
-    } catch (error) {
-      setLoadMoreError(toCustomerError(error, "更多订单加载失败").description);
-    } finally {
-      setLoadingMore(false);
-    }
-  }, [api, loadingMore, nextCursor, orders]);
-
-  useEffect(() => { void loadOrders(); }, [loadOrders]);
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      setLoading(true);
+      setFailedOrderIds([]);
+      try {
+        const result = await api.listOrders({ limit: 20 });
+        if (cancelled) return;
+        const loadedOrders = result.orders;
+        setOrders(loadedOrders);
+        const reviewResults = await Promise.allSettled(
+          loadedOrders.map((order) => api.getOrderReview(order.orderId)),
+        );
+        if (cancelled) return;
+        setReviewViews(Object.fromEntries(reviewResults.flatMap((result, index) =>
+          result.status === "fulfilled" && loadedOrders[index]
+            ? [[loadedOrders[index].orderId, result.value.review] as const]
+            : [],
+        )));
+        setReviewLoadErrors(Object.fromEntries(reviewResults.flatMap((result, index) =>
+          result.status === "rejected" && loadedOrders[index]
+            ? [[loadedOrders[index].orderId, true] as const]
+            : [],
+        )));
+      } catch {
+        if (!cancelled) {
+          setOrders([]);
+          setFailedOrderIds(["server"]);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    void load();
+    return () => { cancelled = true; };
+  }, [api, loadRevision]);
 
   const sortedOrders = useMemo(
     () => [...orders].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)),
     [orders],
   );
-  const selectedOrder = sortedOrders.find((order) => order.orderId === selectedOrderId) ?? sortedOrders[0];
+  const visibleOrders = sortedOrders.filter((order) => isFilterMatch(order, activeFilter));
 
-  function selectOrder(orderId: string) {
-    setSelectedOrderId(orderId);
-    const params = new URLSearchParams(window.location.search);
-    params.set("orderId", orderId);
-    window.history.replaceState({}, "", `${window.location.pathname}?${params.toString()}`);
+  function togglePanel(orderId: string, panel: OrderPanel) {
+    setPanels((previous) => ({ ...previous, [orderId]: previous[orderId] === panel ? null : panel }));
+  }
+
+  async function refreshOrder(orderId: string) {
+    try {
+      const result = await api.getOrder(orderId);
+      setOrders((previous) => previous.map((order) => order.orderId === orderId ? result.order : order));
+      setPaymentMessages((previous) => ({ ...previous, [orderId]: "订单状态已更新。" }));
+    } catch {
+      setPaymentMessages((previous) => ({ ...previous, [orderId]: "暂时无法刷新，请稍后再试。" }));
+    }
   }
 
   async function confirmService(orderId: string) {
-    setConfirmStates((state) => ({ ...state, [orderId]: { status: "submitting" } }));
+    setConfirmStates((previous) => ({ ...previous, [orderId]: "submitting" }));
+    setConfirmMessages((previous) => ({ ...previous, [orderId]: "" }));
     try {
       const result = await api.confirmService(orderId);
-      setOrders((items) => items.map((item) => item.orderId === orderId ? result.order : item));
-      setConfirmStates((state) => ({ ...state, [orderId]: { status: "success", value: result.order } }));
-    } catch (error) {
-      const mapped = toCustomerError(error, "服务确认失败");
-      setConfirmStates((state) => ({ ...state, [orderId]: { status: "error", title: mapped.title, error: mapped.description } }));
+      setOrders((previous) => previous.map((order) => order.orderId === orderId ? result.order : order));
+      setConfirmStates((previous) => ({ ...previous, [orderId]: "success" }));
+      setConfirmMessages((previous) => ({ ...previous, [orderId]: "服务已确认，订单已进入待支付状态。" }));
+    } catch (cause) {
+      setConfirmStates((previous) => ({ ...previous, [orderId]: "error" }));
+      setConfirmMessages((previous) => ({
+        ...previous,
+        [orderId]: friendlyError(cause, "暂时无法确认服务，请核对服务进度后重试。"),
+      }));
     }
   }
 
-  async function createPayment(orderId: string) {
-    setPaymentStates((state) => ({ ...state, [orderId]: { status: "submitting" } }));
+  async function payAfterService(orderId: string) {
+    setPaymentStates((previous) => ({ ...previous, [orderId]: "submitting" }));
+    setPaymentMessages((previous) => ({ ...previous, [orderId]: "" }));
     try {
-      const result = await api.createPaymentOrder({ orderId });
-      let resultUnknown = false;
+      await api.createPaymentOrder({ orderId });
       try {
         const refreshed = await api.getOrder(orderId);
-        setOrders((items) => items.map((item) => item.orderId === orderId ? refreshed.order : item));
+        setOrders((previous) => previous.map((order) => order.orderId === orderId ? refreshed.order : order));
       } catch {
-        resultUnknown = true;
+        // 支付单已由服务端创建，订单状态可在稍后刷新确认。
       }
-      setPaymentStates((state) => ({
-        ...state,
-        [orderId]: { status: "success", value: result.paymentOrder, resultUnknown },
+      setPaymentStates((previous) => ({ ...previous, [orderId]: "unknown" }));
+      setPaymentMessages((previous) => ({ ...previous, [orderId]: "支付单已创建，请按支付渠道完成支付，并刷新确认结果。" }));
+    } catch (cause) {
+      const unknown = isUncertainCommandError(cause);
+      setPaymentStates((previous) => ({ ...previous, [orderId]: unknown ? "unknown" : "error" }));
+      setPaymentMessages((previous) => ({
+        ...previous,
+        [orderId]: unknown
+          ? "支付结果待确认，请刷新订单后查看，不要重复操作。"
+          : friendlyError(cause, "支付未完成，请核对订单状态后重试。"),
       }));
-    } catch (error) {
-      const mapped = toCustomerError(error, "支付单创建失败");
-      const resultUnknown = mapped.kind === "offline" || mapped.kind === "timeout" || mapped.kind === "unknown";
-      setPaymentStates((state) => ({
-        ...state,
-        [orderId]: {
-          status: "error",
-          title: resultUnknown ? "支付结果待确认" : mapped.title,
-          error: resultUnknown ? "请求过程中连接中断，支付单可能已创建。请先刷新订单状态，避免重复操作。" : mapped.description,
-        },
-      }));
-    }
-  }
-
-  async function submitRefund(orderId: string) {
-    setRefundStates((state) => ({ ...state, [orderId]: { status: "submitting" } }));
-    try {
-      const reason = refundReasons[orderId]?.trim();
-      const result = await api.createRefundRequest({ orderId, ...(reason ? { reason } : {}) });
-      setRefundStates((state) => ({
-        ...state,
-        [orderId]: { status: "success", value: result.refund, idempotent: result.idempotent },
-      }));
-    } catch (error) {
-      const mapped = toCustomerError(error, "退款申请提交失败");
-      setRefundStates((state) => ({ ...state, [orderId]: { status: "error", title: mapped.title, error: mapped.description } }));
     }
   }
 
   async function submitReview(orderId: string) {
+    const rating = reviewRatings[orderId] ?? 5;
     const comment = reviewComments[orderId]?.trim() ?? "";
     if (!comment) {
-      setReviewStates((state) => ({ ...state, [orderId]: { status: "error", title: "请填写评价", error: "评价内容不能为空。" } }));
+      setReviewStates((previous) => ({ ...previous, [orderId]: "error" }));
+      setReviewMessages((previous) => ({ ...previous, [orderId]: "请填写本次服务的真实感受。" }));
       return;
     }
-    setReviewStates((state) => ({ ...state, [orderId]: { status: "submitting" } }));
+    setReviewStates((previous) => ({ ...previous, [orderId]: "submitting" }));
+    setReviewMessages((previous) => ({ ...previous, [orderId]: "" }));
     try {
-      const result = await api.createOrderReview({ orderId, rating: reviewRatings[orderId] ?? 5, comment });
-      setReviewStates((state) => ({
-        ...state,
-        [orderId]: { status: "success", value: result.review, idempotent: result.idempotent },
-      }));
+      await api.createOrderReview({ orderId, rating, comment });
       const persisted = await api.getOrderReview(orderId);
-      setReviewViews((views) => ({ ...views, [orderId]: persisted.review }));
-    } catch (error) {
-      const mapped = toCustomerError(error, "评价提交失败");
-      setReviewStates((state) => ({ ...state, [orderId]: { status: "error", title: mapped.title, error: mapped.description } }));
+      setReviewViews((previous) => ({ ...previous, [orderId]: persisted.review }));
+      setReviewStates((previous) => ({ ...previous, [orderId]: "success" }));
+      setReviewMessages((previous) => ({ ...previous, [orderId]: "评价已提交，正在等待平台审核。" }));
+    } catch (cause) {
+      setReviewStates((previous) => ({ ...previous, [orderId]: "error" }));
+      setReviewMessages((previous) => ({
+        ...previous,
+        [orderId]: friendlyError(cause, "评价提交失败，请稍后重试。"),
+      }));
     }
   }
 
-  async function submitAppeal(orderId: string, view: CustomerOrderReviewView) {
-    const reason = appealReasons[orderId]?.trim() ?? "";
-    if (!reason) return;
-    const keyName = `appeal:${orderId}:${view.visibility.moderationVersion}`;
-    const idempotencyKey = idempotencyKeys[keyName] ?? `customer-review-appeal-${crypto.randomUUID()}`;
-    setIdempotencyKeys((keys) => ({ ...keys, [keyName]: idempotencyKey }));
-    setAppealStates((state) => ({ ...state, [orderId]: { status: "submitting" } }));
+  async function submitRefundRequest(orderId: string) {
+    const reason = refundReasons[orderId]?.trim();
+    setRefundStates((previous) => ({ ...previous, [orderId]: "submitting" }));
+    setRefundMessages((previous) => ({ ...previous, [orderId]: "" }));
     try {
-      const result = await api.createReviewAppeal(view.review.reviewId, {
+      const result = await api.createRefundRequest({ orderId, ...(reason ? { reason } : {}) });
+      setRefundStates((previous) => ({ ...previous, [orderId]: "success" }));
+      setRefundMessages((previous) => ({
+        ...previous,
+        [orderId]: result.refund.status === "approved"
+          ? "售后记录已更新，请留意后续处理进度。"
+          : "退款申请已提交，平台审核后会更新处理结果。",
+      }));
+    } catch (cause) {
+      setRefundStates((previous) => ({ ...previous, [orderId]: "error" }));
+      setRefundMessages((previous) => ({
+        ...previous,
+        [orderId]: friendlyError(cause, "退款申请提交失败，请稍后重试。"),
+      }));
+    }
+  }
+
+  async function reloadReview(orderId: string) {
+    try {
+      const persisted = await api.getOrderReview(orderId);
+      setReviewViews((previous) => ({ ...previous, [orderId]: persisted.review }));
+      setReviewLoadErrors((previous) => ({ ...previous, [orderId]: false }));
+    } catch {
+      setReviewLoadErrors((previous) => ({ ...previous, [orderId]: true }));
+    }
+  }
+
+  async function submitReviewAppeal(orderId: string, view: CustomerOrderReviewView) {
+    const reason = appealReasons[orderId]?.trim() ?? "";
+    if (!reason) {
+      setAppealStates((previous) => ({ ...previous, [orderId]: "error" }));
+      setAppealMessages((previous) => ({ ...previous, [orderId]: "请说明申请复核的原因。" }));
+      return;
+    }
+    const idempotencyKey = appealKeys[orderId] ?? `customer-review-appeal-${crypto.randomUUID()}`;
+    setAppealKeys((previous) => ({ ...previous, [orderId]: idempotencyKey }));
+    setAppealStates((previous) => ({ ...previous, [orderId]: "submitting" }));
+    setAppealMessages((previous) => ({ ...previous, [orderId]: "" }));
+    try {
+      await api.createReviewAppeal(view.review.reviewId, {
         moderationVersion: view.visibility.moderationVersion,
         reason,
         idempotencyKey,
       });
-      const persisted = await api.getOrderReview(orderId);
-      setReviewViews((views) => ({ ...views, [orderId]: persisted.review }));
-      setAppealStates((state) => ({ ...state, [orderId]: { status: "success", value: result.appeal, idempotent: result.idempotent } }));
-    } catch (error) {
-      const mapped = toCustomerError(error, "评价申诉提交失败");
-      setAppealStates((state) => ({ ...state, [orderId]: { status: "error", title: mapped.title, error: mapped.description } }));
+      await reloadReview(orderId);
+      setAppealStates((previous) => ({ ...previous, [orderId]: "success" }));
+      setAppealMessages((previous) => ({ ...previous, [orderId]: "复核申请已提交。" }));
+      setAppealKeys((previous) => ({ ...previous, [orderId]: "" }));
+    } catch (cause) {
+      setAppealStates((previous) => ({ ...previous, [orderId]: "error" }));
+      setAppealMessages((previous) => ({
+        ...previous,
+        [orderId]: isConflict(cause)
+          ? "审核结果已经变化或已有复核申请，请刷新评价状态。"
+          : "复核申请提交失败，请稍后重试。",
+      }));
     }
   }
 
-  async function withdrawAppeal(orderId: string, view: CustomerOrderReviewView) {
-    const keyName = `withdraw:${orderId}:${view.visibility.moderationVersion}`;
-    const idempotencyKey = idempotencyKeys[keyName] ?? `customer-review-withdraw-${crypto.randomUUID()}`;
-    setIdempotencyKeys((keys) => ({ ...keys, [keyName]: idempotencyKey }));
-    setAppealStates((state) => ({ ...state, [orderId]: { status: "submitting" } }));
+  async function withdrawReviewAppeal(orderId: string, view: CustomerOrderReviewView) {
+    const commandKey = `withdraw:${orderId}:${view.visibility.moderationVersion}`;
+    const idempotencyKey = appealKeys[commandKey] ?? `customer-review-withdraw-${crypto.randomUUID()}`;
+    setAppealKeys((previous) => ({ ...previous, [commandKey]: idempotencyKey }));
+    setAppealStates((previous) => ({ ...previous, [orderId]: "submitting" }));
     try {
-      const result = await api.withdrawReviewAppeal(view.review.reviewId, {
+      await api.withdrawReviewAppeal(view.review.reviewId, {
         moderationVersion: view.visibility.moderationVersion,
         idempotencyKey,
       });
-      const persisted = await api.getOrderReview(orderId);
-      setReviewViews((views) => ({ ...views, [orderId]: persisted.review }));
-      setAppealStates((state) => ({ ...state, [orderId]: { status: "success", value: result.appeal, idempotent: result.idempotent } }));
-    } catch (error) {
-      const mapped = toCustomerError(error, "申诉撤回失败");
-      setAppealStates((state) => ({ ...state, [orderId]: { status: "error", title: mapped.title, error: mapped.description } }));
+      await reloadReview(orderId);
+      setAppealStates((previous) => ({ ...previous, [orderId]: "success" }));
+      setAppealMessages((previous) => ({ ...previous, [orderId]: "复核申请已撤回。" }));
+    } catch {
+      setAppealStates((previous) => ({ ...previous, [orderId]: "error" }));
+      setAppealMessages((previous) => ({ ...previous, [orderId]: "暂时无法撤回复核申请，请刷新后重试。" }));
     }
   }
 
-  const renderMutationError = (state: MutationState<unknown>) => state.status === "error"
-    ? <div className="customer-review-error" role="alert"><strong>{state.title}</strong><span>{state.error}</span></div>
-    : null;
+  function primaryAction(order: Order, hasReview: boolean) {
+    if (order.status === "pending_dispatch") return { label: "确认服务完成", panel: "confirm" as const };
+    if (order.status === "service_completed") return { label: "立即支付", panel: "payment" as const };
+    if (order.status === "pending_payment") return { label: "刷新支付状态", refresh: true };
+    if (order.status === "paid") return { label: hasReview ? "查看我的评价" : "评价本次服务", panel: "review" as const };
+    return { label: "查看订单详情", panel: "details" as const };
+  }
+
+  const blockingFailure = !loading && !orders.length && failedOrderIds.length > 0;
 
   return (
-    <div className="customer-transaction-page">
-    <CustomerOrdersTemplate route="/customer/orders" cityCode={cityCode} binding={binding}>
-      {loading && <LoadingState title="正在加载订单" description="读取订单详情与评价状态" />}
-      {loadError && <ErrorState title={loadError.title} description={loadError.description} action={<Button onClick={() => void loadOrders()}>重新加载</Button>} />}
-      {!loading && !loadError && orders.length === 0 && (
-        <EmptyState title="还没有可显示的订单" description="订单会从服务端同步展示，不依赖当前设备的本地记录。" />
-      )}
-      {partialNotice && <div className="customer-order-notice" role="status">{partialNotice}</div>}
+    <RuntimeThemeSurface className="customer-orders" binding={binding}>
+      <header className="customer-orders__header">
+        <p>我的服务</p>
+        <h1>我的订单</h1>
+        <span>服务进度、支付与售后，都在这里清楚掌握。</span>
+      </header>
 
-      {!loading && sortedOrders.length > 0 && (
-        <section className="customer-order-index" aria-label="订单列表">
-          <div className="customer-order-index-heading">
-            <strong>我的订单</strong>
-            <Button onClick={() => void loadOrders()}>刷新状态</Button>
-          </div>
-          {sortedOrders.map((order) => (
+      {orders.length > 0 ? (
+        <nav aria-label="订单筛选" className="customer-orders__filters">
+          {FILTERS.map((filter) => (
             <button
-              className="customer-order-index-item"
-              data-active={order.orderId === selectedOrder?.orderId}
-              key={order.orderId}
-              onClick={() => selectOrder(order.orderId)}
+              aria-pressed={activeFilter === filter.key}
+              className={activeFilter === filter.key ? "is-active" : ""}
+              key={filter.key}
+              onClick={() => setActiveFilter(filter.key)}
               type="button"
             >
-              <span><strong>{order.skuName}</strong><small>{new Date(order.createdAt).toLocaleString("zh-CN")}</small></span>
-              <StatusTag tone={orderStatusTone(order.status)}>{orderStatusLabel(order.status)}</StatusTag>
+              {filter.label}
             </button>
           ))}
-        </section>
-      )}
+        </nav>
+      ) : null}
 
-      {selectedOrder ? (() => {
-        const order = selectedOrder;
-        const confirmState = confirmStates[order.orderId] ?? { status: "idle" as const };
-        const paymentState = paymentStates[order.orderId] ?? { status: "idle" as const };
-        const refundState = refundStates[order.orderId] ?? { status: "idle" as const };
-        const reviewState = reviewStates[order.orderId] ?? { status: "idle" as const };
-        const appealState = appealStates[order.orderId] ?? { status: "idle" as const };
-        const persistedReview = reviewViews[order.orderId];
-        const mayConfirm = order.status === "pending_dispatch";
-        const mayPay = order.status === "service_completed" || order.status === "pending_payment";
-        const mayReviewOrRefund = order.status === "paid";
-        const confirmSubmitting = isSubmitting(confirmState);
-        const paymentSubmitting = isSubmitting(paymentState);
-        const refundSubmitting = isSubmitting(refundState);
-        const reviewSubmitting = isSubmitting(reviewState);
-        const appealSubmitting = isSubmitting(appealState);
-        const confirmSucceeded = isSucceeded(confirmState);
-        const paymentResult = succeededState(paymentState);
-        const refundResult = succeededState(refundState);
-        const reviewResult = succeededState(reviewState);
-        const canAppealReview = persistedReview
-          ? isHiddenReview(persistedReview.visibility.visibility) && !persistedReview.appeals.some((appeal) => isOpenAppeal(appeal.status))
-          : false;
-        const showUnavailableStatus = !mayConfirm && !mayPay && !mayReviewOrRefund;
-        return (
-          <OrderCard
-            key={order.orderId}
-            title={order.skuName}
-            description={`${order.quantity}${order.unit} · ${order.addressProvince}${order.addressCity}${order.addressDistrict}${order.detailAddress}`}
-            meta={`${formatScheduledLabel(order.scheduledAt, order.scheduledTimeSlot)} · ${order.contactName} ${order.contactPhone}`}
-            status={<StatusTag tone={orderStatusTone(order.status)}>{orderStatusLabel(order.status)}</StatusTag>}
-            priceText={`${order.currency} ${order.totalAmount.toFixed(2)}`}
-            actions={<a className="customer-order-link" href={`/customer/aftersale?orderId=${encodeURIComponent(order.orderId)}`}>进入售后</a>}
-          >
-            <div className="customer-order-detail-stack">
-              <section className="customer-order-section">
-                <strong>订单详情</strong>
-                <span>订单号：{order.orderId}</span>
-                <span>创建时间：{new Date(order.createdAt).toLocaleString("zh-CN")}</span>
-                <span>计价说明：{order.priceText}</span>
-              </section>
+      {loading ? <OrderSkeleton /> : null}
 
-              <section className="customer-order-section">
-                <strong>服务确认与支付</strong>
-                <span>仅在服务实际完成后确认；支付结果只展示服务端返回状态。</span>
-                <div className="customer-order-actions">
-                  <Button disabled={!mayConfirm || confirmSubmitting} onClick={() => void confirmService(order.orderId)}>
-                    {confirmSubmitting ? "正在确认" : "确认服务已完成"}
-                  </Button>
-                  <Button variant="primary" disabled={!mayPay || paymentSubmitting} onClick={() => void createPayment(order.orderId)}>
-                    {paymentSubmitting ? "正在创建支付单" : "进入支付"}
-                  </Button>
-                </div>
-                {showUnavailableStatus ? <StatusTag tone="muted">当前订单状态暂不可确认或支付</StatusTag> : null}
-                {confirmSucceeded && <StatusTag tone="success">服务已确认，订单状态已刷新</StatusTag>}
-                {renderMutationError(confirmState)}
-                {paymentResult && (
-                  <div className="customer-review-inline">
-                    <StatusTag tone={paymentStatusTone(paymentResult.value.status)}>
-                      {paymentStatusLabel(paymentResult.value.status)}
-                    </StatusTag>
-                    <StatusTag tone="muted">支付单：{paymentResult.value.paymentOrderId}</StatusTag>
-                    {paymentResult.resultUnknown && <StatusTag tone="warning">订单刷新失败，支付结果待确认</StatusTag>}
-                  </div>
-                )}
-                {renderMutationError(paymentState)}
-              </section>
-
-              <section className="customer-order-section">
-                <strong>服务评价</strong>
-                <span>支付完成后可评价一次；评价提交后不可修改，并会进入平台审核。</span>
-                {persistedReview ? (
-                  <div className="customer-review-stack">
-                    <div className="customer-review-inline">
-                      <StatusTag tone="success">{persistedReview.review.rating} 星</StatusTag>
-                      <StatusTag tone={isVisibleReview(persistedReview.visibility.visibility) ? "success" : "warning"}>
-                        {reviewVisibilityLabel(persistedReview.visibility.visibility)}
-                      </StatusTag>
-                    </div>
-                    <span className="customer-review-comment">{persistedReview.review.comment}</span>
-                  </div>
-                ) : (
-                  <>
-                    <Input
-                      aria-label="评价星级"
-                      disabled={!mayReviewOrRefund || reviewSubmitting}
-                      max={5}
-                      min={1}
-                      type="number"
-                      value={reviewRatings[order.orderId] ?? 5}
-                      onChange={(event) => setReviewRatings((ratings) => ({ ...ratings, [order.orderId]: Number(event.target.value) }))}
-                    />
-                    <Textarea
-                      aria-label="评价内容"
-                      disabled={!mayReviewOrRefund || reviewSubmitting}
-                      maxLength={500}
-                      placeholder="请填写真实服务体验"
-                      value={reviewComments[order.orderId] ?? ""}
-                      onChange={(event) => setReviewComments((comments) => ({ ...comments, [order.orderId]: event.target.value }))}
-                    />
-                    <Button disabled={!mayReviewOrRefund || reviewSubmitting || !reviewComments[order.orderId]?.trim()} onClick={() => void submitReview(order.orderId)}>
-                      {reviewSubmitting ? "正在提交评价" : "提交评价"}
-                    </Button>
-                  </>
-                )}
-                {!mayReviewOrRefund && <StatusTag tone="muted">支付完成后开放评价</StatusTag>}
-                {reviewResult && <StatusTag tone="success">评价已提交{reviewResult.idempotent ? "（服务端返回已有记录）" : ""}</StatusTag>}
-                {renderMutationError(reviewState)}
-
-                {persistedReview && canAppealReview && (
-                  <div className="customer-review-stack">
-                    <Textarea
-                      aria-label="评价申诉原因"
-                      maxLength={1_000}
-                      placeholder="请说明需要复核的原因"
-                      value={appealReasons[order.orderId] ?? ""}
-                      onChange={(event) => setAppealReasons((reasons) => ({ ...reasons, [order.orderId]: event.target.value }))}
-                    />
-                    <Button disabled={appealSubmitting || !appealReasons[order.orderId]?.trim()} onClick={() => void submitAppeal(order.orderId, persistedReview)}>
-                      {appealSubmitting ? "正在提交申诉" : "申请复核评价"}
-                    </Button>
-                  </div>
-                )}
-                {persistedReview?.appeals.map((appeal) => (
-                  <div className="customer-review-inline" key={appeal.appealId}>
-                    <StatusTag tone={appealStatusTone(appeal.status)}>{appealStatusLabel(appeal.status)}</StatusTag>
-                    {isOpenAppeal(appeal.status) && <Button disabled={appealSubmitting} onClick={() => void withdrawAppeal(order.orderId, persistedReview)}>撤回申诉</Button>}
-                  </div>
-                ))}
-                {renderMutationError(appealState)}
-              </section>
-
-              <section className="customer-order-section">
-                <strong>退款入口</strong>
-                <span>这里只提交退款申请，不代表已退款或已批准；后续状态以服务端处理结果为准。</span>
-                <Textarea
-                  aria-label="退款原因"
-                  disabled={!mayReviewOrRefund || refundSubmitting}
-                  maxLength={255}
-                  placeholder="请填写退款原因（选填）"
-                  value={refundReasons[order.orderId] ?? ""}
-                  onChange={(event) => setRefundReasons((reasons) => ({ ...reasons, [order.orderId]: event.target.value }))}
-                />
-                <Button variant="primary" disabled={!mayReviewOrRefund || refundSubmitting} onClick={() => void submitRefund(order.orderId)}>
-                  {refundSubmitting ? "正在提交申请" : "提交退款申请"}
-                </Button>
-                {!mayReviewOrRefund && <StatusTag tone="muted">支付完成后开放退款申请</StatusTag>}
-                {refundResult && (
-                  <div className="customer-review-inline">
-                    <StatusTag tone="warning">退款申请已提交</StatusTag>
-                    <StatusTag tone="muted">申请号：{refundResult.value.refundId}</StatusTag>
-                    {refundResult.idempotent && <StatusTag tone="warning">服务端返回已有申请</StatusTag>}
-                  </div>
-                )}
-                {renderMutationError(refundState)}
-              </section>
-            </div>
-          </OrderCard>
-        );
-      })() : null}
-
-      {!loading && !loadError && nextCursor ? (
-        <div className="customer-order-actions">
-          <Button disabled={loadingMore} onClick={() => void loadMoreOrders()}>
-            {loadingMore ? "正在加载更多" : "加载更多订单"}
-          </Button>
+      {!loading && failedOrderIds.length > 0 && orders.length > 0 ? (
+        <div className="customer-orders__notice customer-orders__notice--warning" role="alert">
+          <WarningCircle aria-hidden="true" weight="fill" />
+          <div><strong>部分订单暂未加载</strong><p>已为你保留成功加载的订单，可以稍后重试。</p></div>
+          <button onClick={() => setLoadRevision((value) => value + 1)} type="button">重试</button>
         </div>
       ) : null}
-      {loadMoreError ? <ErrorState title="更多订单加载失败" description={loadMoreError} action={<Button onClick={() => void loadMoreOrders()}>重新加载</Button>} /> : null}
 
-      <CustomerAnswerCard state={binding.state} />
-    </CustomerOrdersTemplate>
-    </div>
+      {blockingFailure ? (
+        <ErrorState
+          action={<Button onClick={() => setLoadRevision((value) => value + 1)} productRole="customer">重新加载</Button>}
+          description="订单暂时没有加载成功，请检查网络后重试。"
+          productRole="customer"
+          title="暂时无法读取订单"
+        />
+      ) : null}
+
+      {!loading && !failedOrderIds.length && !orders.length ? (
+        <EmptyState
+          action={<a className="customer-orders__empty-action" href={buildCustomerDeepLink("createOrder", { cityCode })}>预约上门服务</a>}
+          description="完成首次预约后，服务进度会出现在这里。"
+          productRole="customer"
+          title="还没有订单"
+        />
+      ) : null}
+
+      {!loading && orders.length > 0 ? (
+        <section aria-labelledby="customer-orders-list-title" className="customer-orders__list-section">
+          <div className="customer-orders__list-heading">
+            <h2 id="customer-orders-list-title">{FILTERS.find((item) => item.key === activeFilter)?.label}订单</h2>
+            <span>{visibleOrders.length} 个</span>
+          </div>
+
+          {visibleOrders.length ? (
+            <ul className="customer-orders__list">
+              {visibleOrders.map((order) => {
+                const status = ORDER_STATUS[order.status];
+                const persistedReview = reviewViews[order.orderId];
+                const action = primaryAction(order, Boolean(persistedReview));
+                const activePanel = panels[order.orderId];
+                const openAppeal = persistedReview?.appeals.find((appeal) => appeal.status === "open");
+                return (
+                  <li className="customer-orders__card" key={order.orderId}>
+                    <div className="customer-orders__card-topline">
+                      <span className={`customer-orders__status customer-orders__status--${status.tone}`}>{status.label}</span>
+                      <span>{new Intl.DateTimeFormat("zh-CN", { month: "numeric", day: "numeric" }).format(new Date(order.createdAt))} 下单</span>
+                    </div>
+                    <div className="customer-orders__card-title">
+                      <span aria-hidden="true"><Package weight="duotone" /></span>
+                      <div><h3>{order.skuName}</h3><p>{order.quantity}{order.unit} · {order.addressDistrict}</p></div>
+                      <strong>¥{order.totalAmount.toFixed(2)}</strong>
+                    </div>
+                    <div className="customer-orders__next-step">
+                      <Clock aria-hidden="true" weight="fill" />
+                      <span>{status.step}</span>
+                    </div>
+                    <div className="customer-orders__card-actions">
+                      {order.status === "paid" ? (
+                        <button className="customer-orders__secondary-action" onClick={() => togglePanel(order.orderId, "refund")} type="button">申请售后</button>
+                      ) : <span />}
+                      <button
+                        className="customer-orders__primary-action"
+                        onClick={() => "refresh" in action ? void refreshOrder(order.orderId) : togglePanel(order.orderId, action.panel)}
+                        type="button"
+                      >
+                        {action.label}<CaretRight aria-hidden="true" weight="bold" />
+                      </button>
+                    </div>
+
+                    {activePanel ? (
+                      <div className="customer-orders__panel">
+                        {activePanel === "details" ? (
+                          <div className="customer-orders__details">
+                            <h4>订单详情</h4>
+                            <p><CalendarBlank aria-hidden="true" />预约时间<span>{formatScheduledLabel(order.scheduledAt, order.scheduledTimeSlot)}</span></p>
+                            <p><MapPin aria-hidden="true" />服务地址<span>{order.addressCity}{order.addressDistrict} {order.detailAddress}</span></p>
+                            <p><ShieldCheck aria-hidden="true" />联系信息<span>{order.contactName} {order.contactPhone}</span></p>
+                            <p><CurrencyCircleDollar aria-hidden="true" />订单金额<span>{order.priceText || `¥${order.totalAmount.toFixed(2)}`}</span></p>
+                            <small>订单号：{order.orderId}</small>
+                          </div>
+                        ) : null}
+
+                        {activePanel === "confirm" ? (
+                          <div className="customer-orders__action-sheet">
+                            <h4>确认服务已经完成？</h4>
+                            <p>请在师傅完成约定服务后确认。确认结果以服务端返回为准。</p>
+                            <Button disabled={confirmStates[order.orderId] === "submitting"} onClick={() => void confirmService(order.orderId)} productRole="customer">
+                              {confirmStates[order.orderId] === "submitting" ? "正在确认…" : "确认服务完成"}
+                            </Button>
+                            {confirmMessages[order.orderId] ? <p className={`customer-orders__feedback is-${confirmStates[order.orderId]}`}>{confirmMessages[order.orderId]}</p> : null}
+                          </div>
+                        ) : null}
+
+                        {activePanel === "payment" ? (
+                          <div className="customer-orders__action-sheet">
+                            <h4>支付订单</h4>
+                            <div className="customer-orders__amount"><span>应付金额</span><strong>¥{order.totalAmount.toFixed(2)}</strong></div>
+                            <p>请勿重复支付。支付是否成功，以订单最新状态为准。</p>
+                            <Button disabled={paymentStates[order.orderId] === "submitting"} onClick={() => void payAfterService(order.orderId)} productRole="customer">
+                              {paymentStates[order.orderId] === "submitting" ? "正在支付…" : "确认支付"}
+                            </Button>
+                            {paymentMessages[order.orderId] ? (
+                              <p className={`customer-orders__feedback is-${paymentStates[order.orderId]}`} role="status">{paymentMessages[order.orderId]}</p>
+                            ) : null}
+                            {paymentStates[order.orderId] === "unknown" ? (
+                              <button className="customer-orders__text-action" onClick={() => void refreshOrder(order.orderId)} type="button"><ArrowClockwise aria-hidden="true" />刷新订单状态</button>
+                            ) : null}
+                          </div>
+                        ) : null}
+
+                        {activePanel === "review" ? (
+                          <div className="customer-orders__action-sheet">
+                            <h4>{persistedReview ? "我的评价" : "评价本次服务"}</h4>
+                            {reviewLoadErrors[order.orderId] ? (
+                              <div className="customer-orders__review-retry"><span>评价状态暂未加载，确认状态前不能重复提交。</span><button onClick={() => void reloadReview(order.orderId)} type="button">重试</button></div>
+                            ) : persistedReview ? (
+                              <div className="customer-orders__persisted-review">
+                                <div className="customer-orders__stars" aria-label={`${persistedReview.review.rating} 星评价`}>
+                                  {[1, 2, 3, 4, 5].map((star) => <Star aria-hidden="true" key={star} weight={star <= persistedReview.review.rating ? "fill" : "regular"} />)}
+                                </div>
+                                <p>{persistedReview.review.comment}</p>
+                                <span>{persistedReview.visibility.visibility === "visible" ? "已公开" : persistedReview.visibility.visibility === "hidden" ? "未公开" : "审核中"}</span>
+                                {persistedReview.visibility.visibility === "hidden" && !openAppeal ? (
+                                  <button className="customer-orders__text-action" onClick={() => togglePanel(order.orderId, "appeal")} type="button">申请复核</button>
+                                ) : null}
+                                {openAppeal ? (
+                                  <div className="customer-orders__appeal-state"><span>复核中</span><button disabled={appealStates[order.orderId] === "submitting"} onClick={() => void withdrawReviewAppeal(order.orderId, persistedReview)} type="button">撤回复核</button></div>
+                                ) : null}
+                              </div>
+                            ) : (
+                              <>
+                                <fieldset className="customer-orders__rating">
+                                  <legend>服务评分</legend>
+                                  <div>
+                                    {[1, 2, 3, 4, 5].map((rating) => (
+                                      <button aria-label={`${rating} 星`} aria-pressed={(reviewRatings[order.orderId] ?? 5) === rating} key={rating} onClick={() => setReviewRatings((previous) => ({ ...previous, [order.orderId]: rating }))} type="button">
+                                        <Star aria-hidden="true" weight={rating <= (reviewRatings[order.orderId] ?? 5) ? "fill" : "regular"} />
+                                      </button>
+                                    ))}
+                                  </div>
+                                </fieldset>
+                                <label className="customer-orders__field"><span>评价内容</span><Textarea maxLength={500} onChange={(event) => setReviewComments((previous) => ({ ...previous, [order.orderId]: event.target.value }))} placeholder="说说本次服务体验" value={reviewComments[order.orderId] ?? ""} /></label>
+                                <Button disabled={reviewStates[order.orderId] === "submitting"} onClick={() => void submitReview(order.orderId)} productRole="customer">{reviewStates[order.orderId] === "submitting" ? "正在提交…" : "提交评价"}</Button>
+                              </>
+                            )}
+                            {reviewMessages[order.orderId] ? <p className={`customer-orders__feedback is-${reviewStates[order.orderId]}`}>{reviewMessages[order.orderId]}</p> : null}
+                          </div>
+                        ) : null}
+
+                        {activePanel === "refund" ? (
+                          <div className="customer-orders__action-sheet">
+                            <h4>提交售后退款申请</h4>
+                            <p>提交后平台会审核申请；此操作不会直接完成退款。</p>
+                            <label className="customer-orders__field"><span>申请原因（选填）</span><Textarea maxLength={255} onChange={(event) => setRefundReasons((previous) => ({ ...previous, [order.orderId]: event.target.value }))} placeholder="请简要描述需要处理的问题" value={refundReasons[order.orderId] ?? ""} /></label>
+                            <Button disabled={refundStates[order.orderId] === "submitting" || refundStates[order.orderId] === "success"} onClick={() => void submitRefundRequest(order.orderId)} productRole="customer">{refundStates[order.orderId] === "submitting" ? "正在提交…" : refundStates[order.orderId] === "success" ? "申请已提交" : "提交申请"}</Button>
+                            {refundMessages[order.orderId] ? <p className={`customer-orders__feedback is-${refundStates[order.orderId]}`}>{refundMessages[order.orderId]}</p> : null}
+                          </div>
+                        ) : null}
+
+                        {activePanel === "appeal" && persistedReview ? (
+                          <div className="customer-orders__action-sheet">
+                            <h4>申请评价复核</h4>
+                            <p>请说明你认为评价应重新审核的原因。</p>
+                            <label className="customer-orders__field"><span>复核原因</span><Textarea maxLength={1_000} onChange={(event) => setAppealReasons((previous) => ({ ...previous, [order.orderId]: event.target.value }))} placeholder="填写复核原因" value={appealReasons[order.orderId] ?? ""} /></label>
+                            <Button disabled={appealStates[order.orderId] === "submitting"} onClick={() => void submitReviewAppeal(order.orderId, persistedReview)} productRole="customer">{appealStates[order.orderId] === "submitting" ? "正在提交…" : "提交复核申请"}</Button>
+                            {appealMessages[order.orderId] ? <p className={`customer-orders__feedback is-${appealStates[order.orderId]}`}>{appealMessages[order.orderId]}</p> : null}
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <div className="customer-orders__filtered-empty"><Package aria-hidden="true" weight="duotone" /><strong>这里暂时没有订单</strong><span>切换其他分类看看</span></div>
+          )}
+        </section>
+      ) : null}
+    </RuntimeThemeSurface>
   );
 }

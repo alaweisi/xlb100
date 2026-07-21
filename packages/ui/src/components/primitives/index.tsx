@@ -1,5 +1,6 @@
 export type {
   ButtonProps,
+  ProductRoleProps,
   CardProps,
   BadgeProps,
   FormFieldProps,
@@ -14,6 +15,9 @@ export type {
   BottomSheetProps,
   ToastProps,
   StateProps,
+  InputProps,
+  SelectProps,
+  TextareaProps,
 } from "../index.js";
 
 export type { InputHTMLAttributes, SelectHTMLAttributes, TextareaHTMLAttributes } from "react";

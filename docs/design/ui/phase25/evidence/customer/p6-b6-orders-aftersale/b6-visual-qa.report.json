@@ -1,0 +1,46 @@
+{
+  "version": "1.0.0",
+  "lane": "P6-B6",
+  "role": "customer",
+  "baseline": "2cad1ac2846dfe39c2b84c9f1b0a7a3f1fce03b1",
+  "authority": "docs/design/ui/references/customer-home-visual-truth.png",
+  "browser": "local-playwright-cli-chromium",
+  "productionAccessed": false,
+  "sourceCodeChanged": false,
+  "surfaces": [
+    "orders",
+    "payment-entry",
+    "review-compose",
+    "aftersale-records",
+    "fulfillment-evidence",
+    "server-confirmed-completion"
+  ],
+  "viewports": [
+    "320x844",
+    "390x844",
+    "430x932"
+  ],
+  "severityCounts": {
+    "P0": 0,
+    "P1": 0,
+    "P2": 0,
+    "P3": 1
+  },
+  "nonBlockingFindings": [
+    {
+      "id": "B6-P3-001",
+      "surface": "aftersale-complaint-record",
+      "summary": "The customer-follow-up action wraps more tightly than ideal at narrow widths.",
+      "owner": "P4-B aftersale page owner",
+      "fixedInQaLane": false
+    }
+  ],
+  "verification": {
+    "playwright": "2/2 passed",
+    "focusedUnitTests": "23/23 passed",
+    "customerTypecheck": "passed",
+    "customerLint": "passed",
+    "customerDependencyBuild": "passed"
+  },
+  "result": "pass"
+}

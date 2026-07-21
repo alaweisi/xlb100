@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "scope": "customer",
+  "sourceAuthority": "docs/catalog/OFFICIAL_SERVICE_CATALOG_SOURCE.md",
+  "visualAuthority": "docs/design/ui/references/customer-home-visual-truth.png",
+  "format": "PNG",
+  "background": "transparent",
+  "width": 512,
+  "height": 512,
+  "visualLanguage": {
+    "material": "soft 3D clay and warm ivory ceramic",
+    "palette": ["#FFFCF7", "#1C5A45", "#F06A1A"],
+    "composition": "one centered semantic object or compact object cluster",
+    "forbidden": ["emoji", "text", "logo", "watermark", "card background"]
+  },
+  "entries": [
+    { "categoryName": "家庭保洁", "slug": "home-cleaning", "src": "/assets/service-categories/home-cleaning.png", "alt": "家庭保洁服务图标" },
+    { "categoryName": "家电清洗", "slug": "appliance-cleaning", "src": "/assets/service-categories/appliance-cleaning.png", "alt": "家电清洗服务图标" },
+    { "categoryName": "家电维修", "slug": "appliance-repair", "src": "/assets/service-categories/appliance-repair.png", "alt": "家电维修服务图标" },
+    { "categoryName": "上门安装", "slug": "onsite-installation", "src": "/assets/service-categories/onsite-installation.png", "alt": "上门安装服务图标" },
+    { "categoryName": "管道疏通", "slug": "pipe-unclogging", "src": "/assets/service-categories/pipe-unclogging.png", "alt": "管道疏通服务图标" },
+    { "categoryName": "开锁换锁", "slug": "locksmith", "src": "/assets/service-categories/locksmith.png", "alt": "开锁换锁服务图标" },
+    { "categoryName": "水电维修", "slug": "plumbing-electrical-repair", "src": "/assets/service-categories/plumbing-electrical-repair.png", "alt": "水电维修服务图标" },
+    { "categoryName": "防水补漏/精准测漏", "slug": "waterproof-leak-detection", "src": "/assets/service-categories/waterproof-leak-detection.png", "alt": "防水补漏与精准测漏服务图标" },
+    { "categoryName": "家具家居维修保养", "slug": "furniture-maintenance", "src": "/assets/service-categories/furniture-maintenance.png", "alt": "家具家居维修保养服务图标" },
+    { "categoryName": "房屋修缮/局部改造", "slug": "home-renovation", "src": "/assets/service-categories/home-renovation.png", "alt": "房屋修缮与局部改造服务图标" },
+    { "categoryName": "搬家搬运/拆旧清运", "slug": "moving-hauling", "src": "/assets/service-categories/moving-hauling.png", "alt": "搬家搬运与拆旧清运服务图标" },
+    { "categoryName": "甲醛检测治理", "slug": "formaldehyde-treatment", "src": "/assets/service-categories/formaldehyde-treatment.png", "alt": "甲醛检测治理服务图标" },
+    { "categoryName": "数码办公维修", "slug": "digital-office-repair", "src": "/assets/service-categories/digital-office-repair.png", "alt": "数码办公维修服务图标" },
+    { "categoryName": "洗衣洗鞋", "slug": "laundry-shoe-care", "src": "/assets/service-categories/laundry-shoe-care.png", "alt": "洗衣洗鞋服务图标" },
+    { "categoryName": "保姆月嫂/照护", "slug": "childcare-caregiving", "src": "/assets/service-categories/childcare-caregiving.png", "alt": "保姆月嫂与照护服务图标" },
+    { "categoryName": "四害消杀", "slug": "pest-control", "src": "/assets/service-categories/pest-control.png", "alt": "四害消杀服务图标" }
+  ]
+}

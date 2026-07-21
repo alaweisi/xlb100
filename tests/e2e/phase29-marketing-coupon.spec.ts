@@ -50,20 +50,17 @@ async function loginCustomer(request: APIRequestContext): Promise<Session> {
 function collectBrowserFailures(page: Page) {
   const failures: string[] = [];
   const completedGetUrls = new Set<string>();
-  const cancelledNavigationReads = new Map<string, string[]>();
+  const cancelledCatalogReads: string[] = [];
   page.on("pageerror", (error) => failures.push(`pageerror: ${error.message}`));
   page.on("console", (message) => { if (message.type() === "error") failures.push(`console: ${message.text()}`); });
   page.on("requestfailed", (request) => {
     const errorText = request.failure()?.errorText ?? "";
-    const isExpectedReadCancelledOnNavigation = request.method() === "GET"
-      && (
-        request.url() === `${customerApp}/api/catalog`
-        || request.url() === `${customerApp}/api/customer/marketing/coupon-grants?status=available`
-      )
+    const isCatalogReadCancelledOnNavigation = request.method() === "GET"
+      && request.url() === `${customerApp}/api/catalog`
       && errorText === "net::ERR_ABORTED";
     const failure = `requestfailed: ${request.method()} ${request.url()} ${errorText}`;
-    if (isExpectedReadCancelledOnNavigation) {
-      cancelledNavigationReads.set(request.url(), [...(cancelledNavigationReads.get(request.url()) ?? []), failure]);
+    if (isCatalogReadCancelledOnNavigation) {
+      cancelledCatalogReads.push(failure);
     } else {
       failures.push(failure);
     }
@@ -73,9 +70,7 @@ function collectBrowserFailures(page: Page) {
     if (response.status() >= 500) failures.push(`5xx: ${response.status()} ${response.url()}`);
   });
   return () => {
-    for (const [url, cancelledReads] of cancelledNavigationReads) {
-      if (!completedGetUrls.has(url)) failures.push(...cancelledReads);
-    }
+    if (!completedGetUrls.has(`${customerApp}/api/catalog`)) failures.push(...cancelledCatalogReads);
     expect(failures, "browser console/page/request/5xx failures").toEqual([]);
   };
 }
@@ -222,16 +217,19 @@ test("real Marketing governance, Customer coupon Order, Admin trace and Worker n
 
   const serviceSelect = page.locator(`select:has(option[value="${skuId}"])`);
   await serviceSelect.selectOption(skuId);
+  await page.getByRole("button", { name: "下一步：填写地址" }).click();
   await page.getByLabel("详细地址").fill(`Phase29 browser address ${phase29Fixture.nonce}`);
   await page.getByLabel("联系人").fill("Phase29 Browser Customer");
-  await page.getByLabel("联系电话").fill(phase29Fixture.customerPhone);
+  await page.getByLabel("手机号").fill(phase29Fixture.customerPhone);
+  await page.getByRole("button", { name: "下一步：选择时间" }).click();
+  await page.getByRole("button", { name: "下一步：确认预约" }).click();
 
   const couponSelect = page.locator(`select:has(option[value="${phase29Fixture.grantId}"])`);
   await expect(couponSelect).toHaveValue(phase29Fixture.grantId);
   const decisionResponsePromise = page.waitForResponse((response) =>
     response.url().endsWith("/api/customer/marketing/discount-decisions") && response.request().method() === "POST",
   );
-  await page.getByRole("button", { name: "使用所选优惠券" }).click();
+  await page.getByRole("button", { name: "校验并使用" }).click();
   const decisionResponse = await decisionResponsePromise;
   const decisionBody = await bodyOf(decisionResponse);
   phase29Fixture.decisionId = decisionBody.discountDecision.discountDecisionId;
@@ -244,12 +242,13 @@ test("real Marketing governance, Customer coupon Order, Admin trace and Worker n
     netAmountMinor: grossAmountMinor - faceValueMinor,
     status: "issued",
   });
-  await expect(page.getByText("服务端校验通过", { exact: true })).toBeVisible();
-  await expect(page.getByText(new RegExp(`应付.*${((grossAmountMinor - faceValueMinor) / 100).toFixed(2).replace(".", "\\.")}`))).toBeVisible();
+  await expect(page.getByText("服务端已校验", { exact: true })).toBeVisible();
+  await expect(page.getByText(new RegExp(`实付.*${((grossAmountMinor - faceValueMinor) / 100).toFixed(2).replace(".", "\\.")}`))).toBeVisible();
+
   const orderResponsePromise = page.waitForResponse((response) =>
     response.url().endsWith("/api/orders") && response.request().method() === "POST",
   );
-  await page.getByRole("button", { name: "提交订单" }).click();
+  await page.getByRole("button", { name: "提交预约" }).click();
   const orderResponse = await orderResponsePromise;
   const orderBody = await bodyOf(orderResponse);
   phase29Fixture.orderId = orderBody.order.orderId;
@@ -272,7 +271,8 @@ test("real Marketing governance, Customer coupon Order, Admin trace and Worker n
       },
     },
   });
-  await expect(page.getByText(`订单号：${phase29Fixture.orderId}`, { exact: true })).toBeVisible();
+  await expect(page.getByText("预约已提交", { exact: true })).toBeVisible();
+  await expect(page.getByText(phase29Fixture.orderId, { exact: true })).toBeVisible();
   await assertNoHorizontalOverflow(page);
   // Let the Customer screen finish its read-only catalog refresh before this
   // page is reused for Admin/Worker navigation. Otherwise Chromium can report
@@ -308,17 +308,17 @@ test("real Marketing governance, Customer coupon Order, Admin trace and Worker n
   }, { session: publisher, username: phase29Fixture.publisher.username });
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(`${adminApp}/#/marketing?cityCode=hangzhou`);
-  await expect(page.getByRole("heading", { name: "营销活动与优惠券" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Marketing / Coupon" })).toBeVisible();
   await expect(page.getByText(campaignName, { exact: true })).toBeVisible();
   await expect(page.getByText(phase29Fixture.campaignId, { exact: true })).toBeVisible();
   await page.getByRole("tab", { name: "规则修订" }).click();
   await page.getByLabel("活动标识", { exact: true }).fill(phase29Fixture.campaignId);
   await page.getByRole("button", { name: "读取规则" }).click();
   await expect(page.getByText(phase29Fixture.ruleRevisionId, { exact: true })).toBeVisible();
-  await expect(page.getByText(/已发布 · 修订 1/)).toBeVisible();
+  await expect(page.getByText(/published · revision 1/)).toBeVisible();
   await page.getByRole("tab", { name: "券定义" }).click();
   await expect(page.getByText(`Browser fixed coupon ${phase29Fixture.nonce}`, { exact: true })).toBeVisible();
-  await expect(page.getByText(/生效中 · 常规 1\/1/)).toBeVisible();
+  await expect(page.getByText(/active · 常规 1\/1/)).toBeVisible();
   await assertNoHorizontalOverflow(page);
 
   const traceContext = await browser.newContext();
@@ -332,34 +332,28 @@ test("real Marketing governance, Customer coupon Order, Admin trace and Worker n
   const assertTraceClean = collectBrowserFailures(tracePage);
   await tracePage.setViewportSize({ width: 1440, height: 900 });
   await tracePage.goto(`${adminApp}/#/order-trace?cityCode=hangzhou&orderId=${encodeURIComponent(phase29Fixture.orderId)}`);
-  await expect(tracePage.getByText("订单全链路追踪", { exact: true })).toBeVisible();
-  const marketingRow = tracePage.locator(".admin-mobile-item").filter({ hasText: "定价与营销" });
+  await expect(tracePage.getByRole("heading", { name: "Order Fulfillment Trace" })).toBeVisible();
+  const marketingRow = tracePage.getByRole("row").filter({ hasText: "Marketing" });
   await expect(marketingRow).toContainText(phase29Fixture.decisionId);
   await expect(marketingRow).toContainText(phase29Fixture.grantId);
   await expect(marketingRow).toContainText(phase29Fixture.ruleRevisionId);
   await expect(marketingRow).toContainText(phase29Fixture.reservationId);
   await expect(marketingRow).toContainText(phase29Fixture.redemptionId);
-  const grossText = (grossAmountMinor / 100).toFixed(2).replace(".", "\\.");
-  const discountText = (faceValueMinor / 100).toFixed(2).replace(".", "\\.");
-  const netText = ((grossAmountMinor - faceValueMinor) / 100).toFixed(2).replace(".", "\\.");
-  await expect(marketingRow).toContainText(new RegExp(`${grossText}.*${discountText}.*${netText}`));
+  await expect(marketingRow).toContainText(
+    `CNY ${(grossAmountMinor / 100).toFixed(2)} - CNY ${(faceValueMinor / 100).toFixed(2)} = CNY ${((grossAmountMinor - faceValueMinor) / 100).toFixed(2)}`,
+  );
   await assertNoHorizontalOverflow(tracePage);
   assertTraceClean();
   await traceContext.close();
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`${workerApp}/worker/profile?cityCode=hangzhou`);
-  await page.getByRole("button", { name: "获取验证码" }).click();
-  await expect(page.getByText(/验证码已发送/u)).toBeVisible();
-  const workerDebugResponse = await page.request.get(`${backend}/api/auth/worker/debug-code?phone=13800000001`);
-  const workerDebug = await bodyOf(workerDebugResponse);
-  await page.getByLabel("短信验证码").fill(workerDebug.code);
-  const workerLoginButton = page.getByRole("button", { name: "登录并进入任务大厅" });
-  await expect(workerLoginButton).toBeEnabled();
-  await workerLoginButton.click();
-  await expect(page.getByRole("heading", { name: "位置共享与接单半径" })).toBeVisible();
-  await expect(page.getByText("当前师傅身份", { exact: true })).toBeVisible();
-  await expect(page.getByText("营销活动与优惠券", { exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "Send code" }).click();
+  await page.getByRole("button", { name: "Fill debug code" }).click();
+  await page.getByRole("button", { name: "Login", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Location & Availability" })).toBeVisible();
+  await expect(page.getByText("Worker Session", { exact: true })).toBeVisible();
+  await expect(page.getByText(/Marketing \/ Coupon/)).toHaveCount(0);
   await assertNoHorizontalOverflow(page);
   assertClean();
 });

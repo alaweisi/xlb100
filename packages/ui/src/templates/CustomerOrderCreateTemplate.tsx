@@ -15,12 +15,7 @@ const containerStyle: CSSProperties = {
 export function CustomerOrderCreateTemplate({ route, cityCode, binding, children, header, actions, style }: CustomerOrderCreateTemplateProps) {
   return (
     <RuntimeThemeSurface binding={binding}>
-      <div
-        className="customer-order-create-template"
-        data-city-code={cityCode}
-        data-route={route}
-        style={{ ...containerStyle, ...style }}
-      >
+      <div className="customer-order-create-template" data-city-code={cityCode} data-route={route} style={{ ...containerStyle, ...style }}>
         {header ? <header style={{ display: "grid", gap: 6 }}>{header}</header> : null}
         {actions ? <div style={{ margin: "-4px 0" }}>{actions}</div> : null}
         {children}

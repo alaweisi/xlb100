@@ -51,8 +51,10 @@ describe("B1 后台平台运营页", () => {
   it("单个分区 403 时保留其余接口的真实结果", async () => {
     mocks.listOperationsSkus.mockRejectedValue(new ApiClientError({ kind: "http", message: "forbidden", method: "GET", path: "/skus", status: 403 }));
     render(<PlatformOperationsPage initialCityCode="hangzhou" />);
-    const partialResult = await screen.findByRole("status");
-    expect(partialResult.textContent).toContain("部分结果：服务目录（无权访问服务目录）");
+    expect(await screen.findByText((_, element) => (
+      element?.getAttribute("role") === "status"
+      && Boolean(element.textContent?.includes("部分结果：服务目录（无权访问服务目录）"))
+    ))).toBeTruthy();
     expect(screen.getByText("order-1")).toBeTruthy();
     expect(screen.getByText("cert-1")).toBeTruthy();
     expect(screen.getByText("目录数据未能读取")).toBeTruthy();

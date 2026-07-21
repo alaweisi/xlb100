@@ -1,0 +1,372 @@
+{
+  "generatedAt": "2026-07-21T19:57:58.491Z",
+  "sourceCommit": "2cad1ac2846dfe39c2b84c9f1b0a7a3f1fce03b1",
+  "officialCatalogSource": "docs/catalog/服务类目完整清单.tsv",
+  "fixtureCategoryCount": 16,
+  "fixtureSkuCount": 32,
+  "visualGate": "fail",
+  "severityCounts": {
+    "p0": 0,
+    "p1": 1,
+    "p2": 1,
+    "p3": 0
+  },
+  "consoleErrors": [],
+  "expectedNetworkErrors": [
+    "console: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "console: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "console: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "console: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "console: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "console: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "console: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "console: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "console: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "console: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "console: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "console: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "console: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "console: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "console: Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  ],
+  "metrics": [
+    {
+      "name": "home-ready-320x844",
+      "path": "http://127.0.0.1:5373/customer/?cityCode=hangzhou",
+      "viewport": {
+        "width": 320,
+        "height": 844
+      },
+      "scrollWidth": 320,
+      "clientWidth": 320,
+      "scrollHeight": 844,
+      "undersizedTargets": []
+    },
+    {
+      "name": "services-ready-320x844",
+      "path": "http://127.0.0.1:5373/customer/services?cityCode=hangzhou",
+      "viewport": {
+        "width": 320,
+        "height": 844
+      },
+      "scrollWidth": 320,
+      "clientWidth": 320,
+      "scrollHeight": 4050,
+      "undersizedTargets": []
+    },
+    {
+      "name": "coupons-empty-320x844",
+      "path": "http://127.0.0.1:5373/customer/coupons?cityCode=hangzhou",
+      "viewport": {
+        "width": 320,
+        "height": 844
+      },
+      "scrollWidth": 320,
+      "clientWidth": 320,
+      "scrollHeight": 844,
+      "undersizedTargets": []
+    },
+    {
+      "name": "order-confirm-320x844",
+      "path": "http://127.0.0.1:5373/customer/order/create?cityCode=hangzhou&skuId=sku_home_daily_2h",
+      "viewport": {
+        "width": 320,
+        "height": 844
+      },
+      "scrollWidth": 320,
+      "clientWidth": 320,
+      "scrollHeight": 1004,
+      "undersizedTargets": []
+    },
+    {
+      "name": "home-ready-390x844",
+      "path": "http://127.0.0.1:5373/customer/?cityCode=hangzhou",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "scrollHeight": 881,
+      "undersizedTargets": []
+    },
+    {
+      "name": "services-ready-390x844",
+      "path": "http://127.0.0.1:5373/customer/services?cityCode=hangzhou",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "scrollHeight": 4020,
+      "undersizedTargets": []
+    },
+    {
+      "name": "coupons-empty-390x844",
+      "path": "http://127.0.0.1:5373/customer/coupons?cityCode=hangzhou",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "scrollHeight": 844,
+      "undersizedTargets": []
+    },
+    {
+      "name": "order-confirm-390x844",
+      "path": "http://127.0.0.1:5373/customer/order/create?cityCode=hangzhou&skuId=sku_home_daily_2h",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "scrollHeight": 961,
+      "undersizedTargets": []
+    },
+    {
+      "name": "home-ready-430x844",
+      "path": "http://127.0.0.1:5373/customer/?cityCode=hangzhou",
+      "viewport": {
+        "width": 430,
+        "height": 844
+      },
+      "scrollWidth": 430,
+      "clientWidth": 430,
+      "scrollHeight": 899,
+      "undersizedTargets": []
+    },
+    {
+      "name": "services-ready-430x844",
+      "path": "http://127.0.0.1:5373/customer/services?cityCode=hangzhou",
+      "viewport": {
+        "width": 430,
+        "height": 844
+      },
+      "scrollWidth": 430,
+      "clientWidth": 430,
+      "scrollHeight": 3984,
+      "undersizedTargets": []
+    },
+    {
+      "name": "coupons-empty-430x844",
+      "path": "http://127.0.0.1:5373/customer/coupons?cityCode=hangzhou",
+      "viewport": {
+        "width": 430,
+        "height": 844
+      },
+      "scrollWidth": 430,
+      "clientWidth": 430,
+      "scrollHeight": 844,
+      "undersizedTargets": []
+    },
+    {
+      "name": "order-confirm-430x844",
+      "path": "http://127.0.0.1:5373/customer/order/create?cityCode=hangzhou&skuId=sku_home_daily_2h",
+      "viewport": {
+        "width": 430,
+        "height": 844
+      },
+      "scrollWidth": 430,
+      "clientWidth": 430,
+      "scrollHeight": 961,
+      "undersizedTargets": []
+    },
+    {
+      "name": "order-service-step-390x844",
+      "path": "http://127.0.0.1:5373/customer/order/create?cityCode=hangzhou",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "scrollHeight": 844,
+      "undersizedTargets": [
+        {
+          "label": "服务项目",
+          "width": 318,
+          "height": 36
+        },
+        {
+          "label": "-",
+          "width": 42,
+          "height": 36
+        },
+        {
+          "label": "+",
+          "width": 42,
+          "height": 36
+        }
+      ]
+    },
+    {
+      "name": "order-address-step-390x844",
+      "path": "http://127.0.0.1:5373/customer/order/create?cityCode=hangzhou",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "scrollHeight": 936,
+      "undersizedTargets": [
+        {
+          "label": "所在区域",
+          "width": 214,
+          "height": 36
+        },
+        {
+          "label": "联系人",
+          "width": 214,
+          "height": 36
+        },
+        {
+          "label": "手机号",
+          "width": 214,
+          "height": 36
+        }
+      ]
+    },
+    {
+      "name": "order-schedule-step-390x844",
+      "path": "http://127.0.0.1:5373/customer/order/create?cityCode=hangzhou",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "scrollHeight": 849,
+      "undersizedTargets": []
+    },
+    {
+      "name": "services-selected-390x844",
+      "path": "http://127.0.0.1:5373/customer/services?cityCode=hangzhou&skuId=sku_home_daily_2h",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "scrollHeight": 4020,
+      "undersizedTargets": []
+    },
+    {
+      "name": "home-ready-390-full",
+      "path": "http://127.0.0.1:5373/customer/?cityCode=hangzhou",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "scrollHeight": 881,
+      "undersizedTargets": []
+    },
+    {
+      "name": "services-ready-390-full",
+      "path": "http://127.0.0.1:5373/customer/services?cityCode=hangzhou",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "scrollHeight": 4020,
+      "undersizedTargets": []
+    },
+    {
+      "name": "coupons-empty-390-full",
+      "path": "http://127.0.0.1:5373/customer/coupons?cityCode=hangzhou",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "scrollHeight": 844,
+      "undersizedTargets": []
+    },
+    {
+      "name": "order-confirm-390-full",
+      "path": "http://127.0.0.1:5373/customer/order/create?cityCode=hangzhou&skuId=sku_home_daily_2h",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "scrollHeight": 961,
+      "undersizedTargets": []
+    },
+    {
+      "name": "order-confirm-bottom-390x844",
+      "path": "http://127.0.0.1:5373/customer/order/create?cityCode=hangzhou&skuId=sku_home_daily_2h",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "scrollHeight": 961,
+      "undersizedTargets": []
+    },
+    {
+      "name": "home-catalog-error-390x844",
+      "path": "http://127.0.0.1:5373/customer/?cityCode=hangzhou",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "scrollHeight": 844,
+      "undersizedTargets": []
+    },
+    {
+      "name": "services-no-result-390x844",
+      "path": "http://127.0.0.1:5373/customer/services?cityCode=hangzhou&q=%E4%B8%8D%E5%AD%98%E5%9C%A8%E7%9A%84%E6%9C%8D%E5%8A%A1",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "scrollHeight": 844,
+      "undersizedTargets": []
+    },
+    {
+      "name": "coupons-error-390x844",
+      "path": "http://127.0.0.1:5373/customer/coupons?cityCode=hangzhou",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "scrollHeight": 844,
+      "undersizedTargets": []
+    },
+    {
+      "name": "order-quote-error-390x844",
+      "path": "http://127.0.0.1:5373/customer/order/create?cityCode=hangzhou&skuId=sku_home_daily_2h",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "scrollHeight": 1037,
+      "undersizedTargets": [
+        {
+          "label": "重新获取",
+          "width": 86,
+          "height": 36
+        }
+      ]
+    }
+  ]
+}

@@ -72,9 +72,9 @@ describe("Phase 24B support pages", () => {
       type: "order_question", priority: "normal", subject: "Need order help",
       description: "The order timeline is unclear", idempotencyKey: expect.stringMatching(/^customer-ticket-/),
     }));
-    expect(screen.queryByText("客服工单已创建")).toBeNull();
+    expect(screen.queryByText("问题已提交，客服处理进度会持续留痕。")).toBeNull();
     confirmCreate({ ok: true, ticket: ticket() });
-    expect(await screen.findByText("客服工单已创建")).toBeTruthy();
+    expect(await screen.findByText("问题已提交，客服处理进度会持续留痕。")).toBeTruthy();
     expect(api.getTicket).toHaveBeenCalledWith("ticket-phase24b");
   });
 
@@ -85,12 +85,12 @@ describe("Phase 24B support pages", () => {
       getTicket: vi.fn(), addComment: vi.fn(), reopenTicket: vi.fn(),
     };
     render(<CustomerSupportPage api={api} />);
-    await screen.findByText("暂无客服工单");
+    await screen.findByText("暂无服务工单");
     fireEvent.change(screen.getByLabelText("问题标题"), { target: { value: "Duplicate issue" } });
     fireEvent.change(screen.getByLabelText("问题描述"), { target: { value: "This must be rejected by API" } });
     fireEvent.click(screen.getByRole("button", { name: "提交问题" }));
-    expect(await screen.findByText("API POST failed: 409")).toBeTruthy();
-    expect(screen.queryByText("客服工单已创建")).toBeNull();
+    expect(await screen.findByText("信息已发生变化，请刷新后查看服务端最新结果。")).toBeTruthy();
+    expect(screen.queryByText("问题已提交，客服处理进度会持续留痕。")).toBeNull();
   });
 
   it("Worker opens its ticket and sends a requester-visible message through the API", async () => {

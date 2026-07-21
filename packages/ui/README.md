@@ -16,7 +16,7 @@ Shared Phase 15.1 UI primitives and shells for XLB frontends.
 
 ## Boundary
 
-This package contains reusable UI materials only. It does not call business APIs, does not own app routes, does not provide fake business data, and does not replace Figma-approved page design. Customer, worker, and admin pages must compose these primitives according to the approved product design and real API contracts.
+This package contains reusable UI materials only. It does not call business APIs, does not own app routes, does not provide fake business data, and does not replace each role's selected visual authority and page cards. Customer, worker, and admin pages must compose these primitives according to their own approved product design and real API contracts; Customer Home specifically follows `docs/design/ui/CUSTOMER_HOME_VISUAL_TRUTH.md`.
 
 Phase 15.1B added route-shell gap components required by the Figma/Codex Design plan:
 

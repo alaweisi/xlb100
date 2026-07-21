@@ -21,7 +21,7 @@ import { RUNTIME_CAMPAIGN_TOKEN_PATHS } from "@xlb/types";
 describe("Phase 25 Gate 1A token contract", () => {
   it("freezes one canonical source and the complete L0-L7 taxonomy", () => {
     expect(CANONICAL_TOKEN_SOURCE).toBe("packages/ui/src/tokens/base/defaultTokens.ts");
-    expect(TOKEN_SCHEMA_VERSION).toBe("25.3.0");
+    expect(TOKEN_SCHEMA_VERSION).toBe("25.5.0");
     expect(TOKEN_LAYER_TAXONOMY.map((layer) => layer.id)).toEqual([
       "L0", "L1", "L2", "L3", "L4", "L5", "L6", "L7",
     ]);
@@ -118,8 +118,9 @@ describe("Phase 25 Gate 1A token contract", () => {
     expect(style["--xlb-color-brand"]).toBe(baseTokens.color.brand);
     expect(style["--xlb-border-focus"]).toBe(baseTokens.border.focus);
     expect(style["--xlb-campaign-decoration-intensity"]).toBe(1);
-    expect(style["--xlb-dimension-d13"]).toBe("13px");
-    expect(style["--xlb-font-size-page-title"]).toBe("28px");
+    expect(style["--xlb-font-size-caption"]).toBe("13px");
+    expect(style["--xlb-measure-rem34"]).toBe("34rem");
+    expect(style["--xlb-z-index-above"]).toBe(1);
     expect(Object.keys(style).some((key) => key.includes("__proto__"))).toBe(false);
   });
 });

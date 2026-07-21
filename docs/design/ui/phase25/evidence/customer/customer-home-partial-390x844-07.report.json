@@ -1,0 +1,39 @@
+{
+  "version": "1.0.0",
+  "role": "customer",
+  "surface": "home",
+  "route": "/customer/",
+  "state": "partial",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "screenshot": "docs/design/ui/phase25/evidence/customer/customer-home-partial-390x844-07.png",
+  "authoritySha256": "32cb6d243e8c7dd1b662110ebf2d9cfc79fe568ea23611097a4e4b2d6e3af74c",
+  "dataSource": "real-api-derived-partial-fixture",
+  "capturedAt": "2026-07-21T13:09:24.341Z",
+  "checks": {
+    "primaryInteraction": true,
+    "noHorizontalOverflow": true,
+    "safeAreaClear": true,
+    "keyboardFocus": true,
+    "touchTargets": true,
+    "reducedMotion": true,
+    "forcedColors": true,
+    "noBlurFallback": true
+  },
+  "consoleErrors": [],
+  "findings": [
+    {
+      "severity": "P1",
+      "summary": "正式 16 类目未完整呈现，缺少 13 项：上门安装、管道疏通、开锁换锁、水电维修",
+      "owner": "B2 Home"
+    },
+    {
+      "severity": "P2",
+      "summary": "语义 3D 类目图像仅检测到 3/16。",
+      "owner": "B2 Home"
+    }
+  ],
+  "result": "failed"
+}

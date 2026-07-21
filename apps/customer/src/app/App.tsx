@@ -1,5 +1,7 @@
-import { lazy, useCallback, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import type { CatalogSnapshot, CityCode } from "@xlb/types";
+import { LoadingState } from "@xlb/ui";
 import type { CustomerOrderCreatePageProps } from "../pages/CustomerOrderCreatePage";
 import type { CustomerOrdersPageProps } from "../pages/CustomerOrdersPage";
 import type { CustomerCouponsPageProps } from "../pages/CustomerCouponsPage";
@@ -15,11 +17,13 @@ import {
   appendOrderId,
   createCustomerApiClient,
   CustomerLoadable,
+  CustomerRouteShell,
   detectCustomerRoute,
   readCustomerCityCode,
   readOrderIds,
   writeCustomerCityCode,
 } from "../pages/customerPageShell";
+import { assignCustomerDeepLink, replaceCustomerDeepLink } from "../routes/customerDeepLinks";
 
 const CustomerHomePage = lazy(() => import("../pages/CustomerHomePage").then((module) => ({ default: module.CustomerHomePage })));
 const CustomerOrderCreatePage = lazy(() => import("../pages/CustomerOrderCreatePage").then((module) => ({ default: module.CustomerOrderCreatePage })));
@@ -116,9 +120,7 @@ export function App() {
     (orderId: string) => {
       setOrderIds(() => appendOrderId(orderId));
       setCityAndPersist(cityCode);
-      const params = new URLSearchParams(window.location.search);
-      params.set("orderId", orderId);
-      window.history.replaceState({}, "", `/customer/orders?${params.toString()}`);
+      replaceCustomerDeepLink("orders", { cityCode, orderId });
     },
     [cityCode, setCityAndPersist],
   );
@@ -148,16 +150,13 @@ export function App() {
     return <CustomerLoginPage reason={sessionEndReason} onLogin={handleLogin} />;
   }
 
+  let routeContent: ReactNode;
   if (currentRoute === "home") {
-    return <CustomerHomePage cityCode={cityCode} catalogState={catalogState} onRetryCatalog={handleRetryCatalog} />;
-  }
-
-  if (currentRoute === "services") {
-    return <CustomerServicesPage cityCode={cityCode} catalogState={catalogState} onRetryCatalog={handleRetryCatalog} />;
-  }
-
-  if (currentRoute === "createOrder") {
-    return (
+    routeContent = <CustomerHomePage cityCode={cityCode} catalogState={catalogState} onRetryCatalog={handleRetryCatalog} />;
+  } else if (currentRoute === "services") {
+    routeContent = <CustomerServicesPage cityCode={cityCode} catalogState={catalogState} onRetryCatalog={handleRetryCatalog} />;
+  } else if (currentRoute === "createOrder") {
+    routeContent = (
       <CustomerOrderCreatePage
         api={orderCreateApi}
         catalogState={catalogState}
@@ -165,17 +164,11 @@ export function App() {
         onOrderCreated={handleOrderCreated}
       />
     );
-  }
-
-  if (currentRoute === "orders") {
-    return <CustomerOrdersPage api={ordersApi} cityCode={cityCode} />;
-  }
-
-  if (currentRoute === "aftersale") {
-    return <CustomerAftersalePage api={api} orderIds={orderIds} />;
-  }
-
-  if (currentRoute === "support") {
+  } else if (currentRoute === "orders") {
+    routeContent = <CustomerOrdersPage api={ordersApi} cityCode={cityCode} />;
+  } else if (currentRoute === "aftersale") {
+    routeContent = <CustomerAftersalePage api={api} cityCode={cityCode} orderIds={orderIds} />;
+  } else if (currentRoute === "support") {
     const supportApi: CustomerSupportApi = {
       createTicket: (input) => api.createSupportTicket(input),
       listTickets: (filters) => api.listSupportTickets(filters),
@@ -188,26 +181,39 @@ export function App() {
       getConversation: (conversationId) => api.getSupportConversation(conversationId),
       sendConversationMessage: (conversationId, input) => api.sendSupportMessage(conversationId, input),
     };
-    return <CustomerSupportPage api={supportApi} />;
-  }
-
-  if (currentRoute === "notifications") {
-    return <CustomerNotificationsPage api={api} />;
-  }
-
-  if (currentRoute === "coupons") {
+    routeContent = <CustomerSupportPage api={supportApi} />;
+  } else if (currentRoute === "notifications") {
+    routeContent = <CustomerNotificationsPage api={api} cityCode={cityCode} />;
+  } else if (currentRoute === "coupons") {
     const couponsApi: CustomerCouponsPageProps["api"] = {
       listCouponGrants: (query) => api.listCouponGrants(query),
     };
-    return (
+    routeContent = (
       <CustomerCouponsPage
         api={couponsApi}
+        cityCode={cityCode}
         onSelectForQuote={(couponGrantId) => {
-          window.location.assign(`/customer/order/create?couponGrantId=${encodeURIComponent(couponGrantId)}`);
+          assignCustomerDeepLink("createOrder", { cityCode, couponGrantId });
         }}
       />
     );
+  } else {
+    routeContent = <CustomerProfilePage api={api} cityCode={cityCode} onLogout={handleLogout} />;
   }
 
-  return <CustomerProfilePage api={api} cityCode={cityCode} onLogout={handleLogout} />;
+  return (
+    <CustomerRouteShell currentRoute={currentRoute}>
+      <Suspense
+        fallback={(
+          <LoadingState
+            description="正在准备当前页面，请稍候。"
+            productRole="customer"
+            title="正在加载服务"
+          />
+        )}
+      >
+        {routeContent}
+      </Suspense>
+    </CustomerRouteShell>
+  );
 }
