@@ -1,0 +1,34 @@
+{
+  "version": "1.0.0",
+  "role": "customer",
+  "surface": "notification-center",
+  "route": "/customer/notifications",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "dataSource": "contract-faithful-api-fixture",
+  "authority": "docs/design/ui/references/customer-home-visual-truth.png",
+  "states": [
+    "loading",
+    "ready-unread",
+    "ready-read",
+    "empty",
+    "error-retry",
+    "pagination-error",
+    "busy",
+    "conflict"
+  ],
+  "checks": {
+    "singleCustomerShell": true,
+    "authoritativeMutationCopy": true,
+    "exactOrderTarget": true,
+    "honestSupportSectionFallback": true,
+    "noHorizontalOverflow": true,
+    "touchTargetsAtLeast44": true,
+    "keyboardFocus": true,
+    "reducedMotion": true,
+    "forcedColors": true,
+    "noConsoleErrors": true
+  }
+}

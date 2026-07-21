@@ -109,7 +109,7 @@ describe("Phase27D Customer/Worker notification pages", () => {
     }));
     await waitFor(() => expect(listNotifications.mock.calls.length).toBeGreaterThanOrEqual(3));
 
-    fireEvent.click(screen.getByRole("button", { name: "已归档" }));
+    fireEvent.click(screen.getByRole("tab", { name: "已归档" }));
     await waitFor(() => expect(listNotifications).toHaveBeenLastCalledWith({ view: "archive", limit: 20 }));
     const restore = await screen.findByRole("button", { name: "恢复" });
     await waitFor(() => expect(restore).not.toHaveProperty("disabled", true));
@@ -157,9 +157,29 @@ describe("Phase27D Customer/Worker notification pages", () => {
   });
 
   it.each([
-    { name: "Customer", Component: CustomerNotificationsPage, read: "标为已读", archiveTab: "已归档" },
-    { name: "Worker", Component: WorkerNotificationsPage, read: "Mark as read", archiveTab: "Archive" },
-  ])("prevents $name view changes while a mutation is pending", async ({ Component, read, archiveTab }) => {
+    {
+      name: "Customer",
+      Component: CustomerNotificationsPage,
+      read: "标为已读",
+      archiveTab: "已归档",
+      tablistLabel: "消息分类",
+      archiveRole: "tab" as const,
+    },
+    {
+      name: "Worker",
+      Component: WorkerNotificationsPage,
+      read: "Mark as read",
+      archiveTab: "Archive",
+      tablistLabel: "Notification view",
+      archiveRole: "button" as const,
+    },
+  ])("prevents $name view changes while a mutation is pending", async ({
+    Component,
+    read,
+    archiveTab,
+    tablistLabel,
+    archiveRole,
+  }) => {
     const deferred = deferredMutation();
     const listNotifications = vi.fn().mockResolvedValue({ ok: true, items: [orderItem], nextCursor: null });
     const api = {
@@ -170,8 +190,8 @@ describe("Phase27D Customer/Worker notification pages", () => {
     render(<Component api={api} />);
 
     fireEvent.click(await screen.findByRole("button", { name: read }));
-    const archive = within(screen.getByRole("tablist", { name: "Notification view" }))
-      .getByRole("button", { name: archiveTab });
+    const archive = within(screen.getByRole("tablist", { name: tablistLabel }))
+      .getByRole(archiveRole, { name: archiveTab });
     expect(archive).toHaveProperty("disabled", true);
     fireEvent.click(archive);
     expect(listNotifications).toHaveBeenCalledTimes(1);
