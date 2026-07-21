@@ -56,7 +56,8 @@ describe("Phase29 Marketing Customer/Admin surfaces", () => {
       .mockRejectedValueOnce(new Error("coupon API unavailable"))
       .mockResolvedValueOnce({ ok: true, couponGrants: [] });
     render(<CustomerCouponsPage api={{ listCouponGrants }} />);
-    expect((await screen.findByRole("alert")).textContent).toContain("coupon API unavailable");
+    expect((await screen.findByRole("alert")).textContent).toContain("暂时无法完成请求");
+    expect(document.body.textContent).not.toContain("coupon API unavailable");
     fireEvent.click(screen.getByRole("button", { name: "重试" }));
     expect(await screen.findByText("当前没有可使用的优惠券")).toBeTruthy();
   });

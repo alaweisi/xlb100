@@ -11,3 +11,5 @@
 | components | Customer shell, page header, segmented control, coupon cards, state components, quote-selection action |
 | viewport / evidence | 390×844; `evidence/customer/customer-coupons-<state>-390x844-<iteration>.png` |
 | design QA | Stable warm-white cards, clear eligibility/status, no fake amount, safe-area navigation and 44px targets |
+| construction status | C3 implemented; local production build and rendered browser deployment verification passed on 2026-07-22 |
+| rendered evidence | `evidence/customer/customer-coupons-available-390x844-01.png`, `customer-coupons-stale-390x844-01.png`, and `customer-coupons-comparison-390x844-01.png` |
