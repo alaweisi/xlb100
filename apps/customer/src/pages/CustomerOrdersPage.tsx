@@ -400,6 +400,7 @@ export function CustomerOrdersPage({ api, cityCode }: CustomerOrdersPageProps) {
         const showUnavailableStatus = !mayConfirm && !mayPay && !mayReviewOrRefund;
         return (
           <OrderCard
+            className="customer-order-card"
             key={order.orderId}
             title={order.skuName}
             description={`${order.quantity}${order.unit} · ${order.addressProvince}${order.addressCity}${order.addressDistrict}${order.detailAddress}`}

@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
+import { CaretDown, CaretRight, MagnifyingGlass, MapPin } from "@phosphor-icons/react";
 import type { CatalogSnapshot, CityCode } from "@xlb/types";
 import {
   ActionDock,
   Card,
-  CustomerAnswerCard,
   CustomerServicesTemplate,
   EmptyState,
   ErrorState,
@@ -13,7 +13,6 @@ import {
   StatusTag,
   Tabs,
 } from "@xlb/ui";
-import { CaretDown, MagnifyingGlass, MapPin } from "@phosphor-icons/react";
 import {
   CITY_OPTIONS,
   CustomerLoadable,
@@ -21,8 +20,9 @@ import {
   setRouteSearchParams,
   useRouteSearchParams,
 } from "./customerPageShell";
-import { cityDisplayLabel, cityNameByCode, getCatalogSkuDisplayLabel, getCatalogSkus } from "../adapters/catalogAdapters";
+import { catalogToHomeCategoryViewModels, cityAreaByCode, cityNameByCode, getCatalogSkuDisplayLabel, getCatalogSkus } from "../adapters/catalogAdapters";
 import { createCustomerUiBinding } from "../adapters/workflowAdapter";
+import { customerCategoryIconSrc } from "./customerVisualAssets";
 
 type CatalogCategoryTab = {
   key: string;
@@ -42,6 +42,7 @@ export function CustomerServicesPage({
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategoryId, setActiveCategoryId] = useState<string>("all");
   const routeSearchQuery = useRouteSearchParams("q");
+  const routeCategoryId = useRouteSearchParams("categoryId");
   const binding = createCustomerUiBinding({ route: "services", cityCode });
 
   const actionById = useMemo(() => {
@@ -58,9 +59,29 @@ export function CustomerServicesPage({
     setSearchQuery(routeSearchQuery ?? "");
   }, [routeSearchQuery]);
 
+  useEffect(() => {
+    if (catalogState.status !== "success") return;
+    const validCategoryId = routeCategoryId && catalogState.data.categories.some(
+      (category) => category.categoryId === routeCategoryId,
+    )
+      ? routeCategoryId
+      : "all";
+    setActiveCategoryId(validCategoryId);
+  }, [catalogState, routeCategoryId]);
+
   const allSkus = useMemo(() => {
     if (catalogState.status !== "success") return [];
     return getCatalogSkus(catalogState.data);
+  }, [catalogState]);
+
+  const categoryVisualById = useMemo(() => {
+    if (catalogState.status !== "success") return new Map<string, string>();
+    return new Map(
+      catalogToHomeCategoryViewModels(catalogState.data).map((category) => [
+        category.categoryId,
+        customerCategoryIconSrc[category.iconKey],
+      ]),
+    );
   }, [catalogState]);
 
   const tabs = useMemo<CatalogCategoryTab[]>(() => {
@@ -94,57 +115,56 @@ export function CustomerServicesPage({
     setRouteSearchParams({ cityCode, q: trimmed || null });
   };
 
+  const updateRouteCategory = (nextCategoryId: string) => {
+    setActiveCategoryId(nextCategoryId);
+    setRouteSearchParams({
+      cityCode,
+      categoryId: nextCategoryId === "all" ? null : nextCategoryId,
+    });
+  };
+
   const onCityChange = () => {
     const nextIndex = (CITY_OPTIONS.indexOf(cityCode) + 1) % CITY_OPTIONS.length;
     const nextCity = CITY_OPTIONS[nextIndex];
     const params = catalogQueryParams(searchQuery);
-    window.location.href = `/customer/services?${new URLSearchParams({ cityCode: nextCity, ...(params.get("q") ? { q: params.get("q")! } : {}) })}`;
+    if (activeCategoryId !== "all") {
+      params.set("categoryId", activeCategoryId);
+    }
+    params.set("cityCode", nextCity);
+    window.location.href = `/customer/services?${params.toString()}`;
   };
 
   const retryAction = actionById["customer.catalog.retry"];
 
   const header = (
-    <Card title="全部服务">
+    <Card className="customer-services-search-card" title="发现服务">
       <LocationSearchBar
         cityLabel={cityNameByCode[cityCode]}
-        areaLabel={cityDisplayLabel(cityCode)}
-        locationIcon={<MapPin size={15} weight="fill" />}
-        dropdownIcon={<CaretDown size={13} weight="bold" />}
-        searchIcon={<MagnifyingGlass size={18} weight="bold" />}
+        areaLabel={cityAreaByCode[cityCode]}
         onSearchChange={setSearchQuery}
         onSearchSubmit={updateRouteSearchQuery}
-        placeholder="输入服务名称或关键词"
+        placeholder="搜索保洁、维修、搬家等服务"
+        locationIcon={<MapPin size={16} weight="fill" />}
+        disclosureIcon={<CaretDown size={14} />}
+        searchIcon={<MagnifyingGlass size={20} />}
         value={searchQuery}
         onCityClick={onCityChange}
       />
-      <CustomerAnswerCard state={binding.state} />
     </Card>
   );
-
-  const catalogLoading = catalogState.status === "loading";
-  const catalogFailed = catalogState.status === "error";
-  const catalogReady = catalogState.status === "success";
 
   return (
     <CustomerRouteShell currentRoute="services">
       <CustomerServicesTemplate route="/customer/services" cityCode={cityCode} binding={binding} header={header}>
-      <Card
-        actions={
-          <ActionDock
-            actions={retryAction ? [retryAction] : []}
-            density="compact"
-            onAction={() => onRetryCatalog()}
-          />
-        }
-      >
-        <Tabs items={tabs} activeKey={activeCategoryId} onChange={setActiveCategoryId} density="compact" />
-      </Card>
+        <section className="customer-services-filter" aria-label="服务分类筛选">
+        <Tabs items={tabs} activeKey={activeCategoryId} onChange={updateRouteCategory} density="compact" />
+      </section>
 
-      {catalogLoading && <LoadingState title="服务加载中" description="正在读取实时服务目录" />}
-      {catalogFailed && (
+      {catalogState.status === "loading" && <LoadingState title="服务加载中" description="正在读取当前城市可预约的服务" />}
+      {catalogState.status === "error" && (
         <ErrorState
-          title="加载失败"
-          description={catalogState.error}
+          title="服务加载失败"
+          description="网络可能暂时不可用，请重试。"
           action={
             <ActionDock
               actions={retryAction ? [retryAction] : []}
@@ -155,15 +175,15 @@ export function CustomerServicesPage({
         />
       )}
 
-      {catalogReady && catalogState.data.categories.length === 0 && (
-        <EmptyState title="暂无可用服务" description="当前城市暂未开放服务目录。" />
+      {catalogState.status === "success" && catalogState.data.categories.length === 0 && (
+        <EmptyState title="当前城市暂无服务" description="可以切换城市，或稍后再来看看。" />
       )}
 
-      {catalogReady && filteredSkus.length > 0 && (
-        <section style={{ display: "grid", gap: 10 }}>
-          <div style={{ alignItems: "center", color: "#64748b", display: "flex", justifyContent: "space-between" }}>
-            <strong>服务项目</strong>
-            <StatusTag tone="success">{`共 ${filteredSkus.length} 项`}</StatusTag>
+      {catalogState.status === "success" && filteredSkus.length > 0 && (
+        <section className="customer-services-list">
+          <div className="customer-services-list__heading">
+            <strong>服务列表</strong>
+            <StatusTag tone="success">{`${filteredSkus.length} 项`}</StatusTag>
           </div>
           {filteredSkus.map((sku) => {
             const skuDisplay = getCatalogSkuDisplayLabel(sku);
@@ -172,6 +192,10 @@ export function CustomerServicesPage({
                 key={sku.skuId}
                 title={sku.name}
                 subtitle={skuDisplay.subtitle}
+                icon={categoryVisualById.get(sku.categoryId) ? (
+                  <img className="customer-services-card__icon" src={categoryVisualById.get(sku.categoryId)} alt="" aria-hidden="true" />
+                ) : null}
+                actionLabel={<span className="customer-services-card__action">查看服务<CaretRight aria-hidden="true" size={16} /></span>}
                 status={<StatusTag tone="muted">可预约</StatusTag>}
                 onClick={() => {
                   const params = new URLSearchParams({ skuId: sku.skuId });
@@ -183,10 +207,10 @@ export function CustomerServicesPage({
         </section>
       )}
 
-      {catalogReady && filteredSkus.length === 0 && (
+      {catalogState.status === "success" && catalogState.data.categories.length > 0 && filteredSkus.length === 0 && (
         <EmptyState
-          title="没有匹配的服务"
-          description={searchQuery.trim() ? `未找到“${searchQuery}”相关服务` : "当前筛选条件下暂无服务"}
+          title="没有找到匹配服务"
+          description={searchQuery.trim() ? `暂时没有与“${searchQuery}”匹配的服务` : "当前筛选条件下没有可预约服务"}
         />
       )}
 

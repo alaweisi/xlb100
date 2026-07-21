@@ -19,6 +19,7 @@ import type {
 import type {
   CustomerAddress,
   CustomerProfile,
+  CustomerWorkerShowcaseResponse,
   SaveCustomerAddressRequest,
   UpdateCustomerProfileRequest,
 } from "@xlb/types";
@@ -323,6 +324,9 @@ export function createCustomerOrderApi(client: ApiClient) {
     },
     listAddresses() {
       return client.get<{ ok: true; addresses: CustomerAddress[] }>("/api/customer/addresses");
+    },
+    listWorkerShowcase() {
+      return client.get<CustomerWorkerShowcaseResponse>("/api/customer/worker-showcase");
     },
     createAddress(body: SaveCustomerAddressRequest) {
       return client.post<{ ok: true; address: CustomerAddress }>("/api/customer/addresses", body);

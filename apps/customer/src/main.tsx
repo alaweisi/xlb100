@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { App } from "./app/App";
 import { AppErrorBoundary, ThemeProvider } from "@xlb/ui";
 import "./app/mobile-shell.css";
+import "./app/customer-ui-system.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

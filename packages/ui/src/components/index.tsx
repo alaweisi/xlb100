@@ -130,6 +130,8 @@ export function Button({ variant = "secondary", style, children, ...props }: But
   return (
     <button
       type="button"
+      data-ui="button"
+      data-variant={variant}
       {...props}
       style={mergeStyle(
         {
@@ -167,6 +169,7 @@ export interface CardProps extends Omit<HTMLAttributes<HTMLElement>, "title"> {
 export function Card({ title, actions, style, children, ...props }: CardProps) {
   return (
     <section
+      data-ui="card"
       {...props}
       style={mergeStyle(
         {
@@ -181,9 +184,9 @@ export function Card({ title, actions, style, children, ...props }: CardProps) {
       )}
     >
       {(title || actions) && (
-        <div style={{ alignItems: "center", display: "flex", gap: 12, justifyContent: "space-between", marginBottom: 12 }}>
-          {title && <h2 style={{ fontSize: 16, lineHeight: "22px", margin: 0 }}>{title}</h2>}
-          {actions && <div style={{ display: "flex", gap: 8 }}>{actions}</div>}
+        <div data-ui="card-header" style={{ alignItems: "center", display: "flex", gap: 12, justifyContent: "space-between", marginBottom: 12 }}>
+          {title && <h2 data-ui="card-heading" style={{ fontSize: 16, lineHeight: "22px", margin: 0 }}>{title}</h2>}
+          {actions && <div data-ui="card-actions" style={{ display: "flex", gap: 8 }}>{actions}</div>}
         </div>
       )}
       {children}
@@ -205,19 +208,19 @@ const controlStyle: CSSProperties = {
 };
 
 export function Input({ style, ...props }: InputHTMLAttributes<HTMLInputElement>) {
-  return <input {...props} style={mergeStyle(controlStyle, style)} />;
+  return <input data-ui="control" {...props} style={mergeStyle(controlStyle, style)} />;
 }
 
 export function Select({ style, children, ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
   return (
-    <select {...props} style={mergeStyle(controlStyle, style)}>
+    <select data-ui="control" {...props} style={mergeStyle(controlStyle, style)}>
       {children}
     </select>
   );
 }
 
 export function Textarea({ style, ...props }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return <textarea {...props} style={mergeStyle({ ...controlStyle, minHeight: 88, resize: "vertical" }, style)} />;
+  return <textarea data-ui="control" {...props} style={mergeStyle({ ...controlStyle, minHeight: 88, resize: "vertical" }, style)} />;
 }
 
 export interface FormFieldProps {
@@ -229,7 +232,7 @@ export interface FormFieldProps {
 
 export function FormField({ label, children, description, error }: FormFieldProps) {
   return (
-    <label style={{ display: "grid", fontFamily, gap: 6 }}>
+    <label data-ui="form-field" style={{ display: "grid", fontFamily, gap: 6 }}>
       <span style={{ color: tokens.colors.text, fontSize: 13, fontWeight: 600 }}>{label}</span>
       {children}
       {description && !error && <span style={{ color: "#6b7280", fontSize: 12 }}>{description}</span>}
@@ -321,7 +324,9 @@ export interface LocationSearchBarProps extends Omit<HTMLAttributes<HTMLDivEleme
   areaLabel?: string;
   locationIcon?: ReactNode;
   dropdownIcon?: ReactNode;
+  disclosureIcon?: ReactNode;
   searchIcon?: ReactNode;
+  searchIconPlacement?: "start" | "end";
   placeholder?: string;
   value: string;
   onSearchChange: (value: string) => void;
@@ -334,7 +339,9 @@ export function LocationSearchBar({
   areaLabel,
   locationIcon,
   dropdownIcon,
+  disclosureIcon,
   searchIcon,
+  searchIconPlacement = "end",
   placeholder,
   value,
   onSearchChange,
@@ -352,8 +359,34 @@ export function LocationSearchBar({
     }
   }
 
+  const searchButton = canSubmit ? (
+    <button
+      aria-label="搜索服务"
+      type="button"
+      onClick={triggerSearchSubmit}
+      style={{
+        alignItems: "center",
+        background: "transparent",
+        border: 0,
+        color: "#526170",
+        cursor: "pointer",
+        display: "inline-flex",
+        flex: "0 0 auto",
+        fontFamily,
+        fontSize: 17,
+        height: 44,
+        justifyContent: "center",
+        padding: 0,
+        width: 44,
+      }}
+    >
+      {searchIcon ?? null}
+    </button>
+  ) : null;
+
   return (
     <div
+      data-ui="location-search"
       {...props}
       style={mergeStyle(
         {
@@ -369,6 +402,7 @@ export function LocationSearchBar({
       )}
     >
       <button
+        aria-label={`切换城市，当前${cityLabel}`}
         onClick={onCityClick}
         type="button"
         disabled={!onCityClick}
@@ -399,7 +433,7 @@ export function LocationSearchBar({
           ) : null}
         </span>
         <span aria-hidden="true" style={{ color: "#6b7280", fontSize: 15, marginLeft: 4 }}>
-          {dropdownIcon}
+          {disclosureIcon ?? dropdownIcon ?? null}
         </span>
       </button>
       <div aria-hidden="true" style={{ alignSelf: "center", background: "#ead8bd", height: 24, width: 1 }} />
@@ -413,6 +447,7 @@ export function LocationSearchBar({
           padding: "0 8px 0 12px",
         }}
       >
+        {searchIconPlacement === "start" ? searchButton : null}
         <input
           onChange={(event) => onSearchChange(event.target.value)}
           placeholder={placeholder}
@@ -436,25 +471,7 @@ export function LocationSearchBar({
             outline: "none",
           }}
         />
-        <span aria-hidden="true" style={{ color: "#94a3b8", fontSize: 17, flex: "0 0 auto" }}>
-          {canSubmit ? (
-            <button
-              type="button"
-              onClick={triggerSearchSubmit}
-              style={{
-                background: "transparent",
-                border: 0,
-                color: "#3b82f6",
-                cursor: "pointer",
-                fontFamily,
-                fontSize: 17,
-                padding: 0,
-              }}
-            >
-              {searchIcon}
-            </button>
-          ) : null}
-        </span>
+        {searchIconPlacement === "end" ? searchButton : null}
       </div>
     </div>
   );
@@ -534,7 +551,9 @@ export interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
 export function Badge({ tone = "default", style, children, ...props }: BadgeProps) {
   const color = toneColors[tone];
   return (
-    <span
+      <span
+      data-ui="status-tag"
+      data-tone={tone}
       {...props}
       style={mergeStyle(
         {
@@ -600,7 +619,8 @@ export interface TabsProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChang
 export function Tabs({ items, activeKey, onChange, density = "default", style, ...props }: TabsProps) {
   const compact = density === "compact";
   return (
-    <div
+      <div
+      data-ui="tabs"
       {...props}
       role="tablist"
       style={mergeStyle(
@@ -696,8 +716,8 @@ export function Table<Row>({ columns, rows, getRowKey, emptyText = "暂无记录
   const columnLabels = columns.map((column) => column.mobileLabel?.trim() || tableColumnText(column.title) || column.key);
 
   return (
-    <div className="xlb-responsive-table-wrap" style={{ overflowX: "auto", width: "100%" }}>
-      <table className="xlb-responsive-table" style={{ borderCollapse: "collapse", fontFamily, fontSize: 14, minWidth: "100%", tableLayout: "fixed" }}>
+    <div className="xlb-responsive-table-wrap" data-ui="table" style={{ overflowX: "auto", width: "100%" }}>
+      <table className="xlb-responsive-table" data-ui="table-element" style={{ borderCollapse: "collapse", fontFamily, fontSize: 14, minWidth: "100%", tableLayout: "fixed" }}>
         <thead>
           <tr>
             {columns.map((column, columnIndex) => (
@@ -909,7 +929,9 @@ export interface StateProps {
 function StateBlock({ title, description, action, tone = "muted" }: StateProps & { tone?: Tone }) {
   const color = toneColors[tone];
   return (
-    <div
+      <div
+      data-ui="state"
+      data-tone={tone}
       style={{
         background: color.background,
         border: `1px solid ${color.border}`,
@@ -1041,6 +1063,7 @@ export function ActionDock({
   const compact = density === "compact";
   return (
     <div
+      data-ui="action-dock"
       {...props}
       style={mergeStyle(
         {
@@ -1210,9 +1233,10 @@ export interface RuntimeThemeSurfaceProps extends HTMLAttributes<HTMLDivElement>
 
 export function RuntimeThemeSurface({ binding, style, children, ...props }: RuntimeThemeSurfaceProps) {
   return (
-    <div
-      {...props}
-      data-runtime-theme={binding.runtimeThemeTokens.activeThemeId}
+      <div
+        {...props}
+        data-ui="runtime-surface"
+        data-runtime-theme={binding.runtimeThemeTokens.activeThemeId}
       data-runtime-theme-affects={binding.runtimeThemeTokens.affects}
       data-workflow-actor={binding.actor}
       style={mergeStyle({ display: "grid", gap: 14 }, style)}
@@ -1481,6 +1505,7 @@ export function ServiceCard({ title, subtitle, icon, priceText, actionLabel, onC
   const interactive = Boolean(onClick);
   return (
     <section
+      data-ui="service-card"
       {...props}
       onClick={onClick}
       onKeyDown={(event) => {
@@ -1540,6 +1565,7 @@ export function OrderCard({ title, status, description, meta, priceText, actions
   return (
     <Card
       {...props}
+      data-card-kind="order"
       style={mergeStyle(
         {
           display: "grid",

@@ -320,6 +320,7 @@ export function CustomerSupportPage({ api }: { api: CustomerSupportApi }) {
 
   return (
     <CustomerRouteShell currentRoute="support">
+      <div className="customer-support-stack">
       <Card
         title="客服中心"
         actions={<StatusTag tone="success">全程跟进</StatusTag>}
@@ -582,6 +583,7 @@ export function CustomerSupportPage({ api }: { api: CustomerSupportApi }) {
           </div>
         </Card>
       )}
+      </div>
     </CustomerRouteShell>
   );
 }

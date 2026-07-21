@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { BellSimple, CaretRight, MapPin, Ticket } from "@phosphor-icons/react";
 import type { CityCode, CustomerAddress, CustomerProfile, SaveCustomerAddressRequest } from "@xlb/types";
 import { Button, Card, CustomerProfileTemplate, EmptyState, FormField, Input, LoadingState, StatusTag } from "@xlb/ui";
 import { createCustomerUiBinding } from "../adapters/workflowAdapter";
@@ -129,7 +130,10 @@ export function CustomerProfilePage({ api, cityCode, onLogout }: CustomerProfile
 
         <Card title="账号资料" actions={<StatusTag tone="success">服务端数据</StatusTag>}>
           <div style={{ display: "grid", gap: 10 }}>
-            <div className="customer-order-actions"><a href="/customer/notifications" className="notification-entry-link">消息中心</a><a href="/customer/coupons" className="notification-entry-link">我的优惠券</a></div>
+            <div className="customer-profile-shortcuts" role="navigation" aria-label="账户快捷入口">
+              <a href="/customer/notifications"><BellSimple size={20} aria-hidden="true" /><span>消息中心</span><CaretRight size={16} aria-hidden="true" /></a>
+              <a href="/customer/coupons"><Ticket size={20} aria-hidden="true" /><span>我的优惠券</span><CaretRight size={16} aria-hidden="true" /></a>
+            </div>
             <div style={{ color: "#64748b", fontSize: 13 }}>{profile?.phoneMasked ?? "手机号待加载"}</div>
             <FormField label="显示名称"><Input value={name} onChange={(event) => setName(event.target.value)} /></FormField>
             <div className="customer-order-actions">
@@ -142,8 +146,8 @@ export function CustomerProfilePage({ api, cityCode, onLogout }: CustomerProfile
         <Card title="常用服务地址" actions={<StatusTag tone="primary">{addresses.length} 个</StatusTag>}>
           <div style={{ display: "grid", gap: 10 }}>
             {!initialLoading && addresses.length === 0 ? <EmptyState title="还没有常用地址" description="可在下方添加第一个服务地址。" /> : addresses.map((address) => (
-              <div className="customer-order-section" key={address.addressId}>
-                <div className="customer-order-actions"><strong>{address.contactName} · {address.contactPhoneMasked}</strong>{address.isDefault && <StatusTag tone="success">默认地址</StatusTag>}</div>
+              <div className="customer-order-section customer-profile-address" key={address.addressId}>
+                <div className="customer-order-actions"><strong><MapPin size={17} weight="fill" aria-hidden="true" />{address.contactName} · {address.contactPhoneMasked}</strong>{address.isDefault && <StatusTag tone="success">默认地址</StatusTag>}</div>
                 <span>{address.province} {address.city} {address.district} {address.detailAddress}</span>
                 <div className="customer-order-actions">
                   <Button onClick={() => editAddress(address)}>编辑</Button>

@@ -149,7 +149,7 @@ export function App() {
   }
 
   if (currentRoute === "home") {
-    return <CustomerHomePage cityCode={cityCode} catalogState={catalogState} onRetryCatalog={handleRetryCatalog} />;
+    return <CustomerHomePage api={api} cityCode={cityCode} catalogState={catalogState} onRetryCatalog={handleRetryCatalog} />;
   }
 
   if (currentRoute === "services") {

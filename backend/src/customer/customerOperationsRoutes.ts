@@ -11,6 +11,10 @@ function fail(error: unknown, reply: FastifyReply) {
 
 export async function registerCustomerOperationsRoutes(app: FastifyInstance): Promise<void> {
   const preHandler = createRequestContextMiddleware({ requireCityCode: true });
+  app.get("/api/customer/worker-showcase", { preHandler }, async (request, reply) => {
+    try { return await customerOperationsService.listWorkerShowcase(getRequestContext(request)); }
+    catch (error) { return fail(error, reply); }
+  });
   app.get("/api/customer/profile", { preHandler }, async (request, reply) => {
     try { return { ok: true, profile: await customerOperationsService.getProfile(getRequestContext(request)) }; }
     catch (error) { return fail(error, reply); }

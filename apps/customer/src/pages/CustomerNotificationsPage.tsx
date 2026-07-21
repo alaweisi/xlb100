@@ -158,7 +158,7 @@ export function CustomerNotificationsPage({ api }: { api: CustomerNotificationAp
       currentRoute="notifications"
       topBar={<header className="notification-page-header"><h1>消息中心</h1><p>仅显示当前城市、当前账号的站内消息</p></header>}
     >
-      <Card title="通知" actions={<StatusTag tone="success">服务端消息</StatusTag>}>
+      <Card className="customer-notifications-surface" title="通知" actions={<StatusTag tone="success">服务端消息</StatusTag>}>
         <div role="tablist" aria-label="消息视图" className="notification-view-tabs">
           <Button disabled={busyId !== null} aria-pressed={showingInbox} variant={showingInbox ? "primary" : undefined} onClick={() => changeView("inbox")}>收件箱</Button>
           <Button disabled={busyId !== null} aria-pressed={!showingInbox} variant={!showingInbox ? "primary" : undefined} onClick={() => changeView("archive")}>已归档</Button>
