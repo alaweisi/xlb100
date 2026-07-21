@@ -1,0 +1,30 @@
+{
+  "version": "1.0.0",
+  "role": "customer",
+  "surface": "order-create",
+  "route": "/customer/order/create?skuId=sku-gate3",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "dataSource": "contract-faithful-api-fixture",
+  "authority": "docs/design/ui/references/customer-home-visual-truth.png",
+  "states": [
+    "confirm",
+    "server-confirmed-success"
+  ],
+  "checks": {
+    "discoveryDeepLink": true,
+    "singleCustomerShell": true,
+    "serverQuote": true,
+    "serverConfirmedOrder": true,
+    "noHorizontalOverflow": true,
+    "touchTargets": true,
+    "keyboardFocus": true,
+    "reducedMotion": true,
+    "forcedColors": true,
+    "noClientPricingClaim": true,
+    "consoleClean": true
+  },
+  "result": "passed"
+}

@@ -1,6 +1,6 @@
 # 顾客端全业务切片的设计系统统一与视觉重构 — 施工范围清单
 
-> 状态：**P2 GATE 2 PASSED / READY FOR WAVE 3**
+> 状态：**P3 GATE 3 PASSED / READY FOR WAVE 4**
 > 适用端：仅 `apps/customer`
 > 排除端：`apps/worker`、`apps/admin`、`apps/oa`、`apps/dashboard`
 > 视觉母体：[`CUSTOMER_HOME_VISUAL_TRUTH.md`](./CUSTOMER_HOME_VISUAL_TRUTH.md)
@@ -92,13 +92,13 @@
 
 | 状态 | Slice ID | 载体/边界 | 权威输入 | 必须覆盖的状态/动作 | 视觉重构结果 |
 | --- | --- | --- | --- | --- | --- |
-| [ ] | CUST-CATALOG-001 | 服务搜索/分类/结果 | `GET /api/catalog` | loading、catalog empty、no result、error/retry、ready | 继承主页搜索与服务卡语言，筛选控件使用功能玻璃 |
-| [ ] | CUST-CATALOG-002 | SKU 选择与下单深链 | catalog item/SKU、`skuId` | selected、invalid/stale SKU、open create-order | 苹果服务卡片层级，正式 SKU 信息不截断失真 |
-| [ ] | CUST-ORDER-001 | Step 1 选择服务 | catalog、selected SKU | loading、empty、error、invalid、selected | 3D 类目/服务卡与步骤导航统一 |
-| [ ] | CUST-ORDER-002 | Step 2 地址与联系人 | address options、validators | empty、validation、editing、valid | 稳定表单卡；字段错误邻近并保留输入 |
-| [ ] | CUST-ORDER-003 | Step 3 上门时间 | schedule contract | default、selected、unavailable/validation | 单手选择、清晰选中态、不仅依赖颜色 |
-| [ ] | CUST-ORDER-004 | Step 4 报价与优惠券 | quote API、coupon grants、discount decision | quoting、quote error/retry、coupon loading/empty/error、decision success/error | 价格卡稳定可读；优惠券为次级选择，不伪造折扣 |
-| [ ] | CUST-ORDER-005 | 提交与持久成功 | create/get order API、idempotency | disabled reason、submitting、duplicate/conflict、error、server-confirmed success | 单一固定主操作；成功页显示订单与下一责任人 |
+| [x] | CUST-CATALOG-001 | 服务搜索/分类/结果 | `GET /api/catalog` | loading、catalog empty、no result、error/retry、ready | 继承主页搜索与服务卡语言，筛选控件使用功能玻璃 |
+| [x] | CUST-CATALOG-002 | SKU 选择与下单深链 | catalog item/SKU、`skuId` | selected、invalid/stale SKU、open create-order | 苹果服务卡片层级，正式 SKU 信息不截断失真 |
+| [x] | CUST-ORDER-001 | Step 1 选择服务 | catalog、selected SKU | loading、empty、error、invalid、selected | 3D 类目/服务卡与步骤导航统一 |
+| [x] | CUST-ORDER-002 | Step 2 地址与联系人 | address options、validators | empty、validation、editing、valid | 稳定表单卡；字段错误邻近并保留输入 |
+| [x] | CUST-ORDER-003 | Step 3 上门时间 | schedule contract | default、selected、unavailable/validation | 单手选择、清晰选中态、不仅依赖颜色 |
+| [x] | CUST-ORDER-004 | Step 4 报价与优惠券 | quote API、coupon grants、discount decision | quoting、quote error/retry、coupon loading/empty/error、decision success/error | 价格卡稳定可读；优惠券为次级选择，不伪造折扣 |
+| [x] | CUST-ORDER-005 | 提交与持久成功 | create/get order API、idempotency | disabled reason、submitting、duplicate/conflict、error、server-confirmed success | 单一固定主操作；成功页显示订单与下一责任人 |
 
 ### Wave 4 — 订单、支付、确认、评价与退款
 
@@ -128,8 +128,8 @@
 | --- | --- | --- | --- | --- | --- |
 | [ ] | CUST-NOTIFY-001 | 收件箱/归档/分页 | notification API、cursor | loading、empty、error/retry、ready、loading-more | 从主页铃铛进入；通知卡继承服务卡层级 |
 | [ ] | CUST-NOTIFY-002 | 已读/归档/恢复/深链 | notification mutation、revision | busy、success、409 conflict、error、target unavailable | 行级反馈持久且可恢复，冲突尊重服务端真相 |
-| [ ] | CUST-COUPON-001 | 可用/全部优惠券 | coupon grant API | loading、empty、error/retry、available/used/expired | 券卡保持顾客端暖白风格；不在前端计算金额 |
-| [ ] | CUST-COUPON-002 | 用于报价深链 | couponGrantId、quote/decision API | selectable、not-selectable、stale、deep-link recovery | 选择结果进入订单报价，不本地宣称优惠成功 |
+| [x] | CUST-COUPON-001 | 可用/全部优惠券 | coupon grant API | loading、empty、error/retry、available/used/expired | 券卡保持顾客端暖白风格；不在前端计算金额 |
+| [x] | CUST-COUPON-002 | 用于报价深链 | couponGrantId、quote/decision API | selectable、not-selectable、stale、deep-link recovery | 选择结果进入订单报价，不本地宣称优惠成功 |
 | [ ] | CUST-PROFILE-001 | 账户资料 | profile API | loading、ready、validation、saving、success、error | 账户摘要和编辑分层，移除工程标签与英文占位 |
 | [ ] | CUST-ADDRESS-001 | 地址列表/新增/编辑/删除 | address API、city scope、idempotency | empty、editing、validation、saving、delete confirm、success/error/conflict | 地址卡、表单和确认浮层统一，删除可撤销/确认边界明确 |
 

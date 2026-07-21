@@ -48,6 +48,7 @@
 | Customer UI full-slice refactor P0 | BASELINE FROZEN — READY FOR P1 | — | Customer-only visual authority, design system, 9 route carriers, 44 slices and multi-worktree topology |
 | Customer UI full-slice refactor P1 | GATE 1 PASSED — READY FOR P2 | — | Customer shared token/recipe/components, 16 official service assets with stable mapping, and 9-route/3-viewport QA infrastructure; runtime homepage screenshots remain P2 |
 | Customer UI full-slice refactor P2 | GATE 2 PASSED — READY FOR P3 | — | Customer App Shell and locked Home master integrated A→B→C; final Round 09 real-browser evidence passes at 320×844, 390×844 partial/available and 430×932 with P0/P1/P2/P3 = 0/0/0/0 |
+| Customer UI full-slice refactor P3 | GATE 3 PASSED — READY FOR P4 | — | Service discovery, stepped order creation and coupons integrated A→B→C; focused tests 20/20 and rendered browser checks 4/4 pass with real catalog verification, server-authoritative quote/order semantics and Customer-only visual inheritance |
 
 ## Commercialization Unit B — Production Edge Routing (LOCKED — REPOSITORY ONLY)
 

@@ -216,13 +216,20 @@ test("real Marketing governance, Customer coupon Order, Admin trace and Worker n
   await expect(page).toHaveURL(new RegExp(`/customer/order/create\\?couponGrantId=${phase29Fixture.grantId}`));
 
   const serviceSelect = page.locator(`select:has(option[value="${skuId}"])`);
-  const couponSelect = page.locator(`select:has(option[value="${phase29Fixture.grantId}"])`);
   await serviceSelect.selectOption(skuId);
+  await page.getByRole("button", { name: "下一步：填写地址" }).click();
+  await page.getByLabel("详细地址").fill(`Phase29 browser address ${phase29Fixture.nonce}`);
+  await page.getByLabel("联系人").fill("Phase29 Browser Customer");
+  await page.getByLabel("手机号").fill(phase29Fixture.customerPhone);
+  await page.getByRole("button", { name: "下一步：选择时间" }).click();
+  await page.getByRole("button", { name: "下一步：确认预约" }).click();
+
+  const couponSelect = page.locator(`select:has(option[value="${phase29Fixture.grantId}"])`);
   await expect(couponSelect).toHaveValue(phase29Fixture.grantId);
   const decisionResponsePromise = page.waitForResponse((response) =>
     response.url().endsWith("/api/customer/marketing/discount-decisions") && response.request().method() === "POST",
   );
-  await page.getByRole("button", { name: "Apply selected coupon" }).click();
+  await page.getByRole("button", { name: "校验并使用" }).click();
   const decisionResponse = await decisionResponsePromise;
   const decisionBody = await bodyOf(decisionResponse);
   phase29Fixture.decisionId = decisionBody.discountDecision.discountDecisionId;
@@ -235,16 +242,13 @@ test("real Marketing governance, Customer coupon Order, Admin trace and Worker n
     netAmountMinor: grossAmountMinor - faceValueMinor,
     status: "issued",
   });
-  await expect(page.getByText("Coupon validated by server", { exact: true })).toBeVisible();
-  await expect(page.getByText(new RegExp(`Net:.*${((grossAmountMinor - faceValueMinor) / 100).toFixed(2).replace(".", "\\.")}`))).toBeVisible();
+  await expect(page.getByText("服务端已校验", { exact: true })).toBeVisible();
+  await expect(page.getByText(new RegExp(`实付.*${((grossAmountMinor - faceValueMinor) / 100).toFixed(2).replace(".", "\\.")}`))).toBeVisible();
 
-  await page.getByLabel("Detail address").fill(`Phase29 browser address ${phase29Fixture.nonce}`);
-  await page.getByLabel("Contact name").fill("Phase29 Browser Customer");
-  await page.getByLabel("Contact phone").fill(phase29Fixture.customerPhone);
   const orderResponsePromise = page.waitForResponse((response) =>
     response.url().endsWith("/api/orders") && response.request().method() === "POST",
   );
-  await page.getByRole("button", { name: "Submit order" }).click();
+  await page.getByRole("button", { name: "提交预约" }).click();
   const orderResponse = await orderResponsePromise;
   const orderBody = await bodyOf(orderResponse);
   phase29Fixture.orderId = orderBody.order.orderId;
@@ -267,7 +271,8 @@ test("real Marketing governance, Customer coupon Order, Admin trace and Worker n
       },
     },
   });
-  await expect(page.getByText(`Order ID: ${phase29Fixture.orderId}`, { exact: true })).toBeVisible();
+  await expect(page.getByText("预约已提交", { exact: true })).toBeVisible();
+  await expect(page.getByText(phase29Fixture.orderId, { exact: true })).toBeVisible();
   await assertNoHorizontalOverflow(page);
   // Let the Customer screen finish its read-only catalog refresh before this
   // page is reused for Admin/Worker navigation. Otherwise Chromium can report

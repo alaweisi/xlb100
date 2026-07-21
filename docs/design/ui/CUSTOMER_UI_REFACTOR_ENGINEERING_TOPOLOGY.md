@@ -1,6 +1,6 @@
 # 顾客端全业务切片设计系统统一与视觉重构 — 工程施工拓扑
 
-> 状态：**P2 GATE 2 PASSED / READY FOR P3**
+> 状态：**P3 GATE 3 PASSED / READY FOR P4**
 > 施工对象：仅 `apps/customer` 及其直接消费的顾客端 `packages/ui` 能力
 > 明确排除：`apps/worker`、`apps/admin`、`apps/oa`、`apps/dashboard`
 > 视觉母体：[`CUSTOMER_HOME_VISUAL_TRUTH.md`](./CUSTOMER_HOME_VISUAL_TRUTH.md)

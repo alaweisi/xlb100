@@ -34,7 +34,7 @@ import {
   Textarea,
 } from "@xlb/ui";
 import type { CustomerAppFailure, CustomerLoadable } from "./customerPageShell";
-import { CustomerRouteShell, describeCustomerAppError, useSearchParamSku } from "./customerPageShell";
+import { describeCustomerAppError, useSearchParamSku } from "./customerPageShell";
 import {
   dedupeCatalogSkusByName,
   getCatalogSkuDisplayLabel,
@@ -749,10 +749,8 @@ export function CustomerOrderCreatePage({
   ) : null;
 
   return (
-    <CustomerRouteShell
-      currentRoute="createOrder"
-      topBar={<BookingTopBar cityCode={cityCode} step={submitState.status === "success" ? 4 : activeStep} />}
-    >
+    <>
+      <BookingTopBar cityCode={cityCode} step={submitState.status === "success" ? 4 : activeStep} />
       <CustomerOrderCreateTemplate route="/customer/order/create" cityCode={cityCode} binding={binding}>
         <BookingProgress
           activeStep={submitState.status === "success" ? 4 : activeStep}
@@ -779,6 +777,6 @@ export function CustomerOrderCreatePage({
           </>
         )}
       </CustomerOrderCreateTemplate>
-    </CustomerRouteShell>
+    </>
   );
 }
