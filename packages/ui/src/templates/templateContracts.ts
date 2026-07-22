@@ -8,16 +8,6 @@ export interface UiTemplateRuntimeBinding {
   };
 }
 
-export interface CustomerTemplateShellProps {
-  route: string;
-  cityCode: string;
-  binding: UiTemplateRuntimeBinding;
-  children: ReactNode;
-  header?: ReactNode;
-  actions?: ReactNode;
-  style?: CSSProperties;
-}
-
 export interface WorkerTemplateShellProps {
   cityCode: string;
   binding: UiTemplateRuntimeBinding;

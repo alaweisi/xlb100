@@ -40,15 +40,11 @@ This manifest records the package-level presentation surface after five-layer st
 ### Templates
 - `packages/ui/src/templates/`
 - Structural page shells that compose primitives/patterns:
-  - `CustomerHomeTemplate`
-  - `CustomerServicesTemplate`
-  - `CustomerOrderCreateTemplate`
-  - `CustomerOrdersTemplate`
-  - `CustomerProfileTemplate`
   - `WorkerGrabHallTemplate`
 
 ### Page Routes
-- Routing and stateful orchestration remain in `apps/customer/src/pages/` and `apps/customer/src/app/App.tsx`.
+- Customer-specific templates and page routes were removed pending the new customer design.
+- Worker routing and stateful orchestration remain in its application layer.
 
 ## API and Workflow Rule
 

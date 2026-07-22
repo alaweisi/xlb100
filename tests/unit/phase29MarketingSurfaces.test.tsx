@@ -2,7 +2,6 @@
 import React from "react";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { CustomerCouponsPage } from "../../apps/customer/src/pages/CustomerCouponsPage";
 import { MarketingOperationsPage } from "../../apps/admin/src/pages/MarketingOperationsPage";
 import { toCustomerCouponGrantViewModel } from "../../apps/customer/src/adapters/marketingAdapter";
 
@@ -17,48 +16,13 @@ const grant = {
 
 afterEach(() => cleanup());
 
-describe("Phase29 Marketing Customer/Admin surfaces", () => {
-  it("renders real Customer grants and delegates selection without local money", async () => {
-    const onSelectForQuote = vi.fn();
-    render(<CustomerCouponsPage
-      api={{ listCouponGrants: vi.fn().mockResolvedValue({ ok: true, couponGrants: [grant] }) }}
-      onSelectForQuote={onSelectForQuote}
-    />);
-    expect(await screen.findByText("可使用")).toBeTruthy();
-    expect(screen.getByText(/服务端报价为准/)).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "用于下单报价" }));
-    expect(onSelectForQuote).toHaveBeenCalledWith("grant-1");
-    expect(document.body.textContent).not.toContain("13800000000");
-  });
-
-  it("renders an expired available grant as expired and never exposes quote selection", async () => {
-    const expiredAvailableGrant = { ...grant, expiresAt: "2000-01-01T00:00:00.000Z" };
-    render(<CustomerCouponsPage
-      api={{ listCouponGrants: vi.fn().mockResolvedValue({
-        ok: true,
-        couponGrants: [expiredAvailableGrant],
-      }) }}
-      onSelectForQuote={vi.fn()}
-    />);
-
-    expect(await screen.findByText("已过期")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "用于下单报价" })).toBeNull();
-
+describe("Phase29 retained Marketing surfaces", () => {
+  it("keeps the Customer coupon view-model boundary independent of a retired page", () => {
     const boundaryViewModel = toCustomerCouponGrantViewModel(
       { ...grant, expiresAt: now },
       new Date(now),
     );
     expect(boundaryViewModel.canSelectForQuote).toBe(false);
-  });
-
-  it("shows an honest Customer error and retries to empty state", async () => {
-    const listCouponGrants = vi.fn()
-      .mockRejectedValueOnce(new Error("coupon API unavailable"))
-      .mockResolvedValueOnce({ ok: true, couponGrants: [] });
-    render(<CustomerCouponsPage api={{ listCouponGrants }} />);
-    expect((await screen.findByRole("alert")).textContent).toContain("coupon API unavailable");
-    fireEvent.click(screen.getByRole("button", { name: "重试" }));
-    expect(await screen.findByText("当前没有可使用的优惠券")).toBeTruthy();
   });
 
   it("keeps Admin auditor read-only while showing current-city records", async () => {
