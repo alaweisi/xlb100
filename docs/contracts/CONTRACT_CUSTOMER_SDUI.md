@@ -20,6 +20,7 @@ CustomerSduiManifestEnvelope
   -> CustomerSduiPageManifest | null
        -> schema + component contract version
        -> page scope + immutable revision + content hash
+       -> stable basis-point rollout policy
        -> typed component instances
        -> allowlisted data sources
        -> application-owned actions
@@ -59,8 +60,10 @@ v1 主页只接受：
 - Props、数据参数或顶层对象中的未知字段；
 - 重复组件、数据、动作标识或同区域重复顺序；
 - 找不到目标的数据与动作引用；
+- 组件插槽绑定了不属于该组件的数据键或动作键；
 - 错误组件区域、被停用的保护性主页壳或无有效内容区；
 - 非法城市、重复作用域、反向客户端版本区间；
+- 超出 1—10000 基点的灰度比例或不安全的分桶种子；
 - 错误生效/过期时间和非 SHA-256 内容摘要；
 - 非 published 响应携带远端 Manifest；
 - kill switch 响应携带缓存 TTL 或远端 Manifest；
@@ -75,5 +78,7 @@ v1 主页只接受：
 - 新增组件代码仍需正常开发、测试和客户端发布；只有客户端注册后，运营配置才能动态启用。
 
 ## 本步骤不实现的内容
+
+本契约同时定义控制面后续必须使用的草稿、审核、发布、下架、回滚、Kill Switch、CAS版本和幂等请求形状，但不实现这些操作。
 
 本契约不包含 React 渲染、Registry、Composition Engine、网络加载、缓存、数据请求、动作执行、后端发布存储或运营编辑器。这些能力分别由后续第3—7工程依赖本契约实现。
