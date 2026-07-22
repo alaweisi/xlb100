@@ -9,6 +9,7 @@ export {
   type RetryMode,
 } from "./createApiClient.js";
 export { customerApi } from "./customer.js";
+export { createCustomerSduiApi, type CustomerSduiApi } from "./customerSdui.js";
 export { workerApi } from "./worker.js";
 export {
   createNotificationApi,
