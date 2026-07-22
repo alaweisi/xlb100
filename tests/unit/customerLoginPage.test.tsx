@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -33,6 +35,18 @@ beforeEach(() => {
 });
 
 describe("CustomerLoginPage", () => {
+  it("keeps the unauthenticated surface inside the Customer mobile app frame", () => {
+    const css = readFileSync(
+      join(process.cwd(), "apps/customer/src/app/mobile-shell.css"),
+      "utf8",
+    );
+
+    expect(css).toContain(".customer-auth-page {");
+    expect(css).toContain(".customer-auth-panel {");
+    expect(css).toContain("width: min(100%, 430px);");
+    expect(css).toContain("min-height: 100dvh;");
+  });
+
   it("requires a valid phone and user-entered six-digit code", async () => {
     const onLogin = vi.fn();
     render(<CustomerLoginPage onLogin={onLogin} />);

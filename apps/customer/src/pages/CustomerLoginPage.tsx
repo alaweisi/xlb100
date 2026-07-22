@@ -1,4 +1,5 @@
 import { type FormEvent, useCallback, useState } from "react";
+import { ShieldCheck } from "@phosphor-icons/react";
 import { Button, Card, FormField, Input, StatusTag } from "@xlb/ui";
 import {
   customerAuthErrorMessage,
@@ -58,8 +59,19 @@ export function CustomerLoginPage({
   return (
     <main className="customer-auth-page">
       <section className="customer-auth-panel" aria-labelledby="customer-login-title">
-        <div className="customer-auth-brand" aria-hidden="true">喜乐帮</div>
-        <Card title="顾客登录" actions={<StatusTag tone="primary">短信验证</StatusTag>}>
+        <header className="customer-auth-brand">
+          <div className="customer-auth-brand-row">
+            <strong>喜乐帮</strong>
+            <span><ShieldCheck aria-hidden="true" weight="duotone" />平台守护</span>
+          </div>
+          <p>安心到家，服务就在身边</p>
+        </header>
+        <Card
+          className="customer-auth-card"
+          productRole="customer"
+          title="顾客登录"
+          actions={<StatusTag tone="success">短信验证</StatusTag>}
+        >
           <form className="customer-auth-form" onSubmit={(event) => void submit(event)}>
             <div>
               <h1 id="customer-login-title">欢迎回来</h1>
@@ -77,6 +89,7 @@ export function CustomerLoginPage({
                 inputMode="tel"
                 maxLength={11}
                 placeholder="请输入 11 位手机号"
+                productRole="customer"
                 value={phone}
                 onChange={(event) => setPhone(event.target.value.replace(/\D/gu, "").slice(0, 11))}
               />
@@ -89,15 +102,16 @@ export function CustomerLoginPage({
                   inputMode="numeric"
                   maxLength={6}
                   placeholder="请输入 6 位验证码"
+                  productRole="customer"
                   value={code}
                   onChange={(event) => setCode(event.target.value.replace(/\D/gu, "").slice(0, 6))}
                 />
               </FormField>
-              <Button type="button" disabled={busy !== null || !phoneReady} onClick={() => void requestCode()}>
+              <Button productRole="customer" type="button" disabled={busy !== null || !phoneReady} onClick={() => void requestCode()}>
                 {busy === "request" ? "正在发送…" : codeRequested ? "重新获取" : "获取验证码"}
               </Button>
             </div>
-            <Button type="submit" variant="primary" disabled={busy !== null || !phoneReady || !codeReady}>
+            <Button productRole="customer" type="submit" variant="primary" disabled={busy !== null || !phoneReady || !codeReady}>
               {busy === "login" ? "正在登录…" : "登录并继续"}
             </Button>
             {notice && <div className="customer-auth-success" role="status">{notice}</div>}
@@ -105,6 +119,12 @@ export function CustomerLoginPage({
             <p className="customer-auth-privacy">验证码仅可使用一次，请勿向任何人透露。</p>
           </form>
         </Card>
+        <footer className="customer-auth-trust" aria-label="平台服务保障">
+          <span>实名认证</span>
+          <span>价格透明</span>
+          <span>服务留痕</span>
+          <span>售后保障</span>
+        </footer>
       </section>
     </main>
   );
