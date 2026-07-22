@@ -10,6 +10,7 @@
 
 - [`docs/design/customer-v2/HYBRID_SDUI_ARCHITECTURE_BASELINE.md`](../../docs/design/customer-v2/HYBRID_SDUI_ARCHITECTURE_BASELINE.md)
 - [`docs/design/customer-v2/CONSTRUCTION_PLAN.md`](../../docs/design/customer-v2/CONSTRUCTION_PLAN.md)
+- [`docs/contracts/CONTRACT_CUSTOMER_SDUI.md`](../../docs/contracts/CONTRACT_CUSTOMER_SDUI.md)
 
 ## 当前边界
 
