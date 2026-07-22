@@ -1,36 +1,17 @@
+import type {
+  RuntimeThemeAsset,
+  RuntimeThemeAssetManifest,
+  RuntimeThemeAssetMimeType,
+  RuntimeThemeAssetSourcePolicy,
+} from "@xlb/types";
+
 export const CUSTOMER_BRAND_LOGO_ASSET_ID = "customer.brand.logo" as const;
 
-export type CustomerAssetMimeType =
-  | "image/avif"
-  | "image/webp"
-  | "image/png"
-  | "image/jpeg";
-
-export type CustomerAssetSourcePolicy =
-  | { readonly kind: "same-origin"; readonly pathPrefix: string }
-  | { readonly kind: "https-allowlisted"; readonly allowedOrigins: readonly string[] };
-
-export interface CustomerRuntimeAssetDescriptor {
-  readonly id: string;
-  readonly revision: string;
-  readonly src: string;
-  readonly mimeType: CustomerAssetMimeType;
-  readonly widthPx: number;
-  readonly heightPx: number;
-  readonly byteSize: number;
-  readonly maxBytes: number;
-  readonly integrity: string;
-  readonly decorative: boolean;
-  readonly altText: string | null;
-  readonly preloadPriority: "none" | "low" | "high";
-  readonly fallbackAssetId: string | null;
-}
-
-export interface CustomerRuntimeAssetManifest {
-  readonly revision: string;
-  readonly sourcePolicy: CustomerAssetSourcePolicy;
-  readonly assets: readonly CustomerRuntimeAssetDescriptor[];
-}
+/** Customer aliases deliberately point at the shared contract; no second wire format exists. */
+export type CustomerAssetMimeType = RuntimeThemeAssetMimeType;
+export type CustomerAssetSourcePolicy = RuntimeThemeAssetSourcePolicy;
+export type CustomerRuntimeAssetDescriptor = RuntimeThemeAsset;
+export type CustomerRuntimeAssetManifest = RuntimeThemeAssetManifest;
 
 export interface VerifiedCustomerAsset {
   readonly asset: CustomerRuntimeAssetDescriptor;
@@ -98,6 +79,16 @@ function normalizedContentType(response: Response): string | null {
   return value?.split(";", 1)[0]?.trim().toLowerCase() ?? null;
 }
 
+function metadataIsSafe(asset: CustomerRuntimeAssetDescriptor): boolean {
+  return asset.widthPx > 0 && asset.widthPx <= 8_192 &&
+    asset.heightPx > 0 && asset.heightPx <= 8_192 &&
+    asset.byteSize > 0 && asset.byteSize <= asset.maxBytes &&
+    asset.maxBytes <= 5_242_880 &&
+    /^sha256-[A-Za-z0-9+/]{43}=$/.test(asset.integrity) &&
+    asset.pointerEvents === "none" &&
+    (asset.decorative ? asset.altText === null : Boolean(asset.altText?.trim()));
+}
+
 /**
  * Loads only manifest-declared image bytes. A source is never exposed to React
  * until policy, MIME, byte-count and SRI checks have all passed.
@@ -147,8 +138,7 @@ export class CustomerAssetRuntime {
     asset: CustomerRuntimeAssetDescriptor,
     signal?: AbortSignal,
   ): Promise<VerifiedCustomerAsset | null> {
-    if (!sourceAllowed(asset.src, this.manifest.sourcePolicy)) return null;
-    if (asset.byteSize > asset.maxBytes) return null;
+    if (!sourceAllowed(asset.src, this.manifest.sourcePolicy) || !metadataIsSafe(asset)) return null;
 
     const response = await this.#fetcher(asset.src, {
       cache: "force-cache",
@@ -159,6 +149,8 @@ export class CustomerAssetRuntime {
       signal,
     });
     if (!response.ok || normalizedContentType(response) !== asset.mimeType) return null;
+    const declaredLength = response.headers.get("content-length");
+    if (declaredLength !== null && Number(declaredLength) > asset.maxBytes) return null;
 
     const bytes = await response.arrayBuffer();
     if (bytes.byteLength !== asset.byteSize || bytes.byteLength > asset.maxBytes) return null;

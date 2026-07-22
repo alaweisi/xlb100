@@ -3,13 +3,13 @@ import {
   mergeThemeTokens,
   resolveRuntimeTheme,
   type RuntimeThemeCapabilities,
-  type RuntimeThemeEnvelopeValidator,
   type RuntimeThemeFallbackReason,
   type RuntimeThemeScope,
   type ThemeTokenOverrides,
   type ThemeTokenPrimitive,
   type ThemeTokens,
 } from "@xlb/ui";
+import type { RuntimeThemeEnvelope } from "@xlb/types";
 import {
   useEffect,
   useMemo,
@@ -27,34 +27,25 @@ import {
   CUSTOMER_BRAND_LOGO_ASSET_ID,
   CustomerAssetRuntime,
   type CustomerAssetRuntimeOptions,
-  type CustomerRuntimeAssetManifest,
   type VerifiedCustomerAsset,
 } from "./customerAssetRuntime.js";
 
-export interface CustomerPresentationEnvelope {
-  readonly revision: string;
-  readonly resolvedThemeId: string;
-  readonly role: string;
-  readonly mode: string;
-  readonly cityCode: string;
-  readonly routeScope: string | null;
-  readonly tokenOverrides: ThemeTokenOverrides;
-  readonly expiresAt: string | null;
-  readonly killSwitchActive: boolean;
-  readonly assetManifest: CustomerRuntimeAssetManifest | null;
-}
+/** Customer consumes the shared runtime-theme envelope without redefining it. */
+export type CustomerPresentationEnvelope = RuntimeThemeEnvelope;
 
-export interface CustomerPresentationEnvelopeValidator extends RuntimeThemeEnvelopeValidator {
+export interface CustomerPresentationEnvelopeValidator {
   safeParse(candidate: unknown):
     | { success: true; data: CustomerPresentationEnvelope }
     | { success: false };
 }
 
+export type CustomerPresentationFallbackReason = RuntimeThemeFallbackReason | "not-effective";
+
 export interface ResolvedCustomerPresentation {
   readonly tokens: ThemeTokens;
   readonly themeId: string;
   readonly revision: string | null;
-  readonly fallbackReason: RuntimeThemeFallbackReason | null;
+  readonly fallbackReason: CustomerPresentationFallbackReason | null;
   readonly envelope: CustomerPresentationEnvelope | null;
 }
 
@@ -93,8 +84,40 @@ export function resolveCustomerPresentation(
   validator: CustomerPresentationEnvelopeValidator,
   now = new Date(),
 ): ResolvedCustomerPresentation {
-  const core = resolveRuntimeTheme(candidate, scope, capabilities, validator, now);
   const parsed = validator.safeParse(candidate);
+  const coreValidator = {
+    safeParse(value: unknown) {
+      const result = validator.safeParse(value);
+      if (!result.success) return result;
+      return {
+        success: true as const,
+        data: {
+          ...result.data,
+          tokenOverrides: result.data.tokenOverrides as ThemeTokenOverrides,
+        },
+      };
+    },
+  };
+  if (parsed.success && !parsed.data.killSwitchActive &&
+      Date.parse(parsed.data.effectiveAt) > now.getTime()) {
+    const fallbackCore = resolveRuntimeTheme(
+      null,
+      scope,
+      capabilities,
+      { safeParse: () => ({ success: false as const }) },
+      now,
+    );
+    const customerBase = mergeThemeTokens(baseTokens, customerThemeTokens);
+    return Object.freeze({
+      tokens: mergeThemeTokens(customerBase, runtimeDelta(baseTokens, fallbackCore.tokens)),
+      themeId: "default",
+      revision: null,
+      fallbackReason: "not-effective",
+      envelope: null,
+    });
+  }
+
+  const core = resolveRuntimeTheme(candidate, scope, capabilities, coreValidator, now);
   const customerBase = mergeThemeTokens(baseTokens, customerThemeTokens);
   const tokens = mergeThemeTokens(customerBase, runtimeDelta(baseTokens, core.tokens));
 
@@ -107,7 +130,145 @@ export function resolveCustomerPresentation(
   });
 }
 
-export type CustomerBrandAssetState = "default" | "loading" | "ready" | "fallback";
+export type CustomerPresentationRuntimeStatus =
+  | "idle"
+  | "loading"
+  | "ready"
+  | "fallback"
+  | "last-safe";
+
+export type CustomerPresentationLoadFailure = CustomerPresentationFallbackReason | "load-error";
+
+export interface CustomerPresentationRuntimeSnapshot {
+  readonly status: CustomerPresentationRuntimeStatus;
+  readonly presentation: ResolvedCustomerPresentation | null;
+  readonly failureReason: CustomerPresentationLoadFailure | null;
+  readonly requestedScope: RuntimeThemeScope | null;
+}
+
+export interface CustomerPresentationLoadResult {
+  readonly candidate: unknown;
+}
+
+export type CustomerPresentationLoader = (
+  scope: RuntimeThemeScope,
+  signal: AbortSignal,
+) => Promise<CustomerPresentationLoadResult>;
+
+function sameScope(envelope: RuntimeThemeEnvelope, scope: RuntimeThemeScope): boolean {
+  return envelope.role === scope.role && envelope.mode === scope.mode && envelope.cityCode === scope.cityCode &&
+    (envelope.routeScope === null || envelope.routeScope === scope.routeScope);
+}
+
+function remainsSafe(
+  presentation: ResolvedCustomerPresentation,
+  scope: RuntimeThemeScope,
+  now: Date,
+): boolean {
+  const envelope = presentation.envelope;
+  return envelope !== null && !envelope.killSwitchActive && sameScope(envelope, scope) &&
+    Date.parse(envelope.effectiveAt) <= now.getTime() &&
+    (envelope.expiresAt === null || Date.parse(envelope.expiresAt) > now.getTime());
+}
+
+/**
+ * Delivery-independent bridge for P4/P8. Newer refreshes always win; a failed
+ * refresh may retain only an unexpired, same-scope, previously validated view.
+ */
+export class CustomerPresentationRuntime {
+  #generation = 0;
+  #abortController: AbortController | null = null;
+  #lastSafe: ResolvedCustomerPresentation | null = null;
+  #snapshot: CustomerPresentationRuntimeSnapshot = Object.freeze({
+    status: "idle",
+    presentation: null,
+    failureReason: null,
+    requestedScope: null,
+  });
+
+  constructor(private readonly validator: CustomerPresentationEnvelopeValidator) {}
+
+  get snapshot(): CustomerPresentationRuntimeSnapshot {
+    return this.#snapshot;
+  }
+
+  async refresh(
+    loader: CustomerPresentationLoader,
+    scope: RuntimeThemeScope,
+    capabilities: RuntimeThemeCapabilities,
+    now = new Date(),
+  ): Promise<CustomerPresentationRuntimeSnapshot> {
+    const generation = ++this.#generation;
+    this.#abortController?.abort();
+    const abortController = new AbortController();
+    this.#abortController = abortController;
+    const safe = this.#lastSafe !== null && remainsSafe(this.#lastSafe, scope, now)
+      ? this.#lastSafe
+      : null;
+    this.#snapshot = Object.freeze({
+      status: "loading",
+      presentation: safe,
+      failureReason: null,
+      requestedScope: scope,
+    });
+
+    try {
+      const result = await loader(scope, abortController.signal);
+      if (generation !== this.#generation) return this.#snapshot;
+      const resolved = resolveCustomerPresentation(result.candidate, scope, capabilities, this.validator, now);
+      if (resolved.fallbackReason === null) {
+        this.#lastSafe = resolved;
+        this.#snapshot = Object.freeze({
+          status: "ready",
+          presentation: resolved,
+          failureReason: null,
+          requestedScope: scope,
+        });
+      } else if (safe !== null && resolved.fallbackReason !== "kill-switch") {
+        this.#snapshot = Object.freeze({
+          status: "last-safe",
+          presentation: safe,
+          failureReason: resolved.fallbackReason,
+          requestedScope: scope,
+        });
+      } else {
+        if (resolved.fallbackReason === "kill-switch") this.#lastSafe = null;
+        this.#snapshot = Object.freeze({
+          status: "fallback",
+          presentation: resolved,
+          failureReason: resolved.fallbackReason,
+          requestedScope: scope,
+        });
+      }
+      return this.#snapshot;
+    } catch {
+      if (generation !== this.#generation) return this.#snapshot;
+      const foundation = resolveCustomerPresentation(null, scope, capabilities, this.validator, now);
+      this.#snapshot = Object.freeze({
+        status: safe === null ? "fallback" : "last-safe",
+        presentation: safe ?? foundation,
+        failureReason: "load-error",
+        requestedScope: scope,
+      });
+      return this.#snapshot;
+    }
+  }
+
+  invalidate(): void {
+    this.#generation += 1;
+    this.#abortController?.abort();
+    this.#abortController = null;
+    this.#lastSafe = null;
+    this.#snapshot = Object.freeze({
+      status: "idle",
+      presentation: null,
+      failureReason: null,
+      requestedScope: null,
+    });
+  }
+}
+
+export type CustomerBrandAssetState = "default" | "loading" | "ready" | "asset-failure";
 
 export interface CustomerPresentationProviderProps extends CustomerAssetRuntimeOptions {
   readonly candidate: unknown;
@@ -189,8 +350,8 @@ export function CustomerPresentationProvider({
         runtime.release(loaded);
         current = null;
         setLogo(defaultBrandLogoConfig);
-        setBrandState("fallback");
-        onBrandAssetStateChange?.("fallback");
+        setBrandState("asset-failure");
+        onBrandAssetStateChange?.("asset-failure");
         return;
       }
       setLogo(config);

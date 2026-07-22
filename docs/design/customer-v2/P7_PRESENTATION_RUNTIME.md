@@ -37,7 +37,11 @@ P7只负责顾客端视觉呈现，不决定页面组件顺序、数据请求、
 
 ## 集成约定
 
-P7模块入口位于 `packages/customer-components/src/presentation/index.ts`。平台最终公共Barrel由P10统一接入，避免P3、P5、P7并行修改同一中央出口文件。
+P7模块入口位于 `packages/customer-components/src/presentation/index.ts`，并通过包级子路径 `@xlb/customer-components/presentation` 暴露给 P8。中央根 Barrel 仍由 P10 统一接入，避免 P3、P5、P7 并行修改同一文件。
+
+P7 不建立第二套 wire contract：Customer 的主题 Envelope、资产 Manifest、MIME、来源策略及资产描述均直接引用 `@xlb/types` 的 `RuntimeTheme*` 契约，正式输入由 `@xlb/validators` 的 `runtimeThemeEnvelopeSchema` 校验。
+
+`CustomerPresentationRuntime` 对 P4/P8 暴露 `idle / loading / ready / fallback / last-safe` 状态。异步刷新遵循 latest-wins；只有同 scope、已生效且尚未过期的历史版本可以成为 last-safe。Kill switch 总是立即清除 last-safe，不能被缓存视觉覆盖。
 
 P8应将正式 `runtimeThemeEnvelopeSchema` 作为 `CustomerPresentationProvider.validator` 注入，并将当前城市、路由和运行能力作为scope输入。不得在组件内部推断城市或认证范围。
 

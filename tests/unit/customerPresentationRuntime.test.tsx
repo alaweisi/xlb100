@@ -10,6 +10,7 @@ import {
   CUSTOMER_BRAND_LOGO_ASSET_ID,
   CustomerAssetRuntime,
   CustomerPresentationProvider,
+  CustomerPresentationRuntime,
   resolveCustomerPresentation,
   type CustomerPresentationEnvelope,
   type CustomerPresentationEnvelopeValidator,
@@ -49,7 +50,10 @@ function assetManifest(): CustomerRuntimeAssetManifest {
         integrity: acceptedIntegrity,
         decorative: false,
         altText: "喜乐帮",
+        pointerEvents: "none",
+        zIndex: 0,
         preloadPriority: "high",
+        responsiveSources: [],
         fallbackAssetId: null,
       },
     ],
@@ -58,16 +62,26 @@ function assetManifest(): CustomerRuntimeAssetManifest {
 
 function envelope(manifest: CustomerRuntimeAssetManifest | null = null): CustomerPresentationEnvelope {
   return {
+    schemaVersion: "1.0",
     revision: "customer-theme:1",
     resolvedThemeId: "default",
     role: "customer",
     mode: "light",
     cityCode: "hangzhou",
+    campaignId: "customer-campaign",
+    campaignRevision: "customer-campaign:1",
+    cityScopeProof: "customer:hangzhou",
     routeScope: "/customer",
+    placementScope: [],
     tokenOverrides: { "campaign.accent": "#006B68" },
+    presentation: null,
+    effectiveAt: "2026-07-01T00:00:00.000Z",
     expiresAt: "2026-08-23T00:00:00.000Z",
+    cacheTtlSeconds: 300,
+    resolutionReason: "campaign-active",
     killSwitchActive: false,
     assetManifest: manifest,
+    fallbackThemeId: "default",
   };
 }
 
@@ -149,6 +163,96 @@ describe("Customer P7 presentation runtime", () => {
     expect(resolved.tokens.campaign?.accent).not.toBe("#006B68");
   });
 
+  it.each([
+    ["not-effective", { effectiveAt: "2026-07-24T00:00:00.000Z" }],
+    ["expired", { expiresAt: "2026-07-22T00:00:00.000Z" }],
+    ["scope-mismatch", { cityCode: "shanghai" }],
+  ] as const)("reports the %s presentation fallback", (reason, overrides) => {
+    const candidate = { ...envelope(), ...overrides } as CustomerPresentationEnvelope;
+    const resolved = resolveCustomerPresentation(
+      candidate,
+      scope,
+      capabilities,
+      validatorFor(candidate),
+      new Date("2026-07-23T00:00:00.000Z"),
+    );
+
+    expect(resolved.fallbackReason).toBe(reason);
+    expect(resolved.envelope).toBeNull();
+    expect(resolved.tokens.surface?.page).toBe("#CFEFEF");
+  });
+
+  it("honors the kill switch instead of retaining a prior presentation", async () => {
+    const active = envelope();
+    const killed: CustomerPresentationEnvelope = {
+      ...active,
+      resolvedThemeId: "default",
+      campaignId: null,
+      campaignRevision: null,
+      placementScope: [],
+      tokenOverrides: {},
+      presentation: null,
+      assetManifest: null,
+      expiresAt: null,
+      cacheTtlSeconds: 0,
+      resolutionReason: "default-kill-switch",
+      killSwitchActive: true,
+    };
+    const runtime = new CustomerPresentationRuntime(runtimeThemeEnvelopeSchema);
+
+    await runtime.refresh(async () => ({ candidate: active }), scope, capabilities,
+      new Date("2026-07-23T00:00:00.000Z"));
+    const result = await runtime.refresh(async () => ({ candidate: killed }), scope, capabilities,
+      new Date("2026-07-23T00:00:00.000Z"));
+
+    expect(result.status).toBe("fallback");
+    expect(result.failureReason).toBe("kill-switch");
+    expect(result.presentation?.envelope).toBeNull();
+  });
+
+  it("exposes loading and retains only a same-scope unexpired last-safe revision", async () => {
+    const runtime = new CustomerPresentationRuntime(runtimeThemeEnvelopeSchema);
+    const first = envelope();
+    await runtime.refresh(async () => ({ candidate: first }), scope, capabilities,
+      new Date("2026-07-23T00:00:00.000Z"));
+
+    let release!: () => void;
+    const blocked = new Promise<void>((resolve) => { release = resolve; });
+    const refresh = runtime.refresh(async () => {
+      await blocked;
+      return { candidate: { invalid: true } };
+    }, scope, capabilities, new Date("2026-07-23T00:00:00.000Z"));
+
+    expect(runtime.snapshot.status).toBe("loading");
+    expect(runtime.snapshot.presentation?.revision).toBe(first.revision);
+    release();
+    const result = await refresh;
+    expect(result.status).toBe("last-safe");
+    expect(result.failureReason).toBe("invalid-envelope");
+    expect(result.presentation?.revision).toBe(first.revision);
+  });
+
+  it("commits only the latest asynchronous presentation refresh", async () => {
+    const runtime = new CustomerPresentationRuntime(runtimeThemeEnvelopeSchema);
+    const oldCandidate = envelope();
+    const newCandidate = { ...envelope(), revision: "customer-theme:2" };
+    let releaseOld!: () => void;
+    const oldBlocked = new Promise<void>((resolve) => { releaseOld = resolve; });
+
+    const oldRefresh = runtime.refresh(async () => {
+      await oldBlocked;
+      return { candidate: oldCandidate };
+    }, scope, capabilities, new Date("2026-07-23T00:00:00.000Z"));
+    const newRefresh = runtime.refresh(async () => ({ candidate: newCandidate }), scope, capabilities,
+      new Date("2026-07-23T00:00:00.000Z"));
+
+    await newRefresh;
+    releaseOld();
+    await oldRefresh;
+    expect(runtime.snapshot.status).toBe("ready");
+    expect(runtime.snapshot.presentation?.revision).toBe("customer-theme:2");
+  });
+
   it("verifies bytes and follows the declared asset fallback chain", async () => {
     const manifest = assetManifest();
     const primary = manifest.assets[0]!;
@@ -216,6 +320,44 @@ describe("Customer P7 presentation runtime", () => {
         .toBe("blob:verified-brand");
     });
     expect(stateChanges).toEqual(expect.arrayContaining(["loading", "ready"]));
+  });
+
+  it("reports asset failure and keeps the xlb100 fallback", async () => {
+    const candidate = envelope(assetManifest());
+    const stateChanges: string[] = [];
+
+    render(
+      <CustomerPresentationProvider
+        candidate={candidate}
+        scope={scope}
+        capabilities={capabilities}
+        validator={validatorFor(candidate)}
+        fetcher={async () => new Response("not-an-image", {
+          status: 200,
+          headers: { "content-type": "text/html" },
+        })}
+        digestSha256={async () => acceptedIntegrity}
+        createObjectUrl={() => "blob:must-not-be-used"}
+        onBrandAssetStateChange={(state) => stateChanges.push(state)}
+      >
+        <BrandLogo />
+      </CustomerPresentationProvider>,
+    );
+
+    await waitFor(() => expect(stateChanges.at(-1)).toBe("asset-failure"));
+    expect(screen.getByRole("img", { name: "xlb100" }).textContent).toContain("xlb100");
+  });
+
+  it("rejects an asset source outside the shared manifest policy before fetching", async () => {
+    const fetcher = vi.fn();
+    const manifest = assetManifest();
+    const runtime = new CustomerAssetRuntime({
+      ...manifest,
+      assets: [{ ...manifest.assets[0]!, src: "https://untrusted.example/logo.png" }],
+    }, { fetcher });
+
+    await expect(runtime.load(CUSTOMER_BRAND_LOGO_ASSET_ID)).resolves.toBeNull();
+    expect(fetcher).not.toHaveBeenCalled();
   });
 
   it("recovers from an old image failure when a new logo revision arrives", async () => {
