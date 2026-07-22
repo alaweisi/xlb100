@@ -10,7 +10,6 @@ import {
   CUSTOMER_SDUI_REVISION_STATUSES,
   CUSTOMER_SDUI_SCHEMA_VERSIONS,
 } from "@xlb/types";
-import type { CustomerSduiManifestDefinition } from "@xlb/types";
 import { z } from "zod";
 import { cityCodeSchema } from "./cityCodeSchema.js";
 
@@ -119,6 +118,13 @@ export const customerSduiScopeSchema = z
       });
     }
   });
+
+export const customerSduiRolloutPolicySchema = z
+  .object({
+    percentageBasisPoints: z.number().int().min(1).max(10_000),
+    bucketSeed: identifierSchema,
+  })
+  .strict();
 
 const noParametersSchema = z.object({}).strict();
 
@@ -299,6 +305,33 @@ export const customerSduiFallbackPolicySchema = z
   })
   .strict();
 
+const allowedDataBindingSignatures = new Set([
+  "location_header|location|customer.current_location",
+  "location_header|notifications|customer.notification_summary",
+  "service_grid|items|catalog.service_categories",
+  "promotion_banner|items|content.home_promotions",
+  "recommend_list|items|catalog.recommended_services",
+  "worker_nearby|items|provider.nearby",
+  "trust_guarantee|items|content.trust_guarantees",
+]);
+
+const allowedActionBindingSignatures = new Set([
+  "location_header|location|location.open_picker",
+  "location_header|notification|notification.open_center",
+  "search_bar|submit|search.submit",
+  "service_grid|item|service.open_category",
+  "service_grid|view-all|service.open_all",
+  "promotion_banner|item|promotion.open",
+  "recommend_list|item|service.open_detail",
+  "worker_nearby|item|provider.open_detail",
+  "worker_nearby|view-all|provider.open_all",
+  "bottom_navigation|home|navigation.open_home",
+  "bottom_navigation|support|navigation.open_support",
+  "bottom_navigation|orders|navigation.open_orders",
+  "bottom_navigation|profile|navigation.open_profile",
+  "bottom_navigation|demand|demand.open_create",
+]);
+
 export const customerSduiPageManifestSchema = z
   .object({
     schemaVersion: customerSduiSchemaVersionSchema,
@@ -308,6 +341,7 @@ export const customerSduiPageManifestSchema = z
     revision: revisionSchema,
     contentHashSha256: z.string().regex(/^[a-f0-9]{64}$/, "contentHashSha256 must be a lowercase SHA-256 hex digest"),
     scope: customerSduiScopeSchema,
+    rollout: customerSduiRolloutPolicySchema,
     components: z.array(customerSduiComponentInstanceSchema).min(4).max(32),
     dataSources: z.array(customerSduiDataSourceSchema).max(32),
     actions: z.array(customerSduiActionDefinitionSchema).max(64),
@@ -340,6 +374,8 @@ export const customerSduiPageManifestSchema = z
     const componentTypeCounts = new Map<string, number>();
     const dataIds = new Set<string>();
     const actionIds = new Set<string>();
+    const dataKeysById = new Map<string, string>();
+    const actionKeysById = new Map<string, string>();
 
     for (const [index, source] of manifest.dataSources.entries()) {
       if (dataIds.has(source.id)) {
@@ -350,6 +386,7 @@ export const customerSduiPageManifestSchema = z
         });
       }
       dataIds.add(source.id);
+      dataKeysById.set(source.id, source.dataKey);
     }
 
     for (const [index, action] of manifest.actions.entries()) {
@@ -361,6 +398,7 @@ export const customerSduiPageManifestSchema = z
         });
       }
       actionIds.add(action.id);
+      actionKeysById.set(action.id, action.actionKey);
     }
 
     for (const [index, component] of manifest.components.entries()) {
@@ -400,6 +438,14 @@ export const customerSduiPageManifestSchema = z
             path: ["components", index, "dataBindings", bindingIndex, "dataRef"],
             message: "dataRef must reference a data source in this manifest",
           });
+        } else if (!allowedDataBindingSignatures.has(
+          `${component.type}|${binding.slot}|${dataKeysById.get(binding.dataRef)}`,
+        )) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["components", index, "dataBindings", bindingIndex],
+            message: "data binding is not allowed for this component slot",
+          });
         }
       }
 
@@ -418,6 +464,14 @@ export const customerSduiPageManifestSchema = z
             code: z.ZodIssueCode.custom,
             path: ["components", index, "actionBindings", bindingIndex, "actionRef"],
             message: "actionRef must reference an action in this manifest",
+          });
+        } else if (!allowedActionBindingSignatures.has(
+          `${component.type}|${binding.slot}|${actionKeysById.get(binding.actionRef)}`,
+        )) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["components", index, "actionBindings", bindingIndex],
+            message: "action binding is not allowed for this component slot",
           });
         }
       }
@@ -439,6 +493,30 @@ export const customerSduiPageManifestSchema = z
           message: `${protectedType} is a protected home shell component and must stay enabled`,
         });
       }
+      if (protectedComponent !== undefined) {
+        const dataSlots = new Set(protectedComponent.dataBindings.map((binding) => binding.slot));
+        const actionSlots = new Set(protectedComponent.actionBindings.map((binding) => binding.slot));
+        const requiredDataSlots = protectedComponent.type === "location_header"
+          ? (protectedComponent.props.showNotifications ? ["location", "notifications"] : ["location"])
+          : [];
+        const requiredActionSlots = protectedComponent.type === "location_header"
+          ? (protectedComponent.props.showNotifications ? ["location", "notification"] : ["location"])
+          : protectedComponent.type === "search_bar"
+            ? ["submit"]
+            : protectedComponent.type === "bottom_navigation"
+              ? (protectedComponent.props.showDemandAction
+                  ? ["home", "support", "orders", "profile", "demand"]
+                  : ["home", "support", "orders", "profile"])
+              : [];
+        if (requiredDataSlots.some((slot) => !dataSlots.has(slot)) ||
+            requiredActionSlots.some((slot) => !actionSlots.has(slot))) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["components", manifest.components.indexOf(protectedComponent)],
+            message: `${protectedType} is missing a required protected-shell binding`,
+          });
+        }
+      }
     }
 
     if (!manifest.components.some((component) => component.region === "content" && component.enabled)) {
@@ -447,6 +525,42 @@ export const customerSduiPageManifestSchema = z
         path: ["components"],
         message: "home manifest requires at least one enabled content component",
       });
+    }
+  });
+
+export const customerSduiManifestDefinitionSchema = z
+  .object({
+    schemaVersion: customerSduiSchemaVersionSchema,
+    componentContractVersion: customerSduiComponentContractVersionSchema,
+    manifestId: identifierSchema,
+    pageId: customerSduiPageIdSchema,
+    components: z.array(customerSduiComponentInstanceSchema).min(4).max(32),
+    dataSources: z.array(customerSduiDataSourceSchema).max(32),
+    actions: z.array(customerSduiActionDefinitionSchema).max(64),
+    fallbackPolicy: customerSduiFallbackPolicySchema,
+  })
+  .strict()
+  .superRefine((definition, context) => {
+    const result = customerSduiPageManifestSchema.safeParse({
+      ...definition,
+      revision: "definition-validation",
+      contentHashSha256: "0".repeat(64),
+      scope: {
+        cityCodes: null,
+        locales: ["zh-CN"],
+        minimumAppVersion: "0.0.0",
+        maximumAppVersion: null,
+        audienceTags: [],
+      },
+      rollout: { percentageBasisPoints: 10_000, bucketSeed: "definition-validation" },
+      effectiveAt: "2099-01-01T00:00:00.000Z",
+      expiresAt: null,
+      publishedAt: "2099-01-01T00:00:00.000Z",
+    });
+    if (!result.success) {
+      for (const issue of result.error.issues) {
+        context.addIssue({ ...issue, path: issue.path });
+      }
     }
   });
 
@@ -513,9 +627,199 @@ export const customerSduiManifestEnvelopeSchema = z
     }
   });
 
+export const customerSduiRevisionStatusSchema = z.enum(CUSTOMER_SDUI_REVISION_STATUSES);
+
+export const customerSduiRevisionAuditMetadataSchema = z
+  .object({
+    createdBy: identifierSchema,
+    createdAt: z.string().datetime(),
+    updatedBy: identifierSchema,
+    updatedAt: z.string().datetime(),
+    reviewedBy: identifierSchema.nullable(),
+    reviewedAt: z.string().datetime().nullable(),
+    reviewNote: auditReasonSchema.nullable(),
+    publishedBy: identifierSchema.nullable(),
+    publishedAt: z.string().datetime().nullable(),
+    retiredBy: identifierSchema.nullable(),
+    retiredAt: z.string().datetime().nullable(),
+    retirementReason: auditReasonSchema.nullable(),
+  })
+  .strict()
+  .superRefine((audit, context) => {
+    for (const [actorKey, timeKey] of [
+      ["reviewedBy", "reviewedAt"],
+      ["publishedBy", "publishedAt"],
+      ["retiredBy", "retiredAt"],
+    ] as const) {
+      if ((audit[actorKey] === null) !== (audit[timeKey] === null)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [timeKey],
+          message: `${actorKey} and ${timeKey} must both be present or null`,
+        });
+      }
+    }
+    if (Date.parse(audit.updatedAt) < Date.parse(audit.createdAt)) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ["updatedAt"], message: "updatedAt precedes createdAt" });
+    }
+    if (audit.reviewedAt !== null && Date.parse(audit.reviewedAt) < Date.parse(audit.createdAt)) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ["reviewedAt"], message: "reviewedAt precedes createdAt" });
+    }
+    if (audit.publishedAt !== null && (audit.reviewedAt === null || Date.parse(audit.publishedAt) < Date.parse(audit.reviewedAt))) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ["publishedAt"], message: "publishedAt requires and follows review" });
+    }
+    if (audit.retiredAt !== null && (audit.publishedAt === null || Date.parse(audit.retiredAt) < Date.parse(audit.publishedAt))) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ["retiredAt"], message: "retiredAt requires and follows publication" });
+    }
+    if ((audit.retiredAt === null) !== (audit.retirementReason === null)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["retirementReason"],
+        message: "retirementReason is required exactly when the revision is retired",
+      });
+    }
+  });
+
+export const customerSduiPublicationSchema = z
+  .object({
+    scope: customerSduiScopeSchema,
+    rollout: customerSduiRolloutPolicySchema,
+    effectiveAt: z.string().datetime(),
+    expiresAt: z.string().datetime().nullable(),
+  })
+  .strict()
+  .superRefine((publication, context) => {
+    if (publication.expiresAt !== null && Date.parse(publication.expiresAt) <= Date.parse(publication.effectiveAt)) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ["expiresAt"], message: "expiresAt must follow effectiveAt" });
+    }
+  });
+
+export const customerSduiRevisionSchema = z
+  .object({
+    revisionId: identifierSchema,
+    pageId: customerSduiPageIdSchema,
+    version: z.number().int().positive(),
+    status: customerSduiRevisionStatusSchema,
+    definition: customerSduiManifestDefinitionSchema,
+    publication: customerSduiPublicationSchema.nullable(),
+    audit: customerSduiRevisionAuditMetadataSchema,
+  })
+  .strict()
+  .superRefine((revision, context) => {
+    if (revision.definition.pageId !== revision.pageId) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ["definition", "pageId"], message: "definition pageId must match revision pageId" });
+    }
+    const reviewed = revision.audit.reviewedBy !== null && revision.audit.reviewNote !== null;
+    const published = revision.audit.publishedBy !== null && revision.publication !== null;
+    const retired = revision.audit.retiredBy !== null && revision.audit.retirementReason !== null;
+    const validEvidence = revision.status === "draft"
+      ? !reviewed && !published && !retired && revision.publication === null
+      : revision.status === "reviewed"
+        ? reviewed && !published && !retired && revision.publication === null
+        : revision.status === "published"
+          ? reviewed && published && !retired
+          : reviewed && published && retired;
+    if (!validEvidence) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ["status"], message: "revision status and lifecycle evidence do not agree" });
+    }
+    if (revision.audit.reviewedBy !== null && revision.audit.reviewedBy === revision.audit.createdBy) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ["audit", "reviewedBy"], message: "review actor must differ from creator" });
+    }
+    if (revision.audit.reviewedBy !== null && revision.audit.reviewedBy === revision.audit.publishedBy) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ["audit", "publishedBy"], message: "publish actor must differ from reviewer" });
+    }
+  });
+
+const expectedVersionSchema = z.number().int().positive();
+
+export const createCustomerSduiDraftRequestSchema = z.object({
+  definition: customerSduiManifestDefinitionSchema,
+  idempotencyKey: idempotencyKeySchema,
+}).strict();
+
+export const updateCustomerSduiDraftRequestSchema = z.object({
+  expectedVersion: expectedVersionSchema,
+  definition: customerSduiManifestDefinitionSchema,
+  idempotencyKey: idempotencyKeySchema,
+}).strict();
+
+export const reviewCustomerSduiRevisionRequestSchema = z.object({
+  expectedVersion: expectedVersionSchema,
+  reviewNote: auditReasonSchema,
+  idempotencyKey: idempotencyKeySchema,
+}).strict();
+
+export const publishCustomerSduiRevisionRequestSchema = z.object({
+  expectedVersion: expectedVersionSchema,
+  scope: customerSduiScopeSchema,
+  rollout: customerSduiRolloutPolicySchema,
+  effectiveAt: z.string().datetime(),
+  expiresAt: z.string().datetime().nullable(),
+  idempotencyKey: idempotencyKeySchema,
+}).strict().superRefine((request, context) => {
+  if (request.expiresAt !== null && Date.parse(request.expiresAt) <= Date.parse(request.effectiveAt)) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["expiresAt"], message: "expiresAt must follow effectiveAt" });
+  }
+});
+
+export const unpublishCustomerSduiRevisionRequestSchema = z.object({
+  expectedVersion: expectedVersionSchema,
+  reason: auditReasonSchema,
+  idempotencyKey: idempotencyKeySchema,
+}).strict();
+
+export const rollbackCustomerSduiRevisionRequestSchema = z.object({
+  expectedVersion: expectedVersionSchema,
+  targetRevisionId: identifierSchema,
+  reason: auditReasonSchema,
+  idempotencyKey: idempotencyKeySchema,
+}).strict();
+
+export const setCustomerSduiKillSwitchRequestSchema = z.object({
+  expectedVersion: expectedVersionSchema,
+  enabled: z.boolean(),
+  reason: auditReasonSchema,
+  idempotencyKey: idempotencyKeySchema,
+}).strict();
+
+export const customerSduiKillSwitchStateSchema = z.object({
+  pageId: customerSduiPageIdSchema,
+  version: z.number().int().positive(),
+  enabled: z.boolean(),
+  reason: auditReasonSchema.nullable(),
+  updatedBy: identifierSchema,
+  updatedAt: z.string().datetime(),
+}).strict().superRefine((state, context) => {
+  if (state.enabled !== (state.reason !== null)) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["reason"], message: "enabled kill switch requires a reason; disabled state must clear it" });
+  }
+});
+
+export const customerSduiRevisionEnvelopeSchema = z.object({
+  requestId: z.string().uuid(),
+  idempotentReplay: z.boolean(),
+  revision: customerSduiRevisionSchema,
+}).strict();
+
+export const customerSduiKillSwitchEnvelopeSchema = z.object({
+  requestId: z.string().uuid(),
+  idempotentReplay: z.boolean(),
+  killSwitch: customerSduiKillSwitchStateSchema,
+}).strict();
+
 export type CustomerSduiScopeInput = z.infer<typeof customerSduiScopeSchema>;
+export type CustomerSduiRolloutPolicyInput = z.infer<typeof customerSduiRolloutPolicySchema>;
 export type CustomerSduiDataSourceInput = z.infer<typeof customerSduiDataSourceSchema>;
 export type CustomerSduiActionDefinitionInput = z.infer<typeof customerSduiActionDefinitionSchema>;
 export type CustomerSduiComponentInstanceInput = z.infer<typeof customerSduiComponentInstanceSchema>;
+export type CustomerSduiManifestDefinitionInput = z.infer<typeof customerSduiManifestDefinitionSchema>;
 export type CustomerSduiPageManifestInput = z.infer<typeof customerSduiPageManifestSchema>;
 export type CustomerSduiManifestEnvelopeInput = z.infer<typeof customerSduiManifestEnvelopeSchema>;
+export type CustomerSduiRevisionInput = z.infer<typeof customerSduiRevisionSchema>;
+export type CreateCustomerSduiDraftRequestInput = z.infer<typeof createCustomerSduiDraftRequestSchema>;
+export type UpdateCustomerSduiDraftRequestInput = z.infer<typeof updateCustomerSduiDraftRequestSchema>;
+export type ReviewCustomerSduiRevisionRequestInput = z.infer<typeof reviewCustomerSduiRevisionRequestSchema>;
+export type PublishCustomerSduiRevisionRequestInput = z.infer<typeof publishCustomerSduiRevisionRequestSchema>;
+export type UnpublishCustomerSduiRevisionRequestInput = z.infer<typeof unpublishCustomerSduiRevisionRequestSchema>;
+export type RollbackCustomerSduiRevisionRequestInput = z.infer<typeof rollbackCustomerSduiRevisionRequestSchema>;
+export type SetCustomerSduiKillSwitchRequestInput = z.infer<typeof setCustomerSduiKillSwitchRequestSchema>;

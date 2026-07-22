@@ -1,11 +1,19 @@
 import { describe, expect, it } from "vitest";
 import {
+  createCustomerSduiDraftRequestSchema,
   customerSduiManifestEnvelopeSchema,
   customerSduiPageManifestSchema,
+  customerSduiRevisionSchema,
+  publishCustomerSduiRevisionRequestSchema,
+  rollbackCustomerSduiRevisionRequestSchema,
+  setCustomerSduiKillSwitchRequestSchema,
+  updateCustomerSduiDraftRequestSchema,
 } from "@xlb/validators";
 import type {
+  CustomerSduiManifestDefinition,
   CustomerSduiManifestEnvelope,
   CustomerSduiPageManifest,
+  CustomerSduiRevision,
 } from "@xlb/types";
 
 const fallbackPolicy = {
@@ -29,10 +37,19 @@ function validManifest(): CustomerSduiPageManifest {
       maximumAppVersion: null,
       audienceTags: [],
     },
+    rollout: {
+      percentageBasisPoints: 10_000,
+      bucketSeed: "customer.home.v1",
+    },
     dataSources: [
       {
         id: "current-location",
         dataKey: "customer.current_location",
+        parameters: {},
+      },
+      {
+        id: "notification-summary",
+        dataKey: "customer.notification_summary",
         parameters: {},
       },
       {
@@ -43,10 +60,14 @@ function validManifest(): CustomerSduiPageManifest {
     ],
     actions: [
       { id: "choose-location", actionKey: "location.open_picker" },
+      { id: "open-notifications", actionKey: "notification.open_center" },
       { id: "submit-search", actionKey: "search.submit" },
       { id: "open-category", actionKey: "service.open_category" },
       { id: "open-services", actionKey: "service.open_all" },
       { id: "open-home", actionKey: "navigation.open_home" },
+      { id: "open-support", actionKey: "navigation.open_support" },
+      { id: "open-orders", actionKey: "navigation.open_orders" },
+      { id: "open-profile", actionKey: "navigation.open_profile" },
       { id: "open-demand", actionKey: "demand.open_create" },
     ],
     components: [
@@ -58,8 +79,14 @@ function validManifest(): CustomerSduiPageManifest {
         order: 0,
         enabled: true,
         props: { subtitle: "安心到家，服务就在身边", showNotifications: true },
-        dataBindings: [{ slot: "location", dataRef: "current-location", required: true }],
-        actionBindings: [{ slot: "location", actionRef: "choose-location" }],
+        dataBindings: [
+          { slot: "location", dataRef: "current-location", required: true },
+          { slot: "notifications", dataRef: "notification-summary", required: false },
+        ],
+        actionBindings: [
+          { slot: "location", actionRef: "choose-location" },
+          { slot: "notification", actionRef: "open-notifications" },
+        ],
       },
       {
         id: "home-search",
@@ -97,6 +124,9 @@ function validManifest(): CustomerSduiPageManifest {
         dataBindings: [],
         actionBindings: [
           { slot: "home", actionRef: "open-home" },
+          { slot: "support", actionRef: "open-support" },
+          { slot: "orders", actionRef: "open-orders" },
+          { slot: "profile", actionRef: "open-profile" },
           { slot: "demand", actionRef: "open-demand" },
         ],
       },
@@ -120,6 +150,50 @@ function validEnvelope(): CustomerSduiManifestEnvelope {
     cacheTtlSeconds: 300,
     manifest: validManifest(),
     fallbackPolicy,
+  };
+}
+
+function validDefinition(): CustomerSduiManifestDefinition {
+  const {
+    revision: _revision,
+    contentHashSha256: _contentHashSha256,
+    scope: _scope,
+    rollout: _rollout,
+    effectiveAt: _effectiveAt,
+    expiresAt: _expiresAt,
+    publishedAt: _publishedAt,
+    ...definition
+  } = validManifest();
+  return definition;
+}
+
+function validPublishedRevision(): CustomerSduiRevision {
+  return {
+    revisionId: "customer.home.revision-1",
+    pageId: "customer.home",
+    version: 3,
+    status: "published",
+    definition: validDefinition(),
+    publication: {
+      scope: validManifest().scope,
+      rollout: validManifest().rollout,
+      effectiveAt: "2026-07-23T02:00:00.000Z",
+      expiresAt: "2026-08-23T02:00:00.000Z",
+    },
+    audit: {
+      createdBy: "operator-author",
+      createdAt: "2026-07-23T01:00:00.000Z",
+      updatedBy: "operator-publisher",
+      updatedAt: "2026-07-23T01:55:00.000Z",
+      reviewedBy: "operator-reviewer",
+      reviewedAt: "2026-07-23T01:30:00.000Z",
+      reviewNote: "approved for release",
+      publishedBy: "operator-publisher",
+      publishedAt: "2026-07-23T01:55:00.000Z",
+      retiredBy: null,
+      retiredAt: null,
+      retirementReason: null,
+    },
   };
 }
 
@@ -183,6 +257,14 @@ describe("Customer Hybrid SDUI shared contract", () => {
     const unresolvedAction = validManifest();
     unresolvedAction.components[2]!.actionBindings[0]!.actionRef = "missing-action";
     expect(customerSduiPageManifestSchema.safeParse(unresolvedAction).success).toBe(false);
+
+    const wrongDataSlotContract = validManifest();
+    wrongDataSlotContract.components[2]!.dataBindings[0]!.dataRef = "current-location";
+    expect(customerSduiPageManifestSchema.safeParse(wrongDataSlotContract).success).toBe(false);
+
+    const wrongActionSlotContract = validManifest();
+    wrongActionSlotContract.components[1]!.actionBindings[0]!.actionRef = "choose-location";
+    expect(customerSduiPageManifestSchema.safeParse(wrongActionSlotContract).success).toBe(false);
   });
 
   it("protects the home shell while allowing content components to be composed", () => {
@@ -237,6 +319,11 @@ describe("Customer Hybrid SDUI shared contract", () => {
     duplicateCity.scope.cityCodes = ["hangzhou", "hangzhou"];
     expect(customerSduiPageManifestSchema.safeParse(duplicateCity).success).toBe(false);
 
+    expect(customerSduiPageManifestSchema.safeParse({
+      ...validManifest(),
+      rollout: { percentageBasisPoints: 0, bucketSeed: "customer.home.v1" },
+    }).success).toBe(false);
+
     const invalidWindow = validManifest();
     invalidWindow.publishedAt = "2026-07-24T02:00:00.000Z";
     expect(customerSduiPageManifestSchema.safeParse(invalidWindow).success).toBe(false);
@@ -264,5 +351,67 @@ describe("Customer Hybrid SDUI shared contract", () => {
       ...validEnvelope(),
       fallbackPolicy: { ...fallbackPolicy, maximumStaleSeconds: 0 },
     }).success).toBe(false);
+  });
+
+  it("defines one strict CAS and idempotency contract for control-plane mutations", () => {
+    const definition = validDefinition();
+    expect(createCustomerSduiDraftRequestSchema.safeParse({
+      definition,
+      idempotencyKey: "create-home-draft-1",
+    }).success).toBe(true);
+    expect(updateCustomerSduiDraftRequestSchema.safeParse({
+      expectedVersion: 1,
+      definition,
+      idempotencyKey: "update-home-draft-1",
+    }).success).toBe(true);
+    expect(publishCustomerSduiRevisionRequestSchema.safeParse({
+      expectedVersion: 2,
+      scope: validManifest().scope,
+      rollout: { percentageBasisPoints: 1_000, bucketSeed: "canary-hangzhou" },
+      effectiveAt: "2026-07-24T00:00:00.000Z",
+      expiresAt: "2026-08-24T00:00:00.000Z",
+      idempotencyKey: "publish-home-revision-1",
+    }).success).toBe(true);
+    expect(rollbackCustomerSduiRevisionRequestSchema.safeParse({
+      expectedVersion: 4,
+      targetRevisionId: "customer.home.revision-1",
+      reason: "restore known good revision",
+      idempotencyKey: "rollback-home-revision-1",
+    }).success).toBe(true);
+    expect(setCustomerSduiKillSwitchRequestSchema.safeParse({
+      expectedVersion: 1,
+      enabled: true,
+      reason: "invalid upstream manifest",
+      idempotencyKey: "kill-home-manifest-1",
+    }).success).toBe(true);
+
+    expect(updateCustomerSduiDraftRequestSchema.safeParse({
+      expectedVersion: 0,
+      definition,
+      idempotencyKey: "short",
+    }).success).toBe(false);
+    expect(publishCustomerSduiRevisionRequestSchema.safeParse({
+      expectedVersion: 2,
+      scope: validManifest().scope,
+      rollout: { percentageBasisPoints: 0, bucketSeed: "invalid-canary" },
+      effectiveAt: "2026-08-24T00:00:00.000Z",
+      expiresAt: "2026-07-24T00:00:00.000Z",
+      idempotencyKey: "publish-home-invalid-1",
+    }).success).toBe(false);
+  });
+
+  it("keeps revision lifecycle evidence internally consistent", () => {
+    expect(customerSduiRevisionSchema.safeParse(validPublishedRevision()).success).toBe(true);
+    expect(customerSduiRevisionSchema.safeParse({
+      ...validPublishedRevision(),
+      status: "draft",
+    }).success).toBe(false);
+    const selfReviewed = validPublishedRevision();
+    selfReviewed.audit.reviewedBy = selfReviewed.audit.createdBy;
+    expect(customerSduiRevisionSchema.safeParse(selfReviewed).success).toBe(false);
+
+    const strayRetirementReason = validPublishedRevision();
+    strayRetirementReason.audit.retirementReason = "should not exist on a published revision";
+    expect(customerSduiRevisionSchema.safeParse(strayRetirementReason).success).toBe(false);
   });
 });
