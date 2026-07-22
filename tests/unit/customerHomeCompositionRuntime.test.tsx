@@ -30,6 +30,10 @@ const manifest: CustomerSduiPageManifest = {
     maximumAppVersion: null,
     audienceTags: [],
   },
+  rollout: {
+    percentageBasisPoints: 10_000,
+    bucketSeed: "customer-home-runtime-test",
+  },
   components: [
     {
       id: "home.location",
@@ -78,6 +82,9 @@ const manifest: CustomerSduiPageManifest = {
       dataBindings: [],
       actionBindings: [
         { slot: "home", actionRef: "action.home" },
+        { slot: "support", actionRef: "action.support" },
+        { slot: "orders", actionRef: "action.orders" },
+        { slot: "profile", actionRef: "action.profile" },
         { slot: "demand", actionRef: "action.demand" },
       ],
     },
@@ -96,6 +103,9 @@ const manifest: CustomerSduiPageManifest = {
     { id: "action.open-category", actionKey: "service.open_category" },
     { id: "action.open-services", actionKey: "service.open_all" },
     { id: "action.home", actionKey: "navigation.open_home" },
+    { id: "action.support", actionKey: "navigation.open_support" },
+    { id: "action.orders", actionKey: "navigation.open_orders" },
+    { id: "action.profile", actionKey: "navigation.open_profile" },
     { id: "action.demand", actionKey: "demand.open_create" },
   ],
   effectiveAt: "2026-07-23T00:00:00.000Z",
@@ -156,6 +166,9 @@ function makeComponentRegistry(
       dataSlots: [],
       actionSlots: [
         { slot: "home", actionKeys: ["navigation.open_home"], required: true },
+        { slot: "support", actionKeys: ["navigation.open_support"], required: true },
+        { slot: "orders", actionKeys: ["navigation.open_orders"], required: true },
+        { slot: "profile", actionKeys: ["navigation.open_profile"], required: true },
         { slot: "demand", actionKeys: ["demand.open_create"], required: true },
       ],
       component: SimpleComponent,
@@ -170,6 +183,9 @@ function makeActionRegistry(): HomeActionRegistry {
     .register("service.open_category", vi.fn())
     .register("service.open_all", vi.fn())
     .register("navigation.open_home", vi.fn())
+    .register("navigation.open_support", vi.fn())
+    .register("navigation.open_orders", vi.fn())
+    .register("navigation.open_profile", vi.fn())
     .register("demand.open_create", vi.fn())
     .seal();
 }
@@ -191,6 +207,9 @@ describe("Customer home composition runtime", () => {
       "service.open_category",
       "service.open_all",
       "navigation.open_home",
+      "navigation.open_support",
+      "navigation.open_orders",
+      "navigation.open_profile",
       "demand.open_create",
     ]);
     expect(() => components.register(definition({
