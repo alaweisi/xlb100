@@ -102,6 +102,9 @@ importers:
       '@xlb/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      '@xlb/validators':
+        specifier: workspace:*
+        version: link:../../packages/validators
       react:
         specifier: ^18.3.1
         version: 18.3.1

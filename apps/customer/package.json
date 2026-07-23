@@ -15,6 +15,7 @@
     "@xlb/customer-components": "workspace:*",
     "@xlb/types": "workspace:*",
     "@xlb/ui": "workspace:*",
+    "@xlb/validators": "workspace:*",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
