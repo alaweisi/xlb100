@@ -1,0 +1,218 @@
+.xlb-entry-shell,
+.xlb-entry-shell * {
+  box-sizing: border-box;
+}
+
+.xlb-entry-shell {
+  width: min(100%, 540px);
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: max(18px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
+  color: var(--xlb-text-primary);
+  background:
+    radial-gradient(circle at 88% 2%, color-mix(in srgb, #cfeff0 72%, transparent), transparent 19rem),
+    var(--xlb-surface-page);
+}
+
+.xlb-entry-surface {
+  display: grid;
+  min-height: calc(100vh - 42px);
+  align-content: start;
+  gap: 24px;
+}
+
+.xlb-entry-brand {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.xlb-entry-brand > span {
+  color: var(--xlb-text-secondary);
+  font-size: var(--xlb-font-size-sm);
+}
+
+.xlb-entry-announcer:empty {
+  display: none;
+}
+
+.xlb-entry-panel {
+  display: grid;
+  gap: 20px;
+  padding: 28px 22px;
+  border: var(--xlb-stroke-hairline) solid var(--xlb-border-subtle);
+  border-radius: var(--xlb-radius-xxl);
+  background: color-mix(in srgb, var(--xlb-surface-panel) 94%, #cfeff0 6%);
+  box-shadow: var(--xlb-shadow-sm);
+}
+
+.xlb-entry-heading {
+  display: grid;
+  gap: 8px;
+}
+
+.xlb-entry-heading h1,
+.xlb-entry-heading h2,
+.xlb-entry-heading p {
+  margin: 0;
+}
+
+.xlb-entry-heading h1 {
+  font-size: clamp(26px, 7vw, 34px);
+  line-height: 1.15;
+  letter-spacing: -0.035em;
+}
+
+.xlb-entry-heading p,
+.xlb-entry-help,
+.xlb-entry-muted {
+  color: var(--xlb-text-secondary);
+  line-height: 1.6;
+}
+
+.xlb-entry-form,
+.xlb-entry-fields {
+  display: grid;
+  gap: 16px;
+}
+
+.xlb-entry-field {
+  display: grid;
+  gap: 8px;
+  font-weight: var(--xlb-font-weight-medium);
+}
+
+.xlb-entry-field input {
+  width: 100%;
+  min-height: 52px;
+  border: var(--xlb-stroke-hairline) solid var(--xlb-border-subtle);
+  border-radius: var(--xlb-radius-md);
+  padding: 0 16px;
+  color: var(--xlb-text-primary);
+  background: var(--xlb-surface-overlay);
+  outline: 0;
+}
+
+.xlb-entry-field input:focus-visible {
+  border-color: var(--xlb-color-accent);
+  box-shadow: var(--xlb-shadow-focus);
+}
+
+.xlb-entry-field-error {
+  margin: -8px 0 0;
+  color: var(--xlb-text-primary);
+  font-size: var(--xlb-font-size-sm);
+}
+
+.xlb-entry-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.xlb-entry-actions .xlb-customer-button {
+  width: 100%;
+  min-height: 52px;
+}
+
+.xlb-entry-inline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.xlb-entry-status {
+  padding: 14px 16px;
+  border-radius: var(--xlb-radius-md);
+  background: var(--xlb-surface-muted);
+  line-height: 1.5;
+}
+
+.xlb-entry-status[data-kind="error"],
+.xlb-entry-status[data-kind="conflict"] {
+  border: var(--xlb-stroke-hairline) solid var(--xlb-color-accent);
+}
+
+.xlb-entry-status h2,
+.xlb-entry-status p {
+  margin: 0;
+}
+
+.xlb-entry-status p + p {
+  margin-top: 6px;
+}
+
+.xlb-entry-city-list {
+  display: grid;
+  gap: 12px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.xlb-entry-city-button {
+  display: grid;
+  width: 100%;
+  min-height: 64px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  border: var(--xlb-stroke-hairline) solid var(--xlb-border-subtle);
+  border-radius: var(--xlb-radius-lg);
+  padding: 10px 16px;
+  color: var(--xlb-text-primary);
+  background: var(--xlb-surface-overlay);
+  text-align: left;
+  cursor: pointer;
+}
+
+.xlb-entry-city-button:focus-visible {
+  outline: 0;
+  box-shadow: var(--xlb-shadow-focus);
+}
+
+.xlb-entry-city-button[data-selected="true"] {
+  border-color: var(--xlb-color-accent);
+  background: color-mix(in srgb, var(--xlb-color-accent) 8%, var(--xlb-surface-overlay));
+}
+
+.xlb-entry-city-button strong {
+  font-size: var(--xlb-font-size-lg);
+}
+
+.xlb-entry-city-button span {
+  color: var(--xlb-text-secondary);
+  font-size: var(--xlb-font-size-sm);
+}
+
+@media (max-width: 359px) {
+  .xlb-entry-shell {
+    padding-inline: 12px;
+  }
+
+  .xlb-entry-panel {
+    padding-inline: 18px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .xlb-entry-shell *,
+  .xlb-entry-shell *::before,
+  .xlb-entry-shell *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
+@media (forced-colors: active) {
+  .xlb-entry-panel,
+  .xlb-entry-field input,
+  .xlb-entry-city-button,
+  .xlb-entry-status {
+    border: 1px solid CanvasText;
+  }
+}
