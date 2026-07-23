@@ -14,7 +14,8 @@
       "types": "./dist/presentation/index.d.ts",
       "import": "./dist/presentation/index.js"
     },
-    "./styles.css": "./src/styles/customer-foundation.css"
+    "./styles.css": "./src/styles/customer-foundation.css",
+    "./home.css": "./src/styles/customer-home.css"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -22,6 +23,7 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@phosphor-icons/react": "^2.1.7",
     "@xlb/types": "workspace:*",
     "@xlb/ui": "workspace:*",
     "react": "^18.3.1"

@@ -1,7 +1,7 @@
 .xlb-customer-theme {
   min-height: 100%;
   color: var(--xlb-text-primary);
-  background: var(--xlb-customer-color-background);
+  background: var(--xlb-surface-page);
   font-family: var(--xlb-font-family-sans);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -36,7 +36,7 @@
   transition: transform var(--xlb-motion-duration-fast) var(--xlb-motion-easing-standard), opacity var(--xlb-motion-duration-fast) var(--xlb-motion-easing-standard);
 }
 
-.xlb-customer-button[data-variant="primary"] { color: var(--xlb-text-inverse); background: var(--xlb-customer-color-action); }
+.xlb-customer-button[data-variant="primary"] { color: var(--xlb-text-inverse); background: var(--xlb-color-accent); }
 .xlb-customer-button[data-variant="secondary"] { color: var(--xlb-text-primary); background: var(--xlb-surface-panel); border-color: var(--xlb-border-subtle); }
 .xlb-customer-button[data-variant="quiet"] { color: var(--xlb-text-link); background: transparent; }
 .xlb-customer-button:focus-visible { outline: 0; box-shadow: var(--xlb-shadow-focus); }
@@ -44,9 +44,9 @@
 .xlb-customer-button:disabled { cursor: not-allowed; opacity: var(--xlb-opacity-disabled); }
 
 .xlb-customer-glass-card {
-  border: var(--xlb-stroke-hairline) solid var(--xlb-customer-glass-border);
+  border: var(--xlb-stroke-hairline) solid var(--xlb-border-glass-highlight);
   border-radius: var(--xlb-radius-lg);
-  background: var(--xlb-customer-glass-surface);
+  background: var(--xlb-surface-glass);
   box-shadow: var(--xlb-shadow-sm);
 }
 

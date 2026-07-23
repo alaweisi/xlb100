@@ -99,10 +99,19 @@ export const customerThemeTokens = {
       action: "#FF6A00",
       ink: "#1F2D2D",
       serviceIconSurface: "#FFFFFF",
+      pageGlow: "rgba(255, 255, 255, 0.42)",
+      actionSoft: "rgba(255, 106, 0, 0.10)",
+      brandSoft: "rgba(15, 159, 156, 0.12)",
+      navigationInactive: "#617171",
+      assetFallback: "#E7F5F4",
     },
     glass: {
       surface: "rgba(255, 255, 255, 0.78)",
       border: "rgba(255, 255, 255, 0.88)",
+    },
+    shadow: {
+      card: "0 8px 24px rgba(31, 45, 45, 0.08)",
+      navigation: "0 -10px 30px rgba(31, 45, 45, 0.10)",
     },
   },
 } as const satisfies ThemeTokenOverrides;

@@ -1,12 +1,17 @@
 import type { CustomerSduiPageManifest } from "@xlb/types";
 import { customerSduiPageManifestSchema } from "@xlb/validators";
 
+/**
+ * Safety manifest used only when the governed remote/LKG paths are unavailable.
+ * Its order is still interpreted by HomeCompositionEngine; HomePage never owns
+ * a fixed component sequence.
+ */
 const BUILTIN_HOME_MANIFEST: CustomerSduiPageManifest = {
   schemaVersion: "1.0",
   componentContractVersion: "1.0",
   manifestId: "customer.home.builtin",
   pageId: "customer.home",
-  revision: "builtin-1",
+  revision: "builtin-2",
   contentHashSha256: "0".repeat(64),
   scope: {
     cityCodes: null,
@@ -27,9 +32,15 @@ const BUILTIN_HOME_MANIFEST: CustomerSduiPageManifest = {
       region: "header",
       order: 0,
       enabled: true,
-      props: { subtitle: "安心到家，服务就在身边", showNotifications: false },
-      dataBindings: [{ slot: "location", dataRef: "builtin.location", required: true }],
-      actionBindings: [{ slot: "location", actionRef: "builtin.location.open" }],
+      props: { subtitle: "安心到家，服务就在身边", showNotifications: true },
+      dataBindings: [
+        { slot: "location", dataRef: "builtin.location", required: true },
+        { slot: "notifications", dataRef: "builtin.notifications", required: false },
+      ],
+      actionBindings: [
+        { slot: "location", actionRef: "builtin.location.open" },
+        { slot: "notification", actionRef: "builtin.notifications.open" },
+      ],
     },
     {
       id: "builtin.search",
@@ -60,6 +71,56 @@ const BUILTIN_HOME_MANIFEST: CustomerSduiPageManifest = {
       ],
     },
     {
+      id: "builtin.recommendations",
+      type: "recommend_list",
+      contractVersion: "1.0",
+      region: "content",
+      order: 10,
+      enabled: true,
+      props: { title: "推荐服务", maxItems: 6, cardDensity: "comfortable" },
+      dataBindings: [
+        { slot: "items", dataRef: "builtin.recommendations", required: false },
+      ],
+      actionBindings: [{ slot: "item", actionRef: "builtin.service.open" }],
+    },
+    {
+      id: "builtin.nearby",
+      type: "worker_nearby",
+      contractVersion: "1.0",
+      region: "content",
+      order: 20,
+      enabled: true,
+      props: {
+        title: "附近师傅",
+        maxItems: 6,
+        showDistance: true,
+        showVerification: true,
+      },
+      dataBindings: [{ slot: "items", dataRef: "builtin.nearby", required: false }],
+      actionBindings: [
+        { slot: "item", actionRef: "builtin.provider.open" },
+        { slot: "view-all", actionRef: "builtin.providers.open" },
+      ],
+    },
+    {
+      id: "builtin.guarantees",
+      type: "trust_guarantee",
+      contractVersion: "1.0",
+      region: "content",
+      order: 30,
+      enabled: true,
+      props: {
+        itemKeys: [
+          "verified_identity",
+          "transparent_pricing",
+          "service_tracking",
+          "aftersale_guarantee",
+        ],
+      },
+      dataBindings: [],
+      actionBindings: [],
+    },
+    {
       id: "builtin.navigation",
       type: "bottom_navigation",
       contractVersion: "1.0",
@@ -84,16 +145,35 @@ const BUILTIN_HOME_MANIFEST: CustomerSduiPageManifest = {
       parameters: {},
     },
     {
+      id: "builtin.notifications",
+      dataKey: "customer.notification_summary",
+      parameters: {},
+    },
+    {
       id: "builtin.categories",
       dataKey: "catalog.service_categories",
       parameters: { limit: 16 },
     },
+    {
+      id: "builtin.recommendations",
+      dataKey: "catalog.recommended_services",
+      parameters: { limit: 6, strategy: "default" },
+    },
+    {
+      id: "builtin.nearby",
+      dataKey: "provider.nearby",
+      parameters: { limit: 6, radiusMeters: 5_000 },
+    },
   ],
   actions: [
     { id: "builtin.location.open", actionKey: "location.open_picker" },
+    { id: "builtin.notifications.open", actionKey: "notification.open_center" },
     { id: "builtin.search.submit", actionKey: "search.submit" },
     { id: "builtin.category.open", actionKey: "service.open_category" },
+    { id: "builtin.service.open", actionKey: "service.open_detail" },
     { id: "builtin.services.open", actionKey: "service.open_all" },
+    { id: "builtin.provider.open", actionKey: "provider.open_detail" },
+    { id: "builtin.providers.open", actionKey: "provider.open_all" },
     { id: "builtin.navigation.home", actionKey: "navigation.open_home" },
     { id: "builtin.navigation.support", actionKey: "navigation.open_support" },
     { id: "builtin.navigation.orders", actionKey: "navigation.open_orders" },
