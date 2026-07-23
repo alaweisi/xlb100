@@ -5,6 +5,7 @@ import {
   type CustomerTemplateRegistration,
 } from "../../platform/slices/index.js";
 import { CustomerOrderCenterTemplate } from "./CustomerOrderCenterTemplate.js";
+import { customerOrderDetailSlice } from "./customerOrderDetailModule.js";
 
 export const customerOrderCenterSlice = defineCustomerSlice({
   id: "CSL-09",
@@ -22,13 +23,27 @@ export const customerOrderCenterTemplateRegistration = Object.freeze({
   component: CustomerOrderCenterTemplate,
 }) satisfies CustomerTemplateRegistration;
 
-export const customerOrderCenterRouteModule = Object.freeze({
+export const customerOrdersRouteModule = Object.freeze({
   featureId: "orders",
   ownedDirectories: ["apps/customer/src/features/orders"] as const,
-  routes: [{
-    slice: customerOrderCenterSlice,
-    async load() {
-      return import("./CustomerOrderCenterRoute.js");
+  routes: [
+    {
+      slice: customerOrderCenterSlice,
+      async load() {
+        return import("./CustomerOrderCenterRoute.js");
+      },
     },
-  }],
+    {
+      slice: customerOrderDetailSlice,
+      async load() {
+        return import("./CustomerOrderDetailRoute.js");
+      },
+    },
+  ],
 }) satisfies CustomerFeatureRouteModule;
+
+/** Compatibility alias retained for CSL-09 integration callers. */
+export const customerOrderCenterRouteModule = customerOrdersRouteModule;
+
+/** CSL-10 is delivered through the same Orders feature module as CSL-09. */
+export const customerOrderDetailRouteModule = customerOrdersRouteModule;
