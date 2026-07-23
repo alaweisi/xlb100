@@ -5,7 +5,7 @@ import {
 } from "../../platform/sdui/actions/HomeActionRegistry.js";
 
 const ROUTE_BY_ACTION: Readonly<Partial<Record<CustomerSduiActionKey, string>>> = {
-  "location.open_picker": "/profile/addresses",
+  "location.open_picker": "/location",
   "notification.open_center": "/notifications",
   "service.open_category": "/service",
   "service.open_detail": "/service",

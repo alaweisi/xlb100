@@ -3,7 +3,7 @@ import {
   createCustomerSduiApi,
   customerApi,
 } from "@xlb/api-client";
-import type { CatalogSnapshot, CityCode, CustomerSduiDataSource } from "@xlb/types";
+import type { CityCode, CustomerSduiDataSource } from "@xlb/types";
 import {
   HomeActionRegistry,
   type HomeCompositionNode,
@@ -70,14 +70,6 @@ function createClient(context: CustomerHomeRuntimeContext) {
   });
 }
 
-async function loadCatalog(
-  api: ReturnType<typeof customerApi.forClient>,
-  _signal: AbortSignal,
-): Promise<CatalogSnapshot> {
-  const response = await api.getCatalog();
-  return response.catalog as CatalogSnapshot;
-}
-
 export function createCustomerHomeRuntime(
   context: CustomerHomeRuntimeContext,
   telemetry?: CustomerHomeTelemetry,
@@ -98,34 +90,6 @@ export function createCustomerHomeRuntime(
         districtLabel,
         displayLabel: districtLabel ? `${cityLabel} · ${districtLabel}` : cityLabel,
       };
-    },
-    async getRecommendedServices(source, loadContext) {
-      const catalog = await loadContext.request("customer.catalog.recommendations", (signal) =>
-        loadCatalog(readApi, signal),
-      );
-      return catalog.categories
-        .filter((category) => category.isEnabled)
-        .sort((left, right) => left.sortOrder - right.sortOrder)
-        .flatMap((category) =>
-          category.items
-            .filter((item) => item.isEnabled)
-            .sort((left, right) => left.sortOrder - right.sortOrder)
-            .flatMap((item) =>
-              item.skus
-                .filter((sku) => sku.isEnabled)
-                .sort((left, right) => left.sortOrder - right.sortOrder)
-                .map((sku) => ({
-                  skuId: sku.skuId,
-                  categoryId: category.categoryId,
-                  categoryName: category.name,
-                  name: sku.name,
-                  unit: sku.unit,
-                  imageUrl: null,
-                  priceLabel: null,
-                })),
-            ),
-        )
-        .slice(0, source.parameters.limit);
     },
   });
 
