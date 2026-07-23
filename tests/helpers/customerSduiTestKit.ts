@@ -1,14 +1,18 @@
 import type {
+  CustomerSduiAuditAction,
+  CustomerSduiAuditRecord,
   CustomerSduiKillSwitchState,
   CustomerSduiManifestDefinition,
   CustomerSduiPageId,
   CustomerSduiRevision,
+  CustomerSduiRevisionStatus,
   RequestContext,
 } from "@xlb/types";
 import type {
   CustomerSduiAuditInput,
   CustomerSduiReplay,
   CustomerSduiRepository,
+  CustomerSduiPageResult,
   CustomerSduiStore,
 } from "../../backend/src/customerSdui/customerSduiRepository.js";
 
@@ -99,8 +103,34 @@ export class MemoryCustomerSduiRepository implements CustomerSduiRepository, Cus
   readonly killSwitches = new Map<string, CustomerSduiKillSwitchState>();
   readonly audits: CustomerSduiAuditInput[] = [];
   failReads = false;
+  private transactionTail: Promise<void> = Promise.resolve();
 
-  async transaction<T>(fn: (store: CustomerSduiStore) => Promise<T>): Promise<T> { return fn(this); }
+  async transaction<T>(fn: (store: CustomerSduiStore) => Promise<T>): Promise<T> {
+    const previous = this.transactionTail;
+    let release!: () => void;
+    this.transactionTail = new Promise<void>((resolve) => { release = resolve; });
+    await previous;
+    const snapshot = {
+      revisions: structuredClone(this.revisions),
+      replays: structuredClone(this.replays),
+      killSwitches: structuredClone(this.killSwitches),
+      audits: structuredClone(this.audits),
+    };
+    try {
+      return await fn(this);
+    } catch (error) {
+      this.revisions.clear();
+      snapshot.revisions.forEach((value, itemKey) => this.revisions.set(itemKey, value));
+      this.replays.clear();
+      snapshot.replays.forEach((value, itemKey) => this.replays.set(itemKey, value));
+      this.killSwitches.clear();
+      snapshot.killSwitches.forEach((value, itemKey) => this.killSwitches.set(itemKey, value));
+      this.audits.splice(0, this.audits.length, ...snapshot.audits);
+      throw error;
+    } finally {
+      release();
+    }
+  }
   async findReplay(input: { cityCode: string; pageId: CustomerSduiPageId; operation: string; actorId: string; idempotencyHash: string }): Promise<CustomerSduiReplay | null> {
     return this.replays.get(`${input.cityCode}|${input.pageId}|${input.operation}|${input.actorId}|${input.idempotencyHash}`) ?? null;
   }
@@ -123,7 +153,7 @@ export class MemoryCustomerSduiRepository implements CustomerSduiRepository, Cus
     return true;
   }
   async findPublishedForUpdate(cityCode: string, pageId: CustomerSduiPageId): Promise<CustomerSduiRevision | null> {
-    return (await this.listPublished(cityCode, pageId))[0] ?? null;
+    return (await this.listPublished(cityCode, pageId, new Date().toISOString()))[0] ?? null;
   }
   async getKillSwitchForUpdate(cityCode: string, pageId: CustomerSduiPageId): Promise<CustomerSduiKillSwitchState | null> {
     return structuredClone(this.killSwitches.get(pageKey(cityCode, pageId)) ?? null);
@@ -136,7 +166,11 @@ export class MemoryCustomerSduiRepository implements CustomerSduiRepository, Cus
     return true;
   }
   async insertAudit(input: CustomerSduiAuditInput): Promise<void> { this.audits.push(structuredClone(input)); }
-  async listPublished(cityCode: string, pageId: CustomerSduiPageId): Promise<CustomerSduiRevision[]> {
+  async listPublished(
+    cityCode: string,
+    pageId: CustomerSduiPageId,
+    _resolvedAt: string,
+  ): Promise<CustomerSduiRevision[]> {
     if (this.failReads) throw new Error("database unavailable");
     return [...this.revisions.entries()]
       .filter(([itemKey, revision]) => itemKey.startsWith(`${cityCode}|${pageId}|`) && revision.status === "published")
@@ -145,5 +179,66 @@ export class MemoryCustomerSduiRepository implements CustomerSduiRepository, Cus
   async getKillSwitch(cityCode: string, pageId: CustomerSduiPageId): Promise<CustomerSduiKillSwitchState | null> {
     if (this.failReads) throw new Error("database unavailable");
     return structuredClone(this.killSwitches.get(pageKey(cityCode, pageId)) ?? null);
+  }
+  async listRevisions(input: {
+    cityCode: string;
+    pageId: CustomerSduiPageId;
+    status?: CustomerSduiRevisionStatus;
+    cursor?: string;
+    limit: number;
+  }): Promise<CustomerSduiPageResult<CustomerSduiRevision>> {
+    const offset = Number(input.cursor ?? "0");
+    const matches = [...this.revisions.entries()]
+      .filter(([itemKey, revision]) =>
+        itemKey.startsWith(`${input.cityCode}|${input.pageId}|`) &&
+        (input.status === undefined || revision.status === input.status))
+      .map(([, revision]) => structuredClone(revision))
+      .sort((left, right) => right.audit.createdAt.localeCompare(left.audit.createdAt));
+    return {
+      items: matches.slice(offset, offset + input.limit),
+      nextCursor: matches.length > offset + input.limit ? String(offset + input.limit) : null,
+    };
+  }
+  async getRevision(
+    cityCode: string,
+    pageId: CustomerSduiPageId,
+    revisionId: string,
+  ): Promise<CustomerSduiRevision | null> {
+    return structuredClone(this.revisions.get(key(cityCode, pageId, revisionId)) ?? null);
+  }
+  async listAudits(input: {
+    cityCode: string;
+    pageId: CustomerSduiPageId;
+    revisionId?: string;
+    action?: CustomerSduiAuditAction;
+    cursor?: string;
+    limit: number;
+  }): Promise<CustomerSduiPageResult<CustomerSduiAuditRecord>> {
+    const offset = Number(input.cursor ?? "0");
+    const matches = this.audits
+      .filter((audit) =>
+        audit.cityCode === input.cityCode &&
+        audit.pageId === input.pageId &&
+        (input.revisionId === undefined || audit.revisionId === input.revisionId) &&
+        (input.action === undefined || audit.action === input.action))
+      .map((audit) => ({
+        auditId: audit.auditId,
+        pageId: audit.pageId,
+        revisionId: audit.revisionId,
+        action: audit.action,
+        actorId: audit.actorId,
+        actorRole: audit.actorRole,
+        reason: audit.reason,
+        expectedVersion: audit.expectedVersion,
+        actualVersion: audit.actualVersion,
+        contentHashSha256: audit.contentHashSha256,
+        traceId: audit.traceId,
+        createdAt: audit.createdAt,
+      }))
+      .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+    return {
+      items: matches.slice(offset, offset + input.limit),
+      nextCursor: matches.length > offset + input.limit ? String(offset + input.limit) : null,
+    };
   }
 }

@@ -46,7 +46,13 @@ CREATE TABLE IF NOT EXISTS customer_sdui_revisions (
   ),
   CONSTRAINT chk_customer_sdui_publish_evidence CHECK (
     (published_by IS NULL AND published_at IS NULL)
-    OR (published_by IS NOT NULL AND published_at IS NOT NULL AND reviewed_by IS NOT NULL AND published_by <> reviewed_by)
+    OR (
+      published_by IS NOT NULL
+      AND published_at IS NOT NULL
+      AND reviewed_by IS NOT NULL
+      AND published_by <> reviewed_by
+      AND published_by <> created_by
+    )
   ),
   CONSTRAINT chk_customer_sdui_retire_evidence CHECK (
     (retired_by IS NULL AND retired_at IS NULL AND retirement_reason IS NULL)
@@ -118,6 +124,12 @@ CREATE TABLE IF NOT EXISTS customer_sdui_audit_records (
   CONSTRAINT fk_customer_sdui_audit_city FOREIGN KEY (control_city_code)
     REFERENCES cities (city_code) ON DELETE RESTRICT ON UPDATE RESTRICT,
   CONSTRAINT chk_customer_sdui_audit_city CHECK (control_city_code <> '__global__'),
+  CONSTRAINT chk_customer_sdui_audit_action CHECK (
+    action IN (
+      'create_draft','update_draft','review','publish','unpublish',
+      'rollback_source_retired','rollback','kill_switch'
+    )
+  ),
   CONSTRAINT chk_customer_sdui_audit_versions CHECK (
     (expected_version IS NULL OR expected_version >= 1) AND actual_version >= 1
   ),
@@ -125,9 +137,10 @@ CREATE TABLE IF NOT EXISTS customer_sdui_audit_records (
     content_hash_sha256 IS NULL OR content_hash_sha256 REGEXP '^[0-9a-f]{64}$'
   ),
   INDEX idx_customer_sdui_audit_subject (control_city_code, page_id, revision_id, created_at),
+  INDEX idx_customer_sdui_audit_action (control_city_code, page_id, action, created_at),
   INDEX idx_customer_sdui_audit_actor (control_city_code, actor_id, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO schema_migrations (version)
-VALUES ('059_customer_sdui_control_plane')
+VALUES ('062_customer_sdui_control_plane')
 ON DUPLICATE KEY UPDATE version = version;

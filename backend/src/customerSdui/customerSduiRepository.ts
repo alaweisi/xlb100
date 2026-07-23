@@ -1,9 +1,12 @@
 import type {
+  CustomerSduiAuditAction,
+  CustomerSduiAuditRecord,
   CustomerSduiKillSwitchState,
   CustomerSduiPageId,
   CustomerSduiRevision,
   CustomerSduiRolloutPolicy,
   CustomerSduiScope,
+  CustomerSduiRevisionStatus,
   Role,
 } from "@xlb/types";
 import type { Pool, PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/promise";
@@ -43,13 +46,32 @@ type KillSwitchRow = RowDataPacket & {
 };
 
 type ReplayRow = RowDataPacket & { request_fingerprint: string; response_json: unknown };
+type AuditRow = RowDataPacket & {
+  audit_id: string;
+  page_id: CustomerSduiPageId;
+  revision_id: string | null;
+  action: CustomerSduiAuditAction;
+  actor_id: string;
+  actor_role: string;
+  reason: string;
+  expected_version: number | null;
+  actual_version: number;
+  content_hash_sha256: string | null;
+  trace_id: string;
+  created_at: Date;
+};
+
+export interface CustomerSduiPageResult<T> {
+  items: T[];
+  nextCursor: string | null;
+}
 
 export interface CustomerSduiAuditInput {
   auditId: string;
   cityCode: string;
   pageId: CustomerSduiPageId;
   revisionId: string | null;
-  action: string;
+  action: CustomerSduiAuditAction;
   actorId: string;
   actorRole: Role;
   reason: string;
@@ -57,11 +79,24 @@ export interface CustomerSduiAuditInput {
   actualVersion: number;
   contentHashSha256: string | null;
   traceId: string;
+  createdAt: string;
 }
 
 export interface CustomerSduiReplay {
   requestFingerprint: string;
   response: unknown;
+}
+
+export class CustomerSduiReplayConflictError extends Error {
+  constructor(options?: ErrorOptions) {
+    super("Customer SDUI idempotency replay was won by a concurrent transaction", options);
+    this.name = "CustomerSduiReplayConflictError";
+  }
+}
+
+function isMysqlDuplicateKeyError(error: unknown): boolean {
+  return typeof error === "object" && error !== null &&
+    "code" in error && (error as { code?: unknown }).code === "ER_DUP_ENTRY";
 }
 
 export interface CustomerSduiStore {
@@ -83,8 +118,32 @@ export interface CustomerSduiStore {
 
 export interface CustomerSduiRepository {
   transaction<T>(fn: (store: CustomerSduiStore) => Promise<T>): Promise<T>;
-  listPublished(cityCode: string, pageId: CustomerSduiPageId): Promise<CustomerSduiRevision[]>;
+  listPublished(
+    cityCode: string,
+    pageId: CustomerSduiPageId,
+    resolvedAt: string,
+  ): Promise<CustomerSduiRevision[]>;
   getKillSwitch(cityCode: string, pageId: CustomerSduiPageId): Promise<CustomerSduiKillSwitchState | null>;
+  listRevisions(input: {
+    cityCode: string;
+    pageId: CustomerSduiPageId;
+    status?: CustomerSduiRevisionStatus;
+    cursor?: string;
+    limit: number;
+  }): Promise<CustomerSduiPageResult<CustomerSduiRevision>>;
+  getRevision(
+    cityCode: string,
+    pageId: CustomerSduiPageId,
+    revisionId: string,
+  ): Promise<CustomerSduiRevision | null>;
+  listAudits(input: {
+    cityCode: string;
+    pageId: CustomerSduiPageId;
+    revisionId?: string;
+    action?: CustomerSduiAuditAction;
+    cursor?: string;
+    limit: number;
+  }): Promise<CustomerSduiPageResult<CustomerSduiAuditRecord>>;
 }
 
 function asJson<T>(value: unknown): T {
@@ -136,6 +195,23 @@ function mapKillSwitch(row: KillSwitchRow): CustomerSduiKillSwitchState {
   };
 }
 
+function mapAudit(row: AuditRow): CustomerSduiAuditRecord {
+  return {
+    auditId: row.audit_id,
+    pageId: row.page_id,
+    revisionId: row.revision_id,
+    action: row.action,
+    actorId: row.actor_id,
+    actorRole: row.actor_role,
+    reason: row.reason,
+    expectedVersion: row.expected_version === null ? null : Number(row.expected_version),
+    actualVersion: Number(row.actual_version),
+    contentHashSha256: row.content_hash_sha256,
+    traceId: row.trace_id,
+    createdAt: row.created_at.toISOString(),
+  };
+}
+
 const REVISION_SELECT = `SELECT revision_id,page_id,version,status,definition_json,scope_json,rollout_json,
   effective_at,expires_at,created_by,created_at,updated_by,updated_at,reviewed_by,reviewed_at,
   review_note,published_by,published_at,retired_by,retired_at,retirement_reason
@@ -160,13 +236,20 @@ class MysqlCustomerSduiStore implements CustomerSduiStore {
     mutationId: string; cityCode: string; pageId: CustomerSduiPageId; operation: string; actorId: string;
     idempotencyHash: string; requestFingerprint: string; response: unknown;
   }): Promise<void> {
-    await this.connection.query(
-      `INSERT INTO customer_sdui_mutation_records
-       (mutation_id,control_city_code,page_id,operation,actor_id,idempotency_key_hash,request_fingerprint,response_json)
-       VALUES (?,?,?,?,?,?,?,?)`,
-      [input.mutationId, input.cityCode, input.pageId, input.operation, input.actorId,
-        input.idempotencyHash, input.requestFingerprint, JSON.stringify(input.response)],
-    );
+    try {
+      await this.connection.query(
+        `INSERT INTO customer_sdui_mutation_records
+         (mutation_id,control_city_code,page_id,operation,actor_id,idempotency_key_hash,request_fingerprint,response_json)
+         VALUES (?,?,?,?,?,?,?,?)`,
+        [input.mutationId, input.cityCode, input.pageId, input.operation, input.actorId,
+          input.idempotencyHash, input.requestFingerprint, JSON.stringify(input.response)],
+      );
+    } catch (error) {
+      if (isMysqlDuplicateKeyError(error)) {
+        throw new CustomerSduiReplayConflictError({ cause: error });
+      }
+      throw error;
+    }
   }
 
   async insertRevision(cityCode: string, revision: CustomerSduiRevision, contentHash: string): Promise<void> {
@@ -250,10 +333,11 @@ class MysqlCustomerSduiStore implements CustomerSduiStore {
     await this.connection.query(
       `INSERT INTO customer_sdui_audit_records
        (audit_id,control_city_code,page_id,revision_id,action,actor_id,actor_role,reason,
-        expected_version,actual_version,content_hash_sha256,trace_id)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+        expected_version,actual_version,content_hash_sha256,trace_id,created_at)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [input.auditId, input.cityCode, input.pageId, input.revisionId, input.action, input.actorId,
-        input.actorRole, input.reason, input.expectedVersion, input.actualVersion, input.contentHashSha256, input.traceId],
+        input.actorRole, input.reason, input.expectedVersion, input.actualVersion, input.contentHashSha256,
+        input.traceId, new Date(input.createdAt)],
     );
   }
 }
@@ -264,22 +348,36 @@ export class MysqlCustomerSduiRepository implements CustomerSduiRepository {
   async transaction<T>(fn: (store: CustomerSduiStore) => Promise<T>): Promise<T> {
     const connection = await this.pool.getConnection();
     try {
-      await connection.beginTransaction();
-      const result = await fn(new MysqlCustomerSduiStore(connection));
-      await connection.commit();
-      return result;
-    } catch (error) {
-      await connection.rollback();
-      throw error;
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        await connection.beginTransaction();
+        try {
+          const result = await fn(new MysqlCustomerSduiStore(connection));
+          await connection.commit();
+          return result;
+        } catch (error) {
+          await connection.rollback();
+          if (error instanceof CustomerSduiReplayConflictError && attempt === 0) {
+            continue;
+          }
+          throw error;
+        }
+      }
+      throw new Error("Customer SDUI idempotency recovery exhausted");
     } finally {
       connection.release();
     }
   }
 
-  async listPublished(cityCode: string, pageId: CustomerSduiPageId): Promise<CustomerSduiRevision[]> {
+  async listPublished(
+    cityCode: string,
+    pageId: CustomerSduiPageId,
+    resolvedAt: string,
+  ): Promise<CustomerSduiRevision[]> {
     const [rows] = await this.pool.query<RevisionRow[]>(
       `${REVISION_SELECT} WHERE control_city_code=? AND page_id=? AND status='published'
-       ORDER BY effective_at DESC,created_at DESC LIMIT 50`, [cityCode, pageId],
+       AND effective_at<=? AND (expires_at IS NULL OR expires_at>?)
+       ORDER BY effective_at DESC,created_at DESC LIMIT 200`,
+      [cityCode, pageId, new Date(resolvedAt), new Date(resolvedAt)],
     );
     return rows.map(mapRevision);
   }
@@ -290,5 +388,77 @@ export class MysqlCustomerSduiRepository implements CustomerSduiRepository {
        WHERE control_city_code=? AND page_id=? LIMIT 1`, [cityCode, pageId],
     );
     return rows[0] ? mapKillSwitch(rows[0]) : null;
+  }
+
+  async listRevisions(input: {
+    cityCode: string;
+    pageId: CustomerSduiPageId;
+    status?: CustomerSduiRevisionStatus;
+    cursor?: string;
+    limit: number;
+  }): Promise<CustomerSduiPageResult<CustomerSduiRevision>> {
+    const offset = Number(input.cursor ?? "0");
+    const parameters: unknown[] = [input.cityCode, input.pageId];
+    const statusClause = input.status === undefined ? "" : " AND status=?";
+    if (input.status !== undefined) parameters.push(input.status);
+    parameters.push(input.limit + 1, offset);
+    const [rows] = await this.pool.query<RevisionRow[]>(
+      `${REVISION_SELECT} WHERE control_city_code=? AND page_id=?${statusClause}
+       ORDER BY created_at DESC,revision_id DESC LIMIT ? OFFSET ?`,
+      parameters,
+    );
+    const hasMore = rows.length > input.limit;
+    const items = rows.slice(0, input.limit).map(mapRevision);
+    return {
+      items,
+      nextCursor: hasMore ? String(offset + items.length) : null,
+    };
+  }
+
+  async getRevision(
+    cityCode: string,
+    pageId: CustomerSduiPageId,
+    revisionId: string,
+  ): Promise<CustomerSduiRevision | null> {
+    const [rows] = await this.pool.query<RevisionRow[]>(
+      `${REVISION_SELECT} WHERE control_city_code=? AND page_id=? AND revision_id=? LIMIT 1`,
+      [cityCode, pageId, revisionId],
+    );
+    return rows[0] ? mapRevision(rows[0]) : null;
+  }
+
+  async listAudits(input: {
+    cityCode: string;
+    pageId: CustomerSduiPageId;
+    revisionId?: string;
+    action?: CustomerSduiAuditAction;
+    cursor?: string;
+    limit: number;
+  }): Promise<CustomerSduiPageResult<CustomerSduiAuditRecord>> {
+    const offset = Number(input.cursor ?? "0");
+    const clauses = ["control_city_code=?", "page_id=?"];
+    const parameters: unknown[] = [input.cityCode, input.pageId];
+    if (input.revisionId !== undefined) {
+      clauses.push("revision_id=?");
+      parameters.push(input.revisionId);
+    }
+    if (input.action !== undefined) {
+      clauses.push("action=?");
+      parameters.push(input.action);
+    }
+    parameters.push(input.limit + 1, offset);
+    const [rows] = await this.pool.query<AuditRow[]>(
+      `SELECT audit_id,page_id,revision_id,action,actor_id,actor_role,reason,expected_version,
+        actual_version,content_hash_sha256,trace_id,created_at
+       FROM customer_sdui_audit_records WHERE ${clauses.join(" AND ")}
+       ORDER BY created_at DESC,audit_id DESC LIMIT ? OFFSET ?`,
+      parameters,
+    );
+    const hasMore = rows.length > input.limit;
+    const items = rows.slice(0, input.limit).map(mapAudit);
+    return {
+      items,
+      nextCursor: hasMore ? String(offset + items.length) : null,
+    };
   }
 }

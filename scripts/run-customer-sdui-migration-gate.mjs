@@ -6,7 +6,7 @@ import { createRequire } from "node:module";
 const root = process.cwd();
 const require = createRequire(path.join(root, "backend", "package.json"));
 const mysql = require("mysql2/promise");
-const migrationName = "059_customer_sdui_control_plane";
+const migrationName = "062_customer_sdui_control_plane";
 const migrationPath = path.join(root, "db", "migrations", `${migrationName}.sql`);
 const migrationText = fs.readFileSync(migrationPath, "utf8");
 const tables = [
@@ -19,12 +19,12 @@ const tables = [
 const createdTables = [...migrationText.matchAll(/CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\s+([a-z0-9_]+)/gi)]
   .map((match) => match[1].toLowerCase());
 if (JSON.stringify(createdTables) !== JSON.stringify(tables)) {
-  throw new Error(`migration 059 table ledger mismatch: ${createdTables.join(",")}`);
+  throw new Error(`migration 062 table ledger mismatch: ${createdTables.join(",")}`);
 }
 const insertTargets = [...migrationText.matchAll(/INSERT\s+INTO\s+([a-z0-9_]+)/gi)]
   .map((match) => match[1].toLowerCase());
 if (insertTargets.length !== 1 || insertTargets[0] !== "schema_migrations") {
-  throw new Error(`migration 059 must contain no business seed INSERT; found ${insertTargets.join(",")}`);
+  throw new Error(`migration 062 must contain no business seed INSERT; found ${insertTargets.join(",")}`);
 }
 if (/ON\s+(DELETE|UPDATE)\s+CASCADE/i.test(migrationText)) throw new Error("Customer SDUI evidence tables must not cascade");
 if (/CREATE\s+(TRIGGER|EVENT|PROCEDURE|FUNCTION)/i.test(migrationText)) {
@@ -69,7 +69,7 @@ try {
     if (boundary <= 0) throw new Error("cannot locate partial-DDL boundary");
     await connection.query(migrationText.slice(0, boundary));
     if (await scalar(connection, "SELECT COUNT(*) FROM schema_migrations WHERE version=?", [migrationName]) !== "0") {
-      throw new Error("partial migration must not write the 059 marker");
+      throw new Error("partial migration must not write the 062 marker");
     }
 
     const env = { ...process.env, MYSQL_DATABASE: database, MYSQL_USER: rootConfig.user, MYSQL_PASSWORD: rootConfig.password };
@@ -77,7 +77,7 @@ try {
     migrate(env);
 
     if (await scalar(connection, "SELECT COUNT(*) FROM schema_migrations WHERE version=?", [migrationName]) !== "1") {
-      throw new Error("migration 059 marker must exist exactly once");
+      throw new Error("migration 062 marker must exist exactly once");
     }
     if (await scalar(connection,
       `SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE()
@@ -105,4 +105,4 @@ try {
   await rootConnection.end();
 }
 
-process.stdout.write("Customer SDUI migration 059 partial-DDL/double-replay/constraint Gate PASS\n");
+process.stdout.write("Customer SDUI migration 062 partial-DDL/double-replay/constraint Gate PASS\n");

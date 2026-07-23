@@ -1,19 +1,26 @@
 import { createHash, randomUUID } from "node:crypto";
 import type {
+  CustomerSduiAuditListEnvelope,
   CustomerSduiKillSwitchEnvelope,
+  CustomerSduiKillSwitchReadEnvelope,
   CustomerSduiManifestEnvelope,
   CustomerSduiPageId,
   CustomerSduiPageManifest,
   CustomerSduiRevision,
   CustomerSduiRevisionEnvelope,
+  CustomerSduiRevisionListEnvelope,
+  CustomerSduiRevisionReadEnvelope,
+  CityCode,
   RequestContext,
 } from "@xlb/types";
 import {
   createCustomerSduiDraftRequestSchema,
   customerSduiKillSwitchStateSchema,
+  customerSduiAuditListQuerySchema,
   customerSduiManifestDefinitionSchema,
   customerSduiPageManifestSchema,
   customerSduiRevisionSchema,
+  customerSduiRevisionListQuerySchema,
   publishCustomerSduiRevisionRequestSchema,
   reviewCustomerSduiRevisionRequestSchema,
   rollbackCustomerSduiRevisionRequestSchema,
@@ -21,6 +28,7 @@ import {
   unpublishCustomerSduiRevisionRequestSchema,
   updateCustomerSduiDraftRequestSchema,
 } from "@xlb/validators";
+import { assertAdminCanAccessCity } from "../dal/adminQueryGuard.js";
 import {
   MysqlCustomerSduiRepository,
   type CustomerSduiAuditInput,
@@ -75,7 +83,7 @@ function stableBucket(seed: string, pageId: string, cityCode: string, userId: st
   return digest.readUInt32BE(0) % 10_000;
 }
 
-function assertActor(context: RequestContext): { actorId: string; cityCode: string } {
+function assertActor(context: RequestContext): { actorId: string; cityCode: CityCode } {
   if (context.appType !== "admin" || !["admin", "operator", "auditor"].includes(context.role)) {
     throw new CustomerSduiError("Customer SDUI control plane requires an authenticated admin application role", 403);
   }
@@ -85,7 +93,7 @@ function assertActor(context: RequestContext): { actorId: string; cityCode: stri
   return { actorId: context.userId, cityCode: context.cityCode };
 }
 
-function assertAuthor(context: RequestContext): { actorId: string; cityCode: string } {
+function assertAuthor(context: RequestContext): { actorId: string; cityCode: CityCode } {
   const actor = assertActor(context);
   if (!(["admin", "operator"] as const).includes(context.role as "admin" | "operator")) {
     throw new CustomerSduiError("Auditors cannot author or mutate Customer SDUI revisions", 403);
@@ -93,8 +101,20 @@ function assertAuthor(context: RequestContext): { actorId: string; cityCode: str
   return actor;
 }
 
-function assertPublisher(context: RequestContext): { actorId: string; cityCode: string } {
-  return assertAuthor(context);
+function assertReviewer(context: RequestContext): { actorId: string; cityCode: CityCode } {
+  const actor = assertActor(context);
+  if (context.role !== "auditor") {
+    throw new CustomerSduiError("Customer SDUI review requires the auditor role", 403);
+  }
+  return actor;
+}
+
+function assertPublisher(context: RequestContext): { actorId: string; cityCode: CityCode } {
+  const actor = assertActor(context);
+  if (context.role !== "admin") {
+    throw new CustomerSduiError("Customer SDUI publication control requires the admin role", 403);
+  }
+  return actor;
 }
 
 function assertCustomer(context: RequestContext): { userId: string; cityCode: string } {
@@ -129,15 +149,31 @@ export class CustomerSduiService {
   constructor(
     private readonly repository: CustomerSduiRepository = new MysqlCustomerSduiRepository(),
     private readonly now: () => Date = () => new Date(),
+    private readonly assertControlCityAccess: (
+      context: RequestContext,
+      cityCode: CityCode,
+    ) => Promise<void> = assertAdminCanAccessCity,
   ) {}
 
-  private audit(context: RequestContext, input: Omit<CustomerSduiAuditInput, "auditId" | "actorId" | "actorRole" | "traceId">): CustomerSduiAuditInput {
+  private async requireControlCityAccess(context: RequestContext, cityCode: CityCode): Promise<void> {
+    try {
+      await this.assertControlCityAccess(context, cityCode);
+    } catch {
+      throw new CustomerSduiError("Customer SDUI control city is outside the actor's authorized scope", 403);
+    }
+  }
+
+  private audit(
+    context: RequestContext,
+    input: Omit<CustomerSduiAuditInput, "auditId" | "actorId" | "actorRole" | "traceId" | "createdAt">,
+  ): CustomerSduiAuditInput {
     return {
       ...input,
       auditId: opaqueId("sdui_audit"),
       actorId: context.userId!,
       actorRole: context.role,
       traceId: context.traceId,
+      createdAt: nowIso(this.now),
     };
   }
 
@@ -166,8 +202,90 @@ export class CustomerSduiService {
     return { value, replay: false };
   }
 
+  async listRevisions(
+    context: RequestContext,
+    routePageId: string,
+    query: unknown,
+  ): Promise<CustomerSduiRevisionListEnvelope> {
+    const { cityCode } = assertActor(context);
+    await this.requireControlCityAccess(context, cityCode);
+    const pageId = assertPage(routePageId);
+    const parsed = customerSduiRevisionListQuerySchema.safeParse(query);
+    if (!parsed.success) throw new CustomerSduiError("Invalid Customer SDUI revision list query", 400);
+    const result = await this.repository.listRevisions({
+      cityCode,
+      pageId,
+      status: parsed.data.status,
+      cursor: parsed.data.cursor,
+      limit: parsed.data.limit ?? 50,
+    });
+    return {
+      requestId: randomUUID(),
+      pageId,
+      revisions: result.items.map(validateRevision),
+      nextCursor: result.nextCursor,
+    };
+  }
+
+  async getRevision(
+    context: RequestContext,
+    routePageId: string,
+    revisionId: string,
+  ): Promise<CustomerSduiRevisionReadEnvelope> {
+    const { cityCode } = assertActor(context);
+    await this.requireControlCityAccess(context, cityCode);
+    const pageId = assertPage(routePageId);
+    return {
+      requestId: randomUUID(),
+      revision: validateRevision(requireRevision(
+        await this.repository.getRevision(cityCode, pageId, revisionId),
+      )),
+    };
+  }
+
+  async getKillSwitch(
+    context: RequestContext,
+    routePageId: string,
+  ): Promise<CustomerSduiKillSwitchReadEnvelope> {
+    const { cityCode } = assertActor(context);
+    await this.requireControlCityAccess(context, cityCode);
+    const pageId = assertPage(routePageId);
+    return {
+      requestId: randomUUID(),
+      pageId,
+      killSwitch: await this.repository.getKillSwitch(cityCode, pageId),
+    };
+  }
+
+  async listAudits(
+    context: RequestContext,
+    routePageId: string,
+    query: unknown,
+  ): Promise<CustomerSduiAuditListEnvelope> {
+    const { cityCode } = assertActor(context);
+    await this.requireControlCityAccess(context, cityCode);
+    const pageId = assertPage(routePageId);
+    const parsed = customerSduiAuditListQuerySchema.safeParse(query);
+    if (!parsed.success) throw new CustomerSduiError("Invalid Customer SDUI audit list query", 400);
+    const result = await this.repository.listAudits({
+      cityCode,
+      pageId,
+      revisionId: parsed.data.revisionId,
+      action: parsed.data.action,
+      cursor: parsed.data.cursor,
+      limit: parsed.data.limit ?? 50,
+    });
+    return {
+      requestId: randomUUID(),
+      pageId,
+      audits: result.items,
+      nextCursor: result.nextCursor,
+    };
+  }
+
   async createDraft(context: RequestContext, routePageId: string, body: unknown): Promise<CustomerSduiRevisionEnvelope> {
     const { actorId, cityCode } = assertAuthor(context);
+    await this.requireControlCityAccess(context, cityCode);
     const pageId = assertPage(routePageId);
     const parsed = createCustomerSduiDraftRequestSchema.safeParse(body);
     if (!parsed.success || parsed.data.definition.pageId !== pageId) throw new CustomerSduiError("Invalid Customer SDUI draft request", 400);
@@ -201,6 +319,7 @@ export class CustomerSduiService {
 
   async updateDraft(context: RequestContext, routePageId: string, revisionId: string, body: unknown): Promise<CustomerSduiRevisionEnvelope> {
     const { actorId, cityCode } = assertAuthor(context);
+    await this.requireControlCityAccess(context, cityCode);
     const pageId = assertPage(routePageId);
     const parsed = updateCustomerSduiDraftRequestSchema.safeParse(body);
     if (!parsed.success || parsed.data.definition.pageId !== pageId) throw new CustomerSduiError("Invalid Customer SDUI draft update", 400);
@@ -230,7 +349,8 @@ export class CustomerSduiService {
   }
 
   async review(context: RequestContext, routePageId: string, revisionId: string, body: unknown): Promise<CustomerSduiRevisionEnvelope> {
-    const { actorId, cityCode } = assertActor(context);
+    const { actorId, cityCode } = assertReviewer(context);
+    await this.requireControlCityAccess(context, cityCode);
     const pageId = assertPage(routePageId);
     const parsed = reviewCustomerSduiRevisionRequestSchema.safeParse(body);
     if (!parsed.success) throw new CustomerSduiError("Invalid Customer SDUI review request", 400);
@@ -265,11 +385,15 @@ export class CustomerSduiService {
 
   async publish(context: RequestContext, routePageId: string, revisionId: string, body: unknown): Promise<CustomerSduiRevisionEnvelope> {
     const { actorId, cityCode } = assertPublisher(context);
+    await this.requireControlCityAccess(context, cityCode);
     const pageId = assertPage(routePageId);
     const parsed = publishCustomerSduiRevisionRequestSchema.safeParse(body);
     if (!parsed.success) throw new CustomerSduiError("Invalid Customer SDUI publish request", 400);
     if (parsed.data.scope.cityCodes === null || parsed.data.scope.cityCodes.length !== 1 || parsed.data.scope.cityCodes[0] !== cityCode) {
       throw new CustomerSduiError("Publication city scope must exactly match the authenticated control city", 403);
+    }
+    if (parsed.data.scope.audienceTags.length > 0) {
+      throw new CustomerSduiError("Audience-targeted publication is disabled until an authoritative audience resolver is registered", 400);
     }
     if (Date.parse(parsed.data.effectiveAt) < this.now().getTime()) {
       throw new CustomerSduiError("Publication effectiveAt must not be in the past", 400);
@@ -282,6 +406,7 @@ export class CustomerSduiService {
           const current = requireRevision(await store.findRevisionForUpdate(cityCode, pageId, revisionId));
           if (current.status !== "reviewed") throw new CustomerSduiError("Only reviewed revisions can be published", 409);
           if (current.version !== parsed.data.expectedVersion) throw new CustomerSduiError("Customer SDUI revision version conflict", 409);
+          if (current.audit.createdBy === actorId) throw new CustomerSduiError("Revision creator cannot publish the same revision", 403);
           if (current.audit.reviewedBy === actorId) throw new CustomerSduiError("Reviewer cannot publish the same revision", 403);
           customerSduiManifestDefinitionSchema.parse(current.definition);
           const timestamp = nowIso(this.now);
@@ -309,6 +434,7 @@ export class CustomerSduiService {
 
   async unpublish(context: RequestContext, routePageId: string, revisionId: string, body: unknown): Promise<CustomerSduiRevisionEnvelope> {
     const { actorId, cityCode } = assertPublisher(context);
+    await this.requireControlCityAccess(context, cityCode);
     const pageId = assertPage(routePageId);
     const parsed = unpublishCustomerSduiRevisionRequestSchema.safeParse(body);
     if (!parsed.success) throw new CustomerSduiError("Invalid Customer SDUI unpublish request", 400);
@@ -341,6 +467,7 @@ export class CustomerSduiService {
 
   async rollback(context: RequestContext, routePageId: string, revisionId: string, body: unknown): Promise<CustomerSduiRevisionEnvelope> {
     const { actorId, cityCode } = assertPublisher(context);
+    await this.requireControlCityAccess(context, cityCode);
     const pageId = assertPage(routePageId);
     const parsed = rollbackCustomerSduiRevisionRequestSchema.safeParse(body);
     if (!parsed.success || parsed.data.targetRevisionId === revisionId) throw new CustomerSduiError("Invalid Customer SDUI rollback request", 400);
@@ -354,8 +481,13 @@ export class CustomerSduiService {
             throw new CustomerSduiError("Rollback source must be the expected published revision", 409);
           }
           const target = requireRevision(await store.findRevisionForUpdate(cityCode, pageId, parsed.data.targetRevisionId));
-          if (target.status !== "reviewed" || target.audit.reviewedBy === actorId) {
-            throw new CustomerSduiError("Rollback target must be an existing reviewed revision approved by another actor", 409);
+          if (!["reviewed", "retired"].includes(target.status) ||
+              target.audit.createdBy === actorId ||
+              target.audit.reviewedBy === actorId) {
+            throw new CustomerSduiError(
+              "Rollback target must be a reviewed known-good revision approved by independent actors",
+              409,
+            );
           }
           customerSduiManifestDefinitionSchema.parse(target.definition);
           const timestamp = nowIso(this.now);
@@ -373,7 +505,16 @@ export class CustomerSduiService {
           };
           const restored = validateRevision({
             ...target, status: "published", version: target.version + 1, publication: restoredPublication,
-            audit: { ...target.audit, updatedBy: actorId, updatedAt: timestamp, publishedBy: actorId, publishedAt: timestamp },
+            audit: {
+              ...target.audit,
+              updatedBy: actorId,
+              updatedAt: timestamp,
+              publishedBy: actorId,
+              publishedAt: timestamp,
+              retiredBy: null,
+              retiredAt: null,
+              retirementReason: null,
+            },
           });
           customerSduiPageManifestSchema.parse(this.toManifest(restored));
           if (!await store.updateRevision(cityCode, retired, sha256(retired.definition)) ||
@@ -381,8 +522,13 @@ export class CustomerSduiService {
             throw new CustomerSduiError("Customer SDUI rollback version conflict", 409);
           }
           await store.insertAudit(this.audit(context, {
+            cityCode, pageId, revisionId: retired.revisionId, action: "rollback_source_retired",
+            reason: parsed.data.reason, expectedVersion: parsed.data.expectedVersion,
+            actualVersion: retired.version, contentHashSha256: sha256(retired.definition),
+          }));
+          await store.insertAudit(this.audit(context, {
             cityCode, pageId, revisionId: restored.revisionId, action: "rollback", reason: parsed.data.reason,
-            expectedVersion: parsed.data.expectedVersion, actualVersion: restored.version,
+            expectedVersion: target.version, actualVersion: restored.version,
             contentHashSha256: sha256(restored.definition),
           }));
           return restored;
@@ -394,6 +540,7 @@ export class CustomerSduiService {
 
   async setKillSwitch(context: RequestContext, routePageId: string, body: unknown): Promise<CustomerSduiKillSwitchEnvelope> {
     const { actorId, cityCode } = assertPublisher(context);
+    await this.requireControlCityAccess(context, cityCode);
     const pageId = assertPage(routePageId);
     const parsed = setCustomerSduiKillSwitchRequestSchema.safeParse(body);
     if (!parsed.success) throw new CustomerSduiError("Invalid Customer SDUI kill-switch request", 400);
@@ -452,7 +599,7 @@ export class CustomerSduiService {
           resolutionReason: "kill_switch", killSwitchActive: true, cacheTtlSeconds: 0,
           manifest: null, fallbackPolicy: BUILTIN_FALLBACK };
       }
-      const candidates = await this.repository.listPublished(cityCode, pageId);
+      const candidates = await this.repository.listPublished(cityCode, pageId, resolvedAt);
       let unsupportedClient = false;
       for (const revision of candidates) {
         if (!revision.publication) continue;
@@ -468,12 +615,12 @@ export class CustomerSduiService {
         if (stableBucket(rollout.bucketSeed, pageId, cityCode, userId) >= rollout.percentageBasisPoints) continue;
         const manifest = customerSduiPageManifestSchema.parse(this.toManifest(revision));
         return { schemaVersion: "1.0", requestId: randomUUID(), pageId, resolvedAt, scopeProof,
-          resolutionReason: "published", killSwitchActive: false, cacheTtlSeconds: 60,
+          resolutionReason: "published", killSwitchActive: false, cacheTtlSeconds: 0,
           manifest, fallbackPolicy: manifest.fallbackPolicy };
       }
       return { schemaVersion: "1.0", requestId: randomUUID(), pageId, resolvedAt, scopeProof,
         resolutionReason: unsupportedClient ? "unsupported_client" : "no_eligible_manifest",
-        killSwitchActive: false, cacheTtlSeconds: 30, manifest: null, fallbackPolicy: BUILTIN_FALLBACK };
+        killSwitchActive: false, cacheTtlSeconds: 0, manifest: null, fallbackPolicy: BUILTIN_FALLBACK };
     } catch (error) {
       if (error instanceof CustomerSduiError) throw error;
       return { schemaVersion: "1.0", requestId: randomUUID(), pageId, resolvedAt, scopeProof,

@@ -343,3 +343,68 @@ export interface CustomerSduiKillSwitchEnvelope {
   idempotentReplay: boolean;
   killSwitch: CustomerSduiKillSwitchState;
 }
+
+export const CUSTOMER_SDUI_AUDIT_ACTIONS = [
+  "create_draft",
+  "update_draft",
+  "review",
+  "publish",
+  "unpublish",
+  "rollback_source_retired",
+  "rollback",
+  "kill_switch",
+] as const;
+export type CustomerSduiAuditAction = typeof CUSTOMER_SDUI_AUDIT_ACTIONS[number];
+
+export interface CustomerSduiRevisionListQuery {
+  status?: CustomerSduiRevisionStatus;
+  cursor?: string;
+  limit?: number;
+}
+
+export interface CustomerSduiAuditListQuery {
+  revisionId?: string;
+  action?: CustomerSduiAuditAction;
+  cursor?: string;
+  limit?: number;
+}
+
+export interface CustomerSduiRevisionReadEnvelope {
+  requestId: string;
+  revision: CustomerSduiRevision;
+}
+
+export interface CustomerSduiRevisionListEnvelope {
+  requestId: string;
+  pageId: CustomerSduiPageId;
+  revisions: CustomerSduiRevision[];
+  nextCursor: string | null;
+}
+
+export interface CustomerSduiKillSwitchReadEnvelope {
+  requestId: string;
+  pageId: CustomerSduiPageId;
+  killSwitch: CustomerSduiKillSwitchState | null;
+}
+
+export interface CustomerSduiAuditRecord {
+  auditId: string;
+  pageId: CustomerSduiPageId;
+  revisionId: string | null;
+  action: CustomerSduiAuditAction;
+  actorId: string;
+  actorRole: string;
+  reason: string;
+  expectedVersion: number | null;
+  actualVersion: number;
+  contentHashSha256: string | null;
+  traceId: string;
+  createdAt: string;
+}
+
+export interface CustomerSduiAuditListEnvelope {
+  requestId: string;
+  pageId: CustomerSduiPageId;
+  audits: CustomerSduiAuditRecord[];
+  nextCursor: string | null;
+}
