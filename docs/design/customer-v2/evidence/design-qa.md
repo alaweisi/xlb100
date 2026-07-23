@@ -1,53 +1,49 @@
-# P8 Customer Dynamic Home — Design QA
+# P10 Customer Hybrid SDUI — Design QA
 
 final result: passed
 
 ## Evidence
 
-- Approved source at the target viewport: `p8-home-reference-390x844.png`
-- Actual Customer App viewport capture: `p8-home-390x844.png`
-- Actual Customer App full-page capture: `p8-home-full-390.png`
-- Viewport: 390 × 844 CSS pixels, DPR 1
-- Browser: Microsoft Edge headless, clean temporary profile, extensions disabled
-- Runtime: real Vite Customer App component tree; no injected visual CSS or static replacement HTML
+- Human-approved reference crop: `p8-home-reference-390x844.png`
+- Authenticated live Customer App: `p10-home-390x844.png`
+- Remote Manifest reorder/down-list state: `p10-home-remote-reordered-390x844.png`
+- Viewport: 390 × 844 CSS pixels, DPR 1, light mode, `zh-CN`
+- Browser: clean Playwright Chromium profile with extensions disabled
+- Runtime: built Customer App served by Vite preview against the built backend
 
-## Runtime state captured
+## Verified runtime state
 
-- Manifest delivery source: `builtin`
-- Delivery reason: `server-fallback-builtin` because the local control plane has no published home manifest
-- Composition status: `ready`
-- Manifest id: `customer.home.builtin`
-- Data state: `partial` because no authoritative nearby-provider adapter is available
-- Rendered manifest slots: 7
-- Catalog category cards: 16, all images decoded successfully
-- Recommendation cards: 6; missing SKU marketing images use a neutral token-based missing-image state
-- Nearby-provider state: explicit empty state, not fabricated provider data
-- Category cards expose both a full accessible name and a full `title` value when visible labels truncate
+- The live page renders the formal Catalog-derived 16-category grid, recommendation
+  section, honest provider empty state, trust strip, and stable bottom navigation.
+- The remote evidence moves recommendations before the service grid and disables the
+  nearby-provider slot without changing page JSX. The remaining layout and bottom
+  navigation stay stable.
+- Search Enter navigation, service-category navigation, recommendation navigation,
+  and bottom-navigation actions are exercised by Customer E2E.
+- Kill Switch and offline cases render the builtin safe page.
+- Console warnings/errors, uncaught page errors, failed requests, and HTTP responses
+  at or above 400 were all zero in the final four-browser-case run.
+- Brand rendering uses the required hot-swappable `xlb100` fallback. Verified remote
+  logo replacement and asset-failure behavior are covered by the presentation runtime
+  tests because this deployment has no configured runtime-theme/asset envelope source.
 
-## Layout and interaction checks
+## Comparison and accessibility
 
-- All first-screen layers are visible without bottom-navigation overlap: header, category grid, recommendations, nearby-provider state, trust strip, and bottom navigation.
-- Content height: 858 px; trust strip ends at 742 px and fixed navigation begins at 768 px in the 844 px viewport.
-- Search input submission changed history to `/service?q=cleaning`.
-- Console exceptions: none.
-- Console warnings/errors: none.
-- Failed or HTTP >= 400 resource requests: none.
-- App favicon and all 16 versioned category assets loaded successfully.
+- The approved Tiffany background, orange action emphasis, white cards, four-column
+  service density, section rhythm, and fixed navigation hierarchy are preserved.
+- Formal Catalog names are never rewritten to fit the reference. Long names use
+  visual ellipsis while their complete values remain in `aria-label` and `title`.
+- The evidence is not claimed to be pixel-identical. The following differences are
+  intentional or data-driven:
 
-## Comparison history
+  - `xlb100` is shown instead of an unregistered brand wordmark.
+  - Browser evidence does not reproduce native phone status-bar chrome.
+  - Location shows only the backend/runtime value `杭州`; `西湖区` is not fabricated.
+  - Formal Catalog long names can be visually truncated.
+  - Missing SKU marketing images use a neutral token-based placeholder.
+  - Nearby-provider cards are not fabricated when no authoritative adapter exists.
 
-1. Replaced unresolved custom CSS variables with existing Customer core token variables.
-2. Merged location and search into the approved pill layout and reduced the category grid to the reference density.
-3. Re-encoded the generated category assets to versioned 256 × 256 PNG files to eliminate decoding/paint instability.
-4. Tightened header, section, recommendation, trust, and bottom-navigation rhythm so all required first-screen layers remain visible.
-5. Removed misleading category-image fallback from recommendation cards and introduced the explicit neutral missing-image state.
-6. Re-captured both viewport and full-page evidence with a clean, extensions-disabled browser profile.
+## Result
 
-## Intentional or data-driven differences
-
-- Header shows the required hot-swappable `xlb100` fallback rather than the unregistered brand wordmark in the source image.
-- The web viewport does not reproduce native phone status-bar chrome.
-- Local location context resolves to `杭州`; `西湖区` is not hardcoded when the location provider does not return a district.
-- Formal Catalog names are preserved and may visually truncate; full text remains available to assistive technology and through `title`.
-- Nearby-provider cards are not fabricated. The captured local runtime shows the honest empty state until an authoritative provider adapter supplies data.
-- Catalog SKUs do not currently supply marketing images in this local data set. Neutral placeholders are used instead of reusing unrelated category art.
+The real Customer App at 390 × 844, the dynamic reorder/down-list case, responsive
+layering, fallback states, actions, and accessibility labels pass P10 visual QA.

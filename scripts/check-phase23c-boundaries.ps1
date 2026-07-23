@@ -70,8 +70,16 @@ try {
     $main = Get-Content (Join-Path $Root "apps/$appName/src/main.tsx") -Raw
     $app = Get-Content (Join-Path $Root "apps/$appName/src/app/App.tsx") -Raw
     Require-Match "$appName shared ErrorBoundary" $main '(?is)from\s+["'']@xlb/ui["''].{0,1200}<AppErrorBoundary'
-    Require-Match "$appName Suspense fallback" $main '(?is)<Suspense\s+fallback='
-    Require-Match "$appName lazy boundary" ($main + "`n" + $app) '(?is)\blazy\s*\(.{0,500}\bimport\s*\('
+    if ($appName -eq "customer") {
+      $homePage = Get-Content (Join-Path $Root "apps/customer/src/features/home/HomePage.tsx") -Raw
+      $homeRenderer = Get-Content (Join-Path $Root "apps/customer/src/platform/sdui/composition/HomeRenderer.tsx") -Raw
+      Require-Match "customer explicit async loading state" $homePage '(?is)status\s*===\s*["'']loading["''].{0,1200}role=["'']status["'']'
+      Require-Match "customer isolated SDUI slot boundary" $homeRenderer '(?is)class\s+HomeComponentErrorBoundary.{0,5000}<HomeComponentErrorBoundary'
+      Require-Match "customer dynamic HomePage entry" $app '(?is)<HomePage\s+telemetry='
+    } else {
+      Require-Match "$appName Suspense fallback" $main '(?is)<Suspense\s+fallback='
+      Require-Match "$appName lazy boundary" ($main + "`n" + $app) '(?is)\blazy\s*\(.{0,500}\bimport\s*\('
+    }
   }
 
   $workerPages = @(Get-ChildItem (Join-Path $Root "apps/worker/src/pages") -File -Filter "*.tsx")
