@@ -41,7 +41,7 @@ interface CatalogResponseShape {
   readonly categories?: unknown;
 }
 
-function parseCatalogSnapshot(input: unknown): CatalogSnapshot {
+export function parseCatalogSnapshot(input: unknown): CatalogSnapshot {
   if (typeof input !== "object" || input === null) {
     throw new Error("Catalog response must be an object");
   }

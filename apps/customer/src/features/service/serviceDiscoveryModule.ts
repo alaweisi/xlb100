@@ -5,6 +5,7 @@ import {
   type CustomerTemplateRegistration,
 } from "../../platform/slices/index.js";
 import { CustomerDiscoveryTemplate } from "./CustomerDiscoveryTemplate.js";
+import { CustomerSkuDetailTemplate } from "./CustomerSkuDetailTemplate.js";
 
 export const customerServiceDiscoverySlice = defineCustomerSlice({
   id: "CSL-05",
@@ -22,6 +23,22 @@ export const customerDiscoveryTemplateRegistration = Object.freeze({
   component: CustomerDiscoveryTemplate,
 }) satisfies CustomerTemplateRegistration;
 
+export const customerServiceDetailSlice = defineCustomerSlice({
+  id: "CSL-06",
+  featureId: "service",
+  routePatterns: ["/service/:skuId"],
+  orchestration: orchestrationPolicy("L2"),
+  templateId: "CustomerSkuDetailTemplate",
+  guards: ["session", "city", "protected-route"],
+});
+
+export const customerSkuDetailTemplateRegistration = Object.freeze({
+  templateId: "CustomerSkuDetailTemplate",
+  orchestrationLevel: "L2",
+  operationalManifest: "limited",
+  component: CustomerSkuDetailTemplate,
+}) satisfies CustomerTemplateRegistration;
+
 export const customerServiceDiscoveryRouteModule = Object.freeze({
   featureId: "service",
   ownedDirectories: ["apps/customer/src/features/service"] as const,
@@ -30,5 +47,12 @@ export const customerServiceDiscoveryRouteModule = Object.freeze({
     async load() {
       return import("./ServiceDiscoveryRoute.js");
     },
+  }, {
+    slice: customerServiceDetailSlice,
+    async load() {
+      return import("./ServiceDetailRoute.js");
+    },
   }],
 }) satisfies CustomerFeatureRouteModule;
+
+export const customerServiceFeatureRouteModule = customerServiceDiscoveryRouteModule;
