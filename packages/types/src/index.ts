@@ -472,6 +472,7 @@ export {
   CUSTOMER_SDUI_GUARANTEE_KEYS,
   CUSTOMER_SDUI_RESOLUTION_REASONS,
   CUSTOMER_SDUI_REVISION_STATUSES,
+  CUSTOMER_SDUI_AUDIT_ACTIONS,
 } from "./customerSdui.js";
 export type {
   CustomerSduiSchemaVersion,
@@ -509,6 +510,14 @@ export type {
   CustomerSduiKillSwitchState,
   CustomerSduiRevisionEnvelope,
   CustomerSduiKillSwitchEnvelope,
+  CustomerSduiAuditAction,
+  CustomerSduiRevisionListQuery,
+  CustomerSduiAuditListQuery,
+  CustomerSduiRevisionReadEnvelope,
+  CustomerSduiRevisionListEnvelope,
+  CustomerSduiKillSwitchReadEnvelope,
+  CustomerSduiAuditRecord,
+  CustomerSduiAuditListEnvelope,
 } from "./customerSdui.js";
 export type {
   SupportTicketSource,

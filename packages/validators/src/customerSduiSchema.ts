@@ -1,4 +1,5 @@
 import {
+  CUSTOMER_SDUI_AUDIT_ACTIONS,
   CUSTOMER_SDUI_ACTION_KEYS,
   CUSTOMER_SDUI_COMPONENT_CONTRACT_VERSIONS,
   CUSTOMER_SDUI_COMPONENT_REGIONS,
@@ -728,6 +729,9 @@ export const customerSduiRevisionSchema = z
     if (revision.audit.reviewedBy !== null && revision.audit.reviewedBy === revision.audit.publishedBy) {
       context.addIssue({ code: z.ZodIssueCode.custom, path: ["audit", "publishedBy"], message: "publish actor must differ from reviewer" });
     }
+    if (revision.audit.publishedBy !== null && revision.audit.publishedBy === revision.audit.createdBy) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ["audit", "publishedBy"], message: "publish actor must differ from creator" });
+    }
   });
 
 const expectedVersionSchema = z.number().int().positive();
@@ -807,6 +811,63 @@ export const customerSduiKillSwitchEnvelopeSchema = z.object({
   killSwitch: customerSduiKillSwitchStateSchema,
 }).strict();
 
+export const customerSduiAuditActionSchema = z.enum(CUSTOMER_SDUI_AUDIT_ACTIONS);
+const customerSduiCursorSchema = z.string().regex(/^\d{1,6}$/).optional();
+const customerSduiPageLimitSchema = z.coerce.number().int().min(1).max(100).optional();
+
+export const customerSduiRevisionListQuerySchema = z.object({
+  status: customerSduiRevisionStatusSchema.optional(),
+  cursor: customerSduiCursorSchema,
+  limit: customerSduiPageLimitSchema,
+}).strict();
+
+export const customerSduiAuditListQuerySchema = z.object({
+  revisionId: identifierSchema.optional(),
+  action: customerSduiAuditActionSchema.optional(),
+  cursor: customerSduiCursorSchema,
+  limit: customerSduiPageLimitSchema,
+}).strict();
+
+export const customerSduiRevisionReadEnvelopeSchema = z.object({
+  requestId: z.string().uuid(),
+  revision: customerSduiRevisionSchema,
+}).strict();
+
+export const customerSduiRevisionListEnvelopeSchema = z.object({
+  requestId: z.string().uuid(),
+  pageId: customerSduiPageIdSchema,
+  revisions: z.array(customerSduiRevisionSchema).max(100),
+  nextCursor: z.string().regex(/^\d{1,6}$/).nullable(),
+}).strict();
+
+export const customerSduiKillSwitchReadEnvelopeSchema = z.object({
+  requestId: z.string().uuid(),
+  pageId: customerSduiPageIdSchema,
+  killSwitch: customerSduiKillSwitchStateSchema.nullable(),
+}).strict();
+
+export const customerSduiAuditRecordSchema = z.object({
+  auditId: identifierSchema,
+  pageId: customerSduiPageIdSchema,
+  revisionId: identifierSchema.nullable(),
+  action: customerSduiAuditActionSchema,
+  actorId: identifierSchema,
+  actorRole: identifierSchema,
+  reason: auditReasonSchema,
+  expectedVersion: z.number().int().positive().nullable(),
+  actualVersion: z.number().int().positive(),
+  contentHashSha256: z.string().regex(/^[a-f0-9]{64}$/).nullable(),
+  traceId: z.string().uuid(),
+  createdAt: z.string().datetime(),
+}).strict();
+
+export const customerSduiAuditListEnvelopeSchema = z.object({
+  requestId: z.string().uuid(),
+  pageId: customerSduiPageIdSchema,
+  audits: z.array(customerSduiAuditRecordSchema).max(100),
+  nextCursor: z.string().regex(/^\d{1,6}$/).nullable(),
+}).strict();
+
 export type CustomerSduiScopeInput = z.infer<typeof customerSduiScopeSchema>;
 export type CustomerSduiRolloutPolicyInput = z.infer<typeof customerSduiRolloutPolicySchema>;
 export type CustomerSduiDataSourceInput = z.infer<typeof customerSduiDataSourceSchema>;
@@ -823,3 +884,10 @@ export type PublishCustomerSduiRevisionRequestInput = z.infer<typeof publishCust
 export type UnpublishCustomerSduiRevisionRequestInput = z.infer<typeof unpublishCustomerSduiRevisionRequestSchema>;
 export type RollbackCustomerSduiRevisionRequestInput = z.infer<typeof rollbackCustomerSduiRevisionRequestSchema>;
 export type SetCustomerSduiKillSwitchRequestInput = z.infer<typeof setCustomerSduiKillSwitchRequestSchema>;
+export type CustomerSduiRevisionListQueryInput = z.infer<typeof customerSduiRevisionListQuerySchema>;
+export type CustomerSduiAuditListQueryInput = z.infer<typeof customerSduiAuditListQuerySchema>;
+export type CustomerSduiRevisionReadEnvelopeInput = z.infer<typeof customerSduiRevisionReadEnvelopeSchema>;
+export type CustomerSduiRevisionListEnvelopeInput = z.infer<typeof customerSduiRevisionListEnvelopeSchema>;
+export type CustomerSduiKillSwitchReadEnvelopeInput = z.infer<typeof customerSduiKillSwitchReadEnvelopeSchema>;
+export type CustomerSduiAuditRecordInput = z.infer<typeof customerSduiAuditRecordSchema>;
+export type CustomerSduiAuditListEnvelopeInput = z.infer<typeof customerSduiAuditListEnvelopeSchema>;

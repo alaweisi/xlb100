@@ -43,10 +43,13 @@ import { createRateLimitGuard, type RateLimitOptions } from "./security/rateLimi
 import { registerSupportModule } from "./support/supportModule.js";
 import { registerNotificationModule } from "./notification/notificationModule.js";
 import { registerMarketingModule } from "./marketing/marketingModule.js";
+import { registerCustomerSduiRoutes } from "./customerSdui/customerSduiRoutes.js";
+import type { CustomerSduiService } from "./customerSdui/customerSduiService.js";
 import { XLB_RUNTIME_STATUS } from "./projectStatus.js";
 
 export type BuildAppOptions = {
   rateLimit?: RateLimitOptions;
+  customerSduiService?: CustomerSduiService;
 };
 
 export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyInstance> {
@@ -227,6 +230,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   await registerSupportModule(app);
   await registerNotificationModule(app);
   await registerMarketingModule(app);
+  await registerCustomerSduiRoutes(app, options.customerSduiService);
 
   return app;
 }
