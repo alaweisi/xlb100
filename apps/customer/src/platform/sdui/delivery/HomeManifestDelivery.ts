@@ -7,9 +7,8 @@ import {
   customerSduiPageManifestSchema,
 } from "@xlb/validators";
 import {
-  BrowserHomeManifestCacheStorage,
+  createDefaultHomeManifestCacheStorage,
   HomeManifestCache,
-  MemoryHomeManifestCacheStorage,
   type CachedHomeManifest,
 } from "./HomeManifestCache.js";
 import { getBuiltinHomeManifest } from "./builtinHomeManifest.js";
@@ -29,17 +28,6 @@ const DEFAULT_CACHE_PREFIX = "xlb.customer.sdui.manifest.v1";
 
 type FallbackCause = "offline" | "upstream" | "invalid-envelope" | "incompatible-manifest" |
   "server-fallback" | "circuit-open";
-
-function createDefaultStorage() {
-  try {
-    if (typeof window !== "undefined" && window.localStorage !== undefined) {
-      return new BrowserHomeManifestCacheStorage(window.localStorage);
-    }
-  } catch {
-    // Privacy modes can deny localStorage access even when the property exists.
-  }
-  return new MemoryHomeManifestCacheStorage();
-}
 
 function compareSemanticVersions(left: string, right: string): number {
   const leftParts = left.split(".").map(Number);
@@ -77,7 +65,7 @@ export class HomeManifestDelivery {
         typeof navigator === "undefined" ? true : navigator.onLine),
     };
     this.#cache = new HomeManifestCache(
-      options.storage ?? createDefaultStorage(),
+      options.storage ?? createDefaultHomeManifestCacheStorage(),
       options.cacheKeyPrefix ?? DEFAULT_CACHE_PREFIX,
     );
     this.#builtinManifest = customerSduiPageManifestSchema.parse(

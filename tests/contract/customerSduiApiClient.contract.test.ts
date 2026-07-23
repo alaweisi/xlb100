@@ -96,4 +96,40 @@ describe("Customer SDUI API client contract", () => {
       "POST /api/internal/customer-sdui/pages/customer.home/kill-switch",
     ]));
   });
+
+  it("accepts a no-store safety envelope without requiring an ETag", async () => {
+    const safetyEnvelope = {
+      schemaVersion: "1.0",
+      resolutionReason: "kill_switch",
+      killSwitchActive: true,
+      manifest: null,
+    } as never;
+    const client = {
+      get: async (_path: string, options?: {
+        onResponseMetadata?: (value: {
+          status: number;
+          headers: Record<string, string>;
+        }) => void;
+      }) => {
+        options?.onResponseMetadata?.({ status: 200, headers: {} });
+        return safetyEnvelope;
+      },
+      post: async () => ({} as never),
+      patch: async () => ({} as never),
+      delete: async () => ({} as never),
+      postBinary: async () => ({} as never),
+    } as ApiClient;
+
+    const result = await createCustomerSduiApi(client).getPublishedManifestConditional(
+      "customer.home",
+      { appVersion: "2.0.0", locale: "zh-CN" },
+      { etag: "\"stale-published-etag\"", envelope: {} as never },
+    );
+
+    expect(result).toEqual({
+      etag: null,
+      envelope: safetyEnvelope,
+      notModified: false,
+    });
+  });
 });

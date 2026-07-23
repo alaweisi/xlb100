@@ -38,7 +38,13 @@ export interface CustomerSduiManifestCacheEntry {
   readonly envelope: CustomerSduiManifestEnvelope;
 }
 
-export interface CustomerSduiManifestReadResult extends CustomerSduiManifestCacheEntry {
+export interface CustomerSduiManifestReadResult {
+  /**
+   * Published manifests always carry an ETag. Safety/fallback envelopes
+   * intentionally use no-store and therefore return null.
+   */
+  readonly etag: string | null;
+  readonly envelope: CustomerSduiManifestEnvelope;
   readonly notModified: boolean;
 }
 
@@ -124,10 +130,7 @@ export function createCustomerSduiApi(client: ApiClient): CustomerSduiApi {
         },
       );
       const notModified = metadata?.status === 304;
-      const etag = metadata?.headers.etag ?? cached?.etag;
-      if (!etag) {
-        throw new TypeError("Customer SDUI manifest response is missing ETag");
-      }
+      const etag = metadata?.headers.etag ?? (notModified ? cached?.etag : undefined) ?? null;
       return { etag, envelope, notModified };
     },
     listRevisions: (pageId, query = {}) => client.get<CustomerSduiRevisionListEnvelope>(

@@ -5,6 +5,17 @@ import type {
   HomeManifestRequestContext,
 } from "./homeManifestDeliveryTypes.js";
 
+export function createDefaultHomeManifestCacheStorage(): HomeManifestCacheStorage {
+  try {
+    if (typeof window !== "undefined" && window.localStorage !== undefined) {
+      return new BrowserHomeManifestCacheStorage(window.localStorage);
+    }
+  } catch {
+    // Privacy modes can deny localStorage access even when the property exists.
+  }
+  return new MemoryHomeManifestCacheStorage();
+}
+
 export interface CachedHomeManifest {
   readonly manifest: CustomerSduiPageManifest;
   readonly requestId: string;
