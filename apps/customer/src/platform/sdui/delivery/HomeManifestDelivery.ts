@@ -16,6 +16,7 @@ import type {
   HomeManifestCircuitState,
   HomeManifestDeliveryOptions,
   HomeManifestDeliveryReason,
+  HomeManifestDeliveryTelemetryEvent,
   HomeManifestLoadResult,
   HomeManifestRequestContext,
   ReadyHomeManifestLoadResult,
@@ -51,6 +52,7 @@ export class HomeManifestDelivery {
   readonly #failureThreshold: number;
   readonly #cooldownMs: number;
   readonly #requestTimeoutMs: number;
+  readonly #onEvent?: HomeManifestDeliveryOptions["onEvent"];
 
   #activeSequence = 0;
   #activeController: AbortController | null = null;
@@ -75,6 +77,7 @@ export class HomeManifestDelivery {
       DEFAULT_FAILURE_THRESHOLD;
     this.#cooldownMs = options.circuitBreaker?.cooldownMs ?? DEFAULT_COOLDOWN_MS;
     this.#requestTimeoutMs = options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
+    this.#onEvent = options.onEvent;
 
     if (!Number.isInteger(this.#failureThreshold) || this.#failureThreshold < 1) {
       throw new Error("Manifest circuit breaker failureThreshold must be a positive integer");
@@ -251,6 +254,7 @@ export class HomeManifestDelivery {
       onAbort = () => finish(() => reject(abortError));
       controller.signal.addEventListener("abort", onAbort, { once: true });
       timeout = setTimeout(() => {
+        this.#emit({ type: "transport_timeout" });
         controller.abort();
         finish(() => reject(new Error("Customer SDUI manifest request timed out")));
       }, this.#requestTimeoutMs);
@@ -264,6 +268,14 @@ export class HomeManifestDelivery {
         finish(() => reject(error));
       }
     });
+  }
+
+  #emit(event: HomeManifestDeliveryTelemetryEvent): void {
+    try {
+      this.#onEvent?.(event);
+    } catch {
+      // Delivery observability is fail-open and cannot alter fallback behavior.
+    }
   }
 
   #isCompatible(

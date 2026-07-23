@@ -7,6 +7,7 @@ import {
 
 const allowedAttributeKeys = new Set<string>(CUSTOMER_SDUI_TELEMETRY_ATTRIBUTE_KEYS);
 const safeTokenPattern = /^[A-Za-z0-9_.:/-]{1,96}$/;
+const safeIdentifierPattern = /^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,127}$/;
 const sensitiveDigitRunPattern = /\d{10,}/;
 
 function sanitizeValue(value: unknown): CustomerSduiTelemetryAttributeValue | undefined {
@@ -45,4 +46,23 @@ export function sanitizeCustomerSduiTelemetryToken(
 ): string {
   const sanitized = sanitizeValue(value);
   return typeof sanitized === "string" ? sanitized : fallback;
+}
+
+export function sanitizeCustomerSduiTelemetryIdentifier(
+  value: unknown,
+  fallback: string,
+): string {
+  if (typeof value !== "string") return fallback;
+  const token = value.trim();
+  return safeIdentifierPattern.test(token) && !sensitiveDigitRunPattern.test(token)
+    ? token
+    : fallback;
+}
+
+export function sanitizeOptionalCustomerSduiTelemetryIdentifier(
+  value: unknown,
+): string | null {
+  if (value === null || value === undefined) return null;
+  const sanitized = sanitizeCustomerSduiTelemetryIdentifier(value, "");
+  return sanitized || null;
 }

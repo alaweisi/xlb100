@@ -125,6 +125,9 @@ export type HomeRuntimeBindingsResolver = (
 export interface HomeActionInvocation {
   readonly definition: CustomerSduiActionDefinition;
   readonly sourceComponentId: string;
+  readonly sourceComponentType?: CustomerSduiComponentType;
+  readonly sourceComponentRegion?: CustomerSduiComponentRegion;
+  readonly sourceComponentOrder?: number;
   readonly payload?: unknown;
 }
 

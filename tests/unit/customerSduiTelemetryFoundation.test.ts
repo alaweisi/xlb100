@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type {
   CustomerSduiTelemetryContext,
   CustomerSduiTelemetryEvent,
@@ -13,6 +13,7 @@ import {
   CustomerSduiExposureMonitor,
   observeCustomerSduiComponent,
 } from "../../apps/customer/src/platform/sdui/telemetry/exposure";
+import { BrowserCustomerSduiTelemetrySink } from "../../apps/customer/src/platform/sdui/telemetry/browserSink";
 
 const context: CustomerSduiTelemetryContext = {
   pageId: "customer.home",
@@ -78,6 +79,33 @@ describe("Customer SDUI P9 telemetry foundation", () => {
     });
     expect(JSON.stringify(sink.events[0])).not.toContain("13800000000");
     expect(JSON.stringify(sink.events[0])).not.toContain("contains free form text");
+  });
+
+  it("validates the closed event envelope and sanitizes structural identifiers", () => {
+    const client = clientFor(new RecordingSink());
+    const event = client.track({
+      name: "component.render",
+      outcome: "succeeded",
+      context: {
+        ...context,
+        pageViewId: "13800000000",
+        manifestId: "manifest.13800000000",
+      },
+      componentType: "service_grid",
+      componentInstanceId: "home.13800000000",
+    });
+
+    expect(event).toMatchObject({
+      pageViewId: "invalid-page-view",
+      appVersion: "1.0.0",
+      manifestId: null,
+      componentInstanceId: null,
+    });
+    expect(client.track({
+      name: "not-allowlisted",
+      outcome: "succeeded",
+      context,
+    } as never)).toBeNull();
   });
 
   it("normalizes invalid exposure options before constructing a DOM observer", () => {
@@ -146,6 +174,68 @@ describe("Customer SDUI P9 telemetry foundation", () => {
     client.track({ name: "composition.render", outcome: "succeeded", context });
 
     expect(client.snapshot()).toMatchObject({ bufferedEvents: 2, droppedEvents: 1 });
+  });
+
+  it("samples once per page client and never enqueues a sampled-out event", async () => {
+    const sink = new RecordingSink();
+    const client = new CustomerSduiTelemetryClient({
+      sink,
+      sampleRate: 0,
+    });
+
+    expect(client.track({ name: "page.view", outcome: "started", context })).toBeNull();
+    expect(client.snapshot()).toMatchObject({
+      sampledIn: false,
+      sampledOutEvents: 1,
+      bufferedEvents: 0,
+    });
+    await expect(client.flushAll()).resolves.toMatchObject({
+      delivered: true,
+      eventCount: 0,
+    });
+    expect(sink.events).toHaveLength(0);
+  });
+
+  it("drains only bounded batches and preserves backpressure accounting", async () => {
+    const sink = new RecordingSink();
+    const client = new CustomerSduiTelemetryClient({
+      sink,
+      batchSize: 2,
+      maxBufferSize: 8,
+    });
+    for (let index = 0; index < 5; index += 1) {
+      client.track({ name: "component.render", outcome: "succeeded", context });
+    }
+
+    await expect(client.flushAll(2)).resolves.toMatchObject({
+      delivered: true,
+      eventCount: 4,
+      bufferedEvents: 1,
+    });
+    await expect(client.flushAll(2)).resolves.toMatchObject({
+      delivered: true,
+      eventCount: 1,
+      bufferedEvents: 0,
+    });
+    expect(sink.events).toHaveLength(5);
+  });
+
+  it("allows only an explicit same-origin browser transport and prefers beacon", async () => {
+    const beacon = vi.fn(() => true);
+    const sink = new BrowserCustomerSduiTelemetrySink({
+      endpoint: "/api/telemetry",
+      baseUrl: "https://customer.example/home",
+      sendBeacon: beacon,
+      fetcher: vi.fn(),
+    });
+
+    await sink.send([]);
+    expect(beacon).toHaveBeenCalledTimes(1);
+    expect(beacon.mock.calls[0]?.[0]).toBe("https://customer.example/api/telemetry");
+    expect(() => new BrowserCustomerSduiTelemetrySink({
+      endpoint: "https://tracker.example/events",
+      baseUrl: "https://customer.example/home",
+    })).toThrow(/same-origin/);
   });
 
   it("measures a span once and correlates it with the component", async () => {

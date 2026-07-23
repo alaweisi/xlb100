@@ -10,6 +10,8 @@ export interface CustomerSduiExposureOptions {
   threshold?: number;
   minimumVisibleMs?: number;
   clock?: () => number;
+  attributes?: unknown;
+  onExposure?: () => void;
 }
 
 export class CustomerSduiExposureMonitor {
@@ -55,8 +57,16 @@ export class CustomerSduiExposureMonitor {
       attributes: {
         visibleRatio: this.#lastRatio,
         threshold: this.#options.threshold,
+        ...(typeof this.#options.attributes === "object" && this.#options.attributes !== null
+          ? this.#options.attributes
+          : {}),
       },
     });
+    try {
+      this.#options.onExposure?.();
+    } catch {
+      // Exposure observers never affect rendering.
+    }
     return true;
   }
 
@@ -88,19 +98,30 @@ export function observeCustomerSduiComponent(
   }
 
   let timer: ReturnType<typeof setTimeout> | null = null;
+  let lastRatio = 0;
   const clearTimer = () => {
     if (timer !== null) clearTimeout(timer);
     timer = null;
   };
+  const update = (visibleRatio: number) => {
+    clearTimer();
+    const documentVisible = typeof document === "undefined" ||
+      document.visibilityState !== "hidden";
+    monitor.updateVisibility(documentVisible ? visibleRatio : 0);
+    if (documentVisible && visibleRatio >= threshold && !monitor.isExposed()) {
+      timer = setTimeout(() => monitor.tick(), minimumVisibleMs);
+    }
+  };
   const observer = new IntersectionObserver((entries) => {
     const entry = entries.find((candidate) => candidate.target === target);
     if (!entry) return;
-    clearTimer();
-    monitor.updateVisibility(entry.intersectionRatio);
-    if (entry.intersectionRatio >= threshold && !monitor.isExposed()) {
-      timer = setTimeout(() => monitor.tick(), minimumVisibleMs);
-    }
+    lastRatio = entry.intersectionRatio;
+    update(lastRatio);
   }, { threshold: [threshold] });
+  const onVisibilityChange = () => update(lastRatio);
+  if (typeof document !== "undefined") {
+    document.addEventListener("visibilitychange", onVisibilityChange);
+  }
   observer.observe(target);
 
   return {
@@ -109,6 +130,9 @@ export function observeCustomerSduiComponent(
     disconnect() {
       clearTimer();
       observer.disconnect();
+      if (typeof document !== "undefined") {
+        document.removeEventListener("visibilitychange", onVisibilityChange);
+      }
     },
   };
 }

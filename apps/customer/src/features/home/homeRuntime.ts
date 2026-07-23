@@ -21,6 +21,7 @@ import {
   HomeManifestDelivery,
 } from "../../platform/sdui/delivery/index.js";
 import { createHomeActionRegistry } from "./createHomeActionRegistry.js";
+import type { CustomerHomeTelemetry } from "./homeTelemetry.js";
 
 const CITY_LABELS: Readonly<Record<string, string>> = {
   hangzhou: "杭州",
@@ -77,7 +78,10 @@ async function loadCatalog(
   return response.catalog as CatalogSnapshot;
 }
 
-export function createCustomerHomeRuntime(context: CustomerHomeRuntimeContext) {
+export function createCustomerHomeRuntime(
+  context: CustomerHomeRuntimeContext,
+  telemetry?: CustomerHomeTelemetry,
+) {
   const client = createClient(context);
   const readApi = customerApi.forClient(client);
   const manifestApi = createCustomerSduiApi(client);
@@ -128,9 +132,14 @@ export function createCustomerHomeRuntime(context: CustomerHomeRuntimeContext) {
   return Object.freeze({
     delivery: new HomeManifestDelivery({
       transport: new CustomerSduiHomeManifestTransport({ api: manifestApi }),
+      onEvent: telemetry?.onDeliveryEvent,
     }),
-    dataCoordinator: new HomeDataCoordinator(dataRegistry),
-    actionRegistry: createHomeActionRegistry(),
+    dataCoordinator: new HomeDataCoordinator(dataRegistry, {
+      onEvent: telemetry?.onDataEvent,
+    }),
+    actionRegistry: createHomeActionRegistry({
+      onEvent: telemetry?.onActionEvent,
+    }),
   });
 }
 
@@ -142,6 +151,9 @@ function bindActions(node: HomeCompositionNode, actionRegistry: HomeActionRegist
       invoke: (payload?: unknown) => actionRegistry.invoke(action.actionKey, {
         definition: action,
         sourceComponentId: node.instance.id,
+        sourceComponentType: node.instance.type,
+        sourceComponentRegion: node.instance.region,
+        sourceComponentOrder: node.instance.order,
         payload,
       }),
     }),

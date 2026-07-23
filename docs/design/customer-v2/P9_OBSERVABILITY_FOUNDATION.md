@@ -1,35 +1,44 @@
-# P9 Customer SDUI 可观测性基础设施
+# P9 Customer SDUI 可观测性真实接入
 
-> 当前状态：foundation-only。P8 未完成，不得标记 P9 已开启或完成。
+> 当前状态：P8 `0f7fa01f` 与 P9 foundation `be101c83` 已通过双祖先
+> merge 汇合。本文描述真实运行时接线，不代表已有遥测后台端点。
 
-## 已允许提前施工
+## 真实事件来源
 
-- 统一事件信封与顺序号。
-- Manifest、组件、数据、动作、性能、异常事件分类。
-- 内存限长缓冲与批量 Sink 接口。
-- Sink 失败不阻断顾客流程，失败批次留在内存等待后续重试。
-- 关闭式属性白名单；拒绝自由文本、手机号、地址、消息、Manifest 内容和业务载荷。
-- 性能 Span 基础。
-- 异常分类基础，不采集 message、stack 或任意 payload。
-- 组件曝光阈值、最短可见时间和单实例单次曝光状态机。
-
-## P8 前硬禁止
-
-- 不修改 P3—P8 分支实现。
-- 不接入根 ErrorBoundary、主页组件、数据协调器或动作注册表。
-- 不建立未经确认的遥测后台端点。
-- 不使用静态或虚假 Manifest 制造“已有完整埋点”的结论。
-- 不把埋点成功作为业务成功条件。
-
-## P8 后接入矩阵
-
-| 来源 | 完整接入事件 |
+| 来源 | 接入事件 |
 | --- | --- |
-| P3 Composition Runtime | validation、composition、component render/click、action dispatch |
-| P4 Delivery | remote load、cache、LKG、builtin fallback、kill switch |
-| P5 Data/Action | data load、dedupe、timeout、action result |
-| P6 Control Plane | revision publish/resolve/rollback/retire 的服务端指标与审计关联 |
-| P7 Presentation | theme、Logo、asset resolve/fallback |
-| P8 Home | page view、首屏内容、真实组件曝光、交互与视觉性能 |
+| HomePage | page view、Manifest 加载起止、Composition/Data 性能、主页异常 |
+| HomeManifestDelivery | remote/fresh-cache/LKG/builtin、offline、kill-switch、circuit、server fallback，以及真实 transport timeout |
+| HomeCompositionEngine | Manifest/组件能力校验结果、ready/degraded/rejected、有限 issue 汇总 |
+| HomeDataCoordinator | source 开始、fresh cache、stale fallback、成功、错误、timeout、coalesced，以及 batch 状态/计数 |
+| HomeRenderer | 真实直接槽位 DOM render、slot isolation error、可见曝光 |
+| HomeActionRegistry | 真实 invoke、成功、失败、拒绝和耗时；不读取 payload |
+| CustomerPresentationProvider | BrandLogo/asset 的 default/loading/ready/asset-failure 回调 |
 
-完整接入必须携带 `pageId`、`manifestId`、`manifestRevision`、组件类型、组件实例和结果状态；在 Manifest 尚未解析的失败事件中，Manifest 字段显式为 `null`。
+## 隐私与低基数
+
+- 关闭式事件名、结果、属性键和 shared contract 枚举。
+- 不采集搜索原文、精确地址、token、用户标识、action payload、Manifest props、
+  data source ID、request ID、异常 message/stack。
+- Error name/code 归一到有限集合；未知值落为 `OtherError`/`unknown`。
+- 组件实例 ID 经格式和长度限制后仅用于事件关联；指标属性只包含关闭式
+  component type、region 和 `0..999` order。
+- Composition issue 只记录数量和首个关闭式 issue code，不记录 message。
+- Data batch 只记录有限状态计数，不记录业务值或标识符。
+
+## 流量与失败隔离
+
+- 采样在 page-view client 创建时一次决定，避免同一页面内逐事件随机失真。
+- 默认采样率 `0.1`，可用 `VITE_CUSTOMER_TELEMETRY_SAMPLE_RATE` 在 `0..1`
+  内调整。
+- 默认队列上限 200、批次 20、两秒 flush；达到批次立即 flush。
+- 页面隐藏和 `pagehide` 最多 drain 四个批次。
+- Sink 失败将批次放回限长队列；溢出时按可计算的最旧事件丢弃策略处理。
+- 遥测回调、采样、序列化和发送失败均不得传播到 Delivery、Data、Action 或
+  Render 主流程。
+
+## 网络事实
+
+仓库没有 Customer SDUI 遥测接收 API，因此默认使用 Noop Sink。只有部署环境
+显式配置同源 `VITE_CUSTOMER_TELEMETRY_ENDPOINT` 时，浏览器才使用 Beacon，
+Beacon 不可用或拒绝后才使用 `fetch(..., keepalive: true)`。跨域端点被拒绝。

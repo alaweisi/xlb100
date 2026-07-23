@@ -7,6 +7,7 @@ import type {
 } from "@xlb/types";
 
 export const CUSTOMER_SDUI_TELEMETRY_EVENT_NAMES = [
+  "page.view",
   "manifest.load",
   "manifest.validation",
   "manifest.fallback",
@@ -16,6 +17,7 @@ export const CUSTOMER_SDUI_TELEMETRY_EVENT_NAMES = [
   "component.click",
   "data.load",
   "action.execute",
+  "brand.asset",
   "performance.measure",
   "runtime.error",
 ] as const;
@@ -51,20 +53,38 @@ export type CustomerSduiPerformanceMetric =
 export const CUSTOMER_SDUI_TELEMETRY_ATTRIBUTE_KEYS = [
   "actionPhase",
   "batchSize",
+  "brandState",
   "cacheTier",
+  "cancelledCount",
+  "circuitState",
+  "componentOrder",
+  "compositionStatus",
+  "dataState",
+  "deliveryReason",
+  "deliverySource",
   "droppedEvents",
   "errorCode",
+  "errorCount",
   "errorName",
   "fallbackSource",
+  "fatalIssueCount",
+  "freshCount",
+  "issueCount",
   "metricName",
   "phase",
   "reasonCode",
   "recoverable",
+  "region",
   "resolutionReason",
+  "resultState",
   "source",
   "statusClass",
+  "staleCount",
   "threshold",
+  "timeoutCount",
+  "unavailableCount",
   "visibleRatio",
+  "warningIssueCount",
 ] as const;
 
 export type CustomerSduiTelemetryAttributeKey =
@@ -128,6 +148,8 @@ export interface CustomerSduiTelemetrySink {
 export interface CustomerSduiTelemetrySnapshot {
   bufferedEvents: number;
   droppedEvents: number;
+  sampledOutEvents: number;
+  sampledIn: boolean;
   nextSequence: number;
   flushInProgress: boolean;
 }

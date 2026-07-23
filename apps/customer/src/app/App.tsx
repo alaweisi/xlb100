@@ -1,8 +1,9 @@
 import { CustomerPresentationProvider } from "@xlb/customer-components/presentation";
 import { runtimeThemeEnvelopeSchema } from "@xlb/validators";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { HomePage } from "../features/home/HomePage.js";
 import { resolveCustomerHomeRuntimeContext } from "../features/home/homeRuntime.js";
+import { createCustomerHomeTelemetry } from "../features/home/homeTelemetry.js";
 
 function presentationCapabilities() {
   const supports = typeof CSS !== "undefined" && typeof CSS.supports === "function";
@@ -23,6 +24,15 @@ export function App() {
     routeScope: "/customer",
   }), [context.cityCode]);
   const capabilities = useMemo(presentationCapabilities, []);
+  const telemetry = useMemo(
+    () => createCustomerHomeTelemetry({ appVersion: context.appVersion }),
+    [context.appVersion],
+  );
+
+  useEffect(() => {
+    telemetry.startPageView();
+    return telemetry.attachBrowserLifecycle();
+  }, [telemetry]);
 
   return (
     <CustomerPresentationProvider
@@ -31,8 +41,9 @@ export function App() {
       capabilities={capabilities}
       validator={runtimeThemeEnvelopeSchema}
       className="xlb-customer-app"
+      onBrandAssetStateChange={telemetry.recordBrandAssetState}
     >
-      <HomePage />
+      <HomePage telemetry={telemetry} />
     </CustomerPresentationProvider>
   );
 }

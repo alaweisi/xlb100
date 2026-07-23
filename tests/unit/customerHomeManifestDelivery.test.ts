@@ -383,12 +383,14 @@ describe("Customer home manifest delivery", () => {
           return new Promise<unknown>(() => undefined);
         }),
       };
+      const onEvent = vi.fn();
       const delivery = new HomeManifestDelivery({
         transport,
         now: createClock().now,
         isOnline: () => true,
         requestTimeoutMs: 2_000,
         circuitBreaker: { failureThreshold: 1, cooldownMs: 5_000 },
+        onEvent,
       });
 
       const pending = delivery.load({ ...CONTEXT, forceRefresh: true });
@@ -396,6 +398,7 @@ describe("Customer home manifest delivery", () => {
       const result = await pending;
 
       expect(capturedSignal?.aborted).toBe(true);
+      expect(onEvent).toHaveBeenCalledWith({ type: "transport_timeout" });
       expect(result).toMatchObject({
         status: "ready",
         source: "builtin",

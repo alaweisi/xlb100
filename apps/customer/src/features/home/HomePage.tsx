@@ -14,6 +14,7 @@ import {
   manifestDataSources,
   resolveCustomerHomeRuntimeContext,
 } from "./homeRuntime.js";
+import type { CustomerHomeTelemetry } from "./homeTelemetry.js";
 
 type HomeLoadState =
   | { readonly status: "loading" }
@@ -25,9 +26,16 @@ type HomeLoadState =
       readonly data: HomeDataBatchResult;
     };
 
-export function HomePage() {
+export interface HomePageProps {
+  readonly telemetry: CustomerHomeTelemetry;
+}
+
+export function HomePage({ telemetry }: HomePageProps) {
   const context = useMemo(resolveCustomerHomeRuntimeContext, []);
-  const runtime = useMemo(() => createCustomerHomeRuntime(context), [context]);
+  const runtime = useMemo(
+    () => createCustomerHomeRuntime(context, telemetry),
+    [context, telemetry],
+  );
   const engine = useMemo(
     () => new HomeCompositionEngine(createHomeComponentRegistry(), runtime.actionRegistry),
     [runtime.actionRegistry],
@@ -38,41 +46,92 @@ export function HomePage() {
   const load = useCallback(async (forceRefresh = false) => {
     const current = ++sequence.current;
     setState({ status: "loading" });
+    telemetry.recordManifestLoadStarted(forceRefresh);
     try {
+      const deliverySpan = telemetry.beginSpan("manifest_fetch_ms");
       const delivered = await runtime.delivery.load({
-        pageId: "customer.home",
-        cityCode: context.cityCode,
-        locale: context.locale,
-        appVersion: context.appVersion,
-        forceRefresh,
-      });
+          pageId: "customer.home",
+          cityCode: context.cityCode,
+          locale: context.locale,
+          appVersion: context.appVersion,
+          forceRefresh,
+        }).catch((error: unknown) => {
+          deliverySpan.finish("failed");
+          throw error;
+        });
+      telemetry.recordDelivery(delivered);
+      deliverySpan.finish(
+        delivered.status === "superseded"
+          ? "cancelled"
+          : delivered.source === "last-known-good" || delivered.source === "builtin"
+            ? "fallback"
+            : "succeeded",
+      );
       if (current !== sequence.current || delivered.status === "superseded") return;
+
+      const compositionSpan = telemetry.beginSpan("composition_ms");
       const composition = engine.compose(delivered.manifest);
+      telemetry.recordComposition(composition);
+      compositionSpan.finish(
+        composition.status === "ready"
+          ? "succeeded"
+          : composition.status === "degraded"
+            ? "fallback"
+            : "rejected",
+      );
+
+      const dataSpan = telemetry.beginSpan("data_load_ms");
       const data = await runtime.dataCoordinator.load({
-        requestId: crypto.randomUUID(),
-        cityCode: context.cityCode,
-        locale: context.locale,
-        cacheScopeKey: context.cacheScopeKey,
-        dataSources: manifestDataSources(composition.nodes),
-      });
+          requestId: crypto.randomUUID(),
+          cityCode: context.cityCode,
+          locale: context.locale,
+          cacheScopeKey: context.cacheScopeKey,
+          dataSources: manifestDataSources(composition.nodes),
+        }).catch((error: unknown) => {
+          dataSpan.finish("failed");
+          throw error;
+        });
+      telemetry.recordDataBatch(data);
+      dataSpan.finish(
+        data.state === "ready" || data.state === "empty"
+          ? "succeeded"
+          : data.state === "partial"
+            ? "fallback"
+            : data.state === "cancelled"
+              ? "cancelled"
+              : "failed",
+      );
       if (current !== sequence.current) return;
       setState({ status: "ready", delivery: delivered, composition, data });
     } catch (error) {
       if (current !== sequence.current) return;
+      telemetry.recordRuntimeError(error, "home_load", true);
       setState({
         status: "error",
         message: error instanceof Error ? error.message : "主页加载失败",
       });
     }
-  }, [context, engine, runtime]);
+  }, [context, engine, runtime, telemetry]);
+
+  const observeComponent = useCallback(
+    (node: Parameters<CustomerHomeTelemetry["observeComponent"]>[0], element: Element) =>
+      telemetry.observeComponent(node, element),
+    [telemetry],
+  );
+  const onComponentError = useCallback(
+    (failure: Parameters<CustomerHomeTelemetry["recordSlotError"]>[0]) =>
+      telemetry.recordSlotError(failure),
+    [telemetry],
+  );
 
   useEffect(() => {
+    telemetry.startPageView();
     void load();
     return () => {
       sequence.current += 1;
       runtime.delivery.dispose();
     };
-  }, [load, runtime]);
+  }, [load, runtime, telemetry]);
 
   if (state.status === "loading") {
     return (
@@ -134,6 +193,8 @@ export function HomePage() {
             onAction={() => void load(true)}
           />
         )}
+        observeComponent={observeComponent}
+        onComponentError={onComponentError}
       />
     </main>
   );

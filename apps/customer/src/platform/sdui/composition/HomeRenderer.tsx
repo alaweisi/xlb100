@@ -1,4 +1,10 @@
-import { Component, type ErrorInfo, type ReactNode } from "react";
+import {
+  Component,
+  useEffect,
+  useRef,
+  type ErrorInfo,
+  type ReactNode,
+} from "react";
 import { CustomerStatePanel } from "@xlb/customer-components";
 import type {
   HomeComponentRenderError,
@@ -18,6 +24,10 @@ export interface HomeRendererProps {
   readonly renderPageFallback?: (composition: HomeCompositionResult) => ReactNode;
   readonly renderComponentFallback?: (failure: HomeComponentRenderError) => ReactNode;
   readonly onComponentError?: (failure: HomeComponentRenderError) => void;
+  readonly observeComponent?: (
+    node: HomeCompositionNode,
+    element: Element,
+  ) => void | (() => void);
 }
 
 interface ErrorBoundaryProps {
@@ -84,7 +94,24 @@ export function HomeRenderer({
   renderPageFallback,
   renderComponentFallback,
   onComponentError,
+  observeComponent,
 }: HomeRendererProps) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (composition.status === "rejected" || observeComponent === undefined) return;
+    const root = rootRef.current;
+    if (root === null) return;
+    const cleanups = composition.nodes.flatMap((node, index) => {
+      const element = root.children.item(index);
+      if (element === null) return [];
+      const cleanup = observeComponent(node, element);
+      return typeof cleanup === "function" ? [cleanup] : [];
+    });
+    return () => {
+      for (const cleanup of cleanups) cleanup();
+    };
+  }, [composition, observeComponent]);
+
   if (composition.status === "rejected") {
     return renderPageFallback?.(composition) ?? (
       <CustomerStatePanel
@@ -97,6 +124,7 @@ export function HomeRenderer({
 
   return (
     <div
+      ref={rootRef}
       data-customer-sdui-page={composition.pageId}
       data-manifest-id={composition.manifestId}
       data-manifest-revision={composition.revision}

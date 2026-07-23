@@ -74,6 +74,9 @@ export type HomeManifestLoadResult =
   | ReadyHomeManifestLoadResult
   | SupersededHomeManifestLoadResult;
 
+export type HomeManifestDeliveryTelemetryEvent =
+  | { readonly type: "transport_timeout" };
+
 export interface HomeManifestDeliveryOptions {
   readonly transport: HomeManifestTransport;
   readonly storage?: HomeManifestCacheStorage;
@@ -83,4 +86,5 @@ export interface HomeManifestDeliveryOptions {
   readonly requestTimeoutMs?: number;
   readonly circuitBreaker?: Partial<HomeManifestCircuitBreakerOptions>;
   readonly cacheKeyPrefix?: string;
+  readonly onEvent?: (event: HomeManifestDeliveryTelemetryEvent) => void;
 }

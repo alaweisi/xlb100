@@ -337,6 +337,26 @@ describe("Customer home composition runtime", () => {
     }
   });
 
+  it("exposes the real direct component hosts without adding layout wrappers", () => {
+    const result = new HomeCompositionEngine(
+      makeComponentRegistry(),
+      makeActionRegistry(),
+    ).compose(manifest);
+    const observeComponent = vi.fn(() => vi.fn());
+    const { container } = render(
+      <HomeRenderer
+        composition={result}
+        observeComponent={observeComponent}
+      />,
+    );
+    const root = container.querySelector("[data-customer-sdui-page]");
+
+    expect(root?.children).toHaveLength(result.nodes.length);
+    expect(observeComponent).toHaveBeenCalledTimes(result.nodes.length);
+    expect(observeComponent.mock.calls[0]?.[0]).toBe(result.nodes[0]);
+    expect(observeComponent.mock.calls[0]?.[1]).toBe(root?.children.item(0));
+  });
+
   it("renders an explicit safe fallback for a rejected composition", () => {
     const components = new HomeComponentRegistry().seal();
     const result = new HomeCompositionEngine(components, makeActionRegistry()).compose(manifest);

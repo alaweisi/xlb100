@@ -1,5 +1,8 @@
 import type { CustomerSduiActionKey } from "@xlb/types";
-import { HomeActionRegistry } from "../../platform/sdui/actions/HomeActionRegistry.js";
+import {
+  HomeActionRegistry,
+  type HomeActionRegistryOptions,
+} from "../../platform/sdui/actions/HomeActionRegistry.js";
 
 const ROUTE_BY_ACTION: Readonly<Partial<Record<CustomerSduiActionKey, string>>> = {
   "location.open_picker": "/profile/addresses",
@@ -26,8 +29,10 @@ function emitNavigation(actionKey: CustomerSduiActionKey, payload?: unknown): vo
   }
 }
 
-export function createHomeActionRegistry(): HomeActionRegistry {
-  const registry = new HomeActionRegistry();
+export function createHomeActionRegistry(
+  options: HomeActionRegistryOptions = {},
+): HomeActionRegistry {
+  const registry = new HomeActionRegistry(options);
   const actionKeys: readonly CustomerSduiActionKey[] = [
     "location.open_picker",
     "notification.open_center",
