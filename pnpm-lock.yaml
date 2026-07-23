@@ -228,6 +228,9 @@ importers:
 
   packages/customer-components:
     dependencies:
+      '@xlb/types':
+        specifier: workspace:*
+        version: link:../types
       '@xlb/ui':
         specifier: workspace:*
         version: link:../ui

@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
 export type BrandLogoVariant = "header" | "compact" | "splash";
 export type BrandLogoTone = "default" | "inverse";
@@ -44,9 +44,12 @@ export function BrandLogo({ config, variant = "header", tone = "default", classN
   const configuredLogo = useContext(BrandLogoContext);
   const [imageFailed, setImageFailed] = useState(false);
   const logo = config ?? configuredLogo;
+  const imageRevision = logo.kind === "text" ? `text:${logo.text}` : `${logo.kind}:${logo.src}`;
   const classes = ["xlb-brand-logo", className].filter(Boolean).join(" ");
   const fallbackText = logo.kind === "text" ? logo.text : logo.kind === "lockup" ? logo.text : logo.fallbackText ?? "xlb100";
   const accessibleName = logo.accessibleName ?? fallbackText;
+
+  useEffect(() => setImageFailed(false), [imageRevision]);
 
   if (logo.kind === "text" || imageFailed) {
     return (
