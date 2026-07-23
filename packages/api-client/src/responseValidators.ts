@@ -1,5 +1,7 @@
 import type { LoginCodeResponse, LoginError, LoginResponse } from "./auth.js";
 import type { OrderResponse, PaymentOrderResponse } from "./customer.js";
+import type { CustomerOrderListResponse } from "@xlb/types";
+import { customerOrderListResponseSchema } from "@xlb/validators";
 import type { AcceptTaskResponse, FulfillmentDetailResponse, FulfillmentLifecycleResponse, FulfillmentListResponse, WorkerTaskPoolResponse } from "./worker.js";
 
 type JsonObject = Record<string, unknown>;
@@ -42,6 +44,9 @@ function fulfillment(value: unknown): void { const item = object(value, "fulfill
 export function validateLoginResponse(value: unknown): LoginResponse | LoginError { const result = object(value, "login response"); if (result.ok === false) { string(result.error, "login response.error"); number(result.statusCode, "login response.statusCode"); return value as LoginError; } if (result.ok !== true) throw new TypeError("login response.ok must be boolean"); string(result.token, "login response.token"); string(result.userId, "login response.userId"); string(result.role, "login response.role"); return value as LoginResponse; }
 export function validateLoginCodeResponse(value: unknown): LoginCodeResponse | LoginError { const result = object(value, "login code response"); if (result.ok === false) { string(result.error, "login code response.error"); number(result.statusCode, "login code response.statusCode"); return value as LoginError; } if (result.ok !== true) throw new TypeError("login code response.ok must be boolean"); string(result.expiresAt, "login code response.expiresAt"); number(result.ttlSeconds, "login code response.ttlSeconds"); number(result.attemptsLeft, "login code response.attemptsLeft"); return value as LoginCodeResponse; }
 export function validateOrderResponse(value: unknown): { ok: true; order: OrderResponse } { order(ok(value, "order response").order); return value as { ok: true; order: OrderResponse }; }
+export function validateCustomerOrderListResponse(value: unknown): CustomerOrderListResponse {
+  return customerOrderListResponseSchema.parse(value);
+}
 export function validatePaymentOrderResponse(value: unknown): { ok: true; paymentOrder: PaymentOrderResponse } { payment(ok(value, "payment response").paymentOrder); return value as { ok: true; paymentOrder: PaymentOrderResponse }; }
 export function validatePaymentMutationResponse(value: unknown): { ok: true; paymentOrder: PaymentOrderResponse; orderId: string; idempotent: boolean } { const result = ok(value, "payment mutation response"); payment(result.paymentOrder); string(result.orderId, "payment mutation response.orderId"); boolean(result.idempotent, "payment mutation response.idempotent"); return value as { ok: true; paymentOrder: PaymentOrderResponse; orderId: string; idempotent: boolean }; }
 export function validateWorkerTaskPoolResponse(value: unknown): WorkerTaskPoolResponse { const result = ok(value, "worker task pool response"); string(result.cityCode, "worker task pool response.cityCode"); if (!Array.isArray(result.tasks)) throw new TypeError("worker task pool response.tasks must be an array"); result.tasks.forEach(task); return value as WorkerTaskPoolResponse; }

@@ -18,11 +18,18 @@ import type {
 } from "./evidence.js";
 import type {
   CustomerAddress,
+  CustomerOrderListQuery,
+  CustomerOrderListResponse,
   CustomerProfile,
   SaveCustomerAddressRequest,
   UpdateCustomerProfileRequest,
 } from "@xlb/types";
-import { validateOrderResponse, validatePaymentMutationResponse, validatePaymentOrderResponse } from "./responseValidators.js";
+import {
+  validateCustomerOrderListResponse,
+  validateOrderResponse,
+  validatePaymentMutationResponse,
+  validatePaymentOrderResponse,
+} from "./responseValidators.js";
 
 type CityCode = string;
 type PriceType = "fixed" | "range" | "from" | "estimate_from" | "onsite_quote";
@@ -309,6 +316,15 @@ export interface OrderReviewResponse {
   updatedAt: string;
 }
 
+function customerOrderListPath(query: CustomerOrderListQuery): string {
+  const params = new URLSearchParams();
+  if (query.cursor !== undefined) params.set("cursor", query.cursor);
+  if (query.limit !== undefined) params.set("limit", String(query.limit));
+  if (query.filter !== undefined) params.set("filter", query.filter);
+  const encoded = params.toString();
+  return encoded ? `/api/customer/orders?${encoded}` : "/api/customer/orders";
+}
+
 export function createCustomerOrderApi(client: ApiClient) {
   return {
     ...createRequesterSupportApi(client),
@@ -345,6 +361,9 @@ export function createCustomerOrderApi(client: ApiClient) {
     getPriceQuote(skuId: string) {
       const query = new URLSearchParams({ skuId }).toString();
       return client.get<{ ok: true; quote: PriceQuoteResponse }>(`/api/pricing/quote?${query}`);
+    },
+    listOrders(query: CustomerOrderListQuery = {}): Promise<CustomerOrderListResponse> {
+      return client.get(customerOrderListPath(query), { validate: validateCustomerOrderListResponse });
     },
     createOrder(body: CreateOrderBody) {
       return client.post<{ ok: true; order: OrderResponse }>("/api/orders", body, { validate: validateOrderResponse });
