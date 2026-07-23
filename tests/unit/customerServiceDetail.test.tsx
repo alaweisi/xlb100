@@ -380,7 +380,7 @@ describe("Customer CSL-06 Service Detail", () => {
 
     const browserNavigation = createBrowserCustomerServiceDetailNavigation();
     browserNavigation.openCheckout("sku-clean");
-    expect(window.location.pathname).toBe("/checkout");
+    expect(window.location.pathname).toBe("/order/create");
     expect(new URLSearchParams(window.location.search).get("skuId")).toBe("sku-clean");
     browserNavigation.backToDiscovery();
     expect(window.location.pathname).toBe("/service");

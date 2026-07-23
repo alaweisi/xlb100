@@ -19,7 +19,7 @@ export function createBrowserCustomerServiceDetailNavigation(): CustomerServiceD
     },
     openCheckout(skuId: string) {
       const query = new URLSearchParams({ skuId });
-      navigate(`/checkout?${query.toString()}`);
+      navigate(`/order/create?${query.toString()}`);
     },
   });
 }
