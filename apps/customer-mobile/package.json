@@ -1,0 +1,30 @@
+{
+  "name": "@xlb/customer-mobile",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "web:build:development": "node scripts/build-web.mjs development",
+    "web:build:test": "node scripts/build-web.mjs test",
+    "web:build:production": "node scripts/build-web.mjs production",
+    "cap:sync": "cap sync android",
+    "android:debug": "node scripts/run-gradle.mjs assembleDebug",
+    "android:release": "node scripts/run-gradle.mjs assembleRelease",
+    "build:debug": "pnpm web:build:test && pnpm cap:sync && pnpm android:debug",
+    "build:release": "pnpm web:build:production && pnpm cap:sync && pnpm android:release",
+    "test": "node --test tests/*.test.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.4.2",
+    "@capacitor/core": "8.4.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.4.2",
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
