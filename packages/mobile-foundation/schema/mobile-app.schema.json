@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://xlb100.local/schemas/mobile-app.schema.json",
+  "title": "XLB Mobile Application Descriptor",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["key", "appId", "appName", "version", "paths", "web", "environment", "android"],
+  "properties": {
+    "key": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$"
+    },
+    "appId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$"
+    },
+    "appName": {
+      "type": "string",
+      "minLength": 1
+    },
+    "version": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "name"],
+      "properties": {
+        "code": { "type": "integer", "minimum": 1 },
+        "name": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+(?:[-+][0-9A-Za-z.-]+)?$" }
+      }
+    },
+    "paths": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["workspaceRoot", "mobileRoot", "webRoot", "androidRoot"],
+      "properties": {
+        "workspaceRoot": { "type": "string", "minLength": 1 },
+        "mobileRoot": { "type": "string", "minLength": 1 },
+        "webRoot": { "type": "string", "minLength": 1 },
+        "androidRoot": { "type": "string", "minLength": 1 }
+      }
+    },
+    "web": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["packageName", "outputDirectory", "publicBase", "apiBaseBuildVariable", "appVersionBuildVariable"],
+      "properties": {
+        "packageName": { "type": "string", "pattern": "^@xlb/[a-z0-9-]+$" },
+        "outputDirectory": { "type": "string", "minLength": 1 },
+        "publicBase": { "const": "./" },
+        "apiBaseBuildVariable": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]+$" },
+        "appVersionBuildVariable": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]+$" }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["apiBaseUrlVariable", "profiles"],
+      "properties": {
+        "apiBaseUrlVariable": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]+$" },
+        "profiles": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["development", "test", "production"],
+          "properties": {
+            "development": { "$ref": "#/$defs/profile" },
+            "test": { "$ref": "#/$defs/profile" },
+            "production": {
+              "allOf": [
+                { "$ref": "#/$defs/profile" },
+                {
+                  "properties": {
+                    "requireHttps": { "const": true }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "android": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["permissions", "debugCleartextHosts"],
+      "properties": {
+        "permissions": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^android\\.permission\\.[A-Z0-9_]+$"
+          }
+        },
+        "debugCleartextHosts": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "profile": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["source", "requireHttps"],
+          "properties": {
+            "source": { "const": "environment" },
+            "requireHttps": { "const": true }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["source", "apiBaseUrl", "requireHttps"],
+          "properties": {
+            "source": { "const": "fixed" },
+            "apiBaseUrl": {
+              "type": "string",
+              "pattern": "^https?://[^/?#]+$"
+            },
+            "requireHttps": { "type": "boolean" }
+          }
+        }
+      ]
+    }
+  }
+}

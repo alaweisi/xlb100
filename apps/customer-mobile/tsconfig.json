@@ -4,5 +4,10 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["capacitor.config.ts"]
+  "include": [
+    "capacitor.config.ts",
+    "mobile-app.config.mjs",
+    "mobile-app.config.d.mts",
+    "mobile-app.metadata.json"
+  ]
 }

@@ -4,6 +4,12 @@
 `@xlb/customer` React / Hybrid SDUI application. It owns no Customer page,
 Slice, SDUI Runtime, Registry, business contract, or business data.
 
+Shared metadata, profiles, orchestration, toolchain discovery, and boundary
+validation come from `@xlb/mobile-foundation`. Customer still owns
+`mobile-app.config.mjs` and its complete native Android project. The three-app
+contract and Worker/Admin audit inputs are documented in
+`docs/mobile/THREE_APP_MOBILE_FOUNDATION.md`.
+
 ## Shared-code boundary
 
 - Source of truth: `apps/customer/src`, `apps/customer/public`, and the existing
@@ -58,6 +64,8 @@ From the monorepo root:
 pnpm install --frozen-lockfile
 pnpm --filter @xlb/customer-mobile test
 pnpm --filter @xlb/customer-mobile typecheck
+pnpm mobile:customer:validate
+pnpm mobile:customer:doctor
 pnpm --filter @xlb/customer typecheck
 pnpm --filter @xlb/customer build
 pnpm --filter @xlb/customer-mobile build:debug
@@ -79,7 +87,7 @@ $env:XLB_CUSTOMER_MOBILE_API_BASE_URL = "https://api.example.com"
 pnpm --filter @xlb/customer-mobile build:release
 ```
 
-The Gradle wrapper runner validates and normalizes `JAVA_HOME`,
+The shared toolchain runner validates and normalizes `JAVA_HOME`,
 `ANDROID_HOME`, and `ANDROID_SDK_ROOT`, including the standard Windows SDK
 location. `XLB_GRADLE_EXECUTABLE` is an optional local-only escape hatch for a
 pre-verified Gradle executable when a controlled network cannot download the
