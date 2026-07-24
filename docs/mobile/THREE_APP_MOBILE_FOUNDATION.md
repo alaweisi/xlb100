@@ -14,8 +14,8 @@ Capacitor Android shells. It centralizes only repeatable engineering policy:
   checks in app-owned source and in the final APK/merged Manifest through
   Android `aapt`.
 
-Each future shell must have its own `apps/<role>-mobile` workspace package and
-its own descriptor. Its Android project, Manifest, Gradle configuration, icon,
+Each shell has its own `apps/<role>-mobile` workspace package and descriptor.
+Its Android project, Manifest, Gradle configuration, icon,
 splash, signing material, permission list, and network-security XML remain
 app-owned. There is deliberately no shared Manifest, Android project, signing
 configuration, or maximum permission set.
@@ -37,10 +37,19 @@ Root commands:
 
 ```powershell
 pnpm mobile:foundation:test
+pnpm mobile:m0:test
+pnpm mobile:m0:typecheck
+pnpm mobile:m0:validate
+pnpm mobile:m0:doctor
+pnpm mobile:m0:android:debug
 pnpm mobile:customer:validate
 pnpm mobile:customer:doctor
 pnpm customer:mobile:web:test
 pnpm customer:mobile:android:debug
+pnpm worker:mobile:web:test
+pnpm worker:mobile:android:debug
+pnpm admin:mobile:web:test
+pnpm admin:mobile:android:debug
 ```
 
 Customer cloud/web construction remains:
@@ -53,36 +62,39 @@ The mobile-only Vite invocation forces `--base ./` and writes to
 `apps/customer-mobile/dist`; it does not alter `apps/customer/vite.config.ts` or
 the cloud build output.
 
-## Worker inputs audited for the later Worker-Mobile branch
+## Worker consumer
 
-- Existing web package: `@xlb/worker`, version `0.0.0`.
-- Web root: `apps/worker`; default Vite output: `apps/worker/dist`.
-- Build: `tsc -p tsconfig.json --noEmit && vite build`, Vite 6 / React 18.
-- Base path: `XLB_PUBLIC_BASE || "/"`; a mobile descriptor must override the
-  isolated mobile build to `./`.
-- API build variable: `VITE_API_BASE` (not Customer's
-  `VITE_API_BASE_URL`); empty currently means same-origin.
-- Router behavior reads `window.location.pathname`; the later branch must
-  verify bundled-file navigation and Android back behavior.
-- Confirmed npm identity is `@xlb/worker`. No Android Application ID, display
-  name, version, permission set, cleartext test host, or signing policy exists
-  in the current source. Those are required app-owned product inputs; M0-F does
-  not invent them.
+`apps/worker-mobile` builds the existing `@xlb/worker` source without copying
+pages. Its independent Android identity is `com.xlb100.worker`, display name is
+`喜乐帮师傅端`, and the M0 foundation version is `1` / `0.1.0`. Worker uses its
+existing `VITE_API_BASE` variable and a mobile-only `./` base.
 
-## Admin inputs audited for the later Admin-Mobile branch
+Worker's current location UI accepts manually entered coordinates and does not
+use browser geolocation or a native bridge. Its M0 Manifest therefore declares
+only `INTERNET` and `ACCESS_NETWORK_STATE`; it does not pre-authorize location,
+camera, storage, microphone, or background capabilities.
 
-- Existing web package: `@xlb/admin`, version `0.0.0`.
-- Web root: `apps/admin`; default Vite output: `apps/admin/dist`.
-- Build: `tsc -p tsconfig.json --noEmit && vite build`, Vite 6 / React 18.
-- Base path: `XLB_PUBLIC_BASE || "/"`; a mobile descriptor must override the
-  isolated mobile build to `./`.
-- API build variable: `VITE_API_BASE`; empty currently means same-origin.
-- Navigation is hash-based, which is compatible with bundled assets but still
-  needs device/back-button UAT.
-- Confirmed npm identity is `@xlb/admin`. No Android Application ID, display
-  name, version, permission set, cleartext test host, or signing policy exists
-  in the current source. Those are required app-owned product inputs; M0-F does
-  not invent them.
+## Admin consumer
 
-This audit is intentionally input-only. It does not create `worker-mobile` or
-`admin-mobile`.
+`apps/admin-mobile` builds the existing `@xlb/admin` source without copying
+pages. Its independent Android identity is `com.xlb100.admin`, its display name
+retains the repository fact `喜乐帮 · A端`, and its M0 foundation version is
+`1` / `0.1.0`. Admin uses its existing `VITE_API_BASE`, hash navigation, and a
+mobile-only `./` base.
+
+Admin M0 declares only `INTERNET` and `ACCESS_NETWORK_STATE`. It does not inherit
+Customer or Worker permissions.
+
+## Three-app security and release boundary
+
+All three shells load bundled assets and have no Capacitor `server.url`.
+The test profile fixes the API origin to `http://123.207.198.136`; only the
+debug source set allows cleartext to that exact host and does not include
+subdomains. Development and production require an explicit HTTPS origin, and
+the main/release network configuration denies cleartext.
+
+The three Android projects, version streams, icons, signing material, and
+release processes remain independent. M0 produces debug APKs only; release
+signing, runtime native bridges, device permission UX, App Links, production
+observability, final brand assets, and physical-device UAT remain later-phase
+inputs.

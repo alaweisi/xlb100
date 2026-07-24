@@ -91,6 +91,28 @@ importers:
         specifier: ^6.0.3
         version: 6.4.3(@types/node@22.20.0)(tsx@4.22.5)
 
+  apps/admin-mobile:
+    dependencies:
+      '@capacitor/android':
+        specifier: 8.4.2
+        version: 8.4.2(@capacitor/core@8.4.2)
+      '@capacitor/core':
+        specifier: 8.4.2
+        version: 8.4.2
+      '@xlb/mobile-foundation':
+        specifier: workspace:*
+        version: link:../../packages/mobile-foundation
+    devDependencies:
+      '@capacitor/cli':
+        specifier: 8.4.2
+        version: 8.4.2
+      '@types/node':
+        specifier: ^22.10.0
+        version: 22.20.0
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+
   apps/customer:
     dependencies:
       '@xlb/api-client':
@@ -233,6 +255,28 @@ importers:
       vite:
         specifier: ^6.0.3
         version: 6.4.3(@types/node@22.20.0)(tsx@4.22.5)
+
+  apps/worker-mobile:
+    dependencies:
+      '@capacitor/android':
+        specifier: 8.4.2
+        version: 8.4.2(@capacitor/core@8.4.2)
+      '@capacitor/core':
+        specifier: 8.4.2
+        version: 8.4.2
+      '@xlb/mobile-foundation':
+        specifier: workspace:*
+        version: link:../../packages/mobile-foundation
+    devDependencies:
+      '@capacitor/cli':
+        specifier: 8.4.2
+        version: 8.4.2
+      '@types/node':
+        specifier: ^22.10.0
+        version: 22.20.0
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
 
   backend:
     dependencies:
