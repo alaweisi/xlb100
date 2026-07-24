@@ -34,6 +34,7 @@ export interface CustomerAppRouterRuntimeOptions {
   readonly entry?: CustomerBrowserEntryRuntime;
   readonly guards?: Readonly<CustomerGuardAssembly>;
   readonly matchRoute?: typeof matchCustomerRoute;
+  readonly basePath?: string;
 }
 
 function internalRoute(route: unknown, origin: string): string | null {
@@ -52,6 +53,48 @@ function internalRoute(route: unknown, origin: string): string | null {
   } catch {
     return null;
   }
+}
+
+function normalizedBasePath(value: string): string {
+  try {
+    const parsed = new URL(value, "https://customer.xlb.invalid");
+    if (
+      parsed.origin !== "https://customer.xlb.invalid" ||
+      parsed.search !== "" ||
+      parsed.hash !== ""
+    ) {
+      return "";
+    }
+    const pathname = parsed.pathname.replace(/\/+$/u, "");
+    return pathname === "" || pathname === "/" ? "" : pathname;
+  } catch {
+    return "";
+  }
+}
+
+function routeWithoutBasePath(route: unknown, origin: string, basePath: string): string | null {
+  const safeRoute = internalRoute(route, origin);
+  if (safeRoute === null) return null;
+  const parsed = new URL(safeRoute, origin);
+  if (basePath === "") return `${parsed.pathname}${parsed.search}`;
+  if (parsed.pathname === basePath || parsed.pathname === `${basePath}/`) {
+    return `/${parsed.search}`;
+  }
+  if (parsed.pathname.startsWith(`${basePath}/`)) {
+    return `${parsed.pathname.slice(basePath.length)}${parsed.search}`;
+  }
+  return `${parsed.pathname}${parsed.search}`;
+}
+
+function routeWithBasePath(route: string, origin: string, basePath: string): string | null {
+  const safeRoute = internalRoute(route, origin);
+  if (safeRoute === null) return null;
+  const parsed = new URL(safeRoute, origin);
+  if (basePath === "") return `${parsed.pathname}${parsed.search}`;
+  const pathname = parsed.pathname === "/"
+    ? `${basePath}/`
+    : `${basePath}${parsed.pathname}`;
+  return `${pathname}${parsed.search}`;
 }
 
 const restoreBoundaries = new WeakSet<CustomerAppShellCoordinator>();
@@ -82,6 +125,7 @@ export class CustomerAppRouterRuntime {
   readonly #entry: CustomerBrowserEntryRuntime;
   readonly #guards: Readonly<CustomerGuardAssembly>;
   readonly #matchRoute: typeof matchCustomerRoute;
+  readonly #basePath: string;
   readonly #listeners = new Set<Listener>();
   #state: CustomerAppRouterState = Object.freeze({ status: "loading", match: null });
   #desiredRoute = "/";
@@ -99,7 +143,8 @@ export class CustomerAppRouterRuntime {
     installCustomerShellRestoreOnceBoundary(this.#entry.shell);
     this.#guards = options.guards ?? createCustomerEntryGuardAssembly();
     this.#matchRoute = options.matchRoute ?? matchCustomerRoute;
-    this.#desiredRoute = `${this.#browser.location.pathname}${this.#browser.location.search}`;
+    this.#basePath = normalizedBasePath(options.basePath ?? import.meta.env.BASE_URL);
+    this.#desiredRoute = this.#readBrowserRoute() ?? "";
   }
 
   get entry(): CustomerBrowserEntryRuntime {
@@ -145,22 +190,28 @@ export class CustomerAppRouterRuntime {
   }
 
   readonly #onPopState = (): void => {
-    this.#desiredRoute = `${this.#browser.location.pathname}${this.#browser.location.search}`;
+    this.#desiredRoute = this.#readBrowserRoute() ?? "";
+    this.#canonicalizeBrowserRoute(this.#desiredRoute);
     void this.#resolveDesiredRoute();
   };
 
   readonly #onNavigate = (event: Event): void => {
     const detail = (event as CustomEvent<unknown>).detail;
     const route = typeof detail === "object" && detail !== null && "route" in detail
-      ? internalRoute((detail as { readonly route?: unknown }).route, this.#browser.location.origin)
+      ? routeWithoutBasePath(
+          (detail as { readonly route?: unknown }).route,
+          this.#browser.location.origin,
+          this.#basePath,
+        )
       : null;
     if (route !== null) {
       this.#desiredRoute = route;
       void this.#resolveDesiredRoute();
     }
     queueMicrotask(() => {
-      const browserRoute = `${this.#browser.location.pathname}${this.#browser.location.search}`;
-      if (browserRoute !== this.#desiredRoute) {
+      const browserRoute = this.#readBrowserRoute();
+      if (browserRoute !== null) this.#canonicalizeBrowserRoute(browserRoute);
+      if (browserRoute !== null && browserRoute !== this.#desiredRoute) {
         this.#desiredRoute = browserRoute;
         void this.#resolveDesiredRoute();
       }
@@ -180,6 +231,7 @@ export class CustomerAppRouterRuntime {
       this.#set({ status: "not-found", pathname: parsed.pathname }, revision);
       return;
     }
+    this.#canonicalizeBrowserRoute(`${parsed.pathname}${parsed.search}`);
 
     const shell = this.#entry.shell.snapshot();
     if (shell.status !== "ready") {
@@ -238,10 +290,28 @@ export class CustomerAppRouterRuntime {
     this.#browser.history.replaceState(
       { reason: decision.reason },
       "",
-      target,
+      routeWithBasePath(target, this.#browser.location.origin, this.#basePath) ?? target,
     );
     this.#desiredRoute = target;
     void this.#resolveDesiredRoute();
+  }
+
+  #readBrowserRoute(): string | null {
+    return routeWithoutBasePath(
+      `${this.#browser.location.pathname}${this.#browser.location.search}`,
+      this.#browser.location.origin,
+      this.#basePath,
+    );
+  }
+
+  #canonicalizeBrowserRoute(route: string): void {
+    const target = routeWithBasePath(route, this.#browser.location.origin, this.#basePath);
+    if (
+      target !== null &&
+      target !== `${this.#browser.location.pathname}${this.#browser.location.search}`
+    ) {
+      this.#browser.history.replaceState(this.#browser.history.state, "", target);
+    }
   }
 
   #set(state: CustomerAppRouterState, revision = this.#revision): void {
