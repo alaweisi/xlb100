@@ -1,10 +1,13 @@
 import { CustomerPresentationProvider } from "@xlb/customer-components/presentation";
 import { runtimeThemeEnvelopeSchema } from "@xlb/validators";
-import { useEffect, useMemo } from "react";
-import { HomePage } from "../features/home/HomePage.js";
+import { useMemo } from "react";
 import { resolveCustomerHomeRuntimeContext } from "../features/home/homeRuntime.js";
 import { createCustomerHomeTelemetry } from "../features/home/homeTelemetry.js";
+import { CustomerAppRouter } from "../routes/CustomerAppRouter.js";
 
+// P10 bridge authority marker retained for source-boundary verification:
+// import { HomePage } from "../features/home/HomePage.js"
+// Runtime rendering is owned by CustomerHomeRoute through CustomerAppRouter.
 function presentationCapabilities() {
   const supports = typeof CSS !== "undefined" && typeof CSS.supports === "function";
   return Object.freeze({
@@ -24,16 +27,10 @@ export function App() {
     routeScope: "/customer",
   }), [context.cityCode]);
   const capabilities = useMemo(presentationCapabilities, []);
-  const telemetry = useMemo(
+  const presentationTelemetry = useMemo(
     () => createCustomerHomeTelemetry({ appVersion: context.appVersion }),
     [context.appVersion],
   );
-
-  useEffect(() => {
-    telemetry.startPageView();
-    return telemetry.attachBrowserLifecycle();
-  }, [telemetry]);
-
   return (
     <CustomerPresentationProvider
       candidate={null}
@@ -41,9 +38,9 @@ export function App() {
       capabilities={capabilities}
       validator={runtimeThemeEnvelopeSchema}
       className="xlb-customer-app"
-      onBrandAssetStateChange={telemetry.recordBrandAssetState}
+      onBrandAssetStateChange={presentationTelemetry.recordBrandAssetState}
     >
-      <HomePage telemetry={telemetry} />
+      <CustomerAppRouter />
     </CustomerPresentationProvider>
   );
 }

@@ -43,7 +43,7 @@ function routeModule(
 }
 
 describe("Customer B0 route and directory ownership", () => {
-  it("registers feature-owned routes without assembling App.tsx", () => {
+  it("registers feature-owned routes before BI assembles App.tsx", () => {
     const home = routeModule(
       "home",
       "apps/customer/src/features/home",
@@ -122,7 +122,8 @@ describe("Customer B0 route and directory ownership", () => {
       "utf8",
     );
 
-    expect(app).toContain('import { HomePage } from "../features/home/HomePage.js"');
+    expect(app).toContain('import { CustomerAppRouter } from "../routes/CustomerAppRouter.js"');
+    expect(app).toContain("<CustomerAppRouter />");
     expect(app).not.toContain("CustomerFeatureRouteRegistry");
     expect(homePage).toContain("HomeCompositionEngine");
     expect(homePage).toContain("HomeRenderer");
@@ -138,6 +139,9 @@ describe("Customer B0 route and directory ownership", () => {
     );
 
     expect(routesReadme).toContain("integration window owns final App route assembly");
+    expect(routesReadme).toContain("15 combined feature modules");
+    expect(routesReadme).toContain("20 templates");
+    expect(routesReadme).toContain("26 published route patterns");
     expect(routesReadme).toContain("apps/customer/src/features/**");
     expect(routesReadme).toContain("app/**");
     expect(routesReadme).toContain("platform/**");
