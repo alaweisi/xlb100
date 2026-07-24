@@ -1,22 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import { buildApp } from "../../backend/src/app.js";
 import { OrderService } from "../../backend/src/order/orderService.js";
-import { bearerHeaders } from "./helpers/authTestHelper.js";
+import { loginCustomerHeaders } from "./helpers/authTestHelper.js";
 import { serviceAddressSchedulePayload } from "./helpers/orderTestPayload.js";
 
 const runDb = process.env.XLB_SKIP_DB_TESTS !== "1";
-const customerA = bearerHeaders({
-  appType: "customer",
-  role: "customer",
-  userId: "customer-demo-001",
-  cityCode: "hangzhou",
-});
-const customerB = bearerHeaders({
-  appType: "customer",
-  role: "customer",
-  userId: "customer-demo-002",
-  cityCode: "hangzhou",
-});
 
 describe("GAP-01 Customer order list service integration", () => {
   it("integrates scope, pagination policy, repository projection and response validation", async () => {
@@ -115,6 +103,16 @@ describe.skipIf(!runDb)("GAP-01 Customer order list integration", { timeout: 30_
   it("paginates the authenticated Customer's existing orders without exposing private fields", async () => {
     const app = await buildApp();
     try {
+      const customerA = await loginCustomerHeaders(app, {
+        userId: "customer-demo-001",
+        phone: "13800000001",
+        cityCode: "hangzhou",
+      });
+      const customerB = await loginCustomerHeaders(app, {
+        userId: "customer-demo-002",
+        phone: "13800000002",
+        cityCode: "hangzhou",
+      });
       const suffix = `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
       const olderA = await createOrder(app, customerA, `GAP-01 A older ${suffix}`);
       const orderB = await createOrder(app, customerB, `GAP-01 B ${suffix}`);
