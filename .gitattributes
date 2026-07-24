@@ -1,2 +1,6 @@
 apps/customer-mobile/android/gradlew text eol=lf
 apps/customer-mobile/android/gradlew.bat text eol=crlf
+apps/worker-mobile/android/gradlew text eol=lf
+apps/worker-mobile/android/gradlew.bat text eol=crlf
+apps/admin-mobile/android/gradlew text eol=lf
+apps/admin-mobile/android/gradlew.bat text eol=crlf
