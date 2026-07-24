@@ -2,7 +2,7 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import { customerSduiPageManifestSchema } from "@xlb/validators";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   HomeCompositionEngine,
   HomeRenderer,
@@ -10,6 +10,7 @@ import {
 import { getBuiltinHomeManifest } from "../../apps/customer/src/platform/sdui/delivery/index.js";
 import { createHomeActionRegistry } from "../../apps/customer/src/features/home/createHomeActionRegistry.js";
 import { createHomeComponentRegistry } from "../../apps/customer/src/features/home/createHomeComponentRegistry.js";
+import { createHomeDataRequestId } from "../../apps/customer/src/features/home/HomePage.js";
 import { createHomeRuntimeBindingsResolver } from "../../apps/customer/src/features/home/homeRuntime.js";
 import type { HomeDataBatchResult } from "../../apps/customer/src/platform/sdui/data/index.js";
 
@@ -82,6 +83,15 @@ function batchForBuiltin(): HomeDataBatchResult {
 }
 
 describe("P8 dynamic customer home", () => {
+  it("creates a request correlation id when randomUUID is unavailable", () => {
+    vi.stubGlobal("crypto", {});
+    try {
+      expect(createHomeDataRequestId()).toMatch(/^home-[a-z0-9]+-[a-z0-9]+$/u);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("registers every closed-contract home component and validates the builtin manifest", () => {
     expect(createHomeComponentRegistry().list()).toEqual([
       "location_header",
