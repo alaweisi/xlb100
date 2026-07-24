@@ -4,10 +4,21 @@
 
 ## 项目边界
 
-- Monorepo：`apps/customer`、`apps/worker`、`apps/admin`、`backend`、`packages`、`db`、`infra`、`deploy`、`tests`、`docs`。
+- XLB 是一个完整的家政维修 Monorepo，不是多个互相游离的项目。顾客端、师傅端、后台管理端及其移动壳统一属于同一总体架构。
+- 业务端：`apps/customer`、`apps/worker`、`apps/admin`；Android 原生壳：`apps/customer-mobile`、`apps/worker-mobile`、`apps/admin-mobile`；三端公共移动基础：`packages/mobile-foundation`。
+- 其余架构目录为 `backend`、`packages`、`db`、`infra`、`deploy`、`tests`、`docs`。
 - 包名前缀使用 `@xlb/*`，不得引入旧项目 `@sdj99`/`sdj99` 命名或复制旧项目半成品。
 - 不得绕过 `packages/types`、`packages/validators` 和 `@xlb/api-client` 建立重复契约。
 - 未经用户确认，不得凭空生成正式服务类目；正式类目来源仍是 `docs/catalog/OFFICIAL_SERVICE_CATALOG_SOURCE.md`。
+
+## 唯一施工区与架构纪律
+
+- 当前本地唯一权威仓库和物理施工区是 `G:\xlb100`。所有读取、写入、构建、测试、APK 产物和本地提交均在该目录内完成。
+- 默认禁止在 `G:\xlb100` 之外创建或保留 XLB 的 clone、复制项目、工作树、构建分部或临时施工仓库；也不得把三端拆成三个独立仓库。
+- 默认不得新建施工分支或 worktree。多 Agent 可以并行只读分析，但写入必须由单一协调者在 `G:\xlb100` 当前分支串行完成。
+- 只有 Human Owner 在当前任务中明确授权时，才可临时改变上述施工区或 Git 隔离规则；任务结束前必须归并回 `G:\xlb100` 并清理临时载体。
+- 所有功能必须进入既定 Monorepo 分层并复用现有事实源。未经 Human Owner 明确同意，不得新增顶层工程、另建重复业务实现、改变三端归属或绕过共享契约。
+- 架构调整应先说明它在总体架构中的位置、与三端的关系及迁移影响；未获明确同意不得越过既有架构边界施工。
 
 ## 默认执行方式
 
@@ -18,7 +29,7 @@
 - 不要求 Release Train、Work Unit、Manifest、Lease、Integration Queue 或固定确认文字。
 - 不要求独立审计、完整 Git 历史扫描或全量治理 SelfTest。
 - 不使用运行环境时，不登记 Compose、MySQL、Redis、volume 或端口。
-- 单人施工可在当前分支完成；只有确实并行写入时才创建独立分支/worktree。
+- 施工在 `G:\xlb100` 当前分支完成，不因并行需要创建额外分支或 worktree；需要并行时将写入任务串行化。
 - 用户说“按推荐执行”“A”“继续”“直接做”等明确表达，视为当前任务范围内的有效授权。
 
 ## 仅三类风险
@@ -31,10 +42,10 @@
 
 ## 并行施工
 
-- 同时最多三个写入单元。
+- 同时只允许一个写入单元；其他 Agent 只能并行进行只读检查、分析或审查。
 - 只有修改同一文件，或改变同一数据库表、金额规则、状态机、事件版本、共享契约时才视为冲突。
 - `scripts/**` 不再整体串行；按实际修改文件判断。
-- 并行写入必须使用不同分支/worktree，不共享 mutable branch。
+- 禁止通过额外分支、worktree 或场外仓库开展并行写入；所有写入由单一协调者依次落入 `G:\xlb100`。
 - 只有实际使用数据库或 Redis 的单元才需要独立实例/端口；纯代码、文档、单元测试和静态脚本不需要。
 
 ## 高风险确认与本地集成
@@ -65,7 +76,7 @@
 
 - 开始写入前只需确认当前分支、工作区状态和相关文件。
 - 只有 Phase/Lock/发布任务才必须读取 `docs/CURRENT_STATE.md`。
-- 旧 managed-worktree、registry、lease、transition 和 Integration Queue 已归档且不生效；真正并行写入只使用普通 Git 分支/worktree 隔离。
+- 旧 managed-worktree、registry、lease、transition 和 Integration Queue 已归档且不生效；本项目不再使用额外 Git 分支/worktree 作为并行施工区。
 - Skill 按任务需要使用，不再机械执行完整 Skill 链。
 - 当前代码、Git commit 和测试结果优先于旧报告；冲突只在会导致真实风险时阻塞。
 
