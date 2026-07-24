@@ -42,6 +42,47 @@ function publishedMatch(
 }
 
 describe("Customer App browser router runtime", () => {
+  it("maps the deployed Customer base path to internal routes", async () => {
+    window.localStorage.clear();
+    window.history.replaceState(null, "", "/customer/");
+    const runtime = new CustomerAppRouterRuntime({
+      browser: window,
+      entry: createCustomerBrowserEntryRuntime(window.localStorage),
+      basePath: "/customer/",
+    });
+    runtime.start();
+
+    await vi.waitFor(() => {
+      expect(runtime.snapshot()).toMatchObject({
+        status: "ready",
+        match: { route: { pathname: "/" } },
+      });
+    });
+    expect(`${window.location.pathname}${window.location.search}`).toBe("/customer/");
+    runtime.stop();
+  });
+
+  it("keeps protected-route redirects inside the deployed Customer base path", async () => {
+    window.localStorage.clear();
+    window.history.replaceState(null, "", "/customer/orders/order-safe?view=detail");
+    const runtime = new CustomerAppRouterRuntime({
+      browser: window,
+      entry: createCustomerBrowserEntryRuntime(window.localStorage),
+      basePath: "/customer/",
+    });
+    runtime.start();
+
+    await vi.waitFor(() => {
+      expect(runtime.snapshot()).toMatchObject({
+        status: "ready",
+        match: { route: { pathname: "/auth/login" } },
+      });
+    });
+    expect(`${window.location.pathname}${window.location.search}`)
+      .toBe("/customer/auth/login?returnTo=%2Forders%2Forder-safe%3Fview%3Ddetail");
+    runtime.stop();
+  });
+
   it("restores the shared shell once and makes ready-state feature restores idempotent", async () => {
     window.localStorage.clear();
     window.history.replaceState(null, "", "/auth/login");
