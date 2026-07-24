@@ -30,6 +30,13 @@ export interface HomePageProps {
   readonly telemetry: CustomerHomeTelemetry;
 }
 
+export function createHomeDataRequestId(): string {
+  if (typeof globalThis.crypto?.randomUUID === "function") {
+    return globalThis.crypto.randomUUID();
+  }
+  return `home-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 export function HomePage({ telemetry }: HomePageProps) {
   const context = useMemo(resolveCustomerHomeRuntimeContext, []);
   const runtime = useMemo(
@@ -82,7 +89,7 @@ export function HomePage({ telemetry }: HomePageProps) {
 
       const dataSpan = telemetry.beginSpan("data_load_ms");
       const data = await runtime.dataCoordinator.load({
-          requestId: crypto.randomUUID(),
+          requestId: createHomeDataRequestId(),
           cityCode: context.cityCode,
           locale: context.locale,
           cacheScopeKey: context.cacheScopeKey,
