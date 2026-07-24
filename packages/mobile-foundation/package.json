@@ -1,0 +1,33 @@
+{
+  "name": "@xlb/mobile-foundation",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared Capacitor Android metadata, build orchestration, toolchain discovery, and native-boundary validation for XLB apps.",
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "import": "./src/index.mjs"
+    },
+    "./capacitor": {
+      "types": "./src/index.d.ts",
+      "import": "./src/index.mjs",
+      "require": "./src/capacitor.cjs"
+    },
+    "./schema": "./schema/mobile-app.schema.json"
+  },
+  "bin": {
+    "xlb-mobile": "./src/cli.mjs"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

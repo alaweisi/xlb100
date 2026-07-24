@@ -1,9 +1,7 @@
 import type { CapacitorConfig } from "@capacitor/cli";
+import { toCapacitorConfig } from "@xlb/mobile-foundation/capacitor";
+import metadata from "./mobile-app.metadata.json";
 
-const config: CapacitorConfig = {
-  appId: "com.xlb100.customer",
-  appName: "喜乐帮到家",
-  webDir: "dist",
-};
+const config: CapacitorConfig = toCapacitorConfig(metadata);
 
 export default config;

@@ -130,6 +130,9 @@ importers:
       '@capacitor/core':
         specifier: 8.4.2
         version: 8.4.2
+      '@xlb/mobile-foundation':
+        specifier: workspace:*
+        version: link:../../packages/mobile-foundation
     devDependencies:
       '@capacitor/cli':
         specifier: 8.4.2
@@ -260,6 +263,15 @@ importers:
         specifier: ^18.3.1
         version: 18.3.1
     devDependencies:
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+
+  packages/mobile-foundation:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.0
+        version: 22.20.0
       typescript:
         specifier: ^5.7.2
         version: 5.9.3
