@@ -4,8 +4,8 @@
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#fffaf0",
-  "theme_color": "#f5efe0",
+  "background_color": "#CFEFEF",
+  "theme_color": "#0F9F9C",
   "orientation": "portrait-primary",
   "description": "喜乐帮到家 Customer App",
   "icons": [

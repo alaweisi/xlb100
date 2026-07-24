@@ -1,17 +1,12 @@
 import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 
-describe("Phase24F UI", () => {
-  it("shows CSAT only for closed Support details and uses API confirmation", async () => {
-    for (const file of [
-      "apps/customer/src/pages/CustomerSupportPage.tsx",
-      "apps/worker/src/pages/WorkerSupportPage.tsx",
-    ]) {
-      const text = await readFile(file, "utf8");
-      expect(text).toMatch(/(?:status === "closed"|uiStateIs\([^\n]*status, "closed"\))/);
-      expect(text).toContain("submitCsat");
-      expect(text).toMatch(/Rate support 5\/5|评价客服 5 分/);
-    }
+describe("Phase24F retained UI", () => {
+  it("shows Worker CSAT only for closed Support details and uses API confirmation", async () => {
+    const text = await readFile("apps/worker/src/pages/WorkerSupportPage.tsx", "utf8");
+    expect(text).toMatch(/(?:status === "closed"|uiStateIs\([^\n]*status, "closed"\))/);
+    expect(text).toContain("submitCsat");
+    expect(text).toMatch(/Rate support 5\/5|评价客服 5 分/);
   });
 
   it("provides navigable Admin rubric review dashboard", async () => {

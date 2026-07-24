@@ -8,6 +8,11 @@ export type ApiClientErrorKind =
 export type ResponseValidator<T> = (value: unknown) => T;
 export type RetryMode = "none" | "idempotent";
 
+export interface ApiResponseMetadata {
+  readonly status: number;
+  readonly headers: Readonly<Record<string, string>>;
+}
+
 export interface ApiRequestOptions<T> {
   signal?: AbortSignal;
   timeoutMs?: number;
@@ -15,6 +20,12 @@ export interface ApiRequestOptions<T> {
   validate?: ResponseValidator<T>;
   /** HTTP statuses whose JSON body is an expected, validated business response. */
   acceptedStatuses?: readonly number[];
+  /** Additive per-request headers; these override client defaults for this call only. */
+  headers?: Record<string, string>;
+  /** Cached value returned only when the server answers 304 Not Modified. */
+  notModifiedValue?: T;
+  /** Response metadata observer for ETag/cache coordination; it cannot change parsing. */
+  onResponseMetadata?: (metadata: ApiResponseMetadata) => void;
 }
 
 export interface ApiClientOptions {
@@ -162,7 +173,11 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       try {
         response = await fetch(url, {
           method,
-          headers: { ...contentHeaders, ...resolveHeaders(path, method) },
+          headers: {
+            ...contentHeaders,
+            ...resolveHeaders(path, method),
+            ...requestOptions.headers,
+          },
           body,
           signal: controller.signal,
         });
@@ -173,6 +188,41 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
             ? "cancelled"
             : "network";
         throw new ApiClientError({ kind, message: `API ${method} ${path} ${kind}`, method, path, cause });
+      }
+
+      const responseHeaders: Record<string, string> = {};
+      response.headers.forEach((value, name) => {
+        responseHeaders[name.toLowerCase()] = value;
+      });
+      const responseMetadata: ApiResponseMetadata = {
+        status: response.status,
+        headers: Object.freeze(responseHeaders),
+      };
+      requestOptions.onResponseMetadata?.(responseMetadata);
+      if (response.status === 304) {
+        if (Object.prototype.hasOwnProperty.call(requestOptions, "notModifiedValue")) {
+          try {
+            return requestOptions.validate
+              ? requestOptions.validate(requestOptions.notModifiedValue)
+              : requestOptions.notModifiedValue as T;
+          } catch (cause) {
+            if (cause instanceof ApiClientError) throw cause;
+            throw new ApiClientError({
+              kind: "response_format",
+              message: `API ${method} ${path} cached response failed validation`,
+              method,
+              path,
+              cause,
+            });
+          }
+        }
+        throw new ApiClientError({
+          kind: "http",
+          message: `API ${method} ${path} returned 304 without a cached value`,
+          method,
+          path,
+          status: response.status,
+        });
       }
 
       let text: string;

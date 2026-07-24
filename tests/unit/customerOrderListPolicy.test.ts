@@ -11,51 +11,67 @@ import {
 
 function context(overrides: Partial<RequestContext> = {}): RequestContext {
   return {
-    traceId: "trace-order-list",
+    traceId: "trace-gap01",
     appType: "customer",
     role: "customer",
     cityCode: "hangzhou",
-    userId: "customer-a",
-    requestStartedAt: "2026-07-19T00:00:00.000Z",
+    userId: "customer-gap01-a",
+    requestStartedAt: "2026-07-24T10:00:00.000Z",
     ...overrides,
   };
 }
 
-describe("customer order list policy", () => {
-  it("derives customer and city only from authenticated context", () => {
+describe("GAP-01 Customer order list policy", () => {
+  it("requires an exact authenticated Customer actor and concrete city", () => {
     expect(requireCustomerOrderListScope(context())).toEqual({
       cityCode: "hangzhou",
-      customerId: "customer-a",
-      traceId: "trace-order-list",
+      customerId: "customer-gap01-a",
     });
-    expect(() => requireCustomerOrderListScope(context({ appType: "worker", role: "worker" })))
-      .toThrow(CustomerOrderListForbiddenError);
-    expect(() => requireCustomerOrderListScope(context({ cityCode: "__global__" })))
-      .toThrow(CustomerOrderListForbiddenError);
+    for (const invalid of [
+      context({ appType: "worker", role: "worker" }),
+      context({ appType: "admin", role: "operator" }),
+      context({ userId: undefined }),
+      context({ cityCode: undefined }),
+      context({ cityCode: "__global__" }),
+    ]) {
+      expect(() => requireCustomerOrderListScope(invalid))
+        .toThrow(CustomerOrderListForbiddenError);
+    }
   });
 
-  it("normalizes bounded pagination input and rejects unknown identity parameters", () => {
-    expect(parseCustomerOrderListQuery({ limit: "25" })).toEqual({ limit: 25, cursor: undefined });
-    expect(parseCustomerOrderListQuery({})).toEqual({ limit: 20, cursor: undefined });
-    expect(() => parseCustomerOrderListQuery({ limit: 51 })).toThrow(CustomerOrderListValidationError);
-    expect(() => parseCustomerOrderListQuery({ customerId: "customer-b" }))
+  it("normalizes defaults and rejects ungoverned query fields", () => {
+    expect(parseCustomerOrderListQuery({})).toEqual({
+      cursor: undefined,
+      limit: 20,
+      filter: "all",
+    });
+    expect(parseCustomerOrderListQuery({ limit: "5", filter: "completed" })).toEqual({
+      cursor: undefined,
+      limit: 5,
+      filter: "completed",
+    });
+    expect(() => parseCustomerOrderListQuery({ status: "paid" }))
       .toThrow(CustomerOrderListValidationError);
   });
 
-  it("binds signed cursors to both customer and city and rejects tampering", () => {
+  it("binds signed cursors to Customer, city and controlled filter", () => {
     const scope = requireCustomerOrderListScope(context());
-    const position = { createdAt: "2026-07-19T08:00:00.000Z", orderId: "order-2" };
-    const cursor = encodeCustomerOrderListCursor(scope, position);
-    expect(decodeCustomerOrderListCursor(cursor, scope)).toEqual(position);
+    const position = { createdAt: "2026-07-24T10:00:00.000Z", orderId: "order-gap01-1" };
+    const cursor = encodeCustomerOrderListCursor(scope, "active", position);
+    expect(decodeCustomerOrderListCursor(cursor, scope, "active")).toEqual(position);
 
-    const otherCustomer = requireCustomerOrderListScope(context({ userId: "customer-b" }));
-    const otherCity = requireCustomerOrderListScope(context({ cityCode: "shanghai" }));
-    expect(() => decodeCustomerOrderListCursor(cursor, otherCustomer))
+    expect(() => decodeCustomerOrderListCursor(cursor, {
+      ...scope,
+      customerId: "customer-gap01-b",
+    }, "active")).toThrow(CustomerOrderListValidationError);
+    expect(() => decodeCustomerOrderListCursor(cursor, {
+      ...scope,
+      cityCode: "shanghai",
+    }, "active")).toThrow(CustomerOrderListValidationError);
+    expect(() => decodeCustomerOrderListCursor(cursor, scope, "completed"))
       .toThrow(CustomerOrderListValidationError);
-    expect(() => decodeCustomerOrderListCursor(cursor, otherCity))
-      .toThrow(CustomerOrderListValidationError);
-    const tampered = Buffer.from(`${Buffer.from(cursor, "base64url").toString("utf8")}x`).toString("base64url");
-    expect(() => decodeCustomerOrderListCursor(tampered, scope))
+    const tampered = `${cursor.slice(0, Math.floor(cursor.length / 2))}x${cursor.slice(Math.floor(cursor.length / 2) + 1)}`;
+    expect(() => decodeCustomerOrderListCursor(tampered, scope, "active"))
       .toThrow(CustomerOrderListValidationError);
   });
 });

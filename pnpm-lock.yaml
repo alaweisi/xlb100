@@ -102,12 +102,18 @@ importers:
       '@xlb/api-client':
         specifier: workspace:*
         version: link:../../packages/api-client
+      '@xlb/customer-components':
+        specifier: workspace:*
+        version: link:../../packages/customer-components
       '@xlb/types':
         specifier: workspace:*
         version: link:../../packages/types
       '@xlb/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      '@xlb/validators':
+        specifier: workspace:*
+        version: link:../../packages/validators
       react:
         specifier: ^18.3.1
         version: 18.3.1
@@ -272,6 +278,9 @@ importers:
       '@xlb/types':
         specifier: workspace:*
         version: link:../types
+      '@xlb/validators':
+        specifier: workspace:*
+        version: link:../validators
     devDependencies:
       typescript:
         specifier: ^5.7.2
@@ -282,6 +291,25 @@ importers:
       '@xlb/types':
         specifier: workspace:*
         version: link:../types
+    devDependencies:
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+
+  packages/customer-components:
+    dependencies:
+      '@phosphor-icons/react':
+        specifier: ^2.1.7
+        version: 2.1.10(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@xlb/types':
+        specifier: workspace:*
+        version: link:../types
+      '@xlb/ui':
+        specifier: workspace:*
+        version: link:../ui
+      react:
+        specifier: ^18.3.1
+        version: 18.3.1
     devDependencies:
       typescript:
         specifier: ^5.7.2

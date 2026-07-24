@@ -4,9 +4,8 @@ import { describe, expect, it } from "vitest";
 
 const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 
-describe("Phase 24D three-app conversation UI bindings", () => {
+describe("Phase 24D retained conversation UI bindings", () => {
   it.each([
-    ["customer", "apps/customer/src/pages/CustomerSupportPage.tsx"],
     ["worker", "apps/worker/src/pages/WorkerSupportPage.tsx"],
   ])("binds %s conversation create/list/detail and message delivery", (_name, path) => {
     const page = source(path);

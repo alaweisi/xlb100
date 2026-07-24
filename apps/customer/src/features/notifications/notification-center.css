@@ -1,0 +1,373 @@
+.xlb-notifications-shell {
+  box-sizing: border-box;
+  min-height: 100dvh;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 16px 16px calc(36px + env(safe-area-inset-bottom));
+  color: var(--xlb-text-primary);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(255, 255, 255, 0.72), transparent 34%),
+    var(--xlb-surface-page);
+}
+
+.xlb-notifications-header {
+  display: grid;
+  min-height: 56px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 0 2px 16px;
+}
+
+.xlb-notifications-header--boundary {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.xlb-notifications-header--boundary > div,
+.xlb-notifications-header__copy {
+  min-width: 0;
+}
+
+.xlb-notifications-header p,
+.xlb-notifications-header h1 {
+  margin: 0;
+}
+
+.xlb-notifications-header p {
+  color: var(--xlb-text-secondary);
+  font-size: var(--xlb-font-size-sm);
+}
+
+.xlb-notifications-header h1 {
+  overflow: hidden;
+  margin-top: 3px;
+  font-size: var(--xlb-font-size-xl);
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.xlb-notifications-header__back {
+  min-width: 52px;
+  min-height: 44px;
+  border: 0;
+  border-radius: var(--xlb-radius-pill);
+  padding: 0 12px;
+  color: var(--xlb-text-link);
+  background: rgba(255, 255, 255, 0.48);
+  font: inherit;
+  font-weight: var(--xlb-font-weight-medium);
+  cursor: pointer;
+}
+
+.xlb-notifications-header__refresh {
+  min-width: 60px;
+  padding-right: 9px;
+  padding-left: 9px;
+}
+
+.xlb-notifications-header__back:focus-visible,
+.xlb-notifications-feedback button:focus-visible,
+.xlb-notifications-tabs button:focus-visible {
+  outline: 0;
+  box-shadow: var(--xlb-shadow-focus);
+}
+
+.xlb-notifications-overview {
+  overflow: hidden;
+  border: 1px solid var(--xlb-border-glass-highlight);
+  border-radius: var(--xlb-radius-xl);
+  background: var(--xlb-surface-glass);
+  box-shadow: var(--xlb-shadow-sm);
+}
+
+.xlb-notifications-overview > div:first-child {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 2px 10px;
+  padding: 18px 18px 14px;
+}
+
+.xlb-notifications-overview p,
+.xlb-notifications-overview strong,
+.xlb-notifications-overview span {
+  margin: 0;
+}
+
+.xlb-notifications-overview p {
+  grid-column: 1;
+  color: var(--xlb-text-secondary);
+  font-size: var(--xlb-font-size-sm);
+}
+
+.xlb-notifications-overview strong {
+  grid-row: 1 / span 2;
+  grid-column: 2;
+  color: var(--xlb-color-accent);
+  font-size: clamp(28px, 9vw, 40px);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.xlb-notifications-overview span {
+  grid-column: 1;
+  font-size: var(--xlb-font-size-xs);
+}
+
+.xlb-notifications-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  border-top: 1px solid var(--xlb-border-subtle);
+  padding: 6px;
+  background: rgba(255, 255, 255, 0.42);
+}
+
+.xlb-notifications-tabs button {
+  min-height: 44px;
+  border: 0;
+  border-radius: var(--xlb-radius-pill);
+  color: var(--xlb-text-secondary);
+  background: transparent;
+  font: inherit;
+  font-weight: var(--xlb-font-weight-medium);
+  cursor: pointer;
+}
+
+.xlb-notifications-tabs button[aria-selected="true"] {
+  color: var(--xlb-text-inverse);
+  background: var(--xlb-color-accent);
+}
+
+.xlb-notifications-tabs button:disabled {
+  cursor: not-allowed;
+  opacity: var(--xlb-opacity-disabled);
+}
+
+.xlb-notifications-feedback {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 12px;
+  justify-content: space-between;
+  margin-top: 12px;
+  border-radius: var(--xlb-radius-md);
+  padding: 8px 10px 8px 14px;
+  background: var(--xlb-surface-panel);
+  font-size: var(--xlb-font-size-sm);
+  line-height: 1.5;
+}
+
+.xlb-notifications-feedback[data-kind="success"] {
+  color: var(--xlb-color-success);
+}
+
+.xlb-notifications-feedback[data-kind="error"],
+.xlb-notifications-feedback[data-kind="conflict"],
+.xlb-notifications-feedback[data-kind="safe"] {
+  color: var(--xlb-color-warning);
+}
+
+.xlb-notifications-feedback button {
+  flex: 0 0 auto;
+  min-width: 44px;
+  min-height: 44px;
+  border: 0;
+  border-radius: var(--xlb-radius-pill);
+  color: currentColor;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
+.xlb-notifications-state,
+.xlb-notifications-empty {
+  margin-top: 16px;
+}
+
+.xlb-notifications-list {
+  margin-top: 22px;
+}
+
+.xlb-notifications-list__heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.xlb-notifications-list__heading p,
+.xlb-notifications-list__heading h2,
+.xlb-notifications-list__heading span {
+  margin: 0;
+}
+
+.xlb-notifications-list__heading p,
+.xlb-notifications-list__heading span {
+  color: var(--xlb-text-secondary);
+  font-size: var(--xlb-font-size-sm);
+}
+
+.xlb-notifications-list__heading h2 {
+  margin-top: 2px;
+  font-size: var(--xlb-font-size-xl);
+}
+
+.xlb-notifications-list__items {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.xlb-notification-card {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--xlb-border-glass-highlight);
+  border-radius: var(--xlb-radius-lg);
+  padding: 17px;
+  background: var(--xlb-surface-panel);
+  box-shadow: var(--xlb-shadow-sm);
+}
+
+.xlb-notification-card[data-unread="true"] {
+  border-color: rgba(255, 106, 0, 0.34);
+  box-shadow:
+    inset 4px 0 var(--xlb-color-accent),
+    var(--xlb-shadow-sm);
+}
+
+.xlb-notification-card__meta,
+.xlb-notification-card__state,
+.xlb-notification-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.xlb-notification-card__meta {
+  justify-content: space-between;
+  color: var(--xlb-text-secondary);
+  font-size: var(--xlb-font-size-xs);
+}
+
+.xlb-notification-card__meta span {
+  border-radius: var(--xlb-radius-pill);
+  padding: 3px 8px;
+  color: var(--xlb-text-link);
+  background: rgba(15, 159, 156, 0.1);
+  font-weight: var(--xlb-font-weight-bold);
+}
+
+.xlb-notification-card__meta time {
+  font-variant-numeric: tabular-nums;
+}
+
+.xlb-notification-card h2,
+.xlb-notification-card > p {
+  margin: 0;
+}
+
+.xlb-notification-card h2 {
+  font-size: var(--xlb-font-size-lg);
+  line-height: 1.35;
+}
+
+.xlb-notification-card > p {
+  color: var(--xlb-text-secondary);
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.xlb-notification-card__state {
+  color: var(--xlb-text-secondary);
+  font-size: var(--xlb-font-size-xs);
+}
+
+.xlb-notification-card__state strong {
+  color: var(--xlb-color-warning);
+  font-weight: var(--xlb-font-weight-medium);
+}
+
+.xlb-notification-card__actions {
+  justify-content: flex-end;
+  border-top: 1px solid var(--xlb-border-subtle);
+  padding-top: 12px;
+}
+
+.xlb-notification-card__actions .xlb-customer-button {
+  flex: 1 1 94px;
+}
+
+.xlb-notifications-list__more {
+  width: 100%;
+  margin-top: 14px;
+}
+
+.xlb-notifications-list__end {
+  margin: 16px 0 0;
+  color: var(--xlb-text-muted);
+  font-size: var(--xlb-font-size-xs);
+  text-align: center;
+}
+
+@media (min-width: 640px) {
+  .xlb-notifications-shell {
+    padding-right: 24px;
+    padding-left: 24px;
+  }
+
+  .xlb-notifications-list__items {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 340px) {
+  .xlb-notifications-shell {
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+
+  .xlb-notifications-header {
+    gap: 6px;
+  }
+
+  .xlb-notifications-header__back {
+    min-width: 46px;
+    padding: 0 8px;
+  }
+
+  .xlb-notifications-header__refresh {
+    min-width: 50px;
+    padding-right: 6px;
+    padding-left: 6px;
+  }
+
+  .xlb-notification-card {
+    padding: 14px;
+  }
+
+  .xlb-notification-card__actions .xlb-customer-button {
+    flex-basis: 76px;
+    padding-right: 9px;
+    padding-left: 9px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .xlb-notifications-shell {
+    scroll-behavior: auto;
+  }
+}
+
+@media (forced-colors: active) {
+  .xlb-notifications-overview,
+  .xlb-notification-card {
+    border: 1px solid CanvasText;
+  }
+
+  .xlb-notification-card[data-unread="true"] {
+    border-left-width: 4px;
+  }
+}

@@ -45,6 +45,14 @@ if (Test-Path -LiteralPath $tkeCosMigrationPath) {
   $lockedTkeCosHash = (git rev-parse "${tkeCosSourceCommit}:$tkeCosMigrationPath" 2>$null).Trim()
   $tkeCosAuthorized = $LASTEXITCODE -eq 0 -and $tkeCosHash -eq $lockedTkeCosHash
 }
+$customerSduiMigrationPath = 'db/migrations/062_customer_sdui_control_plane.sql'
+$customerSduiSourceCommit = '3f24cf515077638e03f88ed86c189f606b335026'
+$customerSduiAuthorized = $false
+if (Test-Path -LiteralPath $customerSduiMigrationPath) {
+  $customerSduiHash = (git hash-object -- $customerSduiMigrationPath).Trim()
+  $lockedCustomerSduiHash = (git rev-parse "${customerSduiSourceCommit}:$customerSduiMigrationPath" 2>$null).Trim()
+  $customerSduiAuthorized = $LASTEXITCODE -eq 0 -and $customerSduiHash -eq $lockedCustomerSduiHash
+}
 
 $migration054 = @(Get-ChildItem db/migrations -File | Where-Object { $_.Name -match '^054_' })
 $migration055Plus = @(Get-ChildItem db/migrations -File | Where-Object {
@@ -84,9 +92,14 @@ if ($migration055Plus.Count -ne 0) {
     $migration055Plus.Count -eq 5 -and
     @($migration055Plus.Name | Sort-Object) -join ',' -eq
       '055_phase27b_notification_projection_foundation.sql,056_phase28_review_reputation.sql,057_phase29_marketing_coupon.sql,058_stage2c2_migration_control.sql,059_tke_cos_object_storage.sql'
+  $expectedCustomerSduiMigrations =
+    $phase29Authorized -and $stage2c2Authorized -and $tkeCosAuthorized -and $customerSduiAuthorized -and
+    $migration055Plus.Count -eq 6 -and
+    @($migration055Plus.Name | Sort-Object) -join ',' -eq
+      '055_phase27b_notification_projection_foundation.sql,056_phase28_review_reputation.sql,057_phase29_marketing_coupon.sql,058_stage2c2_migration_control.sql,059_tke_cos_object_storage.sql,062_customer_sdui_control_plane.sql'
   if (-not $expectedPhase27bMigration -and -not $expectedPhase28Migrations -and
       -not $expectedPhase29Migrations -and -not $expectedStage2c2Migrations -and
-      -not $expectedTkeCosMigrations) {
+      -not $expectedTkeCosMigrations -and -not $expectedCustomerSduiMigrations) {
     throw "Phase27A forbids unauthorized migration 055 or later"
   }
 }

@@ -1,6 +1,3 @@
-# Phase 25 Customer page cards
+# Phase 25 page cards
 
-These cards admit the seven Customer routes to Gates 2 and 3. The liquid-glass
-PNG is the visual authority; existing `@xlb/api-client` bindings remain the
-workflow authority. Screenshots are stored under `../evidence/customer/` using
-the Phase 25 naming convention after browser capture.
+旧顾客端页面卡片已删除。后续顾客端重新设计不得把本目录中历史 Phase 25 说明当作新的页面施工授权或视觉来源。

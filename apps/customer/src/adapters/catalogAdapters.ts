@@ -22,7 +22,7 @@ export interface CatalogCategoryViewModel {
   categoryName: string;
   label: string;
   icon: string;
-  tone: string;
+  toneToken: "customer.color.action";
   examples: string;
 }
 
@@ -42,7 +42,7 @@ export const cityDisplayLabel = (cityCode: CityCode): string => `${cityNameByCod
 const defaultCategoryMeta = {
   label: "服务",
   icon: "🧰",
-  tone: "#b85f2a",
+  toneToken: "customer.color.action" as const,
 };
 
 const fallbackCategoryOrder = [
@@ -156,7 +156,7 @@ export function catalogToHomeCategoryViewModels(catalog: CatalogSnapshot): Catal
     categoryName: category.name,
     label: (category.name.length > 4 ? category.name.slice(0, 4) : category.name) ?? category.name,
     icon: defaultCategoryMeta.icon,
-    tone: defaultCategoryMeta.tone,
+    toneToken: defaultCategoryMeta.toneToken,
     examples: category.items
       .slice(0, 3)
       .map((item) => item.name)

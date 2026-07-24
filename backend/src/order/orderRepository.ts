@@ -1,6 +1,12 @@
 import type { Pool, PoolConnection, RowDataPacket } from "mysql2/promise";
 import type { CityCode } from "@xlb/types";
-import type { Order, OrderPriceSnapshot, OrderStatus } from "@xlb/types";
+import type {
+  CustomerOrderListFilter,
+  CustomerOrderSummary,
+  Order,
+  OrderPriceSnapshot,
+  OrderStatus,
+} from "@xlb/types";
 import type { RequestContext } from "@xlb/types";
 import { RepositoryBase } from "../dal/repositoryBase.js";
 import {
@@ -48,6 +54,28 @@ type FulfillmentStatusRow = RowDataPacket & {
   status: string;
 };
 
+type CustomerOrderSummaryRow = RowDataPacket & {
+  order_id: string;
+  city_code: string;
+  sku_id: string;
+  sku_name: string;
+  quantity: number;
+  unit: string;
+  scheduled_at: Date | string;
+  scheduled_time_slot: string;
+  price_text: string;
+  total_amount: string;
+  currency: string;
+  status: string;
+  created_at: Date | string;
+  updated_at: Date | string;
+};
+
+export interface CustomerOrderListCursor {
+  createdAt: string;
+  orderId: string;
+}
+
 function mapOrder(row: OrderRow): Order {
   const quoteSnapshot =
     typeof row.quote_snapshot === "string"
@@ -80,6 +108,29 @@ function mapOrder(row: OrderRow): Order {
     status: row.status as OrderStatus,
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),
+  };
+}
+
+function toIso(value: Date | string): string {
+  return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
+}
+
+function mapCustomerOrderSummary(row: CustomerOrderSummaryRow): CustomerOrderSummary {
+  return {
+    orderId: row.order_id,
+    cityCode: row.city_code as CityCode,
+    skuId: row.sku_id,
+    skuName: row.sku_name,
+    quantity: Number(row.quantity),
+    unit: row.unit,
+    scheduledAt: toIso(row.scheduled_at),
+    scheduledTimeSlot: row.scheduled_time_slot as CustomerOrderSummary["scheduledTimeSlot"],
+    priceText: row.price_text,
+    totalAmount: Number(row.total_amount),
+    currency: row.currency as "CNY",
+    status: row.status as OrderStatus,
+    createdAt: toIso(row.created_at),
+    updatedAt: toIso(row.updated_at),
   };
 }
 
@@ -245,50 +296,50 @@ export class OrderRepository extends RepositoryBase {
     return rows[0] ? mapOrder(rows[0]) : null;
   }
 
-  async listByCustomer(
+  async listCustomerOrders(
     context: RequestContext,
     cityCode: CityCode,
     customerId: string,
-    cursor: CustomerOrderListPosition | undefined,
+    filter: CustomerOrderListFilter,
     limit: number,
-  ): Promise<Order[]> {
+    cursor?: CustomerOrderListCursor,
+  ): Promise<CustomerOrderSummary[]> {
     this.requireContext(context);
     assertCityScopedContext(context);
-    if (
-      context.appType !== "customer" ||
-      context.role !== "customer" ||
-      context.userId !== customerId ||
-      context.cityCode !== cityCode
-    ) {
-      throw new Error("customer order query scope mismatch");
+    if (context.cityCode !== cityCode || context.userId !== customerId) {
+      throw new Error("customer order list scope mismatch");
     }
 
+    const statusClause = filter === "active"
+      ? "AND orders.status IN ('draft','pending_dispatch','service_completed','pending_payment')"
+      : filter === "completed"
+        ? "AND orders.status = 'paid'"
+        : filter === "cancelled"
+          ? "AND orders.status = 'cancelled'"
+          : "";
     const cursorClause = cursor
       ? "AND (orders.created_at < ? OR (orders.created_at = ? AND orders.order_id < ?))"
       : "";
-    const cursorParams = cursor
-      ? [new Date(cursor.createdAt), new Date(cursor.createdAt), cursor.orderId]
-      : [];
-    const [rows] = await this.pool.query<OrderRow[]>(
-      `SELECT orders.order_id, orders.city_code, orders.customer_id, orders.sku_id,
-              orders.sku_name, orders.quantity, orders.unit,
-              orders.address_province, orders.address_city, orders.address_district,
-              orders.detail_address, orders.contact_name, orders.contact_phone,
-              orders.scheduled_at, orders.scheduled_time_slot,
-              orders.price_rule_id, orders.price_text, orders.price_type,
-              orders.base_price, orders.currency, orders.total_amount,
-              ops.quote_snapshot,
-              orders.status, orders.created_at, orders.updated_at
+    const params: unknown[] = [cityCode, customerId];
+    if (cursor) {
+      const createdAt = new Date(cursor.createdAt);
+      params.push(createdAt, createdAt, cursor.orderId);
+    }
+    params.push(limit);
+
+    const [rows] = await this.pool.query<CustomerOrderSummaryRow[]>(
+      `SELECT orders.order_id,orders.city_code,orders.sku_id,orders.sku_name,
+              orders.quantity,orders.unit,orders.scheduled_at,orders.scheduled_time_slot,
+              orders.price_text,orders.total_amount,orders.currency,orders.status,
+              orders.created_at,orders.updated_at
        FROM orders
-       LEFT JOIN order_price_snapshots ops
-         ON ops.order_id = orders.order_id AND ops.city_code = orders.city_code
        WHERE orders.city_code = ? AND orders.customer_id = ?
-       ${cursorClause}
-       ORDER BY orders.created_at DESC, orders.order_id DESC
+         ${statusClause} ${cursorClause}
+       ORDER BY orders.created_at DESC,orders.order_id DESC
        LIMIT ?`,
-      [cityCode, customerId, ...cursorParams, limit],
+      params,
     );
-    return rows.map(mapOrder);
+    return rows.map(mapCustomerOrderSummary);
   }
 
   async updateStatus(

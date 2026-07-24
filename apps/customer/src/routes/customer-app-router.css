@@ -1,0 +1,32 @@
+.xlb-customer-router-state {
+  min-height: min(70dvh, 42rem);
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 1rem;
+  padding: 1.5rem;
+  overflow-wrap: anywhere;
+}
+
+.xlb-entry-shell[data-shell-state="ready"] {
+  padding: 0;
+  background: transparent;
+}
+
+.xlb-entry-shell[data-shell-state="ready"] > .xlb-entry-surface {
+  gap: 0;
+}
+
+.xlb-entry-shell[data-shell-state="ready"] > .xlb-entry-surface > .xlb-entry-brand {
+  display: none;
+}
+
+.xlb-customer-router-state .xlb-customer-state-panel {
+  width: min(100%, 30rem);
+}
+
+.xlb-entry-shell .xlb-home-shell button,
+.xlb-entry-shell .xlb-home-shell [role="button"] {
+  min-inline-size: 44px;
+  min-block-size: 44px;
+}

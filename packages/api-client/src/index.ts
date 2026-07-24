@@ -8,7 +8,14 @@ export {
   type ResponseValidator,
   type RetryMode,
 } from "./createApiClient.js";
-export { customerApi } from "./customer.js";
+export { customerApi, createCustomerOrderApi } from "./customer.js";
+export { validateCustomerOrderListResponse } from "./responseValidators.js";
+export {
+  createCustomerSduiApi,
+  type CustomerSduiApi,
+  type CustomerSduiManifestCacheEntry,
+  type CustomerSduiManifestReadResult,
+} from "./customerSdui.js";
 export { workerApi } from "./worker.js";
 export {
   createNotificationApi,

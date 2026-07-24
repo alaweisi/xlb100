@@ -1,0 +1,174 @@
+.xlb-payment-shell {
+  box-sizing: border-box;
+  width: min(100%, 540px);
+  min-width: 0;
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: 12px 14px calc(32px + env(safe-area-inset-bottom));
+  overflow-x: clip;
+  color: var(--xlb-text-primary);
+  background:
+    radial-gradient(circle at 94% 0%, var(--xlb-surface-muted), transparent 24rem),
+    var(--xlb-surface-page);
+}
+
+.xlb-payment-header {
+  display: flex;
+  min-width: 0;
+  min-height: 58px;
+  align-items: center;
+  gap: 10px;
+  padding: 0 2px 12px;
+}
+
+.xlb-payment-header > div {
+  min-width: 0;
+}
+
+.xlb-payment-header p,
+.xlb-payment-header h1 {
+  overflow: hidden;
+  margin: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.xlb-payment-header p {
+  color: var(--xlb-text-secondary);
+  font-size: var(--xlb-font-size-xs);
+  font-weight: var(--xlb-font-weight-medium);
+}
+
+.xlb-payment-header h1 {
+  margin-top: 2px;
+  font-size: var(--xlb-font-size-xl);
+  line-height: 1.2;
+}
+
+.xlb-payment-boundary {
+  min-width: 0;
+  border: var(--xlb-stroke-hairline) solid var(--xlb-border-glass-highlight);
+  border-radius: var(--xlb-radius-lg);
+  padding: 16px;
+  background: var(--xlb-surface-panel);
+  box-shadow: var(--xlb-shadow-sm);
+}
+
+.xlb-payment-boundary__flag {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: var(--xlb-stroke-hairline) solid var(--xlb-border-subtle);
+  padding-bottom: 12px;
+}
+
+.xlb-payment-boundary__flag span,
+.xlb-payment-boundary__flag code {
+  overflow-wrap: anywhere;
+  font-size: var(--xlb-font-size-xs);
+}
+
+.xlb-payment-boundary__flag span {
+  border-radius: var(--xlb-radius-pill);
+  padding: 5px 9px;
+  color: var(--xlb-color-brand);
+  background: color-mix(in srgb, var(--xlb-color-brand) 12%, transparent);
+  font-weight: var(--xlb-font-weight-bold);
+}
+
+.xlb-payment-boundary__flag code {
+  color: var(--xlb-text-muted);
+}
+
+.xlb-payment-boundary .xlb-customer-state-panel {
+  margin-top: 12px;
+}
+
+.xlb-payment-boundary__facts {
+  margin-top: 14px;
+  border-radius: var(--xlb-radius-md);
+  padding: 13px;
+  color: var(--xlb-text-secondary);
+  background: var(--xlb-surface-muted);
+}
+
+.xlb-payment-boundary__facts h2 {
+  margin: 0;
+  color: var(--xlb-text-primary);
+  font-size: var(--xlb-font-size-sm);
+}
+
+.xlb-payment-boundary__facts ul {
+  display: grid;
+  gap: 7px;
+  margin: 9px 0 0;
+  padding-left: 20px;
+  font-size: var(--xlb-font-size-sm);
+  line-height: 1.55;
+}
+
+.xlb-payment-actions {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(148px, 0.8fr) minmax(0, 1.2fr);
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+  border-radius: var(--xlb-radius-lg);
+  padding: 13px;
+  background: var(--xlb-surface-glass);
+}
+
+.xlb-payment-actions .xlb-customer-button {
+  width: 100%;
+  min-height: 44px;
+}
+
+.xlb-payment-actions p {
+  min-width: 0;
+  margin: 0;
+  color: var(--xlb-text-secondary);
+  overflow-wrap: anywhere;
+  font-size: var(--xlb-font-size-xs);
+  line-height: 1.55;
+}
+
+.xlb-payment-shell :focus-visible {
+  outline: 0;
+  box-shadow: var(--xlb-shadow-focus);
+}
+
+@media (max-width: 340px) {
+  .xlb-payment-shell {
+    padding-right: 10px;
+    padding-left: 10px;
+  }
+
+  .xlb-payment-boundary {
+    padding: 13px;
+  }
+
+  .xlb-payment-boundary__flag {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .xlb-payment-actions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .xlb-payment-shell {
+    scroll-behavior: auto;
+  }
+}
+
+@media (forced-colors: active) {
+  .xlb-payment-boundary,
+  .xlb-payment-actions {
+    border: 1px solid CanvasText;
+  }
+}

@@ -17,11 +17,11 @@ describe("customer order list API client contract", () => {
   });
 
   it("rejects malformed list envelopes before they reach the customer app", () => {
-    expect(validateCustomerOrderListResponse({ ok: true, orders: [], nextCursor: null }))
-      .toEqual({ ok: true, orders: [], nextCursor: null });
-    expect(() => validateCustomerOrderListResponse({ ok: true, orders: {}, nextCursor: null }))
-      .toThrow(/orders must be an array/i);
-    expect(() => validateCustomerOrderListResponse({ ok: true, orders: [], nextCursor: 1 }))
+    expect(validateCustomerOrderListResponse({ ok: true, items: [], nextCursor: null }))
+      .toEqual({ ok: true, items: [], nextCursor: null });
+    expect(() => validateCustomerOrderListResponse({ ok: true, items: {}, nextCursor: null }))
+      .toThrow(/items/i);
+    expect(() => validateCustomerOrderListResponse({ ok: true, items: [], nextCursor: 1 }))
       .toThrow(/nextCursor/i);
   });
 });

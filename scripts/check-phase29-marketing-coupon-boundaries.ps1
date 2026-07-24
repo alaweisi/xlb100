@@ -29,7 +29,6 @@ $requiredFiles = @(
   'packages/types/src/marketing.ts',
   'packages/validators/src/marketingSchema.ts',
   'packages/api-client/src/marketing.ts',
-  'apps/customer/src/pages/CustomerCouponsPage.tsx',
   'apps/admin/src/pages/MarketingOperationsPage.tsx'
 )
 $requiredFiles | ForEach-Object { Require-File $_ }
@@ -125,7 +124,6 @@ $executionFiles = @(
   'backend/src/marketing',
   'backend/src/order/orderService.ts',
   'packages/api-client/src/marketing.ts',
-  'apps/customer/src/pages/CustomerCouponsPage.tsx',
   'apps/customer/src/adapters/marketingAdapter.ts',
   'apps/admin/src/pages/MarketingOperationsPage.tsx',
   'apps/admin/src/adapters/marketingAdapter.ts'
@@ -209,14 +207,6 @@ foreach ($route in @(
 }
 if ($client -match 'client\.get<CouponGrantListResponse>\(`/api/admin/marketing/coupon-grants') {
   throw 'The accepted Phase29 contract does not expose an Admin coupon-grant list endpoint'
-}
-
-$customerSurface = @(
-  Get-Content -Raw -Encoding UTF8 -LiteralPath 'apps/customer/src/pages/CustomerCouponsPage.tsx'
-  Get-Content -Raw -Encoding UTF8 -LiteralPath 'apps/customer/src/pages/CustomerOrderCreatePage.tsx'
-) -join "`n"
-if ($customerSurface -match '(?i)(grossAmountMinor\s*-|faceValueMinor\s*-|discountAmountMinor\s*[+*/-])') {
-  throw 'Customer UI must not calculate discount or eligibility locally'
 }
 
 Write-Output 'check-phase29-marketing-coupon-boundaries: passed'

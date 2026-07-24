@@ -119,6 +119,15 @@ if (Test-Path -LiteralPath $tkeCosMigrationPath) {
     $expectedPhase28Migrations += '059_tke_cos_object_storage.sql'
   }
 }
+$customerSduiMigrationPath = 'db/migrations/062_customer_sdui_control_plane.sql'
+$customerSduiSourceCommit = '3f24cf515077638e03f88ed86c189f606b335026'
+if (Test-Path -LiteralPath $customerSduiMigrationPath) {
+  $customerSduiHash = (git hash-object -- $customerSduiMigrationPath).Trim()
+  $lockedCustomerSduiHash = (git rev-parse "${customerSduiSourceCommit}:$customerSduiMigrationPath" 2>$null).Trim()
+  if ($LASTEXITCODE -eq 0 -and $customerSduiHash -eq $lockedCustomerSduiHash) {
+    $expectedPhase28Migrations += '062_customer_sdui_control_plane.sql'
+  }
+}
 $actualMigrationNames = @($laterMigrations.Name | Sort-Object) -join ','
 $expectedMigrationNames = @($expectedPhase28Migrations | Sort-Object) -join ','
 if ($laterMigrations.Count -ne $expectedPhase28Migrations.Count -or

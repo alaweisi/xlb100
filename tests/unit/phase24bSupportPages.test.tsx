@@ -3,7 +3,6 @@ import React from "react";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SupportTicket, SupportTicketDetailResponse, SupportTicketEvent } from "@xlb/types";
-import { CustomerSupportPage } from "../../apps/customer/src/pages/CustomerSupportPage";
 import { WorkerSupportPage } from "../../apps/worker/src/pages/WorkerSupportPage";
 
 const adminApi = vi.hoisted(() => ({
@@ -51,46 +50,6 @@ describe("Phase 24B support pages", () => {
     }) });
     adminApi.listSupportTickets.mockResolvedValue({ ok: true, tickets: [ticket()], nextCursor: null });
     adminApi.getSupportTicket.mockResolvedValue(detail());
-  });
-
-  it("Customer submits through the API and shows success only after backend confirmation", async () => {
-    let confirmCreate!: (value: { ok: true; ticket: SupportTicket }) => void;
-    const createTicket = vi.fn(() => new Promise<{ ok: true; ticket: SupportTicket }>(resolve => { confirmCreate = resolve; }));
-    const api = {
-      createTicket,
-      listTickets: vi.fn().mockResolvedValue({ ok: true, tickets: [ticket()], nextCursor: null }),
-      getTicket: vi.fn().mockResolvedValue(detail()),
-      addComment: vi.fn(), reopenTicket: vi.fn(),
-    };
-    render(<CustomerSupportPage api={api} />);
-    await waitFor(() => expect(api.listTickets).toHaveBeenCalledTimes(1));
-    fireEvent.change(screen.getByLabelText("问题标题"), { target: { value: "Need order help" } });
-    fireEvent.change(screen.getByLabelText("问题描述"), { target: { value: "The order timeline is unclear" } });
-    fireEvent.click(screen.getByRole("button", { name: "提交问题" }));
-
-    expect(createTicket).toHaveBeenCalledWith(expect.objectContaining({
-      type: "order_question", priority: "normal", subject: "Need order help",
-      description: "The order timeline is unclear", idempotencyKey: expect.stringMatching(/^customer-ticket-/),
-    }));
-    expect(screen.queryByText("客服工单已创建")).toBeNull();
-    confirmCreate({ ok: true, ticket: ticket() });
-    expect(await screen.findByText("客服工单已创建")).toBeTruthy();
-    expect(api.getTicket).toHaveBeenCalledWith("ticket-phase24b");
-  });
-
-  it("Customer reports a rejected create and never renders a UI-only success", async () => {
-    const api = {
-      createTicket: vi.fn().mockRejectedValue(new Error("API POST failed: 409")),
-      listTickets: vi.fn().mockResolvedValue({ ok: true, tickets: [], nextCursor: null }),
-      getTicket: vi.fn(), addComment: vi.fn(), reopenTicket: vi.fn(),
-    };
-    render(<CustomerSupportPage api={api} />);
-    await screen.findByText("暂无客服工单");
-    fireEvent.change(screen.getByLabelText("问题标题"), { target: { value: "Duplicate issue" } });
-    fireEvent.change(screen.getByLabelText("问题描述"), { target: { value: "This must be rejected by API" } });
-    fireEvent.click(screen.getByRole("button", { name: "提交问题" }));
-    expect(await screen.findByText("API POST failed: 409")).toBeTruthy();
-    expect(screen.queryByText("客服工单已创建")).toBeNull();
   });
 
   it("Worker opens its ticket and sends a requester-visible message through the API", async () => {

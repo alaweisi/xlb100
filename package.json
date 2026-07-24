@@ -62,6 +62,7 @@
     "test:e2e:phase28": "playwright test --config playwright.phase28.config.ts",
     "test:migration:phase28": "node scripts/run-phase28-migration-gate.mjs",
     "test:migration:phase29": "node scripts/run-phase29-migration-gate.mjs",
+    "test:migration:customer-sdui": "node scripts/run-customer-sdui-migration-gate.mjs",
     "test:e2e:phase29": "playwright test --config playwright.phase29.config.ts",
     "test:entry:phase29": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-phase29-entry-boundaries.ps1",
     "test:boundary:phase29": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-phase29-marketing-coupon-boundaries.ps1",

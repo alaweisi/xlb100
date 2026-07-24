@@ -13,10 +13,12 @@ export const orderStatusSchema = z.enum([
 ]);
 
 export const scheduledTimeSlotSchema = z.enum(["morning", "afternoon", "evening"]);
+export const customerOrderListFilterSchema = z.enum(["all", "active", "completed", "cancelled"]);
 
 export const customerOrderListQuerySchema = z.object({
-  cursor: z.string().min(1).max(2_048).regex(/^[A-Za-z0-9_-]+$/).optional(),
+  cursor: z.string().trim().min(1).max(512).regex(/^[A-Za-z0-9_-]+$/).optional(),
   limit: z.number().int().min(1).max(50).optional(),
+  filter: customerOrderListFilterSchema.optional(),
 }).strict();
 
 export const createOrderSchema = z.object({
@@ -111,6 +113,31 @@ export const orderSchema = z.object({
   updatedAt: z.string().min(1),
 });
 
+export const customerOrderSummarySchema = z.object({
+  orderId: z.string().min(1).max(64),
+  cityCode: cityCodeSchema,
+  skuId: z.string().min(1).max(128),
+  skuName: z.string().min(1).max(255),
+  quantity: z.number().int().min(1),
+  unit: z.string().min(1).max(64),
+  scheduledAt: z.string().datetime({ offset: true }),
+  scheduledTimeSlot: scheduledTimeSlotSchema,
+  priceText: z.string().min(1).max(255),
+  totalAmount: z.number().nonnegative(),
+  currency: z.literal("CNY"),
+  status: orderStatusSchema,
+  createdAt: z.string().datetime({ offset: true }),
+  updatedAt: z.string().datetime({ offset: true }),
+}).strict();
+
+export const customerOrderListResponseSchema = z.object({
+  ok: z.literal(true),
+  items: z.array(customerOrderSummarySchema).max(50),
+  nextCursor: z.string().min(1).max(512).regex(/^[A-Za-z0-9_-]+$/).nullable(),
+}).strict();
+
 export type CreateOrderInput = z.infer<typeof createOrderSchema>;
-export type CustomerOrderListQueryInput = z.infer<typeof customerOrderListQuerySchema>;
 export type OrderInput = z.infer<typeof orderSchema>;
+export type CustomerOrderListQueryInput = z.infer<typeof customerOrderListQuerySchema>;
+export type CustomerOrderSummaryInput = z.infer<typeof customerOrderSummarySchema>;
+export type CustomerOrderListResponseInput = z.infer<typeof customerOrderListResponseSchema>;

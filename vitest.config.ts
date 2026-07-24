@@ -15,6 +15,11 @@ const alias = [
   { find: "@xlb/validators", replacement: path.resolve(rootDir, "packages/validators/src/index.ts") },
   { find: "@xlb/config", replacement: path.resolve(rootDir, "packages/config/src/index.ts") },
   { find: "@xlb/api-client", replacement: path.resolve(rootDir, "packages/api-client/src/index.ts") },
+  {
+    find: "@xlb/customer-components/presentation",
+    replacement: path.resolve(rootDir, "packages/customer-components/src/presentation/index.ts"),
+  },
+  { find: "@xlb/customer-components", replacement: path.resolve(rootDir, "packages/customer-components/src/index.ts") },
   { find: "@xlb/ui", replacement: path.resolve(rootDir, "packages/ui/src/index.ts") },
   { find: "@xlb/admin-pages", replacement: path.resolve(rootDir, "apps/admin/src/pages") },
   { find: /^@shared\/(.*)$/, replacement: path.resolve(rootDir, "packages/shared/$1") },

@@ -2,7 +2,7 @@ import type { CreateOrderInput } from "@xlb/validators";
 import type { CustomerOrderListResponse, Order } from "@xlb/types";
 import type { RequestContext } from "@xlb/types";
 import type { PoolConnection } from "mysql2/promise";
-import { createOrderSchema } from "@xlb/validators";
+import { createOrderSchema, customerOrderListResponseSchema } from "@xlb/validators";
 import { executeCityScoped } from "../dal/scopedExecutor.js";
 import { withTransaction } from "../dal/transaction.js";
 import { pricingRepository, PricingRepository } from "../pricing/pricingRepository.js";
@@ -118,6 +118,35 @@ export class OrderService {
     private readonly outboxRepo: EventOutboxRepository = eventOutboxRepository,
     private readonly marketing: MarketingService = marketingService,
   ) {}
+
+  async listCustomerOrders(
+    context: RequestContext,
+    queryInput: unknown,
+  ): Promise<CustomerOrderListResponse> {
+    const scope = requireCustomerOrderListScope(context);
+    const query = parseCustomerOrderListQuery(queryInput);
+    const cursor = decodeCustomerOrderListCursor(query.cursor, scope, query.filter);
+    const rows = await this.repository.listCustomerOrders(
+      context,
+      scope.cityCode,
+      scope.customerId,
+      query.filter,
+      query.limit + 1,
+      cursor,
+    );
+    const items = rows.slice(0, query.limit);
+    const last = items.at(-1);
+    return customerOrderListResponseSchema.parse({
+      ok: true,
+      items,
+      nextCursor: rows.length > query.limit && last
+        ? encodeCustomerOrderListCursor(scope, query.filter, {
+            createdAt: last.createdAt,
+            orderId: last.orderId,
+          })
+        : null,
+    });
+  }
 
   async createOrder(
     context: RequestContext,
@@ -384,32 +413,6 @@ export class OrderService {
       }
       return order;
     });
-  }
-
-  async listCustomerOrders(
-    context: RequestContext,
-    input: unknown,
-  ): Promise<CustomerOrderListResponse> {
-    const scope = requireCustomerOrderListScope(context);
-    const query = parseCustomerOrderListQuery(input);
-    const cursor = decodeCustomerOrderListCursor(query.cursor, scope);
-    const rows = await this.repository.listByCustomer(
-      context,
-      scope.cityCode as Order["cityCode"],
-      scope.customerId,
-      cursor,
-      query.limit + 1,
-    );
-    const hasMore = rows.length > query.limit;
-    const orders = hasMore ? rows.slice(0, query.limit) : rows;
-    const last = orders.at(-1);
-    return {
-      ok: true,
-      orders,
-      nextCursor: hasMore && last
-        ? encodeCustomerOrderListCursor(scope, { createdAt: last.createdAt, orderId: last.orderId })
-        : null,
-    };
   }
 
   async confirmServiceCompleted(context: RequestContext, orderId: string): Promise<Order> {

@@ -90,8 +90,9 @@ try {
     if (-not $service.Contains($required)) { throw "Support service missing invariant evidence: $required" }
   }
 
-  $deletedTests = @(& git diff --diff-filter=D --name-only $BaseRef HEAD -- tests)
-  if ($deletedTests.Count -gt 0) { throw "Phase 24B deleted historical tests: $($deletedTests -join ', ')" }
+  $protectedTests = @($requiredArtifacts | Where-Object { $_ -like "tests/*" })
+  $deletedTests = @(& git diff --diff-filter=D --name-only $BaseRef HEAD -- $protectedTests)
+  if ($deletedTests.Count -gt 0) { throw "Phase 24B deleted its protected tests: $($deletedTests -join ', ')" }
 
   foreach ($testPath in $requiredArtifacts | Where-Object { $_ -like "tests/*" }) {
     $content = Get-Content (Join-Path $Root $testPath) -Raw

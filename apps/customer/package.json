@@ -13,8 +13,10 @@
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",
     "@xlb/api-client": "workspace:*",
+    "@xlb/customer-components": "workspace:*",
     "@xlb/types": "workspace:*",
     "@xlb/ui": "workspace:*",
+    "@xlb/validators": "workspace:*",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

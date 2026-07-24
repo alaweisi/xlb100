@@ -1,0 +1,505 @@
+.xlb-address-shell {
+  box-sizing: border-box;
+  min-height: 100dvh;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 16px 16px calc(36px + env(safe-area-inset-bottom));
+  color: var(--xlb-text-primary);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(255, 255, 255, 0.72), transparent 34%),
+    var(--xlb-surface-page);
+}
+
+.xlb-address-header {
+  display: grid;
+  min-height: 56px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 0 2px 16px;
+}
+
+.xlb-address-header__copy {
+  min-width: 0;
+}
+
+.xlb-address-header__copy p,
+.xlb-address-header__copy h1 {
+  margin: 0;
+}
+
+.xlb-address-header__copy p {
+  color: var(--xlb-text-secondary);
+  font-size: var(--xlb-font-size-sm);
+}
+
+.xlb-address-header__copy h1 {
+  overflow: hidden;
+  margin-top: 2px;
+  font-size: clamp(24px, 7vw, 30px);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.xlb-address-header__copy .xlb-brand-logo + h1 {
+  margin-top: 3px;
+  font-size: var(--xlb-font-size-xl);
+}
+
+.xlb-address-header__back {
+  min-width: 52px;
+  min-height: 44px;
+  border: 0;
+  border-radius: var(--xlb-radius-pill);
+  padding: 0 12px;
+  color: var(--xlb-text-link);
+  background: rgba(255, 255, 255, 0.48);
+  font: inherit;
+  font-weight: var(--xlb-font-weight-medium);
+  cursor: pointer;
+}
+
+.xlb-address-header__add {
+  min-width: 68px;
+}
+
+.xlb-address-header__spacer {
+  width: 52px;
+}
+
+.xlb-address-header__back:focus-visible,
+.xlb-address-feedback button:focus-visible,
+.xlb-address-field input:focus-visible,
+.xlb-address-field textarea:focus-visible,
+.xlb-address-default input:focus-visible {
+  outline: 0;
+  box-shadow: var(--xlb-shadow-focus);
+}
+
+.xlb-address-scope {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px 10px;
+  border: 1px solid var(--xlb-border-glass-highlight);
+  border-radius: var(--xlb-radius-lg);
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.48);
+}
+
+.xlb-address-scope strong {
+  font-size: var(--xlb-font-size-sm);
+}
+
+.xlb-address-scope > span {
+  max-width: 148px;
+  overflow: hidden;
+  border-radius: var(--xlb-radius-pill);
+  padding: 3px 9px;
+  color: var(--xlb-text-link);
+  background: rgba(255, 106, 0, 0.08);
+  font-size: var(--xlb-font-size-xs);
+  font-weight: var(--xlb-font-weight-bold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.xlb-address-scope p {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--xlb-text-secondary);
+  font-size: var(--xlb-font-size-xs);
+  line-height: 1.55;
+}
+
+.xlb-address-feedback {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 12px;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  border-radius: var(--xlb-radius-md);
+  padding: 8px 10px 8px 14px;
+  background: var(--xlb-surface-panel);
+  font-size: var(--xlb-font-size-sm);
+  line-height: 1.5;
+}
+
+.xlb-address-feedback[data-kind="success"] {
+  color: var(--xlb-color-success);
+}
+
+.xlb-address-feedback[data-kind="error"],
+.xlb-address-feedback[data-kind="conflict"] {
+  color: var(--xlb-color-warning);
+}
+
+.xlb-address-feedback button {
+  flex: 0 0 auto;
+  min-width: 44px;
+  min-height: 44px;
+  border: 0;
+  border-radius: var(--xlb-radius-pill);
+  color: currentColor;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
+.xlb-address-list {
+  margin-top: 24px;
+}
+
+.xlb-address-list--empty {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  border-radius: var(--xlb-radius-lg);
+  padding: 22px;
+  background: var(--xlb-surface-panel);
+}
+
+.xlb-address-list--empty h2,
+.xlb-address-list--empty p {
+  margin: 0;
+}
+
+.xlb-address-list--empty p {
+  color: var(--xlb-text-secondary);
+  line-height: 1.55;
+}
+
+.xlb-address-list__heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.xlb-address-list__heading h2,
+.xlb-address-list__heading p {
+  margin: 0;
+}
+
+.xlb-address-list__heading h2 {
+  font-size: var(--xlb-font-size-xl);
+}
+
+.xlb-address-list__heading p,
+.xlb-address-list__heading > span {
+  margin-top: 3px;
+  color: var(--xlb-text-secondary);
+  font-size: var(--xlb-font-size-sm);
+}
+
+.xlb-address-list ul {
+  display: grid;
+  gap: 12px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.xlb-address-list li {
+  display: grid;
+  gap: 14px;
+  border: 1px solid var(--xlb-border-glass-highlight);
+  border-radius: var(--xlb-radius-lg);
+  padding: 17px;
+  background: var(--xlb-surface-panel);
+  box-shadow: var(--xlb-shadow-sm);
+}
+
+.xlb-address-list li[data-default="true"] {
+  border-color: rgba(255, 106, 0, 0.32);
+}
+
+.xlb-address-list li[data-city-mismatch="true"] {
+  opacity: 0.72;
+}
+
+.xlb-address-card__identity {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+
+.xlb-address-card__identity strong {
+  font-size: var(--xlb-font-size-lg);
+}
+
+.xlb-address-card__identity span {
+  color: var(--xlb-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.xlb-address-card__identity em {
+  border-radius: var(--xlb-radius-pill);
+  padding: 2px 8px;
+  color: var(--xlb-text-inverse);
+  background: var(--xlb-color-accent);
+  font-size: var(--xlb-font-size-xs);
+  font-style: normal;
+  font-weight: var(--xlb-font-weight-bold);
+}
+
+.xlb-address-card__summary address {
+  display: grid;
+  gap: 2px;
+  margin-top: 9px;
+  color: var(--xlb-text-secondary);
+  font-size: var(--xlb-font-size-sm);
+  font-style: normal;
+  line-height: 1.55;
+}
+
+.xlb-address-card__summary address span {
+  color: var(--xlb-text-primary);
+  font-size: var(--xlb-font-size-md);
+  overflow-wrap: anywhere;
+}
+
+.xlb-address-card__mismatch {
+  margin: 8px 0 0;
+  color: var(--xlb-color-warning);
+  font-size: var(--xlb-font-size-sm);
+}
+
+.xlb-address-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+  border-top: 1px solid var(--xlb-border-subtle);
+  padding-top: 12px;
+}
+
+.xlb-address-form {
+  display: grid;
+  gap: 16px;
+  margin-top: 20px;
+  border: 1px solid var(--xlb-border-glass-highlight);
+  border-radius: var(--xlb-radius-xl);
+  padding: 18px;
+  background: var(--xlb-surface-panel);
+  box-shadow: var(--xlb-shadow-sm);
+}
+
+.xlb-address-form__intro h2,
+.xlb-address-form__intro p {
+  margin: 0;
+}
+
+.xlb-address-form__intro h2 {
+  font-size: var(--xlb-font-size-xl);
+}
+
+.xlb-address-form__intro p {
+  margin-top: 4px;
+  color: var(--xlb-text-secondary);
+  font-size: var(--xlb-font-size-sm);
+}
+
+.xlb-address-field {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  color: var(--xlb-text-primary);
+  font-size: var(--xlb-font-size-sm);
+  font-weight: var(--xlb-font-weight-medium);
+}
+
+.xlb-address-field input,
+.xlb-address-field textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--xlb-border-subtle);
+  border-radius: var(--xlb-radius-md);
+  padding: 11px 12px;
+  color: var(--xlb-text-primary);
+  background: var(--xlb-surface-page);
+  font: inherit;
+  font-size: var(--xlb-font-size-md);
+}
+
+.xlb-address-field input {
+  min-height: 48px;
+}
+
+.xlb-address-field textarea {
+  min-height: 104px;
+  resize: vertical;
+}
+
+.xlb-address-field input[aria-invalid="true"],
+.xlb-address-field textarea[aria-invalid="true"] {
+  border-color: var(--xlb-color-danger);
+}
+
+.xlb-address-field small,
+.xlb-address-form__error {
+  margin: 0;
+  color: var(--xlb-color-danger);
+  font-size: var(--xlb-font-size-xs);
+  font-weight: var(--xlb-font-weight-medium);
+}
+
+.xlb-address-form__region {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.xlb-address-form__phone-note {
+  margin: -8px 0 0;
+  color: var(--xlb-text-secondary);
+  font-size: var(--xlb-font-size-xs);
+  line-height: 1.55;
+}
+
+.xlb-address-default {
+  display: grid;
+  min-height: 44px;
+  grid-template-columns: 24px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.xlb-address-default input {
+  width: 22px;
+  height: 22px;
+  accent-color: var(--xlb-color-accent);
+}
+
+.xlb-address-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.xlb-address-form__actions .xlb-customer-button {
+  flex: 1 1 140px;
+}
+
+.xlb-address-state {
+  margin-top: 12px;
+}
+
+.xlb-address-dialog-backdrop {
+  position: fixed;
+  z-index: 20;
+  inset: 0;
+  display: grid;
+  align-items: end;
+  padding: 16px;
+  background: rgba(31, 45, 45, 0.32);
+}
+
+.xlb-address-dialog {
+  box-sizing: border-box;
+  width: min(100%, 520px);
+  margin: 0 auto;
+  border: 1px solid var(--xlb-border-glass-highlight);
+  border-radius: var(--xlb-radius-xl);
+  padding: 20px;
+  color: var(--xlb-text-primary);
+  background: var(--xlb-surface-panel);
+  box-shadow: var(--xlb-shadow-lg);
+}
+
+.xlb-address-dialog h2,
+.xlb-address-dialog p {
+  margin: 0;
+}
+
+.xlb-address-dialog h2 {
+  margin-top: 4px;
+  font-size: var(--xlb-font-size-xl);
+}
+
+.xlb-address-dialog p:not(.xlb-address-dialog__eyebrow) {
+  margin-top: 10px;
+  color: var(--xlb-text-secondary);
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.xlb-address-dialog__eyebrow {
+  color: var(--xlb-color-accent);
+  font-size: var(--xlb-font-size-sm);
+  font-weight: var(--xlb-font-weight-bold);
+}
+
+.xlb-address-dialog__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+@media (min-width: 640px) {
+  .xlb-address-shell {
+    padding-right: 24px;
+    padding-left: 24px;
+  }
+
+  .xlb-address-list ul {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 420px) {
+  .xlb-address-form__region {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 340px) {
+  .xlb-address-shell {
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+
+  .xlb-address-header {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 6px;
+  }
+
+  .xlb-address-header__back {
+    min-width: 46px;
+    padding: 0 8px;
+  }
+
+  .xlb-address-header__add {
+    min-width: 58px;
+    padding-right: 10px;
+    padding-left: 10px;
+  }
+
+  .xlb-address-card__actions .xlb-customer-button {
+    flex: 1 1 70px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .xlb-address-dialog-backdrop {
+    scroll-behavior: auto;
+  }
+}
+
+@media (forced-colors: active) {
+  .xlb-address-scope,
+  .xlb-address-list li,
+  .xlb-address-form,
+  .xlb-address-field input,
+  .xlb-address-field textarea,
+  .xlb-address-dialog {
+    border: 1px solid CanvasText;
+  }
+}

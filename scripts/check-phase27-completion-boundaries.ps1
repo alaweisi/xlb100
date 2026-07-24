@@ -59,6 +59,15 @@ if (Test-Path -LiteralPath $tkeCosMigrationPath) {
     $expectedMigrations += '059_tke_cos_object_storage.sql'
   }
 }
+$customerSduiMigrationPath = 'db/migrations/062_customer_sdui_control_plane.sql'
+$customerSduiSourceCommit = '3f24cf515077638e03f88ed86c189f606b335026'
+if (Test-Path -LiteralPath $customerSduiMigrationPath) {
+  $customerSduiHash = (git hash-object -- $customerSduiMigrationPath).Trim()
+  $lockedCustomerSduiHash = (git rev-parse "${customerSduiSourceCommit}:$customerSduiMigrationPath" 2>$null).Trim()
+  if ($LASTEXITCODE -eq 0 -and $customerSduiHash -eq $lockedCustomerSduiHash) {
+    $expectedMigrations += '062_customer_sdui_control_plane.sql'
+  }
+}
 if ($migrations.Count -ne $expectedMigrations.Count) {
   throw "Phase27 completion migration ledger contains an unauthorized 054+ migration"
 }

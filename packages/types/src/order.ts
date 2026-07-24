@@ -10,6 +10,7 @@ export type OrderStatus =
   | "paid"
   | "cancelled";
 export type ScheduledTimeSlot = "morning" | "afternoon" | "evening";
+export type CustomerOrderListFilter = "all" | "active" | "completed" | "cancelled";
 
 export interface Order {
   orderId: string;
@@ -37,17 +38,6 @@ export interface Order {
   status: OrderStatus;
   createdAt: string;
   updatedAt: string;
-}
-
-export interface CustomerOrderListQuery {
-  cursor?: string;
-  limit?: number;
-}
-
-export interface CustomerOrderListResponse {
-  ok: true;
-  orders: Order[];
-  nextCursor: string | null;
 }
 
 export interface OrderPriceSnapshot {
@@ -83,4 +73,37 @@ export interface OrderPriceSnapshot {
     expiresAt: string;
     acceptedAt: string;
   } | null;
+}
+
+/**
+ * Customer-owned order-center projection. Identity, contact/address details,
+ * pricing internals and the full quote snapshot are intentionally excluded.
+ */
+export interface CustomerOrderSummary {
+  orderId: string;
+  cityCode: CityCode;
+  skuId: string;
+  skuName: string;
+  quantity: number;
+  unit: string;
+  scheduledAt: string;
+  scheduledTimeSlot: ScheduledTimeSlot;
+  priceText: string;
+  totalAmount: number;
+  currency: "CNY";
+  status: OrderStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CustomerOrderListQuery {
+  cursor?: string;
+  limit?: number;
+  filter?: CustomerOrderListFilter;
+}
+
+export interface CustomerOrderListResponse {
+  ok: true;
+  items: CustomerOrderSummary[];
+  nextCursor: string | null;
 }
