@@ -9,6 +9,7 @@ import {
   type DebugLoginOtpResult,
 } from "./otpService.js";
 import { hashPhoneIdentity, validateMainlandPhone } from "./phoneIdentity.js";
+import { oaIdentityService } from "../oa/oaIdentityService.js";
 
 // Fixed-code login has been removed. Each login now uses a random,
 // one-time Redis OTP with TTL and attempt limits.
@@ -16,7 +17,7 @@ import { hashPhoneIdentity, validateMainlandPhone } from "./phoneIdentity.js";
 // remains blocked until legal entity, credentials and production activation.
 
 async function deliverMockLoginCode(
-  scope: "customer" | "admin" | "worker",
+  scope: "customer" | "admin" | "worker" | "oa",
   recipient: string,
   code: string,
   expiresAt: string,
@@ -166,6 +167,25 @@ export async function requestWorkerLoginCode(
   };
 }
 
+export async function requestOaLoginCode(
+  username: string,
+): Promise<LoginCodeRequestResult | AuthError> {
+  const usernameResult = validateUsername(username);
+  if (!usernameResult.ok) return usernameResult;
+  const profile = await oaIdentityService.findLoginProfile(username);
+  const issued = await issueLoginOtp("oa", username);
+  if (!issued.ok) return issued;
+  if (profile) {
+    await deliverMockLoginCode("oa", username, issued.code, issued.expiresAt);
+  }
+  return {
+    ok: true,
+    expiresAt: issued.expiresAt,
+    ttlSeconds: issued.ttlSeconds,
+    attemptsLeft: issued.attemptsLeft,
+  };
+}
+
 export function debugCustomerLoginCode(phone: string): Promise<DebugLoginOtpResult> {
   return readDebugLoginOtp("customer", phone);
 }
@@ -176,6 +196,10 @@ export function debugAdminLoginCode(username: string): Promise<DebugLoginOtpResu
 
 export function debugWorkerLoginCode(phone: string): Promise<DebugLoginOtpResult> {
   return readDebugLoginOtp("worker", phone);
+}
+
+export function debugOaLoginCode(username: string): Promise<DebugLoginOtpResult> {
+  return readDebugLoginOtp("oa", username);
 }
 
 export async function customerLogin(
@@ -232,6 +256,41 @@ export async function workerLogin(
 
   const token = createToken(worker.id, "worker", "worker");
   return { ok: true, token, userId: worker.id, role: "worker" };
+}
+
+export async function oaLogin(
+  username: string,
+  code: string,
+  deviceSummary?: string,
+): Promise<(LoginResult & {
+  sessionId: string;
+  membershipId: string;
+  organizationId: string;
+  organizationName: string;
+  organizationType: string;
+  expiresAt: string;
+}) | AuthError> {
+  const usernameResult = validateUsername(username);
+  if (!usernameResult.ok) return usernameResult;
+  const otp = await verifyLoginOtp("oa", username, code);
+  if (!otp.ok) return otp;
+  const profile = await oaIdentityService.findLoginProfile(username);
+  if (!profile) {
+    return { ok: false, error: "invalid OA credentials", statusCode: 401 };
+  }
+  const session = await oaIdentityService.createSession(profile, deviceSummary);
+  return {
+    ok: true,
+    token: session.token,
+    userId: session.userId,
+    role: session.legacyRole,
+    sessionId: session.sessionId,
+    membershipId: session.membershipId,
+    organizationId: session.organizationId,
+    organizationName: session.organizationName,
+    organizationType: session.organizationType,
+    expiresAt: session.expiresAt,
+  };
 }
 
 export { createToken, verifyToken };

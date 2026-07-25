@@ -1,6 +1,7 @@
 import type { AppType } from "./app.js";
 import type { CityCode } from "./city.js";
 import type { Role } from "./rbac.js";
+import type { OaBackofficeContext } from "./oa.js";
 
 export interface RequestContext {
   traceId: string;
@@ -11,4 +12,5 @@ export interface RequestContext {
   requestStartedAt: string;
   requestId?: string;
   correlationId?: string;
+  backoffice?: OaBackofficeContext;
 }

@@ -7,9 +7,12 @@ import {
   debugAdminLoginCode,
   debugCustomerLoginCode,
   debugWorkerLoginCode,
+  debugOaLoginCode,
   requestAdminLoginCode,
   requestCustomerLoginCode,
   requestWorkerLoginCode,
+  requestOaLoginCode,
+  oaLogin,
   workerLogin,
 } from "./authService.js";
 
@@ -43,6 +46,47 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       return result;
     },
   );
+
+  app.post(
+    "/api/auth/oa/code",
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const body = (request.body ?? {}) as LoginBody;
+      const result = await requestOaLoginCode(body.username ?? "");
+      if (!result.ok) return sendError(reply, result);
+      request.log.info({
+        securityEvent: "otp_issued",
+        authScope: "oa",
+        identityRef: hashAuthAuditIdentity("oa", body.username ?? ""),
+        expiresAt: result.expiresAt,
+      }, "OA login OTP issued");
+      return result;
+    },
+  );
+
+  app.post(
+    "/api/auth/oa/login",
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const body = (request.body ?? {}) as LoginBody;
+      const deviceSummary = typeof request.headers["user-agent"] === "string"
+        ? request.headers["user-agent"]
+        : undefined;
+      const result = await oaLogin(body.username ?? "", body.code ?? "", deviceSummary);
+      if (!result.ok) return sendError(reply, result);
+      return result;
+    },
+  );
+
+  if (registerDebugRoutes) {
+    app.get(
+      "/api/auth/oa/debug-code",
+      async (request: FastifyRequest, reply: FastifyReply) => {
+        const query = (request.query ?? {}) as { username?: string };
+        const result = await debugOaLoginCode(query.username ?? "");
+        if (!result.ok) return sendError(reply, result);
+        return result;
+      },
+    );
+  }
 
   app.post(
     "/api/auth/customer/login",

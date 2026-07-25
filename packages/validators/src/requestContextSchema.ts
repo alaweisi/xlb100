@@ -26,6 +26,13 @@ export const requestContextSchema = z.object({
   requestStartedAt: z.string().datetime(),
   requestId: z.string().optional(),
   correlationId: z.string().optional(),
+  backoffice: z.object({
+    sessionId: z.string().min(1).max(64),
+    tokenJti: z.string().uuid(),
+    membershipId: z.string().min(1).max(64),
+    organizationId: z.string().min(1).max(64),
+    authzVersion: z.number().int().nonnegative(),
+  }).strict().optional(),
 });
 
 export type RequestContextInput = z.infer<typeof requestContextSchema>;

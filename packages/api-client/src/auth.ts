@@ -10,6 +10,15 @@ export interface LoginResponse {
   role: string;
 }
 
+export interface OaLoginResponse extends LoginResponse {
+  sessionId: string;
+  membershipId: string;
+  organizationId: string;
+  organizationName: string;
+  organizationType: "headquarters" | "branch";
+  expiresAt: string;
+}
+
 export interface LoginError {
   ok: false;
   error: string;
@@ -66,6 +75,50 @@ export function createAuthApi(client: ApiClient) {
     getWorkerDebugCode(phone: string) {
       return client.get<DebugLoginCodeResponse | LoginError>(
         `/api/auth/worker/debug-code?${new URLSearchParams({ phone }).toString()}`,
+      );
+    },
+    requestOaLoginCode(username: string) {
+      return client.post<LoginCodeResponse | LoginError>(
+        "/api/auth/oa/code",
+        { username },
+        { validate: validateLoginCodeResponse },
+      );
+    },
+    oaLogin(username: string, code: string) {
+      return client.post<OaLoginResponse | LoginError>(
+        "/api/auth/oa/login",
+        { username, code },
+        {
+          validate: (value) => {
+            const common = validateLoginResponse(value);
+            if (!common.ok) return common;
+            if (typeof value !== "object" || value === null) {
+              throw new TypeError("OA login response must be an object");
+            }
+            const response = value as Record<string, unknown>;
+            for (const key of [
+              "sessionId",
+              "membershipId",
+              "organizationId",
+              "organizationName",
+              "organizationType",
+              "expiresAt",
+            ]) {
+              if (typeof response[key] !== "string" || response[key] === "") {
+                throw new TypeError(`OA login response.${key} must be a non-empty string`);
+              }
+            }
+            if (response.organizationType !== "headquarters" && response.organizationType !== "branch") {
+              throw new TypeError("OA login response.organizationType is unsupported");
+            }
+            return value as OaLoginResponse;
+          },
+        },
+      );
+    },
+    getOaDebugCode(username: string) {
+      return client.get<DebugLoginCodeResponse | LoginError>(
+        `/api/auth/oa/debug-code?${new URLSearchParams({ username }).toString()}`,
       );
     },
   };

@@ -14,6 +14,7 @@ import {
   recordJobRun,
   recordOutboxLeasesReaped,
 } from "../observability/metrics.js";
+import { oaActivityProjectionService } from "../oa/oaActivityProjectionService.js";
 import { settlementPreparationService } from "../settlement/settlementPreparationService.js";
 import { supportSlaBreachService } from "../support/ticket/supportSlaBreachService.js";
 import {
@@ -38,7 +39,8 @@ export type AutoRunStep =
   | "dispatch.match"
   | "ledger"
   | "settlement.prepare"
-  | "support.sla";
+  | "support.sla"
+  | "oa.activity";
 
 type AutoRunIntervalHandle = ReturnType<typeof setInterval>;
 
@@ -53,6 +55,7 @@ export type AutoRunDependencies = {
   runLedger: (context: RequestContext) => Promise<{ processed: number }>;
   prepareSettlement: (context: RequestContext) => Promise<{ processed: number }>;
   runSupportSla: (context: RequestContext, cityCode: CityCode) => Promise<{ processed: number }>;
+  runOaActivity: (cityCode: CityCode) => Promise<{ processed: number }>;
   collectReliabilitySnapshot: (cityCodes: readonly string[]) => Promise<DataReliabilitySnapshot>;
   publishReliabilitySnapshot: (snapshot: DataReliabilitySnapshot) => Promise<void>;
   publishHeartbeat: (observedAt: Date) => Promise<void>;
@@ -77,6 +80,7 @@ const defaultDependencies: AutoRunDependencies = {
   runLedger: (context) => ledgerService.runOnce(context),
   prepareSettlement: (context) => settlementPreparationService.prepareOnce(context),
   runSupportSla: (context, cityCode) => supportSlaBreachService.runOnce(context, cityCode),
+  runOaActivity: (cityCode) => oaActivityProjectionService.runOnce(cityCode),
   collectReliabilitySnapshot: (cityCodes) => collectDataReliabilitySnapshot(cityCodes),
   publishReliabilitySnapshot: (snapshot) => publishDataReliabilityMetrics(snapshot),
   publishHeartbeat: (observedAt) => publishJobWorkerMetricsHeartbeat(observedAt),
@@ -129,6 +133,10 @@ async function runStep(
 
       if (step === "support.sla") {
         return (await dependencies.runSupportSla(context, cityCode)).processed;
+      }
+
+      if (step === "oa.activity") {
+        return (await dependencies.runOaActivity(cityCode)).processed;
       }
 
       return (await dependencies.prepareSettlement(context)).processed;
@@ -250,6 +258,7 @@ export function startAutoRunJobs({ env, logger, dependencies: overrides }: AutoR
       await runStep("ledger", cityCode, context, logger, dependencies);
       await runStep("settlement.prepare", cityCode, context, logger, dependencies);
       await runStep("support.sla", cityCode, context, logger, dependencies);
+      await runStep("oa.activity", cityCode, context, logger, dependencies);
     }
     await collectReliability();
   };

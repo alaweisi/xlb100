@@ -47,7 +47,13 @@ if ($Confirmation -ne $requiredConfirmation) {
 }
 
 $envValues = Read-EnvValues $envPath
-$imageNames = @("PROD_BACKEND_IMAGE", "PROD_CUSTOMER_IMAGE", "PROD_WORKER_IMAGE", "PROD_ADMIN_IMAGE")
+$imageNames = @(
+  "PROD_BACKEND_IMAGE",
+  "PROD_CUSTOMER_IMAGE",
+  "PROD_WORKER_IMAGE",
+  "PROD_ADMIN_IMAGE",
+  "PROD_OA_IMAGE"
+)
 foreach ($name in $imageNames) {
   $value = [Environment]::GetEnvironmentVariable($name)
   if (-not $value) { $value = $envValues[$name] }

@@ -41,6 +41,7 @@ export const JOB_METRIC_STEPS = [
   "ledger",
   "settlement.prepare",
   "support.sla",
+  "oa.activity",
   "snapshot",
 ] as const;
 export const JOB_METRIC_OUTCOMES = ["success", "failed", "busy"] as const;

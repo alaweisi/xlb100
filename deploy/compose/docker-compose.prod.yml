@@ -131,6 +131,17 @@ services:
         limits: { cpus: "0.5", memory: 256M }
     networks: [xlb-production]
 
+  oa:
+    <<: *service-hardening
+    image: ${PROD_OA_IMAGE:?PROD_OA_IMAGE immutable digest is required}
+    depends_on:
+      backend: { condition: service_healthy }
+    expose: ["4173"]
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 256M }
+    networks: [xlb-production]
+
 networks:
   xlb-production:
     driver: bridge

@@ -77,6 +77,7 @@ function createDependencies(
     runLedger: vi.fn(async () => ({ processed: 0 })),
     prepareSettlement: vi.fn(async () => ({ processed: 0 })),
     runSupportSla: vi.fn(async () => ({ processed: 0 })),
+    runOaActivity: vi.fn(async () => ({ processed: 0 })),
     collectReliabilitySnapshot: vi.fn(async (cityCodes: readonly string[]) => ({
       observedAt: "2026-07-15T08:00:00.000Z",
       cities: cityCodes.map((cityCode) => ({
@@ -185,6 +186,7 @@ describe("Stage 2C-1 auto-run coordination", () => {
       "hangzhou:ledger",
       "hangzhou:settlement.prepare",
       "hangzhou:support.sla",
+      "hangzhou:oa.activity",
       "observability:snapshot",
     ]);
     expect(dependencies.recordReaped).toHaveBeenCalledWith("hangzhou", 3);

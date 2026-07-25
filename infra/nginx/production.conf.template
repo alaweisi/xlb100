@@ -33,4 +33,35 @@ server {
 
 server { listen 443 ssl http2; server_name customer.__DOMAIN__; ssl_certificate /run/xlb-tls/fullchain.pem; ssl_certificate_key /run/xlb-tls/privkey.pem; ssl_protocols TLSv1.2 TLSv1.3; add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always; location / { proxy_pass http://customer:4173; } }
 server { listen 443 ssl http2; server_name worker.__DOMAIN__; ssl_certificate /run/xlb-tls/fullchain.pem; ssl_certificate_key /run/xlb-tls/privkey.pem; ssl_protocols TLSv1.2 TLSv1.3; add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always; location / { proxy_pass http://worker:4173; } }
-server { listen 443 ssl http2; server_name admin.__DOMAIN__; ssl_certificate /run/xlb-tls/fullchain.pem; ssl_certificate_key /run/xlb-tls/privkey.pem; ssl_protocols TLSv1.2 TLSv1.3; add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always; location / { proxy_pass http://admin:4173; } }
+server {
+  listen 443 ssl http2;
+  server_name admin.__DOMAIN__;
+  ssl_certificate /run/xlb-tls/fullchain.pem;
+  ssl_certificate_key /run/xlb-tls/privkey.pem;
+  ssl_protocols TLSv1.2 TLSv1.3;
+  add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
+  location /api/oa/ {
+    limit_req zone=xlb_api burst=40 nodelay;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto https;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_pass http://backend:3000;
+  }
+
+  location /api/auth/oa/ {
+    limit_req zone=xlb_api burst=40 nodelay;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto https;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_pass http://backend:3000;
+  }
+
+  location /oa/ {
+    proxy_pass http://oa:4173/;
+  }
+
+  location / {
+    proxy_pass http://admin:4173;
+  }
+}

@@ -90,6 +90,15 @@ export function buildRequestContext(
     requestStartedAt: new Date().toISOString(),
     requestId: traceId,
     correlationId: traceId,
+    ...(token.payload.appType === "oa" ? {
+      backoffice: {
+        sessionId: token.payload.sid!,
+        tokenJti: token.payload.jti,
+        membershipId: token.payload.mid!,
+        organizationId: token.payload.oid!,
+        authzVersion: token.payload.av!,
+      },
+    } : {}),
   };
 
   const validated = requestContextSchema.safeParse(context);

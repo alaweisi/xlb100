@@ -15,7 +15,7 @@ const requireTokens = (relative, tokens) => {
 };
 
 const compose = requireTokens("deploy/compose/docker-compose.prod.yml", [
-  "PROD_BACKEND_IMAGE:?", "MYSQL_PASSWORD_FILE", "REDIS_PASSWORD_FILE",
+  "PROD_BACKEND_IMAGE:?", "PROD_OA_IMAGE:?", "MYSQL_PASSWORD_FILE", "REDIS_PASSWORD_FILE",
   "MYSQL_TLS_ENABLED: \"true\"", "REDIS_TLS_ENABLED: \"true\"",
   "AUTO_RUN_CITY_CODES:?", "read_only: true", "cap_drop: [ALL]",
   "no-new-privileges:true", "resources:", "max-size: 20m",
@@ -25,14 +25,15 @@ if (/phase\d+|placeholder/iu.test(compose)) throw new Error("production compose 
 
 requireTokens(".env.production.example", [
   "AUTO_RUN_CITY_CODES=", "MYSQL_PASSWORD_SECRET_FILE=", "MYSQL_TLS_CA_SECRET_FILE=",
-  "REDIS_PASSWORD_SECRET_FILE=", "REDIS_TLS_CA_SECRET_FILE=", "@sha256:",
+  "REDIS_PASSWORD_SECRET_FILE=", "REDIS_TLS_CA_SECRET_FILE=", "PROD_OA_IMAGE=", "@sha256:",
 ]);
 const deploy = requireTokens("deploy/production/deploy-prod.ps1", [
-  "@sha256:[a-fA-F0-9]{64}$", "docker compose", "pull", "--no-build", "docker image inspect",
+  "@sha256:[a-fA-F0-9]{64}$", "PROD_OA_IMAGE", "docker compose", "pull", "--no-build", "docker image inspect",
 ]);
 if (deploy.includes("--build")) throw new Error("production deploy must not build mutable images");
 requireTokens("deploy/production/smoke-prod.ps1", [
   "dataReliability.ready", "jobWorker.state", "frontend response is not an application HTML document",
+  "OA application marker is missing", "/api/oa/me", "must return 401",
 ]);
 requireTokens("deploy/production/check-release-window-data.ps1", [
   "RELEASE-WINDOW-READ-ONLY", "QuietWindowConfirmed", "ExpectedCommit",
@@ -59,6 +60,7 @@ requireTokens("infra/observability/alertmanager.production.yml.example", [
 JSON.parse(read("infra/observability/grafana-production-dashboard.json"));
 requireTokens("infra/nginx/production.conf.template", [
   "ssl_protocols TLSv1.2 TLSv1.3", "Strict-Transport-Security", "location = /metrics", "deny all",
+  "location /oa/ {", "proxy_pass http://oa:4173/", "location /api/oa/ {", "location /api/auth/oa/ {",
 ]);
 
 const temp = mkdtempSync(path.join(tmpdir(), "xlb-prod-config-"));
@@ -72,7 +74,7 @@ try {
     "MYSQL_DATABASE=xlb_prod", "MYSQL_USER=xlb_prod", "REDIS_HOST=redis.prod.internal",
     "REDIS_PORT=6380", "AUTO_RUN_CITY_CODES=hangzhou",
     `PROD_BACKEND_IMAGE=${digest}`, `PROD_CUSTOMER_IMAGE=${digest}`,
-    `PROD_WORKER_IMAGE=${digest}`, `PROD_ADMIN_IMAGE=${digest}`,
+    `PROD_WORKER_IMAGE=${digest}`, `PROD_ADMIN_IMAGE=${digest}`, `PROD_OA_IMAGE=${digest}`,
     ...[
       "MYSQL_PASSWORD_SECRET_FILE", "MYSQL_TLS_CA_SECRET_FILE", "REDIS_PASSWORD_SECRET_FILE",
       "REDIS_TLS_CA_SECRET_FILE", "JWT_SECRET_FILE", "JWT_KEYS_JSON_SECRET_FILE",

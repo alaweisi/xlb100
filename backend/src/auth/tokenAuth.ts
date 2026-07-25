@@ -4,12 +4,13 @@ import jwt, {
 } from "jsonwebtoken";
 import { loadEnv } from "@xlb/config";
 import type { AppType, Role } from "@xlb/types";
+import type { OaBackofficeContext } from "@xlb/types";
 
 const APP_ROLES: Record<AppType, readonly Role[]> = {
   customer: ["customer"],
   worker: ["worker"],
   admin: ["admin", "operator", "auditor"],
-  oa: ["admin", "operator"],
+  oa: ["admin", "operator", "auditor"],
   dashboard: ["admin", "operator", "auditor"],
 };
 
@@ -27,6 +28,10 @@ export interface TokenPayload extends JwtPayload {
   iss: string;
   aud: string;
   tokenUse: "access";
+  sid?: string;
+  mid?: string;
+  oid?: string;
+  av?: number;
 }
 
 function isAppType(value: unknown): value is AppType {
@@ -61,6 +66,13 @@ export function extractBearerToken(
 }
 
 function validatePayload(payload: JwtPayload, issuer: string, audience: string): TokenPayload | null {
+  const appType = payload.appType;
+  const hasValidBackofficeBinding = appType !== "oa" || (
+    typeof payload.sid === "string" && payload.sid.length > 0 && payload.sid.length <= 64 &&
+    typeof payload.mid === "string" && payload.mid.length > 0 && payload.mid.length <= 64 &&
+    typeof payload.oid === "string" && payload.oid.length > 0 && payload.oid.length <= 64 &&
+    typeof payload.av === "number" && Number.isInteger(payload.av) && payload.av >= 0
+  );
   if (
     typeof payload.sub !== "string" || payload.sub.length === 0 || payload.sub.length > 128 ||
     !isRole(payload.role) || !isAppType(payload.appType) ||
@@ -69,7 +81,8 @@ function validatePayload(payload: JwtPayload, issuer: string, audience: string):
     typeof payload.iat !== "number" || typeof payload.exp !== "number" ||
     typeof payload.jti !== "string" || !/^[0-9a-f-]{36}$/iu.test(payload.jti) ||
     payload.iss !== issuer || payload.aud !== audience ||
-    payload.exp <= payload.iat
+    payload.exp <= payload.iat ||
+    !hasValidBackofficeBinding
   ) {
     return null;
   }
@@ -124,7 +137,13 @@ export function verifyToken(
 
 export function createToken(sub: string, role: string, appType: string): string {
   const env = loadEnv();
-  if (!sub || sub.length > 128 || !isRole(role) || !isAppType(appType) || !hasValidRoleBinding(appType, role)) {
+  if (
+    !sub || sub.length > 128 ||
+    !isRole(role) ||
+    !isAppType(appType) ||
+    appType === "oa" ||
+    !hasValidRoleBinding(appType, role)
+  ) {
     throw new Error("cannot create token for invalid subject, role, or app binding");
   }
   const signingKey = env.jwtKeys[env.jwtActiveKeyId];
@@ -143,4 +162,46 @@ export function createToken(sub: string, role: string, appType: string): string 
       expiresIn: env.jwtTtlSeconds,
     },
   );
+}
+
+export function createOaToken(
+  sub: string,
+  role: string,
+  backoffice: Omit<OaBackofficeContext, "tokenJti">,
+): { token: string; jti: string } {
+  const env = loadEnv();
+  if (
+    !sub || sub.length > 128 ||
+    !isRole(role) ||
+    !hasValidRoleBinding("oa", role) ||
+    !backoffice.sessionId || !backoffice.membershipId || !backoffice.organizationId ||
+    !Number.isInteger(backoffice.authzVersion) || backoffice.authzVersion < 0
+  ) {
+    throw new Error("cannot create OA token for invalid identity or backoffice binding");
+  }
+  const signingKey = env.jwtKeys[env.jwtActiveKeyId];
+  if (!signingKey) throw new Error("active JWT signing key is unavailable");
+  const jti = randomUUID();
+  const token = jwt.sign(
+    {
+      role,
+      appType: "oa",
+      tokenUse: "access",
+      sid: backoffice.sessionId,
+      mid: backoffice.membershipId,
+      oid: backoffice.organizationId,
+      av: backoffice.authzVersion,
+    },
+    signingKey,
+    {
+      algorithm: "HS256",
+      header: { alg: "HS256", typ: "JWT", kid: env.jwtActiveKeyId },
+      issuer: env.jwtIssuer,
+      audience: env.jwtAudience,
+      subject: sub,
+      jwtid: jti,
+      expiresIn: env.jwtTtlSeconds,
+    },
+  );
+  return { token, jti };
 }
