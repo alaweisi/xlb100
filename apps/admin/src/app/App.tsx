@@ -285,13 +285,13 @@ export function App() {
   const content = session.identity === "oa" && !session.permissions
     ? (
         <GuardrailCard title="Verifying OA capability" actions={<StatusTag tone="warning">checking</StatusTag>}>
-          <p style={{ margin: 0 }}>The delegated session is loading its effective city and permission scope.</p>
+          <p>The delegated session is loading its effective city and permission scope.</p>
         </GuardrailCard>
       )
     : !pageAllowed
     ? (
         <GuardrailCard title="OA capability denied" actions={<StatusTag tone="danger">forbidden</StatusTag>}>
-          <p style={{ margin: 0 }}>The current OA membership has no effective permission for this page and city.</p>
+          <p>The current OA membership has no effective permission for this page and city.</p>
         </GuardrailCard>
       )
     : view.page === "workerWithdrawals"

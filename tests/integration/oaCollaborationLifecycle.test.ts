@@ -131,6 +131,18 @@ describe("OA collaboration lifecycle", { timeout: 60_000 }, () => {
   });
 
   afterAll(async () => {
+    await getMysqlPool().query(
+      `DELETE FROM oa_delegation_grants
+       WHERE grantee_organization_id = 'oa-org-hangzhou' AND city_code = 'shanghai'`,
+    );
+    await getMysqlPool().query(
+      `DELETE FROM oa_organization_city_assignments
+       WHERE organization_id = 'oa-org-hangzhou' AND city_code = 'shanghai'`,
+    );
+    await getMysqlPool().query(
+      `DELETE FROM admin_city_scopes
+       WHERE admin_user_id = 'admin-hangzhou' AND city_code = 'shanghai'`,
+    );
     await app.close();
     await closeMysqlPool();
   });

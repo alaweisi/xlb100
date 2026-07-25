@@ -1,6 +1,7 @@
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
+. (Join-Path $PSScriptRoot 'test-canonical-successor-migrations.ps1')
 
 $migration056Plus = @(Get-ChildItem db/migrations -File | Where-Object {
   $_.Name -match '^(\d{3})_' -and [int]$Matches[1] -ge 56
@@ -47,8 +48,18 @@ $expectedStage2c2Migrations =
   $migration056Plus.Count -eq 3 -and
   @($migration056Plus.Name | Sort-Object) -join ',' -eq
     '056_phase28_review_reputation.sql,057_phase29_marketing_coupon.sql,058_stage2c2_migration_control.sql'
+$expectedCanonicalSuccessors = Test-CanonicalSuccessorMigrations `
+  -Migrations $migration056Plus `
+  -RequiredPrefix @(
+    '056_phase28_review_reputation.sql',
+    '057_phase29_marketing_coupon.sql',
+    '058_stage2c2_migration_control.sql'
+  ) `
+  -MinimumTailNumber 59 `
+  -Authorized ($phase29Authorized -and (Test-Path -LiteralPath 'db/migrations/058_stage2c2_migration_control.sql'))
 if ($migration056Plus.Count -ne 0 -and -not $expectedPhase28Migration -and
-    -not $expectedPhase29Migrations -and -not $expectedStage2c2Migrations) {
+    -not $expectedPhase29Migrations -and -not $expectedStage2c2Migrations -and
+    -not $expectedCanonicalSuccessors) {
   throw "Phase27B B2 forbids unauthorized migration 056 or later"
 }
 $migration055Path = 'db/migrations/055_phase27b_notification_projection_foundation.sql'

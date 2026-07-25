@@ -84,7 +84,7 @@ if (existsSync(join(root, "docs/CURRENT_STATE.md"))) {
   for (const marker of [
     "Phase 25 Gate 1B",
     "Gate 1B authorization",
-    "OA/Dashboard current fact",
+    "OA/Dashboard fact at the Phase 25 Lock",
   ]) {
     if (!currentState.includes(marker)) fail(`CURRENT_STATE missing ${marker}`);
   }

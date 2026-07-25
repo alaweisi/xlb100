@@ -1,16 +1,24 @@
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
+. (Join-Path $PSScriptRoot 'test-canonical-successor-migrations.ps1')
 
 $currentState = Get-Content -Raw -Encoding UTF8 -LiteralPath 'docs/CURRENT_STATE.md'
 if (-not ($currentState.Contains('Phase 27 | PHASE27E EXIT VERIFICATION') -or
           $currentState.Contains('Phase 27 | LOCKED'))) {
   throw "Phase27 completion Gate requires Phase27E exit verification or final Lock state"
 }
-if (-not $currentState.Contains('Phase 14 | IN PROGRESS') -or
-    -not $currentState.Contains('64/100') -or
-    -not $currentState.Contains('staging/production `NO-GO`')) {
-  throw "Phase27 must preserve the Phase14 64/100 staging/production NO-GO truth"
+$legacyNoGoTruth =
+  $currentState.Contains('Phase 14 | IN PROGRESS') -and
+  $currentState.Contains('64/100') -and
+  $currentState.Contains('staging/production `NO-GO`')
+$currentNoGoTruth =
+  $currentState.Contains('Phase 14 | ENGINEERING REMEDIATION LOCKED / PRODUCTION BLOCKED') -and
+  $currentState.Contains('Legacy readiness score') -and
+  $currentState.Contains('STAGING_RELEASE=NO_GO') -and
+  $currentState.Contains('PRODUCTION_RELEASE=NO_GO')
+if (-not $legacyNoGoTruth -and -not $currentNoGoTruth) {
+  throw "Phase27 must preserve the current staging/production NO-GO truth"
 }
 
 $migrations = @(Get-ChildItem db/migrations -File | Where-Object {
@@ -55,7 +63,12 @@ if ($phase29Authorized) {
 if (Test-Path -LiteralPath 'db/migrations/058_stage2c2_migration_control.sql') {
   $expectedMigrations += '058_stage2c2_migration_control.sql'
 }
-if ($migrations.Count -ne $expectedMigrations.Count) {
+$canonicalSuccessors = Test-CanonicalSuccessorMigrations `
+  -Migrations $migrations `
+  -RequiredPrefix $expectedMigrations `
+  -MinimumTailNumber 59 `
+  -Authorized ($phase29Authorized -and (Test-Path -LiteralPath 'db/migrations/058_stage2c2_migration_control.sql'))
+if (-not $canonicalSuccessors) {
   throw "Phase27 completion migration ledger contains an unauthorized 054+ migration"
 }
 foreach ($expected in $expectedMigrations) {

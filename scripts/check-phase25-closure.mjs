@@ -14,7 +14,15 @@ const required = [
   "scripts/check-phase25-readiness-gates.mjs",
 ];
 for (const file of required) if (!existsSync(join(root, file))) throw new Error(`[phase25-closure] missing ${file}`);
-for (const app of ["oa", "dashboard"]) if (existsSync(join(root, "apps", app, "src"))) throw new Error(`[phase25-closure] forbidden fake ${app} runtime`);
+const currentState = readFileSync(join(root, "docs/CURRENT_STATE.md"), "utf8");
+const laterStandaloneRuntimesAuthorized =
+  currentState.includes("| Dashboard v1 | LOCKED") &&
+  currentState.includes("| OA v1 | COMPLETE — LOCAL");
+for (const app of laterStandaloneRuntimesAuthorized ? [] : ["oa", "dashboard"]) {
+  if (existsSync(join(root, "apps", app, "src"))) {
+    throw new Error(`[phase25-closure] forbidden fake ${app} runtime`);
+  }
+}
 execFileSync("git", ["rev-parse", "--verify", lockedHistoryRef], { cwd: root, stdio: "ignore" });
 // Closure scope is evaluated against immutable locked history. Using the
 // current working tree here made every legitimate post-lock maintenance
@@ -23,7 +31,6 @@ const changed = execFileSync("git", ["diff", "--name-only", "fb055b1", lockedHis
   cwd: root,
   encoding: "utf8",
 }).split(/\r?\n/).filter(Boolean).map((file) => file.replaceAll("\\", "/"));
-const currentState = readFileSync(join(root, "docs/CURRENT_STATE.md"), "utf8");
 const phase27aRuntimeAuthorized =
   currentState.includes("Phase27A Platform Delivery Foundation") &&
   (currentState.includes("RUNTIME ENTRY AUTHORIZED") ||

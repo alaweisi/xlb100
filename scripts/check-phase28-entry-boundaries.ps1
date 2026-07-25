@@ -1,6 +1,7 @@
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
+. (Join-Path $PSScriptRoot 'test-canonical-successor-migrations.ps1')
 
 function Require-Contains {
   param([string]$Text, [string]$Needle, [string]$Label)
@@ -15,9 +16,18 @@ if ($LASTEXITCODE -ne 0 -or $tagCommit -ne $mergeBase) {
 
 $state = Get-Content -Raw -Encoding UTF8 -LiteralPath 'docs/CURRENT_STATE.md'
 Require-Contains $state 'Phase 27 | LOCKED' 'Phase27 LOCKED truth'
-Require-Contains $state 'Phase 14 | IN PROGRESS' 'Phase14 IN PROGRESS truth'
-Require-Contains $state '64/100' 'Phase14 readiness score'
-Require-Contains $state 'staging/production `NO-GO`' 'production NO-GO truth'
+$legacyNoGoTruth =
+  $state.Contains('Phase 14 | IN PROGRESS') -and
+  $state.Contains('64/100') -and
+  $state.Contains('staging/production `NO-GO`')
+$currentNoGoTruth =
+  $state.Contains('Phase 14 | ENGINEERING REMEDIATION LOCKED / PRODUCTION BLOCKED') -and
+  $state.Contains('Legacy readiness score') -and
+  $state.Contains('STAGING_RELEASE=NO_GO') -and
+  $state.Contains('PRODUCTION_RELEASE=NO_GO')
+if (-not $legacyNoGoTruth -and -not $currentNoGoTruth) {
+  throw "Phase28 entry evidence missing: production NO-GO truth"
+}
 
 $phase29EntryPath = 'docs/reports/PHASE29_MARKETING_COUPON_ENTRY_REPORT.md'
 $phase29ArchitecturePath = 'docs/architecture/29_XLB_MARKETING_COUPON.md'
@@ -112,8 +122,12 @@ if (Test-Path -LiteralPath 'db/migrations/058_stage2c2_migration_control.sql') {
 }
 $actualMigrationNames = @($laterMigrations.Name | Sort-Object) -join ','
 $expectedMigrationNames = @($expectedPhase28Migrations | Sort-Object) -join ','
-if ($laterMigrations.Count -ne $expectedPhase28Migrations.Count -or
-    $actualMigrationNames -ne $expectedMigrationNames) {
+$canonicalSuccessors = Test-CanonicalSuccessorMigrations `
+  -Migrations $laterMigrations `
+  -RequiredPrefix $expectedPhase28Migrations `
+  -MinimumTailNumber 59 `
+  -Authorized ($phase29Authorized -and (Test-Path -LiteralPath 'db/migrations/058_stage2c2_migration_control.sql'))
+if (-not $canonicalSuccessors) {
   throw "Phase28 entry permits only the exact authorized migration chain through the active formal Phase"
 }
 $migration056Path = 'db/migrations/056_phase28_review_reputation.sql'

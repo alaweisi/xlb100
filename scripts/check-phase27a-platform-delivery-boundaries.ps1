@@ -1,6 +1,7 @@
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
+. (Join-Path $PSScriptRoot 'test-canonical-successor-migrations.ps1')
 $currentState = Get-Content -Raw -Encoding UTF8 -LiteralPath 'docs/CURRENT_STATE.md'
 $phase27bB1Authorized =
   $currentState.Contains('Phase 27B | B1 IMPLEMENTED') -or
@@ -71,8 +72,19 @@ if ($migration055Plus.Count -ne 0) {
     $migration055Plus.Count -eq 4 -and
     @($migration055Plus.Name | Sort-Object) -join ',' -eq
       '055_phase27b_notification_projection_foundation.sql,056_phase28_review_reputation.sql,057_phase29_marketing_coupon.sql,058_stage2c2_migration_control.sql'
+  $expectedCanonicalSuccessors = Test-CanonicalSuccessorMigrations `
+    -Migrations $migration055Plus `
+    -RequiredPrefix @(
+      '055_phase27b_notification_projection_foundation.sql',
+      '056_phase28_review_reputation.sql',
+      '057_phase29_marketing_coupon.sql',
+      '058_stage2c2_migration_control.sql'
+    ) `
+    -MinimumTailNumber 59 `
+    -Authorized ($phase29Authorized -and $stage2c2Authorized)
   if (-not $expectedPhase27bMigration -and -not $expectedPhase28Migrations -and
-      -not $expectedPhase29Migrations -and -not $expectedStage2c2Migrations) {
+      -not $expectedPhase29Migrations -and -not $expectedStage2c2Migrations -and
+      -not $expectedCanonicalSuccessors) {
     throw "Phase27A forbids unauthorized migration 055 or later"
   }
 }

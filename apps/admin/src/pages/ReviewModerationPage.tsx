@@ -1,11 +1,18 @@
 import { useCallback, useEffect, useState } from "react";
 import type { ReviewAppealQueueItem, ReviewModerationQueueItem, ReviewVisibility } from "@xlb/types";
 import { ApiErrorPanel, Button, Card, EmptyState, Input, LoadingState, ScopeBadge, StatusTag, Table } from "@xlb/ui";
-import { adminOpsApi } from "../adminAuth";
+import { adminOpsApi, readStoredAdminSession } from "../adminAuth";
 import "./review-moderation.css";
 
-export function ReviewModerationPage({ initialCityCode, canModerate = true }: { initialCityCode?: string; canModerate?: boolean }) {
+export function ReviewModerationPage({
+  initialCityCode,
+  canModerate: canModerateOverride,
+}: {
+  initialCityCode?: string;
+  canModerate?: boolean;
+}) {
   const cityCode = initialCityCode || "hangzhou";
+  const canModerate = canModerateOverride ?? readStoredAdminSession()?.role === "admin";
   const [visibility, setVisibility] = useState<ReviewVisibility>("pending_moderation");
   const [reviews, setReviews] = useState<ReviewModerationQueueItem[]>([]);
   const [appeals, setAppeals] = useState<ReviewAppealQueueItem[]>([]);

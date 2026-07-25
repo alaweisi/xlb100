@@ -1,6 +1,7 @@
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
+. (Join-Path $PSScriptRoot 'test-canonical-successor-migrations.ps1')
 
 $currentState = Get-Content -Raw -Encoding UTF8 -LiteralPath 'docs/CURRENT_STATE.md'
 $phase29EntryPath = 'docs/reports/PHASE29_MARKETING_COUPON_ENTRY_REPORT.md'
@@ -41,8 +42,12 @@ if (Test-Path -LiteralPath 'db/migrations/058_stage2c2_migration_control.sql') {
 }
 $actualLaterNames = @($later.Name | Sort-Object) -join ','
 $expectedLaterNames = @($expectedLater | Sort-Object) -join ','
-if ($later.Count -ne $expectedLater.Count -or
-    $actualLaterNames -ne $expectedLaterNames) {
+$canonicalSuccessors = Test-CanonicalSuccessorMigrations `
+  -Migrations $later `
+  -RequiredPrefix $expectedLater `
+  -MinimumTailNumber 59 `
+  -Authorized ($phase29Authorized -and (Test-Path -LiteralPath 'db/migrations/058_stage2c2_migration_control.sql'))
+if (-not $canonicalSuccessors) {
   throw "Phase28 forbids migrations beyond its exact formally authorized successor ledger"
 }
 
