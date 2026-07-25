@@ -49,11 +49,12 @@
     "jobs": { "$ref": "#/definitions/jobsWorkload" },
     "frontends": {
       "type": "object",
-      "required": ["customer", "worker", "admin"],
+      "required": ["customer", "worker", "admin", "oa"],
       "properties": {
         "customer": { "$ref": "#/definitions/workload" },
         "worker": { "$ref": "#/definitions/workload" },
-        "admin": { "$ref": "#/definitions/workload" }
+        "admin": { "$ref": "#/definitions/workload" },
+        "oa": { "$ref": "#/definitions/workload" }
       }
     },
     "config": {
@@ -141,12 +142,13 @@
         },
         "hosts": {
           "type": "object",
-          "required": ["api", "customer", "worker", "admin"],
+          "required": ["api", "customer", "worker", "admin", "oa"],
           "properties": {
             "api": { "$ref": "#/definitions/hostname" },
             "customer": { "$ref": "#/definitions/hostname" },
             "worker": { "$ref": "#/definitions/hostname" },
-            "admin": { "$ref": "#/definitions/hostname" }
+            "admin": { "$ref": "#/definitions/hostname" },
+            "oa": { "$ref": "#/definitions/hostname" }
           }
         }
       }
@@ -190,7 +192,8 @@
             "properties": {
               "customer": { "properties": { "image": { "properties": { "digest": { "$ref": "#/definitions/digest" } } } } },
               "worker": { "properties": { "image": { "properties": { "digest": { "$ref": "#/definitions/digest" } } } } },
-              "admin": { "properties": { "image": { "properties": { "digest": { "$ref": "#/definitions/digest" } } } } }
+              "admin": { "properties": { "image": { "properties": { "digest": { "$ref": "#/definitions/digest" } } } } },
+              "oa": { "properties": { "image": { "properties": { "digest": { "$ref": "#/definitions/digest" } } } } }
             }
           }
         }
@@ -210,7 +213,8 @@
             "properties": {
               "customer": { "properties": { "replicaCount": { "minimum": 2 } } },
               "worker": { "properties": { "replicaCount": { "minimum": 2 } } },
-              "admin": { "properties": { "replicaCount": { "minimum": 2 } } }
+              "admin": { "properties": { "replicaCount": { "minimum": 2 } } },
+              "oa": { "properties": { "replicaCount": { "minimum": 2 } } }
             }
           },
           "config": {

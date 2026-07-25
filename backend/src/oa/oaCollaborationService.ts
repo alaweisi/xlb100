@@ -821,13 +821,16 @@ export class OaCollaborationService {
               activity.source_domain, activity.event_type, activity.summary,
               activity.occurred_at, activity.projected_at,
               CASE
-                WHEN activity.projected_at >= CURRENT_TIMESTAMP(3) - INTERVAL 5 MINUTE THEN 'live'
-                WHEN activity.projected_at >= CURRENT_TIMESTAMP(3) - INTERVAL 30 MINUTE THEN 'stale'
+                WHEN projection_cursor.updated_at >= CURRENT_TIMESTAMP(3) - INTERVAL 30 SECOND THEN 'live'
+                WHEN projection_cursor.updated_at >= CURRENT_TIMESTAMP(3) - INTERVAL 5 MINUTE THEN 'stale'
                 ELSE 'disconnected'
               END AS freshness
        FROM oa_activity_projection activity
        JOIN oa_organizations organization
          ON organization.organization_id = activity.organization_id
+       LEFT JOIN oa_activity_projection_cursors projection_cursor
+         ON projection_cursor.organization_id = activity.organization_id
+        AND projection_cursor.city_code = activity.city_code
        JOIN oa_organization_closure visible_organization
          ON visible_organization.descendant_organization_id = activity.organization_id
         AND visible_organization.ancestor_organization_id = ?

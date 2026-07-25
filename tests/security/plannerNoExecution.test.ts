@@ -126,18 +126,18 @@ describe("Phase 11 — Planner No Execution", () => {
 
     it("planner must not expose any execution HTTP method (POST mutation routes)", () => {
       const plannerRoutes = [
-        "GET /api/internal/settlement-action-governance/dry-run-plans",
-        "GET /api/internal/settlement-action-governance/dry-run-plans/:planId",
-        "POST /api/internal/settlement-action-governance/dry-run-plans",
-        "GET /api/internal/settlement-action-governance/dry-run-plans/:planId/items",
-        "GET /api/internal/settlement-action-governance/dry-run-plans/:planId/audit",
+        "GET /api/internal/settlement-action-governance/plans",
+        "GET /api/internal/settlement-action-governance/plans/:planId",
+        "POST /api/internal/settlement-action-governance/plans",
+        "GET /api/internal/settlement-action-governance/plans/:planId/items",
+        "GET /api/internal/settlement-action-governance/plans/:planId/audit",
         "GET /api/internal/settlement-action-governance/readiness-packets/:packetId/dry-run-eligibility",
       ];
 
       // Only POST is for CREATE plan (dry-run creation only), no execution routes
       const postRoutes = plannerRoutes.filter(r => r.startsWith("POST"));
       expect(postRoutes.length).toBe(1);
-      expect(postRoutes[0]).toContain("dry-run-plans");
+      expect(postRoutes[0]).toContain("/plans");
       expect(postRoutes[0]).not.toContain("execute");
       expect(postRoutes[0]).not.toContain("payout");
       expect(postRoutes[0]).not.toContain("refund");

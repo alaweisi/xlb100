@@ -30,9 +30,9 @@ interface DryRunPlan {
   updatedAt: string;
 }
 
-interface Props { onBack: () => void; subView?: string; }
+interface Props { onBack: () => void; subView?: string; canReview?: boolean; }
 
-export function SettlementActionGovernancePage({ onBack, subView }: Props) {
+export function SettlementActionGovernancePage({ onBack, subView, canReview = true }: Props) {
   const params = parseHashParams();
   const [cityCode] = useState(params.get("cityCode") || "hangzhou"); void cityCode; // reserved for future city-scoped API integration
 
@@ -69,6 +69,7 @@ export function SettlementActionGovernancePage({ onBack, subView }: Props) {
   }, [subView, fetchPlans]);
 
   const handleGeneratePlan = useCallback(async (packetId: string) => {
+    if (!canReview) return;
     setGeneratingPlan(true);
     setPlansError(null);
     try {
@@ -81,7 +82,7 @@ export function SettlementActionGovernancePage({ onBack, subView }: Props) {
     } finally {
       setGeneratingPlan(false);
     }
-  }, [fetchPlans]);
+  }, [canReview, fetchPlans]);
 
   const handleViewPlans = useCallback(() => {
     window.location.hash = buildHash("/settlement-ops/governance", { sub: "plans" });
@@ -300,7 +301,7 @@ export function SettlementActionGovernancePage({ onBack, subView }: Props) {
           <Button onClick={handleViewPlans}>查看 Dry-run 计划 <CompatText parts={["View", "Dry-run", "Plans"]} /></Button>
           <Button
             onClick={() => handleGeneratePlan("packet-placeholder")}
-            disabled={generatingPlan}
+            disabled={!canReview || generatingPlan}
           >
             {generatingPlan ? "生成中" : (
               <>
@@ -311,7 +312,7 @@ export function SettlementActionGovernancePage({ onBack, subView }: Props) {
               </>
             )}
           </Button>
-          <button onClick={() => handleGeneratePlan("packet-placeholder")} disabled={generatingPlan} style={hiddenCompatStyle} type="button">
+          <button onClick={() => handleGeneratePlan("packet-placeholder")} disabled={!canReview || generatingPlan} style={hiddenCompatStyle} type="button">
             Generate Dry-run Plan
           </button>
         </div>

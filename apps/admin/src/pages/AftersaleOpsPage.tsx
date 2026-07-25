@@ -17,7 +17,13 @@ import {
 } from "@xlb/ui";
 import { adminOpsApi as api } from "../adminAuth";
 
-export function AftersaleOpsPage({ initialCityCode }: { initialCityCode?: string }) {
+export function AftersaleOpsPage({
+  initialCityCode,
+  canManage = true,
+}: {
+  initialCityCode?: string;
+  canManage?: boolean;
+}) {
   const [cityCode,setCityCode]=useState(initialCityCode||"hangzhou");
   const [reverseRequests,setReverseRequests]=useState<OrderReverseResponse[]>([]);
   const [complaints,setComplaints]=useState<AftersaleComplaintResponse[]>([]);
@@ -95,9 +101,9 @@ export function AftersaleOpsPage({ initialCityCode }: { initialCityCode?: string
         {key:"status",title:"Status",render:(item)=><StatusTag tone={item.status==="applied"?"success":item.status==="rejected"?"danger":"warning"}>{item.status}</StatusTag>},
         {key:"reason",title:"Reason",render:(item)=>item.reason},
         {key:"actions",title:"Actions",render:(item)=><div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-          <Button disabled={item.status!=="requested"||busy===item.reverseRequestId} onClick={()=>void mutateReverse(item,"approve")}>Approve</Button>
-          <Button disabled={item.status!=="requested"||busy===item.reverseRequestId} onClick={()=>void mutateReverse(item,"reject")}>Reject</Button>
-          <Button variant="primary" disabled={item.status!=="approved"||busy===item.reverseRequestId} onClick={()=>void mutateReverse(item,"apply")}>Apply</Button>
+          <Button disabled={!canManage||item.status!=="requested"||busy===item.reverseRequestId} onClick={()=>void mutateReverse(item,"approve")}>Approve</Button>
+          <Button disabled={!canManage||item.status!=="requested"||busy===item.reverseRequestId} onClick={()=>void mutateReverse(item,"reject")}>Reject</Button>
+          <Button variant="primary" disabled={!canManage||item.status!=="approved"||busy===item.reverseRequestId} onClick={()=>void mutateReverse(item,"apply")}>Apply</Button>
         </div>},
       ]}/>} 
     </Card>
@@ -119,18 +125,18 @@ export function AftersaleOpsPage({ initialCityCode }: { initialCityCode?: string
           <FormField label="Compensation amount"><Input type="number" min="0" value={compensationAmount} onChange={(event)=>setCompensationAmount(event.target.value)}/></FormField>
         </div>
         <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-          <Button disabled={!["submitted","triaged","waiting_customer"].includes(detail.complaint.status)||busy!==null} onClick={()=>void mutateComplaint("triage")}>Start handling</Button>
-          <Button disabled={["closed","rejected"].includes(detail.complaint.status)||busy!==null} onClick={()=>void mutateComplaint("repair")}>Create repair</Button>
-          <Button disabled={Boolean(detail.liabilityDecision)||busy!==null} onClick={()=>void mutateComplaint("liability")}>Record liability</Button>
-          <Button disabled={["closed","rejected"].includes(detail.complaint.status)||busy!==null} onClick={()=>void mutateComplaint("compensation")}>Propose credit</Button>
-          <Button disabled={!["triaged","in_progress","waiting_customer"].includes(detail.complaint.status)||busy!==null} onClick={()=>void mutateComplaint("resolve")}>Resolve</Button>
-          <Button variant="primary" disabled={detail.complaint.status!=="resolved"||busy!==null} onClick={()=>void mutateComplaint("close")}>Close</Button>
+          <Button disabled={!canManage||!["submitted","triaged","waiting_customer"].includes(detail.complaint.status)||busy!==null} onClick={()=>void mutateComplaint("triage")}>Start handling</Button>
+          <Button disabled={!canManage||["closed","rejected"].includes(detail.complaint.status)||busy!==null} onClick={()=>void mutateComplaint("repair")}>Create repair</Button>
+          <Button disabled={!canManage||Boolean(detail.liabilityDecision)||busy!==null} onClick={()=>void mutateComplaint("liability")}>Record liability</Button>
+          <Button disabled={!canManage||["closed","rejected"].includes(detail.complaint.status)||busy!==null} onClick={()=>void mutateComplaint("compensation")}>Propose credit</Button>
+          <Button disabled={!canManage||!["triaged","in_progress","waiting_customer"].includes(detail.complaint.status)||busy!==null} onClick={()=>void mutateComplaint("resolve")}>Resolve</Button>
+          <Button variant="primary" disabled={!canManage||detail.complaint.status!=="resolved"||busy!==null} onClick={()=>void mutateComplaint("close")}>Close</Button>
         </div>
         <Table rows={detail.compensationIntents} getRowKey={(item)=>item.compensationIntentId} emptyText="No compensation intents" columns={[
           {key:"type",title:"Intent",render:(item)=>item.intentType},
           {key:"amount",title:"Amount",render:(item)=>`CNY ${item.requestedAmount.toFixed(2)}`},
           {key:"status",title:"Status",render:(item)=><><StatusTag tone={item.status==="approved"?"success":"warning"}>{item.status}</StatusTag> <StatusTag tone="muted">{item.providerExecutionStatus}</StatusTag></>},
-          {key:"review",title:"",render:(item)=><div style={{display:"flex",gap:6}}><Button disabled={item.status!=="proposed"||busy===item.compensationIntentId} onClick={()=>void reviewCompensation(item.compensationIntentId,"approved",item.requestedAmount)}>Approve intent</Button><Button disabled={item.status!=="proposed"||busy===item.compensationIntentId} onClick={()=>void reviewCompensation(item.compensationIntentId,"rejected",0)}>Reject</Button></div>},
+          {key:"review",title:"",render:(item)=><div style={{display:"flex",gap:6}}><Button disabled={!canManage||item.status!=="proposed"||busy===item.compensationIntentId} onClick={()=>void reviewCompensation(item.compensationIntentId,"approved",item.requestedAmount)}>Approve intent</Button><Button disabled={!canManage||item.status!=="proposed"||busy===item.compensationIntentId} onClick={()=>void reviewCompensation(item.compensationIntentId,"rejected",0)}>Reject</Button></div>},
         ]}/>
         <Table rows={detail.timeline} getRowKey={(item)=>item.timelineEventId} columns={[
           {key:"time",title:"Time",render:(item)=>item.createdAt},

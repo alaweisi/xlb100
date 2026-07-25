@@ -12,7 +12,8 @@ const sourceRoot = path.dirname(fileURLToPath(import.meta.url));
 const defaultRepoRoot = path.resolve(sourceRoot, "../../..");
 const inputSchema = JSON.parse(readFileSync(path.join(sourceRoot, "reviewed-cloud-input.schema.json"), "utf8"));
 const validateInputSchema = new Ajv({ allErrors: true, strict: true }).compile(inputSchema);
-const components = ["backend", "customer", "worker", "admin"];
+const imageComponents = ["backend", "customer", "worker", "admin", "oa"];
+const ingressHostNames = ["api", "customer", "worker", "admin", "oa"];
 
 const fail = message => {
   throw new Error(message);
@@ -97,7 +98,7 @@ function assertNoDrift(input, imageLock) {
   }
   if (imageLock.releaseId !== input.releaseId) fail("image lock releaseId drifted from reviewed releaseId");
   if (imageLock.sourceCommit !== input.sourceCommit) fail("image lock sourceCommit drifted from reviewed sourceCommit");
-  for (const name of components) {
+  for (const name of imageComponents) {
     const expected = `${input.registry.host}/${input.registry.namespace}/${name}`;
     if (imageLock.images[name].repository !== expected) {
       fail(`${name} image repository drifted from reviewed registry: expected ${expected}`);
@@ -126,9 +127,12 @@ function assertTerraformSemantics(input) {
   const selectedCosBucket = tf.createCosBucket ? tf.cosBucketName : tf.existingCosBucketName;
   if (selectedCosBucket !== input.dependencies.cosBucket) fail("COS bucket drifted between Terraform and Helm dependencies");
   if (input.costReview.monthlyMin > input.costReview.monthlyMax) fail("costReview monthlyMin must not exceed monthlyMax");
-  if (new Set(Object.values(input.helm.hosts)).size !== components.length) fail("all four ingress hosts must be distinct");
+  if (
+    Object.keys(input.helm.hosts).length !== ingressHostNames.length ||
+    new Set(Object.values(input.helm.hosts)).size !== ingressHostNames.length
+  ) fail("all five ingress hosts must be distinct");
   if (input.environment === "production") {
-    for (const name of ["backend", "customer", "worker", "admin"]) {
+    for (const name of imageComponents) {
       if (input.helm.replicas[name] < 2) fail(`production ${name} requires at least two replicas`);
     }
   }
@@ -240,6 +244,9 @@ ${imageYaml(imageLock.images.worker, 4)}
   admin:
     replicaCount: ${helm.replicas.admin}
 ${imageYaml(imageLock.images.admin, 4)}
+  oa:
+    replicaCount: ${helm.replicas.oa}
+${imageYaml(imageLock.images.oa, 4)}
 
 config:
   nodeEnv: production
@@ -277,6 +284,7 @@ ingress:
     customer: ${yamlString(helm.hosts.customer)}
     worker: ${yamlString(helm.hosts.worker)}
     admin: ${yamlString(helm.hosts.admin)}
+    oa: ${yamlString(helm.hosts.oa)}
 
 networkPolicy:
   enabled: false

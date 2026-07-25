@@ -40,6 +40,50 @@ describe("OA collaboration lifecycle", { timeout: 60_000 }, () => {
 
   beforeAll(async () => {
     app = await buildApp();
+    await getMysqlPool().query(
+      `DELETE FROM oa_delegation_grants
+       WHERE grantee_organization_id = 'oa-org-hangzhou' AND city_code = 'shanghai'`,
+    );
+    await getMysqlPool().query(
+      `DELETE FROM oa_organization_city_assignments
+       WHERE organization_id = 'oa-org-hangzhou' AND city_code = 'shanghai'`,
+    );
+    await getMysqlPool().query(
+      `DELETE FROM admin_city_scopes
+       WHERE admin_user_id = 'admin-hangzhou' AND city_code = 'shanghai'`,
+    );
+    await getMysqlPool().query(
+      "DELETE FROM oa_sessions WHERE membership_id = 'oa-member-hz-sibling'",
+    );
+    await getMysqlPool().query(
+      "DELETE FROM oa_delegation_grants WHERE grantee_organization_id = 'oa-org-hz-sibling'",
+    );
+    await getMysqlPool().query(
+      "DELETE FROM oa_membership_roles WHERE membership_id = 'oa-member-hz-sibling'",
+    );
+    await getMysqlPool().query(
+      "DELETE FROM oa_roles WHERE organization_id = 'oa-org-hz-sibling'",
+    );
+    await getMysqlPool().query(
+      "DELETE FROM oa_memberships WHERE organization_id = 'oa-org-hz-sibling'",
+    );
+    await getMysqlPool().query(
+      "DELETE FROM oa_organization_city_assignments WHERE organization_id = 'oa-org-hz-sibling'",
+    );
+    await getMysqlPool().query(
+      `DELETE FROM oa_organization_closure
+       WHERE ancestor_organization_id = 'oa-org-hz-sibling'
+          OR descendant_organization_id = 'oa-org-hz-sibling'`,
+    );
+    await getMysqlPool().query(
+      "DELETE FROM oa_organizations WHERE organization_id = 'oa-org-hz-sibling'",
+    );
+    await getMysqlPool().query(
+      "DELETE FROM admin_city_scopes WHERE admin_user_id = 'admin-hz-sibling'",
+    );
+    await getMysqlPool().query(
+      "DELETE FROM admin_users WHERE id = 'admin-hz-sibling'",
+    );
     const siblingSetup = [
       `INSERT INTO admin_users (id, username, role)
        VALUES ('admin-hz-sibling', 'admin_hz_sibling', 'operator')`,
@@ -410,14 +454,14 @@ describe("OA collaboration lifecycle", { timeout: 60_000 }, () => {
       `INSERT INTO event_outbox (
          event_id, event_type, event_major_version, aggregate_type, aggregate_id,
          city_code, payload_json, status
-       ) VALUES (?, 'order.created', 1, 'order', ?, 'hangzhou', ?, 'pending')`,
+       ) VALUES (?, 'order.created', 1, 'order', ?, 'shanghai', ?, 'pending')`,
       [eventId, `order-${randomUUID()}`, JSON.stringify({ customerPhone: "13800138000", secret: "must-not-project" })],
     );
-    expect((await oaActivityProjectionService.runOnce("hangzhou", 500)).processed).toBeGreaterThan(0);
+    expect((await oaActivityProjectionService.runOnce("shanghai", 500)).processed).toBeGreaterThan(0);
 
     const activity = await app.inject({
       method: "GET",
-      url: "/api/oa/activity?cityCode=hangzhou&limit=200",
+      url: "/api/oa/activity?cityCode=shanghai&limit=200",
       headers: authorization(hqToken),
     });
     expect(activity.statusCode).toBe(200);
@@ -428,7 +472,7 @@ describe("OA collaboration lifecycle", { timeout: 60_000 }, () => {
 
     const audit = await app.inject({
       method: "GET",
-      url: "/api/oa/audit-records?cityCode=hangzhou&limit=200",
+      url: "/api/oa/audit-records?cityCode=shanghai&limit=200",
       headers: authorization(hqToken),
     });
     expect(audit.statusCode).toBe(200);

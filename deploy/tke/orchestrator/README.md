@@ -9,7 +9,7 @@ provider.
 
 - One checkpoint is created at the manifest's ignored `.artifacts/tke/...`
   reference and replaced atomically.
-- Every transition revalidates all four source artifacts and their SHA-256
+- Every transition revalidates all five source artifacts and their SHA-256
   hashes, all SBOM/scan files, the cloud payload inventory, and every evidence
   reference. A changed artifact, stale evidence, or stale checkpoint revision
   blocks execution.

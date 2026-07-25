@@ -10,7 +10,6 @@ import {
   FileMagnifyingGlass,
   Gauge,
   ListChecks,
-  LockKey,
   MagnifyingGlass,
   Plus,
   Pulse,
@@ -21,7 +20,7 @@ import {
   WarningCircle,
   X,
 } from "@phosphor-icons/react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type MouseEvent } from "react";
 import type {
   OaActivityItem,
   OaApprovalRequest,
@@ -34,13 +33,18 @@ import type {
 } from "@xlb/types";
 import {
   clearOaSession,
+  createOaAdminHandoffUrl,
+  isUnauthorizedOaError,
   login,
   oa,
   readDebugLoginCode,
   readOaSession,
   requestLoginCode,
+  subscribeOaEvents,
+  type OaRealtimeState,
   type OaSession,
 } from "./api";
+import { OrganizationAdministration } from "./OrganizationAdministration";
 
 type View = "workbench" | "tasks" | "approvals" | "activity" | "organization" | "capabilities" | "audit";
 type QueueItem =
@@ -206,12 +210,15 @@ const NAV_ITEMS: { view: View; label: string; icon: typeof Gauge }[] = [
 ];
 
 const CAPABILITIES = [
-  { permission: "operations.orders.read", title: "订单与履约", body: "订单追踪、服务证据、SKU 与师傅资质", href: "/admin/#/platform-operations" },
+  { permission: "operations.orders.read", title: "订单与履约", body: "订单池、订单追踪与履约证据", href: "/admin/#/platform-operations" },
+  { permission: "operations.catalog.read", title: "服务目录", body: "城市 SKU、价格与可用状态", href: "/admin/#/platform-operations" },
+  { permission: "operations.certification.read", title: "师傅资质", body: "资质申请、状态与审核记录", href: "/admin/#/platform-operations" },
   { permission: "operations.dispatch.read", title: "调度中心", body: "城市派单、异常队列与人工干预", href: "/admin/#/dispatch" },
-  { permission: "finance.settlement.read", title: "结算治理", body: "对账、结算单、导出复核与治理动作", href: "/admin/" },
+  { permission: "finance.settlement.read", title: "结算治理", body: "对账、结算单、导出复核与治理动作", href: "/admin/#/" },
   { permission: "finance.withdrawal.read", title: "提现审核", body: "师傅提现、风控证据与复核", href: "/admin/#/worker-withdrawals" },
   { permission: "aftersale.read", title: "售后中心", body: "投诉、返修、责任判定与补偿", href: "/admin/#/aftersale" },
   { permission: "support.read", title: "客服工作台", body: "工单、会话、SLA、知识库与质检", href: "/admin/#/support" },
+  { permission: "support.quality.read", title: "客服质检", body: "质检规则、复核记录与质量看板", href: "/admin/#/support-quality" },
   { permission: "enterprise.read", title: "企业客户", body: "企业订单、回调与开放平台运行", href: "/admin/#/enterprise" },
   { permission: "reviews.read", title: "评价与信誉", body: "评价审核、申诉与师傅信誉", href: "/admin/#/review-moderation" },
   { permission: "marketing.read", title: "营销与优惠券", body: "营销活动、规则版本与优惠券", href: "/admin/#/marketing" },
@@ -236,6 +243,7 @@ export function App() {
   const [draftDescription, setDraftDescription] = useState("");
   const [draftOrganizationId, setDraftOrganizationId] = useState("");
   const [draftCityCode, setDraftCityCode] = useState("");
+  const [realtimeState, setRealtimeState] = useState<OaRealtimeState>("disconnected");
 
   const navigate = useCallback((next: View) => {
     setView(next);
@@ -248,29 +256,60 @@ export function App() {
     return () => window.removeEventListener("hashchange", listener);
   }, []);
 
-  const load = useCallback(async () => {
+  const invalidateSession = useCallback(() => {
+    clearOaSession();
+    setWorkbench(null);
+    setOrganizations([]);
+    setAudit([]);
+    setNotifications([]);
+    setUnreadCount(0);
+    setNoticeOpen(false);
+    setSelected(null);
+    setSelectedCity("all");
+    setComposer(null);
+    setError(null);
+    setRealtimeState("disconnected");
+    setSession(null);
+  }, []);
+
+  const load = useCallback(async (options: { background?: boolean } = {}) => {
     if (!session) return;
-    setBusy(true);
+    if (!options.background) setBusy(true);
     setError(null);
     try {
-      const [nextWorkbench, nextOrganizations, nextNotifications] = await Promise.all([
-        oa.getWorkbench(),
-        oa.listOrganizations(),
-        oa.listNotifications({ limit: 20 }),
+      const nextWorkbench = await oa.getWorkbench();
+      const [nextOrganizations, nextNotifications, nextTaskQueue] = await Promise.all([
+        nextWorkbench.principal.permissions.includes("oa.organization.read")
+          ? oa.listOrganizations()
+          : Promise.resolve({
+              ok: true as const,
+              organizations: [nextWorkbench.principal.organization],
+            }),
+        nextWorkbench.principal.permissions.includes("oa.notification.read")
+          ? oa.listNotifications({ limit: 20 })
+          : Promise.resolve({
+              ok: true as const,
+              notifications: [],
+              unreadCount: 0,
+            }),
+        nextWorkbench.principal.permissions.includes("oa.task.read")
+          ? oa.listTasks({ assignee: "all" })
+          : Promise.resolve({ ok: true as const, tasks: nextWorkbench.tasks }),
       ]);
-      setWorkbench(nextWorkbench);
+      const hydratedWorkbench = { ...nextWorkbench, tasks: nextTaskQueue.tasks };
+      setWorkbench(hydratedWorkbench);
       setOrganizations(nextOrganizations.organizations);
       setNotifications(nextNotifications.notifications);
       setUnreadCount(nextNotifications.unreadCount);
-      const first = nextWorkbench.tasks[0]
-        ? { kind: "task" as const, id: nextWorkbench.tasks[0].taskId, task: nextWorkbench.tasks[0] }
+      const first = hydratedWorkbench.tasks[0]
+        ? { kind: "task" as const, id: hydratedWorkbench.tasks[0].taskId, task: hydratedWorkbench.tasks[0] }
         : nextWorkbench.approvals[0]
           ? { kind: "approval" as const, id: nextWorkbench.approvals[0].approvalRequestId, approval: nextWorkbench.approvals[0] }
           : null;
       setSelected((current) => {
         if (!current) return first;
         if (current.kind === "task") {
-          const refreshed = nextWorkbench.tasks.find((task) => task.taskId === current.id);
+          const refreshed = hydratedWorkbench.tasks.find((task) => task.taskId === current.id);
           return refreshed ? { kind: "task", id: refreshed.taskId, task: refreshed } : first;
         }
         const refreshed = nextWorkbench.approvals.find(
@@ -286,11 +325,15 @@ export function App() {
         setAudit([]);
       }
     } catch (cause) {
+      if (isUnauthorizedOaError(cause)) {
+        invalidateSession();
+        return;
+      }
       setError(cause instanceof Error ? cause.message : "OA 数据加载失败");
     } finally {
-      setBusy(false);
+      if (!options.background) setBusy(false);
     }
-  }, [session]);
+  }, [invalidateSession, session]);
 
   useEffect(() => {
     void load();
@@ -320,10 +363,21 @@ export function App() {
   useEffect(() => {
     if (!session) return;
     const interval = window.setInterval(() => {
-      if (document.visibilityState === "visible") void load();
+      if (document.visibilityState === "visible" && realtimeState !== "live") {
+        void load({ background: true });
+      }
     }, 30_000);
     return () => window.clearInterval(interval);
-  }, [load, session]);
+  }, [load, realtimeState, session]);
+
+  useEffect(() => {
+    if (!session) return;
+    return subscribeOaEvents({
+      onRefresh: () => void load({ background: true }),
+      onState: setRealtimeState,
+      onUnauthorized: invalidateSession,
+    });
+  }, [invalidateSession, load, session]);
 
   const principal = workbench?.principal;
   const visibleTasks = useMemo(
@@ -409,6 +463,7 @@ export function App() {
     setSelectedCity("all");
     setComposer(null);
     setError(null);
+    setRealtimeState("disconnected");
   };
 
   const handleLogin = (nextSession: OaSession) => {
@@ -625,12 +680,20 @@ export function App() {
               ),
             )}
             busy={busy}
+            realtimeState={realtimeState}
           />
         )}
         {view === "tasks" && <TaskList tasks={visibleTasks} canCreate={canInCity("oa.task.manage")} onCreate={() => openComposer("task")} onSelect={(task) => { setSelected({ kind: "task", id: task.taskId, task }); navigate("workbench"); }} />}
         {view === "approvals" && <ApprovalList approvals={visibleApprovals} canCreate={canInCity("oa.approval.request")} onCreate={() => openComposer("approval")} onSelect={(approval) => { setSelected({ kind: "approval", id: approval.approvalRequestId, approval }); navigate("workbench"); }} />}
         {view === "activity" && <ActivityList items={visibleActivity} />}
-        {view === "organization" && <OrganizationView principal={principal} organizations={organizations} />}
+        {view === "organization" && (
+          <OrganizationAdministration
+            principal={principal}
+            organizations={organizations}
+            cityLabel={cityLabel}
+            onOrganizationsChanged={load}
+          />
+        )}
         {view === "capabilities" && <CapabilityView principal={principal} city={selectedCity} />}
         {view === "audit" && <AuditView records={audit.filter((item) => selectedCity === "all" || item.cityCode === selectedCity)} />}
       </main>
@@ -672,6 +735,7 @@ function Workbench(props: {
   canManageTasks: boolean;
   canDecideApprovals: boolean;
   busy: boolean;
+  realtimeState: OaRealtimeState;
 }) {
   const [queueFilter, setQueueFilter] = useState<"all" | "task" | "approval">("all");
   const [queueSearch, setQueueSearch] = useState("");
@@ -766,7 +830,7 @@ function Workbench(props: {
       </div>
 
       <div className="oa-panel oa-activity">
-        <div className="oa-panel__header"><div><h2>分公司动态</h2><span>业务事件脱敏投影</span></div><span className="oa-live-dot">实时</span></div>
+        <div className="oa-panel__header"><div><h2>分公司动态</h2><span>业务事件脱敏投影</span></div><span className={`oa-live-dot oa-live-dot--${props.realtimeState}`}>{props.realtimeState}</span></div>
         <div className="oa-activity__list">
           {props.activities.length === 0 && <Empty title="暂无业务动态" body="事件投影运行后会显示在这里" />}
           {props.activities.slice(0, 12).map((item) => (
@@ -794,14 +858,43 @@ function ActivityList({ items }: { items: OaActivityItem[] }) {
   return <section className="oa-page"><div className="oa-page__header"><div><h2>分公司动态</h2><p>按授权城市汇总的业务事件脱敏投影</p></div></div><div className="oa-feed">{items.map((item) => <article key={item.activityId}><span className={`oa-activity__icon oa-activity__icon--${tone(item.freshness)}`}><Pulse size={20} /></span><div><span><strong>{item.organizationName}</strong><Badge value={item.freshness} /></span><h3>{item.summary}</h3><p>{item.sourceDomain} / {item.eventType}</p><small>{cityLabel(item.cityCode)} · 发生于 {formatTime(item.occurredAt)} · 投影于 {formatTime(item.projectedAt)}</small></div></article>)}{items.length === 0 && <Empty title="暂无分公司动态" body="活动投影不会影响原业务事件的消费状态" />}</div></section>;
 }
 
-function OrganizationView({ principal, organizations }: { principal?: OaPrincipal; organizations: OaOrganization[] }) {
-  return <section className="oa-page"><div className="oa-page__header"><div><h2>组织与权限</h2><p>当前会话的有效访问范围 = 身份、成员、角色、授权与城市范围交集</p></div></div><div className="oa-org-grid"><div className="oa-panel oa-org-card"><LockKey size={28} weight="duotone" /><h3>当前身份</h3><strong>{principal?.username}</strong><span>{principal?.organization.name}</span><dl><div><dt>组织类型</dt><dd>{principal?.organization.organizationType === "headquarters" ? "总部" : "分公司"}</dd></div><div><dt>授权城市</dt><dd>{principal?.cityCodes.map(cityLabel).join("、")}</dd></div><div><dt>权限数量</dt><dd>{principal?.permissions.length ?? 0}</dd></div><div><dt>授权版本</dt><dd>v{principal?.authzVersion ?? 0}</dd></div></dl></div><div className="oa-panel oa-org-tree"><h3>可见组织</h3>{organizations.map((organization) => <div key={organization.organizationId} className={organization.organizationType === "branch" ? "is-branch" : ""}><span><Buildings size={20} weight="duotone" /></span><div><strong>{organization.name}</strong><small>{organization.organizationCode}</small></div><Badge value={organization.status} /></div>)}</div><div className="oa-panel oa-permissions"><h3>有效权限</h3><div>{principal?.permissions.map((permission) => <span key={permission}>{permission}</span>)}</div></div></div></section>;
-}
-
 function CapabilityView({ principal, city }: { principal?: OaPrincipal; city: string }) {
-  const visible = CAPABILITIES.filter((capability) => principal?.permissions.includes(capability.permission));
-  const suffix = city !== "all" ? `?cityCode=${encodeURIComponent(city)}` : "";
-  return <section className="oa-page"><div className="oa-page__header"><div><h2>统一管理能力</h2><p>OA 按有效权限进入现有 Admin 领域能力，领域状态机仍保持唯一事实源</p></div></div><div className="oa-capability-grid">{visible.map((capability) => <a key={capability.permission} href={`${capability.href}${suffix}`}><span><SquaresFour size={22} weight="duotone" /></span><div><h3>{capability.title}</h3><p>{capability.body}</p><small>{capability.permission}</small></div></a>)}{visible.length === 0 && <Empty title="当前身份没有管理域权限" body="请由组织管理员调整角色或委派范围" />}</div></section>;
+  const visible = CAPABILITIES.filter((capability) => (
+    principal?.permissions.includes(capability.permission)
+    && (
+      city === "all"
+      || principal.permissionCityCodes[capability.permission]?.includes(city)
+    )
+  ));
+  const [pending, setPending] = useState<string | null>(null);
+  const [handoffError, setHandoffError] = useState<string | null>(null);
+  const openCapability = async (
+    event: MouseEvent<HTMLAnchorElement>,
+    capability: (typeof CAPABILITIES)[number],
+  ) => {
+    event.preventDefault();
+    const cityCode = city !== "all"
+      ? city
+      : principal?.permissionCityCodes[capability.permission]?.[0];
+    if (!cityCode) {
+      setHandoffError("当前能力没有可用城市范围");
+      return;
+    }
+    setPending(capability.permission);
+    setHandoffError(null);
+    try {
+      const target = await createOaAdminHandoffUrl({
+        targetPath: capability.href,
+        permissionKey: capability.permission,
+        cityCode,
+      });
+      window.location.assign(target);
+    } catch (error) {
+      setHandoffError(error instanceof Error ? error.message : "无法进入管理能力");
+      setPending(null);
+    }
+  };
+  return <section className="oa-page"><div className="oa-page__header"><div><h2>统一管理能力</h2><p>OA 按有效权限进入现有 Admin 领域能力，领域状态机仍保持唯一事实源</p>{handoffError && <small className="oa-form-error">{handoffError}</small>}</div></div><div className="oa-capability-grid">{visible.map((capability) => <a key={capability.permission} href={capability.href} aria-busy={pending === capability.permission} onClick={(event) => void openCapability(event, capability)}><span><SquaresFour size={22} weight="duotone" /></span><div><h3>{capability.title}</h3><p>{capability.body}</p><small>{pending === capability.permission ? "正在安全交接…" : capability.permission}</small></div></a>)}{visible.length === 0 && <Empty title="当前身份没有管理域权限" body="请由组织管理员调整角色或委派范围" />}</div></section>;
 }
 
 function AuditView({ records }: { records: OaAuditRecord[] }) {

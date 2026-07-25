@@ -2,6 +2,12 @@ import type { FastifyInstance, FastifyReply } from "fastify";
 import type { OaTaskStatus } from "@xlb/types";
 import {
   createOaApprovalRequestSchema,
+  createOaAdminHandoffRequestSchema,
+  approveOaDelegationRequestSchema,
+  createOaDelegationRequestSchema,
+  createOaMembershipRequestSchema,
+  createOaOrganizationRequestSchema,
+  createOaRoleRequestSchema,
   createOaTaskRequestSchema,
   oaActivityQuerySchema,
   oaApprovalActionRequestSchema,
@@ -10,6 +16,10 @@ import {
   oaAuditQuerySchema,
   oaTaskActionRequestSchema,
   oaTaskListQuerySchema,
+  revokeOaDelegationRequestSchema,
+  updateOaMembershipRequestSchema,
+  updateOaOrganizationRequestSchema,
+  updateOaRoleRequestSchema,
 } from "@xlb/validators";
 import {
   createRequestContextMiddleware,
@@ -25,9 +35,23 @@ import {
   oaCollaborationService,
 } from "./oaCollaborationService.js";
 import { oaNotificationService } from "./oaNotificationService.js";
+import {
+  OaAdministrationError,
+  oaAdministrationService,
+} from "./oaAdministrationService.js";
+import { oaRealtimeService } from "./oaRealtimeService.js";
+import {
+  OaHandoffError,
+  oaHandoffService,
+} from "./oaHandoffService.js";
 
 function fail(error: unknown, reply: FastifyReply) {
-  if (error instanceof OaAuthorizationError || error instanceof OaCollaborationError) {
+  if (
+    error instanceof OaAuthorizationError ||
+    error instanceof OaCollaborationError ||
+    error instanceof OaAdministrationError ||
+    error instanceof OaHandoffError
+  ) {
     return reply.status(error.statusCode).send({
       ok: false,
       error: error.message,
@@ -47,6 +71,73 @@ function asString(value: unknown): string {
 
 export async function registerOaRoutes(app: FastifyInstance): Promise<void> {
   const preHandler = createRequestContextMiddleware({ requireCityCode: false });
+
+  app.get("/api/oa/events", { preHandler }, async (request, reply) => {
+    const context = getRequestContext(request);
+    try {
+      let principal = await oaAuthorizationService.authorize(context, "oa.workbench.read");
+      let fingerprint = await oaRealtimeService.fingerprint(principal);
+      let polling = false;
+      let heartbeatCounter = 0;
+      let closed = false;
+
+      reply.hijack();
+      reply.raw.statusCode = 200;
+      reply.raw.setHeader("Content-Type", "text/event-stream; charset=utf-8");
+      reply.raw.setHeader("Cache-Control", "no-cache, no-transform");
+      reply.raw.setHeader("Connection", "keep-alive");
+      reply.raw.setHeader("X-Accel-Buffering", "no");
+      reply.raw.flushHeaders();
+
+      const send = (event: string, data: Record<string, unknown>) => {
+        if (closed || reply.raw.destroyed || reply.raw.writableEnded) return;
+        reply.raw.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+      };
+      send("ready", {
+        generatedAt: new Date().toISOString(),
+        organizationId: principal.organization.organizationId,
+        cityCodes: principal.cityCodes,
+      });
+
+      const cleanup = () => {
+        if (closed) return;
+        closed = true;
+        clearInterval(timer);
+        if (!reply.raw.writableEnded) reply.raw.end();
+      };
+      const timer = setInterval(() => {
+        if (polling || closed) return;
+        polling = true;
+        void (async () => {
+          try {
+            principal = await oaAuthorizationService.authorize(context, "oa.workbench.read");
+            const nextFingerprint = await oaRealtimeService.fingerprint(principal);
+            if (nextFingerprint !== fingerprint) {
+              fingerprint = nextFingerprint;
+              send("refresh", { generatedAt: new Date().toISOString() });
+            } else if ((heartbeatCounter += 1) >= 5) {
+              heartbeatCounter = 0;
+              send("heartbeat", { generatedAt: new Date().toISOString() });
+            }
+          } catch (error) {
+            const reasonCode = error instanceof OaAuthorizationError
+              ? error.reasonCode
+              : "oa_realtime_failed";
+            send("session-invalid", { reasonCode });
+            cleanup();
+          } finally {
+            polling = false;
+          }
+        })();
+      }, 3_000);
+
+      request.raw.once("close", cleanup);
+      request.raw.once("aborted", cleanup);
+      return reply;
+    } catch (error) {
+      return fail(error, reply);
+    }
+  });
 
   app.get("/api/oa/me", { preHandler }, async (request, reply) => {
     const context = getRequestContext(request);
@@ -77,6 +168,33 @@ export async function registerOaRoutes(app: FastifyInstance): Promise<void> {
     }
   });
 
+  app.post("/api/oa/admin-handoffs", { preHandler }, async (request, reply) => {
+    const parsed = createOaAdminHandoffRequestSchema.safeParse(request.body);
+    if (!parsed.success) return invalid(reply, parsed.error.flatten());
+    const context = getRequestContext(request);
+    try {
+      const principal = await oaAuthorizationService.authorize(
+        context,
+        parsed.data.permissionKey,
+        [parsed.data.cityCode],
+      );
+      const handoff = await oaHandoffService.issue(principal, parsed.data);
+      await oaAuthorizationService.recordAudit(context, {
+        organizationId: principal.organization.organizationId,
+        cityCode: parsed.data.cityCode,
+        permission: parsed.data.permissionKey,
+        action: "oa.admin_handoff.issue",
+        targetType: "admin_route",
+        targetId: parsed.data.targetPath,
+        decision: "allowed",
+        reasonCode: "short_lived_single_use",
+      });
+      return handoff;
+    } catch (error) {
+      return fail(error, reply);
+    }
+  });
+
   app.get("/api/oa/scopes", { preHandler }, async (request, reply) => {
     const context = getRequestContext(request);
     try {
@@ -101,6 +219,219 @@ export async function registerOaRoutes(app: FastifyInstance): Promise<void> {
       return {
         ok: true,
         organizations: await oaAuthorizationService.listOrganizations(principal),
+      };
+    } catch (error) {
+      return fail(error, reply);
+    }
+  });
+
+  app.post("/api/oa/organizations", { preHandler }, async (request, reply) => {
+    const parsed = createOaOrganizationRequestSchema.safeParse(request.body);
+    if (!parsed.success) return invalid(reply, parsed.error.flatten());
+    const context = getRequestContext(request);
+    try {
+      const principal = await oaAuthorizationService.authorize(
+        context,
+        "oa.organization.manage",
+        parsed.data.cityCodes,
+      );
+      return {
+        ok: true,
+        ...await oaAdministrationService.createOrganization(context, principal, parsed.data),
+      };
+    } catch (error) {
+      return fail(error, reply);
+    }
+  });
+
+  app.post("/api/oa/organizations/:organizationId", { preHandler }, async (request, reply) => {
+    const parsed = updateOaOrganizationRequestSchema.safeParse(request.body);
+    if (!parsed.success) return invalid(reply, parsed.error.flatten());
+    const organizationId = asString((request.params as { organizationId?: unknown }).organizationId);
+    const context = getRequestContext(request);
+    try {
+      const principal = await oaAuthorizationService.authorize(
+        context,
+        "oa.organization.manage",
+        parsed.data.cityCodes ?? [],
+      );
+      return {
+        ok: true,
+        ...await oaAdministrationService.updateOrganization(
+          context,
+          principal,
+          organizationId,
+          parsed.data,
+        ),
+      };
+    } catch (error) {
+      return fail(error, reply);
+    }
+  });
+
+  app.get("/api/oa/roles", { preHandler }, async (request, reply) => {
+    const organizationId = asString((request.query as { organizationId?: unknown }).organizationId) || undefined;
+    const context = getRequestContext(request);
+    try {
+      const principal = await oaAuthorizationService.authorize(context, "oa.authorization.read");
+      return {
+        ok: true,
+        roles: await oaAdministrationService.listRoles(principal, organizationId),
+      };
+    } catch (error) {
+      return fail(error, reply);
+    }
+  });
+
+  app.post("/api/oa/roles", { preHandler }, async (request, reply) => {
+    const parsed = createOaRoleRequestSchema.safeParse(request.body);
+    if (!parsed.success) return invalid(reply, parsed.error.flatten());
+    const context = getRequestContext(request);
+    try {
+      const principal = await oaAuthorizationService.authorize(context, "oa.authorization.manage");
+      return {
+        ok: true,
+        ...await oaAdministrationService.createRole(context, principal, parsed.data),
+      };
+    } catch (error) {
+      return fail(error, reply);
+    }
+  });
+
+  app.post("/api/oa/roles/:roleId", { preHandler }, async (request, reply) => {
+    const parsed = updateOaRoleRequestSchema.safeParse(request.body);
+    if (!parsed.success) return invalid(reply, parsed.error.flatten());
+    const roleId = asString((request.params as { roleId?: unknown }).roleId);
+    const context = getRequestContext(request);
+    try {
+      const principal = await oaAuthorizationService.authorize(context, "oa.authorization.manage");
+      return {
+        ok: true,
+        ...await oaAdministrationService.updateRole(context, principal, roleId, parsed.data),
+      };
+    } catch (error) {
+      return fail(error, reply);
+    }
+  });
+
+  app.get("/api/oa/memberships", { preHandler }, async (request, reply) => {
+    const organizationId = asString((request.query as { organizationId?: unknown }).organizationId) || undefined;
+    const context = getRequestContext(request);
+    try {
+      const principal = await oaAuthorizationService.authorize(context, "oa.authorization.read");
+      return {
+        ok: true,
+        memberships: await oaAdministrationService.listMemberships(principal, organizationId),
+      };
+    } catch (error) {
+      return fail(error, reply);
+    }
+  });
+
+  app.post("/api/oa/memberships", { preHandler }, async (request, reply) => {
+    const parsed = createOaMembershipRequestSchema.safeParse(request.body);
+    if (!parsed.success) return invalid(reply, parsed.error.flatten());
+    const context = getRequestContext(request);
+    try {
+      const principal = await oaAuthorizationService.authorize(context, "oa.authorization.manage");
+      return {
+        ok: true,
+        ...await oaAdministrationService.createMembership(context, principal, parsed.data),
+      };
+    } catch (error) {
+      return fail(error, reply);
+    }
+  });
+
+  app.post("/api/oa/memberships/:membershipId", { preHandler }, async (request, reply) => {
+    const parsed = updateOaMembershipRequestSchema.safeParse(request.body);
+    if (!parsed.success) return invalid(reply, parsed.error.flatten());
+    const membershipId = asString((request.params as { membershipId?: unknown }).membershipId);
+    const context = getRequestContext(request);
+    try {
+      const principal = await oaAuthorizationService.authorize(context, "oa.authorization.manage");
+      return {
+        ok: true,
+        ...await oaAdministrationService.updateMembership(
+          context,
+          principal,
+          membershipId,
+          parsed.data,
+        ),
+      };
+    } catch (error) {
+      return fail(error, reply);
+    }
+  });
+
+  app.get("/api/oa/delegations", { preHandler }, async (request, reply) => {
+    const context = getRequestContext(request);
+    try {
+      const principal = await oaAuthorizationService.authorize(context, "oa.authorization.read");
+      return {
+        ok: true,
+        delegations: await oaAdministrationService.listDelegations(principal),
+      };
+    } catch (error) {
+      return fail(error, reply);
+    }
+  });
+
+  app.post("/api/oa/delegations", { preHandler }, async (request, reply) => {
+    const parsed = createOaDelegationRequestSchema.safeParse(request.body);
+    if (!parsed.success) return invalid(reply, parsed.error.flatten());
+    const context = getRequestContext(request);
+    try {
+      const principal = await oaAuthorizationService.authorize(
+        context,
+        "oa.authorization.manage",
+        [parsed.data.cityCode],
+      );
+      return {
+        ok: true,
+        ...await oaAdministrationService.createDelegation(context, principal, parsed.data),
+      };
+    } catch (error) {
+      return fail(error, reply);
+    }
+  });
+
+  app.post("/api/oa/delegations/:grantId/approve", { preHandler }, async (request, reply) => {
+    const parsed = approveOaDelegationRequestSchema.safeParse(request.body);
+    if (!parsed.success) return invalid(reply, parsed.error.flatten());
+    const grantId = asString((request.params as { grantId?: unknown }).grantId);
+    const context = getRequestContext(request);
+    try {
+      const principal = await oaAuthorizationService.authorize(context, "oa.authorization.manage");
+      return {
+        ok: true,
+        ...await oaAdministrationService.approveDelegation(
+          context,
+          principal,
+          grantId,
+          parsed.data,
+        ),
+      };
+    } catch (error) {
+      return fail(error, reply);
+    }
+  });
+
+  app.post("/api/oa/delegations/:grantId/revoke", { preHandler }, async (request, reply) => {
+    const parsed = revokeOaDelegationRequestSchema.safeParse(request.body);
+    if (!parsed.success) return invalid(reply, parsed.error.flatten());
+    const grantId = asString((request.params as { grantId?: unknown }).grantId);
+    const context = getRequestContext(request);
+    try {
+      const principal = await oaAuthorizationService.authorize(context, "oa.authorization.manage");
+      return {
+        ok: true,
+        ...await oaAdministrationService.revokeDelegation(
+          context,
+          principal,
+          grantId,
+          parsed.data,
+        ),
       };
     } catch (error) {
       return fail(error, reply);

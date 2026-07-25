@@ -3,51 +3,50 @@
 ## Evidence
 
 - Source visual truth: `G:\Agents\codex\generated_images\019f98f7-b5f2-7bf0-8d5c-08e415bbedf8\call_v9KT9fgiJGxocVKIEYY0aVcf.png`
-- Browser-rendered implementation: `G:\xlb100\apps\dashboard\artifacts\dashboard-wallboard-1920x1080.png`
-- Combined comparison: `G:\xlb100\apps\dashboard\artifacts\dashboard-comparison-pass1.png`
-- State: nationwide, authenticated, live, representative transactions/fulfillment/aftersale/support/city data
-- CSS viewport: `1920 x 1080`
-- Device scale factor: `1`
-- Source pixels: `1672 x 941`
-- Implementation pixels: `1920 x 1080`
-- Density normalization: source was bicubic-scaled to `1920 x 1080`; implementation remained native; both were placed in one `3840 x 1080` comparison image.
+- Current browser evidence: `G:\xlb100\apps\dashboard\artifacts\dashboard-wallboard-1440x1024.png`
+- Locked 16:9 evidence: `G:\xlb100\apps\dashboard\artifacts\dashboard-wallboard-1920x1080.png`
+- Locked combined comparison: `G:\xlb100\apps\dashboard\artifacts\dashboard-comparison-pass1.png`
+- Current viewport: `1440 × 1024`; device scale factor: `1`.
+- Current browser run: Chromium, authenticated route fixture, `2/2` combined
+  OA/Dashboard scenarios passed with no console or uncaught page errors.
 
-## Full-view comparison
+## Current 1440×1024 result
 
-The combined evidence preserves the selected source’s major composition: dark navy command-center surface, single-line header, six KPI columns, a large left pulse chart, right-side severity rail, four compact operational summaries, and a full-width source-freshness footer. Region ordering, above-the-fold density, card boundaries, blue/cyan/green/amber/red semantic palette, numeric hierarchy, and 16:9 crop align without clipped or hidden regions.
+The nationwide wallboard retains all six KPI columns, order/transaction pulse,
+severity rail, four operational summary regions, city health and the full-width
+source-freshness/privacy footer. No content is clipped and the document does not
+overflow horizontally. Live, stale, disconnected and attention semantics remain
+visually distinct.
 
-The implementation intentionally replaces the source’s “设计预览数据” control with the authenticated read-only session control. It also replaces source-only prior-day deltas with fact-source labels because the current database contract has no authoritative prior-day comparison aggregate. These are product-integrity deviations, not unresolved visual shortcuts.
+The Dashboard is read-only and shows aggregate facts only. The visible privacy
+label agrees with the response contract: no customer names, phone numbers,
+addresses, message bodies or exact worker locations are rendered.
 
-## Focused-region comparison
+## Locked visual comparison
 
-A separate crop was not required: the normalized combined image is `3840 x 1080`, so the header, KPI labels, alert ownership, bottom-card labels, icon treatment, city rows, and footer freshness text remain readable at original detail. Inspection confirmed:
+The existing `1920 × 1080` normalized comparison remains the primary 16:9 source
+match. It preserves the source's navy command-center composition, numeric
+hierarchy, blue/cyan/green/amber/red status palette and above-the-fold density.
+The implementation intentionally substitutes authenticated session and fact-source
+labels for source controls and prior-day deltas that lack an authoritative
+repository aggregate.
 
-- Typography: comparable condensed operational hierarchy; display numbers, section titles, secondary labels, and tabular numbers remain optically distinct.
-- Spacing/layout: all six KPI columns and four lower cards align; no 1920×1080 overflow; the pulse/attention split and footer height track the source.
-- Colors/tokens: navy surfaces and semantic status colors are consistent; contrast is sufficient for body text and status labels.
-- Image quality/assets: neither source nor implementation depends on photographic assets. Visible icons use the Phosphor family; no emoji, placeholder raster, handcrafted SVG, or CSS-drawn substitute is present.
-- Copy/content: operational Chinese labels are coherent and explicitly distinguish live, stale, disconnected, aggregate-only, and privacy-safe states.
+## Audit steps
 
-## Interaction and runtime evidence
-
-- Primary interactions tested: authenticated boot, 15-second data route, live rendering, stale snapshot label, manual retry, and return to live state.
-- Browser console and uncaught page errors: checked; none in the passing live render.
-- Layout measurement: document and viewport both measured exactly `1920 x 1080`.
-- Accessibility evidence: semantic headings/regions, labelled controls, keyboard focus styles, and reduced-motion override are present.
+1. **Authenticated boot — healthy.** The Dashboard session and realtime route load.
+2. **Operational hierarchy — healthy.** KPIs, trend, attention and summaries remain readable.
+3. **Freshness/privacy — healthy.** Source lag and privacy boundary are explicit.
+4. **Viewport fit — healthy.** Both `1440 × 1024` and locked `1920 × 1080` evidence have no clipping.
+5. **Accessibility evidence — healthy with limits.** Semantic headings, labelled
+   controls, focus styles and reduced-motion support are present; no manual
+   screen-reader certification is claimed.
 
 ## Findings
 
-No actionable P0, P1, or P2 differences were found.
-
-P3 follow-up polish:
-
-- A future authoritative comparison window could restore prior-day deltas without using synthetic data.
-- A city map could be added only after an approved geospatial aggregate source exists; it is intentionally absent today.
-
-## Comparison history
-
-- Pass 1: no P0/P1/P2 findings. No visual fixes were required after the normalized source/implementation comparison.
+No unresolved P0, P1 or P2 visual findings remain. Restoring prior-day deltas or
+adding a city map remains dependent on approved authoritative data sources and is
+not a construction defect.
 
 ## Final result
 
-final result: passed
+`passed`

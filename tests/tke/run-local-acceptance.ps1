@@ -144,7 +144,7 @@ try {
 
   if (-not $SkipImageBuild) {
     Invoke-Native docker @("build", "-f", "infra/docker/Dockerfile.backend", "-t", "xlb/backend:local", ".")
-    foreach ($app in @("customer", "worker", "admin")) {
+    foreach ($app in @("customer", "worker", "admin", "oa")) {
       Invoke-Native docker @(
         "build", "-f", "infra/docker/Dockerfile.frontend", "--build-arg", "APP_NAME=$app",
         "--build-arg", "APP_BASE=/", "-t", "xlb/${app}:local", "."
@@ -153,7 +153,7 @@ try {
   }
 
   Invoke-Native $script:kind @("create", "cluster", "--name", $clusterName, "--image", $manifest.nodeImage, "--wait", "180s")
-  foreach ($image in @("xlb/backend:local", "xlb/customer:local", "xlb/worker:local", "xlb/admin:local")) {
+  foreach ($image in @("xlb/backend:local", "xlb/customer:local", "xlb/worker:local", "xlb/admin:local", "xlb/oa:local")) {
     Invoke-Native $script:kind @("load", "docker-image", $image, "--name", $clusterName)
   }
 
@@ -201,6 +201,7 @@ try {
   Start-PortForward "$releaseName-xlb-customer" 14173 4173
   Start-PortForward "$releaseName-xlb-worker" 14174 4173
   Start-PortForward "$releaseName-xlb-admin" 14175 4173
+  Start-PortForward "$releaseName-xlb-oa" 14176 4173
   Invoke-Native node @((Join-Path $PSScriptRoot "verify-runtime.mjs"))
 
   $backendPod = (& kubectl --context $context --namespace $namespace get pod -l app.kubernetes.io/component=backend -o 'jsonpath={.items[0].metadata.name}').Trim()

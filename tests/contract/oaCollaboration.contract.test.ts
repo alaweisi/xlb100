@@ -3,10 +3,15 @@ import type { ApiClient } from "../../packages/api-client/src/createApiClient.js
 import { createOaApi } from "../../packages/api-client/src/oa.js";
 import {
   createOaApprovalRequestSchema,
+  createOaDelegationRequestSchema,
+  createOaMembershipRequestSchema,
+  createOaOrganizationRequestSchema,
+  createOaRoleRequestSchema,
   createOaTaskRequestSchema,
   oaApprovalActionRequestSchema,
   oaApprovalDecisionRequestSchema,
   oaTaskActionRequestSchema,
+  updateOaMembershipRequestSchema,
 } from "../../packages/validators/src/index.js";
 import { OA_PERMISSION_KEYS } from "../../packages/types/src/index.js";
 
@@ -86,6 +91,96 @@ describe("OA collaboration contract", () => {
       reason: "补充材料后重新提交",
       idempotencyKey: "oa-approval-resubmit-0001",
     }).success).toBe(true);
+  });
+
+  it("keeps organization and authorization mutations strict, scoped and auditable", () => {
+    expect(createOaOrganizationRequestSchema.safeParse({
+      organizationCode: "hangzhou-west",
+      name: "杭州西部分公司",
+      parentOrganizationId: "oa-org-hq",
+      cityCodes: ["hangzhou"],
+      reason: "总部批准新建分公司",
+      idempotencyKey: "oa-org-create-0001",
+    }).success).toBe(true);
+    expect(createOaOrganizationRequestSchema.safeParse({
+      organizationCode: "hangzhou-west",
+      name: "杭州西部分公司",
+      parentOrganizationId: "oa-org-hq",
+      cityCodes: ["__global__"],
+      reason: "非法全局范围",
+      idempotencyKey: "oa-org-create-0002",
+    }).success).toBe(false);
+    expect(createOaRoleRequestSchema.safeParse({
+      organizationId: "oa-org-hangzhou",
+      roleKey: "dispatch_reviewer",
+      name: "调度复核员",
+      permissions: ["operations.dispatch.read", "operations.dispatch.manage"],
+      reason: "建立最小权限角色",
+      idempotencyKey: "oa-role-create-0001",
+    }).success).toBe(true);
+    expect(createOaMembershipRequestSchema.safeParse({
+      organizationId: "oa-org-hangzhou",
+      adminUserId: "admin-hangzhou",
+      roleIds: [],
+      reason: "角色不能为空",
+      idempotencyKey: "oa-member-create-0001",
+    }).success).toBe(false);
+    expect(updateOaMembershipRequestSchema.safeParse({
+      expectedAuthzVersion: 3,
+      reason: "没有任何变更",
+      idempotencyKey: "oa-member-update-0001",
+    }).success).toBe(false);
+    expect(createOaDelegationRequestSchema.safeParse({
+      granteeOrganizationId: "oa-org-hangzhou",
+      cityCode: "hangzhou",
+      permissionKey: "operations.dispatch.manage",
+      reason: "总部委派杭州调度权限",
+      idempotencyKey: "oa-grant-create-0001",
+    }).success).toBe(true);
+  });
+
+  it("exposes idempotent management endpoints without placing identity state in URLs", async () => {
+    const client = recordingClient();
+    const api = createOaApi(client);
+    await api.createOrganization({
+      organizationCode: "hangzhou-west",
+      name: "杭州西部分公司",
+      parentOrganizationId: "oa-org-hq",
+      cityCodes: ["hangzhou"],
+      reason: "总部批准",
+      idempotencyKey: "oa-org-create-0001",
+    });
+    await api.createDelegation({
+      granteeOrganizationId: "oa-org-hangzhou",
+      cityCode: "hangzhou",
+      permissionKey: "operations.dispatch.manage",
+      reason: "发起委派",
+      idempotencyKey: "oa-grant-create-0001",
+    });
+    await api.approveDelegation("grant/unsafe", {
+      expectedVersion: 0,
+      reason: "独立复核通过",
+      idempotencyKey: "oa-grant-approve-0001",
+    });
+
+    expect(client.post).toHaveBeenNthCalledWith(
+      1,
+      "/api/oa/organizations",
+      expect.objectContaining({ cityCodes: ["hangzhou"] }),
+      { retry: "idempotent" },
+    );
+    expect(client.post).toHaveBeenNthCalledWith(
+      2,
+      "/api/oa/delegations",
+      expect.objectContaining({ permissionKey: "operations.dispatch.manage" }),
+      { retry: "idempotent" },
+    );
+    expect(client.post).toHaveBeenNthCalledWith(
+      3,
+      "/api/oa/delegations/grant%2Funsafe/approve",
+      expect.objectContaining({ expectedVersion: 0 }),
+      { retry: "idempotent" },
+    );
   });
 
   it("uses scoped OA endpoints and enables retry only for commands carrying idempotency keys", async () => {

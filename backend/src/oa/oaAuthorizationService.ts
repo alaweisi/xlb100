@@ -266,9 +266,20 @@ export class OaAuthorizationService {
              AND assignment.valid_from <= CURRENT_TIMESTAMP(3)
              AND (assignment.valid_to IS NULL OR assignment.valid_to > CURRENT_TIMESTAMP(3))
          ))
+         AND (o.organization_id = ? OR NOT EXISTS (
+           SELECT 1
+           FROM oa_organization_city_assignments assignment
+           WHERE assignment.organization_id = o.organization_id
+             AND assignment.status = 'active'
+             AND assignment.valid_from <= CURRENT_TIMESTAMP(3)
+             AND (assignment.valid_to IS NULL OR assignment.valid_to > CURRENT_TIMESTAMP(3))
+             AND assignment.city_code NOT IN (${cityPlaceholders})
+         ))
        ORDER BY c.depth, o.organization_code`,
       [
         principal.organization.organizationId,
+        principal.organization.organizationId,
+        ...principal.cityCodes,
         principal.organization.organizationId,
         ...principal.cityCodes,
       ],

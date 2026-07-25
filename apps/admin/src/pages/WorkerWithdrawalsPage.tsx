@@ -23,9 +23,10 @@ function statusTone(status: WorkerWithdrawalResponse["status"]): "success" | "wa
 
 interface Props {
   initialCityCode?: string;
+  canReview?: boolean;
 }
 
-export function WorkerWithdrawalsPage({ initialCityCode }: Props) {
+export function WorkerWithdrawalsPage({ initialCityCode, canReview = true }: Props) {
   const [cityCode, setCityCode] = useState(initialCityCode || "hangzhou");
   const [withdrawals, setWithdrawals] = useState<WorkerWithdrawalResponse[]>([]);
   const [loading, setLoading] = useState(false);
@@ -114,7 +115,7 @@ export function WorkerWithdrawalsPage({ initialCityCode }: Props) {
               {
                 key: "actions",
                 title: "Actions",
-                render: (item) => (
+                render: (item) => canReview ? (
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                     <Button
                       disabled={item.status !== "requested" || busyId === item.withdrawalId}
@@ -136,7 +137,7 @@ export function WorkerWithdrawalsPage({ initialCityCode }: Props) {
                       Mark Paid
                     </Button>
                   </div>
-                ),
+                ) : null,
               },
             ]}
           />

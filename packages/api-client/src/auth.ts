@@ -1,4 +1,5 @@
 import type { ApiClient } from "./createApiClient.js";
+import type { OaAdminHandoffExchangeResponse } from "@xlb/types";
 import { validateLoginCodeResponse, validateLoginResponse } from "./responseValidators.js";
 
 // ── Response types ──
@@ -133,6 +134,12 @@ export function createAuthApi(client: ApiClient) {
             return value as OaLoginResponse;
           },
         },
+      );
+    },
+    exchangeOaAdminHandoff(ticket: string) {
+      return client.post<OaAdminHandoffExchangeResponse | LoginError>(
+        "/api/auth/oa/admin-handoffs/exchange",
+        { ticket },
       );
     },
     getOaDebugCode(username: string) {

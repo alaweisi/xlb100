@@ -101,6 +101,52 @@ export class OaIdentityService {
     };
   }
 
+  async findActiveSessionProfile(
+    sessionId: string,
+    membershipId: string,
+  ): Promise<OaLoginProfile | null> {
+    const [rows] = await getMysqlPool().query<(RowDataPacket & {
+      user_id: string;
+      username: string;
+      legacy_role: Role;
+      membership_id: string;
+      organization_id: string;
+      organization_name: string;
+      organization_type: OaOrganizationType;
+      authz_version: number;
+    })[]>(
+      `SELECT au.id AS user_id, au.username, au.role AS legacy_role,
+              m.membership_id, m.organization_id, m.authz_version,
+              o.name AS organization_name, o.organization_type
+       FROM oa_sessions s
+       JOIN oa_memberships m ON m.membership_id = s.membership_id
+       JOIN admin_users au ON au.id = m.admin_user_id
+       JOIN oa_organizations o ON o.organization_id = m.organization_id
+       WHERE s.session_id = ?
+         AND s.membership_id = ?
+         AND s.revoked_at IS NULL
+         AND s.expires_at > CURRENT_TIMESTAMP(3)
+         AND s.authz_version = m.authz_version
+         AND m.status = 'active'
+         AND o.status = 'active'
+         AND m.valid_from <= CURRENT_TIMESTAMP(3)
+         AND (m.valid_to IS NULL OR m.valid_to > CURRENT_TIMESTAMP(3))
+       LIMIT 1`,
+      [sessionId, membershipId],
+    );
+    const row = rows[0];
+    return row ? {
+      userId: row.user_id,
+      username: row.username,
+      legacyRole: row.legacy_role,
+      membershipId: row.membership_id,
+      organizationId: row.organization_id,
+      organizationName: row.organization_name,
+      organizationType: row.organization_type,
+      authzVersion: row.authz_version,
+    } : null;
+  }
+
   async revokeSession(sessionId: string, membershipId: string): Promise<void> {
     await getMysqlPool().query(
       `UPDATE oa_sessions

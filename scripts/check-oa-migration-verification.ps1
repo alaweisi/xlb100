@@ -29,19 +29,27 @@ function Assert-Equal([string]$label, [string]$expected, [string]$actual) {
 Push-Location $root
 try {
   Invoke-RootSql "DROP DATABASE IF EXISTS $database; CREATE DATABASE $database CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci" | Out-Null
-  docker exec -e MYSQL_PWD=xlb_root_password $container mysqldump -uroot --no-data --skip-triggers xlb_local |
-    docker exec -i -e MYSQL_PWD=xlb_root_password $container mysql -uroot $database
-  if ($LASTEXITCODE -ne 0) { throw "Failed to prepare the pre-OA baseline schema" }
+  $baselineMigrations = Get-ChildItem (Join-Path $root "db/migrations") -Filter "*.sql" |
+    Where-Object {
+      $_.BaseName -match '^(\d{3})_' -and [int]$Matches[1] -le 62
+    } |
+    Sort-Object Name
+  foreach ($migration in $baselineMigrations) {
+    Apply-SqlFile $migration.FullName
+  }
+  Write-Host "PASS canonical pre-OA 000-062 baseline"
 
   foreach ($pass in 1..2) {
     Apply-SqlFile (Join-Path $root "db/migrations/063_oa_collaboration_foundation.sql")
     Apply-SqlFile (Join-Path $root "db/migrations/064_oa_notifications.sql")
+    Apply-SqlFile (Join-Path $root "db/migrations/065_oa_branch_city_ownership.sql")
     Write-Host "PASS OA migration application $pass"
   }
 
-  Assert-Equal "OA migration markers" "2" (Invoke-RootSql "SELECT COUNT(*) FROM schema_migrations WHERE version IN ('063_oa_collaboration_foundation','064_oa_notifications')" $database)
-  Assert-Equal "OA required tables" "23" (Invoke-RootSql "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name LIKE 'oa_%'" $database)
-  Assert-Equal "OA real-city checks" "10" (Invoke-RootSql "SELECT COUNT(*) FROM information_schema.table_constraints WHERE constraint_schema=DATABASE() AND constraint_type='CHECK' AND constraint_name LIKE 'chk_oa_%_city_real'" $database)
+  Assert-Equal "OA migration markers" "3" (Invoke-RootSql "SELECT COUNT(*) FROM schema_migrations WHERE version IN ('063_oa_collaboration_foundation','064_oa_notifications','065_oa_branch_city_ownership')" $database)
+  Assert-Equal "OA required tables" "24" (Invoke-RootSql "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name LIKE 'oa_%'" $database)
+  Assert-Equal "OA real-city checks" "11" (Invoke-RootSql "SELECT COUNT(*) FROM information_schema.table_constraints WHERE constraint_schema=DATABASE() AND constraint_type='CHECK' AND (constraint_name LIKE 'chk_oa_%_city_real' OR constraint_name='chk_oa_branch_city_owner_real')" $database)
+  Assert-Equal "OA branch city owner primary key" "1" (Invoke-RootSql "SELECT COUNT(*) FROM information_schema.statistics WHERE table_schema=DATABASE() AND table_name='oa_branch_city_ownership' AND index_name='PRIMARY' AND column_name='city_code'" $database)
   Assert-Equal "OA activity source key columns" "3" (Invoke-RootSql "SELECT COUNT(*) FROM information_schema.statistics WHERE table_schema=DATABASE() AND table_name='oa_activity_projection' AND index_name='uk_oa_activity_source'" $database)
   Assert-Equal "OA notification dedupe key" "1" (Invoke-RootSql "SELECT COUNT(*) FROM information_schema.statistics WHERE table_schema=DATABASE() AND table_name='oa_notifications' AND index_name='uk_oa_notification_dedupe' AND column_name='dedupe_key'" $database)
   Assert-Equal "OA membership foreign keys" "2" (Invoke-RootSql "SELECT COUNT(*) FROM information_schema.referential_constraints WHERE constraint_schema=DATABASE() AND constraint_name IN ('fk_oa_membership_admin','fk_oa_membership_org')" $database)

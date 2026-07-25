@@ -56,6 +56,7 @@ export type AutoRunDependencies = {
   prepareSettlement: (context: RequestContext) => Promise<{ processed: number }>;
   runSupportSla: (context: RequestContext, cityCode: CityCode) => Promise<{ processed: number }>;
   runOaActivity: (cityCode: CityCode) => Promise<{ processed: number }>;
+  listOaActivityCityCodes: () => Promise<CityCode[]>;
   collectReliabilitySnapshot: (cityCodes: readonly string[]) => Promise<DataReliabilitySnapshot>;
   publishReliabilitySnapshot: (snapshot: DataReliabilitySnapshot) => Promise<void>;
   publishHeartbeat: (observedAt: Date) => Promise<void>;
@@ -81,6 +82,7 @@ const defaultDependencies: AutoRunDependencies = {
   prepareSettlement: (context) => settlementPreparationService.prepareOnce(context),
   runSupportSla: (context, cityCode) => supportSlaBreachService.runOnce(context, cityCode),
   runOaActivity: (cityCode) => oaActivityProjectionService.runOnce(cityCode),
+  listOaActivityCityCodes: () => oaActivityProjectionService.listActiveCityCodes(),
   collectReliabilitySnapshot: (cityCodes) => collectDataReliabilitySnapshot(cityCodes),
   publishReliabilitySnapshot: (snapshot) => publishDataReliabilityMetrics(snapshot),
   publishHeartbeat: (observedAt) => publishJobWorkerMetricsHeartbeat(observedAt),
@@ -259,6 +261,22 @@ export function startAutoRunJobs({ env, logger, dependencies: overrides }: AutoR
       await runStep("settlement.prepare", cityCode, context, logger, dependencies);
       await runStep("support.sla", cityCode, context, logger, dependencies);
       await runStep("oa.activity", cityCode, context, logger, dependencies);
+    }
+    try {
+      const configuredCities = new Set(cityCodes);
+      const oaOnlyCities = await dependencies.listOaActivityCityCodes();
+      for (const cityCode of oaOnlyCities) {
+        if (configuredCities.has(cityCode)) continue;
+        await runStep(
+          "oa.activity",
+          cityCode,
+          buildAutoRunContext(cityCode),
+          logger,
+          dependencies,
+        );
+      }
+    } catch (error) {
+      logger.error({ step: "oa.activity.discovery", error }, "OA activity city discovery failed");
     }
     await collectReliability();
   };

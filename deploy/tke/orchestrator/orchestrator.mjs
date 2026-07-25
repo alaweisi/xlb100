@@ -708,7 +708,11 @@ function acquireReleaseLease(checkpointFile, releaseId, leaseDurationMs = 30_000
           assertOwned();
           rmSync(paths.directory, { recursive: true, force: true });
         } catch (error) {
-          if (error.code !== "ENOENT") throw error;
+          // A fenced or expired owner must never remove a successor's lease.
+          // The operation path performs its own ownership checks before every
+          // durable write, so release is cleanup only and must not mask that
+          // original LEASE_LOST outcome.
+          if (error.code !== "ENOENT" && error.code !== "LEASE_LOST") throw error;
         }
       },
     };

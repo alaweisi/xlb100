@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { loadEnv } from "@xlb/config";
+import { exchangeOaAdminHandoffRequestSchema } from "@xlb/validators";
 import { hashAuthAuditIdentity, maskPhone } from "./phoneIdentity.js";
 import {
   adminLogin,
@@ -18,6 +19,10 @@ import {
   dashboardLogin,
   workerLogin,
 } from "./authService.js";
+import {
+  OaHandoffError,
+  oaHandoffService,
+} from "../oa/oaHandoffService.js";
 
 interface LoginBody {
   phone?: string;
@@ -76,6 +81,27 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       const result = await oaLogin(body.username ?? "", body.code ?? "", deviceSummary);
       if (!result.ok) return sendError(reply, result);
       return result;
+    },
+  );
+
+  app.post(
+    "/api/auth/oa/admin-handoffs/exchange",
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const parsed = exchangeOaAdminHandoffRequestSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.status(400).send({ ok: false, error: "Invalid OA Admin handoff ticket" });
+      }
+      const deviceSummary = typeof request.headers["user-agent"] === "string"
+        ? request.headers["user-agent"]
+        : undefined;
+      try {
+        return await oaHandoffService.exchange(parsed.data.ticket, deviceSummary);
+      } catch (error) {
+        if (error instanceof OaHandoffError) {
+          return reply.status(error.statusCode).send({ ok: false, error: error.message });
+        }
+        throw error;
+      }
     },
   );
 

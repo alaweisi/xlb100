@@ -5,7 +5,7 @@ import { adminOpsApi as api } from "../adminAuth";
 
 const key = () => `quality-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
-export function SupportQualityPage({ initialCityCode }: { initialCityCode?: string }) {
+export function SupportQualityPage({ initialCityCode, canManage = true }: { initialCityCode?: string; canManage?: boolean }) {
   const [dashboard, setDashboard] = useState<SupportQualityDashboard | null>(null);
   const [version, setVersion] = useState("");
   const [target, setTarget] = useState("");
@@ -57,11 +57,11 @@ export function SupportQualityPage({ initialCityCode }: { initialCityCode?: stri
           </p>
         ) : null}
       </Card>
-      <Card title="Rubric version">
+      {canManage && <Card title="Rubric version">
         <Button variant="primary" onClick={() => void rubric()}>Create and publish rubric version</Button>
         <p>{version || "No rubric version selected"}</p>
-      </Card>
-      <Card title="Quality review">
+      </Card>}
+      {canManage && <Card title="Quality review">
         <FormField label="Closed ticket ID">
           <Input value={target} onChange={(event) => setTarget(event.target.value)} />
         </FormField>
@@ -71,7 +71,7 @@ export function SupportQualityPage({ initialCityCode }: { initialCityCode?: stri
         <Button variant="primary" disabled={!target || !version} onClick={() => void review()}>
           Submit review
         </Button>
-      </Card>
+      </Card>}
       {notice ? <p>{notice}</p> : null}
     </div>
   );

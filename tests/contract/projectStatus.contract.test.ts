@@ -26,6 +26,7 @@ describe("project status contract", () => {
       ok: true,
       project: "XLB",
       phase: "29",
+      apps: ["customer", "worker", "admin", "oa", "dashboard"],
       foundation: "phase29-marketing-coupon",
     });
   });

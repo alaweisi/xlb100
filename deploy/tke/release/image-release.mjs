@@ -5,9 +5,10 @@ import { fileURLToPath } from "node:url";
 
 export const COMPONENTS = Object.freeze({
   backend: Object.freeze({ dockerfile: "infra/docker/Dockerfile.backend", buildArgs: [] }),
-  customer: Object.freeze({ dockerfile: "infra/docker/Dockerfile.frontend", buildArgs: ["APP_NAME=customer", "APP_BASE=/customer/"] }),
-  worker: Object.freeze({ dockerfile: "infra/docker/Dockerfile.frontend", buildArgs: ["APP_NAME=worker", "APP_BASE=/worker/"] }),
-  admin: Object.freeze({ dockerfile: "infra/docker/Dockerfile.frontend", buildArgs: ["APP_NAME=admin", "APP_BASE=/admin/"] }),
+  customer: Object.freeze({ dockerfile: "infra/docker/Dockerfile.frontend", buildArgs: ["APP_NAME=customer", "APP_BASE=/"] }),
+  worker: Object.freeze({ dockerfile: "infra/docker/Dockerfile.frontend", buildArgs: ["APP_NAME=worker", "APP_BASE=/"] }),
+  admin: Object.freeze({ dockerfile: "infra/docker/Dockerfile.frontend", buildArgs: ["APP_NAME=admin", "APP_BASE=/"] }),
+  oa: Object.freeze({ dockerfile: "infra/docker/Dockerfile.frontend", buildArgs: ["APP_NAME=oa", "APP_BASE=/"] }),
 });
 
 const RELEASE_ID = /^[a-z0-9](?:[a-z0-9.-]{4,61}[a-z0-9])$/;

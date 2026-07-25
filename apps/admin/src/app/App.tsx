@@ -2,9 +2,14 @@ import { lazy, useCallback, useEffect, useState } from "react";
 import { buildHash, parseHashParams, parseView } from "../hashParams";
 import {
   clearAdminSession,
+  exchangeOaHandoff,
+  hydrateOaBridgeSession,
+  isOaBridgeMode,
   loginAdmin,
   loginAdminWithCode,
+  oaReturnUrl,
   readStoredAdminSession,
+  readOaHandoffTicket,
   requestAdminLoginCode,
   adminOpsApi,
   type AdminSession,
@@ -47,6 +52,30 @@ export function App() {
 
   useEffect(() => {
     if (session) return;
+    const handoff = readOaHandoffTicket();
+    if (!handoff) return;
+    let cancelled = false;
+    setAuthLoading(true);
+    void exchangeOaHandoff(handoff)
+      .then((next) => {
+        if (!cancelled) {
+          setSession(next);
+          setAuthError(null);
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setAuthError(error instanceof Error ? error.message : "OA handoff failed");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setAuthLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (session || isOaBridgeMode()) return;
     let cancelled = false;
     setAuthLoading(true);
     void loginAdmin(loginUsername)
@@ -66,6 +95,30 @@ export function App() {
       });
     return () => { cancelled = true; };
   }, []);
+
+  useEffect(() => {
+    if (session?.identity !== "oa" || session.permissions) return;
+    let cancelled = false;
+    setAuthLoading(true);
+    void hydrateOaBridgeSession(session)
+      .then((next) => {
+        if (!cancelled) {
+          setSession(next);
+          setAuthError(null);
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          clearAdminSession();
+          setAuthError(error instanceof Error ? error.message : "OA authorization failed");
+          setSession(null);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setAuthLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [session]);
 
   const handleRequestCode = useCallback(async () => {
     setAuthLoading(true);
@@ -93,12 +146,23 @@ export function App() {
   }, [loginCode, loginUsername]);
 
   const handleLogout = useCallback(() => {
+    if (session?.identity === "oa") {
+      clearAdminSession();
+      window.location.assign(oaReturnUrl());
+      return;
+    }
     clearAdminSession();
     setSession(null);
     setLoginCode("");
-  }, []);
+  }, [session]);
 
   const cityCode = params.get("cityCode") || undefined;
+  const can = useCallback((...permissions: NonNullable<AdminSession["permissions"]>[number][]) => (
+    session?.identity !== "oa" || permissions.some((permission) => (
+      session.permissions?.includes(permission)
+      && (!cityCode || session.permissionCityCodes?.[permission]?.includes(cityCode))
+    ))
+  ), [cityCode, session]);
 
   const navigateToDetail = useCallback((statementId: string, extra?: Record<string, string>) => {
     window.location.hash = buildHash(
@@ -115,8 +179,8 @@ export function App() {
   }, [cityCode]);
 
   const navigateToGovernance = useCallback(() => {
-    window.location.hash = buildHash("/settlement-ops/governance");
-  }, []);
+    window.location.hash = buildHash("/settlement-ops/governance", { cityCode: cityCode || "" });
+  }, [cityCode]);
 
   const navigateToOrderTrace = useCallback(() => {
     window.location.hash = buildHash("/order-trace", { cityCode: cityCode || "" });
@@ -138,8 +202,8 @@ export function App() {
   const navigateToMarketing=useCallback(()=>{window.location.hash=buildHash("/marketing",{cityCode:cityCode||""})},[cityCode]);
 
   const navigateToDashboard = useCallback(() => {
-    window.location.hash = "";
-  }, []);
+    window.location.hash = buildHash("/", { cityCode: cityCode || "" });
+  }, [cityCode]);
 
   const viewTitle = view.page === "workerWithdrawals"
     ? "Worker Withdrawals"
@@ -196,24 +260,67 @@ export function App() {
     );
   }
 
-  const content = view.page === "workerWithdrawals"
-    ? <WorkerWithdrawalsPage initialCityCode={cityCode} />
+  const pageAllowed = view.page === "workerWithdrawals"
+    ? can("finance.withdrawal.read")
     : view.page === "support"
-    ? <SupportTicketsPage initialCityCode={cityCode} />
+    ? can("support.read")
     : view.page === "supportQuality"
-    ? <SupportQualityPage initialCityCode={cityCode}/>
+    ? can("support.quality.read")
     : view.page === "reviewModeration"
-    ? <ReviewModerationPage initialCityCode={cityCode}/>
+    ? can("reviews.read")
     : view.page === "marketing"
-    ? <MarketingOperationsPage api={adminOpsApi.marketing} initialCityCode={cityCode ?? "hangzhou"} role={session.role === "admin" || session.role === "operator" || session.role === "auditor" ? session.role : "auditor"}/>
+    ? can("marketing.read")
     : view.page === "platformOperations"
-    ? <PlatformOperationsPage initialCityCode={cityCode}/>
+    ? can("operations.orders.read", "operations.catalog.read", "operations.certification.read")
     : view.page === "enterprise"
-    ? <EnterpriseOpsPage initialCityCode={cityCode}/>
+    ? can("enterprise.read")
     : view.page === "dispatch"
-    ? <DispatchBoardPage initialCityCode={cityCode}/>
+    ? can("operations.dispatch.read")
     : view.page === "aftersale"
-    ? <AftersaleOpsPage initialCityCode={cityCode} />
+    ? can("aftersale.read")
+    : view.page === "orderTrace"
+    ? can("operations.orders.read")
+    : can("finance.settlement.read");
+
+  const content = session.identity === "oa" && !session.permissions
+    ? (
+        <GuardrailCard title="Verifying OA capability" actions={<StatusTag tone="warning">checking</StatusTag>}>
+          <p style={{ margin: 0 }}>The delegated session is loading its effective city and permission scope.</p>
+        </GuardrailCard>
+      )
+    : !pageAllowed
+    ? (
+        <GuardrailCard title="OA capability denied" actions={<StatusTag tone="danger">forbidden</StatusTag>}>
+          <p style={{ margin: 0 }}>The current OA membership has no effective permission for this page and city.</p>
+        </GuardrailCard>
+      )
+    : view.page === "workerWithdrawals"
+    ? <WorkerWithdrawalsPage initialCityCode={cityCode} canReview={can("finance.withdrawal.review")} />
+    : view.page === "support"
+    ? <SupportTicketsPage initialCityCode={cityCode} canManage={can("support.manage")} />
+    : view.page === "supportQuality"
+    ? <SupportQualityPage initialCityCode={cityCode} canManage={can("support.quality.manage")}/>
+    : view.page === "reviewModeration"
+    ? <ReviewModerationPage initialCityCode={cityCode} canModerate={can("reviews.moderate")}/>
+    : view.page === "marketing"
+    ? <MarketingOperationsPage api={adminOpsApi.marketing} initialCityCode={cityCode ?? "hangzhou"} role={can("marketing.manage") ? "admin" : "auditor"}/>
+    : view.page === "platformOperations"
+    ? <PlatformOperationsPage
+        initialCityCode={cityCode}
+        access={{
+          orders: can("operations.orders.read"),
+          catalog: can("operations.catalog.read"),
+          catalogManage: can("operations.catalog.manage"),
+          certification: can("operations.certification.read"),
+          certificationDecide: can("operations.certification.decide"),
+        }}
+      />
+    : view.page === "enterprise"
+    ? <EnterpriseOpsPage initialCityCode={cityCode} canManage={can("enterprise.manage")}/>
+    : view.page === "dispatch"
+    ? <DispatchBoardPage initialCityCode={cityCode} canManage={can("operations.dispatch.manage")}/>
+    : view.page === "aftersale"
+    ? <AftersaleOpsPage initialCityCode={cityCode} canManage={can("aftersale.manage")} />
     : view.page === "orderTrace"
     ? (
         <OrderTracePage
@@ -222,7 +329,11 @@ export function App() {
         />
       )
     : view.page === "governance"
-      ? <SettlementActionGovernancePage onBack={navigateToDashboard} subView={view.subView} />
+      ? <SettlementActionGovernancePage
+          onBack={navigateToDashboard}
+          subView={view.subView}
+          canReview={can("finance.settlement.review")}
+        />
       : view.page === "exports"
         ? (
             <SettlementExportReviewPage
@@ -306,7 +417,24 @@ export function App() {
             {key:"supportQuality",label:"Support Quality",active:view.page==="supportQuality",href:"#/support-quality",onClick:navigateToSupportQuality},
             {key:"reviewModeration",label:"Review / Reputation",active:view.page==="reviewModeration",href:"#/review-moderation",onClick:navigateToReviewModeration},
             {key:"marketing",label:"Marketing / Coupon",active:view.page==="marketing",href:"#/marketing",onClick:navigateToMarketing},
-          ]}
+          ].filter((item) => {
+            if (item.key === "settlement" || item.key === "exports" || item.key === "governance") {
+              return can("finance.settlement.read");
+            }
+            if (item.key === "orderTrace") return can("operations.orders.read");
+            if (item.key === "workerWithdrawals") return can("finance.withdrawal.read");
+            if (item.key === "aftersale") return can("aftersale.read");
+            if (item.key === "enterprise") return can("enterprise.read");
+            if (item.key === "dispatch") return can("operations.dispatch.read");
+            if (item.key === "platformOperations") {
+              return can("operations.orders.read", "operations.catalog.read", "operations.certification.read");
+            }
+            if (item.key === "support") return can("support.read");
+            if (item.key === "supportQuality") return can("support.quality.read");
+            if (item.key === "reviewModeration") return can("reviews.read");
+            if (item.key === "marketing") return can("marketing.read");
+            return false;
+          })}
         />
       }
       topBar={
@@ -317,14 +445,14 @@ export function App() {
             <>
               {cityCode && <ScopeBadge scope={`city: ${cityCode}`} />}
               <StatusTag tone="primary">{session.userId}</StatusTag>
-              <StatusTag tone="success">same-origin API</StatusTag>
-              <Button onClick={handleLogout}>Logout</Button>
+              <StatusTag tone="success">{session.identity === "oa" ? "OA delegated" : "Admin session"}</StatusTag>
+              <Button onClick={handleLogout}>{session.identity === "oa" ? "Back to OA" : "Logout"}</Button>
             </>
           }
         />
       }
       style={{ background: "var(--xlb-surface-muted)" }}
-      contentStyle={{ display: "grid", gap: 16 }}
+      contentStyle={{ display: "grid", gap: 16, alignContent: "start" }}
     >
       <GuardrailCard
         title="Operations Guardrail"

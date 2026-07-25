@@ -5,6 +5,7 @@ const frontendPorts = {
   customer: Number(process.env.XLB_TKE_CUSTOMER_PORT ?? 14173),
   worker: Number(process.env.XLB_TKE_WORKER_PORT ?? 14174),
   admin: Number(process.env.XLB_TKE_ADMIN_PORT ?? 14175),
+  oa: Number(process.env.XLB_TKE_OA_PORT ?? 14176),
 };
 
 async function get(path) {
@@ -31,6 +32,9 @@ for (const [name, port] of Object.entries(frontendPorts)) {
   assert.equal(response.status, 200, `${name} returned ${response.status}`);
   assert.match(body, /<div\s+id="root"/i, `${name} did not serve its application shell`);
 }
+
+const unauthenticatedOa = await get("/api/oa/me");
+assert.equal(unauthenticatedOa.response.status, 401, unauthenticatedOa.text);
 
 await new Promise((resolve, reject) => {
   const socket = new WebSocket(`ws://127.0.0.1:${backendPort}/api/support/realtime?ticket=invalid`);
@@ -64,4 +68,4 @@ while (Date.now() < heartbeatDeadline) {
 }
 assert.ok(heartbeat > 0, "jobs deployment did not publish a heartbeat");
 
-console.log("tke-acceptance: backend, three frontends, WebSocket and jobs heartbeat passed");
+console.log("tke-acceptance: backend, four frontends, OA auth boundary, WebSocket and jobs heartbeat passed");

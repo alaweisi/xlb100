@@ -1,6 +1,12 @@
 import type {
   CityCode,
+  CreateOaAdminHandoffRequest,
+  ApproveOaDelegationRequest,
+  CreateOaDelegationRequest,
+  CreateOaMembershipRequest,
+  CreateOaOrganizationRequest,
   CreateOaApprovalRequest,
+  CreateOaRoleRequest,
   CreateOaTaskRequest,
   OaApprovalActionRequest,
   OaActivityListResponse,
@@ -10,17 +16,29 @@ import type {
   OaApprovalStatus,
   OaAuditListResponse,
   OaLogoutResponse,
+  OaDelegationResponse,
+  OaDelegationsResponse,
   OaMeResponse,
+  OaAdminHandoffResponse,
+  OaMembershipResponse,
+  OaMembershipsResponse,
   OaNotificationCountResponse,
   OaNotificationListResponse,
   OaNotificationMutationResponse,
   OaOrganizationsResponse,
+  OaOrganizationResponse,
+  OaRoleResponse,
+  OaRolesResponse,
   OaScopeResponse,
   OaTaskActionRequest,
   OaTaskListResponse,
   OaTaskResponse,
   OaTaskStatus,
   OaWorkbenchResponse,
+  RevokeOaDelegationRequest,
+  UpdateOaMembershipRequest,
+  UpdateOaOrganizationRequest,
+  UpdateOaRoleRequest,
 } from "@xlb/types";
 import type { ApiClient } from "./createApiClient.js";
 
@@ -67,6 +85,9 @@ export function createOaApi(client: ApiClient) {
     logout() {
       return client.post<OaLogoutResponse>("/api/oa/logout");
     },
+    createAdminHandoff(input: CreateOaAdminHandoffRequest) {
+      return client.post<OaAdminHandoffResponse>("/api/oa/admin-handoffs", input);
+    },
     getScope() {
       return client.get<OaScopeResponse>("/api/oa/scopes", { retry: "idempotent" });
     },
@@ -74,6 +95,75 @@ export function createOaApi(client: ApiClient) {
       return client.get<OaOrganizationsResponse>("/api/oa/organizations", {
         retry: "idempotent",
       });
+    },
+    createOrganization(input: CreateOaOrganizationRequest) {
+      return client.post<OaOrganizationResponse>("/api/oa/organizations", input, {
+        retry: "idempotent",
+      });
+    },
+    updateOrganization(organizationId: string, input: UpdateOaOrganizationRequest) {
+      return client.post<OaOrganizationResponse>(
+        `/api/oa/organizations/${encodeURIComponent(organizationId)}`,
+        input,
+        { retry: "idempotent" },
+      );
+    },
+    listRoles(organizationId?: string) {
+      return client.get<OaRolesResponse>(`/api/oa/roles${query({ organizationId })}`, {
+        retry: "idempotent",
+      });
+    },
+    createRole(input: CreateOaRoleRequest) {
+      return client.post<OaRoleResponse>("/api/oa/roles", input, { retry: "idempotent" });
+    },
+    updateRole(roleId: string, input: UpdateOaRoleRequest) {
+      return client.post<OaRoleResponse>(
+        `/api/oa/roles/${encodeURIComponent(roleId)}`,
+        input,
+        { retry: "idempotent" },
+      );
+    },
+    listMemberships(organizationId?: string) {
+      return client.get<OaMembershipsResponse>(
+        `/api/oa/memberships${query({ organizationId })}`,
+        { retry: "idempotent" },
+      );
+    },
+    createMembership(input: CreateOaMembershipRequest) {
+      return client.post<OaMembershipResponse>("/api/oa/memberships", input, {
+        retry: "idempotent",
+      });
+    },
+    updateMembership(membershipId: string, input: UpdateOaMembershipRequest) {
+      return client.post<OaMembershipResponse>(
+        `/api/oa/memberships/${encodeURIComponent(membershipId)}`,
+        input,
+        { retry: "idempotent" },
+      );
+    },
+    listDelegations() {
+      return client.get<OaDelegationsResponse>("/api/oa/delegations", {
+        retry: "idempotent",
+      });
+    },
+    createDelegation(input: CreateOaDelegationRequest) {
+      return client.post<OaDelegationResponse>("/api/oa/delegations", input, {
+        retry: "idempotent",
+      });
+    },
+    approveDelegation(grantId: string, input: ApproveOaDelegationRequest) {
+      return client.post<OaDelegationResponse>(
+        `/api/oa/delegations/${encodeURIComponent(grantId)}/approve`,
+        input,
+        { retry: "idempotent" },
+      );
+    },
+    revokeDelegation(grantId: string, input: RevokeOaDelegationRequest) {
+      return client.post<OaDelegationResponse>(
+        `/api/oa/delegations/${encodeURIComponent(grantId)}/revoke`,
+        input,
+        { retry: "idempotent" },
+      );
     },
     getWorkbench() {
       return client.get<OaWorkbenchResponse>("/api/oa/workbench", { retry: "idempotent" });

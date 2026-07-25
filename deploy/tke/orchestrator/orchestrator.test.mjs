@@ -73,6 +73,7 @@ function fixture({ simulation = false } = {}) {
       customer: image("customer", "b"),
       worker: image("worker", "c"),
       admin: image("admin", "d"),
+      oa: image("oa", "e"),
     },
   };
   const cloudBundle = {

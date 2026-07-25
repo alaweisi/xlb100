@@ -82,13 +82,17 @@ foreach ($entry in $values.GetEnumerator()) {
     "$($entry.Key) normal render must not create a migration Job"
 
   $deploymentCount = [regex]::Matches($rendered[$entry.Key], '(?m)^kind:\s+Deployment\s*$').Count
-  if ($deploymentCount -ne 5) {
-    throw "$($entry.Key) must render exactly five Deployments; got $deploymentCount"
+  if ($deploymentCount -ne 6) {
+    throw "$($entry.Key) must render exactly six Deployments; got $deploymentCount"
   }
 }
 
 Assert-Contains $rendered.local 'image:\s+"xlb/backend:local"' `
   "local render must allow the local backend tag"
+Assert-Contains $rendered.local 'image:\s+"xlb/oa:local"' `
+  "local render must include the OA frontend image"
+Assert-Contains $rendered.production 'host:\s+"oa\.' `
+  "production render must include the OA ingress host"
 Assert-Contains $rendered.production 'path:\s+/health/live' `
   "production render is missing the liveness endpoint"
 Assert-Contains $rendered.production 'path:\s+/health/ready' `
@@ -107,8 +111,8 @@ Assert-Contains $rendered.local 'XLB_EXTERNAL_PROVIDER_EXECUTION_ENABLED:\s+"fal
   "local render must keep external provider execution disabled"
 
 $pdbCount = [regex]::Matches($rendered.production, '(?m)^kind:\s+PodDisruptionBudget\s*$').Count
-if ($pdbCount -ne 4) {
-  throw "production must render four PodDisruptionBudgets; got $pdbCount"
+if ($pdbCount -ne 5) {
+  throw "production must render five PodDisruptionBudgets; got $pdbCount"
 }
 
 $optional = Invoke-Helm @(
@@ -121,8 +125,8 @@ $optional = Invoke-Helm @(
   "--set", "networkPolicy.enabled=true"
 ) -Capture
 $hpaCount = [regex]::Matches($optional, '(?m)^kind:\s+HorizontalPodAutoscaler\s*$').Count
-if ($hpaCount -ne 4) {
-  throw "optional render must contain four HorizontalPodAutoscalers; got $hpaCount"
+if ($hpaCount -ne 5) {
+  throw "optional render must contain five HorizontalPodAutoscalers; got $hpaCount"
 }
 Assert-Contains $optional '(?m)^kind:\s+NetworkPolicy\s*$' `
   "optional render is missing NetworkPolicy"
@@ -162,6 +166,9 @@ Assert-TemplateFails "staging backend digest required" @(
 )
 Assert-TemplateFails "production frontend digest required" @(
   "--set-string", "frontends.customer.image.digest="
+)
+Assert-TemplateFails "production OA digest required" @(
+  "--set-string", "frontends.oa.image.digest="
 )
 Assert-TemplateFails "production backend high availability required" @(
   "--set", "backend.replicaCount=1"

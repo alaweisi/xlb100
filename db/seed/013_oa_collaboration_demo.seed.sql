@@ -31,6 +31,19 @@ INSERT INTO oa_organization_city_assignments (organization_id, city_code, status
   ('oa-org-beijing', 'beijing', 'active')
 ON DUPLICATE KEY UPDATE status = VALUES(status);
 
+INSERT INTO oa_branch_city_ownership (city_code, organization_id)
+SELECT source.city_code, source.organization_id
+FROM (
+  SELECT 'hangzhou' AS city_code, 'oa-org-hangzhou' AS organization_id
+  UNION ALL SELECT 'shanghai', 'oa-org-shanghai'
+  UNION ALL SELECT 'beijing', 'oa-org-beijing'
+) source
+WHERE NOT EXISTS (
+  SELECT 1 FROM oa_branch_city_ownership ownership
+  WHERE ownership.city_code = source.city_code
+    AND ownership.organization_id = source.organization_id
+);
+
 INSERT INTO admin_city_scopes (admin_user_id, city_code) VALUES
   ('admin-global', '__global__'),
   ('admin-hangzhou', 'hangzhou'),

@@ -12,6 +12,7 @@ const digests = Object.freeze({
   customer: `sha256:${"2".repeat(64)}`,
   worker: `sha256:${"3".repeat(64)}`,
   admin: `sha256:${"4".repeat(64)}`,
+  oa: `sha256:${"5".repeat(64)}`,
 });
 
 function validInput(overrides = {}) {
@@ -66,13 +67,13 @@ test("plan is fail-closed, emits Wave 0 manifest, and runs no external command",
   });
   assert.equal(result.status, "PLANNED");
   assert.equal(result.plan.externalWriteAuthorized, false);
-  assert.equal(result.plan.commands.length, 4);
+  assert.equal(result.plan.commands.length, 5);
   assert.equal(calls.length, 0);
   assert.equal(validateContract("releaseManifest", result.manifest), result.manifest);
   assert.equal(result.manifest.imageLockFile, ".artifacts/tke/releases/release-20260716-001/images.lock.json");
 });
 
-test("local build builds exactly four images and never pushes or freezes a digest", () => {
+test("local build builds exactly five images and never pushes or freezes a digest", () => {
   const calls = [];
   const result = executeImageRelease({
     input: validInput(), mode: "build", repoRoot: workspace(), sourceCommit: commit,
@@ -80,12 +81,12 @@ test("local build builds exactly four images and never pushes or freezes a diges
   });
   assert.equal(result.status, "BUILT_LOCAL_ONLY");
   assert.equal(result.imageLock, null);
-  assert.equal(calls.length, 4);
+  assert.equal(calls.length, 5);
   assert.ok(calls.every(call => call[0] === "docker" && call[1] === "build" && !call.includes("--push")));
   assert.ok(calls.every(call => !call.join(" ").includes(":latest")));
 });
 
-test("authorized publish builds four images, inspects registry digests, and emits valid lock evidence", () => {
+test("authorized publish builds five images, inspects registry digests, and emits valid lock evidence", () => {
   const calls = [];
   const repoRoot = workspace();
   const input = validInput();
@@ -96,11 +97,11 @@ test("authorized publish builds four images, inspects registry digests, and emit
   });
   assert.equal(result.status, "IMAGES_PUBLISHED");
   assert.equal(validateContract("imageLock", result.imageLock), result.imageLock);
-  assert.deepEqual(Object.keys(result.imageLock.images), ["backend", "customer", "worker", "admin"]);
+  assert.deepEqual(Object.keys(result.imageLock.images), ["backend", "customer", "worker", "admin", "oa"]);
   assert.equal(result.imageLock.images.worker.digest, digests.worker);
-  assert.equal(calls.filter(call => call.includes("--push")).length, 4);
-  assert.equal(calls.filter(call => call[0] === "syft").length, 4);
-  assert.equal(calls.filter(call => call[0] === "trivy").length, 4);
+  assert.equal(calls.filter(call => call.includes("--push")).length, 5);
+  assert.equal(calls.filter(call => call[0] === "syft").length, 5);
+  assert.equal(calls.filter(call => call[0] === "trivy").length, 5);
   assert.ok(calls.every(call => call[0] !== "docker" || call[1] !== "login"));
   assert.match(readFileSync(path.join(result.artifactRoot, "images.lock.json"), "utf8"), /sha256:1111/);
 });

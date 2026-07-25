@@ -32,7 +32,7 @@ export function validateDeploymentValues(content, environment) {
       if (value) fail(`${environment} images must not use tags`);
     }
     const digests = content.match(/digest:\s*sha256:[a-f0-9]{64}\b/gi) ?? [];
-    if (digests.length < 4) fail(`${environment} values require four immutable image digests`);
+    if (digests.length < 5) fail(`${environment} values require five immutable image digests`);
     if (!/existingSecret:\s*[a-z0-9][a-z0-9.-]+/i.test(content)) {
       fail(`${environment} values require runtimeSecrets.existingSecret`);
     }
@@ -156,6 +156,16 @@ export function checkRepository(root = repoRoot) {
     const values = readFileSync(path.join(root, `deploy/environments/tke/values-${environment}.yaml`), "utf8");
     if (!/externalExecutionEnabled:\s*true\b/i.test(values)) {
       fail(`${environment} committed values must pair COS with external execution enabled`);
+    }
+  }
+
+  for (const file of [
+    "infra/observability/tke/prometheus-rules.yaml",
+    "infra/observability/tke/grafana-dashboard.json",
+  ]) {
+    const content = readFileSync(path.join(root, file), "utf8");
+    if (!content.includes("backend|jobs|customer|worker|admin|oa")) {
+      fail(`TKE observability does not cover the OA workload: ${file}`);
     }
   }
 }

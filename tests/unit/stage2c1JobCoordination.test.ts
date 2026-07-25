@@ -78,6 +78,7 @@ function createDependencies(
     prepareSettlement: vi.fn(async () => ({ processed: 0 })),
     runSupportSla: vi.fn(async () => ({ processed: 0 })),
     runOaActivity: vi.fn(async () => ({ processed: 0 })),
+    listOaActivityCityCodes: vi.fn(async () => ["hangzhou"]),
     collectReliabilitySnapshot: vi.fn(async (cityCodes: readonly string[]) => ({
       observedAt: "2026-07-15T08:00:00.000Z",
       cities: cityCodes.map((cityCode) => ({
@@ -209,6 +210,22 @@ describe("Stage 2C-1 auto-run coordination", () => {
     expect(publishHeartbeat).toHaveBeenCalledTimes(2);
     expect(collectReliabilitySnapshot).toHaveBeenCalledTimes(1);
     expect(dependencies.publishReliabilitySnapshot).toHaveBeenCalledTimes(1);
+  });
+
+  it("projects OA activity for active branch cities outside the general worker list", async () => {
+    const runOaActivity = vi.fn(async () => ({ processed: 0 }));
+    const dependencies = createDependencies({
+      runOaActivity,
+      listOaActivityCityCodes: vi.fn(async () => ["hangzhou", "shanghai"]),
+    });
+    const handle = startAutoRunJobs({ env, logger: createLogger(), dependencies });
+
+    await handle.runOnce();
+    await handle.stop();
+
+    expect(runOaActivity).toHaveBeenCalledWith("hangzhou");
+    expect(runOaActivity).toHaveBeenCalledWith("shanghai");
+    expect(runOaActivity).toHaveBeenCalledTimes(2);
   });
 
   it("skips a busy cross-instance step without invoking its consumer", async () => {

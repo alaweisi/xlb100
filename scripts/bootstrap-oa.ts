@@ -73,9 +73,13 @@ async function main() {
     await connection.beginTransaction();
     const [migrationRows] = await connection.query<mysql.RowDataPacket[]>(
       `SELECT version FROM schema_migrations
-       WHERE version IN ('063_oa_collaboration_foundation', '064_oa_notifications')`,
+       WHERE version IN (
+         '063_oa_collaboration_foundation',
+         '064_oa_notifications',
+         '065_oa_branch_city_ownership'
+       )`,
     );
-    if (migrationRows.length !== 2) throw new Error("OA migrations 063 and 064 must be applied first");
+    if (migrationRows.length !== 3) throw new Error("OA migrations 063, 064, and 065 must be applied first");
 
     const [adminRows] = await connection.query<mysql.RowDataPacket[]>(
       "SELECT id FROM admin_users WHERE id = ? LIMIT 1 FOR UPDATE",

@@ -45,6 +45,28 @@
 | Phase 28 | LOCKED | xlb-phase28-review-reputation | Review moderation, appeal and Worker reputation foundation; production activation remains prohibited |
 | Phase 29 | LOCKED | xlb-phase29-marketing-coupon | Marketing/Coupon MVP with fixed-amount coupons and Order-owned price evidence; production activation remains prohibited |
 | Dashboard v1 | LOCKED | xlb-dashboard-realtime-wallboard-v1 | Headquarters read-only realtime operations wallboard; production publication remains a separate external operation |
+| OA v1 | COMPLETE — LOCAL | — | Headquarters/branch collaboration, organization authorization, realtime activity and controlled Admin capability handoff |
+
+## OA v1 — Collaboration And Organization Operations (COMPLETE — LOCAL)
+
+- **Runtime scope**: independent OTP/session; headquarters/branch organization,
+  membership, role and permission model; exclusive active city ownership; reviewed
+  delegation; workbench/tasks/approvals/notifications/audit; realtime activity
+  projection and SSE; controlled entry to existing Admin capabilities.
+- **Security boundary**: server-computed effective permissions and city scope;
+  optimistic versions and idempotency keys; independent delegation review;
+  session revocation; exact OA-to-Admin route allowlist; 60-second single-use
+  handoff tickets; Admin domain writes still use their existing state machines.
+- **Deployment wiring**: OA frontend image, `/oa/` ingress, SSE proxy, Helm schema,
+  TKE values, release contracts, bundle generation and acceptance checks are
+  included locally.
+- **Verification**: focused contract/unit/integration tests, OA migration verifier,
+  package/backend/frontend builds, TKE checks and `1440 × 1024` Playwright visual
+  acceptance are the completion gates. Evidence is recorded in
+  `apps/oa/design-qa.md`.
+- **Boundary**: this state is a local engineering completion. It does not include
+  push, deployment, production data, domains/certificates or real Provider
+  activation.
 
 ## Dashboard v1 — Realtime Operations Wallboard (LOCKED)
 

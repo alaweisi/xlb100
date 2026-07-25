@@ -45,29 +45,29 @@ export function createGovernancePlannerApi(client: ApiClient) {
     listSettlementDryRunPlans: (params?: Record<string, string>) => {
       const qs = params ? "?" + new URLSearchParams(params).toString() : "";
       return client.get<{ ok: true; plans: DryRunPlanResponse[] }>(
-        `/api/internal/settlement-action-governance/dry-run-plans${qs}`,
+        `/api/internal/settlement-action-governance/plans${qs}`,
       );
     },
 
     getSettlementDryRunPlan: (planId: string) =>
       client.get<{ ok: true; plan: DryRunPlanResponse }>(
-        `/api/internal/settlement-action-governance/dry-run-plans/${encodeURIComponent(planId)}`,
+        `/api/internal/settlement-action-governance/plans/${encodeURIComponent(planId)}`,
       ),
 
     createSettlementDryRunPlan: (packetId: string) =>
       client.post<{ ok: true; plan: DryRunPlanResponse }>(
-        "/api/internal/settlement-action-governance/dry-run-plans",
-        { packetId },
+        "/api/internal/settlement-action-governance/plans",
+        { readinessPacketId: packetId },
       ),
 
     getSettlementDryRunPlanItems: (planId: string) =>
       client.get<{ ok: true; items: DryRunPlanItemResponse[] }>(
-        `/api/internal/settlement-action-governance/dry-run-plans/${encodeURIComponent(planId)}/items`,
+        `/api/internal/settlement-action-governance/plans/${encodeURIComponent(planId)}/items`,
       ),
 
     getSettlementDryRunPlanAudit: (planId: string) =>
       client.get<{ ok: true; entries: DryRunPlanAuditEntry[] }>(
-        `/api/internal/settlement-action-governance/dry-run-plans/${encodeURIComponent(planId)}/audit`,
+        `/api/internal/settlement-action-governance/plans/${encodeURIComponent(planId)}/audit`,
       ),
 
     getReadinessPacketDryRunEligibility: (packetId: string) =>

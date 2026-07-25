@@ -2,6 +2,7 @@ import type { RowDataPacket, ResultSetHeader } from "mysql2/promise";
 import { stableHash } from "@xlb/shared/deterministic/stableHash.js";
 import type { CityCode } from "@xlb/types";
 import { withTransaction } from "../dal/transaction.js";
+import { getMysqlPool } from "../dal/mysqlPool.js";
 
 type ActivityCandidateRow = RowDataPacket & {
   event_id: string;
@@ -29,9 +30,40 @@ function summarize(row: ActivityCandidateRow): string {
  * their delivery semantics. Raw event payloads are deliberately not copied.
  */
 export class OaActivityProjectionService {
+  async listActiveCityCodes(): Promise<CityCode[]> {
+    const [rows] = await getMysqlPool().query<(RowDataPacket & { city_code: CityCode })[]>(
+      `SELECT ownership.city_code
+       FROM oa_branch_city_ownership ownership
+       JOIN oa_organizations organization
+         ON organization.organization_id = ownership.organization_id
+        AND organization.organization_type = 'branch'
+        AND organization.status = 'active'
+       JOIN cities city
+         ON city.city_code = ownership.city_code
+        AND city.is_open = 1
+       ORDER BY ownership.city_code`,
+    );
+    return rows.map((row) => row.city_code);
+  }
+
   async runOnce(cityCode: CityCode, limit = 100): Promise<{ processed: number }> {
     const boundedLimit = Math.min(Math.max(Math.trunc(limit), 1), 500);
     return withTransaction(async (connection) => {
+    await connection.query(
+      `INSERT INTO oa_activity_projection_cursors (
+         organization_id, city_code, last_created_at, last_event_id, updated_at
+       )
+       SELECT ownership.organization_id, ownership.city_code,
+              CURRENT_TIMESTAMP(3), '', CURRENT_TIMESTAMP(3)
+       FROM oa_branch_city_ownership ownership
+       JOIN oa_organizations organization
+         ON organization.organization_id = ownership.organization_id
+        AND organization.organization_type = 'branch'
+        AND organization.status = 'active'
+       WHERE ownership.city_code = ?
+       ON DUPLICATE KEY UPDATE updated_at = CURRENT_TIMESTAMP(3)`,
+      [cityCode],
+    );
     const [rows] = await connection.query<ActivityCandidateRow[]>(
       `SELECT
          e.event_id, e.event_type, e.aggregate_type, e.aggregate_id,
@@ -46,6 +78,9 @@ export class OaActivityProjectionService {
          ON organization.organization_id = branch.organization_id
         AND organization.organization_type = 'branch'
         AND organization.status = 'active'
+       INNER JOIN oa_branch_city_ownership ownership
+         ON ownership.city_code = branch.city_code
+        AND ownership.organization_id = branch.organization_id
        LEFT JOIN oa_activity_projection_cursors projection_cursor
          ON projection_cursor.organization_id = branch.organization_id
         AND projection_cursor.city_code = branch.city_code

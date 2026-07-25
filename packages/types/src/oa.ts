@@ -82,12 +82,41 @@ export interface OaOrganization {
 export interface OaMembership {
   membershipId: string;
   userId: string;
+  username?: string;
   organizationId: string;
   organizationName: string;
   organizationType: OaOrganizationType;
   status: OaLifecycleStatus;
   authzVersion: number;
   legacyRole: Role;
+  roles?: OaRole[];
+}
+
+export interface OaRole {
+  roleId: string;
+  organizationId: string;
+  roleKey: string;
+  name: string;
+  status: OaLifecycleStatus;
+  version: number;
+  permissions: OaPermissionKey[];
+}
+
+export interface OaDelegationGrant {
+  grantId: string;
+  grantorOrganizationId: string;
+  granteeOrganizationId: string;
+  cityCode: CityCode;
+  permissionKey: OaPermissionKey;
+  status: "pending" | "active" | "revoked" | "expired";
+  validFrom: string;
+  validTo: string | null;
+  version: number;
+  grantedByMembershipId: string;
+  approvedByMembershipId: string | null;
+  reason: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface OaPrincipal {
@@ -246,6 +275,45 @@ export interface OaOrganizationsResponse {
   organizations: OaOrganization[];
 }
 
+export interface OaOrganizationResponse {
+  ok: true;
+  organization: OaOrganization;
+  idempotentReplay?: boolean;
+}
+
+export interface OaRolesResponse {
+  ok: true;
+  roles: OaRole[];
+}
+
+export interface OaRoleResponse {
+  ok: true;
+  role: OaRole;
+  idempotentReplay?: boolean;
+}
+
+export interface OaMembershipsResponse {
+  ok: true;
+  memberships: OaMembership[];
+}
+
+export interface OaMembershipResponse {
+  ok: true;
+  membership: OaMembership;
+  idempotentReplay?: boolean;
+}
+
+export interface OaDelegationsResponse {
+  ok: true;
+  delegations: OaDelegationGrant[];
+}
+
+export interface OaDelegationResponse {
+  ok: true;
+  delegation: OaDelegationGrant;
+  idempotentReplay?: boolean;
+}
+
 export interface OaScopeResponse {
   ok: true;
   scope: OaScopeSummary;
@@ -348,4 +416,107 @@ export interface OaApprovalActionRequest {
   expectedVersion: number;
   reason: string;
   idempotencyKey: string;
+}
+
+export interface CreateOaOrganizationRequest {
+  organizationCode: string;
+  name: string;
+  parentOrganizationId: string;
+  cityCodes: CityCode[];
+  reason: string;
+  idempotencyKey: string;
+}
+
+export interface UpdateOaOrganizationRequest {
+  expectedVersion: number;
+  name?: string;
+  status?: OaLifecycleStatus;
+  cityCodes?: CityCode[];
+  reason: string;
+  idempotencyKey: string;
+}
+
+export interface CreateOaRoleRequest {
+  organizationId: string;
+  roleKey: string;
+  name: string;
+  permissions: OaPermissionKey[];
+  reason: string;
+  idempotencyKey: string;
+}
+
+export interface UpdateOaRoleRequest {
+  expectedVersion: number;
+  name?: string;
+  status?: OaLifecycleStatus;
+  permissions?: OaPermissionKey[];
+  reason: string;
+  idempotencyKey: string;
+}
+
+export interface CreateOaMembershipRequest {
+  organizationId: string;
+  adminUserId: string;
+  roleIds: string[];
+  reason: string;
+  idempotencyKey: string;
+}
+
+export interface UpdateOaMembershipRequest {
+  expectedAuthzVersion: number;
+  status?: OaLifecycleStatus;
+  roleIds?: string[];
+  reason: string;
+  idempotencyKey: string;
+}
+
+export interface CreateOaDelegationRequest {
+  granteeOrganizationId: string;
+  cityCode: CityCode;
+  permissionKey: OaPermissionKey;
+  validTo?: string;
+  reason: string;
+  idempotencyKey: string;
+}
+
+export interface RevokeOaDelegationRequest {
+  expectedVersion: number;
+  reason: string;
+  idempotencyKey: string;
+}
+
+export interface ApproveOaDelegationRequest extends RevokeOaDelegationRequest {}
+
+export interface CreateOaAdminHandoffRequest {
+  targetPath: string;
+  permissionKey: OaPermissionKey;
+  cityCode: CityCode;
+}
+
+export interface OaAdminHandoffResponse {
+  ok: true;
+  ticket: string;
+  targetPath: string;
+  cityCode: CityCode;
+  expiresAt: string;
+}
+
+export interface ExchangeOaAdminHandoffRequest {
+  ticket: string;
+}
+
+export interface OaAdminHandoffExchangeResponse {
+  ok: true;
+  token: string;
+  userId: string;
+  role: string;
+  username: string;
+  sessionId: string;
+  membershipId: string;
+  organizationId: string;
+  organizationName: string;
+  organizationType: OaOrganizationType;
+  expiresAt: string;
+  targetPath: string;
+  cityCode: CityCode;
 }
