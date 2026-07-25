@@ -190,17 +190,42 @@ function runAapt(aapt, args, spawn) {
   return result.stdout;
 }
 
+function runApkSigner(apksigner, args, spawn) {
+  const windowsBatch = /\.bat$/iu.test(apksigner);
+  const command = windowsBatch
+    ? process.env.ComSpec ?? "cmd.exe"
+    : apksigner;
+  const commandArgs = windowsBatch
+    ? ["/d", "/c", apksigner, ...args]
+    : args;
+  const result = spawn(command, commandArgs, {
+    encoding: "utf8",
+    maxBuffer: 16 * 1024 * 1024,
+  });
+  if (result.error) throw result.error;
+  if (result.status !== 0) {
+    throw new Error(
+      `apksigner ${args.join(" ")} failed with exit code ${result.status ?? 1}`,
+    );
+  }
+  return `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
+}
+
 export function validateBuiltApk(
   app,
   apkPath,
   {
     androidSdk,
+    variant = "debug",
     platform = process.platform,
     exists = fs.existsSync,
     spawn = spawnSync,
     findBuildTool = findAndroidBuildTool,
   } = {},
 ) {
+  if (!["debug", "release"].includes(variant)) {
+    throw new Error("APK validation variant must be debug or release");
+  }
   if (!exists(apkPath)) throw new Error(`Expected APK is missing: ${apkPath}`);
   if (!androidSdk) throw new Error("androidSdk is required to validate a built APK");
   const aapt = findBuildTool(androidSdk, "aapt", { platform, exists });
@@ -268,6 +293,44 @@ export function validateBuiltApk(
     "Merged APK manifest must reference a network security config",
   );
 
+  let certificateDn;
+  let certificateSha256;
+  let publicKeySha256;
+  if (variant === "release") {
+    const apksigner = findBuildTool(androidSdk, "apksigner", {
+      platform,
+      exists,
+    });
+    const verification = runApkSigner(
+      apksigner,
+      ["verify", "--verbose", "--print-certs", apkPath],
+      spawn,
+    );
+    const signerCount = Number(
+      verification.match(/^Number of signers:\s*(\d+)\r?$/imu)?.[1],
+    );
+    if (signerCount !== 1) {
+      throw new Error("Release APK must contain exactly one current signer");
+    }
+    certificateDn = verification.match(
+      /^(?:Signer #\d+ certificate|V[\d.]+ Signer: certificate) DN:\s*(.+?)\r?$/imu,
+    )?.[1]?.trim();
+    certificateSha256 = verification.match(
+      /^(?:Signer #\d+ certificate|V[\d.]+ Signer: certificate) SHA-256 digest:\s*([0-9a-f:]+)\r?$/imu,
+    )?.[1]?.replaceAll(":", "").toUpperCase();
+    publicKeySha256 = verification.match(
+      /^(?:Signer #\d+|V[\d.]+ Signer:) public key SHA-256 digest:\s*([0-9a-f:]+)\r?$/imu,
+    )?.[1]?.replaceAll(":", "").toUpperCase();
+    if (!certificateDn || !certificateSha256 || !publicKeySha256) {
+      throw new Error(
+        "apksigner did not report the release signer certificate and public key",
+      );
+    }
+    if (/\bAndroid Debug\b/iu.test(certificateDn)) {
+      throw new Error("Release APK must not use an Android Debug certificate");
+    }
+  }
+
   return Object.freeze({
     apkPath: path.resolve(apkPath),
     appId,
@@ -276,5 +339,8 @@ export function validateBuiltApk(
     versionName,
     permissions: requestedPermissions,
     generatedPermissions,
+    ...(certificateDn ? { certificateDn } : {}),
+    ...(certificateSha256 ? { certificateSha256 } : {}),
+    ...(publicKeySha256 ? { publicKeySha256 } : {}),
   });
 }

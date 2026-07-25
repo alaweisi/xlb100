@@ -151,6 +151,7 @@ export function buildAndroidApp(app, profileName, variant, options = {}) {
   const apkPath = expectedApkPath(app, variant);
   const apk = validateBuiltApk(app, apkPath, {
     androidSdk: toolchain.androidSdk,
+    variant,
     platform: options.platform ?? process.platform,
   });
   return Object.freeze({ toolchain, apk });

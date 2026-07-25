@@ -1,0 +1,82 @@
+import java.util.Locale
+
+if (!project.ext.has("xlbReleaseSigningPrefix")) {
+    throw new GradleException("xlbReleaseSigningPrefix must be set before applying release-signing.gradle")
+}
+
+def signingPrefix = project.ext.xlbReleaseSigningPrefix.toString()
+def signingVariableNames = [
+    keystorePath: "${signingPrefix}_KEYSTORE_PATH",
+    storePassword: "${signingPrefix}_STORE_PASSWORD",
+    keyAlias: "${signingPrefix}_KEY_ALIAS",
+    keyPassword: "${signingPrefix}_KEY_PASSWORD",
+]
+def signingValues = signingVariableNames.collectEntries { key, variableName ->
+    [(key): System.getenv(variableName)]
+}
+def configuredCount = signingValues.values().count { value ->
+    value != null && !value.isBlank()
+}
+def isReleaseArtifactTaskName = { taskName ->
+    def simpleName = taskName.tokenize(":").last().toLowerCase(Locale.ROOT)
+    simpleName ==~ /(?:assemble|bundle|package).*release/
+}
+def releaseRequested = gradle.startParameter.taskNames.any { taskName ->
+    isReleaseArtifactTaskName(taskName)
+}
+def requireCompleteReleaseSigning = {
+    if (configuredCount != signingValues.size()) {
+        throw new GradleException(
+            "Release signing is required. Set ${signingVariableNames.values().join(', ')}"
+        )
+    }
+}
+
+if (configuredCount > 0 && configuredCount < signingValues.size()) {
+    def missing = signingVariableNames.findAll { key, _ ->
+        signingValues[key] == null || signingValues[key].isBlank()
+    }.values()
+    throw new GradleException(
+        "Incomplete ${signingPrefix} release signing environment; missing: ${missing.join(', ')}"
+    )
+}
+
+if (releaseRequested) {
+    requireCompleteReleaseSigning()
+}
+
+gradle.taskGraph.whenReady { graph ->
+    def releaseInTaskGraph = graph.allTasks.any { task ->
+        task.project == project && isReleaseArtifactTaskName(task.name)
+    }
+    if (releaseInTaskGraph) {
+        requireCompleteReleaseSigning()
+    }
+}
+
+if (configuredCount == signingValues.size()) {
+    def keystore = file(signingValues.keystorePath).canonicalFile
+    def workspaceRoot = rootProject.projectDir.toPath().resolve("../../..").normalize().toFile().canonicalFile
+    if (!keystore.isFile()) {
+        throw new GradleException("${signingVariableNames.keystorePath} does not name an existing file")
+    }
+    if (keystore.toPath().startsWith(workspaceRoot.toPath())) {
+        throw new GradleException("Release keystores must remain outside the XLB workspace")
+    }
+
+    android {
+        signingConfigs {
+            xlbRelease {
+                storeFile keystore
+                storePassword signingValues.storePassword
+                keyAlias signingValues.keyAlias
+                keyPassword signingValues.keyPassword
+            }
+        }
+        buildTypes {
+            release {
+                signingConfig signingConfigs.xlbRelease
+            }
+        }
+    }
+}

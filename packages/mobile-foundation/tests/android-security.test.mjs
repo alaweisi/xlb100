@@ -162,3 +162,78 @@ A: android:networkSecurityConfig(0x01010527)=@0x7f100002
     },
   );
 });
+
+test("release APK validation requires a non-debug signer certificate", (t) => {
+  const { app } = fixture(t);
+  const badging = `package: name='com.xlb100.role' versionCode='7' versionName='2.3.4'
+uses-permission: name='android.permission.INTERNET'
+uses-permission: name='com.xlb100.role.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION'
+application-label:'Role'
+`;
+  const manifestTree = `A: android:allowBackup(0x01010280)=(type 0x12)0x0
+A: android:usesCleartextTraffic(0x010104ec)=(type 0x12)0x0
+A: android:networkSecurityConfig(0x01010527)=@0x7f100002
+`;
+  const releaseCertificate = `Verifies
+Number of signers: 1
+V3 Signer: certificate DN: CN=XLB Customer RC, O=XLB, C=CN
+V3 Signer: certificate SHA-256 digest: 11:22:aa:bb
+V3 Signer: public key SHA-256 digest: 55:66:cc:dd
+`.replaceAll("\n", "\r\n");
+  const spawn = (command, args) => ({
+    status: 0,
+    stdout: command === "apksigner"
+      ? releaseCertificate
+      : args.includes("badging")
+        ? badging
+        : manifestTree,
+    stderr: "",
+  });
+  assert.deepEqual(
+    validateBuiltApk(app, "fixture-release.apk", {
+      androidSdk: "fixture-sdk",
+      variant: "release",
+      exists: () => true,
+      findBuildTool: (_sdk, name) => name,
+      spawn,
+    }),
+    {
+      apkPath: path.resolve("fixture-release.apk"),
+      appId: "com.xlb100.role",
+      appName: "Role",
+      versionCode: 7,
+      versionName: "2.3.4",
+      permissions: ["android.permission.INTERNET"],
+      generatedPermissions: [
+        "com.xlb100.role.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
+      ],
+      certificateDn: "CN=XLB Customer RC, O=XLB, C=CN",
+      certificateSha256: "1122AABB",
+      publicKeySha256: "5566CCDD",
+    },
+  );
+
+  const debugSpawn = (command, args) => ({
+    status: 0,
+    stdout: command === "apksigner"
+      ? `Number of signers: 1
+Signer #1 certificate DN: CN=Android Debug, O=Android, C=US
+Signer #1 certificate SHA-256 digest: 00:11
+Signer #1 public key SHA-256 digest: 22:33
+`
+      : args.includes("badging")
+        ? badging
+        : manifestTree,
+    stderr: "",
+  });
+  assert.throws(
+    () => validateBuiltApk(app, "fixture-release.apk", {
+      androidSdk: "fixture-sdk",
+      variant: "release",
+      exists: () => true,
+      findBuildTool: (_sdk, name) => name,
+      spawn: debugSpawn,
+    }),
+    /must not use an Android Debug certificate/u,
+  );
+});

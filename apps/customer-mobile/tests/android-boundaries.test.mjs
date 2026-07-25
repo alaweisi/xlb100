@@ -14,6 +14,10 @@ const mainActivity = fs.readFileSync(
   ),
   "utf8",
 );
+const buildGradle = fs.readFileSync(
+  new URL("../android/app/build.gradle", import.meta.url),
+  "utf8",
+);
 
 test("Capacitor uses bundled Customer assets and has no remote server URL", () => {
   assert.deepEqual(toCapacitorConfig(app), {
@@ -50,4 +54,9 @@ test("Android back navigates WebView history before leaving Customer", () => {
   assert.match(mainActivity, /window\.history\.length > 1/u);
   assert.match(mainActivity, /window\.history\.back\(\)/u);
   assert.match(mainActivity, /getOnBackPressedDispatcher\(\)\.onBackPressed\(\)/u);
+});
+
+test("Customer release signing stays external and role-specific", () => {
+  assert.match(buildGradle, /XLB_CUSTOMER_ANDROID/u);
+  assert.match(buildGradle, /mobile-foundation\/android\/release-signing\.gradle/u);
 });

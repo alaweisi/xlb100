@@ -55,6 +55,9 @@ export interface BuiltApkReport {
   versionName: string;
   permissions: string[];
   generatedPermissions: string[];
+  certificateDn?: string;
+  certificateSha256?: string;
+  publicKeySha256?: string;
 }
 export const MOBILE_PROFILES: readonly MobileProfileName[];
 export function defineMobileApp(input: MobileAppDescriptor): Readonly<MobileAppDescriptor>;
