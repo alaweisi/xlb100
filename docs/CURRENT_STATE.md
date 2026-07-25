@@ -44,6 +44,19 @@
 | Phase 27B | INTEGRATED — LOCKED WITH PHASE27 | xlb-phase27-notification-foundation | Notification projection, scoped API and Customer/Worker inbox integrated under the Phase27 Lock |
 | Phase 28 | LOCKED | xlb-phase28-review-reputation | Review moderation, appeal and Worker reputation foundation; production activation remains prohibited |
 | Phase 29 | LOCKED | xlb-phase29-marketing-coupon | Marketing/Coupon MVP with fixed-amount coupons and Order-owned price evidence; production activation remains prohibited |
+| Dashboard v1 | LOCKED | xlb-dashboard-realtime-wallboard-v1 | Headquarters read-only realtime operations wallboard; production publication remains a separate external operation |
+
+## Dashboard v1 — Realtime Operations Wallboard (LOCKED)
+
+- **Human acceptance**: on 2026-07-26 the user confirmed that the Dashboard component may be committed and locked, and asked for the result to be stated in plain language.
+- **Implementation commit**: `e1ec29db` (`feat(dashboard): complete realtime operations wallboard`).
+- **Canonical tag**: `xlb-dashboard-realtime-wallboard-v1`.
+- **Locked scope**: shared realtime contract and client validation; Dashboard-bound OTP authentication; read-only Orders, Payments, Dispatch, Fulfillment, Aftersale and Support aggregation; nationwide/city scope; 15-second refresh with 45-second stale and 120-second disconnected semantics; 1920×1080 wallboard; privacy boundary; focused tests, browser evidence and Docker frontend build wiring.
+- **Lock verification**: shared types/client typecheck, backend build, Dashboard build and lint passed; focused unit/contract `2 files / 8 tests`; Chromium wallboard/stale-retry `2/2`; browser console errors `0`; local Docker image and `/dashboard/` smoke passed; real local OTP/login plus nationwide and `hangzhou` aggregate reads passed; visual QA `final result: passed`.
+- **Privacy truth**: the locked API does not return customer names, phone numbers, addresses, complaint/chat text or exact worker locations.
+- **Lock meaning**: this is a stable local engineering baseline. Later changes require a new normal construction commit and fresh verification; the tag itself is not moved or rewritten.
+- **Production boundary**: this Lock does not mean Internet publication or production readiness. No push, deploy, production data, real Provider activation, domain, certificate or public release is included.
+- **Reports**: `docs/reports/DASHBOARD_ENGINEERING_COMPLETION_REPORT.md`; `docs/reports/DASHBOARD_REALTIME_WALLBOARD_LOCK_REPORT.md`; `apps/dashboard/design-qa.md`.
 
 ## Phase 25 — Five-System UI Standardization (LOCKED)
 
@@ -66,7 +79,7 @@
 - **Customer visual authority**: user-supplied Apple-style liquid-glass service-card PNG. Figma supplies Customer workflow/page-state references but does not override the supplied Customer visual language.
 - **Worker/Admin authority**: Figma file `WrIq7mTPz9zB5EJkftS3sY`, rooted at node `1:2`, plus the checked-in snapshots under `docs/design/figma/`.
 - **System set**: Customer App, Worker App, Admin App, OA collaboration system, and realtime Dashboard wallboard.
-- **OA/Dashboard current fact**: both are Phase 0 placeholders with no `src`, frontend runtime, dedicated API client, or approved standalone Figma frames; construction is gated by product/design/API readiness and may not use fake workflow or fake realtime data.
+- **OA/Dashboard fact at the Phase 25 Lock**: both were then Phase 0 placeholders with no `src`, frontend runtime, dedicated API client, or approved standalone Figma frames. Dashboard was subsequently constructed from approved standalone visual/API readiness and is separately locked under `xlb-dashboard-realtime-wallboard-v1`; OA follows its own later construction state.
 - **Scope**:
   - standardize tokens, role themes, primitives, patterns, shells, templates, route adapters, and visual QA;
   - redesign all Customer routes around the supplied liquid-glass visual system and real API workflows;
