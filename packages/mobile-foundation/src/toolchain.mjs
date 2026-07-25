@@ -129,12 +129,22 @@ export function findAndroidBuildTool(
     .sort((left, right) =>
       right.localeCompare(left, "en", { numeric: true, sensitivity: "base" }),
     );
-  const executableName = platform === "win32" ? `${name}.exe` : name;
+  const executableNames = platform === "win32"
+    ? name === "apksigner"
+      ? [`${name}.bat`, `${name}.exe`]
+      : [`${name}.exe`, `${name}.bat`]
+    : [name];
   const tool = versions
-    .map((version) => path.join(buildToolsRoot, version, executableName))
+    .flatMap((version) =>
+      executableNames.map((executableName) =>
+        path.join(buildToolsRoot, version, executableName),
+      ),
+    )
     .find((candidate) => exists(candidate));
   if (!tool) {
-    throw new Error(`Android build tool ${executableName} was not found under ${buildToolsRoot}`);
+    throw new Error(
+      `Android build tool ${executableNames.join(" or ")} was not found under ${buildToolsRoot}`,
+    );
   }
   return path.resolve(tool);
 }

@@ -95,3 +95,24 @@ test("Android build tool detection selects the newest installed numeric version"
     newest,
   );
 });
+
+test("Android build tool detection accepts the Windows apksigner batch wrapper", () => {
+  const sdk = path.resolve("fixture-sdk");
+  const apksigner = path.join(
+    sdk,
+    "build-tools",
+    "37.0.0",
+    "apksigner.bat",
+  );
+  assert.equal(
+    findAndroidBuildTool(sdk, "apksigner", {
+      platform: "win32",
+      exists: (candidate) =>
+        candidate === path.join(sdk, "build-tools") || candidate === apksigner,
+      readDirectory: () => [
+        { name: "37.0.0", isDirectory: () => true },
+      ],
+    }),
+    apksigner,
+  );
+});

@@ -22,7 +22,7 @@ Date started: 2026-07-25
 | M2 | Role-native and business adaptation | Customer, Worker, Admin, common UI capability | Role flow tests, builds, emulator visual and interaction acceptance | Local work complete; runtime gate inherits the Worker cloud-auth blocker |
 | M3 | Official three-app business E2E | Customer, Worker, Admin, shared contracts | Official business journeys and cross-role state acceptance | Formal isolated data-plane gate passes; APK cloud journey blocked by Worker auth |
 | M4 | Android device QA and hardening | Common plus three app-specific units | Device matrix, lifecycle, network, performance, permissions and regression | API 34 emulator partial pass; device, auth, location and performance gaps remain |
-| M5 | Internal release candidates | Customer, Worker, Admin, release common capability | Release builds, signing boundary, hashes, install documentation and RC acceptance | Queued; no publication authority |
+| M5 | Internal release candidates | Customer, Worker, Admin, release common capability | Release builds, signing boundary, hashes, install documentation and RC acceptance | Local fail-closed framework ready; RC construction blocked on external inputs |
 
 An M5 APK remains a release candidate until the Human Owner separately
 authorizes upload, deployment, publication, or any other external release.
@@ -111,3 +111,14 @@ as non-representative instead of being promoted to an acceptance result.
 
 Detailed M4 evidence and the remaining device/auth/location gaps are recorded
 in `docs/mobile/M4_ACCEPTANCE.md`.
+
+## M5 release candidates
+
+The local three-app release command, independent external signing boundary,
+release certificate validation, cross-role fingerprint separation, hash
+reporting and installation guide are in place. No release APK was generated:
+the gate correctly refuses to proceed without approved HTTPS origins and
+three independent signing inputs.
+
+Detailed status and usage are recorded in `docs/mobile/M5_ACCEPTANCE.md` and
+`docs/mobile/M5_INSTALL.md`.

@@ -1,5 +1,8 @@
 apply plugin: 'com.android.application'
 
+ext.xlbReleaseSigningPrefix = "XLB_WORKER_ANDROID"
+apply from: rootProject.file('../../../packages/mobile-foundation/android/release-signing.gradle')
+
 android {
     namespace = "com.xlb100.worker"
     compileSdk = rootProject.ext.compileSdkVersion
