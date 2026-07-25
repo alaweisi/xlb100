@@ -56,6 +56,12 @@ test("descriptor becomes immutable and derives a bundled Capacitor config", () =
     appId: "com.xlb100.role",
     appName: "Role",
     webDir: "dist",
+    loggingBehavior: "none",
+    plugins: {
+      CapacitorHttp: {
+        enabled: true,
+      },
+    },
   });
   assert.throws(() => {
     app.version.name = "9.9.9";

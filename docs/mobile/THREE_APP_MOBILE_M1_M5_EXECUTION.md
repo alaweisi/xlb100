@@ -1,0 +1,60 @@
+# Three-App Mobile Android M1–M5 Execution
+
+Date started: 2026-07-25
+
+## Construction boundary
+
+- The only Git repository and physical construction site is `G:\xlb100`.
+- Work runs on the in-place branch `codex/three-app-mobile-m1-m5`.
+- No second clone, Git worktree, or off-site XLB build directory is permitted.
+- Android Virtual Devices are test devices, not construction sites.
+- The three apps remain one monorepo program:
+  - Customer: `apps/customer` + `apps/customer-mobile`
+  - Worker: `apps/worker` + `apps/worker-mobile`
+  - Admin: `apps/admin` + `apps/admin-mobile`
+  - Common mobile capability: `packages/mobile-foundation`
+
+## Phase ledger
+
+| Phase | Scope | Work units | Gate | Status |
+| --- | --- | --- | --- | --- |
+| M1 | Cloud runtime and device bootstrap | Common, Customer, Worker, Admin | Tests, three APK builds, emulator runtime, authentication/session/device lifecycle | In progress; Worker cloud auth routes block final gate |
+| M2 | Role-native and business adaptation | Customer, Worker, Admin, common UI capability | Role flow tests, builds, emulator visual and interaction acceptance | Queued |
+| M3 | Official three-app business E2E | Customer, Worker, Admin, shared contracts | Official business journeys and cross-role state acceptance | Queued |
+| M4 | Android device QA and hardening | Common plus three app-specific units | Device matrix, lifecycle, network, performance, permissions and regression | Queued |
+| M5 | Internal release candidates | Customer, Worker, Admin, release common capability | Release builds, signing boundary, hashes, install documentation and RC acceptance | Queued; no publication authority |
+
+An M5 APK remains a release candidate until the Human Owner separately
+authorizes upload, deployment, publication, or any other external release.
+
+## M1 work packages
+
+### Common
+
+- Keep all UI assets bundled; never configure a remote Capacitor `server.url`.
+- Route WebView `fetch`/XHR through Capacitor native HTTP on Android so the
+  bundled `https://localhost` origin can reach the fixed HTTP test API.
+- Keep Android cleartext access restricted to the exact debug host and keep
+  production profiles HTTPS-only.
+- Disable Capacitor bridge logging of HTTP payloads.
+- Route Android back through SPA history before leaving an app.
+
+### Customer
+
+- Verify cloud OTP login, persisted session, logout, Customer role binding,
+  cross-role denial, background/foreground, process restart, keyboard, offline
+  failure and recovery.
+
+### Worker
+
+- Verify install and cold start.
+- Verify worker OTP request, debug-code retrieval, login, session and logout
+  when the cloud worker auth routes are available.
+
+### Admin
+
+- Verify cloud OTP login, persisted session, logout, Admin role binding and
+  cross-role denial.
+
+Detailed evidence and the remaining M1 blocker are recorded in
+`docs/mobile/M1_ACCEPTANCE.md`.

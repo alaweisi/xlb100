@@ -62,6 +62,12 @@ export function toCapacitorConfig(app: Pick<MobileAppDescriptor, "appId" | "appN
   readonly appId: string;
   readonly appName: string;
   readonly webDir: "dist";
+  readonly loggingBehavior: "none";
+  readonly plugins: {
+    readonly CapacitorHttp: {
+      readonly enabled: true;
+    };
+  };
 };
 export function normalizeHttpOrigin(value: unknown, label: string): string;
 export function resolveMobileEnvironment(

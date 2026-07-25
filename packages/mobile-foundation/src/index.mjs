@@ -31,5 +31,11 @@ export function toCapacitorConfig(app) {
     appId: app.appId,
     appName: app.appName,
     webDir: "dist",
+    loggingBehavior: "none",
+    plugins: Object.freeze({
+      CapacitorHttp: Object.freeze({
+        enabled: true,
+      }),
+    }),
   });
 }

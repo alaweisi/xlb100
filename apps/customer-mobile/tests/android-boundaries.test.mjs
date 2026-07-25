@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import test from "node:test";
 import {
   toCapacitorConfig,
@@ -6,11 +7,25 @@ import {
 } from "@xlb/mobile-foundation";
 import app from "../mobile-app.config.mjs";
 
+const mainActivity = fs.readFileSync(
+  new URL(
+    "../android/app/src/main/java/com/xlb100/customer/MainActivity.java",
+    import.meta.url,
+  ),
+  "utf8",
+);
+
 test("Capacitor uses bundled Customer assets and has no remote server URL", () => {
   assert.deepEqual(toCapacitorConfig(app), {
     appId: "com.xlb100.customer",
     appName: "喜乐帮到家",
     webDir: "dist",
+    loggingBehavior: "none",
+    plugins: {
+      CapacitorHttp: {
+        enabled: true,
+      },
+    },
   });
 });
 
@@ -28,4 +43,11 @@ test("app-owned Android identity, version, permissions, and cleartext stay exact
     ],
     debugCleartextHosts: ["123.207.198.136"],
   });
+});
+
+test("Android back navigates WebView history before leaving Customer", () => {
+  assert.match(mainActivity, /OnBackPressedCallback/u);
+  assert.match(mainActivity, /window\.history\.length > 1/u);
+  assert.match(mainActivity, /window\.history\.back\(\)/u);
+  assert.match(mainActivity, /getOnBackPressedDispatcher\(\)\.onBackPressed\(\)/u);
 });
