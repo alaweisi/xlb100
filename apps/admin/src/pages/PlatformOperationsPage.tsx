@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { AdminOrderSummary, AdminSkuOperationsRow, WorkerCertification } from "@xlb/types";
-import { ApiErrorPanel, Button, Card, EmptyState, ScopeBadge, StatusTag, Table } from "@xlb/ui";
+import { ApiErrorPanel, Button, Card, ConfirmButton, EmptyState, ScopeBadge, StatusTag, Table } from "@xlb/ui";
 import { adminOpsApi as api } from "../adminAuth";
 
 type PlatformOperationsAccess = {
@@ -70,14 +70,14 @@ export function PlatformOperationsPage({
         {key:"price",title:"Price",render:row=>row.basePrice===null?"-":`CNY ${row.basePrice.toFixed(2)} / ${row.unit}`},
         {key:"standard",title:"Standard",render:row=>`${row.warrantyDays??0}d warranty · ${row.supportsEnterprise?"B+C":"C"}`},
         {key:"status",title:"Status",render:row=><StatusTag tone={row.isEnabled?"success":"muted"}>{row.isEnabled?"enabled":"disabled"}</StatusTag>},
-        ...(access.catalogManage ? [{key:"control",title:"Control",render:(row: AdminSkuOperationsRow)=><Button disabled={busy!==null} onClick={()=>void act(`sku:${row.skuId}`,()=>api.setOperationsSkuEnabled(row.skuId,!row.isEnabled))}>{row.isEnabled?"Disable":"Enable"}</Button>}] : []),
+        ...(access.catalogManage ? [{key:"control",title:"Control",render:(row: AdminSkuOperationsRow)=><ConfirmButton disabled={busy!==null} onConfirm={()=>void act(`sku:${row.skuId}`,()=>api.setOperationsSkuEnabled(row.skuId,!row.isEnabled))}>{row.isEnabled?"Disable":"Enable"}</ConfirmButton>}] : []),
       ]}/>}
     </Card>}
     {access.certification && <Card title="Worker Certification Review" actions={<StatusTag tone="primary">{certifications.length}</StatusTag>}>
       {certifications.length===0?<EmptyState title="No certification application"/>:<Table rows={certifications} getRowKey={row=>row.certificationId} columns={[
         {key:"worker",title:"Worker",render:row=>row.workerId},{key:"cert",title:"Certification",render:row=><div><strong>{row.certName}</strong><br/><small>{row.certType}</small></div>},
         {key:"status",title:"Status",render:row=><StatusTag tone={row.status==="approved"?"success":row.status==="rejected"?"danger":"warning"}>{row.status}</StatusTag>},
-        ...(access.certificationDecide ? [{key:"review",title:"Review",render:(row: WorkerCertification)=><div style={{display:"flex",gap:8}}><Button disabled={busy!==null||row.status!=="pending"} onClick={()=>void act(`approve:${row.certificationId}`,()=>api.approveWorkerCertification(row.certificationId))}>Approve</Button><Button disabled={busy!==null||row.status!=="pending"} onClick={()=>void act(`reject:${row.certificationId}`,()=>api.rejectWorkerCertification(row.certificationId,"Requirements not met"))}>Reject</Button></div>}] : []),
+        ...(access.certificationDecide ? [{key:"review",title:"Review",render:(row: WorkerCertification)=><div style={{display:"flex",gap:8}}><ConfirmButton disabled={busy!==null||row.status!=="pending"} onConfirm={()=>void act(`approve:${row.certificationId}`,()=>api.approveWorkerCertification(row.certificationId))}>Approve</ConfirmButton><ConfirmButton disabled={busy!==null||row.status!=="pending"} onConfirm={()=>void act(`reject:${row.certificationId}`,()=>api.rejectWorkerCertification(row.certificationId,"Requirements not met"))}>Reject</ConfirmButton></div>}] : []),
       ]}/>}
     </Card>}
   </div>;

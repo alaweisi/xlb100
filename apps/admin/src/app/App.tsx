@@ -15,6 +15,7 @@ import {
   type AdminSession,
 } from "../adminAuth";
 import { AdminShell, Button, FormField, GuardrailCard, Input, ScopeBadge, SideNav, StatusTag, TopBar } from "@xlb/ui";
+import "../admin-responsive.css";
 
 const SettlementOpsPage = lazy(() => import("../pages/SettlementOpsPage").then((module) => ({ default: module.SettlementOpsPage })));
 const SettlementStatementDetailPage = lazy(() => import("../pages/SettlementStatementDetailPage").then((module) => ({ default: module.SettlementStatementDetailPage })));

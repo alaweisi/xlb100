@@ -96,6 +96,7 @@ export interface AdminShellProps {
 export function AdminShell({ sideNav, topBar, children, style, contentStyle }: AdminShellProps) {
   return (
     <div
+      data-admin-shell
       style={mergeStyle(
         {
           background: "#f3f4f6",
@@ -109,9 +110,17 @@ export function AdminShell({ sideNav, topBar, children, style, contentStyle }: A
       )}
     >
       {sideNav}
-      <div style={{ display: "grid", gridTemplateRows: `${topBar ? "auto " : ""}1fr`, minWidth: 0 }}>
+      <div
+        data-admin-shell-body
+        style={{ display: "grid", gridTemplateRows: `${topBar ? "auto " : ""}1fr`, minWidth: 0 }}
+      >
         {topBar}
-        <main style={mergeStyle({ minWidth: 0, padding: tokens.spacing.lg }, contentStyle)}>{children}</main>
+        <main
+          data-admin-shell-content
+          style={mergeStyle({ minWidth: 0, padding: tokens.spacing.lg }, contentStyle)}
+        >
+          {children}
+        </main>
       </div>
     </div>
   );
@@ -208,6 +217,7 @@ export function BottomNav({ items, placement = "static", style }: BottomNavProps
 export function TopBar({ title, subtitle, actions, style }: { title?: ReactNode; subtitle?: ReactNode; actions?: ReactNode; style?: CSSProperties }) {
   return (
     <header
+      data-top-bar
       style={mergeStyle(
         {
           alignItems: "center",
@@ -234,6 +244,7 @@ export function TopBar({ title, subtitle, actions, style }: { title?: ReactNode;
 export function SideNav({ items, title, style }: { items: NavItem[]; title?: ReactNode; style?: CSSProperties }) {
   return (
     <aside
+      data-side-nav
       style={mergeStyle(
         {
           background: "#111827",
@@ -247,7 +258,7 @@ export function SideNav({ items, title, style }: { items: NavItem[]; title?: Rea
       )}
     >
       {title && <strong style={{ fontSize: 16, padding: "8px 10px" }}>{title}</strong>}
-      <nav style={{ display: "grid", gap: 4 }}>
+      <nav data-side-nav-items style={{ display: "grid", gap: 4 }}>
         {items.map((item) => (
           <a
             href={item.href ?? "#"}

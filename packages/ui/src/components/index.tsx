@@ -8,6 +8,7 @@ import type {
   SelectHTMLAttributes,
   TextareaHTMLAttributes,
 } from "react";
+import { useState } from "react";
 
 import { tokens } from "../tokens/index.js";
 
@@ -155,6 +156,45 @@ export function Button({ variant = "secondary", style, children, ...props }: But
     >
       {children}
     </button>
+  );
+}
+
+export interface ConfirmButtonProps extends Omit<ButtonProps, "onClick"> {
+  confirmLabel?: ReactNode;
+  onConfirm: () => void;
+}
+
+export function ConfirmButton({
+  children,
+  confirmLabel,
+  disabled,
+  onBlur,
+  onConfirm,
+  variant = "secondary",
+  ...props
+}: ConfirmButtonProps) {
+  const [armed, setArmed] = useState(false);
+  return (
+    <Button
+      {...props}
+      aria-pressed={armed}
+      disabled={disabled}
+      onBlur={(event) => {
+        setArmed(false);
+        onBlur?.(event);
+      }}
+      onClick={() => {
+        if (!armed) {
+          setArmed(true);
+          return;
+        }
+        setArmed(false);
+        onConfirm();
+      }}
+      variant={armed ? "danger" : variant}
+    >
+      {armed ? (confirmLabel ?? <>Confirm {children}</>) : children}
+    </Button>
   );
 }
 

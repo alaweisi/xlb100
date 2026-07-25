@@ -19,7 +19,7 @@ Date started: 2026-07-25
 | Phase | Scope | Work units | Gate | Status |
 | --- | --- | --- | --- | --- |
 | M1 | Cloud runtime and device bootstrap | Common, Customer, Worker, Admin | Tests, three APK builds, emulator runtime, authentication/session/device lifecycle | In progress; Worker cloud auth routes block final gate |
-| M2 | Role-native and business adaptation | Customer, Worker, Admin, common UI capability | Role flow tests, builds, emulator visual and interaction acceptance | Queued |
+| M2 | Role-native and business adaptation | Customer, Worker, Admin, common UI capability | Role flow tests, builds, emulator visual and interaction acceptance | Local work complete; runtime gate inherits the Worker cloud-auth blocker |
 | M3 | Official three-app business E2E | Customer, Worker, Admin, shared contracts | Official business journeys and cross-role state acceptance | Queued |
 | M4 | Android device QA and hardening | Common plus three app-specific units | Device matrix, lifecycle, network, performance, permissions and regression | Queued |
 | M5 | Internal release candidates | Customer, Worker, Admin, release common capability | Release builds, signing boundary, hashes, install documentation and RC acceptance | Queued; no publication authority |
@@ -58,3 +58,31 @@ authorizes upload, deployment, publication, or any other external release.
 
 Detailed evidence and the remaining M1 blocker are recorded in
 `docs/mobile/M1_ACCEPTANCE.md`.
+
+## M2 work packages
+
+### Customer
+
+- Reuse the completed Customer mobile layouts and registered slice runtime.
+- Revalidate entry, location, service discovery/detail, checkout, payment
+  fail-closed boundary, orders, coupons, aftersale, refunds, reviews and
+  notifications without changing Catalog, prices or state machines.
+
+### Worker
+
+- Remove the desktop phone-preview frame at native Android widths.
+- Preserve task-pool, fulfillment, evidence, wallet, support, profile and
+  certification flows.
+- Keep Worker permissions at Internet and network state only until a real
+  native location/camera/file workflow is authorized.
+
+### Admin
+
+- Convert the fixed desktop side rail to a touch-sized horizontal navigation
+  rail at Android widths.
+- Keep tables internally scrollable without overflowing the whole page.
+- Require a deliberate second activation for canonical SKU, certification,
+  withdrawal and aftersale mutations.
+- Preserve the existing no-provider-refund and no-provider-payout boundaries.
+
+Detailed M2 evidence is recorded in `docs/mobile/M2_ACCEPTANCE.md`.

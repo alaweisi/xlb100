@@ -1,0 +1,42 @@
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  background: var(--xlb-role-worker-page);
+}
+
+@media (max-width: 600px) {
+  .xlb-worker-device-stage {
+    max-width: none !important;
+    min-height: 100dvh !important;
+    padding: 0 !important;
+  }
+
+  .xlb-worker-device-frame {
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    min-height: 100dvh !important;
+  }
+
+  .xlb-worker-device-frame > [data-mobile-shell-mode="app"] {
+    min-height: 100dvh !important;
+  }
+
+  .xlb-worker-preview-status {
+    display: none !important;
+  }
+
+  .xlb-worker-device-frame header {
+    padding-top: calc(14px + env(safe-area-inset-top)) !important;
+  }
+
+  .xlb-worker-device-frame main {
+    padding-left: 14px !important;
+    padding-right: 14px !important;
+  }
+}

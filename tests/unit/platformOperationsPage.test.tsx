@@ -21,8 +21,12 @@ describe("Admin platform operations page",()=>{
     render(<PlatformOperationsPage initialCityCode="hangzhou"/>);
     expect(await screen.findByText("order-1")).toBeTruthy();expect(screen.getAllByText("Cleaning").length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("button",{name:"Disable"}));
+    expect(mocks.setOperationsSkuEnabled).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button",{name:"Confirm Disable"}));
     await waitFor(()=>expect(mocks.setOperationsSkuEnabled).toHaveBeenCalledWith("sku-1",false));
     fireEvent.click(screen.getByRole("button",{name:"Approve"}));
+    expect(mocks.approveWorkerCertification).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button",{name:"Confirm Approve"}));
     await waitFor(()=>expect(mocks.approveWorkerCertification).toHaveBeenCalledWith("cert-1"));
   });
 });
