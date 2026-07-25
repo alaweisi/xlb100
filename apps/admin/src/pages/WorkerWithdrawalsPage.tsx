@@ -4,6 +4,7 @@ import {
   ApiErrorPanel,
   Button,
   Card,
+  ConfirmButton,
   EmptyState,
   FormField,
   Input,
@@ -116,25 +117,25 @@ export function WorkerWithdrawalsPage({ initialCityCode }: Props) {
                 title: "Actions",
                 render: (item) => (
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                    <Button
+                    <ConfirmButton
                       disabled={item.status !== "requested" || busyId === item.withdrawalId}
-                      onClick={() => void mutate(item.withdrawalId, "approve")}
+                      onConfirm={() => void mutate(item.withdrawalId, "approve")}
                     >
                       Approve
-                    </Button>
-                    <Button
+                    </ConfirmButton>
+                    <ConfirmButton
                       disabled={item.status !== "requested" || busyId === item.withdrawalId}
-                      onClick={() => void mutate(item.withdrawalId, "reject")}
+                      onConfirm={() => void mutate(item.withdrawalId, "reject")}
                     >
                       Reject
-                    </Button>
-                    <Button
+                    </ConfirmButton>
+                    <ConfirmButton
                       disabled={item.status !== "approved" || busyId === item.withdrawalId}
-                      onClick={() => void mutate(item.withdrawalId, "markPaid")}
+                      onConfirm={() => void mutate(item.withdrawalId, "markPaid")}
                       variant="primary"
                     >
                       Mark Paid
-                    </Button>
+                    </ConfirmButton>
                   </div>
                 ),
               },

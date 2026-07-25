@@ -23,6 +23,7 @@ import {
   isUnauthorizedError,
   type WorkerSession,
 } from "./workerAuth";
+import "./worker-responsive.css";
 
 import { helperText, workerPanelStyle } from "../pages/pageShared";
 import { useWorkerAuthStore } from "../features/auth/store";
@@ -157,6 +158,7 @@ function resolveRoute(): ResolvedRoute {
 function PhoneStatusBar() {
   return (
     <div
+      className="xlb-worker-preview-status"
       style={{
         alignItems: "center",
         color: "#f8fbff",
@@ -232,9 +234,13 @@ function RouteNav({ activeRoute }: { activeRoute: WorkerRoute }) {
 
 function AppFrame({ route, children }: { route: WorkerRoute; children: ReactNode }) {
   return (
-    <div data-role="worker" style={shellStyle}>
-      <div style={{ margin: "0 auto", maxWidth: 430, minHeight: "100vh", padding: "28px 18px" }}>
+    <div className="xlb-worker-app" data-role="worker" style={shellStyle}>
+      <div
+        className="xlb-worker-device-stage"
+        style={{ margin: "0 auto", maxWidth: 430, minHeight: "100vh", padding: "28px 18px" }}
+      >
         <div
+          className="xlb-worker-device-frame"
           style={{
             background: "var(--xlb-role-worker-page)",
             border: "10px solid #1d6595",
