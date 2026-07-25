@@ -164,6 +164,7 @@
     "worker:mobile:android:debug": "pnpm --filter @xlb/worker-mobile build:debug",
     "admin:mobile:web:test": "pnpm --filter @xlb/admin-mobile web:build:test",
     "admin:mobile:android:debug": "pnpm --filter @xlb/admin-mobile build:debug",
+    "mobile:m3:gate": "node scripts/run-vitest-projects.mjs --passWithNoTests tests/integration/phase23dWorkerLifecycleE2E.test.ts tests/integration/phase22CrossPhaseE2E.test.ts",
     "check:risk": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-lean-risk.ps1 -DiffMode WorkingTree",
     "check:migration-integrity": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-migration-integrity.ps1 -DiffMode WorkingTree",
     "preflight": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/preflight-architecture.ps1"
