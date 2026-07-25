@@ -2,6 +2,22 @@ export type { AppType } from "./app.js";
 export type { Role } from "./rbac.js";
 export type { CityCode, KnownCityCode } from "./city.js";
 export type { RequestContext } from "./requestContext.js";
+export type {
+  DashboardFreshness,
+  DashboardSeverity,
+  DashboardSource,
+  DashboardScope,
+  DashboardSourceState,
+  DashboardHeadline,
+  DashboardPulsePoint,
+  DashboardFulfillmentSummary,
+  DashboardAftersaleSummary,
+  DashboardSupportSummary,
+  DashboardCityHealth,
+  DashboardAttentionItem,
+  DashboardRealtimeSnapshot,
+  DashboardRealtimeResponse,
+} from "./dashboard.js";
 export {
   OA_PERMISSION_KEYS,
   type OaPermissionKey,

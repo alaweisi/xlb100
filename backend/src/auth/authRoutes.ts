@@ -5,14 +5,17 @@ import {
   adminLogin,
   customerLogin,
   debugAdminLoginCode,
+  debugDashboardLoginCode,
   debugCustomerLoginCode,
   debugWorkerLoginCode,
   debugOaLoginCode,
   requestAdminLoginCode,
+  requestDashboardLoginCode,
   requestCustomerLoginCode,
   requestWorkerLoginCode,
   requestOaLoginCode,
   oaLogin,
+  dashboardLogin,
   workerLogin,
 } from "./authService.js";
 
@@ -136,12 +139,50 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
     },
   );
 
+  app.post(
+    "/api/auth/dashboard/code",
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const body = (request.body ?? {}) as LoginBody;
+      const result = await requestDashboardLoginCode(body.username ?? "");
+      if (!result.ok) return sendError(reply, result);
+      request.log.info({
+        securityEvent: "otp_issued",
+        authScope: "dashboard",
+        identityRef: hashAuthAuditIdentity("dashboard", body.username ?? ""),
+        expiresAt: result.expiresAt,
+      }, "Dashboard login OTP issued");
+      return result;
+    },
+  );
+
+  app.post(
+    "/api/auth/dashboard/login",
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const body = (request.body ?? {}) as LoginBody;
+      const result = await dashboardLogin(body.username ?? "", body.code ?? "");
+      if (!result.ok) return sendError(reply, result);
+      return result;
+    },
+  );
+
   if (registerDebugRoutes) {
     app.get(
       "/api/auth/admin/debug-code",
       async (request: FastifyRequest, reply: FastifyReply) => {
         const query = (request.query ?? {}) as { username?: string };
         const result = await debugAdminLoginCode(query.username ?? "");
+        if (!result.ok) return sendError(reply, result);
+        return result;
+      },
+    );
+  }
+
+  if (registerDebugRoutes) {
+    app.get(
+      "/api/auth/dashboard/debug-code",
+      async (request: FastifyRequest, reply: FastifyReply) => {
+        const query = (request.query ?? {}) as { username?: string };
+        const result = await debugDashboardLoginCode(query.username ?? "");
         if (!result.ok) return sendError(reply, result);
         return result;
       },

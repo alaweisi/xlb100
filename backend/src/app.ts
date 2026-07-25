@@ -48,6 +48,7 @@ import { registerSupportModule } from "./support/supportModule.js";
 import { registerNotificationModule } from "./notification/notificationModule.js";
 import { registerMarketingModule } from "./marketing/marketingModule.js";
 import { registerOaRoutes } from "./oa/oaRoutes.js";
+import { registerDashboardRoutes } from "./dashboard/dashboardRoutes.js";
 import { XLB_RUNTIME_STATUS } from "./projectStatus.js";
 
 export type BuildAppOptions = {
@@ -245,6 +246,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   await registerNotificationModule(app);
   await registerMarketingModule(app);
   await registerOaRoutes(app);
+  await registerDashboardRoutes(app);
 
   return app;
 }

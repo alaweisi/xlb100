@@ -17,7 +17,7 @@ import { oaIdentityService } from "../oa/oaIdentityService.js";
 // remains blocked until legal entity, credentials and production activation.
 
 async function deliverMockLoginCode(
-  scope: "customer" | "admin" | "worker" | "oa",
+  scope: "customer" | "admin" | "worker" | "oa" | "dashboard",
   recipient: string,
   code: string,
   expiresAt: string,
@@ -142,6 +142,26 @@ export async function requestAdminLoginCode(
   };
 }
 
+export async function requestDashboardLoginCode(
+  username: string,
+): Promise<LoginCodeRequestResult | AuthError> {
+  const usernameResult = validateUsername(username);
+  if (!usernameResult.ok) return usernameResult;
+  const admin = await findAdmin(username);
+  if (!admin || !["admin", "operator", "auditor"].includes(admin.role)) {
+    return { ok: false, error: "dashboard identity not found", statusCode: 404 };
+  }
+  const issued = await issueLoginOtp("dashboard", username);
+  if (!issued.ok) return issued;
+  await deliverMockLoginCode("dashboard", username, issued.code, issued.expiresAt);
+  return {
+    ok: true,
+    expiresAt: issued.expiresAt,
+    ttlSeconds: issued.ttlSeconds,
+    attemptsLeft: issued.attemptsLeft,
+  };
+}
+
 export async function requestWorkerLoginCode(
   phone: string,
 ): Promise<LoginCodeRequestResult | AuthError> {
@@ -194,6 +214,10 @@ export function debugAdminLoginCode(username: string): Promise<DebugLoginOtpResu
   return readDebugLoginOtp("admin", username);
 }
 
+export function debugDashboardLoginCode(username: string): Promise<DebugLoginOtpResult> {
+  return readDebugLoginOtp("dashboard", username);
+}
+
 export function debugWorkerLoginCode(phone: string): Promise<DebugLoginOtpResult> {
   return readDebugLoginOtp("worker", phone);
 }
@@ -233,6 +257,22 @@ export async function adminLogin(
   if (!otp.ok) return otp;
 
   const token = createToken(admin.id, admin.role, "admin");
+  return { ok: true, token, userId: admin.id, role: admin.role };
+}
+
+export async function dashboardLogin(
+  username: string,
+  code: string,
+): Promise<LoginResult | AuthError> {
+  const usernameResult = validateUsername(username);
+  if (!usernameResult.ok) return usernameResult;
+  const admin = await findAdmin(username);
+  if (!admin || !["admin", "operator", "auditor"].includes(admin.role)) {
+    return { ok: false, error: "invalid dashboard credentials", statusCode: 401 };
+  }
+  const otp = await verifyLoginOtp("dashboard", username, code);
+  if (!otp.ok) return otp;
+  const token = createToken(admin.id, admin.role, "dashboard");
   return { ok: true, token, userId: admin.id, role: admin.role };
 }
 

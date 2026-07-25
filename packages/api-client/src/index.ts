@@ -94,7 +94,7 @@ export { governanceEvidenceApi } from "./governanceEvidence.js";
 export { governanceReadinessApi } from "./governanceReadiness.js";
 export { governancePlannerApi, createGovernancePlannerApi } from "./governancePlanner.js";
 export { authApi, createAuthApi } from "./auth.js";
-export type { OaLoginResponse } from "./auth.js";
+export type { LoginResponse, OaLoginResponse } from "./auth.js";
 export {
   oaApi,
   createOaApi,
@@ -105,3 +105,8 @@ export {
   type OaTaskAction,
   type OaTaskListQuery,
 } from "./oa.js";
+export {
+  createDashboardApi,
+  validateDashboardRealtimeResponse,
+  type DashboardApi,
+} from "./dashboard.js";

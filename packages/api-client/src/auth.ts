@@ -66,6 +66,25 @@ export function createAuthApi(client: ApiClient) {
         `/api/auth/admin/debug-code?${new URLSearchParams({ username }).toString()}`,
       );
     },
+    requestDashboardLoginCode(username: string) {
+      return client.post<LoginCodeResponse | LoginError>(
+        "/api/auth/dashboard/code",
+        { username },
+        { validate: validateLoginCodeResponse },
+      );
+    },
+    dashboardLogin(username: string, code: string) {
+      return client.post<LoginResponse | LoginError>(
+        "/api/auth/dashboard/login",
+        { username, code },
+        { validate: validateLoginResponse },
+      );
+    },
+    getDashboardDebugCode(username: string) {
+      return client.get<DebugLoginCodeResponse | LoginError>(
+        `/api/auth/dashboard/debug-code?${new URLSearchParams({ username }).toString()}`,
+      );
+    },
     requestWorkerLoginCode(phone: string) {
       return client.post<LoginCodeResponse | LoginError>("/api/auth/worker/code", { phone }, { validate: validateLoginCodeResponse });
     },

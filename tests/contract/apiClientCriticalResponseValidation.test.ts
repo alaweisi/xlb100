@@ -25,10 +25,12 @@ describe("critical API response validation wiring", () => {
     await api.customerLogin("13800138000", "123456");
     await api.requestAdminLoginCode("admin");
     await api.adminLogin("admin", "123456");
+    await api.requestDashboardLoginCode("admin");
+    await api.dashboardLogin("admin", "123456");
     await api.requestWorkerLoginCode("13800138000");
     await api.workerLogin("13800138000", "123456");
 
-    expect(post).toHaveBeenCalledTimes(6);
+    expect(post).toHaveBeenCalledTimes(8);
     for (const call of post.mock.calls) {
       expect(() => validatorFrom(call, 2)({ ok: true })).toThrow();
     }
