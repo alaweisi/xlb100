@@ -3,11 +3,28 @@ $ErrorActionPreference = 'Stop'
 Set-Location (Resolve-Path (Join-Path $PSScriptRoot '..'))
 
 function Read-FileAtRef([string]$Ref, [string]$Path) {
-  $content = @(git show "${Ref}:$Path")
-  if ($LASTEXITCODE -ne 0) {
-    throw "Phase29 entry artifact missing at ${Ref}: $Path"
+  $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+  $startInfo.FileName = 'git.exe'
+  $startInfo.Arguments = "show --no-textconv `"${Ref}:$Path`""
+  $startInfo.UseShellExecute = $false
+  $startInfo.CreateNoWindow = $true
+  $startInfo.RedirectStandardOutput = $true
+  $startInfo.RedirectStandardError = $true
+  $startInfo.StandardOutputEncoding = New-Object System.Text.UTF8Encoding -ArgumentList $false
+  $startInfo.StandardErrorEncoding = New-Object System.Text.UTF8Encoding -ArgumentList $false
+
+  $process = New-Object System.Diagnostics.Process
+  $process.StartInfo = $startInfo
+  [void]$process.Start()
+  $stdout = $process.StandardOutput.ReadToEndAsync()
+  $stderr = $process.StandardError.ReadToEndAsync()
+  $process.WaitForExit()
+  $content = $stdout.GetAwaiter().GetResult()
+  $errorText = $stderr.GetAwaiter().GetResult()
+  if ($process.ExitCode -ne 0) {
+    throw "Phase29 entry artifact missing at ${Ref}: $Path`n$errorText"
   }
-  return $content -join "`n"
+  return $content
 }
 
 function Require-Contains([string]$Text, [string]$Needle, [string]$Label) {

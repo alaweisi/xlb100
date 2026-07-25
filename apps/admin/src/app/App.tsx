@@ -17,6 +17,16 @@ import {
 import { AdminShell, Button, FormField, GuardrailCard, Input, ScopeBadge, SideNav, StatusTag, TopBar } from "@xlb/ui";
 import "../admin-responsive.css";
 
+type CapacitorWindow = Window & {
+  Capacitor?: {
+    isNativePlatform?: () => boolean;
+  };
+};
+
+function isNativeMobileRuntime(): boolean {
+  return Boolean((window as CapacitorWindow).Capacitor?.isNativePlatform?.());
+}
+
 const SettlementOpsPage = lazy(() => import("../pages/SettlementOpsPage").then((module) => ({ default: module.SettlementOpsPage })));
 const SettlementStatementDetailPage = lazy(() => import("../pages/SettlementStatementDetailPage").then((module) => ({ default: module.SettlementStatementDetailPage })));
 const SettlementExportReviewPage = lazy(() => import("../pages/SettlementExportReviewPage").then((module) => ({ default: module.SettlementExportReviewPage })));
@@ -363,7 +373,8 @@ export function App() {
             );
 
   return (
-    <AdminShell
+    <div data-native-mobile={isNativeMobileRuntime() ? "true" : undefined}>
+      <AdminShell
       sideNav={
         <SideNav
           title="XLB Admin"
@@ -469,6 +480,7 @@ export function App() {
         </p>
       </GuardrailCard>
       {content}
-    </AdminShell>
+      </AdminShell>
+    </div>
   );
 }

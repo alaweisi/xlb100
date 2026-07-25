@@ -29,6 +29,16 @@ import { helperText, workerPanelStyle } from "../pages/pageShared";
 import { useWorkerAuthStore } from "../features/auth/store";
 import type { WorkerSupportApi } from "../pages/WorkerSupportPage";
 
+type CapacitorWindow = Window & {
+  Capacitor?: {
+    isNativePlatform?: () => boolean;
+  };
+};
+
+function isNativeMobileRuntime(): boolean {
+  return Boolean((window as CapacitorWindow).Capacitor?.isNativePlatform?.());
+}
+
 const WorkerLoginPage = lazy(() => import("../pages/AuthPages").then((module) => ({ default: module.WorkerLoginPage })));
 const HallPage = lazy(() => import("../pages/TaskPages").then((module) => ({ default: module.HallPage })));
 const TasksPage = lazy(() => import("../pages/TaskPages").then((module) => ({ default: module.TasksPage })));
@@ -234,7 +244,12 @@ function RouteNav({ activeRoute }: { activeRoute: WorkerRoute }) {
 
 function AppFrame({ route, children }: { route: WorkerRoute; children: ReactNode }) {
   return (
-    <div className="xlb-worker-app" data-role="worker" style={shellStyle}>
+    <div
+      className="xlb-worker-app"
+      data-native-mobile={isNativeMobileRuntime() ? "true" : undefined}
+      data-role="worker"
+      style={shellStyle}
+    >
       <div
         className="xlb-worker-device-stage"
         style={{ margin: "0 auto", maxWidth: 430, minHeight: "100vh", padding: "28px 18px" }}

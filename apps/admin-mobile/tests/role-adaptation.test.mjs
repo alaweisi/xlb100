@@ -18,10 +18,11 @@ const indexHtml = fs.readFileSync(
 test("Admin narrow layout exposes a touch-sized horizontally scrollable role nav", () => {
   assert.match(layoutSource, /data-admin-shell/u);
   assert.match(layoutSource, /data-side-nav-items/u);
-  assert.match(responsiveCss, /@media \(max-width: 720px\)/u);
+  assert.match(responsiveCss, /\[data-native-mobile="true"\]/u);
   assert.match(responsiveCss, /grid-template-columns: minmax\(0, 1fr\) !important/u);
   assert.match(responsiveCss, /\[data-side-nav-items\][\s\S]*overflow-x: auto/u);
-  assert.match(responsiveCss, /min-height: 44px/u);
+  assert.match(responsiveCss, /min-height: var\(--xlb-size-touch-target\)/u);
+  assert.match(responsiveCss, /z-index: var\(--xlb-z-index-sticky\)/u);
   assert.match(responsiveCss, /env\(safe-area-inset-top\)/u);
   assert.match(indexHtml, /viewport-fit=cover/u);
 });
