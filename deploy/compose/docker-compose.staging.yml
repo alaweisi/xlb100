@@ -184,6 +184,22 @@ services:
     ports:
       - "127.0.0.1:4176:4173"
 
+  dashboard:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.frontend
+      args:
+        APP_NAME: dashboard
+        APP_BASE: /dashboard/
+    container_name: xlb-dashboard-staging
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      NODE_ENV: ${NODE_ENV:-staging}
+    ports:
+      - "127.0.0.1:4177:4173"
+
   reverse-proxy:
     image: nginx:1.27-alpine
     container_name: xlb-staging-proxy
@@ -194,10 +210,25 @@ services:
       - worker
       - admin
       - oa
-    ports:
-      - "${STAGING_HTTP_PORT:-80}:80"
+      - dashboard
+    expose:
+      - "80"
+      - "443"
     volumes:
       - ../../infra/nginx/cloud-staging.conf:/etc/nginx/conf.d/default.conf:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+
+  edge-multiplexer:
+    image: haproxy:3.0-alpine
+    container_name: xlb-staging-edge
+    restart: unless-stopped
+    depends_on:
+      - reverse-proxy
+    ports:
+      - "${STAGING_HTTP_PORT:-80}:80"
+      - "${STAGING_HTTPS_PORT:-443}:443"
+    volumes:
+      - ../../infra/haproxy/cloud-staging-edge.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
 
 volumes:
   xlb-staging-mysql-data:

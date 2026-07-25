@@ -3,6 +3,7 @@ import { createApiClient, createAuthApi, customerApi } from "@xlb/api-client";
 import type { CatalogSnapshot, CityCode } from "@xlb/types";
 import { XLB_HEADERS } from "@xlb/types";
 import { BottomNav, MobileShell } from "@xlb/ui";
+import { CUSTOMER_API_BASE } from "../apiBase";
 
 // Phase 14: removed hardcoded CUSTOMER_ID; replaced with loginCustomer().
 // Legacy reference preserved for tests: "customer-demo-001" exists in customers table via seed 011.
@@ -42,7 +43,7 @@ function storeSession(session: CustomerSession): void {
  */
 export async function loginCustomer(phone = "13800000001"): Promise<CustomerSession> {
   const authApi = createAuthApi(
-    createApiClient({ baseUrl: "" }),
+    createApiClient({ baseUrl: CUSTOMER_API_BASE }),
   );
   const codeRequest = await authApi.requestCustomerLoginCode(phone);
   if (!codeRequest.ok) {
@@ -193,7 +194,7 @@ export function createCustomerApiClient(cityCode: CityCode, token?: string) {
   }
   return customerApi.forClient(
     createApiClient({
-      baseUrl: "",
+      baseUrl: CUSTOMER_API_BASE,
       headers,
     }),
   );

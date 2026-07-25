@@ -4,6 +4,7 @@ import fs from "node:fs";
 import {
   expectedApkPath,
   probeAndroidToolchain,
+  resolveMobileEnvironment,
   validateBuiltApk,
 } from "../packages/mobile-foundation/src/index.mjs";
 import customer from "../apps/customer-mobile/mobile-app.config.mjs";
@@ -60,6 +61,24 @@ for (const app of apps) {
   }
 }
 
+function containsText(root, expected) {
+  return fs.readdirSync(root, { withFileTypes: true }).some((entry) => {
+    const entryPath = `${root}/${entry.name}`;
+    if (entry.isDirectory()) return containsText(entryPath, expected);
+    if (!entry.isFile() || !/\.(?:html|js|json)$/u.test(entry.name)) return false;
+    return fs.readFileSync(entryPath, "utf8").includes(expected);
+  });
+}
+
+for (const app of apps) {
+  const { apiBaseUrl } = resolveMobileEnvironment(app, "production");
+  if (!containsText(app.web.outputDirectory, apiBaseUrl)) {
+    throw new Error(
+      `${app.key} release bundle does not contain the approved API origin ${apiBaseUrl}`,
+    );
+  }
+}
+
 const reports = apps.map((app) => {
   const toolchain = probeAndroidToolchain(app);
   const apkPath = expectedApkPath(app, "release");
@@ -68,12 +87,14 @@ const reports = apps.map((app) => {
     variant: "release",
   });
   const bytes = fs.readFileSync(apkPath);
+  const { apiBaseUrl } = resolveMobileEnvironment(app, "production");
   return Object.freeze({
     role: app.key,
     appId: apk.appId,
     appName: apk.appName,
     versionCode: apk.versionCode,
     versionName: apk.versionName,
+    apiBaseUrl,
     apkPath: apk.apkPath,
     bytes: bytes.byteLength,
     sha256: createHash("sha256").update(bytes).digest("hex").toUpperCase(),
