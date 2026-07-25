@@ -10,6 +10,10 @@ const responsiveCss = fs.readFileSync(
   new URL("../../worker/src/app/worker-responsive.css", import.meta.url),
   "utf8",
 );
+const indexHtml = fs.readFileSync(
+  new URL("../../worker/index.html", import.meta.url),
+  "utf8",
+);
 
 test("Worker native-width layout removes the desktop phone preview frame", () => {
   assert.match(appSource, /xlb-worker-device-stage/u);
@@ -18,4 +22,5 @@ test("Worker native-width layout removes the desktop phone preview frame", () =>
   assert.match(responsiveCss, /\.xlb-worker-device-frame[\s\S]*border: 0 !important/u);
   assert.match(responsiveCss, /\.xlb-worker-preview-status[\s\S]*display: none !important/u);
   assert.match(responsiveCss, /env\(safe-area-inset-top\)/u);
+  assert.match(indexHtml, /viewport-fit=cover/u);
 });
