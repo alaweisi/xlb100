@@ -10,6 +10,10 @@ const responsiveCss = fs.readFileSync(
   new URL("../../admin/src/admin-responsive.css", import.meta.url),
   "utf8",
 );
+const indexHtml = fs.readFileSync(
+  new URL("../../admin/index.html", import.meta.url),
+  "utf8",
+);
 
 test("Admin narrow layout exposes a touch-sized horizontally scrollable role nav", () => {
   assert.match(layoutSource, /data-admin-shell/u);
@@ -19,4 +23,5 @@ test("Admin narrow layout exposes a touch-sized horizontally scrollable role nav
   assert.match(responsiveCss, /\[data-side-nav-items\][\s\S]*overflow-x: auto/u);
   assert.match(responsiveCss, /min-height: 44px/u);
   assert.match(responsiveCss, /env\(safe-area-inset-top\)/u);
+  assert.match(indexHtml, /viewport-fit=cover/u);
 });
