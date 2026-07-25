@@ -20,7 +20,7 @@ Date started: 2026-07-25
 | --- | --- | --- | --- | --- |
 | M1 | Cloud runtime and device bootstrap | Common, Customer, Worker, Admin | Tests, three APK builds, emulator runtime, authentication/session/device lifecycle | In progress; Worker cloud auth routes block final gate |
 | M2 | Role-native and business adaptation | Customer, Worker, Admin, common UI capability | Role flow tests, builds, emulator visual and interaction acceptance | Local work complete; runtime gate inherits the Worker cloud-auth blocker |
-| M3 | Official three-app business E2E | Customer, Worker, Admin, shared contracts | Official business journeys and cross-role state acceptance | Queued |
+| M3 | Official three-app business E2E | Customer, Worker, Admin, shared contracts | Official business journeys and cross-role state acceptance | Formal isolated data-plane gate passes; APK cloud journey blocked by Worker auth |
 | M4 | Android device QA and hardening | Common plus three app-specific units | Device matrix, lifecycle, network, performance, permissions and regression | Queued |
 | M5 | Internal release candidates | Customer, Worker, Admin, release common capability | Release builds, signing boundary, hashes, install documentation and RC acceptance | Queued; no publication authority |
 
@@ -86,3 +86,17 @@ Detailed evidence and the remaining M1 blocker are recorded in
 - Preserve the existing no-provider-refund and no-provider-payout boundaries.
 
 Detailed M2 evidence is recorded in `docs/mobile/M2_ACCEPTANCE.md`.
+
+## M3 formal journey
+
+The repeatable local gate is:
+
+```powershell
+pnpm mobile:m3:gate
+```
+
+It creates an isolated test database, applies the current migrations and
+official seed chain, runs the authenticated three-role lifecycle and
+cross-phase invariant tests, then drops the isolated database.
+
+Detailed M3 evidence is recorded in `docs/mobile/M3_ACCEPTANCE.md`.
