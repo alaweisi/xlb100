@@ -70,12 +70,19 @@ async function migrateAndSeed(env) {
   }
 }
 
-const unitCode = await runProject("unit-contract");
+// Unit/contract tests must never inherit access to a developer or CI database.
+// DB-backed legacy files are assigned to db-serial in vitest.config.ts and run
+// later against the isolated, migrated database.
+const unitEnv = {
+  ...process.env,
+  NODE_ENV: "test",
+  XLB_SKIP_DB_TESTS: "1",
+};
+const unitCode = await runProject("unit-contract", unitEnv);
 if (unitCode !== 0) process.exit(unitCode);
 
 if (process.env.XLB_SKIP_DB_TESTS === "1") {
-  const dbCode = await runProject("db-serial");
-  if (dbCode !== 0) process.exit(dbCode);
+  process.stdout.write("[test-db] database projects skipped by XLB_SKIP_DB_TESTS=1\n");
 } else {
   let isolated;
   try {

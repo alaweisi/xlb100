@@ -38,7 +38,11 @@ $phase27NotificationFiles = @(
   'packages/api-client/src/index.ts',
   'packages/api-client/src/notification.ts',
   'packages/api-client/src/worker.ts',
+  'packages/customer-components/src/home/LocationHeader.tsx',
+  'packages/customer-components/src/styles/customer-home.css',
+  'packages/types/src/customerSdui.ts',
   'packages/types/src/notification.ts',
+  'packages/validators/src/customerSduiSchema.ts',
   'packages/validators/src/notificationSchema.ts'
 )
 $phase29RefundFiles = @(

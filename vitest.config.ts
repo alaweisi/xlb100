@@ -16,9 +16,19 @@ const alias = [
   { find: "@xlb/config", replacement: path.resolve(rootDir, "packages/config/src/index.ts") },
   { find: "@xlb/api-client", replacement: path.resolve(rootDir, "packages/api-client/src/index.ts") },
   { find: "@xlb/ui", replacement: path.resolve(rootDir, "packages/ui/src/index.ts") },
+  {
+    find: "@xlb/shared/deterministic/stableHash.js",
+    replacement: path.resolve(rootDir, "packages/shared/deterministic/stableHash.ts"),
+  },
   { find: "@xlb/admin-pages", replacement: path.resolve(rootDir, "apps/admin/src/pages") },
   { find: /^@shared\/(.*)$/, replacement: path.resolve(rootDir, "packages/shared/$1") },
   { find: "@shared", replacement: path.resolve(rootDir, "packages/shared") },
+];
+
+const isolatedDatabaseTests = [
+  "tests/unit/catalog.test.ts",
+  "tests/unit/cityConfig.test.ts",
+  "tests/unit/pricing.test.ts",
 ];
 
 const dbSerial = {
@@ -63,6 +73,7 @@ export default defineConfig({
             "tests/unit/**/*.test.tsx",
             "tests/contract/**/*.test.ts",
           ],
+          exclude: isolatedDatabaseTests,
           setupFiles: ["tests/setup.ts"],
         },
       },
@@ -70,7 +81,11 @@ export default defineConfig({
         resolve: { alias },
         test: {
           name: "db-serial",
-          include: ["tests/integration/**/*.test.ts", "tests/security/**/*.test.ts"],
+          include: [
+            "tests/integration/**/*.test.ts",
+            "tests/security/**/*.test.ts",
+            ...isolatedDatabaseTests,
+          ],
           ...dbSerial,
         },
       },

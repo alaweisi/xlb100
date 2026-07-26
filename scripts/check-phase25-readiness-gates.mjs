@@ -1,5 +1,5 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { resolve, join } from "node:path";
+import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const historicalReports = [
@@ -28,7 +28,9 @@ export function checkPhase25Readiness(root = process.cwd()) {
   for (const report of historicalReports) {
     requirePath(root, report, "missing historical readiness report");
     if (!readFileSync(join(root, report), "utf8").includes("Result: BLOCKED")) {
-      throw new Error(`[phase25-readiness] historical report must retain its BLOCKED result: ${report}`);
+      throw new Error(
+        `[phase25-readiness] historical report must retain its BLOCKED result: ${report}`,
+      );
     }
   }
 
@@ -43,7 +45,11 @@ export function checkPhase25Readiness(root = process.cwd()) {
 
     if (authorized(currentState)) {
       for (const required of ["README.md", "package.json", "src", "design-qa.md"]) {
-        requirePath(root, `apps/${app}/${required}`, `${app} is marked complete/locked but is missing evidence`);
+        requirePath(
+          root,
+          `apps/${app}/${required}`,
+          `${app} is marked complete/locked but is missing evidence`,
+        );
       }
       results.push(`${app}=authorized`);
       continue;
