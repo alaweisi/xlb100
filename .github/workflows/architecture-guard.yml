@@ -1,5 +1,8 @@
 name: Architecture Guard
 
+permissions:
+  contents: read
+
 on:
   push:
     branches: [main, master]
@@ -9,7 +12,9 @@ jobs:
   guard:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
       - name: Preflight architecture
         run: pwsh -NoProfile -File scripts/preflight-architecture.ps1

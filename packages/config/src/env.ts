@@ -54,41 +54,51 @@ const WEAK_SECRET_VALUES = new Set([
   LOCAL_OTP_PEPPER,
 ]);
 
-function assertProductionSecret(name: string, value: string, minimumLength: number): void {
+function assertDeploymentSecret(
+  environment: "staging" | "production",
+  name: string,
+  value: string,
+  minimumLength: number,
+): void {
   const normalized = value.trim().toLowerCase();
   if (value.trim().length < minimumLength || WEAK_SECRET_VALUES.has(normalized)) {
     throw new Error(
-      `${name} must be an explicit, non-default secret of at least ${minimumLength} characters in production`,
+      `${name} must be an explicit, non-default secret of at least ${minimumLength} characters in ${environment}`,
     );
   }
 }
 
-function validateProductionEnv(config: EnvConfig): void {
-  if (config.nodeEnv !== "production") return;
+function validateDeploymentEnv(config: EnvConfig): void {
+  if (config.nodeEnv !== "staging" && config.nodeEnv !== "production") return;
+  const environment = config.nodeEnv;
 
   if (config.paymentMockWebhookEnabled) {
-    throw new Error("PAYMENT_MOCK_WEBHOOK_ENABLED must be false in production");
+    throw new Error(
+      `PAYMENT_MOCK_WEBHOOK_ENABLED must be false in ${environment}`,
+    );
   }
-  assertProductionSecret("JWT_SECRET", config.jwtSecret, 32);
+  assertDeploymentSecret(environment, "JWT_SECRET", config.jwtSecret, 32);
   for (const [keyId, secret] of Object.entries(config.jwtKeys)) {
-    assertProductionSecret(`JWT_KEYS_JSON[${keyId}]`, secret, 32);
+    assertDeploymentSecret(environment, `JWT_KEYS_JSON[${keyId}]`, secret, 32);
   }
-  assertProductionSecret("MYSQL_PASSWORD", config.mysqlPassword, 16);
-  assertProductionSecret("REDIS_PASSWORD", config.redisPassword, 16);
-  assertProductionSecret("AUTH_PHONE_HASH_SECRET", config.authPhoneHashSecret, 32);
-  assertProductionSecret("AUTH_OTP_PEPPER", config.authOtpPepper, 32);
+  assertDeploymentSecret(environment, "MYSQL_PASSWORD", config.mysqlPassword, 16);
+  assertDeploymentSecret(environment, "REDIS_PASSWORD", config.redisPassword, 16);
+  assertDeploymentSecret(environment, "AUTH_PHONE_HASH_SECRET", config.authPhoneHashSecret, 32);
+  assertDeploymentSecret(environment, "AUTH_OTP_PEPPER", config.authOtpPepper, 32);
   if (!config.jwtIssuer.trim() || !config.jwtAudience.trim()) {
-    throw new Error("JWT_ISSUER and JWT_AUDIENCE must be non-empty in production");
+    throw new Error(`JWT_ISSUER and JWT_AUDIENCE must be non-empty in ${environment}`);
   }
   if (!Object.hasOwn(config.jwtKeys, config.jwtActiveKeyId)) {
     throw new Error("JWT_ACTIVE_KID must exist in JWT_KEYS_JSON");
   }
   if (config.rateLimitBackend !== "redis") {
-    throw new Error("RATE_LIMIT_BACKEND must be redis in production");
+    throw new Error(`RATE_LIMIT_BACKEND must be redis in ${environment}`);
   }
   if (config.trustProxyHops < 1) {
-    throw new Error("TRUST_PROXY_HOPS must be at least 1 in production");
+    throw new Error(`TRUST_PROXY_HOPS must be at least 1 in ${environment}`);
   }
+  if (environment === "staging") return;
+
   if (!config.mysqlTlsEnabled || !config.mysqlTlsCa.trim()) {
     throw new Error("MYSQL_TLS_ENABLED and MYSQL_TLS_CA_FILE are required in production");
   }
@@ -144,14 +154,14 @@ function readEnvBool(key: string, fallback: boolean): boolean {
 }
 
 function readRateLimitBackend(nodeEnv: string): "memory" | "redis" {
-  const fallback = nodeEnv === "production" ? "redis" : "memory";
+  const fallback = nodeEnv === "production" || nodeEnv === "staging" ? "redis" : "memory";
   const value = readEnv("RATE_LIMIT_BACKEND", fallback).trim().toLowerCase();
   if (value === "memory" || value === "redis") return value;
   throw new Error("RATE_LIMIT_BACKEND must be memory or redis");
 }
 
 function readTrustProxyHops(nodeEnv: string): number {
-  const fallback = nodeEnv === "production" ? 1 : 0;
+  const fallback = nodeEnv === "production" || nodeEnv === "staging" ? 1 : 0;
   const raw = process.env.TRUST_PROXY_HOPS;
   if (raw === undefined || raw === "") return fallback;
   if (!/^\d+$/u.test(raw)) throw new Error("TRUST_PROXY_HOPS must be an integer between 0 and 10");
@@ -247,7 +257,7 @@ export function loadEnv(): EnvConfig {
     ),
     authDebugCodeEnabled: readEnvBool(
       "AUTH_DEBUG_CODE_ENABLED",
-      nodeEnv !== "production",
+      nodeEnv !== "production" && nodeEnv !== "staging",
     ),
     paymentMockWebhookEnabled: readEnvBool(
       "PAYMENT_MOCK_WEBHOOK_ENABLED",
@@ -261,7 +271,6 @@ export function loadEnv(): EnvConfig {
 
   if (
     config.paymentMockWebhookEnabled
-    && config.nodeEnv !== "production"
     && !["development", "test"].includes(config.nodeEnv)
   ) {
     throw new Error(
@@ -270,13 +279,12 @@ export function loadEnv(): EnvConfig {
   }
   if (
     config.paymentMockWebhookEnabled
-    && config.nodeEnv !== "production"
     && config.paymentMockWebhookSecret.trim().length < 24
   ) {
     throw new Error(
       "PAYMENT_MOCK_WEBHOOK_SECRET must contain at least 24 characters when the mock webhook is enabled",
     );
   }
-  validateProductionEnv(config);
+  validateDeploymentEnv(config);
   return config;
 }

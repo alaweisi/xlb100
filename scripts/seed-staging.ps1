@@ -1,16 +1,45 @@
 ﻿# Staging seed helper for Dockerized MySQL
+[CmdletBinding()]
+param(
+  [string]$EnvFile = ""
+)
+
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 $ComposeFile = Join-Path $Root "deploy\compose\docker-compose.staging.yml"
-$EnvFile = Join-Path $Root ".env.staging.example"
 
-$mysqlDatabase = $env:MYSQL_DATABASE
-$mysqlUser = $env:MYSQL_USER
-$mysqlPassword = $env:MYSQL_PASSWORD
+if ([string]::IsNullOrWhiteSpace($EnvFile)) {
+  $EnvFile = Join-Path $Root ".env.staging.local"
+}
+$EnvFile = [IO.Path]::GetFullPath($EnvFile)
+if (-not (Test-Path -LiteralPath $EnvFile -PathType Leaf)) {
+  throw "staging env file not found: $EnvFile. Create it from the checked-in template and provide strong secrets."
+}
 
-if (-not $mysqlDatabase) { $mysqlDatabase = "xlb_staging" }
-if (-not $mysqlUser) { $mysqlUser = "xlb" }
-if (-not $mysqlPassword) { $mysqlPassword = "change-me" }
+function Get-StagingEnvValue([string]$Name, [string]$Fallback = "") {
+  $processValue = [Environment]::GetEnvironmentVariable($Name)
+  if (-not [string]::IsNullOrWhiteSpace($processValue)) { return $processValue }
+  $prefix = "$Name="
+  $line = Get-Content -Encoding UTF8 -LiteralPath $EnvFile |
+    Where-Object { $_.TrimStart().StartsWith($prefix, [StringComparison]::Ordinal) } |
+    Select-Object -Last 1
+  if ($null -eq $line) { return $Fallback }
+  $value = $line.TrimStart().Substring($prefix.Length).Trim()
+  if ($value.Length -ge 2 -and (
+      ($value.StartsWith('"') -and $value.EndsWith('"')) -or
+      ($value.StartsWith("'") -and $value.EndsWith("'"))
+    )) {
+    return $value.Substring(1, $value.Length - 2)
+  }
+  return $value
+}
+
+$mysqlDatabase = Get-StagingEnvValue "MYSQL_DATABASE" "xlb_staging"
+$mysqlUser = Get-StagingEnvValue "MYSQL_USER" "xlb"
+$mysqlPassword = Get-StagingEnvValue "MYSQL_PASSWORD"
+if ($mysqlPassword.Length -lt 16 -or $mysqlPassword -match '(?i)^(change-me|changeme|password|secret)$') {
+  throw "MYSQL_PASSWORD must be an explicit, non-default staging secret of at least 16 characters"
+}
 
 Write-Host "Running staging seeds via docker compose mysql service..."
 

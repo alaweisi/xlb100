@@ -21,6 +21,15 @@ function stubValidProductionEnv(): void {
   vi.stubEnv("AUTH_OTP_PEPPER", "otp-pepper-production-secret-at-least-32-chars");
 }
 
+function stubValidStagingEnv(): void {
+  vi.stubEnv("NODE_ENV", "staging");
+  vi.stubEnv("JWT_SECRET", "jwt-staging-secret-with-at-least-32-characters");
+  vi.stubEnv("MYSQL_PASSWORD", "mysql-staging-password-strong");
+  vi.stubEnv("REDIS_PASSWORD", "redis-staging-password-strong");
+  vi.stubEnv("AUTH_PHONE_HASH_SECRET", "phone-hash-staging-secret-at-least-32-chars");
+  vi.stubEnv("AUTH_OTP_PEPPER", "otp-pepper-staging-secret-at-least-32-chars");
+}
+
 afterEach(() => {
   vi.unstubAllEnvs();
 });
@@ -79,6 +88,28 @@ describe("production environment safety", () => {
       mysqlTlsEnabled: true,
       redisTlsEnabled: true,
     });
+  });
+
+  it("accepts explicit strong staging secrets with secure service defaults", () => {
+    stubValidStagingEnv();
+    expect(loadEnv()).toMatchObject({
+      nodeEnv: "staging",
+      rateLimitBackend: "redis",
+      trustProxyHops: 1,
+      authDebugCodeEnabled: false,
+    });
+  });
+
+  it.each([
+    ["JWT_SECRET", "change-me-in-production"],
+    ["MYSQL_PASSWORD", "change-me"],
+    ["REDIS_PASSWORD", ""],
+    ["AUTH_PHONE_HASH_SECRET", "change-me-in-production"],
+    ["AUTH_OTP_PEPPER", "change-me-in-production"],
+  ])("rejects weak staging %s", (name, value) => {
+    stubValidStagingEnv();
+    vi.stubEnv(name, value);
+    expect(() => loadEnv()).toThrow(name);
   });
 
   it("rejects an in-memory production rate limit backend", () => {

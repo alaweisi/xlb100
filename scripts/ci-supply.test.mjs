@@ -19,6 +19,57 @@ test("all hosted workflows use frozen pnpm installs", () => {
   }
 });
 
+test("all hosted workflows declare read-only permissions and pin actions by commit", () => {
+  const workflowsDir = path.join(rootDir, ".github", "workflows");
+  const workflowFiles = readdirSync(workflowsDir).filter(file => /\.ya?ml$/.test(file));
+
+  for (const file of workflowFiles) {
+    const workflow = read(path.relative(rootDir, path.join(workflowsDir, file)));
+    assert.match(
+      workflow,
+      /^permissions:\s*\r?\n\s{2}contents:\s*read\s*$/m,
+      `${file} must declare read-only repository permissions`,
+    );
+    for (const action of workflow.matchAll(/^\s*-?\s*uses:\s*([^\s#]+)(?:\s+#.*)?$/gm)) {
+      assert.match(
+        action[1],
+        /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+@[a-f0-9]{40}$/u,
+        `${file} must pin ${action[1]} to a full commit SHA`,
+      );
+    }
+    for (const checkout of workflow.matchAll(
+      /^\s*-\s*uses:\s*actions\/checkout@[a-f0-9]{40}(?:\s+#.*)?\r?\n([\s\S]*?)(?=^\s*-\s*(?:uses|name|run):|(?![\s\S]))/gm,
+    )) {
+      assert.match(
+        checkout[1],
+        /persist-credentials:\s*false/u,
+        `${file} checkout must not persist repository credentials`,
+      );
+    }
+  }
+});
+
+test("staging compose requires strong secret inputs and authenticates Redis", () => {
+  const compose = read("deploy/compose/docker-compose.staging.yml");
+  const example = read(".env.staging.example");
+  const seedHelper = read("scripts/seed-staging.ps1");
+
+  for (const name of [
+    "MYSQL_ROOT_PASSWORD",
+    "MYSQL_PASSWORD",
+    "REDIS_PASSWORD",
+    "JWT_SECRET",
+    "AUTH_PHONE_HASH_SECRET",
+    "AUTH_OTP_PEPPER",
+  ]) {
+    assert.match(compose, new RegExp(`\\$\\{${name}:\\?`), `${name} must be required`);
+  }
+  assert.match(compose, /redis-server[^\r\n]+--requirepass/u);
+  assert.doesNotMatch(compose, /change-me(?:-in-production)?/u);
+  assert.doesNotMatch(example, /=change-me(?:-in-production)?\s*$/mu);
+  assert.doesNotMatch(seedHelper, /\.env\.staging\.example/u);
+});
+
 test("main CI enforces lint, the canonical test runner, and dependency audit", () => {
   const workflow = read(".github/workflows/ci.yml");
   assert.match(workflow, /run: pnpm lint/);

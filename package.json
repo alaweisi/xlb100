@@ -114,7 +114,7 @@
     "gate:phase25:gate1c": "node scripts/check-phase25-gate1c.mjs && pnpm test:phase25:gate1c",
     "test:phase25:gate1def": "vitest run --project unit-contract tests/unit/phase25PresentationSlots.test.tsx",
     "gate:phase25:gate1def": "node scripts/check-phase25-gate1def.mjs && pnpm test:phase25:gate1def",
-    "gate:phase25:readiness": "node scripts/check-phase25-readiness-gates.mjs",
+    "gate:phase25:readiness": "node --test scripts/check-phase25-readiness-gates.test.mjs && node scripts/check-phase25-readiness-gates.mjs",
     "gate:phase25:closure": "node scripts/check-phase25-closure.mjs && pnpm gate:phase25:gate1c && pnpm gate:phase25:gate1def && pnpm gate:phase25:readiness",
     "prepare": "git config core.hooksPath .githooks",
     "setup:git-hooks": "git config core.hooksPath .githooks",

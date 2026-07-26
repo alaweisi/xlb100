@@ -6,16 +6,16 @@ services:
     container_name: xlb-mysql-staging
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD:-change-me}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD is required for staging}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-xlb_staging}
       MYSQL_USER: ${MYSQL_USER:-xlb}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-change-me}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD is required for staging}
     ports:
       - "127.0.0.1:${STAGING_MYSQL_PORT:-3307}:3306"
     volumes:
       - xlb-staging-mysql-data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "${MYSQL_USER:-xlb}", "-p${MYSQL_PASSWORD:-change-me}"]
+      test: ["CMD-SHELL", "MYSQL_PWD=\"$${MYSQL_PASSWORD}\" mysqladmin ping -h 127.0.0.1 -u \"$${MYSQL_USER}\""]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -25,12 +25,15 @@ services:
     image: redis:7
     container_name: xlb-redis-staging
     restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required for staging}
+    command: ["sh", "-c", "exec redis-server --appendonly yes --requirepass \"$${REDIS_PASSWORD}\""]
     ports:
       - "127.0.0.1:${STAGING_REDIS_PORT:-6380}:6379"
     volumes:
       - xlb-staging-redis-data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "redis-cli -a \"$${REDIS_PASSWORD}\" --no-auth-warning ping | grep -q PONG"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -48,25 +51,26 @@ services:
       redis:
         condition: service_healthy
     environment:
-      NODE_ENV: ${NODE_ENV:-staging}
+      NODE_ENV: staging
       BACKEND_PORT: ${BACKEND_PORT:-3000}
       MYSQL_HOST: mysql
       MYSQL_PORT: ${MYSQL_PORT:-3306}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-xlb_staging}
       MYSQL_USER: ${MYSQL_USER:-xlb}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-change-me}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD is required for staging}
       REDIS_HOST: redis
       REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required for staging}
       RATE_LIMIT_BACKEND: redis
       TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-1}
-      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required for staging}
       JWT_ACTIVE_KID: ${JWT_ACTIVE_KID:-primary}
       JWT_KEYS_JSON: "${JWT_KEYS_JSON:-}"
       JWT_ISSUER: ${JWT_ISSUER:-xlb-backend}
       JWT_AUDIENCE: ${JWT_AUDIENCE:-xlb-apps}
       JWT_TTL_SECONDS: ${JWT_TTL_SECONDS:-86400}
-      AUTH_PHONE_HASH_SECRET: ${AUTH_PHONE_HASH_SECRET:-change-me-in-production}
-      AUTH_OTP_PEPPER: ${AUTH_OTP_PEPPER:-change-me-in-production}
+      AUTH_PHONE_HASH_SECRET: ${AUTH_PHONE_HASH_SECRET:?AUTH_PHONE_HASH_SECRET is required for staging}
+      AUTH_OTP_PEPPER: ${AUTH_OTP_PEPPER:?AUTH_OTP_PEPPER is required for staging}
       AUTH_OTP_TTL_SECONDS: ${AUTH_OTP_TTL_SECONDS:-300}
       AUTH_OTP_MAX_ATTEMPTS: ${AUTH_OTP_MAX_ATTEMPTS:-5}
       AUTH_OTP_LOCK_SECONDS: ${AUTH_OTP_LOCK_SECONDS:-900}
@@ -93,25 +97,26 @@ services:
       redis:
         condition: service_healthy
     environment:
-      NODE_ENV: ${NODE_ENV:-staging}
+      NODE_ENV: staging
       BACKEND_PORT: ${BACKEND_PORT:-3000}
       MYSQL_HOST: mysql
       MYSQL_PORT: ${MYSQL_PORT:-3306}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-xlb_staging}
       MYSQL_USER: ${MYSQL_USER:-xlb}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-change-me}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD is required for staging}
       REDIS_HOST: redis
       REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required for staging}
       RATE_LIMIT_BACKEND: redis
       TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-1}
-      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required for staging}
       JWT_ACTIVE_KID: ${JWT_ACTIVE_KID:-primary}
       JWT_KEYS_JSON: "${JWT_KEYS_JSON:-}"
       JWT_ISSUER: ${JWT_ISSUER:-xlb-backend}
       JWT_AUDIENCE: ${JWT_AUDIENCE:-xlb-apps}
       JWT_TTL_SECONDS: ${JWT_TTL_SECONDS:-86400}
-      AUTH_PHONE_HASH_SECRET: ${AUTH_PHONE_HASH_SECRET:-change-me-in-production}
-      AUTH_OTP_PEPPER: ${AUTH_OTP_PEPPER:-change-me-in-production}
+      AUTH_PHONE_HASH_SECRET: ${AUTH_PHONE_HASH_SECRET:?AUTH_PHONE_HASH_SECRET is required for staging}
+      AUTH_OTP_PEPPER: ${AUTH_OTP_PEPPER:?AUTH_OTP_PEPPER is required for staging}
       AUTH_OTP_TTL_SECONDS: ${AUTH_OTP_TTL_SECONDS:-300}
       AUTH_OTP_MAX_ATTEMPTS: ${AUTH_OTP_MAX_ATTEMPTS:-5}
       AUTH_OTP_LOCK_SECONDS: ${AUTH_OTP_LOCK_SECONDS:-900}
@@ -134,7 +139,7 @@ services:
     depends_on:
       - backend
     environment:
-      NODE_ENV: ${NODE_ENV:-staging}
+      NODE_ENV: staging
     ports:
       - "127.0.0.1:4173:4173"
 
@@ -150,7 +155,7 @@ services:
     depends_on:
       - backend
     environment:
-      NODE_ENV: ${NODE_ENV:-staging}
+      NODE_ENV: staging
     ports:
       - "127.0.0.1:4174:4173"
 
@@ -166,7 +171,7 @@ services:
     depends_on:
       - backend
     environment:
-      NODE_ENV: ${NODE_ENV:-staging}
+      NODE_ENV: staging
     ports:
       - "127.0.0.1:4175:4173"
 
@@ -182,7 +187,7 @@ services:
     depends_on:
       - backend
     environment:
-      NODE_ENV: ${NODE_ENV:-staging}
+      NODE_ENV: staging
     ports:
       - "127.0.0.1:4176:4173"
 
@@ -198,7 +203,7 @@ services:
     depends_on:
       - backend
     environment:
-      NODE_ENV: ${NODE_ENV:-staging}
+      NODE_ENV: staging
     ports:
       - "127.0.0.1:4177:4173"
 
