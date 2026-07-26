@@ -127,13 +127,13 @@ export async function requestAdminLoginCode(
   if (!usernameResult.ok) return usernameResult;
 
   const admin = await findAdmin(username);
-  if (!admin) {
-    return { ok: false, error: "admin not found", statusCode: 404 };
-  }
-
+  // Always create the same opaque OTP state and response for syntactically
+  // valid identities. Delivery remains restricted to an existing account.
   const issued = await issueLoginOtp("admin", username);
   if (!issued.ok) return issued;
-  await deliverMockLoginCode("admin", username, issued.code, issued.expiresAt);
+  if (admin) {
+    await deliverMockLoginCode("admin", username, issued.code, issued.expiresAt);
+  }
   return {
     ok: true,
     expiresAt: issued.expiresAt,
@@ -169,16 +169,13 @@ export async function requestWorkerLoginCode(
   if (!phoneResult.ok) return phoneResult;
 
   const worker = await findWorkerByPhone(phone);
-  if (!worker) {
-    return { ok: false, error: "worker not found", statusCode: 404 };
-  }
-  if (worker.status !== "active") {
-    return { ok: false, error: "worker is not active", statusCode: 403 };
-  }
-
+  // Missing and inactive workers receive the same public response and Redis
+  // work as active workers, but never receive the verification code.
   const issued = await issueLoginOtp("worker", phone);
   if (!issued.ok) return issued;
-  await deliverMockLoginCode("worker", phone, issued.code, issued.expiresAt);
+  if (worker?.status === "active") {
+    await deliverMockLoginCode("worker", phone, issued.code, issued.expiresAt);
+  }
   return {
     ok: true,
     expiresAt: issued.expiresAt,
@@ -248,13 +245,13 @@ export async function adminLogin(
   const usernameResult = validateUsername(username);
   if (!usernameResult.ok) return usernameResult;
 
-  const admin = await findAdmin(username);
-  if (!admin) {
-    return { ok: false, error: "admin not found", statusCode: 404 };
-  }
-
   const otp = await verifyLoginOtp("admin", username, code);
   if (!otp.ok) return otp;
+
+  const admin = await findAdmin(username);
+  if (!admin) {
+    return { ok: false, error: "invalid admin credentials", statusCode: 401 };
+  }
 
   const token = createToken(admin.id, admin.role, "admin");
   return { ok: true, token, userId: admin.id, role: admin.role };
@@ -283,16 +280,13 @@ export async function workerLogin(
   const phoneResult = validatePhone(phone);
   if (!phoneResult.ok) return phoneResult;
 
-  const worker = await findWorkerByPhone(phone);
-  if (!worker) {
-    return { ok: false, error: "worker not found", statusCode: 404 };
-  }
-  if (worker.status !== "active") {
-    return { ok: false, error: "worker is not active", statusCode: 403 };
-  }
-
   const otp = await verifyLoginOtp("worker", phone, code);
   if (!otp.ok) return otp;
+
+  const worker = await findWorkerByPhone(phone);
+  if (!worker || worker.status !== "active") {
+    return { ok: false, error: "invalid worker credentials", statusCode: 401 };
+  }
 
   const token = createToken(worker.id, "worker", "worker");
   return { ok: true, token, userId: worker.id, role: "worker" };
