@@ -1,4 +1,4 @@
-import { lazy, useCallback, useEffect, useMemo, useState } from "react";
+import { lazy, useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import type { CatalogSnapshot, CityCode } from "@xlb/types";
 import type { CustomerOrderCreatePageProps } from "../pages/CustomerOrderCreatePage";
 import type { CustomerOrdersPageProps } from "../pages/CustomerOrdersPage";
@@ -6,13 +6,17 @@ import type { CustomerCouponsPageProps } from "../pages/CustomerCouponsPage";
 import type { CustomerSupportApi } from "../pages/CustomerSupportPage";
 import {
   appendOrderId,
+  clearStoredCustomerSession,
   createCustomerApiClient,
   CustomerLoadable,
   detectCustomerRoute,
+  isCustomerSessionUnauthorized,
   loginCustomer,
   readCustomerCityCode,
   readOrderIds,
+  readStoredCustomerPhone,
   readStoredSession,
+  requestCustomerCode,
   type CustomerSession,
   writeCustomerCityCode,
 } from "../pages/customerPageShell";
@@ -42,31 +46,12 @@ export function App() {
       : storedOrderIds;
   });
   const [session, setSession] = useState<CustomerSession | null>(() => readStoredSession());
+  const [authPhone, setAuthPhone] = useState(() => readStoredCustomerPhone());
+  const [authCode, setAuthCode] = useState("");
+  const [authStatus, setAuthStatus] = useState<"idle" | "requesting" | "codeSent" | "signingIn">("idle");
+  const [authMessage, setAuthMessage] = useState("");
+  const [authError, setAuthError] = useState("");
   const currentRoute = useMemo(() => detectCustomerRoute(), []);
-
-  // Login on mount (idempotent: reuses stored token if still valid)
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      const storedSession = readStoredSession();
-      if (storedSession) {
-        if (!cancelled) setSession(storedSession);
-        return;
-      }
-      try {
-        const s = await loginCustomer();
-        if (!cancelled) setSession(s);
-      } catch (error) {
-        if (!cancelled) {
-          setCatalogState({
-            status: "error",
-            error: error instanceof Error ? error.message : "Customer login failed",
-          });
-        }
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
 
   const api = useMemo(
     () => createCustomerApiClient(cityCode, session?.token),
@@ -91,6 +76,13 @@ export function App() {
       const result = await api.getCatalog();
       setCatalogState({ status: "success", data: result.catalog });
     } catch (error) {
+      if (isCustomerSessionUnauthorized(error)) {
+        clearStoredCustomerSession();
+        setSession(null);
+        setAuthStatus("idle");
+        setAuthError("登录状态已过期，请重新验证手机号。");
+        return;
+      }
       setCatalogState({
         status: "error",
         error: error instanceof Error ? error.message : "Unable to load catalog",
@@ -105,6 +97,52 @@ export function App() {
   const handleRetryCatalog = useCallback(() => {
     void loadCatalog();
   }, [loadCatalog]);
+
+  const handleRequestCode = useCallback(async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const phone = authPhone.trim();
+    if (!/^1[3-9]\d{9}$/u.test(phone)) {
+      setAuthError("请输入正确的 11 位手机号码。");
+      return;
+    }
+    setAuthStatus("requesting");
+    setAuthError("");
+    setAuthMessage("");
+    try {
+      const result = await requestCustomerCode(phone);
+      if (result.stagingDemoCode) {
+        setAuthCode(result.stagingDemoCode);
+        setAuthMessage(`Staging 演示验证码：${result.stagingDemoCode}`);
+      } else {
+        setAuthMessage("验证码已发送，请输入短信中的 6 位验证码。");
+      }
+      setAuthStatus("codeSent");
+    } catch (error) {
+      setAuthStatus("idle");
+      setAuthError(error instanceof Error ? error.message : "验证码发送失败，请稍后重试。");
+    }
+  }, [authPhone]);
+
+  const handleLogin = useCallback(async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const phone = authPhone.trim();
+    const code = authCode.trim();
+    if (!/^1[3-9]\d{9}$/u.test(phone) || !/^\d{6}$/u.test(code)) {
+      setAuthError("请输入正确的手机号和 6 位验证码。");
+      return;
+    }
+    setAuthStatus("signingIn");
+    setAuthError("");
+    try {
+      const nextSession = await loginCustomer(phone, code);
+      setSession(nextSession);
+      setAuthMessage("");
+      setAuthStatus("idle");
+    } catch (error) {
+      setAuthStatus("codeSent");
+      setAuthError(error instanceof Error ? error.message : "登录失败，请重新获取验证码。");
+    }
+  }, [authCode, authPhone]);
 
   const handleOrderCreated = useCallback(
     (orderId: string) => {
@@ -137,7 +175,64 @@ export function App() {
   };
 
   if (!session) {
-    return <main aria-busy="true" style={{ display: "grid", minHeight: "100vh", placeItems: "center" }}>Authenticating customer</main>;
+    const requesting = authStatus === "requesting";
+    const signingIn = authStatus === "signingIn";
+    return (
+      <main className="customer-auth-page">
+        <section className="customer-auth-card" aria-labelledby="customer-auth-title">
+          <div className="customer-auth-brand" aria-hidden="true">喜乐帮</div>
+          <div className="customer-auth-copy">
+            <p className="customer-auth-eyebrow">CUSTOMER ACCESS</p>
+            <h1 id="customer-auth-title">手机号登录</h1>
+            <p>验证手机号后进入喜乐帮用户端。</p>
+          </div>
+
+          <form className="customer-auth-form" onSubmit={handleRequestCode}>
+            <label htmlFor="customer-auth-phone">手机号码</label>
+            <input
+              id="customer-auth-phone"
+              name="phone"
+              type="tel"
+              inputMode="numeric"
+              autoComplete="tel"
+              maxLength={11}
+              placeholder="请输入 11 位手机号码"
+              value={authPhone}
+              onChange={(event) => setAuthPhone(event.target.value.replace(/\D/gu, ""))}
+              disabled={requesting || signingIn}
+            />
+            <button type="submit" disabled={requesting || signingIn}>
+              {requesting ? "正在发送…" : authStatus === "codeSent" ? "重新获取验证码" : "获取验证码"}
+            </button>
+          </form>
+
+          {authStatus === "codeSent" || signingIn ? (
+            <form className="customer-auth-form customer-auth-code-form" onSubmit={handleLogin}>
+              <label htmlFor="customer-auth-code">验证码</label>
+              <input
+                id="customer-auth-code"
+                name="code"
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                placeholder="6 位验证码"
+                value={authCode}
+                onChange={(event) => setAuthCode(event.target.value.replace(/\D/gu, ""))}
+                disabled={signingIn}
+              />
+              <button className="customer-auth-primary" type="submit" disabled={signingIn}>
+                {signingIn ? "正在登录…" : "登录用户端"}
+              </button>
+            </form>
+          ) : null}
+
+          {authMessage ? <p className="customer-auth-notice" role="status">{authMessage}</p> : null}
+          {authError ? <p className="customer-auth-error" role="alert">{authError}</p> : null}
+          <p className="customer-auth-security">验证码一次有效，请勿转发给他人。</p>
+        </section>
+      </main>
+    );
   }
 
   if (currentRoute === "home") {

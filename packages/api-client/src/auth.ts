@@ -32,6 +32,7 @@ export interface LoginCodeResponse {
   expiresAt: string;
   ttlSeconds: number;
   attemptsLeft: number;
+  stagingDemoCode?: string;
 }
 
 export interface DebugLoginCodeResponse {

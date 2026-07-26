@@ -35,6 +35,8 @@ describe("critical API response validation wiring", () => {
       expect(() => validatorFrom(call, 2)({ ok: true })).toThrow();
     }
     expect(() => validatorFrom(post.mock.calls[0]!, 2)({ ok: true, expiresAt: "2026-07-11T00:00:00Z", ttlSeconds: 300, attemptsLeft: 5 })).not.toThrow();
+    expect(() => validatorFrom(post.mock.calls[0]!, 2)({ ok: true, expiresAt: "2026-07-11T00:00:00Z", ttlSeconds: 300, attemptsLeft: 5, stagingDemoCode: "123456" })).not.toThrow();
+    expect(() => validatorFrom(post.mock.calls[0]!, 2)({ ok: true, expiresAt: "2026-07-11T00:00:00Z", ttlSeconds: 300, attemptsLeft: 5, stagingDemoCode: "123" })).toThrow();
     expect(() => validatorFrom(post.mock.calls[1]!, 2)({ ok: true, token: "jwt", userId: "customer-1", role: "customer" })).not.toThrow();
   });
 

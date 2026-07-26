@@ -1,4 +1,5 @@
 import type { RowDataPacket } from "mysql2/promise";
+import { loadEnv, type EnvConfig } from "@xlb/config";
 import { getMysqlPool } from "../dal/mysqlPool.js";
 import { smsProvider } from "../providers/sms/mockSmsProvider.js";
 import { createToken, verifyToken } from "./tokenAuth.js";
@@ -99,9 +100,25 @@ export interface LoginCodeRequestResult {
   expiresAt: string;
   ttlSeconds: number;
   attemptsLeft: number;
+  stagingDemoCode?: string;
 }
 
 type AuthError = { ok: false; error: string; statusCode: number; attemptsLeft?: number };
+
+export function stagingDemoCodeFor(
+  env: Pick<
+    EnvConfig,
+    "nodeEnv" | "stagingDemoCustomerAuthEnabled" | "stagingDemoCustomerPhone"
+  >,
+  phone: string,
+  code: string,
+): string | undefined {
+  return env.nodeEnv === "staging"
+    && env.stagingDemoCustomerAuthEnabled
+    && phone === env.stagingDemoCustomerPhone
+    ? code
+    : undefined;
+}
 
 export async function requestCustomerLoginCode(
   phone: string,
@@ -112,11 +129,14 @@ export async function requestCustomerLoginCode(
   const issued = await issueLoginOtp("customer", phone);
   if (!issued.ok) return issued;
   await deliverMockLoginCode("customer", phone, issued.code, issued.expiresAt);
+  const env = loadEnv();
+  const stagingDemoCode = stagingDemoCodeFor(env, phone, issued.code);
   return {
     ok: true,
     expiresAt: issued.expiresAt,
     ttlSeconds: issued.ttlSeconds,
     attemptsLeft: issued.attemptsLeft,
+    ...(stagingDemoCode ? { stagingDemoCode } : {}),
   };
 }
 

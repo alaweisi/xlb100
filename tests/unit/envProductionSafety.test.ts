@@ -97,7 +97,33 @@ describe("production environment safety", () => {
       rateLimitBackend: "redis",
       trustProxyHops: 1,
       authDebugCodeEnabled: false,
+      stagingDemoCustomerAuthEnabled: false,
     });
+  });
+
+  it("allows an explicitly scoped customer demo identity only in staging", () => {
+    stubValidStagingEnv();
+    vi.stubEnv("STAGING_DEMO_CUSTOMER_AUTH_ENABLED", "true");
+    vi.stubEnv("STAGING_DEMO_CUSTOMER_PHONE", "13800000001");
+    expect(loadEnv()).toMatchObject({
+      nodeEnv: "staging",
+      stagingDemoCustomerAuthEnabled: true,
+      stagingDemoCustomerPhone: "13800000001",
+    });
+  });
+
+  it("rejects staging demo authentication in production", () => {
+    stubValidProductionEnv();
+    vi.stubEnv("STAGING_DEMO_CUSTOMER_AUTH_ENABLED", "true");
+    vi.stubEnv("STAGING_DEMO_CUSTOMER_PHONE", "13800000001");
+    expect(() => loadEnv()).toThrow("permitted only in staging");
+  });
+
+  it("requires an explicit valid demo customer phone", () => {
+    stubValidStagingEnv();
+    vi.stubEnv("STAGING_DEMO_CUSTOMER_AUTH_ENABLED", "true");
+    vi.stubEnv("STAGING_DEMO_CUSTOMER_PHONE", "invalid");
+    expect(() => loadEnv()).toThrow("STAGING_DEMO_CUSTOMER_PHONE");
   });
 
   it.each([

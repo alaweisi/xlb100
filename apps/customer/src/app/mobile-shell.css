@@ -11,6 +11,137 @@ body {
   font-family: var(--xlb-font-family-sans);
 }
 
+.customer-auth-page {
+  align-items: center;
+  background:
+    radial-gradient(circle at 80% 10%, color-mix(in srgb, var(--xlb-role-customer-ambient) 75%, transparent), transparent 70%),
+    var(--xlb-role-customer-cream);
+  box-sizing: border-box;
+  display: grid;
+  min-block-size: 100dvh;
+  padding: var(--xlb-spacing-lg);
+}
+
+.customer-auth-card {
+  background: color-mix(in srgb, var(--xlb-role-customer-glass-tint) 92%, transparent);
+  border: var(--xlb-stroke-hairline) solid var(--xlb-glass-edge-highlight);
+  border-radius: var(--xlb-radius-xxl);
+  box-shadow: var(--xlb-shadow-ambient);
+  box-sizing: border-box;
+  display: grid;
+  gap: var(--xlb-spacing-lg);
+  margin: 0 auto;
+  max-inline-size: var(--xlb-breakpoint-compact);
+  padding: var(--xlb-spacing-xl);
+  width: 100%;
+}
+
+.customer-auth-brand {
+  align-items: center;
+  background: var(--xlb-color-primary);
+  border-radius: var(--xlb-radius-lg);
+  color: var(--xlb-text-inverse);
+  display: flex;
+  font: var(--xlb-font-weight-bold) var(--xlb-font-size-xl) / var(--xlb-font-line-height-normal) var(--xlb-font-family-sans);
+  min-block-size: var(--xlb-size-control-lg);
+  justify-content: center;
+  letter-spacing: var(--xlb-font-letter-spacing-wide);
+  padding-inline: var(--xlb-spacing-md);
+  width: fit-content;
+}
+
+.customer-auth-copy,
+.customer-auth-form {
+  display: grid;
+  gap: var(--xlb-spacing-sm);
+}
+
+.customer-auth-copy h1,
+.customer-auth-copy p,
+.customer-auth-notice,
+.customer-auth-error,
+.customer-auth-security {
+  margin: 0;
+}
+
+.customer-auth-copy h1 {
+  font: var(--xlb-font-weight-bold) var(--xlb-font-size-display) / var(--xlb-font-line-height-display) var(--xlb-font-family-sans);
+  line-height: 1.2;
+}
+
+.customer-auth-copy > p:not(.customer-auth-eyebrow),
+.customer-auth-security {
+  color: var(--xlb-color-text-muted);
+}
+
+.customer-auth-eyebrow {
+  color: var(--xlb-color-primary);
+  font: var(--xlb-font-weight-bold) var(--xlb-font-size-sm) / var(--xlb-font-line-height-tight) var(--xlb-font-family-sans);
+  letter-spacing: var(--xlb-font-letter-spacing-wide);
+}
+
+.customer-auth-form label {
+  font: var(--xlb-font-weight-bold) var(--xlb-font-size-md) / var(--xlb-font-line-height-normal) var(--xlb-font-family-sans);
+}
+
+.customer-auth-form input,
+.customer-auth-form button {
+  border-radius: var(--xlb-radius-lg);
+  box-sizing: border-box;
+  font: inherit;
+  min-block-size: var(--xlb-size-control-lg);
+  width: 100%;
+}
+
+.customer-auth-form input {
+  background: var(--xlb-color-surface);
+  border: var(--xlb-stroke-hairline) solid var(--xlb-color-border);
+  color: inherit;
+  padding: var(--xlb-spacing-none) var(--xlb-spacing-md);
+}
+
+.customer-auth-form button {
+  background: transparent;
+  border: var(--xlb-stroke-regular) solid var(--xlb-color-primary);
+  color: var(--xlb-color-primary);
+  cursor: pointer;
+  font: var(--xlb-font-weight-bold) var(--xlb-font-size-md) / var(--xlb-font-line-height-normal) var(--xlb-font-family-sans);
+}
+
+.customer-auth-form button.customer-auth-primary {
+  background: var(--xlb-color-primary);
+  color: var(--xlb-text-inverse);
+}
+
+.customer-auth-form button:disabled {
+  cursor: wait;
+  opacity: 0.58;
+}
+
+.customer-auth-code-form {
+  border-top: var(--xlb-stroke-hairline) solid var(--xlb-color-border);
+  padding-top: var(--xlb-spacing-lg);
+}
+
+.customer-auth-notice {
+  background: color-mix(in srgb, var(--xlb-color-success) 12%, transparent);
+  border-radius: var(--xlb-radius-lg);
+  color: var(--xlb-color-success);
+  padding: var(--xlb-spacing-md);
+}
+
+.customer-auth-error {
+  background: color-mix(in srgb, var(--xlb-color-danger) 10%, transparent);
+  border-radius: var(--xlb-radius-lg);
+  color: var(--xlb-color-danger);
+  padding: var(--xlb-spacing-md);
+}
+
+.customer-auth-security {
+  font: var(--xlb-font-weight-regular) var(--xlb-font-size-sm) / var(--xlb-font-line-height-tight) var(--xlb-font-family-sans);
+  text-align: center;
+}
+
 .customer-app-root {
   background:
     radial-gradient(circle at 82% -8%, color-mix(in srgb, var(--xlb-role-customer-ambient) 60%, transparent), transparent 34rem),

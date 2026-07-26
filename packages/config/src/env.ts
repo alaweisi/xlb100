@@ -33,6 +33,8 @@ export interface EnvConfig {
   authOtpLockSeconds: number;
   authOtpResendCooldownSeconds: number;
   authDebugCodeEnabled: boolean;
+  stagingDemoCustomerAuthEnabled: boolean;
+  stagingDemoCustomerPhone: string;
   paymentMockWebhookEnabled: boolean;
   paymentMockWebhookSecret: string;
 }
@@ -90,6 +92,14 @@ function validateDeploymentEnv(config: EnvConfig): void {
   }
   if (!Object.hasOwn(config.jwtKeys, config.jwtActiveKeyId)) {
     throw new Error("JWT_ACTIVE_KID must exist in JWT_KEYS_JSON");
+  }
+  if (config.stagingDemoCustomerAuthEnabled) {
+    if (environment !== "staging") {
+      throw new Error("STAGING_DEMO_CUSTOMER_AUTH_ENABLED is permitted only in staging");
+    }
+    if (!/^1[3-9]\d{9}$/u.test(config.stagingDemoCustomerPhone)) {
+      throw new Error("STAGING_DEMO_CUSTOMER_PHONE must be an explicit mainland mobile number");
+    }
   }
   if (config.rateLimitBackend !== "redis") {
     throw new Error(`RATE_LIMIT_BACKEND must be redis in ${environment}`);
@@ -259,6 +269,14 @@ export function loadEnv(): EnvConfig {
       "AUTH_DEBUG_CODE_ENABLED",
       nodeEnv !== "production" && nodeEnv !== "staging",
     ),
+    stagingDemoCustomerAuthEnabled: readEnvBool(
+      "STAGING_DEMO_CUSTOMER_AUTH_ENABLED",
+      false,
+    ),
+    stagingDemoCustomerPhone: readEnv(
+      "STAGING_DEMO_CUSTOMER_PHONE",
+      "",
+    ).trim(),
     paymentMockWebhookEnabled: readEnvBool(
       "PAYMENT_MOCK_WEBHOOK_ENABLED",
       nodeEnv === "test",
@@ -275,6 +293,14 @@ export function loadEnv(): EnvConfig {
   ) {
     throw new Error(
       "PAYMENT_MOCK_WEBHOOK_ENABLED is permitted only in development or test",
+    );
+  }
+  if (
+    config.stagingDemoCustomerAuthEnabled
+    && config.nodeEnv !== "staging"
+  ) {
+    throw new Error(
+      "STAGING_DEMO_CUSTOMER_AUTH_ENABLED is permitted only in staging",
     );
   }
   if (

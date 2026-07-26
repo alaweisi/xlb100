@@ -1,5 +1,5 @@
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
-import { createApiClient, createAuthApi, customerApi } from "@xlb/api-client";
+import { ApiClientError, createApiClient, createAuthApi, customerApi } from "@xlb/api-client";
 import type { CatalogSnapshot, CityCode } from "@xlb/types";
 import { XLB_HEADERS } from "@xlb/types";
 import { BottomNav, MobileShell } from "@xlb/ui";
@@ -37,11 +37,22 @@ function storeSession(session: CustomerSession): void {
   window.localStorage.setItem("xlb.customer.userId", session.userId);
 }
 
-/**
- * Login (or auto-register) using the non-production debug OTP readback.
- * Real SMS delivery remains a backend TODO after investor approval.
- */
-export async function loginCustomer(phone = "13800000001"): Promise<CustomerSession> {
+export function clearStoredCustomerSession(): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(TOKEN_STORAGE_KEY);
+  window.localStorage.removeItem("xlb.customer.userId");
+}
+
+export function readStoredCustomerPhone(): string {
+  if (typeof window === "undefined") return "";
+  return window.localStorage.getItem(CUSTOMER_PHONE_KEY) ?? "";
+}
+
+export function isCustomerSessionUnauthorized(error: unknown): boolean {
+  return error instanceof ApiClientError && error.status === 401;
+}
+
+export async function requestCustomerCode(phone: string) {
   const authApi = createAuthApi(
     createApiClient({ baseUrl: CUSTOMER_API_BASE }),
   );
@@ -49,19 +60,22 @@ export async function loginCustomer(phone = "13800000001"): Promise<CustomerSess
   if (!codeRequest.ok) {
     throw new Error(`Login code request failed: ${codeRequest.error}`);
   }
-  const debugCode = await authApi.getCustomerDebugCode(phone);
-  if (!debugCode.ok) {
-    throw new Error(`Login debug code unavailable: ${debugCode.error}`);
+  if (typeof window !== "undefined") {
+    window.localStorage.setItem(CUSTOMER_PHONE_KEY, phone);
   }
-  const result = await authApi.customerLogin(phone, debugCode.code);
+  return codeRequest;
+}
+
+export async function loginCustomer(phone: string, code: string): Promise<CustomerSession> {
+  const authApi = createAuthApi(
+    createApiClient({ baseUrl: CUSTOMER_API_BASE }),
+  );
+  const result = await authApi.customerLogin(phone, code);
   if (!result.ok) {
     throw new Error(`Login failed: ${result.error}`);
   }
   const session: CustomerSession = { token: result.token, userId: result.userId };
   storeSession(session);
-  if (typeof window !== "undefined") {
-    window.localStorage.setItem(CUSTOMER_PHONE_KEY, phone);
-  }
   return session;
 }
 export const CITY_OPTIONS: ReadonlyArray<CityCode> = ["hangzhou", "shanghai", "beijing"];
