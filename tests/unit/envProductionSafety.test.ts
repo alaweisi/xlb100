@@ -36,7 +36,38 @@ describe("production environment safety", () => {
     expect(env.jwtSecret).toBe("");
     expect(env.mysqlPassword).toBe("");
     expect(env.authPhoneHashSecret).toBe("");
-    expect(env).toMatchObject({ rateLimitBackend: "memory", trustProxyHops: 0 });
+    expect(env).toMatchObject({
+      rateLimitBackend: "memory",
+      trustProxyHops: 0,
+      paymentMockWebhookEnabled: false,
+    });
+  });
+
+  it("enables the mock payment webhook only in tests by default", () => {
+    vi.stubEnv("NODE_ENV", "test");
+    vi.stubEnv("PAYMENT_MOCK_WEBHOOK_ENABLED", undefined);
+    vi.stubEnv("PAYMENT_MOCK_WEBHOOK_SECRET", undefined);
+    expect(loadEnv()).toMatchObject({
+      paymentMockWebhookEnabled: true,
+      paymentMockWebhookSecret: "xlb-test-only-mock-payment-webhook-secret",
+    });
+  });
+
+  it("requires a strong dedicated secret when development explicitly enables the mock webhook", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("PAYMENT_MOCK_WEBHOOK_ENABLED", "true");
+    vi.stubEnv("PAYMENT_MOCK_WEBHOOK_SECRET", "too-short");
+    expect(() => loadEnv()).toThrow("PAYMENT_MOCK_WEBHOOK_SECRET");
+  });
+
+  it("rejects the mock payment webhook in staging even with a strong secret", () => {
+    vi.stubEnv("NODE_ENV", "staging");
+    vi.stubEnv("PAYMENT_MOCK_WEBHOOK_ENABLED", "true");
+    vi.stubEnv(
+      "PAYMENT_MOCK_WEBHOOK_SECRET",
+      "staging-must-not-enable-this-mock-secret",
+    );
+    expect(() => loadEnv()).toThrow("only in development or test");
   });
 
   it("accepts explicit strong production secrets", () => {
@@ -54,6 +85,16 @@ describe("production environment safety", () => {
     stubValidProductionEnv();
     vi.stubEnv("RATE_LIMIT_BACKEND", "memory");
     expect(() => loadEnv()).toThrow("RATE_LIMIT_BACKEND");
+  });
+
+  it("rejects the mock payment webhook in production", () => {
+    stubValidProductionEnv();
+    vi.stubEnv("PAYMENT_MOCK_WEBHOOK_ENABLED", "true");
+    vi.stubEnv(
+      "PAYMENT_MOCK_WEBHOOK_SECRET",
+      "production-must-never-enable-this-mock-secret",
+    );
+    expect(() => loadEnv()).toThrow("PAYMENT_MOCK_WEBHOOK_ENABLED");
   });
 
   it("rejects an unknown rate limit backend", () => {

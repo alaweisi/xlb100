@@ -2,7 +2,12 @@ import { describe, it, expect } from "vitest";
 import { buildApp } from "../../backend/src/app.js";
 import { getMysqlPool } from "../../backend/src/dal/mysqlPool.js";
 import type { RowDataPacket } from "mysql2/promise";
-import { adminAuthHeaders, workerAuthHeaders, bearerHeaders } from "./helpers/authTestHelper.js";
+import {
+  adminAuthHeaders,
+  workerAuthHeaders,
+  bearerHeaders,
+  withMockPaymentWebhookSecret,
+} from "./helpers/authTestHelper.js";
 import { serviceAddressSchedulePayload } from "./helpers/orderTestPayload";
 
 const runDb = process.env.XLB_SKIP_DB_TESTS !== "1";
@@ -85,10 +90,10 @@ describe.skipIf(!runDb)("orderPaymentOutbox integration", { timeout: 15000 }, ()
     await app.inject({
       method: "POST",
       url: "/api/payments/mock-webhook",
-      headers: customerHeaders,
+      headers: withMockPaymentWebhookSecret(customerHeaders),
       payload: {
         paymentOrderId,
-        providerTradeNo: "mock-trade-outbox",
+        providerTradeNo: `mock-trade-outbox-${paymentOrderId}`,
         status: "paid",
       },
     });

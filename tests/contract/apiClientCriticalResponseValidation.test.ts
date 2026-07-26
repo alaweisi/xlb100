@@ -51,13 +51,11 @@ describe("critical API response validation wiring", () => {
     await api.getOrder("order-1");
     await api.confirmService("order-1");
     await api.createPaymentOrder({ orderId: "order-1" });
-    await api.mockPaySuccess({ paymentOrderId: "pay-1", providerTradeNo: "mock-1", status: "paid" });
 
     expect(() => validatorFrom(post.mock.calls[0]!, 2)({ ok: true, order: {} })).toThrow();
     expect(() => validatorFrom(get.mock.calls[0]!, 1)({ ok: true, order: {} })).toThrow();
     expect(() => validatorFrom(post.mock.calls[1]!, 2)({ ok: true, order: {} })).toThrow();
     expect(() => validatorFrom(post.mock.calls[2]!, 2)({ ok: true, paymentOrder: {} })).toThrow();
-    expect(() => validatorFrom(post.mock.calls[3]!, 2)({ ok: true, paymentOrder: {} })).toThrow();
     expect(() => validatorFrom(post.mock.calls[0]!, 2)({ ok: true, order: { orderId: "order-1", cityCode: "330100", customerId: "customer-1", skuId: "sku-1", status: "pending_dispatch", totalAmount: 100, currency: "CNY" } })).not.toThrow();
     expect(() => validatorFrom(post.mock.calls[2]!, 2)({ ok: true, paymentOrder: { paymentOrderId: "pay-1", orderId: "order-1", cityCode: "330100", status: "pending", amount: 100, currency: "CNY" } })).not.toThrow();
   });

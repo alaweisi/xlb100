@@ -122,6 +122,8 @@ config:
     otpLockSeconds: 900
     otpResendCooldownSeconds: 60
     debugCodeEnabled: false
+  payment:
+    mockWebhookEnabled: false
   jobs:
     intervalMs: 8000
     cityCodes: hangzhou

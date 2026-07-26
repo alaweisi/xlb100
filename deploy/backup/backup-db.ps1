@@ -35,7 +35,7 @@ $artifactDirectory = Split-Path -Parent $artifact
 $manifestPath = "$artifact.manifest.json"
 
 $criticalTables = @(
-  'schema_migrations', 'orders', 'payment_orders', 'event_outbox',
+  'schema_migrations', 'orders', 'payment_orders', 'payment_provider_receipts', 'event_outbox',
   'dispatch_tasks', 'ledger_entries', 'ledger_accruals', 'settlement_batches'
 )
 $startedAt = [DateTimeOffset]::UtcNow

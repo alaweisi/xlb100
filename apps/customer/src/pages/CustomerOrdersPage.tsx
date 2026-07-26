@@ -28,15 +28,6 @@ interface CustomerOrderApi {
   getOrder(orderId: string): Promise<{ order: Order }>;
   confirmService(orderId: string): Promise<{ order: Order }>;
   createPaymentOrder(payload: { orderId: string }): Promise<{ paymentOrder: PaymentOrder }>;
-  mockPaySuccess(payload: {
-    paymentOrderId: string;
-    providerTradeNo: string;
-    status: "paid";
-  }): Promise<{
-    paymentOrder: PaymentOrder;
-    orderId: string;
-    idempotent: boolean;
-  }>;
   createRefundRequest(payload: { orderId: string; reason?: string }): Promise<{
     refund: RefundRequest;
     idempotent: boolean;
@@ -84,7 +75,7 @@ type ConfirmUiState =
 
 type PaymentUiState =
   | { status: "idle" | "submitting" }
-  | { status: "success"; paymentOrder: PaymentOrder; idempotent: boolean }
+  | { status: "success"; paymentOrder: PaymentOrder }
   | { status: "error"; error: string };
 
 function orderStatusTone(status: string): "success" | "warning" | "muted" {
@@ -333,21 +324,11 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
     }));
     try {
       const payment = await api.createPaymentOrder({ orderId });
-      const paid = await api.mockPaySuccess({
-        paymentOrderId: payment.paymentOrder.paymentOrderId,
-        providerTradeNo: `mock-trade-service-${Date.now()}`,
-        status: "paid",
-      });
-      const refreshed = await api.getOrder(orderId);
-      setOrders((previous) =>
-        previous.map((order) => (order.orderId === orderId ? refreshed.order : order)),
-      );
       setPaymentStates((previous) => ({
         ...previous,
         [orderId]: {
           status: "success",
-          paymentOrder: paid.paymentOrder,
-          idempotent: paid.idempotent,
+          paymentOrder: payment.paymentOrder,
         },
       }));
     } catch (err) {
@@ -403,7 +384,7 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
             >
               <div style={{ display: "grid", gap: 8 }}>
                 <strong style={{ color: "#2b2118", fontSize: 13, lineHeight: "18px" }}>
-                  Service confirmation and mock payment
+                  Service confirmation and payment preparation
                 </strong>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                   <Button
@@ -413,11 +394,15 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
                     {confirmState.status === "submitting" ? "Confirming" : "Confirm service"}
                   </Button>
                   <Button
-                    disabled={!isPaymentAllowed || paymentState.status === "submitting"}
+                    disabled={
+                      !isPaymentAllowed
+                      || paymentState.status === "submitting"
+                      || paymentState.status === "success"
+                    }
                     onClick={() => void payAfterService(order.orderId)}
                     variant="primary"
                   >
-                    {paymentState.status === "submitting" ? "Paying" : "Mock pay"}
+                    {paymentState.status === "submitting" ? "Preparing" : "Prepare payment"}
                   </Button>
                 </div>
                 {confirmState.status === "success" && (
@@ -428,9 +413,8 @@ export function CustomerOrdersPage({ api, cityCode, orderIds }: CustomerOrdersPa
                 )}
                 {paymentState.status === "success" && (
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                    <StatusTag tone="success">payment {paymentState.paymentOrder.status}</StatusTag>
+                    <StatusTag tone="warning">payment {paymentState.paymentOrder.status}</StatusTag>
                     <StatusTag tone="muted">{paymentState.paymentOrder.paymentOrderId}</StatusTag>
-                    {paymentState.idempotent && <StatusTag tone="warning">existing payment</StatusTag>}
                   </div>
                 )}
                 {paymentState.status === "error" && (

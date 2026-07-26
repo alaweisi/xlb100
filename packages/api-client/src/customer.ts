@@ -22,7 +22,7 @@ import type {
   SaveCustomerAddressRequest,
   UpdateCustomerProfileRequest,
 } from "@xlb/types";
-import { validateOrderResponse, validatePaymentMutationResponse, validatePaymentOrderResponse } from "./responseValidators.js";
+import { validateOrderResponse, validatePaymentOrderResponse } from "./responseValidators.js";
 
 type CityCode = string;
 type PriceType = "fixed" | "range" | "from" | "estimate_from" | "onsite_quote";
@@ -179,12 +179,6 @@ export interface CreateOrderBody {
 
 export interface CreatePaymentOrderBody {
   orderId: string;
-}
-
-export interface MockPaySuccessBody {
-  paymentOrderId: string;
-  providerTradeNo: string;
-  status: "paid";
 }
 
 export interface CreateRefundRequestBody {
@@ -365,14 +359,6 @@ export function createCustomerOrderApi(client: ApiClient) {
         body,
         { validate: validatePaymentOrderResponse },
       );
-    },
-    mockPaySuccess(body: MockPaySuccessBody) {
-      return client.post<{
-        ok: true;
-        paymentOrder: PaymentOrderResponse;
-        orderId: string;
-        idempotent: boolean;
-      }>("/api/payments/mock-webhook", body, { validate: validatePaymentMutationResponse });
     },
     createRefundRequest(body: CreateRefundRequestBody) {
       return client.post<{

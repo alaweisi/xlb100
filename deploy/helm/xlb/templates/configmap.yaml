@@ -26,6 +26,7 @@ data:
   AUTH_OTP_LOCK_SECONDS: {{ .Values.config.auth.otpLockSeconds | quote }}
   AUTH_OTP_RESEND_COOLDOWN_SECONDS: {{ .Values.config.auth.otpResendCooldownSeconds | quote }}
   AUTH_DEBUG_CODE_ENABLED: {{ .Values.config.auth.debugCodeEnabled | quote }}
+  PAYMENT_MOCK_WEBHOOK_ENABLED: {{ .Values.config.payment.mockWebhookEnabled | quote }}
   XLB_OBJECT_STORAGE_PROVIDER: {{ .Values.config.objectStorage.provider | quote }}
   XLB_EXTERNAL_PROVIDER_EXECUTION_ENABLED: {{ .Values.config.objectStorage.externalExecutionEnabled | quote }}
   XLB_OBJECT_STORAGE_ROOT: {{ .Values.config.objectStorage.localRoot | quote }}

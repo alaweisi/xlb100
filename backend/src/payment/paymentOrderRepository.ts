@@ -1,4 +1,9 @@
-import type { Pool, PoolConnection, RowDataPacket } from "mysql2/promise";
+import type {
+  Pool,
+  PoolConnection,
+  ResultSetHeader,
+  RowDataPacket,
+} from "mysql2/promise";
 import type { CityCode } from "@xlb/types";
 import type { PaymentOrder, PaymentOrderMetadata } from "@xlb/types";
 import type { RequestContext } from "@xlb/types";
@@ -110,17 +115,58 @@ export class PaymentOrderRepository extends RepositoryBase {
     return rows[0] ? mapPaymentOrder(rows[0]) : null;
   }
 
+  async findByIdForUpdate(
+    connection: PoolConnection,
+    cityCode: CityCode,
+    paymentOrderId: string,
+  ): Promise<PaymentOrder | null> {
+    const [rows] = await connection.query<PaymentRow[]>(
+      `SELECT payment_order_id, order_id, city_code, amount, currency, status, provider,
+              provider_trade_no, metadata_json, created_at, updated_at
+       FROM payment_orders
+       WHERE city_code = ? AND payment_order_id = ?
+       LIMIT 1 FOR UPDATE`,
+      [cityCode, paymentOrderId],
+    );
+
+    return rows[0] ? mapPaymentOrder(rows[0]) : null;
+  }
+
   async markPaid(
     connection: PoolConnection,
     cityCode: CityCode,
     paymentOrderId: string,
     providerTradeNo: string,
-  ): Promise<void> {
-    await connection.query(
+  ): Promise<boolean> {
+    const [result] = await connection.query<ResultSetHeader>(
       `UPDATE payment_orders
        SET status = 'paid', provider_trade_no = ?
-       WHERE payment_order_id = ? AND city_code = ?`,
+       WHERE payment_order_id = ? AND city_code = ?
+         AND status = 'pending' AND provider_trade_no IS NULL`,
       [providerTradeNo, paymentOrderId, cityCode],
+    );
+    return result.affectedRows === 1;
+  }
+
+  async insertProviderReceipt(
+    connection: PoolConnection,
+    input: {
+      provider: PaymentOrder["provider"];
+      providerTradeNo: string;
+      paymentOrderId: string;
+      cityCode: CityCode;
+    },
+  ): Promise<void> {
+    await connection.query(
+      `INSERT INTO payment_provider_receipts
+        (provider, provider_trade_no, payment_order_id, city_code)
+       VALUES (?, ?, ?, ?)`,
+      [
+        input.provider,
+        input.providerTradeNo,
+        input.paymentOrderId,
+        input.cityCode,
+      ],
     );
   }
 }

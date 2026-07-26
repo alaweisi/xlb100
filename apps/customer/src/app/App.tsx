@@ -129,7 +129,6 @@ export function App() {
     getOrder: (orderId) => api.getOrder(orderId),
     confirmService: (orderId) => api.confirmService(orderId),
     createPaymentOrder: (payload) => api.createPaymentOrder(payload),
-    mockPaySuccess: (payload) => api.mockPaySuccess(payload),
     createRefundRequest: (payload) => api.createRefundRequest(payload),
     createOrderReview: (payload) => api.createOrderReview(payload),
     getOrderReview: (orderId) => api.getOrderReview(orderId),

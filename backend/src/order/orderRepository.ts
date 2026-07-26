@@ -1,4 +1,9 @@
-import type { Pool, PoolConnection, RowDataPacket } from "mysql2/promise";
+import type {
+  Pool,
+  PoolConnection,
+  ResultSetHeader,
+  RowDataPacket,
+} from "mysql2/promise";
 import type { CityCode } from "@xlb/types";
 import type { Order, OrderPriceSnapshot, OrderStatus } from "@xlb/types";
 import type { RequestContext } from "@xlb/types";
@@ -240,6 +245,32 @@ export class OrderRepository extends RepositoryBase {
     return rows[0] ? mapOrder(rows[0]) : null;
   }
 
+  async findByIdForUpdate(
+    connection: PoolConnection,
+    cityCode: CityCode,
+    orderId: string,
+  ): Promise<Order | null> {
+    const [rows] = await connection.query<OrderRow[]>(
+      `SELECT orders.order_id, orders.city_code, orders.customer_id, orders.sku_id,
+              orders.sku_name, orders.quantity, orders.unit,
+              orders.address_province, orders.address_city, orders.address_district,
+              orders.detail_address, orders.contact_name, orders.contact_phone,
+              orders.scheduled_at, orders.scheduled_time_slot,
+              orders.price_rule_id, orders.price_text, orders.price_type,
+              orders.base_price, orders.currency, orders.total_amount,
+              ops.quote_snapshot,
+              orders.status, orders.created_at, orders.updated_at
+       FROM orders
+       LEFT JOIN order_price_snapshots ops
+         ON ops.order_id = orders.order_id AND ops.city_code = orders.city_code
+       WHERE orders.city_code = ? AND orders.order_id = ?
+       LIMIT 1 FOR UPDATE`,
+      [cityCode, orderId],
+    );
+
+    return rows[0] ? mapOrder(rows[0]) : null;
+  }
+
   async updateStatus(
     connection: PoolConnection,
     cityCode: CityCode,
@@ -250,6 +281,22 @@ export class OrderRepository extends RepositoryBase {
       `UPDATE orders SET status = ? WHERE order_id = ? AND city_code = ?`,
       [status, orderId, cityCode],
     );
+  }
+
+  async transitionStatus(
+    connection: PoolConnection,
+    cityCode: CityCode,
+    orderId: string,
+    fromStatus: OrderStatus,
+    toStatus: OrderStatus,
+  ): Promise<boolean> {
+    const [result] = await connection.query<ResultSetHeader>(
+      `UPDATE orders
+       SET status = ?
+       WHERE order_id = ? AND city_code = ? AND status = ?`,
+      [toStatus, orderId, cityCode, fromStatus],
+    );
+    return result.affectedRows === 1;
   }
 
   async findCompletedFulfillmentForOrder(

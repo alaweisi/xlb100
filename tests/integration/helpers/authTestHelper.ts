@@ -7,6 +7,15 @@ import { assertResponseJson } from "./httpResponseTestHelper.js";
 
 export type TestHeaders = Record<string, string>;
 
+export function withMockPaymentWebhookSecret(headers: TestHeaders): TestHeaders {
+  return {
+    ...headers,
+    "x-xlb-mock-payment-secret":
+      process.env.PAYMENT_MOCK_WEBHOOK_SECRET
+      ?? "xlb-test-only-mock-payment-webhook-secret",
+  };
+}
+
 export function bearerHeaders(options: {
   appType: "customer" | "worker" | "admin";
   role: "customer" | "worker" | "admin" | "operator" | "auditor";

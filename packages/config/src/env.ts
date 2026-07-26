@@ -33,6 +33,8 @@ export interface EnvConfig {
   authOtpLockSeconds: number;
   authOtpResendCooldownSeconds: number;
   authDebugCodeEnabled: boolean;
+  paymentMockWebhookEnabled: boolean;
+  paymentMockWebhookSecret: string;
 }
 
 const LOCAL_JWT_SECRET = "change-me-in-production";
@@ -64,6 +66,9 @@ function assertProductionSecret(name: string, value: string, minimumLength: numb
 function validateProductionEnv(config: EnvConfig): void {
   if (config.nodeEnv !== "production") return;
 
+  if (config.paymentMockWebhookEnabled) {
+    throw new Error("PAYMENT_MOCK_WEBHOOK_ENABLED must be false in production");
+  }
   assertProductionSecret("JWT_SECRET", config.jwtSecret, 32);
   for (const [keyId, secret] of Object.entries(config.jwtKeys)) {
     assertProductionSecret(`JWT_KEYS_JSON[${keyId}]`, secret, 32);
@@ -244,8 +249,34 @@ export function loadEnv(): EnvConfig {
       "AUTH_DEBUG_CODE_ENABLED",
       nodeEnv !== "production",
     ),
+    paymentMockWebhookEnabled: readEnvBool(
+      "PAYMENT_MOCK_WEBHOOK_ENABLED",
+      nodeEnv === "test",
+    ),
+    paymentMockWebhookSecret: readSecretEnv(
+      "PAYMENT_MOCK_WEBHOOK_SECRET",
+      nodeEnv === "test" ? "xlb-test-only-mock-payment-webhook-secret" : "",
+    ),
   };
 
+  if (
+    config.paymentMockWebhookEnabled
+    && config.nodeEnv !== "production"
+    && !["development", "test"].includes(config.nodeEnv)
+  ) {
+    throw new Error(
+      "PAYMENT_MOCK_WEBHOOK_ENABLED is permitted only in development or test",
+    );
+  }
+  if (
+    config.paymentMockWebhookEnabled
+    && config.nodeEnv !== "production"
+    && config.paymentMockWebhookSecret.trim().length < 24
+  ) {
+    throw new Error(
+      "PAYMENT_MOCK_WEBHOOK_SECRET must contain at least 24 characters when the mock webhook is enabled",
+    );
+  }
   validateProductionEnv(config);
   return config;
 }

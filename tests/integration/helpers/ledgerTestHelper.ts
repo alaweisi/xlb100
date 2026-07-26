@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import type { RowDataPacket } from "mysql2/promise";
 import { getMysqlPool } from "../../../backend/src/dal/mysqlPool.js";
 import { workerHangzhouHeaders } from "./acceptTestHelper.js";
-import { adminAuthHeaders } from "./authTestHelper.js";
+import { adminAuthHeaders, withMockPaymentWebhookSecret } from "./authTestHelper.js";
 import { customerHeaders } from "./dispatchTestHelper.js";
 import { createAcceptedFulfillment } from "./fulfillmentTestHelper.js";
 
@@ -24,8 +24,12 @@ export async function createCompletedFulfillment(app: FastifyInstance): Promise<
   const paid = await app.inject({
     method: "POST",
     url: "/api/payments/mock-webhook",
-    headers: customerHeaders,
-    payload: { paymentOrderId, providerTradeNo: `mock-trade-ledger-${Date.now()}`, status: "paid" },
+    headers: withMockPaymentWebhookSecret(customerHeaders),
+    payload: {
+      paymentOrderId,
+      providerTradeNo: `mock-trade-ledger-${paymentOrderId}`,
+      status: "paid",
+    },
   });
   if (paid.statusCode !== 200) throw new Error(`Failed to mock pay after service: ${paid.body}`);
   return { fulfillmentId: accepted.fulfillmentId, orderId: accepted.orderId, paymentOrderId };

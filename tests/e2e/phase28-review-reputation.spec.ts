@@ -136,7 +136,12 @@ async function createReviewableOrder(
   expect(payment.ok(), await payment.text()).toBeTruthy();
   const paymentOrderId = (await payment.json()).paymentOrder.paymentOrderId as string;
   const paid = await request.post(`${backend}/api/payments/mock-webhook`, {
-    headers: headers(customer),
+    headers: {
+      ...headers(customer),
+      "x-xlb-mock-payment-secret":
+        process.env.PAYMENT_MOCK_WEBHOOK_SECRET
+        ?? "xlb-test-only-mock-payment-webhook-secret",
+    },
     data: { paymentOrderId, providerTradeNo: `p28e-${runKey}`, status: "paid" },
   });
   expect(paid.ok(), await paid.text()).toBeTruthy();

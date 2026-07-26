@@ -14,7 +14,10 @@ import {
 import { generateEventId, generatePaymentOrderId } from "../events/eventIds.js";
 import { orderRepository, OrderRepository } from "../order/orderRepository.js";
 import { assertOrderTransition } from "../order/orderStateMachine.js";
-import { OrderNotFoundError } from "../order/orderService.js";
+import {
+  OrderNotFoundError,
+  OrderOwnershipError,
+} from "../order/orderService.js";
 import {
   paymentGatewayProvider,
   type PaymentGatewayProvider,
@@ -41,6 +44,31 @@ export class PaymentNotFoundError extends Error {
   }
 }
 
+export class PaymentAuthorizationError extends Error {
+  readonly statusCode = 403;
+
+  constructor(message: string) {
+    super(message);
+    this.name = "PaymentAuthorizationError";
+  }
+}
+
+export class PaymentConflictError extends Error {
+  readonly statusCode = 409;
+
+  constructor(message: string) {
+    super(message);
+    this.name = "PaymentConflictError";
+  }
+}
+
+function isDuplicateKeyError(error: unknown): boolean {
+  return typeof error === "object"
+    && error !== null
+    && "code" in error
+    && error.code === "ER_DUP_ENTRY";
+}
+
 export class PaymentOrderService {
   constructor(
     private readonly paymentRepo: PaymentOrderRepository = paymentOrderRepository,
@@ -57,11 +85,23 @@ export class PaymentOrderService {
     if (!parsed.success) {
       throw new PaymentValidationError(parsed.error.message);
     }
+    if (
+      context.appType !== "customer"
+      || context.role !== "customer"
+      || !context.userId
+    ) {
+      throw new PaymentAuthorizationError(
+        "Payment order creation requires an authenticated customer",
+      );
+    }
 
     return executeCityScoped(context, async (cityCode) => {
       const order = await this.orderRepo.findById(context, cityCode, parsed.data.orderId);
       if (!order) {
         throw new OrderNotFoundError(parsed.data.orderId);
+      }
+      if (order.customerId !== context.userId) {
+        throw new OrderOwnershipError(order.orderId);
       }
 
       if (order.status !== "service_completed") {
@@ -71,7 +111,6 @@ export class PaymentOrderService {
       }
 
       const paymentOrderId = generatePaymentOrderId();
-      const metadata = buildPaymentMetadata(order);
       const providerEnvelope = await this.provider.prepare({
         paymentOrderId,
         orderId: order.orderId,
@@ -80,14 +119,36 @@ export class PaymentOrderService {
       });
 
       await withTransaction(async (connection) => {
+        const lockedOrder = await this.orderRepo.findByIdForUpdate(
+          connection,
+          cityCode,
+          order.orderId,
+        );
+        if (!lockedOrder) {
+          throw new OrderNotFoundError(order.orderId);
+        }
+        if (lockedOrder.customerId !== context.userId) {
+          throw new OrderOwnershipError(lockedOrder.orderId);
+        }
+        if (lockedOrder.status !== "service_completed") {
+          throw new PaymentConflictError(
+            `Order is no longer payable, current status=${lockedOrder.status}`,
+          );
+        }
+        if (
+          lockedOrder.totalAmount !== order.totalAmount
+          || lockedOrder.currency !== order.currency
+        ) {
+          throw new PaymentConflictError("Order amount changed while preparing payment");
+        }
         await this.paymentRepo.insertPaymentOrder(connection, {
           paymentOrderId,
-          orderId: order.orderId,
+          orderId: lockedOrder.orderId,
           cityCode,
-          amount: order.totalAmount,
-          currency: order.currency,
+          amount: lockedOrder.totalAmount,
+          currency: lockedOrder.currency,
           provider: providerEnvelope.provider,
-          metadata,
+          metadata: buildPaymentMetadata(lockedOrder),
         });
       });
 
@@ -114,41 +175,77 @@ export class PaymentOrderService {
     });
 
     return executeCityScoped(context, async (cityCode) => {
-      const paymentOrder = await this.paymentRepo.findById(
-        context,
-        cityCode,
-        parsed.data.paymentOrderId,
-      );
-      if (!paymentOrder) {
-        throw new PaymentNotFoundError(parsed.data.paymentOrderId);
-      }
-
-      if (isPaymentAlreadyPaid(paymentOrder.status)) {
-        return { paymentOrder, orderId: paymentOrder.orderId, idempotent: true };
-      }
-
-      if (paymentOrder.status !== "pending") {
-        throw new PaymentValidationError(
-          `Payment order cannot be paid from status=${paymentOrder.status}`,
+      return withTransaction(async (connection) => {
+        const paymentOrder = await this.paymentRepo.findByIdForUpdate(
+          connection,
+          cityCode,
+          parsed.data.paymentOrderId,
         );
-      }
+        if (!paymentOrder) {
+          throw new PaymentNotFoundError(parsed.data.paymentOrderId);
+        }
 
-      const order = await this.orderRepo.findById(context, cityCode, paymentOrder.orderId);
-      if (!order) {
-        throw new OrderNotFoundError(paymentOrder.orderId);
-      }
+        if (isPaymentAlreadyPaid(paymentOrder.status)) {
+          if (paymentOrder.providerTradeNo !== parsed.data.providerTradeNo) {
+            throw new PaymentConflictError(
+              "Payment order is already paid with a different provider trade number",
+            );
+          }
+          return { paymentOrder, orderId: paymentOrder.orderId, idempotent: true };
+        }
 
-      assertOrderTransition(order.status, "paid");
-      const paidAt = new Date().toISOString();
+        if (paymentOrder.status !== "pending") {
+          throw new PaymentValidationError(
+            `Payment order cannot be paid from status=${paymentOrder.status}`,
+          );
+        }
 
-      await withTransaction(async (connection) => {
-        await this.paymentRepo.markPaid(
+        const order = await this.orderRepo.findByIdForUpdate(
+          connection,
+          cityCode,
+          paymentOrder.orderId,
+        );
+        if (!order) {
+          throw new OrderNotFoundError(paymentOrder.orderId);
+        }
+
+        assertOrderTransition(order.status, "paid");
+        const paidAt = new Date().toISOString();
+        try {
+          await this.paymentRepo.insertProviderReceipt(connection, {
+            provider: paymentOrder.provider,
+            providerTradeNo: parsed.data.providerTradeNo,
+            paymentOrderId: paymentOrder.paymentOrderId,
+            cityCode,
+          });
+        } catch (error) {
+          if (isDuplicateKeyError(error)) {
+            throw new PaymentConflictError(
+              "Provider trade number is already bound to another payment order",
+            );
+          }
+          throw error;
+        }
+        const markedPaid = await this.paymentRepo.markPaid(
           connection,
           cityCode,
           paymentOrder.paymentOrderId,
           parsed.data.providerTradeNo,
         );
-        await this.orderRepo.updateStatus(connection, cityCode, order.orderId, "paid");
+        if (!markedPaid) {
+          throw new PaymentConflictError("Payment status changed during callback processing");
+        }
+
+        const orderTransitioned = await this.orderRepo.transitionStatus(
+          connection,
+          cityCode,
+          order.orderId,
+          "service_completed",
+          "paid",
+        );
+        if (!orderTransitioned) {
+          throw new PaymentConflictError("Order status changed during callback processing");
+        }
 
         await this.outboxRepo.insertEvent(connection, {
           eventId: generateEventId(),
@@ -166,18 +263,16 @@ export class PaymentOrderService {
           }) as unknown as Record<string, unknown>,
         });
 
+        const updated = await this.paymentRepo.findByIdForUpdate(
+          connection,
+          cityCode,
+          paymentOrder.paymentOrderId,
+        );
+        if (!updated) {
+          throw new Error("Failed to load updated payment order");
+        }
+        return { paymentOrder: updated, orderId: order.orderId, idempotent: false };
       });
-
-      const updated = await this.paymentRepo.findById(
-        context,
-        cityCode,
-        paymentOrder.paymentOrderId,
-      );
-      if (!updated) {
-        throw new Error("Failed to load updated payment order");
-      }
-
-      return { paymentOrder: updated, orderId: order.orderId, idempotent: false };
     });
   }
 }
