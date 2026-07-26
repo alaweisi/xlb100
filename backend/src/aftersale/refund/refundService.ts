@@ -33,6 +33,14 @@ export class RefundConflictError extends Error {
   readonly statusCode = 409;
 }
 
+export class RefundOwnershipError extends Error {
+  readonly statusCode = 403;
+
+  constructor(orderId: string) {
+    super(`Refund order is not owned by current customer: ${orderId}`);
+  }
+}
+
 export type RefundMutationResult = {
   refund: RefundRequest;
   idempotent: boolean;
@@ -59,6 +67,10 @@ export class RefundService {
       throw new RefundValidationError(parsed.error.message);
     }
     const cityCode = assertCityScopedContext(context);
+    if (context.appType !== "customer" || context.role !== "customer" || !context.userId) {
+      throw new RefundOwnershipError(parsed.data.orderId);
+    }
+    const customerId = context.userId;
 
     return this.transactionRunner(async (connection) => {
       const existing = await this.repository.findByOrderForUpdate(
@@ -67,6 +79,9 @@ export class RefundService {
         parsed.data.orderId,
       );
       if (existing) {
+        if (existing.customerId !== customerId) {
+          throw new RefundOwnershipError(parsed.data.orderId);
+        }
         return { refund: existing, idempotent: true };
       }
 
@@ -79,6 +94,9 @@ export class RefundService {
         throw new RefundConflictError(
           "refund requires paid order, completed fulfillment, and accrued ledger",
         );
+      }
+      if (snapshot.customerId !== customerId) {
+        throw new RefundOwnershipError(parsed.data.orderId);
       }
       if (snapshot.currency !== "CNY") {
         throw new RefundValidationError("refund currency must be CNY");

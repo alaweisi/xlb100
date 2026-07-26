@@ -6,7 +6,7 @@ WORKDIR /app
 RUN corepack enable \
   && corepack prepare pnpm@9.15.0 --activate
 
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json .pnpmfile.cjs ./
 COPY backend/package.json ./backend/package.json
 COPY apps/admin/package.json ./apps/admin/package.json
 COPY apps/customer/package.json ./apps/customer/package.json
@@ -35,7 +35,22 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-COPY --from=builder /app /app
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/backend/package.json ./backend/package.json
+COPY --from=builder /app/backend/node_modules ./backend/node_modules
+COPY --from=builder /app/backend/dist ./backend/dist
+COPY --from=builder /app/packages/config/package.json ./packages/config/package.json
+COPY --from=builder /app/packages/config/node_modules ./packages/config/node_modules
+COPY --from=builder /app/packages/config/dist ./packages/config/dist
+COPY --from=builder /app/packages/shared/package.json ./packages/shared/package.json
+COPY --from=builder /app/packages/shared/node_modules ./packages/shared/node_modules
+COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
+COPY --from=builder /app/packages/types/package.json ./packages/types/package.json
+COPY --from=builder /app/packages/types/node_modules ./packages/types/node_modules
+COPY --from=builder /app/packages/types/dist ./packages/types/dist
+COPY --from=builder /app/packages/validators/package.json ./packages/validators/package.json
+COPY --from=builder /app/packages/validators/node_modules ./packages/validators/node_modules
+COPY --from=builder /app/packages/validators/dist ./packages/validators/dist
 
 RUN mkdir -p node_modules/@shared/deterministic \
   && cp -R packages/shared/dist/deterministic/. node_modules/@shared/deterministic/ \

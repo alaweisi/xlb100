@@ -88,6 +88,7 @@ export interface CreateWorkerWithdrawalRequest {
   bankAccountId: string;
   amount: number;
   requestNote?: string | null;
+  idempotencyKey: string;
 }
 
 export interface ReviewWorkerWithdrawalRequest {

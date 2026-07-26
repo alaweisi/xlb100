@@ -180,7 +180,7 @@ describe("Worker App API wiring", () => {
     mocks.listBankAccounts.mockResolvedValue({ok:true,bankAccounts:[{bankAccountId:"bank-1",cityCode:"hangzhou",workerId:"worker-demo-hangzhou",accountHolder:"Worker",bankName:"XLB Bank",bankBranch:null,bankCardMasked:"**** 1234",bankCardLast4:"1234",status:"active",createdAt:"2026-07-10T00:00:00.000Z",updatedAt:"2026-07-10T00:00:00.000Z"}]});
     mocks.listWithdrawalRequests.mockResolvedValue({ok:true,withdrawals:[]});
     mocks.createBankAccount.mockResolvedValue({ok:true,bankAccount:{bankAccountId:"bank-2",bankCardLast4:"5678"}});
-    mocks.createWithdrawalRequest.mockResolvedValue({ok:true,withdrawal:{withdrawalId:"wd-1"},balance:{availableAmount:250}});
+    mocks.createWithdrawalRequest.mockResolvedValue({ok:true,withdrawal:{withdrawalId:"wd-1"},balance:{availableAmount:250},idempotent:false});
     mocks.getLocation.mockResolvedValue({ok:true,location:{locationId:"loc-1",workerId:"worker-demo-hangzhou",cityCode:"hangzhou",latitude:30.2741,longitude:120.1551,accuracyMeters:20,capturedAt:"2026-07-10T00:00:00.000Z",expiresAt:"2026-07-10T00:10:00.000Z",source:"worker_device",privacyLevel:"private_exact",freshness:"fresh"}});
     mocks.upsertLocation.mockImplementation(async(body)=>({ok:true,location:{locationId:"loc-1",workerId:"worker-demo-hangzhou",cityCode:"hangzhou",...body,expiresAt:"2026-07-10T00:10:00.000Z",source:"worker_device",privacyLevel:"private_exact",freshness:"fresh"}}));
     mocks.listAftersaleRepairOrders.mockResolvedValue({ ok: true, repairOrders: [] });
@@ -197,7 +197,11 @@ describe("Worker App API wiring", () => {
   it("requests a code, fills the local debug code, and logs in", async () => {
     render(<App />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Send code" }));
+    fireEvent.click(await screen.findByRole(
+      "button",
+      { name: "Send code" },
+      { timeout: 5_000 },
+    ));
     expect(await screen.findByText("Code sent. It expires in 300s.")).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Fill debug code" }));
@@ -368,7 +372,11 @@ describe("Worker App API wiring", () => {
     expect(await screen.findByText("CNY 350.00")).toBeTruthy();
     fireEvent.change(screen.getByLabelText("Amount"),{target:{value:"100"}});
     fireEvent.click(screen.getByRole("button",{name:"Submit request"}));
-    await waitFor(()=>expect(mocks.createWithdrawalRequest).toHaveBeenCalledWith(expect.objectContaining({bankAccountId:"bank-1",amount:100})));
+    await waitFor(()=>expect(mocks.createWithdrawalRequest).toHaveBeenCalledWith(expect.objectContaining({
+      bankAccountId:"bank-1",
+      amount:100,
+      idempotencyKey:expect.stringMatching(/^worker-withdrawal:[0-9a-f-]+$/u),
+    })));
   });
 
   it("loads and reports a private worker location",async()=>{

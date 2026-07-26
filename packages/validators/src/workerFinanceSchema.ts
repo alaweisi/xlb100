@@ -73,6 +73,7 @@ export const createWorkerWithdrawalRequestSchema = z.object({
   bankAccountId: idSchema,
   amount: moneySchema,
   requestNote: z.string().trim().min(1).max(255).nullable().optional(),
+  idempotencyKey: z.string().trim().min(8).max(128).regex(/^[A-Za-z0-9._:-]+$/),
 }).strict();
 
 export const reviewWorkerWithdrawalRequestSchema = z.object({

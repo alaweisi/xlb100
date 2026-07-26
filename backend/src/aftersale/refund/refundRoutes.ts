@@ -8,6 +8,7 @@ import {
   refundService,
   RefundConflictError,
   RefundNotFoundError,
+  RefundOwnershipError,
   RefundValidationError,
 } from "./refundService.js";
 
@@ -39,6 +40,9 @@ export async function registerRefundRoutes(app: FastifyInstance): Promise<void> 
         }
         if (error instanceof RefundConflictError) {
           return reply.status(409).send({ ok: false, error: error.message });
+        }
+        if (error instanceof RefundOwnershipError) {
+          return reply.status(403).send({ ok: false, error: error.message });
         }
         throw error;
       }

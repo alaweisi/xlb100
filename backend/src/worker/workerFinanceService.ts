@@ -77,6 +77,22 @@ function hashCardNumber(cityCode: string, workerId: string, cardNumber: string):
     .digest("hex");
 }
 
+function hashValue(value: string): string {
+  return createHash("sha256").update(value).digest("hex");
+}
+
+function withdrawalFingerprint(input: {
+  bankAccountId: string;
+  amount: number;
+  requestNote: string | null;
+}): string {
+  return hashValue(JSON.stringify({
+    bankAccountId: input.bankAccountId,
+    amountMinor: Math.round(input.amount * 100),
+    requestNote: input.requestNote,
+  }));
+}
+
 export class WorkerFinanceService {
   constructor(
     private readonly repository: WorkerFinanceRepository = workerFinanceRepository,
@@ -126,6 +142,7 @@ export class WorkerFinanceService {
   ): Promise<{
     withdrawal: WorkerWithdrawalRequest;
     balance: WorkerReceivableBalance;
+    idempotent: boolean;
   }> {
     const parsed = createWorkerWithdrawalRequestSchema.safeParse(body ?? {});
     if (!parsed.success) {
@@ -133,7 +150,32 @@ export class WorkerFinanceService {
     }
     const { cityCode, workerId } = await this.requireWorkerContext(context);
     const amount = money(parsed.data.amount);
+    const requestNote = parsed.data.requestNote ?? null;
+    const idempotencyKeyHash = hashValue(parsed.data.idempotencyKey);
+    const requestFingerprint = withdrawalFingerprint({
+      bankAccountId: parsed.data.bankAccountId,
+      amount,
+      requestNote,
+    });
     return this.transactionRunner(async (connection) => {
+      await this.repository.lockWorkerBalance(connection, cityCode, workerId);
+
+      const replay = await this.repository.findWithdrawalByIdempotencyForUpdate(
+        connection,
+        cityCode,
+        workerId,
+        idempotencyKeyHash,
+      );
+      if (replay) {
+        if (replay.requestFingerprint !== requestFingerprint) {
+          throw new WorkerFinanceConflictError(
+            "withdrawal idempotency key was already used with different request data",
+          );
+        }
+        const balance = await this.repository.recomputeBalance(connection, cityCode, workerId);
+        return { withdrawal: replay.withdrawal, balance, idempotent: true };
+      }
+
       const bankAccount = await this.repository.findActiveBankAccountForWorker(
         connection,
         cityCode,
@@ -155,10 +197,12 @@ export class WorkerFinanceService {
         workerId,
         bankAccountId: parsed.data.bankAccountId,
         amount,
-        requestNote: parsed.data.requestNote ?? null,
+        requestNote,
+        idempotencyKeyHash,
+        requestFingerprint,
       });
       const updatedBalance = await this.repository.recomputeBalance(connection, cityCode, workerId);
-      return { withdrawal, balance: updatedBalance };
+      return { withdrawal, balance: updatedBalance, idempotent: false };
     });
   }
 

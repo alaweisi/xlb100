@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -70,6 +70,44 @@ test("staging compose requires strong secret inputs and authenticates Redis", ()
   assert.doesNotMatch(seedHelper, /\.env\.staging\.example/u);
 });
 
+test("container contexts exclude secrets and runtime images contain only built artifacts", () => {
+  const dockerignore = read(".dockerignore");
+  const backend = read("infra/docker/Dockerfile.backend");
+  const frontend = read("infra/docker/Dockerfile.frontend");
+
+  assert.match(dockerignore, /^\.env\.\*\s*$/mu);
+  assert.match(dockerignore, /^\*\*\/\.env\.\*\s*$/mu);
+  assert.match(dockerignore, /^\*\*\/\*\.pem\s*$/mu);
+  assert.match(dockerignore, /^\*\*\/\*\.key\s*$/mu);
+  assert.match(dockerignore, /^\.artifacts\s*$/mu);
+  assert.match(dockerignore, /^\.codex\s*$/mu);
+  assert.match(dockerignore, /^\.deepseek\s*$/mu);
+
+  for (const dockerfile of [backend, frontend]) {
+    assert.match(
+      dockerfile,
+      /COPY package\.json pnpm-lock\.yaml pnpm-workspace\.yaml turbo\.json \.pnpmfile\.cjs \.\//u,
+    );
+    const runtime = dockerfile.split(/FROM node:20-alpine AS runtime/u)[1] ?? "";
+    assert.doesNotMatch(runtime, /COPY --from=builder \/app \/app/u);
+    assert.doesNotMatch(runtime, /COPY --from=builder [^\r\n]+\/src(?:\s|$)/u);
+  }
+  assert.match(backend, /COPY --from=builder \/app\/backend\/dist \.\/backend\/dist/u);
+  assert.match(frontend, /COPY --from=builder \/app\/apps\/\$\{APP_NAME\}\/dist \/app\/dist/u);
+});
+
+test("critical authorization and concurrency regression suites remain present", () => {
+  for (const relativePath of [
+    "tests/unit/paymentTrustBoundary.test.ts",
+    "tests/unit/criticalResourceAuthorization.test.ts",
+    "tests/integration/authOtp.test.ts",
+    "tests/integration/refundReversalMvp.test.ts",
+    "tests/integration/workerWithdrawalStateMachine.test.ts",
+  ]) {
+    assert.equal(existsSync(path.join(rootDir, relativePath)), true, `${relativePath} is required`);
+  }
+});
+
 test("main CI enforces lint, the canonical test runner, and dependency audit", () => {
   const workflow = read(".github/workflows/ci.yml");
   assert.match(workflow, /run: pnpm lint/);
@@ -94,10 +132,24 @@ test("contract workflow runs the executable contract gate", () => {
   assert.doesNotMatch(compatibilityWrapper, /placeholder/i);
 });
 
-test("critical audit uses the Bulk Advisory implementation", () => {
+test("dependency gate uses the Bulk Advisory implementation and blocks high severity", () => {
   const manifest = JSON.parse(read("package.json"));
+  const pnpmHook = read(".pnpmfile.cjs");
   assert.equal(
     manifest.scripts["audit:critical"],
-    "node scripts/audit-dependencies.mjs --audit-level critical",
+    "node scripts/audit-dependencies.mjs --audit-level high",
   );
+  for (const [dependency, securedVersion] of [
+    ["brace-expansion", "5.0.8"],
+    ["fast-uri", "4.1.1"],
+    ["find-my-way", "9.7.0"],
+    ["postcss", "8.5.23"],
+  ]) {
+    assert.match(
+      pnpmHook,
+      new RegExp(`"${dependency}":\\s*"${securedVersion.replaceAll(".", "\\.")}"`, "u"),
+      `${dependency} must remain pinned to its secured version`,
+    );
+  }
+  assert.match(pnpmHook, /hooks:\s*\{\s*readPackage:\s*secureDependencyVersions,?\s*\}/u);
 });

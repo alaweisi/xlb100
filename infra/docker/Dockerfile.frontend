@@ -10,7 +10,7 @@ ARG APP_NAME=customer
 ARG APP_BASE=/
 ENV XLB_PUBLIC_BASE=$APP_BASE
 
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json .pnpmfile.cjs ./
 COPY backend/package.json ./backend/package.json
 COPY apps/admin/package.json ./apps/admin/package.json
 COPY apps/customer/package.json ./apps/customer/package.json
@@ -45,12 +45,10 @@ WORKDIR /app
 RUN npm install -g serve@14
 
 ARG APP_NAME=customer
-ENV APP_NAME=$APP_NAME
-
-COPY --from=builder /app /app
+COPY --from=builder /app/apps/${APP_NAME}/dist /app/dist
 
 EXPOSE 4173
 
 USER node
 
-CMD ["sh", "-c", "serve -s apps/$APP_NAME/dist -l 4173"]
+CMD ["serve", "-s", "/app/dist", "-l", "4173"]

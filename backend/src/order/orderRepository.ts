@@ -53,6 +53,10 @@ type FulfillmentStatusRow = RowDataPacket & {
   status: string;
 };
 
+type WorkerAssignmentRow = RowDataPacket & {
+  assigned: number;
+};
+
 function mapOrder(row: OrderRow): Order {
   const quoteSnapshot =
     typeof row.quote_snapshot === "string"
@@ -269,6 +273,28 @@ export class OrderRepository extends RepositoryBase {
     );
 
     return rows[0] ? mapOrder(rows[0]) : null;
+  }
+
+  async isWorkerAssignedToOrder(
+    context: RequestContext,
+    cityCode: CityCode,
+    orderId: string,
+    workerId: string,
+  ): Promise<boolean> {
+    this.requireContext(context);
+    assertCityScopedContext(context);
+    if (context.cityCode !== cityCode) {
+      throw new Error("city_code mismatch in order assignment query");
+    }
+
+    const [rows] = await this.pool.query<WorkerAssignmentRow[]>(
+      `SELECT 1 AS assigned
+         FROM fulfillments
+        WHERE city_code = ? AND order_id = ? AND worker_id = ?
+        LIMIT 1`,
+      [cityCode, orderId, workerId],
+    );
+    return rows.length === 1;
   }
 
   async updateStatus(

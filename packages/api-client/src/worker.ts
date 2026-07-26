@@ -203,6 +203,7 @@ export interface CreateWorkerWithdrawalBody {
   bankAccountId: string;
   amount: number;
   requestNote?: string | null;
+  idempotencyKey: string;
 }
 
 export function createWorkerApi(client: ApiClient) {
@@ -314,11 +315,13 @@ export function createWorkerApi(client: ApiClient) {
       ok: true;
       withdrawal: WorkerWithdrawalResponse;
       balance: WorkerReceivableBalanceResponse;
+      idempotent: boolean;
     }> {
       return client.post<{
         ok: true;
         withdrawal: WorkerWithdrawalResponse;
         balance: WorkerReceivableBalanceResponse;
+        idempotent: boolean;
       }>("/api/worker/withdrawal-requests", body);
     },
     listWithdrawalRequests(): Promise<{ ok: true; withdrawals: WorkerWithdrawalResponse[] }> {

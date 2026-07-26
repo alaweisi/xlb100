@@ -681,7 +681,12 @@ export function App() {
     if (!api) return;
     setWalletBusy(true); setWalletError(null);
     try {
-      await api.createWithdrawalRequest({ bankAccountId: selectedBankAccountId, amount: Number(withdrawalAmount), requestNote: "Submitted from worker operations app" });
+      await api.createWithdrawalRequest({
+        bankAccountId: selectedBankAccountId,
+        amount: Number(withdrawalAmount),
+        requestNote: "Submitted from worker operations app",
+        idempotencyKey: `worker-withdrawal:${crypto.randomUUID()}`,
+      });
       setWithdrawalAmount("");
       await loadWallet();
     } catch (error) { handleApiError(error, "Failed to submit withdrawal request", setWalletError); }

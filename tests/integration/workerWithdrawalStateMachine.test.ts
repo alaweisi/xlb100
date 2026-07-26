@@ -54,6 +54,7 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
           });
           expect(bankResponse.statusCode).toBe(200);
           const bankAccountId = bankResponse.json().bankAccount.bankAccountId as string;
+          const requestKey = `worker-withdrawal-state-machine-${Date.now()}`;
 
           const requestResponse = await app.inject({
             method: "POST",
@@ -63,6 +64,7 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
               bankAccountId,
               amount: 1,
               requestNote: "integration state machine",
+              idempotencyKey: requestKey,
             },
           });
           expect(requestResponse.statusCode).toBe(200);
@@ -80,6 +82,36 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
             preBalance.requestedWithdrawalAmount + 1,
             2,
           );
+
+          const replayResponse = await app.inject({
+            method: "POST",
+            url: "/api/worker/withdrawal-requests",
+            headers: workerHangzhouHeaders,
+            payload: {
+              bankAccountId,
+              amount: 1,
+              requestNote: "integration state machine",
+              idempotencyKey: requestKey,
+            },
+          });
+          expect(replayResponse.statusCode).toBe(200);
+          expect(replayResponse.json()).toMatchObject({
+            idempotent: true,
+            withdrawal: { withdrawalId: requested.withdrawal.withdrawalId },
+          });
+
+          const conflictingReplay = await app.inject({
+            method: "POST",
+            url: "/api/worker/withdrawal-requests",
+            headers: workerHangzhouHeaders,
+            payload: {
+              bankAccountId,
+              amount: 2,
+              requestNote: "integration state machine",
+              idempotencyKey: requestKey,
+            },
+          });
+          expect(conflictingReplay.statusCode).toBe(409);
 
           const listResponse = await app.inject({
             method: "GET",
@@ -142,6 +174,51 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
             preBalance.markedPaidAmount + 1,
             2,
           );
+
+          const concurrentAmount = Number(
+            Number(markResponse.json().balance.availableAmount).toFixed(2),
+          );
+          expect(concurrentAmount).toBeGreaterThan(0);
+          const concurrentKeyBase = `worker-withdrawal-concurrency-${Date.now()}`;
+          const concurrentResponses = await Promise.all([
+            app.inject({
+              method: "POST",
+              url: "/api/worker/withdrawal-requests",
+              headers: workerHangzhouHeaders,
+              payload: {
+                bankAccountId,
+                amount: concurrentAmount,
+                requestNote: "concurrency overspend probe",
+                idempotencyKey: `${concurrentKeyBase}-a`,
+              },
+            }),
+            app.inject({
+              method: "POST",
+              url: "/api/worker/withdrawal-requests",
+              headers: workerHangzhouHeaders,
+              payload: {
+                bankAccountId,
+                amount: concurrentAmount,
+                requestNote: "concurrency overspend probe",
+                idempotencyKey: `${concurrentKeyBase}-b`,
+              },
+            }),
+          ]);
+          expect(concurrentResponses.map((response) => response.statusCode).sort()).toEqual([
+            200,
+            409,
+          ]);
+
+          const postConcurrencyBalance = await app.inject({
+            method: "GET",
+            url: "/api/worker/finance/balance",
+            headers: workerHangzhouHeaders,
+          });
+          expect(postConcurrencyBalance.statusCode).toBe(200);
+          expect(postConcurrencyBalance.json().balance.availableAmount).toBeCloseTo(0, 2);
+          expect(
+            postConcurrencyBalance.json().balance.requestedWithdrawalAmount,
+          ).toBeCloseTo(preBalance.requestedWithdrawalAmount + concurrentAmount, 2);
         } finally {
           await app.close();
         }

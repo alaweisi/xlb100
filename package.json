@@ -31,7 +31,7 @@
     "test:performance:phase22": "vitest run --project performance-serial",
     "test:observability:phase22": "vitest run --project unit-contract tests/unit/phase22Observability.test.ts",
     "test:coverage:phase22": "node scripts/run-phase22-coverage.mjs",
-    "audit:critical": "node scripts/audit-dependencies.mjs --audit-level critical",
+    "audit:critical": "node scripts/audit-dependencies.mjs --audit-level high",
     "gate:phase22": "node scripts/run-phase22-gates.mjs",
     "test:api-client:phase23b": "vitest run --project unit-contract tests/unit/apiClientReliability.test.ts tests/contract/apiClientCriticalResponseValidation.test.ts",
     "test:outbox:phase23b": "vitest run --project unit-contract tests/unit/outboxDeliveryPolicy.test.ts && vitest run --project db-serial tests/integration/outboxClaimConcurrency.test.ts tests/integration/dispatchRunOnce.test.ts tests/integration/ledgerRunOnce.test.ts",

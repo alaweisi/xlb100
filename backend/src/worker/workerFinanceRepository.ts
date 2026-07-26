@@ -78,6 +78,8 @@ type WithdrawalRow = RowDataPacket & {
   reviewed_by_admin_id: string | null;
   marked_paid_at: Date | null;
   marked_paid_by_admin_id: string | null;
+  idempotency_key_hash: string;
+  request_fingerprint: string;
   created_at: Date;
   updated_at: Date;
 };
@@ -117,6 +119,13 @@ export type InsertWorkerWithdrawalInput = {
   bankAccountId: string;
   amount: number;
   requestNote: string | null;
+  idempotencyKeyHash: string;
+  requestFingerprint: string;
+};
+
+export type IdempotentWorkerWithdrawal = {
+  withdrawal: WorkerWithdrawalRequest;
+  requestFingerprint: string;
 };
 
 function toIso(value: Date | null): string | null {
@@ -369,6 +378,27 @@ export class WorkerFinanceRepository extends RepositoryBase {
     return rows[0] ? mapBalance(rows[0]) : null;
   }
 
+  async lockWorkerBalance(
+    connection: PoolConnection,
+    cityCode: CityCode,
+    workerId: string,
+  ): Promise<WorkerReceivableBalance> {
+    await connection.query(
+      `INSERT INTO worker_receivable_balances (
+         city_code, worker_id, currency, accrued_amount, adjusted_amount,
+         requested_withdrawal_amount, marked_paid_amount, available_amount
+       )
+       VALUES (?, ?, 'CNY', 0.00, 0.00, 0.00, 0.00, 0.00)
+       ON DUPLICATE KEY UPDATE worker_id = VALUES(worker_id)`,
+      [cityCode, workerId],
+    );
+    const balance = await this.findBalanceForUpdate(connection, cityCode, workerId);
+    if (!balance) {
+      throw new Error("failed to lock worker receivable balance");
+    }
+    return balance;
+  }
+
   async upsertBankAccount(
     connection: PoolConnection,
     input: UpsertWorkerBankAccountInput,
@@ -461,9 +491,10 @@ export class WorkerFinanceRepository extends RepositoryBase {
     await connection.query(
       `INSERT INTO worker_withdrawal_requests (
          withdrawal_id, city_code, worker_id, bank_account_id,
-         amount, currency, status, request_note
+         amount, currency, status, request_note,
+         idempotency_key_hash, request_fingerprint
        )
-       VALUES (?, ?, ?, ?, ?, 'CNY', 'requested', ?)`,
+       VALUES (?, ?, ?, ?, ?, 'CNY', 'requested', ?, ?, ?)`,
       [
         input.withdrawalId,
         input.cityCode,
@@ -471,6 +502,8 @@ export class WorkerFinanceRepository extends RepositoryBase {
         input.bankAccountId,
         input.amount,
         input.requestNote,
+        input.idempotencyKeyHash,
+        input.requestFingerprint,
       ],
     );
     const withdrawal = await this.findWithdrawalForUpdate(
@@ -482,6 +515,28 @@ export class WorkerFinanceRepository extends RepositoryBase {
       throw new Error("failed to load worker withdrawal request");
     }
     return withdrawal;
+  }
+
+  async findWithdrawalByIdempotencyForUpdate(
+    connection: PoolConnection,
+    cityCode: CityCode,
+    workerId: string,
+    idempotencyKeyHash: string,
+  ): Promise<IdempotentWorkerWithdrawal | null> {
+    const [rows] = await connection.query<WithdrawalRow[]>(
+      `SELECT *
+         FROM worker_withdrawal_requests
+        WHERE city_code = ? AND worker_id = ? AND idempotency_key_hash = ?
+        LIMIT 1 FOR UPDATE`,
+      [cityCode, workerId, idempotencyKeyHash],
+    );
+    const row = rows[0];
+    return row
+      ? {
+          withdrawal: mapWithdrawal(row),
+          requestFingerprint: row.request_fingerprint,
+        }
+      : null;
   }
 
   async findWithdrawalForUpdate(

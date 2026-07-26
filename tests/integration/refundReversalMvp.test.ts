@@ -10,7 +10,15 @@ import {
   runLedgerOnce,
   withLedgerTestLock,
 } from "./helpers/ledgerTestHelper.js";
+import { bearerHeaders } from "./helpers/authTestHelper.js";
 import { customerHeaders } from "./helpers/dispatchTestHelper.js";
+
+const otherCustomerHeaders = bearerHeaders({
+  appType: "customer",
+  role: "customer",
+  userId: "customer-refund-attacker",
+  cityCode: "hangzhou",
+});
 
 describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
   "refund approval to ledger reversal",
@@ -64,6 +72,14 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
             rating: 5,
           });
 
+          const unauthorizedRefundResponse = await app.inject({
+            method: "POST",
+            url: "/api/aftersale/refunds",
+            headers: otherCustomerHeaders,
+            payload: { orderId, reason: "Attempt refund for another customer's order" },
+          });
+          expect(unauthorizedRefundResponse.statusCode).toBe(403);
+
           const refundResponse = await app.inject({
             method: "POST",
             url: "/api/aftersale/refunds",
@@ -78,6 +94,14 @@ describe.skipIf(process.env.XLB_SKIP_DB_TESTS === "1")(
           };
           expect(refund.status).toBe("requested");
           expect(refund.amount).toBe(89);
+
+          const unauthorizedReplayResponse = await app.inject({
+            method: "POST",
+            url: "/api/aftersale/refunds",
+            headers: otherCustomerHeaders,
+            payload: { orderId, reason: "Attempt to replay another customer's refund" },
+          });
+          expect(unauthorizedReplayResponse.statusCode).toBe(403);
 
           const traceResponse = await app.inject({
             method: "GET",

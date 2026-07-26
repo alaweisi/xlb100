@@ -49,7 +49,7 @@ export class OrderOwnershipError extends Error {
   readonly statusCode = 403;
 
   constructor(orderId: string) {
-    super(`Order is not owned by current customer: ${orderId}`);
+    super(`Order is not owned by or accessible to current identity: ${orderId}`);
     this.name = "OrderOwnershipError";
   }
 }
@@ -373,7 +373,34 @@ export class OrderService {
       if (!order) {
         throw new OrderNotFoundError(orderId);
       }
-      if (context.appType === "customer" && context.role === "customer" && order.customerId !== context.userId) {
+
+      if (context.appType === "customer") {
+        if (context.role !== "customer" || !context.userId || order.customerId !== context.userId) {
+          throw new OrderOwnershipError(orderId);
+        }
+        return order;
+      }
+
+      if (context.appType === "worker") {
+        if (
+          context.role !== "worker"
+          || !context.userId
+          || !(await this.repository.isWorkerAssignedToOrder(
+            context,
+            cityCode,
+            orderId,
+            context.userId,
+          ))
+        ) {
+          throw new OrderOwnershipError(orderId);
+        }
+        return order;
+      }
+
+      if (
+        !["admin", "oa", "dashboard"].includes(context.appType)
+        || !["admin", "operator", "auditor"].includes(context.role)
+      ) {
         throw new OrderOwnershipError(orderId);
       }
       return order;
