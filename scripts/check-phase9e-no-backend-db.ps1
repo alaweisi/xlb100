@@ -38,6 +38,11 @@ const operatorHeaders = {
   "x-xlb-trace-id": "phase9e-gate-operator",
 };
 
+const operatorHeadersWithoutCity = {
+  authorization: operatorHeaders.authorization,
+  "x-xlb-trace-id": "phase9e-gate-missing-city",
+};
+
 const failures = [];
 
 async function expectStatus({ label, method, url, headers, payload, expected }) {
@@ -92,19 +97,19 @@ await expectStatus({
 });
 
 await expectStatus({
-  label: "settlement batches read path responds under operator context",
+  label: "settlement batches route enforces city scope before database access",
   method: "GET",
   url: "/api/internal/settlement/batches",
-  headers: operatorHeaders,
-  expected: [200],
+  headers: operatorHeadersWithoutCity,
+  expected: [400],
 });
 
 await expectStatus({
-  label: "settlement statement audit list returns data or validation response",
+  label: "settlement statement audit route enforces city scope before database access",
   method: "GET",
-  url: "/api/internal/settlement/worker-statement-audit?cityCode=hangzhou&limit=1",
-  headers: operatorHeaders,
-  expected: [200],
+  url: "/api/internal/settlement/worker-statement-audit?limit=1",
+  headers: operatorHeadersWithoutCity,
+  expected: [400],
 });
 
 await app.close();
