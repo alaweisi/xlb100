@@ -14,6 +14,13 @@ import {
   ENGINEERING_RC_REQUIRED_STEP_IDS,
   ENGINEERING_RC_STEPS,
 } from "./engineering-rc-contract.mjs";
+import {
+  ENGINEERING_RC_COREPACK_RUNTIME_PINS,
+  ENGINEERING_RC_LOCAL_MYSQL_CONTAINER,
+  ENGINEERING_RC_LOCAL_REDIS_CONTAINER,
+  ENGINEERING_RC_PACKAGE_MANAGER,
+  ENGINEERING_RC_PNPM_RUNTIME_PINS,
+} from "./engineering-rc-runtime.mjs";
 
 function sha256(filePath) {
   return createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
@@ -39,11 +46,17 @@ function fixture(t) {
   const started = Date.parse("2026-07-27T00:00:00.000Z");
   const completed = started + ENGINEERING_RC_STEPS.length * 1_000;
   const evidence = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     gate: ENGINEERING_RC_GATE,
     runId,
     startedAt: new Date(started).toISOString(),
     completedAt: new Date(completed).toISOString(),
+    authorization: {
+      evidenceClass: "DIAGNOSTIC_ONLY",
+      releaseAuthority:
+        "REQUIRES_PROTECTED_CI_SUCCESS_AND_VERIFIED_GITHUB_ATTESTATION",
+      githubRun: null,
+    },
     source: {
       commit,
       commitEnd: commit,
@@ -54,6 +67,59 @@ function fixture(t) {
     tools: {
       node: ENGINEERING_RC_NODE_VERSION,
       pnpm: ENGINEERING_RC_PNPM_VERSION,
+      pnpmRuntime: {
+        packageManager: ENGINEERING_RC_PACKAGE_MANAGER,
+        packageName: "pnpm",
+        packageVersion: ENGINEERING_RC_PNPM_VERSION,
+        packageIntegrity: ENGINEERING_RC_PNPM_RUNTIME_PINS.integrity,
+        packageTreeSha256: ENGINEERING_RC_PNPM_RUNTIME_PINS.packageTreeSha256,
+        entrySha256: ENGINEERING_RC_PNPM_RUNTIME_PINS.entrySha256,
+        launcher: {
+          packageName: "corepack",
+          packageVersion: ENGINEERING_RC_COREPACK_RUNTIME_PINS.version,
+          entrySha256: ENGINEERING_RC_COREPACK_RUNTIME_PINS.entrySha256,
+          packageTreeSha256:
+            ENGINEERING_RC_COREPACK_RUNTIME_PINS.packageTreeSha256,
+        },
+      },
+      docker: {
+        context: "desktop-linux",
+        endpoint: "npipe:////./pipe/dockerDesktopLinuxEngine",
+        containers: {
+          mysql: {
+            name: ENGINEERING_RC_LOCAL_MYSQL_CONTAINER,
+            id: "1".repeat(64),
+            image: "mysql:8",
+            imageId: `sha256:${"2".repeat(64)}`,
+            manifestDigest: `sha256:${"3".repeat(64)}`,
+            running: true,
+            healthy: true,
+            privileged: false,
+            networkMode: "bridge",
+            port: {
+              container: "3306/tcp",
+              host: "3306",
+              bindings: [{ hostIp: "0.0.0.0", hostPort: "3306" }],
+            },
+          },
+          redis: {
+            name: ENGINEERING_RC_LOCAL_REDIS_CONTAINER,
+            id: "4".repeat(64),
+            image: "redis:7",
+            imageId: `sha256:${"5".repeat(64)}`,
+            manifestDigest: `sha256:${"6".repeat(64)}`,
+            running: true,
+            healthy: true,
+            privileged: false,
+            networkMode: "bridge",
+            port: {
+              container: "6379/tcp",
+              host: "6379",
+              bindings: [{ hostIp: "0.0.0.0", hostPort: "6379" }],
+            },
+          },
+        },
+      },
       platform: "win32-x64",
       mobile: {
         signingClass: "simulation",
@@ -75,7 +141,8 @@ function fixture(t) {
     requiredStepIds: [...ENGINEERING_RC_REQUIRED_STEP_IDS],
     artifactRoot: relativeArtifactRoot,
     steps: [],
-    verdict: "GO",
+    executionResult: "PASS",
+    releaseGateEligible: false,
   };
 
   for (let index = 0; index < ENGINEERING_RC_STEPS.length; index += 1) {
@@ -205,6 +272,7 @@ function validate(current) {
     currentCommit: current.commit,
     currentLockfileSha256: current.lockfileSha256,
     currentClean: true,
+    currentGithubRun: null,
     now: current.now,
   });
 }
@@ -212,6 +280,72 @@ function validate(current) {
 test("engineering RC evidence accepts only the complete canonical current run", (t) => {
   const current = fixture(t);
   assert.deepEqual(validate(current), []);
+});
+
+test("engineering RC evidence cannot claim local release authority", (t) => {
+  const current = fixture(t);
+  current.evidence.authorization.evidenceClass = "RELEASE_AUTHORITY";
+  assert.ok(
+    validate(current).includes(
+      "local evidence must not claim independent release authority",
+    ),
+  );
+});
+
+test("engineering RC evidence binds optional GitHub provenance to the source commit", (t) => {
+  const current = fixture(t);
+  current.evidence.authorization.githubRun = {
+    repository: "owner/repository",
+    repositoryId: "12345",
+    workflowRef: "owner/repository/.github/workflows/ci.yml@refs/heads/main",
+    workflowSha: "b".repeat(40),
+    runId: "12345",
+    runAttempt: "1",
+    sourceSha: "c".repeat(40),
+    eventName: "push",
+  };
+  assert.ok(
+    validate(current).includes(
+      "GitHub run provenance is incomplete or not bound to the source commit",
+    ),
+  );
+});
+
+test("engineering RC evidence must match the current GitHub Actions run", (t) => {
+  const current = fixture(t);
+  const githubRun = {
+    repository: "owner/repository",
+    repositoryId: "12345",
+    workflowRef: "owner/repository/.github/workflows/ci.yml@refs/heads/main",
+    workflowSha: "b".repeat(40),
+    runId: "12345",
+    runAttempt: "1",
+    sourceSha: current.commit,
+    eventName: "push",
+  };
+  current.evidence.authorization.githubRun = githubRun;
+  const errors = validateEngineeringRcEvidence(current.evidence, {
+    root: current.root,
+    currentCommit: current.commit,
+    currentLockfileSha256: current.lockfileSha256,
+    currentClean: true,
+    currentGithubRun: { ...githubRun, runAttempt: "2" },
+    now: current.now,
+  });
+  assert.ok(errors.includes("evidence is not bound to the current GitHub Actions run"));
+});
+
+test("engineering RC evidence rejects forged pnpm and remote Docker runtime claims", (t) => {
+  const current = fixture(t);
+  current.evidence.tools.pnpmRuntime.entrySha256 = "0".repeat(64);
+  current.evidence.tools.docker.endpoint = "tcp://docker.example:2376";
+  const errors = validate(current);
+  assert.ok(
+    errors.includes("pnpm runtime evidence does not match the pinned RC toolchain"),
+  );
+  assert.ok(
+    errors.includes("Docker runtime evidence does not prove canonical local containers"),
+  );
 });
 
 test("engineering RC evidence rejects a self-declared reduced plan", (t) => {

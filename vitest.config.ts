@@ -53,6 +53,7 @@ const dbSerial = {
 export default defineConfig({
   resolve: { alias },
   test: {
+    allowOnly: false,
     projects: [
       {
         resolve: { alias },

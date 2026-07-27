@@ -5,6 +5,7 @@ export default defineConfig({
   testDir: "./tests/e2e",
   testMatch: "phase27-notification-inbox.spec.ts",
   timeout: 120_000,
+  forbidOnly: true,
   expect: { timeout: 15_000 },
   fullyParallel: false,
   workers: 1,

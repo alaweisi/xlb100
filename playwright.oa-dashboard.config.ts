@@ -5,6 +5,7 @@ export default defineConfig({
   testDir: "./tests/e2e",
   testMatch: "oa-dashboard-visual.spec.ts",
   timeout: 90_000,
+  forbidOnly: true,
   fullyParallel: false,
   workers: 1,
   reporter: engineeringReporter(),

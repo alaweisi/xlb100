@@ -112,7 +112,10 @@ test("main CI executes the immutable engineering RC aggregator", () => {
   const workflow = read(".github/workflows/ci.yml");
   const contract = read("scripts/engineering-rc-contract.mjs");
   assert.match(workflow, /run: pnpm gate:engineering-rc/u);
-  assert.match(contract, /\["lint", "--", "--force", "--", "--max-warnings=0"\]/u);
+  assert.match(
+    contract,
+    /"exec",\s*"--",\s*"turbo",\s*"run",\s*"lint",\s*"--force",\s*"--",\s*"--max-warnings=0"/u,
+  );
   assert.match(contract, /\["test:engineering-non-tke"\]/u);
   assert.match(contract, /\["audit:critical"\]/u);
 });

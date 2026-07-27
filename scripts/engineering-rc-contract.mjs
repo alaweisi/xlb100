@@ -44,11 +44,30 @@ export const ENGINEERING_RC_STEPS = Object.freeze([
   step(
     "lint",
     "static",
-    ["lint", "--", "--force", "--", "--max-warnings=0"],
+    [
+      "exec",
+      "--",
+      "turbo",
+      "run",
+      "lint",
+      "--force",
+      "--",
+      "--max-warnings=0",
+    ],
     600_000,
   ),
-  step("typecheck", "static", ["typecheck", "--", "--force"], 600_000),
-  step("build", "static", ["build", "--", "--force"], 900_000),
+  step(
+    "typecheck",
+    "static",
+    ["exec", "--", "turbo", "run", "typecheck", "--force"],
+    600_000,
+  ),
+  step(
+    "build",
+    "static",
+    ["exec", "--", "turbo", "run", "build", "--force"],
+    900_000,
+  ),
   step("architecture", "static", ["preflight"], 300_000),
   step(
     "migration-integrity",

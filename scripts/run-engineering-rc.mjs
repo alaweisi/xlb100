@@ -21,91 +21,31 @@ import {
 import {
   assertMobileReleasePrerequisites,
 } from "./mobile-release-prerequisites.mjs";
+import {
+  assertEngineeringRcDockerBinding,
+  bindEngineeringRcDockerEnvironment,
+  createControlledPnpmEnvironment,
+  createEngineeringRcEnvironment,
+  inspectEngineeringRcDocker,
+  resolveControlledPnpmInvocation,
+  validateControlledPnpmEnvironment,
+} from "./engineering-rc-runtime.mjs";
+import { runEngineeringRcStep } from "./run-engineering-rc-step.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const secretEnvironmentName = /(?:COS|PAYMENT|SMS|AMAP|GAODE|WECHAT|ALIPAY|TENCENT).*(?:SECRET|KEY|TOKEN|CREDENTIAL|FILE|BUCKET|REGION)/iu;
 
 export {
   ENGINEERING_RC_EXCLUSIONS,
   ENGINEERING_RC_STEPS,
+  createEngineeringRcEnvironment,
   validateEngineeringRcPlan,
 };
 
-export function createEngineeringRcEnvironment(source = process.env) {
-  const environment = { ...source };
-  for (const name of Object.keys(environment)) {
-    if (secretEnvironmentName.test(name)) delete environment[name];
-  }
-  const mysqlPort = source.XLB_ENGINEERING_RC_MYSQL_PORT?.trim() || "3306";
-  const redisPort = source.XLB_ENGINEERING_RC_REDIS_PORT?.trim() || "6379";
-  Object.assign(environment, {
-    NODE_ENV: "test",
-    BACKEND_HOST: "127.0.0.1",
-    MYSQL_HOST: "127.0.0.1",
-    MYSQL_PORT: mysqlPort,
-    MYSQL_DATABASE: "xlb_local",
-    MYSQL_USER: source.XLB_ENGINEERING_RC_MYSQL_USER?.trim() || "xlb",
-    MYSQL_PASSWORD:
-      source.XLB_ENGINEERING_RC_MYSQL_PASSWORD ?? "xlb_local_password",
-    MYSQL_ROOT_USER:
-      source.XLB_ENGINEERING_RC_MYSQL_ROOT_USER?.trim() || "root",
-    MYSQL_ROOT_PASSWORD:
-      source.XLB_ENGINEERING_RC_MYSQL_ROOT_PASSWORD ?? "xlb_root_password",
-    MYSQL_TLS_ENABLED: "false",
-    REDIS_HOST: "127.0.0.1",
-    REDIS_PORT: redisPort,
-    REDIS_PASSWORD:
-      source.XLB_ENGINEERING_RC_REDIS_PASSWORD ?? "",
-    REDIS_TLS_ENABLED: "false",
-    XLB_STAGE2C3_REDIS_PORT: redisPort,
-    XLB_SKIP_DB_TESTS: "0",
-    XLB_EXCLUDE_TKE_TESTS: "1",
-    XLB_ENGINEERING_RC: "1",
-    XLB_PLAYWRIGHT_REUSE_EXISTING_SERVER: "false",
-    PAYMENT_MOCK_WEBHOOK_ENABLED: "false",
-    PAYMENT_MOCK_WEBHOOK_SECRET: "",
-    MYSQL_CONTAINER:
-      source.XLB_STAGE4A_MYSQL_CONTAINER?.trim() || "xlb-mysql-local",
-    XLB_STAGE4A_MYSQL_CONTAINER:
-      source.XLB_STAGE4A_MYSQL_CONTAINER?.trim() || "xlb-mysql-local",
-    XLB_STAGE4A_REDIS_CONTAINER:
-      source.XLB_STAGE4A_REDIS_CONTAINER?.trim() || "xlb-redis-local",
-    ...ENGINEERING_RC_PROVIDER_ISOLATION,
-  });
-  return environment;
-}
-
-function resolvePnpmInvocation() {
-  if (process.env.npm_execpath && fs.existsSync(process.env.npm_execpath)) {
-    return { command: process.execPath, prefix: [process.env.npm_execpath] };
-  }
-  if (process.platform !== "win32") return { command: "pnpm", prefix: [] };
-  const located = spawnSync("where.exe", ["pnpm.cmd"], {
-    encoding: "utf8",
-    env: process.env,
-    windowsHide: true,
-  });
-  if (located.status !== 0) throw new Error("pnpm.cmd is unavailable");
-  for (const entry of located.stdout.split(/\r?\n/u).filter(Boolean)) {
-    const cli = path.join(
-      path.dirname(entry.trim()),
-      "node_modules",
-      "pnpm",
-      "bin",
-      "pnpm.mjs",
-    );
-    if (fs.existsSync(cli)) {
-      return { command: process.execPath, prefix: [cli] };
-    }
-  }
-  throw new Error("pnpm Node entrypoint is unavailable");
-}
-
-function capture(command, args) {
+function capture(command, args, environment) {
   const result = spawnSync(command, args, {
     cwd: rootDir,
     encoding: "utf8",
-    env: process.env,
+    env: environment,
     windowsHide: true,
   });
   if (result.error) throw result.error;
@@ -113,8 +53,8 @@ function capture(command, args) {
   return result.stdout.trim();
 }
 
-function git(args) {
-  return capture("git", args);
+function git(args, environment) {
+  return capture("git", args, environment);
 }
 
 function hashFile(filePath) {
@@ -261,15 +201,70 @@ function collectStructuredArtifacts(step, logPath, artifactRoot) {
   throw new Error(`unsupported artifact policy: ${step.artifact.kind}`);
 }
 
-function initialEvidence(runId, artifactRoot, pnpmVersion, environment) {
-  const commit = git(["rev-parse", "HEAD"]);
-  const clean = git(["status", "--porcelain", "--untracked-files=all"]) === "";
+function githubRunProvenance(environment) {
+  if (environment.GITHUB_ACTIONS !== "true") return null;
   return {
-    schemaVersion: 2,
+    repository: environment.GITHUB_REPOSITORY ?? null,
+    repositoryId: environment.GITHUB_REPOSITORY_ID ?? null,
+    workflowRef: environment.GITHUB_WORKFLOW_REF ?? null,
+    workflowSha: environment.GITHUB_WORKFLOW_SHA ?? null,
+    runId: environment.GITHUB_RUN_ID ?? null,
+    runAttempt: environment.GITHUB_RUN_ATTEMPT ?? null,
+    sourceSha: environment.GITHUB_SHA ?? null,
+    eventName: environment.GITHUB_EVENT_NAME ?? null,
+  };
+}
+
+function pnpmEvidence(runtime) {
+  return {
+    packageManager: runtime.packageManager,
+    packageName: runtime.packageName,
+    packageVersion: runtime.packageVersion,
+    packageIntegrity: runtime.packageIntegrity,
+    packageTreeSha256: runtime.packageTreeSha256,
+    entrySha256: runtime.entrySha256,
+    launcher: {
+      packageName: runtime.launcher.packageName,
+      packageVersion: runtime.launcher.packageVersion,
+      entrySha256: runtime.launcher.entrySha256,
+      packageTreeSha256: runtime.launcher.packageTreeSha256,
+    },
+  };
+}
+
+function assertRuntimeBindings(environment, dockerRuntime) {
+  const runtimeErrors = validateControlledPnpmEnvironment(environment);
+  if (runtimeErrors.length > 0) {
+    throw new Error(runtimeErrors.join("; "));
+  }
+  assertEngineeringRcDockerBinding({
+    environment,
+    expected: dockerRuntime,
+  });
+}
+
+function initialEvidence(
+  runId,
+  artifactRoot,
+  pnpmRuntime,
+  dockerRuntime,
+  environment,
+) {
+  const commit = git(["rev-parse", "HEAD"], environment);
+  const clean =
+    git(["status", "--porcelain", "--untracked-files=all"], environment) === "";
+  return {
+    schemaVersion: 3,
     gate: ENGINEERING_RC_GATE,
     runId,
     startedAt: new Date().toISOString(),
     completedAt: null,
+    authorization: {
+      evidenceClass: "DIAGNOSTIC_ONLY",
+      releaseAuthority:
+        "REQUIRES_PROTECTED_CI_SUCCESS_AND_VERIFIED_GITHUB_ATTESTATION",
+      githubRun: githubRunProvenance(environment),
+    },
     source: {
       commit,
       commitEnd: null,
@@ -279,7 +274,9 @@ function initialEvidence(runId, artifactRoot, pnpmVersion, environment) {
     },
     tools: {
       node: process.versions.node,
-      pnpm: pnpmVersion,
+      pnpm: pnpmRuntime.packageVersion,
+      pnpmRuntime: pnpmEvidence(pnpmRuntime),
+      docker: dockerRuntime,
       platform: `${process.platform}-${process.arch}`,
       mobile: null,
     },
@@ -304,12 +301,13 @@ function initialEvidence(runId, artifactRoot, pnpmVersion, environment) {
     requiredStepIds: [...ENGINEERING_RC_REQUIRED_STEP_IDS],
     artifactRoot: path.relative(rootDir, artifactRoot).replaceAll("\\", "/"),
     steps: [],
-    verdict: "RUNNING",
+    executionResult: "RUNNING",
+    releaseGateEligible: false,
     validationErrors: [],
   };
 }
 
-export function runEngineeringRc() {
+export async function runEngineeringRc() {
   const planErrors = validateEngineeringRcPlan();
   if (planErrors.length > 0) throw new Error(planErrors.join("; "));
   if (process.versions.node !== ENGINEERING_RC_NODE_VERSION) {
@@ -317,16 +315,9 @@ export function runEngineeringRc() {
       `Engineering RC requires Node ${ENGINEERING_RC_NODE_VERSION}; found ${process.versions.node}`,
     );
   }
-  const pnpm = resolvePnpmInvocation();
-  const pnpmVersion = capture(pnpm.command, [...pnpm.prefix, "--version"]);
-  if (pnpmVersion !== ENGINEERING_RC_PNPM_VERSION) {
-    throw new Error(
-      `Engineering RC requires pnpm ${ENGINEERING_RC_PNPM_VERSION}; found ${pnpmVersion}`,
-    );
-  }
-
+  let gateEnvironment = createEngineeringRcEnvironment();
   const timestamp = new Date().toISOString().replaceAll(/[:.]/gu, "-");
-  const commit = git(["rev-parse", "HEAD"]);
+  const commit = git(["rev-parse", "HEAD"], gateEnvironment);
   const runId = `${timestamp}-${commit.slice(0, 12)}`;
   const artifactRoot = path.join(
     rootDir,
@@ -337,26 +328,64 @@ export function runEngineeringRc() {
   );
   fs.mkdirSync(artifactRoot, { recursive: true });
   const evidencePath = path.join(artifactRoot, "manifest.json");
-  let gateEnvironment = createEngineeringRcEnvironment();
+  const pnpm = resolveControlledPnpmInvocation({
+    root: rootDir,
+    environment: gateEnvironment,
+  });
+  gateEnvironment = createControlledPnpmEnvironment(
+    gateEnvironment,
+    pnpm,
+    { shimRoot: path.join(artifactRoot, "toolchain", "bin") },
+  );
+  const dockerRuntime = inspectEngineeringRcDocker({
+    environment: gateEnvironment,
+  });
+  gateEnvironment = bindEngineeringRcDockerEnvironment(
+    gateEnvironment,
+    dockerRuntime,
+  );
   const evidence = initialEvidence(
     runId,
     artifactRoot,
-    pnpmVersion,
+    pnpm.metadata,
+    dockerRuntime,
     gateEnvironment,
   );
   writeEvidence(evidencePath, evidence);
 
   if (!evidence.source.cleanBefore) {
-    evidence.verdict = "NO_GO";
+    evidence.executionResult = "FAIL";
     evidence.completedAt = new Date().toISOString();
     evidence.validationErrors = ["tracked worktree must be clean before the gate"];
     writeEvidence(evidencePath, evidence);
-    process.stderr.write("[engineering-rc] NO_GO tracked worktree is not clean\n");
+    process.stderr.write(
+      "[engineering-rc] FAIL tracked worktree is not clean\n",
+    );
     return { ok: false, evidencePath };
   }
 
   let failed = false;
   let simulationSigning;
+  let interruptedSignal;
+  const removeSigningAfterSignal = () => {
+    if (!simulationSigning) return;
+    try {
+      removeMobileSimulationSigning(simulationSigning.signingRoot);
+    } catch (error) {
+      failed = true;
+      evidence.validationErrors.push(safeError(error));
+    }
+  };
+  const handleSigint = () => {
+    interruptedSignal = "SIGINT";
+    removeSigningAfterSignal();
+  };
+  const handleSigterm = () => {
+    interruptedSignal = "SIGTERM";
+    removeSigningAfterSignal();
+  };
+  process.once("SIGINT", handleSigint);
+  process.once("SIGTERM", handleSigterm);
   try {
     simulationSigning = createMobileSimulationSigning({
       environment: gateEnvironment,
@@ -382,6 +411,9 @@ export function runEngineeringRc() {
     writeEvidence(evidencePath, evidence);
 
     for (const step of ENGINEERING_RC_STEPS) {
+      if (interruptedSignal) {
+        throw new Error(`engineering RC interrupted by ${interruptedSignal}`);
+      }
       const startedAt = new Date();
       const logPath = path.join(
         artifactRoot,
@@ -406,8 +438,12 @@ export function runEngineeringRc() {
       process.stdout.write(`\n[engineering-rc] START ${step.stage}/${step.id}\n`);
       const logHandle = fs.openSync(logPath, "w");
       let result;
+      let executionError;
       try {
-        result = spawnSync(pnpm.command, [...pnpm.prefix, ...step.args], {
+        assertRuntimeBindings(gateEnvironment, dockerRuntime);
+        result = await runEngineeringRcStep({
+          command: pnpm.command,
+          args: [...pnpm.prefix, ...step.args],
           cwd: rootDir,
           env: {
             ...gateEnvironment,
@@ -416,15 +452,27 @@ export function runEngineeringRc() {
               : {}),
           },
           stdio: ["ignore", logHandle, logHandle],
-          timeout: step.timeoutMs,
-          killSignal: "SIGTERM",
-          windowsHide: true,
+          timeoutMs: step.timeoutMs,
+          killGraceMs: 5_000,
         });
+        assertRuntimeBindings(gateEnvironment, dockerRuntime);
+      } catch (error) {
+        executionError = error;
       } finally {
         fs.closeSync(logHandle);
       }
-      let stepFailure = result?.error ? safeError(result.error) : null;
-      descriptor.exitCode = result?.status ?? (result?.error?.code === "ETIMEDOUT" ? 124 : 1);
+      let stepFailure = executionError
+        ? safeError(executionError)
+        : result?.error
+          ? safeError(result.error)
+          : null;
+      if (!stepFailure && result?.timedOut) {
+        stepFailure = "step exceeded its canonical timeout";
+      }
+      if (!stepFailure && result?.signal) {
+        stepFailure = `step interrupted by ${result.signal}`;
+      }
+      descriptor.exitCode = result?.exitCode ?? 1;
       if (!stepFailure && descriptor.exitCode === 0) {
         try {
           descriptor.artifacts = collectStructuredArtifacts(
@@ -460,11 +508,14 @@ export function runEngineeringRc() {
         break;
       }
     }
+    assertRuntimeBindings(gateEnvironment, dockerRuntime);
   } catch (error) {
     failed = true;
     evidence.validationErrors.push(safeError(error));
     process.stderr.write(`[engineering-rc] FAIL ${safeError(error)}\n`);
   } finally {
+    process.off("SIGINT", handleSigint);
+    process.off("SIGTERM", handleSigterm);
     if (simulationSigning) {
       try {
         removeMobileSimulationSigning(simulationSigning.signingRoot);
@@ -476,32 +527,39 @@ export function runEngineeringRc() {
   }
 
   evidence.completedAt = new Date().toISOString();
-  evidence.source.commitEnd = git(["rev-parse", "HEAD"]);
+  evidence.source.commitEnd = git(["rev-parse", "HEAD"], gateEnvironment);
   evidence.source.cleanAfter =
-    git(["status", "--porcelain", "--untracked-files=all"]) === "";
-  evidence.verdict = !failed
+    git(["status", "--porcelain", "--untracked-files=all"], gateEnvironment)
+    === "";
+  evidence.executionResult = !failed
     && evidence.steps.length === ENGINEERING_RC_STEPS.length
     && evidence.source.commitEnd === evidence.source.commit
     && evidence.source.cleanAfter
-    ? "GO"
-    : "NO_GO";
-  if (evidence.verdict === "GO") {
+    ? "PASS"
+    : "FAIL";
+  if (evidence.executionResult === "PASS") {
     evidence.validationErrors = validateEngineeringRcEvidence(evidence, {
       root: rootDir,
       verifyLogs: true,
     });
-    if (evidence.validationErrors.length > 0) evidence.verdict = "NO_GO";
+    if (evidence.validationErrors.length > 0) {
+      evidence.executionResult = "FAIL";
+    }
   }
   writeEvidence(evidencePath, evidence);
   process.stdout.write(
-    `[engineering-rc] ENGINEERING_RC_NON_TKE=${evidence.verdict}\n`,
+    `[engineering-rc] ENGINEERING_RC_EXECUTION=${evidence.executionResult}\n`,
   );
+  process.stdout.write(
+    "[engineering-rc] EVIDENCE_AUTHORIZATION=DIAGNOSTIC_ONLY\n",
+  );
+  process.stdout.write("[engineering-rc] RELEASE_GATE_ELIGIBLE=false\n");
   process.stdout.write("[engineering-rc] PRODUCTION_ACTIVATION=NOT_EVALUATED\n");
   process.stdout.write(`ENGINEERING_RC_EVIDENCE=${evidencePath}\n`);
-  return { ok: evidence.verdict === "GO", evidencePath };
+  return { ok: evidence.executionResult === "PASS", evidencePath };
 }
 
-function run() {
+async function run() {
   if (process.argv.includes("--list")) {
     process.stdout.write(`${JSON.stringify({
       gate: ENGINEERING_RC_GATE,
@@ -513,10 +571,10 @@ function run() {
     }, null, 2)}\n`);
     return;
   }
-  const result = runEngineeringRc();
+  const result = await runEngineeringRc();
   if (!result.ok) process.exitCode = 1;
 }
 
 const isMain = process.argv[1]
   && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url;
-if (isMain) run();
+if (isMain) await run();

@@ -5,6 +5,7 @@ export default defineConfig({
   testDir: "./tests/e2e",
   testMatch: "phase29-marketing-coupon.spec.ts",
   timeout: 240_000,
+  forbidOnly: true,
   expect: { timeout: 25_000 },
   fullyParallel: false,
   workers: 1,

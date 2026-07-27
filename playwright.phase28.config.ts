@@ -5,6 +5,7 @@ export default defineConfig({
   testDir: "./tests/e2e",
   testMatch: "phase28-review-reputation.spec.ts",
   timeout: 180_000,
+  forbidOnly: true,
   expect: { timeout: 20_000 },
   fullyParallel: false,
   workers: 1,

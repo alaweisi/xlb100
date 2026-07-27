@@ -6,13 +6,28 @@ import {
 import {
   assertMobileReleasePrerequisites,
 } from "./mobile-release-prerequisites.mjs";
+import {
+  ENGINEERING_RC_AUDIT_REGISTRY,
+  ENGINEERING_RC_CONTROLLED_NPM_CONFIG_NAMES,
+  inspectEngineeringRcDocker,
+  isForbiddenEngineeringRcControlName,
+  validateControlledPnpmEnvironment,
+} from "./engineering-rc-runtime.mjs";
 
 const forbiddenCredentialName = /(?:COS|PAYMENT|SMS|AMAP|GAODE|WECHAT|ALIPAY|TENCENT).*(?:SECRET|KEY|TOKEN|CREDENTIAL|FILE|BUCKET|REGION)/iu;
+const controlledRuntimeNames = new Set([
+  "npm_execpath",
+  "npm_node_execpath",
+  ...ENGINEERING_RC_CONTROLLED_NPM_CONFIG_NAMES.map((name) =>
+    name.toLowerCase()),
+]);
 
 export function validateEngineeringRcEnvironment(
   environment = process.env,
   {
     mobileCheck = assertMobileReleasePrerequisites,
+    dockerCheck = inspectEngineeringRcDocker,
+    runtimeCheck = validateControlledPnpmEnvironment,
   } = {},
 ) {
   const errors = [];
@@ -25,12 +40,28 @@ export function validateEngineeringRcEnvironment(
   }
   for (const name of Object.keys(environment)) {
     if (
+      isForbiddenEngineeringRcControlName(name)
+      && !controlledRuntimeNames.has(name.toLowerCase())
+    ) {
+      errors.push(`${name} is a forbidden engineering RC control variable`);
+    }
+    if (
       forbiddenCredentialName.test(name)
       && environment[name]?.trim()
       && name !== "PAYMENT_MOCK_WEBHOOK_SECRET"
     ) {
       errors.push(`${name} must not enter the engineering RC environment`);
     }
+  }
+  if (
+    environment.DOCKER_CONTEXT
+      !== environment.XLB_ENGINEERING_RC_DOCKER_CONTEXT
+    || !environment.DOCKER_CONTEXT
+  ) {
+    errors.push("DOCKER_CONTEXT must be fixed by the engineering RC preflight");
+  }
+  if (environment.XLB_AUDIT_REGISTRY !== ENGINEERING_RC_AUDIT_REGISTRY) {
+    errors.push("dependency audit registry must use the canonical npm registry");
   }
   if (
     environment.NODE_ENV !== "test"
@@ -53,6 +84,19 @@ export function validateEngineeringRcEnvironment(
   ) {
     errors.push("the base RC environment must keep the payment webhook disabled");
   }
+  errors.push(...runtimeCheck(environment));
+  let docker;
+  try {
+    docker = dockerCheck({ environment });
+    if (
+      docker.context !== environment.XLB_ENGINEERING_RC_DOCKER_CONTEXT
+      || docker.endpoint !== environment.XLB_ENGINEERING_RC_DOCKER_ENDPOINT
+    ) {
+      errors.push("Docker context evidence does not match the fixed RC daemon");
+    }
+  } catch (error) {
+    errors.push(error instanceof Error ? error.message : String(error));
+  }
   let mobile;
   try {
     mobile = mobileCheck({ environment });
@@ -68,7 +112,7 @@ export function validateEngineeringRcEnvironment(
   } catch (error) {
     errors.push(error instanceof Error ? error.message : String(error));
   }
-  return { errors, mobile };
+  return { errors, mobile, docker };
 }
 
 function run() {
@@ -86,6 +130,7 @@ function run() {
     localRedis: "127.0.0.1",
     realProviderExecution: false,
     tkeExecuted: false,
+    docker: result.docker,
     mobile: result.mobile,
   }, null, 2)}\n`);
 }

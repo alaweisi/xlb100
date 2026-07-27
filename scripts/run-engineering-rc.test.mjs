@@ -29,6 +29,19 @@ function workflowTriggerBlock(workflow) {
   return body.join("\n").trim();
 }
 
+function workflowJobBlock(workflow, jobId) {
+  const lines = workflow.replaceAll("\r\n", "\n").split("\n");
+  const start = lines.findIndex((line) => line === `  ${jobId}:`);
+  assert.notEqual(start, -1, `workflow must declare job ${jobId}`);
+  const body = [lines[start]];
+  for (let index = start + 1; index < lines.length; index += 1) {
+    const line = lines[index];
+    if (/^ {2}[A-Za-z0-9_-]+:\s*$/u.test(line)) break;
+    body.push(line);
+  }
+  return body.join("\n");
+}
+
 test("engineering RC plan is exact, complete, bounded, and excludes TKE", () => {
   assert.deepEqual(validateEngineeringRcPlan(), []);
   assert.deepEqual(ENGINEERING_RC_EXCLUSIONS, [
@@ -52,6 +65,24 @@ test("engineering RC plan is exact, complete, bounded, and excludes TKE", () => 
   assert.ok(
     validateEngineeringRcPlan(substituted).some((error) =>
       error.includes("must match canonical step environment-preflight")),
+  );
+});
+
+test("engineering RC executes each bounded step through process-tree cleanup", () => {
+  const runner = fs.readFileSync(
+    path.join(rootDir, "scripts", "run-engineering-rc.mjs"),
+    "utf8",
+  );
+  assert.match(runner, /export async function runEngineeringRc\(\)/u);
+  assert.match(runner, /await runEngineeringRcStep\(\{/u);
+  assert.match(runner, /timeoutMs:\s*step\.timeoutMs/u);
+  assert.match(runner, /killGraceMs:\s*5_000/u);
+  assert.match(runner, /process\.once\("SIGINT", handleSigint\)/u);
+  assert.match(runner, /process\.off\("SIGINT", handleSigint\)/u);
+  assert.match(runner, /assertRuntimeBindings\(gateEnvironment, dockerRuntime\)/u);
+  assert.doesNotMatch(
+    runner,
+    /spawnSync\(pnpm\.command,\s*\[\.\.\.pnpm\.prefix,\s*\.\.\.step\.args\]/u,
   );
 });
 
@@ -129,7 +160,7 @@ test("Phase 28 callback is test-only and Stage 4B browser mode cannot select Pro
   );
 });
 
-test("RC browser configs bind loopback, reject stale servers, and emit JSON evidence", () => {
+test("RC test configs reject focused tests, bind loopback, reject stale servers, and emit JSON evidence", () => {
   for (const name of [
     "playwright.config.ts",
     "playwright.phase27.config.ts",
@@ -139,12 +170,18 @@ test("RC browser configs bind loopback, reject stale servers, and emit JSON evid
     "playwright.dashboard.config.ts",
   ]) {
     const config = fs.readFileSync(path.join(rootDir, name), "utf8");
+    assert.match(config, /forbidOnly:\s*true/u);
     assert.doesNotMatch(config, /reuseExistingServer:\s*true/u);
     assert.match(config, /engineeringReporter/u);
     if (config.includes("@xlb/backend")) {
       assert.match(config, /BACKEND_HOST=127\.0\.0\.1/u);
     }
   }
+  const vitestConfig = fs.readFileSync(
+    path.join(rootDir, "vitest.config.ts"),
+    "utf8",
+  );
+  assert.match(vitestConfig, /allowOnly:\s*false/u);
 });
 
 test("main CI executes the unique canonical gate with the pinned toolchain", () => {
@@ -159,6 +196,43 @@ test("main CI executes the unique canonical gate with the pinned toolchain", () 
   assert.match(workflow, /run: pnpm gate:engineering-rc/u);
   assert.match(workflow, /if: always\(\)/u);
   assert.match(workflow, /\.artifacts\/engineering-rc\//u);
+  assert.match(workflow, /^ {2}engineering_rc:\s*$/mu);
+  assert.match(workflow, /name: Engineering RC \(non-TKE\)/u);
+  assert.match(workflow, /include-hidden-files:\s*true/u);
+  assert.match(workflow, /if-no-files-found:\s*error/u);
+  assert.match(
+    workflow,
+    /engineering-rc-\$\{\{ github\.repository_id \}\}-\$\{\{ github\.run_id \}\}-\$\{\{ github\.run_attempt \}\}-\$\{\{ github\.sha \}\}/u,
+  );
+  assert.match(workflow, /^ {2}attest:\s*$/mu);
+  assert.match(workflow, /name: Engineering RC provenance/u);
+  assert.match(workflow, /needs: engineering_rc/u);
+  assert.match(
+    workflow,
+    /if: github\.event_name == 'push' && github\.ref == 'refs\/heads\/main'/u,
+  );
+  assert.match(workflow, /id-token:\s*write/u);
+  assert.match(workflow, /attestations:\s*write/u);
+  assert.match(
+    workflow,
+    /uses: actions\/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c/u,
+  );
+  assert.match(
+    workflow,
+    /uses: actions\/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6/u,
+  );
+  assert.match(
+    workflow,
+    /subject-path: \.attestation-input\/\*\*\/manifest\.json/u,
+  );
+  const engineeringJob = workflowJobBlock(workflow, "engineering_rc");
+  const attestationJob = workflowJobBlock(workflow, "attest");
+  assert.doesNotMatch(engineeringJob, /id-token:\s*write/u);
+  assert.doesNotMatch(engineeringJob, /attestations:\s*write/u);
+  assert.match(attestationJob, /needs:\s*engineering_rc/u);
+  assert.match(attestationJob, /actions:\s*read/u);
+  assert.match(attestationJob, /contents:\s*read/u);
+  assert.doesNotMatch(attestationJob, /actions\/checkout@/u);
 });
 
 test("only canonical CI and the scoped TKE delivery line auto-trigger", () => {
@@ -226,7 +300,24 @@ test("non-TKE regression, zero-warning lint, and cross-platform PowerShell are c
   const lintStep = ENGINEERING_RC_STEPS.find((step) => step.id === "lint");
   assert.deepEqual(
     lintStep.args,
-    ["lint", "--", "--force", "--", "--max-warnings=0"],
+    [
+      "exec",
+      "--",
+      "turbo",
+      "run",
+      "lint",
+      "--force",
+      "--",
+      "--max-warnings=0",
+    ],
+  );
+  assert.deepEqual(
+    ENGINEERING_RC_STEPS.find((step) => step.id === "typecheck").args,
+    ["exec", "--", "turbo", "run", "typecheck", "--force"],
+  );
+  assert.deepEqual(
+    ENGINEERING_RC_STEPS.find((step) => step.id === "build").args,
+    ["exec", "--", "turbo", "run", "build", "--force"],
   );
   for (const scriptName of [
     "check:migration:runtime",

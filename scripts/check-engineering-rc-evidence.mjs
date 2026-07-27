@@ -12,6 +12,14 @@ import {
   ENGINEERING_RC_REQUIRED_STEP_IDS,
   ENGINEERING_RC_STEPS,
 } from "./engineering-rc-contract.mjs";
+import {
+  ENGINEERING_RC_COREPACK_RUNTIME_PINS,
+  ENGINEERING_RC_LOCAL_MYSQL_CONTAINER,
+  ENGINEERING_RC_LOCAL_REDIS_CONTAINER,
+  ENGINEERING_RC_PACKAGE_MANAGER,
+  ENGINEERING_RC_PNPM_RUNTIME_PINS,
+  isLocalDockerEndpoint,
+} from "./engineering-rc-runtime.mjs";
 
 function sha256File(filePath) {
   return createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
@@ -37,6 +45,20 @@ function isInside(parent, candidate) {
 
 function parseJsonFile(filePath) {
   return JSON.parse(fs.readFileSync(filePath, "utf8").replace(/^\uFEFF/u, ""));
+}
+
+function githubRunFromEnvironment(environment = process.env) {
+  if (environment.GITHUB_ACTIONS !== "true") return null;
+  return {
+    repository: environment.GITHUB_REPOSITORY ?? null,
+    repositoryId: environment.GITHUB_REPOSITORY_ID ?? null,
+    workflowRef: environment.GITHUB_WORKFLOW_REF ?? null,
+    workflowSha: environment.GITHUB_WORKFLOW_SHA ?? null,
+    runId: environment.GITHUB_RUN_ID ?? null,
+    runAttempt: environment.GITHUB_RUN_ATTEMPT ?? null,
+    sourceSha: environment.GITHUB_SHA ?? null,
+    eventName: environment.GITHUB_EVENT_NAME ?? null,
+  };
 }
 
 function validateStage4aArtifact(payload, evidence, errors) {
@@ -241,14 +263,44 @@ export function validateEngineeringRcEvidence(
     currentLockfileSha256 = sha256File(path.join(root, "pnpm-lock.yaml")),
     currentClean =
       captureGit(root, ["status", "--porcelain", "--untracked-files=all"]) === "",
+    currentGithubRun = githubRunFromEnvironment(),
     now = new Date(),
-    maximumAgeMs = 24 * 60 * 60 * 1000,
+    maximumAgeMs = 15 * 60 * 1000,
   } = {},
 ) {
   const errors = [];
-  if (evidence?.schemaVersion !== 2) errors.push("schemaVersion must be 2");
+  if (evidence?.schemaVersion !== 3) errors.push("schemaVersion must be 3");
   if (evidence?.gate !== ENGINEERING_RC_GATE) {
     errors.push(`gate must be ${ENGINEERING_RC_GATE}`);
+  }
+  if (
+    evidence?.authorization?.evidenceClass !== "DIAGNOSTIC_ONLY"
+    || evidence?.authorization?.releaseAuthority
+      !== "REQUIRES_PROTECTED_CI_SUCCESS_AND_VERIFIED_GITHUB_ATTESTATION"
+  ) {
+    errors.push("local evidence must not claim independent release authority");
+  }
+  const githubRun = evidence?.authorization?.githubRun;
+  if (githubRun !== null && githubRun !== undefined) {
+    if (
+      !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u.test(githubRun.repository ?? "")
+      || !/^[1-9][0-9]*$/u.test(githubRun.repositoryId ?? "")
+      || typeof githubRun.workflowRef !== "string"
+      || githubRun.workflowRef.length === 0
+      || !/^[a-f0-9]{40}$/u.test(githubRun.workflowSha ?? "")
+      || !/^[1-9][0-9]*$/u.test(githubRun.runId ?? "")
+      || !/^[1-9][0-9]*$/u.test(githubRun.runAttempt ?? "")
+      || githubRun.sourceSha !== evidence?.source?.commit
+      || !["push", "pull_request"].includes(githubRun.eventName)
+    ) {
+      errors.push("GitHub run provenance is incomplete or not bound to the source commit");
+    }
+  }
+  if (
+    currentGithubRun !== null
+    && JSON.stringify(githubRun) !== JSON.stringify(currentGithubRun)
+  ) {
+    errors.push("evidence is not bound to the current GitHub Actions run");
   }
   if (!/^[a-f0-9]{40}$/u.test(evidence?.source?.commit ?? "")) {
     errors.push("source.commit must be a full Git SHA");
@@ -273,6 +325,78 @@ export function validateEngineeringRcEvidence(
     || evidence?.tools?.pnpm !== ENGINEERING_RC_PNPM_VERSION
   ) {
     errors.push("Node or pnpm version does not match the canonical RC toolchain");
+  }
+  const pnpmRuntime = evidence?.tools?.pnpmRuntime;
+  if (
+    pnpmRuntime?.packageManager !== ENGINEERING_RC_PACKAGE_MANAGER
+    || pnpmRuntime?.packageName !== "pnpm"
+    || pnpmRuntime?.packageVersion !== ENGINEERING_RC_PNPM_VERSION
+    || pnpmRuntime?.packageIntegrity
+      !== ENGINEERING_RC_PNPM_RUNTIME_PINS.integrity
+    || pnpmRuntime?.entrySha256
+      !== ENGINEERING_RC_PNPM_RUNTIME_PINS.entrySha256
+    || pnpmRuntime?.packageTreeSha256
+      !== ENGINEERING_RC_PNPM_RUNTIME_PINS.packageTreeSha256
+    || pnpmRuntime?.launcher?.packageName !== "corepack"
+    || pnpmRuntime?.launcher?.packageVersion
+      !== ENGINEERING_RC_COREPACK_RUNTIME_PINS.version
+    || pnpmRuntime?.launcher?.entrySha256
+      !== ENGINEERING_RC_COREPACK_RUNTIME_PINS.entrySha256
+    || pnpmRuntime?.launcher?.packageTreeSha256
+      !== ENGINEERING_RC_COREPACK_RUNTIME_PINS.packageTreeSha256
+  ) {
+    errors.push("pnpm runtime evidence does not match the pinned RC toolchain");
+  }
+  const dockerRuntime = evidence?.tools?.docker;
+  const localRun = githubRun === null || githubRun === undefined;
+  const validContainer = (container, expectedImage, containerPort, hostPort) =>
+    container?.image === expectedImage
+    && /^[a-f0-9]{64}$/u.test(container?.id ?? "")
+    && /^sha256:[a-f0-9]{64}$/u.test(container?.imageId ?? "")
+    && (
+      container?.manifestDigest === null
+      || /^sha256:[a-f0-9]{64}$/u.test(container?.manifestDigest ?? "")
+    )
+    && container?.running === true
+    && container?.healthy === true
+    && container?.privileged === false
+    && container?.networkMode !== "host"
+    && container?.port?.container === `${containerPort}/tcp`
+    && container?.port?.host === hostPort
+    && Array.isArray(container?.port?.bindings)
+    && container.port.bindings.length > 0
+    && container.port.bindings.every((binding) =>
+      binding?.hostPort === hostPort
+      && ["", "0.0.0.0", "::", "127.0.0.1", "::1"]
+        .includes(binding?.hostIp ?? ""));
+  if (
+    !/^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/u.test(
+      dockerRuntime?.context ?? "",
+    )
+    || !isLocalDockerEndpoint(dockerRuntime?.endpoint)
+    || !validContainer(
+      dockerRuntime?.containers?.mysql,
+      "mysql:8",
+      "3306",
+      evidence?.scope?.database?.port,
+    )
+    || !validContainer(
+      dockerRuntime?.containers?.redis,
+      "redis:7",
+      "6379",
+      evidence?.scope?.redis?.port,
+    )
+    || (
+      localRun
+      && (
+        dockerRuntime?.containers?.mysql?.name
+          !== ENGINEERING_RC_LOCAL_MYSQL_CONTAINER
+        || dockerRuntime?.containers?.redis?.name
+          !== ENGINEERING_RC_LOCAL_REDIS_CONTAINER
+      )
+    )
+  ) {
+    errors.push("Docker runtime evidence does not prove canonical local containers");
   }
   if (
     evidence?.tools?.mobile?.signingClass !== "simulation"
@@ -395,7 +519,12 @@ export function validateEngineeringRcEvidence(
       errors,
     );
   }
-  if (evidence?.verdict !== "GO") errors.push("verdict must be GO");
+  if (evidence?.executionResult !== "PASS") {
+    errors.push("executionResult must be PASS");
+  }
+  if (evidence?.releaseGateEligible !== false) {
+    errors.push("diagnostic evidence must not be release-gate eligible");
+  }
   return errors;
 }
 
@@ -416,7 +545,10 @@ function run() {
     process.exitCode = 1;
     return;
   }
-  process.stdout.write(`[engineering-rc] PASS evidence=${absolute}\n`);
+  process.stdout.write(
+    `[engineering-rc] PASS diagnostic-evidence=${absolute}\n`
+      + "[engineering-rc] RELEASE_AUTHORIZATION=REQUIRES_PROTECTED_CI_SUCCESS_AND_VERIFIED_GITHUB_ATTESTATION\n",
+  );
 }
 
 const isMain = process.argv[1]

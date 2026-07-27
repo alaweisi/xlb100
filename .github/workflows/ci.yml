@@ -13,7 +13,8 @@ on:
   pull_request:
 
 jobs:
-  ci:
+  engineering_rc:
+    name: Engineering RC (non-TKE)
     runs-on: ubuntu-latest
     timeout-minutes: 120
     services:
@@ -102,7 +103,30 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: engineering-rc-${{ github.sha }}
+          name: engineering-rc-${{ github.repository_id }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.sha }}
           path: .artifacts/engineering-rc/
-          if-no-files-found: ignore
+          include-hidden-files: true
+          if-no-files-found: error
           retention-days: 30
+
+  attest:
+    name: Engineering RC provenance
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: engineering_rc
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - name: Download successful engineering RC evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: engineering-rc-${{ github.repository_id }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.sha }}
+          path: .attestation-input
+
+      - name: Attest engineering RC manifest
+        uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6 # v4.2.0
+        with:
+          subject-path: .attestation-input/**/manifest.json

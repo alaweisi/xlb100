@@ -5,6 +5,7 @@ export default defineConfig({
   testDir: "./tests/e2e",
   testMatch: "dashboard-wallboard.spec.ts",
   timeout: 60_000,
+  forbidOnly: true,
   fullyParallel: false,
   workers: 1,
   reporter: engineeringReporter(),
