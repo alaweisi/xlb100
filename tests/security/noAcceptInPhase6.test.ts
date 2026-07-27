@@ -1,17 +1,14 @@
 import { describe, it, expect } from "vitest";
-import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { runPowerShellGate } from "./helpers/runPowerShellGate.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
 
 describe("noAcceptInPhase6", () => {
   it("gate script passes", () => {
-    execSync(
-      `powershell -NoProfile -ExecutionPolicy Bypass -File "${join(root, "scripts", "check-certification-no-accept.ps1")}"`,
-      { encoding: "utf-8" },
-    );
+    runPowerShellGate("check-certification-no-accept.ps1");
   });
 
   it("no accept route in compliance module", () => {

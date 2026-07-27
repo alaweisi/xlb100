@@ -166,6 +166,61 @@ test("locked historical phase gates never fall back to the current HEAD", () => 
   }
 });
 
+test("active tests and governance hooks use cross-platform PowerShell invocation", () => {
+  const trackedTests = spawnSync("git", ["ls-files", "tests"], {
+    cwd: rootDir,
+    encoding: "utf8",
+  });
+  assert.equal(trackedTests.status, 0);
+  const barePowerShell =
+    /(?:["'`]powershell(?:\.exe)?\s+-NoProfile|(?:execSync|execFile|execFileSync|spawn|spawnSync|run)\s*\(\s*["'`]powershell(?:\.exe)?(?:\s|["'`]))/iu;
+  const offenders = trackedTests.stdout
+    .split(/\r?\n/u)
+    .filter((file) => /\.(?:ts|tsx|js|mjs|cjs)$/u.test(file))
+    .filter((file) =>
+      barePowerShell.test(fs.readFileSync(path.join(rootDir, file), "utf8")),
+    );
+  assert.deepEqual(offenders, []);
+
+  const leanRisk = fs.readFileSync(
+    path.join(rootDir, "scripts", "check-lean-risk.ps1"),
+    "utf8",
+  );
+  assert.doesNotMatch(leanRisk, /&\s+powershell(?:\.exe)?\b/iu);
+});
+
+test("Linux mobile release wrappers are executable in Git", () => {
+  const wrappers = [
+    "apps/admin-mobile/android/gradlew",
+    "apps/customer-mobile/android/gradlew",
+    "apps/worker-mobile/android/gradlew",
+  ];
+  const trackedWrappers = spawnSync(
+    "git",
+    ["ls-files", "--stage", "--", ...wrappers],
+    {
+      cwd: rootDir,
+      encoding: "utf8",
+    },
+  );
+  assert.equal(trackedWrappers.status, 0);
+  const modes = new Map(
+    trackedWrappers.stdout
+      .trim()
+      .split(/\r?\n/u)
+      .filter(Boolean)
+      .map((line) => {
+        const match = /^(?<mode>\d{6})\s+\S+\s+\d+\t(?<file>.+)$/u.exec(line);
+        assert.ok(match?.groups, `unexpected git index entry: ${line}`);
+        return [match.groups.file, match.groups.mode];
+      }),
+  );
+  assert.deepEqual(
+    wrappers.map((file) => [file, modes.get(file)]),
+    wrappers.map((file) => [file, "100755"]),
+  );
+});
+
 test("deployment Dockerfiles use the canonical Node version", () => {
   const nodeVersion = fs
     .readFileSync(path.join(rootDir, ".node-version"), "utf8")
@@ -485,4 +540,31 @@ test("non-TKE regression, zero-warning lint, and cross-platform PowerShell are c
   ]) {
     assert.match(manifest.scripts[scriptName], /node scripts\/run-powershell\.mjs/u);
   }
+  assert.deepEqual(
+    {
+      "test:boundary:phase24": manifest.scripts["test:boundary:phase24"],
+      "test:boundary:phase24d": manifest.scripts["test:boundary:phase24d"],
+      "test:boundary:phase24e": manifest.scripts["test:boundary:phase24e"],
+    },
+    {
+      "test:boundary:phase24":
+        "node scripts/run-powershell.mjs scripts/check-phase24-completion-boundaries.ps1",
+      "test:boundary:phase24d":
+        "node scripts/run-powershell.mjs scripts/check-phase24d-boundaries.ps1",
+      "test:boundary:phase24e":
+        "node scripts/run-powershell.mjs scripts/check-phase24e-boundaries.ps1",
+    },
+  );
+  const phase24fRunner = fs.readFileSync(
+    path.join(rootDir, "scripts", "run-phase24f-gates.mjs"),
+    "utf8",
+  );
+  assert.match(
+    phase24fRunner,
+    /run\s*\(\s*["']node["']\s*,\s*\[\s*["']scripts\/run-powershell\.mjs["']\s*,\s*["']scripts\/check-phase24f-boundaries\.ps1["']/u,
+  );
+  assert.doesNotMatch(
+    phase24fRunner,
+    /(?:spawnSync|run)\(\s*["']powershell(?:\.exe)?["']/iu,
+  );
 });

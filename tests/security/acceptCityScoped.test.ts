@@ -1,17 +1,14 @@
 import { describe, it, expect } from "vitest";
-import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { runPowerShellGate } from "./helpers/runPowerShellGate.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
 
 describe("acceptCityScoped", () => {
   it("gate script check-accept-city-scoped.ps1 passes", () => {
-    execSync(
-      `powershell -NoProfile -ExecutionPolicy Bypass -File "${join(root, "scripts", "check-accept-city-scoped.ps1")}"`,
-      { encoding: "utf-8" },
-    );
+    runPowerShellGate("check-accept-city-scoped.ps1");
   });
 
   it("accept repository queries include city_code scope", () => {

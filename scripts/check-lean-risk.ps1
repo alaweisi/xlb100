@@ -110,7 +110,7 @@ if ($hits.Count -eq 0) {
 if (@($hits | Where-Object Rule -eq "MIGRATION").Count -gt 0) {
   $migrationCheck = Join-Path $Root "scripts/check-migration-integrity.ps1"
   if (-not (Test-Path -LiteralPath $migrationCheck -PathType Leaf)) { throw "migration integrity checker is missing" }
-  & powershell -NoProfile -ExecutionPolicy Bypass -File $migrationCheck -DiffMode $DiffMode
+  & $migrationCheck -DiffMode $DiffMode
   if ($LASTEXITCODE -ne 0) { throw "migration integrity check failed" }
 }
 

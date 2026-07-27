@@ -9,6 +9,7 @@ type CommandResult = { status: number; output: string };
 const repositoryRoot = process.cwd();
 const fixturePrefix = resolve(tmpdir(), "xlb-lean-governance-");
 const disposableRoots: string[] = [];
+const powerShellCommand = process.platform === "win32" ? "powershell" : "pwsh";
 
 function run(command: string, args: string[], cwd: string): CommandResult {
   const result = spawnSync(command, args, { cwd, encoding: "utf8", windowsHide: true });
@@ -23,7 +24,7 @@ function git(root: string, ...args: string[]): CommandResult {
 }
 
 function powershell(root: string, ...args: string[]): CommandResult {
-  return run("powershell", ["-NoProfile", "-ExecutionPolicy", "Bypass", ...args], root);
+  return run(powerShellCommand, ["-NoProfile", "-ExecutionPolicy", "Bypass", ...args], root);
 }
 
 function write(root: string, relativePath: string, content: string): void {

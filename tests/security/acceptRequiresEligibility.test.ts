@@ -1,9 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { execSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
-
-const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
+import { describe, it } from "vitest";
+import { runPowerShellGate } from "./helpers/runPowerShellGate.js";
 
 const scripts = [
   "check-accept-requires-eligibility.ps1",
@@ -16,10 +12,7 @@ const scripts = [
 describe("Phase 7A gate scripts", () => {
   for (const script of scripts) {
     it(`${script} passes`, () => {
-      execSync(
-        `powershell -NoProfile -ExecutionPolicy Bypass -File "${join(root, "scripts", script)}"`,
-        { encoding: "utf-8" },
-      );
+      runPowerShellGate(script);
     });
   }
 });
