@@ -61,4 +61,17 @@ describe("PowerShell gate tracked paths", () => {
 
     expect(mismatches).toEqual([]);
   });
+
+  it("constructs absolute file URIs portably", () => {
+    const nonPortable: string[] = [];
+
+    for (const file of powerShellFiles(join(process.cwd(), "scripts"))) {
+      const content = readFileSync(file, "utf8");
+      if (/\(\[System\.Uri\]\$[A-Za-z]\w*\)\.AbsoluteUri/u.test(content)) {
+        nonPortable.push(relative(process.cwd(), file).replaceAll("\\", "/"));
+      }
+    }
+
+    expect(nonPortable).toEqual([]);
+  });
 });

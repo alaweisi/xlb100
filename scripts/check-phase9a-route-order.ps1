@@ -15,7 +15,7 @@ if (-not (Test-Path $appFile)) {
 }
 
 if ($failures.Count -eq 0) {
-  $appUri = ([System.Uri]$appFile).AbsoluteUri
+  $appUri = ([System.Uri]::new($appFile, [System.UriKind]::Absolute)).AbsoluteUri
   $runtimeCheck = @'
 const { buildApp } = await import("__APP_URI__");
 

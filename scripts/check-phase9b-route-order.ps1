@@ -23,8 +23,8 @@ if (-not (Test-Path $tsxCommand)) {
 }
 
 if ($failures.Count -eq 0) {
-  $appUri = ([System.Uri]$appFile).AbsoluteUri
-  $tokenUri = ([System.Uri]$tokenFile).AbsoluteUri
+  $appUri = ([System.Uri]::new($appFile, [System.UriKind]::Absolute)).AbsoluteUri
+  $tokenUri = ([System.Uri]::new($tokenFile, [System.UriKind]::Absolute)).AbsoluteUri
   $runtimeCheck = @'
 const { buildApp } = await import("__APP_URI__");
 const { createToken } = await import("__TOKEN_URI__");
