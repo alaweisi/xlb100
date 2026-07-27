@@ -38,10 +38,12 @@ function createRuntimeFixture(t) {
   const corepackHome = path.join(fixtureRoot, "corepack-home");
   const packageRoot = path.join(corepackHome, "v1", "pnpm", "9.15.0");
   const pnpmEntry = path.join(packageRoot, "bin", "pnpm.cjs");
+  const nodeGypBin = path.join(packageRoot, "dist", "node-gyp-bin");
   fs.mkdirSync(repositoryRoot, { recursive: true });
   fs.mkdirSync(path.dirname(nodePath), { recursive: true });
   fs.mkdirSync(path.dirname(corepackEntry), { recursive: true });
   fs.mkdirSync(path.dirname(pnpmEntry), { recursive: true });
+  fs.mkdirSync(nodeGypBin, { recursive: true });
   fs.writeFileSync(nodePath, "fixture node", "utf8");
   fs.writeFileSync(corepackEntry, "fixture corepack", "utf8");
   fs.writeFileSync(pnpmEntry, "fixture pnpm", "utf8");
@@ -88,6 +90,7 @@ function createRuntimeFixture(t) {
     corepackHome,
     packageRoot,
     pnpmEntry,
+    nodeGypBin,
     pins,
     corepackPins,
     calls,
@@ -388,6 +391,46 @@ test("controlled pnpm environment pins nested pnpm to a verified shim", (t) => {
       corepackPins: fixture.corepackPins,
     }),
     [],
+  );
+  const workspaceBin = path.join(
+    fixture.repositoryRoot,
+    "node_modules",
+    ".bin",
+  );
+  fs.mkdirSync(workspaceBin, { recursive: true });
+  const scriptEnvironment = {
+    ...environment,
+    PATH: [
+      "./node_modules/.bin",
+      workspaceBin,
+      fixture.nodeGypBin,
+      environment.PATH,
+    ].join(path.delimiter),
+    npm_config_frozen_lockfile: "",
+  };
+  assert.deepEqual(
+    validateControlledPnpmEnvironment(scriptEnvironment, {
+      pins: fixture.pins,
+      corepackPins: fixture.corepackPins,
+    }),
+    [],
+  );
+  fs.writeFileSync(path.join(workspaceBin, "pnpm.cmd"), "attacker", "utf8");
+  assert.ok(
+    validateControlledPnpmEnvironment(scriptEnvironment, {
+      pins: fixture.pins,
+      corepackPins: fixture.corepackPins,
+    }).includes("workspace bin directories must not shadow pnpm or pnpx"),
+  );
+  fs.unlinkSync(path.join(workspaceBin, "pnpm.cmd"));
+  assert.ok(
+    validateControlledPnpmEnvironment({
+      ...scriptEnvironment,
+      npm_config_frozen_lockfile: "attacker",
+    }, {
+      pins: fixture.pins,
+      corepackPins: fixture.corepackPins,
+    }).some((error) => error.includes("frozen-lockfile propagation")),
   );
   fs.appendFileSync(fixture.pnpmEntry, "\ntampered\n", "utf8");
   assert.ok(

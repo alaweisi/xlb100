@@ -18,6 +18,7 @@ const forbiddenCredentialName = /(?:COS|PAYMENT|SMS|AMAP|GAODE|WECHAT|ALIPAY|TEN
 const controlledRuntimeNames = new Set([
   "npm_execpath",
   "npm_node_execpath",
+  "npm_config_frozen_lockfile",
   ...ENGINEERING_RC_CONTROLLED_NPM_CONFIG_NAMES.map((name) =>
     name.toLowerCase()),
 ]);

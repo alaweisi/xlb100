@@ -582,6 +582,7 @@ export function resolveControlledPnpmInvocation({
     command: nodePath,
     prefix: [entryPath],
     metadata: {
+      repositoryRoot: fs.realpathSync.native(root),
       packageManager: ENGINEERING_RC_PACKAGE_MANAGER,
       packageName: manifest.name,
       packageVersion: manifest.version,
@@ -683,6 +684,8 @@ export function createControlledPnpmEnvironment(
     NPM_CONFIG_USERCONFIG: userConfigPath,
     NPM_CONFIG_VERIFY_STORE_INTEGRITY: "true",
     XLB_ENGINEERING_RC_NODE_ENTRY: nodePath,
+    XLB_ENGINEERING_RC_REPOSITORY_ROOT:
+      runtime.metadata.repositoryRoot,
     XLB_ENGINEERING_RC_PNPM_ENTRY: entryPath,
     XLB_ENGINEERING_RC_PNPM_ENTRY_SHA256:
       runtime.metadata.entrySha256,
@@ -752,6 +755,18 @@ export function validateControlledPnpmEnvironment(
   checkExact("NPM_CONFIG_STRICT_SSL", "true");
   checkExact("NPM_CONFIG_VERIFY_STORE_INTEGRITY", "true");
   checkExact("NPM_CONFIG_IGNORE_SCRIPTS", "false");
+  const frozenLockfile = sourceValue(
+    environment,
+    "npm_config_frozen_lockfile",
+  );
+  if (
+    frozenLockfile !== undefined
+    && !["", "true", "false"].includes(frozenLockfile)
+  ) {
+    errors.push(
+      `pnpm script frozen-lockfile propagation is invalid: ${JSON.stringify(frozenLockfile)}`,
+    );
+  }
 
   try {
     const nodePath = realFile(
@@ -806,12 +821,61 @@ export function validateControlledPnpmEnvironment(
       errors.push("controlled Corepack runtime is invalid");
     }
 
+    const repositoryRoot = fs.realpathSync.native(
+      environment.XLB_ENGINEERING_RC_REPOSITORY_ROOT,
+    );
+    if (!fs.statSync(repositoryRoot).isDirectory()) {
+      errors.push("controlled repository root is not a directory");
+    }
     const shimRoot = fs.realpathSync.native(
       environment.XLB_ENGINEERING_RC_PNPM_SHIM_ROOT,
     );
-    const firstPath = String(environment.PATH ?? "").split(path.delimiter)[0];
-    if (fs.realpathSync.native(firstPath) !== shimRoot) {
-      errors.push("controlled pnpm shim must be first on PATH");
+    const pathEntries = String(environment.PATH ?? "")
+      .split(path.delimiter)
+      .filter(Boolean);
+    const resolvePathEntry = (entry) => {
+      const absolute = path.isAbsolute(entry)
+        ? entry
+        : path.resolve(repositoryRoot, entry);
+      return fs.realpathSync.native(absolute);
+    };
+    const shimIndex = pathEntries.findIndex((entry) => {
+      try {
+        return resolvePathEntry(entry) === shimRoot;
+      } catch {
+        return false;
+      }
+    });
+    if (shimIndex < 0) {
+      errors.push("controlled pnpm shim is missing from PATH");
+    } else {
+      for (const entry of pathEntries.slice(0, shimIndex)) {
+        const prefix = resolvePathEntry(entry);
+        const relative = path.relative(repositoryRoot, prefix);
+        const packageRelative = path.relative(packageRoot, prefix);
+        const workspaceBin =
+          pathInsideOrEqual(repositoryRoot, prefix)
+          && /(?:^|[\\/])node_modules[\\/]\.bin$/u.test(relative);
+        const pinnedNodeGypBin =
+          pathInsideOrEqual(packageRoot, prefix)
+          && /^dist[\\/]node-gyp-bin$/u.test(packageRelative);
+        if (
+          !workspaceBin
+          && !pinnedNodeGypBin
+        ) {
+          errors.push(
+            `only workspace node_modules/.bin or pinned pnpm node-gyp-bin may precede the pnpm shim; found ${prefix}`,
+          );
+          break;
+        }
+        if (
+          ["pnpm", "pnpm.cmd", "pnpm.exe", "pnpx", "pnpx.cmd", "pnpx.exe"]
+            .some((name) => fs.existsSync(path.join(prefix, name)))
+        ) {
+          errors.push("workspace bin directories must not shadow pnpm or pnpx");
+          break;
+        }
+      }
     }
     const shimName = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
     if (
