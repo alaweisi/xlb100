@@ -121,7 +121,7 @@ function fixture(t) {
           },
         },
       },
-      platform: "win32-x64",
+      platform: `${process.platform}-${process.arch}`,
       mobile: {
         signingClass: "simulation",
         reports: ["customer", "worker", "admin"].map((role) => ({
