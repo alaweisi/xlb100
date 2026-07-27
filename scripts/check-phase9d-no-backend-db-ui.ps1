@@ -17,11 +17,6 @@ $tokenFile = Join-Path $Root "backend\src\auth\tokenAuth.ts"
 if (-not (Test-Path $tokenFile)) {
   Add-Failure "missing backend token auth file: $tokenFile"
 }
-$tsxCommand = Join-Path $Root "backend\node_modules\.bin\tsx.cmd"
-if (-not (Test-Path $tsxCommand)) {
-  Add-Failure "missing backend tsx command: $tsxCommand"
-}
-
 if ($failures.Count -eq 0) {
   $appUri = ([System.Uri]::new($appFile, [System.UriKind]::Absolute)).AbsoluteUri
   $tokenUri = ([System.Uri]::new($tokenFile, [System.UriKind]::Absolute)).AbsoluteUri
@@ -169,7 +164,7 @@ process.exit(0);
   $previousErrorActionPreference = $ErrorActionPreference
   $ErrorActionPreference = "Continue"
   try {
-    $runtimeOutput = & $tsxCommand $runtimeFile 2>&1
+    $runtimeOutput = & pnpm --filter "@xlb/backend" exec tsx $runtimeFile 2>&1
     $runtimeExit = $LASTEXITCODE
     if ($runtimeExit -ne 0) {
       Add-Failure "Fastify runtime system/UI behavior check failed"

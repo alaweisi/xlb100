@@ -74,4 +74,45 @@ describe("PowerShell gate tracked paths", () => {
 
     expect(nonPortable).toEqual([]);
   });
+
+  it("does not invoke Windows-only node command shims", () => {
+    const nonPortable: string[] = [];
+
+    for (const file of powerShellFiles(join(process.cwd(), "scripts"))) {
+      const content = readFileSync(file, "utf8");
+      if (/node_modules[\\/]\.bin[\\/][^"'\\\s]+\.cmd/u.test(content)) {
+        nonPortable.push(relative(process.cwd(), file).replaceAll("\\", "/"));
+      }
+    }
+
+    expect(nonPortable).toEqual([]);
+  });
+
+  it("uses the cross-platform system temp path API", () => {
+    const nonPortable: string[] = [];
+
+    for (const file of powerShellFiles(join(process.cwd(), "scripts"))) {
+      const content = readFileSync(file, "utf8");
+      if (/\$env:TEMP\b/u.test(content)) {
+        nonPortable.push(relative(process.cwd(), file).replaceAll("\\", "/"));
+      }
+    }
+
+    expect(nonPortable).toEqual([]);
+  });
+
+  it("does not resolve bare workspace imports from a system temp runner", () => {
+    const nonPortable: string[] = [];
+    const systemTempRunner =
+      /\$RunnerPath\s*=\s*Join-Path\s+(?:\$env:TEMP|\(\[System\.IO\.Path\]::GetTempPath\(\)\))/u;
+
+    for (const file of powerShellFiles(join(process.cwd(), "scripts"))) {
+      const content = readFileSync(file, "utf8");
+      if (/import\(["']@xlb\//u.test(content) && systemTempRunner.test(content)) {
+        nonPortable.push(relative(process.cwd(), file).replaceAll("\\", "/"));
+      }
+    }
+
+    expect(nonPortable).toEqual([]);
+  });
 });

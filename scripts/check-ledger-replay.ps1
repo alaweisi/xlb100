@@ -2,7 +2,7 @@ $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 $BackendRoot = Join-Path $Root "backend"
 $Marker = "XLB_LEDGER_REPLAY_RESULT "
-$RunnerPath = Join-Path $env:TEMP "xlb-ledger-replay-$([Guid]::NewGuid().ToString('N')).mts"
+$RunnerPath = Join-Path $BackendRoot ".xlb-ledger-replay-$([Guid]::NewGuid().ToString('N')).mts"
 
 $runner = @'
 import { pathToFileURL } from "node:url";

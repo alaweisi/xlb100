@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Stop"
 # self-test
-$fixtureDir = Join-Path $env:TEMP ("p12-exp-" + [Guid]::NewGuid().ToString("N").Substring(0,8))
+$fixtureDir = Join-Path ([System.IO.Path]::GetTempPath()) ("p12-exp-" + [Guid]::NewGuid().ToString("N").Substring(0,8))
 New-Item -ItemType Directory -Path $fixtureDir -Force | Out-Null
 try {
   $f = Join-Path $fixtureDir "bad.ts"

@@ -6,7 +6,7 @@ $ErrorActionPreference = "Stop"
 # ══════════════════════════════════════════════════════════════════
 # unsafe_fixtures — self-test: verify gate rejects ledger/refund mutations
 # ══════════════════════════════════════════════════════════════════
-$fixtureDir = Join-Path $env:TEMP "phase12-fixture-$([Guid]::NewGuid().ToString('N').Substring(0,8))"
+$fixtureDir = Join-Path ([System.IO.Path]::GetTempPath()) "phase12-fixture-$([Guid]::NewGuid().ToString('N').Substring(0,8))"
 New-Item -ItemType Directory -Path $fixtureDir -Force | Out-Null
 try {
   $fixtureFile = Join-Path $fixtureDir "bad-mutation.ts"

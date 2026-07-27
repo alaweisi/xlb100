@@ -3,7 +3,7 @@ $Root = Split-Path -Parent $PSScriptRoot
 $BackendRoot = Join-Path $Root "backend"
 $RepoRoot = ($Root -replace "\\", "/")
 $Marker = "XLB_LEDGER_IMMUTABILITY_RESULT "
-$RunnerPath = Join-Path $env:TEMP "xlb-ledger-immutability-$([Guid]::NewGuid().ToString('N')).mts"
+$RunnerPath = Join-Path $BackendRoot ".xlb-ledger-immutability-$([Guid]::NewGuid().ToString('N')).mts"
 
 $runner = @'
 import { pathToFileURL } from "node:url";

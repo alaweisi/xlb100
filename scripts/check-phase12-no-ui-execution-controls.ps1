@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Stop"
 # self-test
-$d = Join-Path $env:TEMP ("p12-ui-" + [Guid]::NewGuid().ToString("N").Substring(0,8))
+$d = Join-Path ([System.IO.Path]::GetTempPath()) ("p12-ui-" + [Guid]::NewGuid().ToString("N").Substring(0,8))
 New-Item -ItemType Directory -Path $d -Force | Out-Null
 try {
   $f = Join-Path $d "bad.tsx"
