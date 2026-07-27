@@ -2,9 +2,9 @@
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 
-$repoFile = Join-Path $Root "backend\src\settlement\ReconciliationGapScanRepository.ts"
+$repoFile = Join-Path $Root "backend\src\settlement\reconciliationGapScanRepository.ts"
 if (-not (Test-Path $repoFile)) {
-  Write-Host "check-phase8l-city-scope: FAILED - ReconciliationGapScanRepository.ts missing"
+  Write-Host "check-phase8l-city-scope: FAILED - reconciliationGapScanRepository.ts missing"
   exit 1
 }
 

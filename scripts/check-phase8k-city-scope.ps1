@@ -2,9 +2,9 @@
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 
-$repoFile = Join-Path $Root "backend\src\settlement\SettlementAuditSummaryRepository.ts"
+$repoFile = Join-Path $Root "backend\src\settlement\settlementAuditSummaryRepository.ts"
 if (-not (Test-Path $repoFile)) {
-  Write-Host "check-phase8k-city-scope: FAILED - SettlementAuditSummaryRepository.ts missing"
+  Write-Host "check-phase8k-city-scope: FAILED - settlementAuditSummaryRepository.ts missing"
   exit 1
 }
 
