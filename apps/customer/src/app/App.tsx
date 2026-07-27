@@ -3,7 +3,6 @@ import type { CatalogSnapshot, CityCode } from "@xlb/types";
 import type { CustomerOrderCreatePageProps } from "../pages/CustomerOrderCreatePage";
 import type { CustomerOrdersPageProps } from "../pages/CustomerOrdersPage";
 import type { CustomerCouponsPageProps } from "../pages/CustomerCouponsPage";
-import type { CustomerSupportApi } from "../pages/CustomerSupportPage";
 import {
   appendOrderId,
   clearStoredCustomerSession,
@@ -20,6 +19,7 @@ import {
   type CustomerSession,
   writeCustomerCityCode,
 } from "../pages/customerPageShell";
+import { useCustomerSupportApi } from "./useCustomerSupportApi";
 
 const CustomerHomePage = lazy(() => import("../pages/CustomerHomePage").then((module) => ({ default: module.CustomerHomePage })));
 const CustomerOrderCreatePage = lazy(() => import("../pages/CustomerOrderCreatePage").then((module) => ({ default: module.CustomerOrderCreatePage })));
@@ -173,6 +173,7 @@ export function App() {
     createReviewAppeal: (reviewId, payload) => api.createReviewAppeal(reviewId, payload),
     withdrawReviewAppeal: (reviewId, payload) => api.withdrawReviewAppeal(reviewId, payload),
   };
+  const supportApi = useCustomerSupportApi(api);
 
   if (!session) {
     const requesting = authStatus === "requesting";
@@ -263,18 +264,6 @@ export function App() {
   }
 
   if (currentRoute === "support") {
-    const supportApi: CustomerSupportApi = {
-      createTicket: (input) => api.createSupportTicket(input),
-      listTickets: (filters) => api.listSupportTickets(filters),
-      getTicket: (ticketId) => api.getSupportTicket(ticketId),
-      addComment: (ticketId, input) => api.addSupportTicketComment(ticketId, input),
-      reopenTicket: (ticketId, input) => api.reopenSupportTicket(ticketId, input),
-      submitCsat: (ticketId,input) => api.submitSupportTicketCsat(ticketId,input),
-      createConversation: (input) => api.createSupportConversation(input),
-      listConversations: () => api.listSupportConversations(),
-      getConversation: (conversationId) => api.getSupportConversation(conversationId),
-      sendConversationMessage: (conversationId, input) => api.sendSupportMessage(conversationId, input),
-    };
     return <CustomerSupportPage api={supportApi} />;
   }
 

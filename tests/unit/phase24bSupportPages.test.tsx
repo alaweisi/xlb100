@@ -90,6 +90,69 @@ describe("Phase 24B support pages", () => {
     expect(screen.queryByText("Support ticket created")).toBeNull();
   });
 
+  it("Customer keeps a confirmed create notice after an older list refresh finishes", async () => {
+    let confirmCreate!: (value: { ok: true; ticket: SupportTicket }) => void;
+    let finishLateList!: (
+      value: { ok: true; tickets: SupportTicket[]; nextCursor: null },
+    ) => void;
+    const createTicket = vi.fn(
+      () =>
+        new Promise<{ ok: true; ticket: SupportTicket }>((resolve) => {
+          confirmCreate = resolve;
+        }),
+    );
+    const initialApi = {
+      createTicket,
+      listTickets: vi
+        .fn()
+        .mockResolvedValue({ ok: true, tickets: [ticket()], nextCursor: null }),
+      getTicket: vi.fn().mockResolvedValue(detail()),
+      addComment: vi.fn(),
+      reopenTicket: vi.fn(),
+    };
+    const lateApi = {
+      ...initialApi,
+      listTickets: vi.fn(
+        () =>
+          new Promise<{
+            ok: true;
+            tickets: SupportTicket[];
+            nextCursor: null;
+          }>((resolve) => {
+            finishLateList = resolve;
+          }),
+      ),
+    };
+    const view = render(<CustomerSupportPage api={initialApi} />);
+    await waitFor(() => expect(initialApi.listTickets).toHaveBeenCalledTimes(1));
+    fireEvent.change(screen.getByLabelText("Subject"), {
+      target: { value: "Concurrent refresh" },
+    });
+    fireEvent.change(screen.getByLabelText("Description"), {
+      target: { value: "The confirmed notice must survive a late list response" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Submit issue" }));
+    await waitFor(() => expect(createTicket).toHaveBeenCalledTimes(1));
+
+    view.rerender(<CustomerSupportPage api={lateApi} />);
+    await waitFor(() => expect(lateApi.listTickets).toHaveBeenCalledTimes(1));
+    confirmCreate({ ok: true, ticket: ticket() });
+    expect(await screen.findByText("Support ticket created")).toBeTruthy();
+
+    finishLateList({
+      ok: true,
+      tickets: [
+        ticket({
+          ticketId: "ticket-late-refresh",
+          subject: "Late refresh applied",
+        }),
+      ],
+      nextCursor: null,
+    });
+    expect(await screen.findByText("Late refresh applied")).toBeTruthy();
+    expect(screen.getByText("Support ticket created")).toBeTruthy();
+  });
+
   it("Worker opens its ticket and sends a requester-visible message through the API", async () => {
     const workerTicket = ticket({ source: "worker", requesterId: "worker-demo-hangzhou", type: "withdrawal_issue", subject: "Withdrawal delayed" });
     const api = {

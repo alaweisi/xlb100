@@ -8,6 +8,12 @@ export const initialSupportUiState: SupportUiState = { busy: null, error: null, 
 export function supportUiReducer(state: SupportUiState, action: SupportUiAction): SupportUiState {
   if (action.type === "started") return { busy: action.operation, error: null, notice: null };
   if (action.type === "failed") return { busy: null, error: action.message, notice: null };
-  if (action.type === "succeeded") return { busy: null, error: null, notice: action.message ?? null };
+  if (action.type === "succeeded") {
+    return {
+      busy: null,
+      error: null,
+      notice: action.message ?? state.notice,
+    };
+  }
   return { ...state, notice: null };
 }

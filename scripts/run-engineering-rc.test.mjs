@@ -14,6 +14,7 @@ import {
 } from "./engineering-rc-contract.mjs";
 import {
   STAGE4B_API_STEPS,
+  createStage4bPlaywrightEnvironment,
   selectStage4bSteps,
 } from "./run-stage4b-e2e.mjs";
 
@@ -182,6 +183,28 @@ test("Phase 28 callback is test-only and Stage 4B browser mode cannot select Pro
   assert.equal(
     STAGE4B_API_STEPS.some((step) => step.id === "provider-readiness"),
     true,
+  );
+});
+
+test("Stage 4B adds a report id only when Playwright evidence is enabled", () => {
+  assert.deepEqual(
+    createStage4bPlaywrightEnvironment({ NODE_ENV: "test" }, 0, "smoke"),
+    { NODE_ENV: "test" },
+  );
+  assert.deepEqual(
+    createStage4bPlaywrightEnvironment(
+      {
+        NODE_ENV: "test",
+        XLB_PLAYWRIGHT_EVIDENCE_DIR: "evidence",
+      },
+      1,
+      "support",
+    ),
+    {
+      NODE_ENV: "test",
+      XLB_PLAYWRIGHT_EVIDENCE_DIR: "evidence",
+      XLB_PLAYWRIGHT_REPORT_ID: "stage4b-02-support",
+    },
   );
 });
 

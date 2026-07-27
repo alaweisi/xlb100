@@ -82,6 +82,24 @@ export function selectStage4bSteps({ apiOnly = false, browserOnly = false } = {}
       : [...STAGE4B_API_STEPS, ...STAGE4B_BROWSER_STEPS];
 }
 
+export function createStage4bPlaywrightEnvironment(
+  environment,
+  index,
+  stepId,
+) {
+  const evidenceDirectory =
+    environment.XLB_PLAYWRIGHT_EVIDENCE_DIR?.trim() ?? "";
+  const parentReportId =
+    environment.XLB_PLAYWRIGHT_REPORT_ID?.trim() ?? "";
+  if (!evidenceDirectory && !parentReportId) return { ...environment };
+
+  return {
+    ...environment,
+    XLB_PLAYWRIGHT_REPORT_ID:
+      `${parentReportId || "stage4b"}-${String(index + 1).padStart(2, "0")}-${stepId}`,
+  };
+}
+
 export function runStage4b(argumentsList = process.argv.slice(2)) {
   const apiOnly = argumentsList.includes("--api-only");
   const browserOnly = argumentsList.includes("--browser-only");
@@ -90,15 +108,9 @@ export function runStage4b(argumentsList = process.argv.slice(2)) {
   for (let index = 0; index < steps.length; index += 1) {
     const step = steps[index];
     process.stdout.write(`\n[stage4b] ${step.name}\n`);
-    const parentReportId =
-      process.env.XLB_PLAYWRIGHT_REPORT_ID?.trim() || "stage4b";
     const result = spawnSync(pnpm.command, [...pnpm.prefix, ...step.args], {
       cwd: process.cwd(),
-      env: {
-        ...process.env,
-        XLB_PLAYWRIGHT_REPORT_ID:
-          `${parentReportId}-${String(index + 1).padStart(2, "0")}-${step.id}`,
-      },
+      env: createStage4bPlaywrightEnvironment(process.env, index, step.id),
       stdio: "inherit",
       windowsHide: true,
     });
