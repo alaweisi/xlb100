@@ -89,7 +89,12 @@ export const ENGINEERING_RC_STEPS = Object.freeze([
   ),
   step("dependency-audit", "static", ["audit:critical"], 600_000),
   step("local-database-migrate", "data", ["db:migrate"], 600_000),
-  step("local-database-seed", "data", ["db:seed"], 600_000),
+  step(
+    "local-database-seed",
+    "data",
+    ["db:seed:engineering-rc"],
+    600_000,
+  ),
   step(
     "full-regression-non-tke",
     "runtime",

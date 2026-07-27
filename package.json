@@ -6,6 +6,7 @@
   "scripts": {
     "db:migrate": "pnpm --filter @xlb/backend exec tsx src/dal/migrateCli.ts",
     "db:seed": "pnpm --filter @xlb/backend exec tsx src/dal/seedCli.ts",
+    "db:seed:engineering-rc": "pnpm db:seed && node scripts/run-powershell.mjs scripts/check-ledger-replay.ps1 && node scripts/run-powershell.mjs scripts/check-ledger-immutability.ps1",
     "db:migrate:local": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/migrate-local.ps1",
     "db:migrate:staging": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/migrate-staging.ps1",
     "oa:bootstrap": "tsx scripts/bootstrap-oa.ts",

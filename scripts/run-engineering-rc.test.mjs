@@ -72,6 +72,37 @@ test("engineering RC plan is exact, complete, bounded, and excludes TKE", () => 
   );
 });
 
+test("engineering RC runs database-backed ledger proofs only after migration and seed", () => {
+  const migrateIndex = ENGINEERING_RC_STEPS.findIndex(
+    (step) => step.id === "local-database-migrate",
+  );
+  const seedIndex = ENGINEERING_RC_STEPS.findIndex(
+    (step) => step.id === "local-database-seed",
+  );
+  assert.ok(migrateIndex >= 0);
+  assert.equal(seedIndex, migrateIndex + 1);
+  assert.deepEqual(ENGINEERING_RC_STEPS[seedIndex].args, [
+    "db:seed:engineering-rc",
+  ]);
+
+  const manifest = JSON.parse(
+    fs.readFileSync(path.join(rootDir, "package.json"), "utf8"),
+  );
+  const command = manifest.scripts["db:seed:engineering-rc"];
+  assert.match(command, /^pnpm db:seed\b/u);
+  assert.match(command, /check-ledger-replay\.ps1/u);
+  assert.match(command, /check-ledger-immutability\.ps1/u);
+
+  const architecturePreflight = fs.readFileSync(
+    path.join(rootDir, "scripts", "preflight-architecture.ps1"),
+    "utf8",
+  );
+  assert.doesNotMatch(
+    architecturePreflight,
+    /Invoke-PreflightGate "check-ledger-(?:replay|immutability)\.ps1"/u,
+  );
+});
+
 test("deployment Dockerfiles use the canonical Node version", () => {
   const nodeVersion = fs
     .readFileSync(path.join(rootDir, ".node-version"), "utf8")
