@@ -7,6 +7,7 @@ import {
   phase29Fixture,
   setupPhase29MarketingFixture,
 } from "./helpers/phase29MarketingFixture.js";
+import { temporarilyEnrollDemoWorkerPhone } from "./helpers/demoWorkerPhoneFixture.js";
 
 const backend = "http://127.0.0.1:3190";
 const customerApp = "http://127.0.0.1:5393";
@@ -14,6 +15,7 @@ const workerApp = "http://127.0.0.1:5394";
 const adminApp = "http://127.0.0.1:5395";
 
 type Session = { token: string; userId: string; role: string };
+let restoreDemoWorkerPhone: (() => Promise<void>) | undefined;
 
 function headers(session: Session) {
   return { Authorization: `Bearer ${session.token}`, "x-xlb-city-code": phase29Fixture.cityCode };
@@ -85,10 +87,15 @@ async function assertNoHorizontalOverflow(page: Page): Promise<void> {
 
 test.beforeAll(async () => {
   await setupPhase29MarketingFixture();
+  restoreDemoWorkerPhone = await temporarilyEnrollDemoWorkerPhone();
 });
 
 test.afterAll(async () => {
-  await cleanupPhase29MarketingFixture();
+  try {
+    await restoreDemoWorkerPhone?.();
+  } finally {
+    await cleanupPhase29MarketingFixture();
+  }
 });
 
 test("real Marketing governance, Customer coupon Order, Admin trace and Worker no-change smoke", async ({ page, browser }) => {

@@ -1,5 +1,16 @@
 import { expect,test } from "@playwright/test";
 import type { Page } from "@playwright/test";
+import { temporarilyEnrollDemoWorkerPhone } from "./helpers/demoWorkerPhoneFixture.js";
+
+let restoreDemoWorkerPhone: (() => Promise<void>) | undefined;
+
+test.beforeAll(async () => {
+  restoreDemoWorkerPhone = await temporarilyEnrollDemoWorkerPhone();
+});
+
+test.afterAll(async () => {
+  await restoreDemoWorkerPhone?.();
+});
 
 async function assertNoPageErrors(page: Page) {
   const errors:string[]=[];

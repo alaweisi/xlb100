@@ -1,4 +1,15 @@
 import { expect, test } from "@playwright/test";
+import { temporarilyEnrollDemoWorkerPhone } from "./helpers/demoWorkerPhoneFixture.js";
+
+let restoreDemoWorkerPhone: (() => Promise<void>) | undefined;
+
+test.beforeAll(async () => {
+  restoreDemoWorkerPhone = await temporarilyEnrollDemoWorkerPhone();
+});
+
+test.afterAll(async () => {
+  await restoreDemoWorkerPhone?.();
+});
 
 async function customerSession(page: import("@playwright/test").Page) {
   const request = await page.request.post("http://localhost:3100/api/auth/customer/code", { data: { phone: "13800000001" } });

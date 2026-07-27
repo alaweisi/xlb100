@@ -7,6 +7,59 @@ function adminHeaders(token: string) {
   return { Authorization: `Bearer ${token}`, "x-xlb-city-code": "hangzhou" };
 }
 
+async function ensureSafetyRoutingGroup(page: Page, session: { token: string }) {
+  const headers = adminHeaders(session.token);
+  const listed = await page.request.get(
+    `${backend}/api/internal/support/skill-groups?limit=100`,
+    { headers },
+  );
+  expect(listed.ok()).toBeTruthy();
+  const groups = (await listed.json()).skillGroups as Array<{
+    skillGroupId: string;
+    matchedTypes: string[];
+    matchedLanguages: string[];
+    isActive: boolean;
+    version: number;
+  }>;
+  const existing = groups.find((group) =>
+    group.matchedTypes.includes("safety") && group.matchedLanguages.length === 0);
+  if (existing?.isActive) return existing.skillGroupId;
+
+  if (existing) {
+    const activated = await page.request.patch(
+      `${backend}/api/internal/support/skill-groups/${existing.skillGroupId}`,
+      {
+        headers,
+        data: {
+          isActive: true,
+          expectedVersion: existing.version,
+          idempotencyKey: "phase24b-safety-routing-reactivate",
+        },
+      },
+    );
+    expect(activated.ok()).toBeTruthy();
+    return existing.skillGroupId;
+  }
+
+  const created = await page.request.post(
+    `${backend}/api/internal/support/skill-groups`,
+    {
+      headers,
+      data: {
+        name: "Phase24B safety routing",
+        matchedTypes: ["safety"],
+        matchedLanguages: [],
+        priorityWeight: 1000,
+        isDefault: false,
+        isActive: true,
+        idempotencyKey: "phase24b-safety-routing-create",
+      },
+    },
+  );
+  expect(created.ok()).toBeTruthy();
+  return (await created.json()).skillGroup.skillGroupId as string;
+}
+
 async function ensureAssignableAgent(page: Page, session: { token: string; userId: string }, skillGroupId: string) {
   const headers = adminHeaders(session.token);
   const listed = await page.request.get(
@@ -109,6 +162,7 @@ test("Customer creates, Admin resolves, and Customer reads the same persisted su
   const subject = `Phase24B browser ${Date.now()}`;
   await customerLogin(page);
   const adminSession = await adminLogin(page);
+  await ensureSafetyRoutingGroup(page, adminSession);
 
   await page.goto("http://localhost:5273/customer/support?cityCode=hangzhou");
   await expect(page.getByRole("heading", { name: "Customer Support" })).toBeVisible();

@@ -214,6 +214,7 @@ export function Card({ title, actions, style, children, ...props }: CardProps) {
           borderRadius: radius,
           boxShadow: shadow,
           fontFamily,
+          minWidth: 0,
           padding: tokens.spacing.md,
         },
         style,
