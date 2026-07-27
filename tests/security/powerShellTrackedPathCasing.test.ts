@@ -138,4 +138,16 @@ describe("PowerShell gate tracked paths", () => {
 
     expect(nonPortable).toEqual([]);
   });
+
+  it("keeps the pre-migration Phase 9D gate database-independent", () => {
+    const content = readFileSync(
+      join(process.cwd(), "scripts/check-phase9d-no-backend-db-ui.ps1"),
+      "utf8",
+    );
+
+    expect(content).toContain("operatorHeadersWithoutCity");
+    expect(content).toContain("expectCityScopedRoute");
+    expect(content).not.toContain("expectOkJson");
+    expect(content).not.toContain("expected: [200]");
+  });
 });

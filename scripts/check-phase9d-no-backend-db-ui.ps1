@@ -38,6 +38,11 @@ const operatorHeaders = {
   "x-xlb-trace-id": "phase9d-gate-operator",
 };
 
+const operatorHeadersWithoutCity = {
+  authorization: operatorHeaders.authorization,
+  "x-xlb-trace-id": "phase9d-gate-missing-city",
+};
+
 const failures = [];
 
 async function expectStatus({ label, method, url, headers, payload, expected }) {
@@ -51,23 +56,14 @@ async function expectStatus({ label, method, url, headers, payload, expected }) 
   return response;
 }
 
-async function expectOkJson({ label, url }) {
-  const response = await expectStatus({
+async function expectCityScopedRoute({ label, url }) {
+  await expectStatus({
     label,
     method: "GET",
     url,
-    headers: operatorHeaders,
-    expected: [200],
+    headers: operatorHeadersWithoutCity,
+    expected: [400],
   });
-
-  try {
-    const body = JSON.parse(response.body);
-    if (body?.ok !== true) {
-      failures.push(`${label}: expected JSON body with ok=true`);
-    }
-  } catch {
-    failures.push(`${label}: response was not valid JSON`);
-  }
 }
 
 await expectStatus({
@@ -95,8 +91,8 @@ await expectStatus({
   expected: [400],
 });
 
-await expectOkJson({
-  label: "dispatch task route returns read model",
+await expectCityScopedRoute({
+  label: "dispatch task route enforces city scope before database access",
   url: "/api/dispatch/tasks",
 });
 
@@ -108,8 +104,8 @@ await expectStatus({
   expected: [403],
 });
 
-await expectOkJson({
-  label: "ledger accrual endpoint returns read model",
+await expectCityScopedRoute({
+  label: "ledger accrual route enforces city scope before database access",
   url: "/api/internal/ledger/accruals",
 });
 
@@ -121,28 +117,28 @@ await expectStatus({
   expected: [403],
 });
 
-await expectOkJson({
-  label: "UI statement audit API returns valid response",
+await expectCityScopedRoute({
+  label: "UI statement audit route enforces city scope before database access",
   url: "/api/internal/settlement/worker-statement-audit?limit=1",
 });
 
-await expectOkJson({
-  label: "UI export audit API returns valid response",
+await expectCityScopedRoute({
+  label: "UI export audit route enforces city scope before database access",
   url: "/api/internal/settlement/worker-statement-export-audit?limit=1",
 });
 
-await expectOkJson({
-  label: "UI review summary API returns valid response",
+await expectCityScopedRoute({
+  label: "UI review summary route enforces city scope before database access",
   url: "/api/internal/settlement/worker-statement-review-summary",
 });
 
-await expectOkJson({
-  label: "UI settlement audit summary API returns valid response",
+await expectCityScopedRoute({
+  label: "UI settlement audit summary route enforces city scope before database access",
   url: "/api/internal/settlement/settlement-audit-summary",
 });
 
-await expectOkJson({
-  label: "UI reconciliation gap scan API returns valid response",
+await expectCityScopedRoute({
+  label: "UI reconciliation gap scan route enforces city scope before database access",
   url: "/api/internal/settlement/reconciliation-gap-scan",
 });
 
