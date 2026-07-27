@@ -10,6 +10,9 @@ import {
   validateEngineeringRcPlan,
 } from "./run-engineering-rc.mjs";
 import {
+  ENGINEERING_RC_NODE_VERSION,
+} from "./engineering-rc-contract.mjs";
+import {
   STAGE4B_API_STEPS,
   selectStage4bSteps,
 } from "./run-stage4b-e2e.mjs";
@@ -66,6 +69,28 @@ test("engineering RC plan is exact, complete, bounded, and excludes TKE", () => 
     validateEngineeringRcPlan(substituted).some((error) =>
       error.includes("must match canonical step environment-preflight")),
   );
+});
+
+test("deployment Dockerfiles use the canonical Node version", () => {
+  const nodeVersion = fs
+    .readFileSync(path.join(rootDir, ".node-version"), "utf8")
+    .trim();
+  assert.equal(nodeVersion, ENGINEERING_RC_NODE_VERSION);
+
+  for (const fileName of ["Dockerfile.backend", "Dockerfile.frontend"]) {
+    const dockerfile = fs.readFileSync(
+      path.join(rootDir, "infra", "docker", fileName),
+      "utf8",
+    );
+    const baseImages = [...dockerfile.matchAll(/^FROM node:([^\s]+).*$/gmu)]
+      .map((match) => match[1]);
+    assert.ok(baseImages.length > 0, `${fileName} must use a Node base image`);
+    assert.deepEqual(
+      [...new Set(baseImages)],
+      [`${ENGINEERING_RC_NODE_VERSION}-alpine`],
+      `${fileName} must match the canonical Node version`,
+    );
+  }
 });
 
 test("engineering RC executes each bounded step through process-tree cleanup", () => {
