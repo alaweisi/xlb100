@@ -16,6 +16,7 @@ import {
 } from "./engineering-rc-contract.mjs";
 import {
   ENGINEERING_RC_COREPACK_RUNTIME_PINS,
+  ENGINEERING_RC_COREPACK_RUNTIME_PINS_BY_PLATFORM,
   ENGINEERING_RC_LOCAL_MYSQL_CONTAINER,
   ENGINEERING_RC_LOCAL_REDIS_CONTAINER,
   ENGINEERING_RC_PACKAGE_MANAGER,
@@ -307,6 +308,36 @@ test("engineering RC evidence binds optional GitHub provenance to the source com
   assert.ok(
     validate(current).includes(
       "GitHub run provenance is incomplete or not bound to the source commit",
+    ),
+  );
+});
+
+test("engineering RC evidence accepts only pinned Linux Corepack for GitHub", (t) => {
+  const current = fixture(t);
+  const linuxPins = ENGINEERING_RC_COREPACK_RUNTIME_PINS_BY_PLATFORM.linux;
+  current.evidence.authorization.githubRun = {
+    repository: "owner/repository",
+    repositoryId: "12345",
+    workflowRef: "owner/repository/.github/workflows/ci.yml@refs/heads/main",
+    workflowSha: "b".repeat(40),
+    runId: "12345",
+    runAttempt: "1",
+    sourceSha: current.commit,
+    eventName: "push",
+  };
+  current.evidence.tools.platform = "linux-x64";
+  current.evidence.tools.pnpmRuntime.launcher = {
+    packageName: "corepack",
+    packageVersion: linuxPins.version,
+    entrySha256: linuxPins.entrySha256,
+    packageTreeSha256: linuxPins.packageTreeSha256,
+  };
+  assert.deepEqual(validate(current), []);
+
+  current.evidence.tools.platform = "win32-x64";
+  assert.ok(
+    validate(current).includes(
+      "toolchain platform does not match the evidence origin",
     ),
   );
 });

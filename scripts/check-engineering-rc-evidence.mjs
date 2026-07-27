@@ -13,7 +13,7 @@ import {
   ENGINEERING_RC_STEPS,
 } from "./engineering-rc-contract.mjs";
 import {
-  ENGINEERING_RC_COREPACK_RUNTIME_PINS,
+  ENGINEERING_RC_COREPACK_RUNTIME_PINS_BY_PLATFORM,
   ENGINEERING_RC_LOCAL_MYSQL_CONTAINER,
   ENGINEERING_RC_LOCAL_REDIS_CONTAINER,
   ENGINEERING_RC_PACKAGE_MANAGER,
@@ -326,6 +326,17 @@ export function validateEngineeringRcEvidence(
   ) {
     errors.push("Node or pnpm version does not match the canonical RC toolchain");
   }
+  const localRun = githubRun === null || githubRun === undefined;
+  const expectedPlatform = localRun
+    ? `${process.platform}-${process.arch}`
+    : "linux-x64";
+  if (evidence?.tools?.platform !== expectedPlatform) {
+    errors.push("toolchain platform does not match the evidence origin");
+  }
+  const corepackPlatform = String(evidence?.tools?.platform ?? "")
+    .split("-", 1)[0];
+  const corepackPins =
+    ENGINEERING_RC_COREPACK_RUNTIME_PINS_BY_PLATFORM[corepackPlatform];
   const pnpmRuntime = evidence?.tools?.pnpmRuntime;
   if (
     pnpmRuntime?.packageManager !== ENGINEERING_RC_PACKAGE_MANAGER
@@ -338,17 +349,17 @@ export function validateEngineeringRcEvidence(
     || pnpmRuntime?.packageTreeSha256
       !== ENGINEERING_RC_PNPM_RUNTIME_PINS.packageTreeSha256
     || pnpmRuntime?.launcher?.packageName !== "corepack"
+    || !corepackPins
     || pnpmRuntime?.launcher?.packageVersion
-      !== ENGINEERING_RC_COREPACK_RUNTIME_PINS.version
+      !== corepackPins?.version
     || pnpmRuntime?.launcher?.entrySha256
-      !== ENGINEERING_RC_COREPACK_RUNTIME_PINS.entrySha256
+      !== corepackPins?.entrySha256
     || pnpmRuntime?.launcher?.packageTreeSha256
-      !== ENGINEERING_RC_COREPACK_RUNTIME_PINS.packageTreeSha256
+      !== corepackPins?.packageTreeSha256
   ) {
     errors.push("pnpm runtime evidence does not match the pinned RC toolchain");
   }
   const dockerRuntime = evidence?.tools?.docker;
-  const localRun = githubRun === null || githubRun === undefined;
   const validContainer = (container, expectedImage, containerPort, hostPort) =>
     container?.image === expectedImage
     && /^[a-f0-9]{64}$/u.test(container?.id ?? "")

@@ -23,13 +23,37 @@ export const ENGINEERING_RC_PNPM_RUNTIME_PINS = Object.freeze({
   packageTreeSha256:
     "a694540948bcbb104792da61db8d95e12d541628d5e2984d9e719a199db4727e",
 });
-export const ENGINEERING_RC_COREPACK_RUNTIME_PINS = Object.freeze({
-  version: "0.34.6",
-  entrySha256:
-    "4bd305443b25ccb4c11b0c3f9eefe65d755af39f3545bfec24af428a1f9451b5",
-  packageTreeSha256:
-    "931322d1efb984d6e7ddf72b8d07dde11d325d7bfdc2596884db682780c4b9ce",
+export const ENGINEERING_RC_COREPACK_RUNTIME_PINS_BY_PLATFORM = Object.freeze({
+  win32: Object.freeze({
+    version: "0.34.6",
+    entrySha256:
+      "4bd305443b25ccb4c11b0c3f9eefe65d755af39f3545bfec24af428a1f9451b5",
+    packageTreeSha256:
+      "931322d1efb984d6e7ddf72b8d07dde11d325d7bfdc2596884db682780c4b9ce",
+  }),
+  linux: Object.freeze({
+    version: "0.34.6",
+    entrySha256:
+      "3655bc798f300951f2070fee411b337d626b0c3ae80c2d24c46ccac4595d4bf9",
+    packageTreeSha256:
+      "23a0c3e8c71d5e28f733e848a993cd611fac201957b0ba6bec49b55f93746eb1",
+  }),
 });
+
+export function engineeringRcCorepackRuntimePins(
+  platform = process.platform,
+) {
+  const pins = ENGINEERING_RC_COREPACK_RUNTIME_PINS_BY_PLATFORM[platform];
+  if (!pins) {
+    throw new Error(
+      `engineering RC does not have Corepack pins for platform ${platform}`,
+    );
+  }
+  return pins;
+}
+
+export const ENGINEERING_RC_COREPACK_RUNTIME_PINS =
+  engineeringRcCorepackRuntimePins();
 export const ENGINEERING_RC_CONTROLLED_NPM_CONFIG_NAMES = Object.freeze([
   "NPM_CONFIG_CACHE",
   "NPM_CONFIG_GLOBALCONFIG",
