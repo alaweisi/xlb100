@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
@@ -88,12 +89,51 @@ test("container contexts exclude secrets and runtime images contain only built a
       dockerfile,
       /COPY package\.json pnpm-lock\.yaml pnpm-workspace\.yaml turbo\.json \.pnpmfile\.cjs \.\//u,
     );
-    const runtime = dockerfile.split(/FROM node:20-alpine AS runtime/u)[1] ?? "";
+    const runtimeMarker = /^FROM node:[^\s]+ AS runtime\s*$/mu;
+    assert.match(dockerfile, runtimeMarker);
+    const runtime = dockerfile.split(runtimeMarker)[1] ?? "";
     assert.doesNotMatch(runtime, /COPY --from=builder \/app \/app/u);
     assert.doesNotMatch(runtime, /COPY --from=builder [^\r\n]+\/src(?:\s|$)/u);
   }
   assert.match(backend, /COPY --from=builder \/app\/backend\/dist \.\/backend\/dist/u);
   assert.match(frontend, /COPY --from=builder \/app\/apps\/\$\{APP_NAME\}\/dist \/app\/dist/u);
+});
+
+test("workspace package CLI entries are executable in the Git index", () => {
+  const trackedFiles = execFileSync("git", ["ls-files"], {
+    cwd: rootDir,
+    encoding: "utf8",
+  }).split(/\r?\n/u);
+  const packageManifests = trackedFiles.filter(
+    file => file === "package.json" || file.endsWith("/package.json"),
+  );
+
+  for (const manifestPath of packageManifests) {
+    const manifest = JSON.parse(read(manifestPath));
+    if (!manifest.bin) continue;
+    const binTargets = typeof manifest.bin === "string"
+      ? [manifest.bin]
+      : Object.values(manifest.bin);
+
+    for (const binTarget of binTargets) {
+      const cliPath = path.posix.normalize(
+        path.posix.join(path.posix.dirname(manifestPath), binTarget),
+      );
+      const indexEntry = execFileSync(
+        "git",
+        ["ls-files", "--stage", "--", cliPath],
+        { cwd: rootDir, encoding: "utf8" },
+      ).trim();
+      const [indexMetadata, indexedPath] = indexEntry.split("\t");
+
+      assert.equal(indexedPath, cliPath, `${cliPath} must be tracked`);
+      assert.match(
+        indexMetadata,
+        /^100755 [a-f0-9]{40,64} 0$/u,
+        `${cliPath} must be committed as executable so pnpm install stays clean on Linux`,
+      );
+    }
+  }
 });
 
 test("critical authorization and concurrency regression suites remain present", () => {

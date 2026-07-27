@@ -354,12 +354,16 @@ export async function runEngineeringRc() {
   writeEvidence(evidencePath, evidence);
 
   if (!evidence.source.cleanBefore) {
+    const worktreeStatus = git(
+      ["status", "--porcelain", "--untracked-files=all"],
+      gateEnvironment,
+    );
     evidence.executionResult = "FAIL";
     evidence.completedAt = new Date().toISOString();
     evidence.validationErrors = ["tracked worktree must be clean before the gate"];
     writeEvidence(evidencePath, evidence);
     process.stderr.write(
-      "[engineering-rc] FAIL tracked worktree is not clean\n",
+      `[engineering-rc] FAIL tracked worktree is not clean\n${worktreeStatus}\n`,
     );
     return { ok: false, evidencePath };
   }
