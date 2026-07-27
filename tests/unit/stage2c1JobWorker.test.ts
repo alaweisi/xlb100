@@ -5,6 +5,7 @@ import { createJobWorker, main, type JobWorkerLogger } from "../../backend/src/j
 function buildEnv(overrides: Partial<EnvConfig> = {}): EnvConfig {
   return {
     nodeEnv: "development",
+    backendHost: "127.0.0.1",
     backendPort: 3000,
     autoRunEnabled: true,
     autoRunIntervalMs: 8_000,

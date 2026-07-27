@@ -46,10 +46,18 @@ describe("production environment safety", () => {
     expect(env.mysqlPassword).toBe("");
     expect(env.authPhoneHashSecret).toBe("");
     expect(env).toMatchObject({
+      backendHost: "0.0.0.0",
       rateLimitBackend: "memory",
       trustProxyHops: 0,
       paymentMockWebhookEnabled: false,
     });
+  });
+
+  it("accepts an explicit loopback backend host and rejects an empty host", () => {
+    vi.stubEnv("BACKEND_HOST", "127.0.0.1");
+    expect(loadEnv().backendHost).toBe("127.0.0.1");
+    vi.stubEnv("BACKEND_HOST", "   ");
+    expect(() => loadEnv()).toThrow("BACKEND_HOST");
   });
 
   it("enables the mock payment webhook only in tests by default", () => {

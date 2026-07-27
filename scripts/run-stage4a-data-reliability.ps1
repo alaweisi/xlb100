@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
   [string]$MysqlContainer = 'xlb-mysql-local',
+  [string]$RedisContainer = 'xlb-redis-local',
   [string]$RedisImage = 'redis:7',
   [string]$MysqlHost = '127.0.0.1',
   [int]$MysqlPort = 3306,
@@ -10,6 +11,18 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+if (
+  -not $PSBoundParameters.ContainsKey('MysqlContainer') -and
+  $env:XLB_STAGE4A_MYSQL_CONTAINER
+) {
+  $MysqlContainer = $env:XLB_STAGE4A_MYSQL_CONTAINER
+}
+if (
+  -not $PSBoundParameters.ContainsKey('RedisContainer') -and
+  $env:XLB_STAGE4A_REDIS_CONTAINER
+) {
+  $RedisContainer = $env:XLB_STAGE4A_REDIS_CONTAINER
+}
 $Root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 . (Join-Path $Root 'deploy\backup\common.ps1')
 
@@ -25,6 +38,11 @@ $summaryPath = Join-Path $artifactDirectory "drill-$stamp.json"
 $migrationEvidencePath = Join-Path $artifactDirectory "migration-replay-$stamp.json"
 $migrationScript = Join-Path $Root 'scripts\run-stage4a-migration-replay.ps1'
 $drScript = Join-Path $Root 'scripts\run-stage2c4-drill.ps1'
+$pnpmCommand = if (Get-Command pnpm.cmd -ErrorAction SilentlyContinue) {
+  (Get-Command pnpm.cmd -ErrorAction Stop).Source
+} else {
+  (Get-Command pnpm -ErrorAction Stop).Source
+}
 
 $managedEnv = @(
   'NODE_ENV', 'MYSQL_HOST', 'MYSQL_PORT', 'MYSQL_DATABASE', 'MYSQL_USER',
@@ -38,7 +56,7 @@ function Invoke-PnpmStep {
   param([Parameter(Mandatory)][string[]]$Arguments, [Parameter(Mandatory)][string]$Label)
   Push-Location $Root
   try {
-    & pnpm.cmd @Arguments
+    & $pnpmCommand @Arguments
     if ($LASTEXITCODE -ne 0) { throw "$Label failed with exit code $LASTEXITCODE" }
   } finally {
     Pop-Location
@@ -99,7 +117,7 @@ try {
     'tests/integration/outboxToDispatchStream.test.ts'
   )
 
-  $drOutput = @(& $drScript -Environment local -MysqlContainer $MysqlContainer -RedisContainer 'xlb-redis-local')
+  $drOutput = @(& $drScript -Environment local -MysqlContainer $MysqlContainer -RedisContainer $RedisContainer)
   if ($LASTEXITCODE -ne 0) { throw 'Stage 4A backup/restore/capacity drill failed' }
   $drEvidenceLine = @($drOutput | Where-Object { "$_" -like 'STAGE2C4_DRILL_EVIDENCE=*' } | Select-Object -Last 1)
   if ($drEvidenceLine.Count -ne 1) { throw 'backup/restore drill did not return its evidence path' }

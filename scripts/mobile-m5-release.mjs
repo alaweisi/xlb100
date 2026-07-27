@@ -1,44 +1,24 @@
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
+import path from "node:path";
 import {
   expectedApkPath,
   probeAndroidToolchain,
   resolveMobileEnvironment,
   validateBuiltApk,
 } from "../packages/mobile-foundation/src/index.mjs";
-import customer from "../apps/customer-mobile/mobile-app.config.mjs";
-import worker from "../apps/worker-mobile/mobile-app.config.mjs";
-import admin from "../apps/admin-mobile/mobile-app.config.mjs";
+import {
+  assertMobileReleasePrerequisites,
+  mobileReleaseApps,
+} from "./mobile-release-prerequisites.mjs";
 
-const apps = [customer, worker, admin];
+const apps = mobileReleaseApps;
 const packageManagerEntry = process.env.npm_execpath;
 if (!packageManagerEntry) {
   throw new Error("Run the M5 release gate through pnpm");
 }
-
-function signingPrefix(app) {
-  return `XLB_${app.key.toUpperCase().replaceAll("-", "_")}_ANDROID`;
-}
-
-const requiredEnvironment = apps.flatMap((app) => {
-  const prefix = signingPrefix(app);
-  return [
-    app.environment.apiBaseUrlVariable,
-    `${prefix}_KEYSTORE_PATH`,
-    `${prefix}_STORE_PASSWORD`,
-    `${prefix}_KEY_ALIAS`,
-    `${prefix}_KEY_PASSWORD`,
-  ];
-});
-const missingEnvironment = requiredEnvironment.filter(
-  (name) => !process.env[name]?.trim(),
-);
-if (missingEnvironment.length > 0) {
-  throw new Error(
-    `M5 release environment is incomplete; missing: ${missingEnvironment.join(", ")}`,
-  );
-}
+const prerequisites = assertMobileReleasePrerequisites();
 
 for (const app of apps) {
   const result = spawnSync(
@@ -85,6 +65,8 @@ const reports = apps.map((app) => {
   const apk = validateBuiltApk(app, apkPath, {
     androidSdk: toolchain.androidSdk,
     variant: "release",
+    environment: process.env,
+    javaHome: toolchain.javaHome,
   });
   const bytes = fs.readFileSync(apkPath);
   const { apiBaseUrl } = resolveMobileEnvironment(app, "production");
@@ -122,9 +104,54 @@ if (
 ) {
   throw new Error("Customer, Worker and Admin release public keys must be distinct");
 }
+if (
+  prerequisites.signingClass === "simulation"
+  && reports.some((report) =>
+    !String(report.certificateDn ?? "").toLowerCase().includes(
+      `CN=XLB ${report.role} Engineering RC Simulation`.toLowerCase(),
+    ))
+) {
+  throw new Error(
+    "simulation RC APKs must use the role-bound Engineering RC Simulation certificate",
+  );
+}
 
-console.log(JSON.stringify({
+const sourceCommitResult = spawnSync("git", ["rev-parse", "HEAD"], {
+  cwd: apps[0].paths.workspaceRoot,
+  encoding: "utf8",
+  windowsHide: true,
+});
+if (sourceCommitResult.error) throw sourceCommitResult.error;
+if (sourceCommitResult.status !== 0) {
+  throw new Error("cannot bind mobile M5 evidence to the source commit");
+}
+const payload = {
   releaseCandidate: true,
   published: false,
+  signingClass: prerequisites.signingClass,
+  sourceCommit: sourceCommitResult.stdout.trim(),
+  toolchains: prerequisites.reports,
   reports,
-}, null, 2));
+};
+const artifactsRoot = path.join(apps[0].paths.workspaceRoot, ".artifacts");
+const requestedEvidencePath = process.env.XLB_MOBILE_M5_EVIDENCE_PATH?.trim();
+const evidencePath = requestedEvidencePath
+  ? path.resolve(requestedEvidencePath)
+  : path.join(
+    artifactsRoot,
+    "mobile-m5",
+    `release-${new Date().toISOString().replaceAll(/[:.]/gu, "-")}.json`,
+  );
+const relativeEvidencePath = path.relative(artifactsRoot, evidencePath);
+if (
+  relativeEvidencePath === ""
+  || relativeEvidencePath === ".."
+  || relativeEvidencePath.startsWith(`..${path.sep}`)
+  || path.isAbsolute(relativeEvidencePath)
+) {
+  throw new Error("mobile M5 evidence path must stay inside .artifacts");
+}
+fs.mkdirSync(path.dirname(evidencePath), { recursive: true });
+fs.writeFileSync(evidencePath, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
+console.log(JSON.stringify(payload, null, 2));
+console.log(`MOBILE_M5_EVIDENCE=${evidencePath}`);

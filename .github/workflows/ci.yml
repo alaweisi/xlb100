@@ -3,6 +3,10 @@ name: CI
 permissions:
   contents: read
 
+concurrency:
+  group: engineering-rc-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   push:
     branches: [main, master]
@@ -11,7 +15,7 @@ on:
 jobs:
   ci:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 120
     services:
       mysql:
         image: mysql:8
@@ -46,6 +50,7 @@ jobs:
       MYSQL_PASSWORD: xlb_local_password
       REDIS_HOST: 127.0.0.1
       REDIS_PORT: 6379
+      XLB_STAGE2C3_REDIS_PORT: 6379
       JWT_SECRET: ci-test-secret
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -59,34 +64,45 @@ jobs:
 
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: "20"
+          node-version: "24.14.0"
           cache: "pnpm"
+
+      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
+        with:
+          distribution: temurin
+          java-version: "21"
 
       - name: Install
         run: pnpm install --frozen-lockfile
 
-      - name: Lint
-        run: pnpm lint
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
 
-      - name: Migrate database
-        working-directory: backend
-        run: pnpm exec tsx src/dal/migrateCli.ts
+      - name: Install Android API 36 toolchain
+        shell: bash
+        run: |
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+            "platforms;android-36" \
+            "build-tools;36.0.0"
 
-      - name: Seed database
-        working-directory: backend
-        run: pnpm exec tsx src/dal/seedCli.ts
+      - name: Bind reliability drills to CI service containers
+        shell: bash
+        run: |
+          mysql_container="$(docker ps --filter 'ancestor=mysql:8' --format '{{.ID}}' | head -n 1)"
+          redis_container="$(docker ps --filter 'ancestor=redis:7' --format '{{.ID}}' | head -n 1)"
+          test -n "$mysql_container"
+          test -n "$redis_container"
+          echo "XLB_STAGE4A_MYSQL_CONTAINER=$mysql_container" >> "$GITHUB_ENV"
+          echo "XLB_STAGE4A_REDIS_CONTAINER=$redis_container" >> "$GITHUB_ENV"
 
-      - name: Build
-        run: pnpm build
+      - name: Canonical non-TKE engineering RC
+        run: pnpm gate:engineering-rc
 
-      - name: Typecheck
-        run: pnpm typecheck
-
-      - name: Test
-        run: pnpm test
-
-      - name: Critical dependency audit
-        run: pnpm audit:critical
-
-      - name: Preflight
-        run: pwsh -NoProfile -File scripts/preflight-architecture.ps1
+      - name: Upload engineering RC evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: engineering-rc-${{ github.sha }}
+          path: .artifacts/engineering-rc/
+          if-no-files-found: ignore
+          retention-days: 30

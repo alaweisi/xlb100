@@ -4,6 +4,8 @@ export {
   resolveMobileEnvironment,
 } from "./environment.mjs";
 export {
+  REQUIRED_ANDROID_API,
+  REQUIRED_JAVA_MAJOR,
   androidSdkCandidates,
   findAndroidBuildTool,
   probeAndroidToolchain,

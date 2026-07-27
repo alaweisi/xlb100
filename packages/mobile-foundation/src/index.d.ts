@@ -86,6 +86,8 @@ export function validateBuiltApk(
   apkPath: string,
   options: object,
 ): BuiltApkReport;
+export const REQUIRED_ANDROID_API: 36;
+export const REQUIRED_JAVA_MAJOR: 21;
 export function androidSdkCandidates(
   environment?: NodeJS.ProcessEnv,
   platform?: NodeJS.Platform,
@@ -102,7 +104,15 @@ export function findAndroidBuildTool(
 export function probeAndroidToolchain(
   app: MobileAppDescriptor,
   options?: object,
-): { javaHome: string; androidSdk: string; gradleExecutable: string };
+): {
+  javaHome: string;
+  javaMajor: 21;
+  androidSdk: string;
+  androidApi: 36;
+  aaptExecutable: string;
+  apksignerExecutable: string;
+  gradleExecutable: string;
+};
 export function createWebBuildPlan(
   app: MobileAppDescriptor,
   profileName: MobileProfileName,

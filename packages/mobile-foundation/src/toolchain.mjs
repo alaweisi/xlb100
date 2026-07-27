@@ -3,6 +3,9 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
+export const REQUIRED_JAVA_MAJOR = 21;
+export const REQUIRED_ANDROID_API = 36;
+
 function jdkExecutable(javaHome, name, platform = process.platform) {
   if (!javaHome) return null;
   return path.join(
@@ -12,17 +15,36 @@ function jdkExecutable(javaHome, name, platform = process.platform) {
   );
 }
 
+function detectedJavaMajor(result) {
+  const output = `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
+  const match = output.match(/\b(?:version\s+"|javac\s+)(\d+)(?:[._][^"\s]+)?/iu);
+  return match ? Number(match[1]) : null;
+}
+
 function validJavaHome(javaHome, options) {
   const java = jdkExecutable(javaHome, "java", options.platform);
   const javac = jdkExecutable(javaHome, "javac", options.platform);
-  return Boolean(
-    java &&
-      javac &&
-      options.exists(java) &&
-      options.exists(javac) &&
-      options.spawn(java, ["-version"], { stdio: "ignore" }).status === 0 &&
-      options.spawn(javac, ["-version"], { stdio: "ignore" }).status === 0,
-  );
+  if (!java || !javac || !options.exists(java) || !options.exists(javac)) {
+    return false;
+  }
+  const environment = {
+    ...options.environment,
+    JAVA_HOME: javaHome,
+  };
+  const javaResult = options.spawn(java, ["-version"], {
+    encoding: "utf8",
+    env: environment,
+    windowsHide: true,
+  });
+  const javacResult = options.spawn(javac, ["-version"], {
+    encoding: "utf8",
+    env: environment,
+    windowsHide: true,
+  });
+  return javaResult.status === 0
+    && javacResult.status === 0
+    && detectedJavaMajor(javaResult) === REQUIRED_JAVA_MAJOR
+    && detectedJavaMajor(javacResult) === REQUIRED_JAVA_MAJOR;
 }
 
 export function resolveJavaHome({
@@ -31,19 +53,25 @@ export function resolveJavaHome({
   exists = fs.existsSync,
   spawn = spawnSync,
 } = {}) {
-  const options = { platform, exists, spawn };
+  const options = { platform, exists, spawn, environment };
   if (validJavaHome(environment.JAVA_HOME, options)) {
     return path.resolve(environment.JAVA_HOME);
   }
 
   const finder = platform === "win32" ? "where.exe" : "which";
-  const located = spawn(finder, ["javac"], { encoding: "utf8" });
-  const first = located.stdout?.split(/\r?\n/u).find(Boolean);
-  if (first) {
-    const candidate = path.dirname(path.dirname(first.trim()));
+  const finderArguments = platform === "win32" ? ["javac"] : ["-a", "javac"];
+  const located = spawn(finder, finderArguments, {
+    encoding: "utf8",
+    env: environment,
+    windowsHide: true,
+  });
+  for (const executable of located.stdout?.split(/\r?\n/u).filter(Boolean) ?? []) {
+    const candidate = path.dirname(path.dirname(executable.trim()));
     if (validJavaHome(candidate, options)) return path.resolve(candidate);
   }
-  throw new Error("A valid JDK is required; JAVA_HOME and PATH were both unusable");
+  throw new Error(
+    `JDK ${REQUIRED_JAVA_MAJOR} is required; JAVA_HOME and every PATH candidate were unusable`,
+  );
 }
 
 export function androidSdkCandidates(
@@ -149,10 +177,103 @@ export function findAndroidBuildTool(
   return path.resolve(tool);
 }
 
+function verifyBuildTool(
+  executable,
+  name,
+  {
+    platform,
+    environment,
+    javaHome,
+    spawn,
+  },
+) {
+  const windowsBatch = platform === "win32" && /\.bat$/iu.test(executable);
+  const command = windowsBatch
+    ? environment.ComSpec ?? process.env.ComSpec ?? "cmd.exe"
+    : executable;
+  const args = windowsBatch
+    ? ["/d", "/c", executable, "version"]
+    : ["version"];
+  const result = spawn(command, args, {
+    encoding: "utf8",
+    env: {
+      ...environment,
+      JAVA_HOME: javaHome,
+    },
+    maxBuffer: 4 * 1024 * 1024,
+    windowsHide: true,
+  });
+  if (result.error) throw result.error;
+  if (result.status !== 0) {
+    throw new Error(
+      `Android build tool ${name} is not executable with the resolved JDK`,
+    );
+  }
+}
+
 export function probeAndroidToolchain(app, options = {}) {
+  const environment = options.environment ?? process.env;
+  const platform = options.platform ?? process.platform;
+  const exists = options.exists ?? fs.existsSync;
+  const spawn = options.spawn ?? spawnSync;
+  const javaHome = resolveJavaHome({
+    ...options,
+    environment,
+    platform,
+    exists,
+    spawn,
+  });
+  const androidSdk = resolveAndroidSdk({
+    ...options,
+    environment,
+    platform,
+    exists,
+  });
+  const androidPlatform = path.join(
+    androidSdk,
+    "platforms",
+    `android-${REQUIRED_ANDROID_API}`,
+  );
+  if (!exists(androidPlatform)) {
+    throw new Error(
+      `Android SDK platform android-${REQUIRED_ANDROID_API} is required`,
+    );
+  }
+  const findBuildTool = options.findBuildTool ?? findAndroidBuildTool;
+  const buildToolOptions = {
+    platform,
+    exists,
+    readDirectory: options.readDirectory ?? fs.readdirSync,
+  };
+  const aaptExecutable = findBuildTool(
+    androidSdk,
+    "aapt",
+    buildToolOptions,
+  );
+  const apksignerExecutable = findBuildTool(
+    androidSdk,
+    "apksigner",
+    buildToolOptions,
+  );
+  verifyBuildTool(aaptExecutable, "aapt", {
+    platform,
+    environment,
+    javaHome,
+    spawn,
+  });
+  verifyBuildTool(apksignerExecutable, "apksigner", {
+    platform,
+    environment,
+    javaHome,
+    spawn,
+  });
   return Object.freeze({
-    javaHome: resolveJavaHome(options),
-    androidSdk: resolveAndroidSdk(options),
+    javaHome,
+    javaMajor: REQUIRED_JAVA_MAJOR,
+    androidSdk,
+    androidApi: REQUIRED_ANDROID_API,
+    aaptExecutable,
+    apksignerExecutable,
     gradleExecutable: resolveGradleExecutable(app.paths.androidRoot, options),
   });
 }

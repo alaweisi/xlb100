@@ -165,6 +165,12 @@ A: android:networkSecurityConfig(0x01010527)=@0x7f100002
 
 test("release APK validation requires a non-debug signer certificate", (t) => {
   const { app } = fixture(t);
+  const normalizedJavaHome = path.resolve("fixture-jdk");
+  const inheritedEnvironment = {
+    ComSpec: "fixture-cmd.exe",
+    JAVA_HOME: path.resolve("broken-jbr"),
+  };
+  let signerInvocation;
   const badging = `package: name='com.xlb100.role' versionCode='7' versionName='2.3.4'
 uses-permission: name='android.permission.INTERNET'
 uses-permission: name='com.xlb100.role.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION'
@@ -180,21 +186,28 @@ V3 Signer: certificate DN: CN=XLB Customer RC, O=XLB, C=CN
 V3 Signer: certificate SHA-256 digest: 11:22:aa:bb
 V3 Signer: public key SHA-256 digest: 55:66:cc:dd
 `.replaceAll("\n", "\r\n");
-  const spawn = (command, args) => ({
-    status: 0,
-    stdout: command === "apksigner"
+  const spawn = (command, args, options) => {
+    const signer = args.some(argument => /apksigner(?:\.bat)?$/iu.test(argument));
+    if (signer) signerInvocation = { command, args, options };
+    return {
+      status: 0,
+      stdout: signer
       ? releaseCertificate
       : args.includes("badging")
         ? badging
         : manifestTree,
-    stderr: "",
-  });
+      stderr: "",
+    };
+  };
   assert.deepEqual(
     validateBuiltApk(app, "fixture-release.apk", {
       androidSdk: "fixture-sdk",
       variant: "release",
+      platform: "win32",
+      environment: inheritedEnvironment,
+      javaHome: normalizedJavaHome,
       exists: () => true,
-      findBuildTool: (_sdk, name) => name,
+      findBuildTool: (_sdk, name) => name === "apksigner" ? "apksigner.bat" : name,
       spawn,
     }),
     {
@@ -212,6 +225,13 @@ V3 Signer: public key SHA-256 digest: 55:66:cc:dd
       publicKeySha256: "5566CCDD",
     },
   );
+  assert.equal(signerInvocation.command, "fixture-cmd.exe");
+  assert.deepEqual(
+    signerInvocation.args,
+    ["/d", "/c", "apksigner.bat", "verify", "--verbose", "--print-certs", "fixture-release.apk"],
+  );
+  assert.equal(signerInvocation.options.env.JAVA_HOME, normalizedJavaHome);
+  assert.equal(inheritedEnvironment.JAVA_HOME, path.resolve("broken-jbr"));
 
   const debugSpawn = (command, args) => ({
     status: 0,
@@ -230,10 +250,21 @@ Signer #1 public key SHA-256 digest: 22:33
     () => validateBuiltApk(app, "fixture-release.apk", {
       androidSdk: "fixture-sdk",
       variant: "release",
+      javaHome: path.resolve("fixture-jdk"),
       exists: () => true,
       findBuildTool: (_sdk, name) => name,
       spawn: debugSpawn,
     }),
     /must not use an Android Debug certificate/u,
+  );
+  assert.throws(
+    () => validateBuiltApk(app, "fixture-release.apk", {
+      androidSdk: "fixture-sdk",
+      variant: "release",
+      exists: () => true,
+      findBuildTool: (_sdk, name) => name,
+      spawn: debugSpawn,
+    }),
+    /requires the resolved JDK/u,
   );
 });

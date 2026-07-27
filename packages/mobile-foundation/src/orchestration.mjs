@@ -153,6 +153,8 @@ export function buildAndroidApp(app, profileName, variant, options = {}) {
     androidSdk: toolchain.androidSdk,
     variant,
     platform: options.platform ?? process.platform,
+    environment: options.environment ?? process.env,
+    javaHome: toolchain.javaHome,
   });
   return Object.freeze({ toolchain, apk });
 }

@@ -45,11 +45,16 @@ $candidateLatestMigration = $migrationFiles[-1].BaseName
 $managedEnv = @('NODE_ENV', 'MYSQL_HOST', 'MYSQL_PORT', 'MYSQL_DATABASE', 'MYSQL_USER', 'MYSQL_PASSWORD')
 $previousEnv = @{}
 foreach ($key in $managedEnv) { $previousEnv[$key] = [Environment]::GetEnvironmentVariable($key) }
+$pnpmCommand = if (Get-Command pnpm.cmd -ErrorAction SilentlyContinue) {
+  (Get-Command pnpm.cmd -ErrorAction Stop).Source
+} else {
+  (Get-Command pnpm -ErrorAction Stop).Source
+}
 
 function Invoke-CanonicalMigration {
   Push-Location $Root
   try {
-    $output = @(& pnpm.cmd run db:migrate 2>&1)
+    $output = @(& $pnpmCommand run db:migrate 2>&1)
     $exitCode = $LASTEXITCODE
   } finally {
     Pop-Location

@@ -33,7 +33,7 @@ async function main() {
   });
 
   try {
-    await app.listen({ port: env.backendPort, host: "0.0.0.0" });
+    await app.listen({ port: env.backendPort, host: env.backendHost });
     autoRun = startAutoRunJobs({ env, logger: app.log });
   } catch (err) {
     app.log.error(err);

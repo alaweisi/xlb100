@@ -1,4 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
+import { engineeringReporter } from "./playwright.evidence";
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -7,7 +8,7 @@ export default defineConfig({
   expect: { timeout: 15_000 },
   fullyParallel: false,
   workers: 1,
-  reporter: [["list"]],
+  reporter: engineeringReporter(),
   projects: [
     {
       name: "chromium",
@@ -21,7 +22,7 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: "cross-env BACKEND_PORT=3170 pnpm --filter @xlb/backend dev",
+      command: "cross-env BACKEND_HOST=127.0.0.1 BACKEND_PORT=3170 pnpm --filter @xlb/backend dev",
       url: "http://127.0.0.1:3170/health",
       reuseExistingServer: false,
       timeout: 120_000,

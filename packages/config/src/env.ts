@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 
 export interface EnvConfig {
   nodeEnv: string;
+  backendHost: string;
   backendPort: number;
   autoRunEnabled: boolean;
   autoRunIntervalMs: number;
@@ -232,6 +233,7 @@ export function loadEnv(): EnvConfig {
   }
   const config: EnvConfig = {
     nodeEnv,
+    backendHost: readEnv("BACKEND_HOST", "0.0.0.0").trim(),
     backendPort: readEnvInt("BACKEND_PORT", 3000),
     autoRunEnabled: readEnvBool("AUTO_RUN_ENABLED", false),
     autoRunIntervalMs: readEnvInt("AUTO_RUN_INTERVAL_MS", 8000),
@@ -287,6 +289,9 @@ export function loadEnv(): EnvConfig {
     ),
   };
 
+  if (!config.backendHost) {
+    throw new Error("BACKEND_HOST must not be empty");
+  }
   if (
     config.paymentMockWebhookEnabled
     && !["development", "test"].includes(config.nodeEnv)

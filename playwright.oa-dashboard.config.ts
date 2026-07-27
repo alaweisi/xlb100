@@ -1,4 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
+import { engineeringReporter } from "./playwright.evidence";
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -6,7 +7,7 @@ export default defineConfig({
   timeout: 90_000,
   fullyParallel: false,
   workers: 1,
-  reporter: [["list"]],
+  reporter: engineeringReporter(),
   use: {
     ...devices["Desktop Chrome"],
     viewport: { width: 1440, height: 1024 },
@@ -16,27 +17,27 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: "cross-env BACKEND_PORT=3200 pnpm --filter @xlb/backend dev",
+      command: "cross-env BACKEND_HOST=127.0.0.1 BACKEND_PORT=3200 pnpm --filter @xlb/backend dev",
       url: "http://127.0.0.1:3200/health",
-      reuseExistingServer: true,
+      reuseExistingServer: false,
       timeout: 120_000,
     },
     {
-      command: "cross-env XLB_OA_PROXY_TARGET=http://127.0.0.1:3200 VITE_ADMIN_ORIGIN=http://127.0.0.1:5275 pnpm --filter @xlb/oa exec vite --host 127.0.0.1 --port 5276",
+      command: "cross-env XLB_OA_PROXY_TARGET=http://127.0.0.1:3200 VITE_ADMIN_ORIGIN=http://127.0.0.1:5275 pnpm --filter @xlb/oa exec vite --host 127.0.0.1 --port 5276 --strictPort",
       url: "http://127.0.0.1:5276/oa/",
-      reuseExistingServer: true,
+      reuseExistingServer: false,
       timeout: 120_000,
     },
     {
-      command: "cross-env XLB_ADMIN_PROXY_TARGET=http://127.0.0.1:3200 VITE_OA_ORIGIN=http://127.0.0.1:5276 pnpm --filter @xlb/admin exec vite --host 127.0.0.1 --port 5275",
+      command: "cross-env XLB_ADMIN_PROXY_TARGET=http://127.0.0.1:3200 VITE_OA_ORIGIN=http://127.0.0.1:5276 pnpm --filter @xlb/admin exec vite --host 127.0.0.1 --port 5275 --strictPort",
       url: "http://127.0.0.1:5275/",
-      reuseExistingServer: true,
+      reuseExistingServer: false,
       timeout: 120_000,
     },
     {
-      command: "pnpm --filter @xlb/dashboard dev",
+      command: "pnpm --filter @xlb/dashboard exec vite --host 127.0.0.1 --port 5177 --strictPort",
       url: "http://127.0.0.1:5177/dashboard/",
-      reuseExistingServer: true,
+      reuseExistingServer: false,
       timeout: 120_000,
     },
   ],

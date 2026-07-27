@@ -485,7 +485,7 @@ export interface RevokeOaDelegationRequest {
   idempotencyKey: string;
 }
 
-export interface ApproveOaDelegationRequest extends RevokeOaDelegationRequest {}
+export type ApproveOaDelegationRequest = RevokeOaDelegationRequest;
 
 export interface CreateOaAdminHandoffRequest {
   targetPath: string;

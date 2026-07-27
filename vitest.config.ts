@@ -30,6 +30,9 @@ const isolatedDatabaseTests = [
   "tests/unit/cityConfig.test.ts",
   "tests/unit/pricing.test.ts",
 ];
+const tkeSpecificTests = process.env.XLB_EXCLUDE_TKE_TESTS === "1"
+  ? ["tests/unit/tke*.test.ts", "tests/tke/**"]
+  : [];
 
 const dbSerial = {
   environment: "node",
@@ -73,7 +76,7 @@ export default defineConfig({
             "tests/unit/**/*.test.tsx",
             "tests/contract/**/*.test.ts",
           ],
-          exclude: isolatedDatabaseTests,
+          exclude: [...isolatedDatabaseTests, ...tkeSpecificTests],
           setupFiles: ["tests/setup.ts"],
         },
       },

@@ -178,17 +178,44 @@ describe.skipIf(!runDb)("outbox atomic claims", { timeout: 30000 }, () => {
     const app = await buildApp();
     try {
       const { fulfillmentId } = await createCompletedFulfillment(app);
-      await Promise.all([runLedgerOnce(app), runLedgerOnce(app)]);
+      const [prioritized] = await getMysqlPool().query<ResultSetHeader>(
+        `UPDATE event_outbox
+         SET available_at='2000-01-01 00:00:00.000'
+         WHERE aggregate_id=? AND event_type='fulfillment.completed'`,
+        [fulfillmentId],
+      );
+      expect(prioritized.affectedRows).toBe(1);
+      const responses = await Promise.all([runLedgerOnce(app), runLedgerOnce(app)]);
+      expect(responses.map((response) => response.statusCode)).toEqual([200, 200]);
+      const returnedAccruals = responses.flatMap((response) =>
+        (response.json() as { accruals: Array<{ fulfillmentId: string }> }).accruals,
+      );
+      const [events] = await getMysqlPool().query<
+        (RowDataPacket & {
+          status: string;
+          attempt_count: number;
+          last_error_code: string | null;
+          last_error_message: string | null;
+        })[]
+      >(
+        `SELECT status,attempt_count,last_error_code,last_error_message
+         FROM event_outbox
+         WHERE aggregate_id=? AND event_type='fulfillment.completed'`,
+        [fulfillmentId],
+      );
+      expect(events[0]).toMatchObject({
+        status: "published",
+        attempt_count: 1,
+        last_error_code: null,
+        last_error_message: null,
+      });
+      expect(returnedAccruals.filter((accrual) => accrual.fulfillmentId === fulfillmentId)).toHaveLength(1);
       const [accruals] = await getMysqlPool().query<(RowDataPacket & { count: number })[]>(
         "SELECT COUNT(*) count FROM ledger_accruals WHERE fulfillment_id=?",
         [fulfillmentId],
       );
       const [entries] = await getMysqlPool().query<(RowDataPacket & { count: number })[]>(
         "SELECT COUNT(*) count FROM ledger_entries WHERE source_id=? AND source_type='fulfillment.completed'",
-        [fulfillmentId],
-      );
-      const [events] = await getMysqlPool().query<(RowDataPacket & { status: string; attempt_count: number })[]>(
-        "SELECT status,attempt_count FROM event_outbox WHERE aggregate_id=? AND event_type='fulfillment.completed'",
         [fulfillmentId],
       );
       expect(Number(accruals[0]!.count)).toBe(1);

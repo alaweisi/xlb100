@@ -108,11 +108,13 @@ test("critical authorization and concurrency regression suites remain present", 
   }
 });
 
-test("main CI enforces lint, the canonical test runner, and dependency audit", () => {
+test("main CI executes the immutable engineering RC aggregator", () => {
   const workflow = read(".github/workflows/ci.yml");
-  assert.match(workflow, /run: pnpm lint/);
-  assert.match(workflow, /run: pnpm test\s*$/m);
-  assert.match(workflow, /run: pnpm audit:critical/);
+  const contract = read("scripts/engineering-rc-contract.mjs");
+  assert.match(workflow, /run: pnpm gate:engineering-rc/u);
+  assert.match(contract, /\["lint", "--", "--force", "--", "--max-warnings=0"\]/u);
+  assert.match(contract, /\["test:engineering-non-tke"\]/u);
+  assert.match(contract, /\["audit:critical"\]/u);
 });
 
 test("security workflow provisions runtime dependencies before the focused suite", () => {

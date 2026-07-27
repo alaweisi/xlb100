@@ -221,11 +221,9 @@ async function collectCitySnapshot(
       params: [cityCode],
     },
   ];
-  let claimableRows = 0;
   let stateEligibleRows = 0;
   for (const eligibleQuery of eligibleQueries) {
     const rows = await dependencies.query(eligibleQuery.sql, eligibleQuery.params);
-    claimableRows += safeNonNegativeNumber(rows[0]?.total);
     stateEligibleRows += safeNonNegativeNumber(rows[0]?.state_eligible_total);
     const createdAt = parseDate(rows[0]?.created_at);
     if (createdAt) eligibleDates.push(createdAt);

@@ -7,7 +7,10 @@ const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(scriptDir, "..");
 const vitestEntry = path.join(rootDir, "node_modules", "vitest", "vitest.mjs");
 const tsxEntry = path.join(rootDir, "backend", "node_modules", "tsx", "dist", "cli.mjs");
-const extraArgs = process.argv.slice(2);
+const performanceOnly = process.argv.includes("--performance-only");
+const extraArgs = process.argv
+  .slice(2)
+  .filter((argument) => argument !== "--performance-only");
 
 function run(command, args, env = process.env) {
   return new Promise((resolve, reject) => {
@@ -78,10 +81,17 @@ const unitEnv = {
   NODE_ENV: "test",
   XLB_SKIP_DB_TESTS: "1",
 };
-const unitCode = await runProject("unit-contract", unitEnv);
-if (unitCode !== 0) process.exit(unitCode);
+delete unitEnv.PAYMENT_MOCK_WEBHOOK_ENABLED;
+delete unitEnv.PAYMENT_MOCK_WEBHOOK_SECRET;
+if (!performanceOnly) {
+  const unitCode = await runProject("unit-contract", unitEnv);
+  if (unitCode !== 0) process.exit(unitCode);
+}
 
 if (process.env.XLB_SKIP_DB_TESTS === "1") {
+  if (performanceOnly) {
+    throw new Error("performance RC cannot run with XLB_SKIP_DB_TESTS=1");
+  }
   process.stdout.write("[test-db] database projects skipped by XLB_SKIP_DB_TESTS=1\n");
 } else {
   let isolated;
@@ -93,9 +103,14 @@ if (process.env.XLB_SKIP_DB_TESTS === "1") {
       MYSQL_DATABASE: isolated.database,
       XLB_SKIP_DB_TESTS: "0",
     };
+    delete env.PAYMENT_MOCK_WEBHOOK_ENABLED;
+    delete env.PAYMENT_MOCK_WEBHOOK_SECRET;
     process.stdout.write(`[test-db] isolated database created: ${isolated.database}\n`);
     await migrateAndSeed(env);
-    const dbCode = await runProject("db-serial", env);
+    const dbCode = await runProject(
+      performanceOnly ? "performance-serial" : "db-serial",
+      env,
+    );
     if (dbCode !== 0) process.exitCode = dbCode;
   } finally {
     if (isolated) {

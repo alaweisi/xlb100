@@ -27,6 +27,8 @@ function Assert-Equal([string]$label, [string]$expected, [string]$actual) {
 }
 
 Push-Location $root
+$databaseRemoved = $false
+$verification = $null
 try {
   Invoke-RootSql "DROP DATABASE IF EXISTS $database; CREATE DATABASE $database CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci" | Out-Null
   $baselineMigrations = Get-ChildItem (Join-Path $root "db/migrations") -Filter "*.sql" |
@@ -46,15 +48,65 @@ try {
     Write-Host "PASS OA migration application $pass"
   }
 
-  Assert-Equal "OA migration markers" "3" (Invoke-RootSql "SELECT COUNT(*) FROM schema_migrations WHERE version IN ('063_oa_collaboration_foundation','064_oa_notifications','065_oa_branch_city_ownership')" $database)
-  Assert-Equal "OA required tables" "24" (Invoke-RootSql "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name LIKE 'oa_%'" $database)
-  Assert-Equal "OA real-city checks" "11" (Invoke-RootSql "SELECT COUNT(*) FROM information_schema.table_constraints WHERE constraint_schema=DATABASE() AND constraint_type='CHECK' AND (constraint_name LIKE 'chk_oa_%_city_real' OR constraint_name='chk_oa_branch_city_owner_real')" $database)
-  Assert-Equal "OA branch city owner primary key" "1" (Invoke-RootSql "SELECT COUNT(*) FROM information_schema.statistics WHERE table_schema=DATABASE() AND table_name='oa_branch_city_ownership' AND index_name='PRIMARY' AND column_name='city_code'" $database)
-  Assert-Equal "OA activity source key columns" "3" (Invoke-RootSql "SELECT COUNT(*) FROM information_schema.statistics WHERE table_schema=DATABASE() AND table_name='oa_activity_projection' AND index_name='uk_oa_activity_source'" $database)
-  Assert-Equal "OA notification dedupe key" "1" (Invoke-RootSql "SELECT COUNT(*) FROM information_schema.statistics WHERE table_schema=DATABASE() AND table_name='oa_notifications' AND index_name='uk_oa_notification_dedupe' AND column_name='dedupe_key'" $database)
-  Assert-Equal "OA membership foreign keys" "2" (Invoke-RootSql "SELECT COUNT(*) FROM information_schema.referential_constraints WHERE constraint_schema=DATABASE() AND constraint_name IN ('fk_oa_membership_admin','fk_oa_membership_org')" $database)
+  $migrationMarkers = [int](Invoke-RootSql "SELECT COUNT(*) FROM schema_migrations WHERE version IN ('063_oa_collaboration_foundation','064_oa_notifications','065_oa_branch_city_ownership')" $database)
+  $requiredTables = [int](Invoke-RootSql "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name LIKE 'oa_%'" $database)
+  $realCityChecks = [int](Invoke-RootSql "SELECT COUNT(*) FROM information_schema.table_constraints WHERE constraint_schema=DATABASE() AND constraint_type='CHECK' AND (constraint_name LIKE 'chk_oa_%_city_real' OR constraint_name='chk_oa_branch_city_owner_real')" $database)
+  $branchCityOwnerPrimaryKey = [int](Invoke-RootSql "SELECT COUNT(*) FROM information_schema.statistics WHERE table_schema=DATABASE() AND table_name='oa_branch_city_ownership' AND index_name='PRIMARY' AND column_name='city_code'" $database)
+  $activitySourceKeyColumns = [int](Invoke-RootSql "SELECT COUNT(*) FROM information_schema.statistics WHERE table_schema=DATABASE() AND table_name='oa_activity_projection' AND index_name='uk_oa_activity_source'" $database)
+  $notificationDedupeKey = [int](Invoke-RootSql "SELECT COUNT(*) FROM information_schema.statistics WHERE table_schema=DATABASE() AND table_name='oa_notifications' AND index_name='uk_oa_notification_dedupe' AND column_name='dedupe_key'" $database)
+  $membershipForeignKeys = [int](Invoke-RootSql "SELECT COUNT(*) FROM information_schema.referential_constraints WHERE constraint_schema=DATABASE() AND constraint_name IN ('fk_oa_membership_admin','fk_oa_membership_org')" $database)
+  Assert-Equal "OA migration markers" "3" "$migrationMarkers"
+  Assert-Equal "OA required tables" "24" "$requiredTables"
+  Assert-Equal "OA real-city checks" "11" "$realCityChecks"
+  Assert-Equal "OA branch city owner primary key" "1" "$branchCityOwnerPrimaryKey"
+  Assert-Equal "OA activity source key columns" "3" "$activitySourceKeyColumns"
+  Assert-Equal "OA notification dedupe key" "1" "$notificationDedupeKey"
+  Assert-Equal "OA membership foreign keys" "2" "$membershipForeignKeys"
+  $verification = [ordered]@{
+    schemaVersion = 1
+    gate = "oa-migration-verification"
+    sourceCommit = (git -C $root rev-parse HEAD).Trim()
+    migrationMarkers = $migrationMarkers
+    requiredTables = $requiredTables
+    realCityChecks = $realCityChecks
+    branchCityOwnerPrimaryKey = $branchCityOwnerPrimaryKey
+    activitySourceKeyColumns = $activitySourceKeyColumns
+    notificationDedupeKey = $notificationDedupeKey
+    membershipForeignKeys = $membershipForeignKeys
+    realProviderUsed = $false
+    productionOperationPerformed = $false
+    result = "PASS"
+  }
   Write-Host "check-oa-migration-verification: passed"
 } finally {
-  try { Invoke-RootSql "DROP DATABASE IF EXISTS $database" | Out-Null } catch { Write-Warning $_ }
-  Pop-Location
+  try {
+    Invoke-RootSql "DROP DATABASE IF EXISTS $database" | Out-Null
+    $databaseRemoved = $true
+  } finally {
+    Pop-Location
+  }
+}
+
+if ($verification) {
+  $verification["databaseRemoved"] = $databaseRemoved
+  $verification["completedAt"] = [DateTimeOffset]::UtcNow.ToString("o")
+  $artifactRoot = [IO.Path]::GetFullPath((Join-Path $root ".artifacts"))
+  $requestedPath = if ($env:XLB_OA_MIGRATION_EVIDENCE_PATH) {
+    [IO.Path]::GetFullPath($env:XLB_OA_MIGRATION_EVIDENCE_PATH)
+  } else {
+    Join-Path $artifactRoot "oa-migration\verification-$([DateTimeOffset]::UtcNow.ToString('yyyyMMddTHHmmssZ')).json"
+  }
+  $artifactPrefix = $artifactRoot.TrimEnd(
+    [IO.Path]::DirectorySeparatorChar,
+    [IO.Path]::AltDirectorySeparatorChar
+  ) + [IO.Path]::DirectorySeparatorChar
+  if (-not $requestedPath.StartsWith(
+    $artifactPrefix,
+    [StringComparison]::OrdinalIgnoreCase
+  )) {
+    throw "OA migration evidence path must stay inside .artifacts"
+  }
+  [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($requestedPath)) | Out-Null
+  $verification | ConvertTo-Json -Depth 6 | Set-Content -Encoding UTF8 -LiteralPath $requestedPath
+  Write-Output "OA_MIGRATION_EVIDENCE=$requestedPath"
 }

@@ -190,22 +190,25 @@ function runAapt(aapt, args, spawn) {
   return result.stdout;
 }
 
-function runApkSigner(apksigner, args, spawn) {
+function runApkSigner(apksigner, args, spawn, environment) {
   const windowsBatch = /\.bat$/iu.test(apksigner);
   const command = windowsBatch
-    ? process.env.ComSpec ?? "cmd.exe"
+    ? environment.ComSpec ?? process.env.ComSpec ?? "cmd.exe"
     : apksigner;
   const commandArgs = windowsBatch
     ? ["/d", "/c", apksigner, ...args]
     : args;
   const result = spawn(command, commandArgs, {
     encoding: "utf8",
+    env: environment,
     maxBuffer: 16 * 1024 * 1024,
   });
   if (result.error) throw result.error;
   if (result.status !== 0) {
+    const detail = `${result.stdout ?? ""}\n${result.stderr ?? ""}`.trim();
     throw new Error(
-      `apksigner ${args.join(" ")} failed with exit code ${result.status ?? 1}`,
+      `apksigner ${args.join(" ")} failed with exit code ${result.status ?? 1}`
+      + (detail ? `: ${detail}` : ""),
     );
   }
   return `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
@@ -218,6 +221,8 @@ export function validateBuiltApk(
     androidSdk,
     variant = "debug",
     platform = process.platform,
+    environment = process.env,
+    javaHome,
     exists = fs.existsSync,
     spawn = spawnSync,
     findBuildTool = findAndroidBuildTool,
@@ -297,6 +302,11 @@ export function validateBuiltApk(
   let certificateSha256;
   let publicKeySha256;
   if (variant === "release") {
+    if (typeof javaHome !== "string" || !javaHome.trim()) {
+      throw new Error(
+        "release APK validation requires the resolved JDK through javaHome",
+      );
+    }
     const apksigner = findBuildTool(androidSdk, "apksigner", {
       platform,
       exists,
@@ -305,6 +315,10 @@ export function validateBuiltApk(
       apksigner,
       ["verify", "--verbose", "--print-certs", apkPath],
       spawn,
+      {
+        ...environment,
+        ...(javaHome ? { JAVA_HOME: javaHome } : {}),
+      },
     );
     const signerCount = Number(
       verification.match(/^Number of signers:\s*(\d+)\r?$/imu)?.[1],
