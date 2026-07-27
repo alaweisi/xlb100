@@ -37,6 +37,11 @@ afterEach(() => {
 describe("production environment safety", () => {
   it("keeps local development defaults compatible", () => {
     vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("BACKEND_HOST", undefined);
+    vi.stubEnv("RATE_LIMIT_BACKEND", undefined);
+    vi.stubEnv("TRUST_PROXY_HOPS", undefined);
+    vi.stubEnv("PAYMENT_MOCK_WEBHOOK_ENABLED", undefined);
+    vi.stubEnv("PAYMENT_MOCK_WEBHOOK_SECRET", undefined);
     vi.stubEnv("JWT_SECRET", "");
     vi.stubEnv("MYSQL_PASSWORD", "");
     vi.stubEnv("AUTH_PHONE_HASH_SECRET", "");
