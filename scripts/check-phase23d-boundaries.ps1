@@ -13,19 +13,16 @@ function Require-Match([string]$Label, [string]$Content, [string]$Pattern) {
 function Changed-Files([string[]]$Paths) {
   $tracked = @(& git diff --name-only $BaseRef $PhaseTarget -- @Paths)
   if ($LASTEXITCODE -ne 0) { throw "unable to inspect Phase 23D diff" }
-  $untracked = @()
-  if ($PhaseTarget -eq "HEAD") {
-    $untracked = @(& git ls-files --others --exclude-standard -- @Paths)
-  }
-  return @($tracked + $untracked | Sort-Object -Unique)
+  return @($tracked | Sort-Object -Unique)
 }
 
 Push-Location $Root
 try {
   & git rev-parse --verify "$BaseRef^{commit}" *> $null
   if ($LASTEXITCODE -ne 0) { throw "missing locked Phase 23C baseline tag: $BaseRef" }
-  $lockedTag = @(& git tag --list $LockedRef)
-  $PhaseTarget = if ($lockedTag -contains $LockedRef) { $LockedRef } else { "HEAD" }
+  & git rev-parse --verify "$LockedRef^{commit}" *> $null
+  if ($LASTEXITCODE -ne 0) { throw "missing locked Phase 23D endpoint tag: $LockedRef" }
+  $PhaseTarget = $LockedRef
 
   $locked = @(Changed-Files @("db/migrations") | Where-Object {
     $_ -match '^db/migrations/(?:0(?:0[0-9]|1[0-9]|2[0-9]|3[0-9]|4[0-5]))_'

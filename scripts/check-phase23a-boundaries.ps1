@@ -13,7 +13,8 @@ try {
   & git rev-parse --verify "$BaseRef^{commit}" *> $null
   if ($LASTEXITCODE -ne 0) { throw "missing locked Phase 22 baseline tag: $BaseRef" }
   & git rev-parse --verify "$LockedRef^{commit}" *> $null
-  $PhaseTarget = if ($LASTEXITCODE -eq 0) { $LockedRef } else { "HEAD" }
+  if ($LASTEXITCODE -ne 0) { throw "missing locked Phase 23A endpoint tag: $LockedRef" }
+  $PhaseTarget = $LockedRef
 
   $lockedMigrationDiff = @(& git diff --name-only $BaseRef $PhaseTarget -- db/migrations | Where-Object {
     $_ -match '^db/migrations/(?:0(?:0[0-9]|1[0-9]|2[0-9]|3[0-9]|4[0-2]))_'
@@ -36,10 +37,6 @@ try {
 
   $forbiddenDomainDiff = @(& git diff --name-only $BaseRef $PhaseTarget -- backend/src/order backend/src/payment backend/src/dispatch backend/src/ledger backend/src/settlement backend/src/aftersale backend/src/fulfillment)
   if ($LASTEXITCODE -ne 0) { throw "unable to inspect protected business domains" }
-  if ($PhaseTarget -eq "HEAD") {
-    $forbiddenDomainDiff += @(& git ls-files --others --exclude-standard -- backend/src/order backend/src/payment backend/src/dispatch backend/src/ledger backend/src/settlement backend/src/aftersale backend/src/fulfillment)
-    if ($LASTEXITCODE -ne 0) { throw "unable to inspect untracked protected business files" }
-  }
   if ($forbiddenDomainDiff.Count -gt 0) {
     throw "Phase 23A expanded protected business semantics: $($forbiddenDomainDiff -join ', ')"
   }
@@ -47,10 +44,6 @@ try {
 
   $providerDiff = @(& git diff --name-only $BaseRef $PhaseTarget -- backend/src/providers backend/src/dispatch/geoProvider.ts)
   if ($LASTEXITCODE -ne 0) { throw "unable to inspect provider boundaries" }
-  if ($PhaseTarget -eq "HEAD") {
-    $providerDiff += @(& git ls-files --others --exclude-standard -- backend/src/providers backend/src/dispatch/geoProvider.ts)
-    if ($LASTEXITCODE -ne 0) { throw "unable to inspect untracked provider files" }
-  }
   if ($providerDiff.Count -gt 0) {
     throw "Phase 23A modified provider/infrastructure integration files: $($providerDiff -join ', ')"
   }

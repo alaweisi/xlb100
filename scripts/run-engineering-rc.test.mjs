@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
@@ -101,6 +102,68 @@ test("engineering RC runs database-backed ledger proofs only after migration and
     architecturePreflight,
     /Invoke-PreflightGate "check-ledger-(?:replay|immutability)\.ps1"/u,
   );
+});
+
+test("every locked phase tag resolves to an immutable ancestor of HEAD", () => {
+  const registry = JSON.parse(
+    fs.readFileSync(
+      path.join(rootDir, "docs", "governance", "phase-registry.json"),
+      "utf8",
+    ),
+  );
+  const tags = [
+    ...new Set(
+      registry.phases
+        .filter((phase) => phase.status === "LOCKED")
+        .map((phase) => phase.tag)
+        .filter(Boolean),
+    ),
+  ].sort();
+  assert.ok(tags.length > 0);
+
+  for (const tag of tags) {
+    const resolved = spawnSync(
+      "git",
+      ["rev-parse", "--verify", `${tag}^{commit}`],
+      { cwd: rootDir, encoding: "utf8" },
+    );
+    assert.equal(
+      resolved.status,
+      0,
+      `locked phase tag must resolve in this checkout: ${tag}`,
+    );
+    const commit = resolved.stdout.trim();
+    assert.match(commit, /^[0-9a-f]{40}$/u);
+
+    const ancestor = spawnSync(
+      "git",
+      ["merge-base", "--is-ancestor", commit, "HEAD"],
+      { cwd: rootDir, encoding: "utf8" },
+    );
+    assert.equal(
+      ancestor.status,
+      0,
+      `locked phase tag must be an ancestor of HEAD: ${tag}`,
+    );
+  }
+});
+
+test("locked historical phase gates never fall back to the current HEAD", () => {
+  for (const fileName of [
+    "check-phase23a-boundaries.ps1",
+    "check-phase23c-boundaries.ps1",
+    "check-phase23d-boundaries.ps1",
+  ]) {
+    const gate = fs.readFileSync(
+      path.join(rootDir, "scripts", fileName),
+      "utf8",
+    );
+    assert.doesNotMatch(gate, /\$PhaseTarget\s*-eq\s*["']HEAD["']/u);
+    assert.doesNotMatch(
+      gate,
+      /\$PhaseTarget\s*=\s*if[\s\S]{0,200}else\s*\{\s*["']HEAD["']\s*\}/u,
+    );
+  }
 });
 
 test("deployment Dockerfiles use the canonical Node version", () => {
