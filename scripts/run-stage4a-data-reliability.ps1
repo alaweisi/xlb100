@@ -47,7 +47,8 @@ $pnpmCommand = if (Get-Command pnpm.cmd -ErrorAction SilentlyContinue) {
 $managedEnv = @(
   'NODE_ENV', 'MYSQL_HOST', 'MYSQL_PORT', 'MYSQL_DATABASE', 'MYSQL_USER',
   'MYSQL_PASSWORD', 'MYSQL_ROOT_USER', 'MYSQL_ROOT_PASSWORD', 'REDIS_HOST',
-  'REDIS_PORT', 'XLB_STAGE2C3_REDIS_PORT', 'XLB_SKIP_DB_TESTS'
+  'REDIS_PORT', 'XLB_STAGE2C3_REDIS_PORT', 'XLB_SKIP_DB_TESTS',
+  'PAYMENT_MOCK_WEBHOOK_ENABLED', 'PAYMENT_MOCK_WEBHOOK_SECRET'
 )
 $previousEnv = @{}
 foreach ($key in $managedEnv) { $previousEnv[$key] = [Environment]::GetEnvironmentVariable($key) }
@@ -110,12 +111,19 @@ try {
     'exec', 'vitest', 'run', '--project', 'db-serial',
     'tests/integration/stage2c3RedisStreamReliability.test.ts'
   )
-  Invoke-PnpmStep -Label 'isolated Outbox reliability tests' -Arguments @(
-    'exec', 'vitest', 'run', '--project', 'db-serial',
-    'tests/integration/outboxClaimConcurrency.test.ts',
-    'tests/integration/orderPaymentOutbox.test.ts',
-    'tests/integration/outboxToDispatchStream.test.ts'
-  )
+  $env:PAYMENT_MOCK_WEBHOOK_ENABLED = 'true'
+  $env:PAYMENT_MOCK_WEBHOOK_SECRET = 'xlb-test-only-mock-payment-webhook-secret'
+  try {
+    Invoke-PnpmStep -Label 'isolated Outbox reliability tests' -Arguments @(
+      'exec', 'vitest', 'run', '--project', 'db-serial',
+      'tests/integration/outboxClaimConcurrency.test.ts',
+      'tests/integration/orderPaymentOutbox.test.ts',
+      'tests/integration/outboxToDispatchStream.test.ts'
+    )
+  } finally {
+    $env:PAYMENT_MOCK_WEBHOOK_ENABLED = 'false'
+    $env:PAYMENT_MOCK_WEBHOOK_SECRET = ''
+  }
 
   $drOutput = @(& $drScript -Environment local -MysqlContainer $MysqlContainer -RedisContainer $RedisContainer)
   if ($LASTEXITCODE -ne 0) { throw 'Stage 4A backup/restore/capacity drill failed' }

@@ -160,6 +160,22 @@ test("Phase 28 callback is test-only and Stage 4B browser mode cannot select Pro
   );
 });
 
+test("Stage 4A scopes the mock payment callback to isolated reliability fixtures", () => {
+  const stage4a = fs.readFileSync(
+    path.join(rootDir, "scripts", "run-stage4a-data-reliability.ps1"),
+    "utf8",
+  );
+  assert.match(
+    stage4a,
+    /\$env:PAYMENT_MOCK_WEBHOOK_ENABLED = 'true'[\s\S]*isolated Outbox reliability tests[\s\S]*finally \{[\s\S]*\$env:PAYMENT_MOCK_WEBHOOK_ENABLED = 'false'/u,
+  );
+  assert.match(
+    stage4a,
+    /\$env:PAYMENT_MOCK_WEBHOOK_SECRET = 'xlb-test-only-mock-payment-webhook-secret'[\s\S]*\$env:PAYMENT_MOCK_WEBHOOK_SECRET = ''/u,
+  );
+  assert.doesNotMatch(stage4a, /XLB_EXTERNAL_PROVIDER_EXECUTION_ENABLED\s*=\s*'true'/u);
+});
+
 test("RC test configs reject focused tests, bind loopback, reject stale servers, and emit JSON evidence", () => {
   for (const name of [
     "playwright.config.ts",
