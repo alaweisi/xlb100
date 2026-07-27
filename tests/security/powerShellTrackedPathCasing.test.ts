@@ -115,4 +115,27 @@ describe("PowerShell gate tracked paths", () => {
 
     expect(nonPortable).toEqual([]);
   });
+
+  it("uses portable executable names in active preflight gates", () => {
+    const root = process.cwd();
+    const preflight = readFileSync(
+      join(root, "scripts/preflight-architecture.ps1"),
+      "utf8",
+    );
+    const gateNames = [
+      ...preflight.matchAll(/Invoke-PreflightGate\s+["']([^"']+)["']/gu),
+    ]
+      .map((match) => match[1])
+      .filter((name): name is string => Boolean(name));
+    const nonPortable: string[] = [];
+
+    for (const name of gateNames) {
+      const content = readFileSync(join(root, "scripts", name), "utf8");
+      if (/\b(?:git|node|pnpm|pnpx|npx)\.(?:exe|cmd)\b/iu.test(content)) {
+        nonPortable.push(name);
+      }
+    }
+
+    expect(nonPortable).toEqual([]);
+  });
 });

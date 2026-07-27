@@ -4,7 +4,7 @@ Set-Location (Resolve-Path (Join-Path $PSScriptRoot '..'))
 
 function Read-FileAtRef([string]$Ref, [string]$Path) {
   $startInfo = New-Object System.Diagnostics.ProcessStartInfo
-  $startInfo.FileName = 'git.exe'
+  $startInfo.FileName = 'git'
   $startInfo.Arguments = "show --no-textconv `"${Ref}:$Path`""
   $startInfo.UseShellExecute = $false
   $startInfo.CreateNoWindow = $true
