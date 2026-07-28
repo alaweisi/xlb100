@@ -15,6 +15,8 @@ import {
   type AdminSession,
 } from "../adminAuth";
 import {
+  ADMIN_INVESTOR_DEMO_CITY_CODE,
+  ADMIN_INVESTOR_DEMO_USERNAME,
   adminDemoCityLabel,
   AdminInvestorDemoNotice,
   IS_ADMIN_INVESTOR_DEMO,
@@ -54,7 +56,11 @@ export function App() {
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [authNotice, setAuthNotice] = useState<string | null>(null);
-  const [loginUsername, setLoginUsername] = useState(() => readStoredAdminSession()?.username ?? "admin_hz");
+  const [loginUsername, setLoginUsername] = useState(() => (
+    IS_ADMIN_INVESTOR_DEMO
+      ? ADMIN_INVESTOR_DEMO_USERNAME
+      : readStoredAdminSession()?.username ?? "admin_hz"
+  ));
   const [loginCode, setLoginCode] = useState("");
 
   const onHashChange = useCallback(() => {
@@ -187,7 +193,9 @@ export function App() {
     setAuthError(null);
   }, [session]);
 
-  const cityCode = params.get("cityCode") || undefined;
+  const cityCode = IS_ADMIN_INVESTOR_DEMO
+    ? ADMIN_INVESTOR_DEMO_CITY_CODE
+    : params.get("cityCode") || undefined;
   const can = useCallback((...permissions: NonNullable<AdminSession["permissions"]>[number][]) => {
     if (IS_ADMIN_INVESTOR_DEMO && session?.identity === "admin") {
       const demoPermissions = new Set<NonNullable<AdminSession["permissions"]>[number]>([

@@ -7,7 +7,10 @@ import {
   type WorkerSession,
   workerVisibleError,
 } from "../app/workerAuth";
-import { IS_WORKER_INVESTOR_DEMO } from "../investorDemo";
+import {
+  IS_WORKER_INVESTOR_DEMO,
+  WORKER_INVESTOR_DEMO_PHONE,
+} from "../investorDemo";
 import { helperText, workerPanelStyle } from "./pageShared";
 
 const DEFAULT_CITY_CODE = "hangzhou";
@@ -22,7 +25,11 @@ export function WorkerLoginPage({
   onCityChange: (value: string) => void;
   onLogin: (session: WorkerSession) => void;
 }) {
-  const [phone, setPhone] = useState(DEFAULT_WORKER_PHONE);
+  const [phone, setPhone] = useState(
+    IS_WORKER_INVESTOR_DEMO
+      ? WORKER_INVESTOR_DEMO_PHONE
+      : DEFAULT_WORKER_PHONE,
+  );
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState<"request" | "debug" | "login" | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -91,7 +98,11 @@ export function WorkerLoginPage({
             )}
           </FormField>
           <FormField label="手机号码">
-            <Input value={phone} onChange={(event) => setPhone(event.target.value)} />
+            <Input
+              value={phone}
+              readOnly={IS_WORKER_INVESTOR_DEMO}
+              onChange={(event) => setPhone(event.target.value)}
+            />
           </FormField>
           <FormField label="验证码">
             <Input value={code} onChange={(event) => setCode(event.target.value)} />

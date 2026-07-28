@@ -5,15 +5,16 @@ import type {
   RowDataPacket,
 } from "mysql2/promise";
 import { loadEnv, type EnvConfig } from "@xlb/config";
+import { INVESTOR_DEMO_IDENTITIES } from "@xlb/types";
 import { getMysqlPool } from "../dal/mysqlPool.js";
 
 export const STAGING_DEMO_RESET_CONFIRMATION = "RESET_XLB_INVESTOR_DEMO_V1";
 export const STAGING_DEMO_PREFIX = "investor-demo-";
 
 export const STAGING_DEMO_IDS = Object.freeze({
-  customerId: "customer-demo-001",
-  workerId: "investor-demo-worker-hz",
-  adminUserId: "investor-demo-admin-hz",
+  customerId: INVESTOR_DEMO_IDENTITIES.customer.id,
+  workerId: INVESTOR_DEMO_IDENTITIES.worker.id,
+  adminUserId: INVESTOR_DEMO_IDENTITIES.admin.id,
   addressId: "investor-demo-address-hz",
   activeOrderId: "investor-demo-order-active",
   historyOrderId: "investor-demo-order-history",

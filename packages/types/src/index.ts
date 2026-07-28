@@ -2,6 +2,7 @@ export type { AppType } from "./app.js";
 export type { Role } from "./rbac.js";
 export type { CityCode, KnownCityCode } from "./city.js";
 export type { RequestContext } from "./requestContext.js";
+export { INVESTOR_DEMO_IDENTITIES } from "./investorDemo.js";
 export type {
   DashboardFreshness,
   DashboardSeverity,

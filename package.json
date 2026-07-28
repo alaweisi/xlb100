@@ -182,6 +182,8 @@
     "mobile:m5:release": "node scripts/mobile-m5-release.mjs",
     "mobile:investor-demo:test": "node --test scripts/mobile-investor-demo-release.test.mjs scripts/mobile-investor-demo-branding.test.mjs scripts/mobile-investor-demo-privacy.test.mjs",
     "mobile:investor-demo:release": "node scripts/mobile-investor-demo-release.mjs",
+    "staging:demo:bootstrap:dry-run": "node backend/node_modules/tsx/dist/cli.mjs --tsconfig tsconfig.base.json scripts/staging-demo-bootstrap.ts --dry-run",
+    "staging:demo:reset": "node backend/node_modules/tsx/dist/cli.mjs --tsconfig tsconfig.base.json scripts/staging-demo-bootstrap.ts --apply",
     "check:risk": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-lean-risk.ps1 -DiffMode WorkingTree",
     "check:migration-integrity": "node scripts/run-powershell.mjs scripts/check-migration-integrity.ps1 -DiffMode WorkingTree",
     "preflight": "node scripts/run-powershell.mjs scripts/preflight-architecture.ps1"

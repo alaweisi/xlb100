@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
 import { loadEnv } from "@xlb/config";
 import {
   applyStagingDemoOperations,
@@ -37,6 +38,21 @@ afterEach(() => {
 });
 
 describe("staging demo bootstrap safety", () => {
+  it("exposes explicit root dry-run and apply aliases without setting safety switches", () => {
+    const rootPackage = JSON.parse(
+      readFileSync(new URL("../../package.json", import.meta.url), "utf8"),
+    ) as { scripts: Record<string, string> };
+    expect(rootPackage.scripts["staging:demo:bootstrap:dry-run"]).toBe(
+      "node backend/node_modules/tsx/dist/cli.mjs --tsconfig tsconfig.base.json scripts/staging-demo-bootstrap.ts --dry-run",
+    );
+    expect(rootPackage.scripts["staging:demo:reset"]).toBe(
+      "node backend/node_modules/tsx/dist/cli.mjs --tsconfig tsconfig.base.json scripts/staging-demo-bootstrap.ts --apply",
+    );
+    expect(rootPackage.scripts["staging:demo:reset"]).not.toMatch(
+      /STAGING_DEMO_RESET_ENABLED|STAGING_DEMO_RESET_CONFIRMATION/u,
+    );
+  });
+
   it("requires staging, two explicit switches and exact host/database matches", () => {
     stubBootstrapEnv();
     expect(validateStagingDemoBootstrapTarget(loadEnv())).toMatchObject({

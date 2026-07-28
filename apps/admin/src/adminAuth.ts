@@ -10,6 +10,7 @@ import {
 import type { OaPermissionKey, OaPrincipal } from "@xlb/types";
 import { API_BASE } from "./apiBase";
 import {
+  ADMIN_INVESTOR_DEMO_CITY_CODE,
   ADMIN_DEMO_SESSION_TTL_MS,
   IS_ADMIN_INVESTOR_DEMO,
 } from "./investorDemo";
@@ -242,6 +243,7 @@ function readCityCodeFromHash(): string | null {
 }
 
 function cityCodeForPath(path: string): string {
+  if (IS_ADMIN_INVESTOR_DEMO) return ADMIN_INVESTOR_DEMO_CITY_CODE;
   try {
     const url = new URL(path, "http://xlb.local");
     return url.searchParams.get("cityCode") || readCityCodeFromHash() || "hangzhou";

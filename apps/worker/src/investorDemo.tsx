@@ -1,3 +1,5 @@
+import { INVESTOR_DEMO_IDENTITIES } from "@xlb/types";
+
 const viteEnv = (
   import.meta as ImportMeta & {
     env?: {
@@ -12,6 +14,10 @@ const viteEnv = (
 
 export const IS_WORKER_INVESTOR_DEMO =
   viteEnv?.VITE_MOBILE_BUILD_PROFILE === "investor-demo";
+export const WORKER_INVESTOR_DEMO_PHONE =
+  INVESTOR_DEMO_IDENTITIES.worker.phone;
+export const WORKER_INVESTOR_DEMO_CITY_CODE =
+  INVESTOR_DEMO_IDENTITIES.cityCode;
 export const WORKER_DEMO_SESSION_TTL_MS = Math.max(
   60,
   Number(viteEnv?.VITE_DEMO_SESSION_TTL_SECONDS ?? "1800") || 1_800,

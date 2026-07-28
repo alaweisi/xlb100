@@ -3,8 +3,12 @@ import jwt, {
   type JwtPayload,
 } from "jsonwebtoken";
 import { loadEnv } from "@xlb/config";
-import type { AppType, Role } from "@xlb/types";
-import type { OaBackofficeContext } from "@xlb/types";
+import {
+  INVESTOR_DEMO_IDENTITIES,
+  type AppType,
+  type OaBackofficeContext,
+  type Role,
+} from "@xlb/types";
 
 const APP_ROLES: Record<AppType, readonly Role[]> = {
   customer: ["customer"],
@@ -215,7 +219,7 @@ export function createStagingDemoToken(
       (
         appType === "customer"
         && role === "customer"
-        && sub === "customer-demo-001"
+        && sub === INVESTOR_DEMO_IDENTITIES.customer.id
         && env.stagingDemoCustomerAuthEnabled
       )
       || (

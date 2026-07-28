@@ -1,6 +1,7 @@
 import { createHmac } from "node:crypto";
 import type { RowDataPacket } from "mysql2/promise";
 import { loadEnv } from "@xlb/config";
+import { INVESTOR_DEMO_IDENTITIES } from "@xlb/types";
 import { getMysqlPool } from "../dal/mysqlPool.js";
 import type { TokenPayload } from "./tokenAuth.js";
 
@@ -63,7 +64,7 @@ export async function stagingDemoIdentityIsActive(
   if (payload.appType === "customer") {
     if (
       !env.stagingDemoCustomerAuthEnabled
-      || payload.sub !== "customer-demo-001"
+      || payload.sub !== INVESTOR_DEMO_IDENTITIES.customer.id
       || payload.role !== "customer"
     ) {
       return false;

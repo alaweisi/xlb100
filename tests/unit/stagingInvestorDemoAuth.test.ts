@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { loadEnv } from "@xlb/config";
+import { INVESTOR_DEMO_IDENTITIES } from "@xlb/types";
 import {
   stagingDemoCodeFor,
   stagingInvestorDemoCodeFor,
@@ -123,5 +124,23 @@ describe("staging investor demo authentication", () => {
     vi.stubEnv("REDIS_TLS_ENABLED", "true");
     vi.stubEnv("REDIS_TLS_CA", "production-ca");
     expect(() => loadEnv()).toThrow("STAGING_INVESTOR_DEMO_AUTH_ENABLED");
+  });
+
+  it("fails closed when backend identities diverge from the APK manifest", () => {
+    stubStagingDemoEnv();
+    expect(INVESTOR_DEMO_IDENTITIES).toMatchObject({
+      cityCode: "hangzhou",
+      worker: {
+        id: "investor-demo-worker-hz",
+        phone: "13800000011",
+      },
+      admin: {
+        id: "investor-demo-admin-hz",
+        username: "investor_demo_hz",
+        role: "operator",
+      },
+    });
+    vi.stubEnv("STAGING_DEMO_WORKER_PHONE", "13800000012");
+    expect(() => loadEnv()).toThrow("shared fixed manifest");
   });
 });

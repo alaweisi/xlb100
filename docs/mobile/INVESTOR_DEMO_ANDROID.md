@@ -63,6 +63,26 @@ pnpm mobile:investor-demo:release
 
 同一 commit 的封存文件不可被不同内容覆盖。
 
+## 固定演示身份与数据重置
+
+APK 与后端共同消费 `@xlb/types` 中的固定演示身份清单。师傅端固定使用
+杭州演示师傅手机号，管理端固定使用杭州低权限演示管理员用户名；这些标识
+不是密码，实际验证码仍由 Staging 的短期、一次性 OTP 流程生成。
+
+根目录提供两个明确入口：
+
+```powershell
+pnpm staging:demo:bootstrap:dry-run
+pnpm staging:demo:reset
+```
+
+两个命令都不会代填安全条件。执行者仍须显式提供
+`NODE_ENV=staging`、`STAGING_DEMO_RESET_ENABLED=true`、
+`STAGING_DEMO_RESET_CONFIRMATION=RESET_XLB_INVESTOR_DEMO_V1`，并使
+`STAGING_DEMO_RESET_EXPECTED_HOST` / `STAGING_DEMO_RESET_EXPECTED_DATABASE`
+与实际 MySQL 目标精确一致。脚本会再次校验非 production host/database、
+固定身份与连接后的 `SELECT DATABASE()`；任一条件不满足即失败关闭。
+
 ## 当前联网验收状态
 
 服务器侧标准 443 监听、TLS/SAN 与 Certbot 续期已验证通过；公网 443 的 SYN 尚未到达腾讯云实例 `ins-7a8qh4gx`，当前唯一已知阻塞为腾讯云安全组，且施工上下文没有 CAM/API 权限。因此真实公网链路保持 HOLD。构建配置不会因该阻塞回退到 80 端口或占位域名。

@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { INVESTOR_DEMO_IDENTITIES } from "@xlb/types";
 
 export interface EnvConfig {
   nodeEnv: string;
@@ -136,6 +137,19 @@ function validateDeploymentEnv(config: EnvConfig): void {
       || config.stagingDemoTokenTtlSeconds > 3_600
     ) {
       throw new Error("STAGING_DEMO_TOKEN_TTL_SECONDS must be between 300 and 3600");
+    }
+    if (
+      config.stagingDemoWorkerId !== INVESTOR_DEMO_IDENTITIES.worker.id
+      || config.stagingDemoWorkerPhone !== INVESTOR_DEMO_IDENTITIES.worker.phone
+      || config.stagingDemoAdminUserId !== INVESTOR_DEMO_IDENTITIES.admin.id
+      || config.stagingDemoAdminUsername !== INVESTOR_DEMO_IDENTITIES.admin.username
+      || config.stagingDemoCityCode !== INVESTOR_DEMO_IDENTITIES.cityCode
+      || (
+        config.stagingDemoCustomerAuthEnabled
+        && config.stagingDemoCustomerPhone !== INVESTOR_DEMO_IDENTITIES.customer.phone
+      )
+    ) {
+      throw new Error("staging investor demo identities must match the shared fixed manifest");
     }
   }
   if (config.rateLimitBackend !== "redis") {

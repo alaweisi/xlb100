@@ -1,5 +1,6 @@
 import type { RowDataPacket } from "mysql2/promise";
 import { loadEnv, type EnvConfig } from "@xlb/config";
+import { INVESTOR_DEMO_IDENTITIES } from "@xlb/types";
 import { getMysqlPool } from "../dal/mysqlPool.js";
 import { smsProvider } from "../providers/sms/mockSmsProvider.js";
 import {
@@ -25,7 +26,7 @@ import { oaIdentityService } from "../oa/oaIdentityService.js";
 // SMS delivery is intentionally routed to a truthful mock provider. Real SMS
 // remains blocked until legal entity, credentials and production activation.
 
-const STAGING_DEMO_CUSTOMER_ID = "customer-demo-001";
+const STAGING_DEMO_CUSTOMER_ID = INVESTOR_DEMO_IDENTITIES.customer.id;
 const INVESTOR_DEMO_ID_PREFIX = "investor-demo-";
 
 async function deliverMockLoginCode(

@@ -25,7 +25,11 @@ import {
   WORKER_SESSION_EXPIRED_EVENT,
   workerVisibleError,
 } from "./workerAuth";
-import { IS_WORKER_INVESTOR_DEMO, WorkerInvestorDemoNotice } from "../investorDemo";
+import {
+  IS_WORKER_INVESTOR_DEMO,
+  WORKER_INVESTOR_DEMO_CITY_CODE,
+  WorkerInvestorDemoNotice,
+} from "../investorDemo";
 import "./worker-responsive.css";
 
 import { helperText, workerPanelStyle } from "../pages/pageShared";
@@ -141,6 +145,9 @@ const shellStyle = {
 } as CSSProperties;
 
 function readQueryParams(): QueryParams {
+  if (IS_WORKER_INVESTOR_DEMO) {
+    return { cityCode: WORKER_INVESTOR_DEMO_CITY_CODE };
+  }
   const params = new URLSearchParams(window.location.search);
   return {
     cityCode: params.get("cityCode")?.trim() || DEFAULT_CITY_CODE,

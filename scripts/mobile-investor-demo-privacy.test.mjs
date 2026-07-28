@@ -11,8 +11,11 @@ const customerApp = read("../apps/customer/src/app/App.tsx");
 const workerAuth = read("../apps/worker/src/app/workerAuth.ts");
 const workerStore = read("../apps/worker/src/features/auth/store.ts");
 const workerApp = read("../apps/worker/src/app/App.tsx");
+const workerLogin = read("../apps/worker/src/pages/AuthPages.tsx");
+const workerDemo = read("../apps/worker/src/investorDemo.tsx");
 const adminAuth = read("../apps/admin/src/adminAuth.ts");
 const adminApp = read("../apps/admin/src/app/App.tsx");
+const adminDemo = read("../apps/admin/src/investorDemo.tsx");
 
 test("Investor Demo tokens are short-lived and never use persistent storage", () => {
   assert.match(customerAuth, /IS_CUSTOMER_INVESTOR_DEMO[\s\S]*window\.sessionStorage/u);
@@ -46,4 +49,17 @@ test("authentication code contains no token or phone logging", () => {
   assert.doesNotMatch(adminApp, /\bloginAdmin\s*\(/u);
   assert.doesNotMatch(adminApp, /getAdminDebugCode/u);
   assert.doesNotMatch(workerApp, /Bearer \{session\.token\}|session\.token\.slice/u);
+});
+
+test("Worker and Admin consume the shared fixed demo identity and city contract", () => {
+  assert.match(workerDemo, /INVESTOR_DEMO_IDENTITIES\.worker\.phone/u);
+  assert.match(workerDemo, /INVESTOR_DEMO_IDENTITIES\.cityCode/u);
+  assert.match(workerLogin, /IS_WORKER_INVESTOR_DEMO[\s\S]*WORKER_INVESTOR_DEMO_PHONE/u);
+  assert.match(workerLogin, /readOnly=\{IS_WORKER_INVESTOR_DEMO\}/u);
+  assert.match(workerApp, /IS_WORKER_INVESTOR_DEMO[\s\S]*WORKER_INVESTOR_DEMO_CITY_CODE/u);
+  assert.match(adminDemo, /INVESTOR_DEMO_IDENTITIES\.admin\.username/u);
+  assert.match(adminDemo, /INVESTOR_DEMO_IDENTITIES\.cityCode/u);
+  assert.match(adminApp, /IS_ADMIN_INVESTOR_DEMO[\s\S]*ADMIN_INVESTOR_DEMO_USERNAME/u);
+  assert.match(adminApp, /IS_ADMIN_INVESTOR_DEMO[\s\S]*ADMIN_INVESTOR_DEMO_CITY_CODE/u);
+  assert.match(adminAuth, /IS_ADMIN_INVESTOR_DEMO\) return ADMIN_INVESTOR_DEMO_CITY_CODE/u);
 });
