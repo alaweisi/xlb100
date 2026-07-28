@@ -36,7 +36,11 @@ function Resolve-AndroidSdk {
         (Join-Path $env:LOCALAPPDATA 'Android\Sdk')
     ) | Where-Object { $_ }
     foreach ($candidate in $candidates) {
-        $full = [System.IO.Path]::GetFullPath($candidate)
+        try {
+            $full = [System.IO.Path]::GetFullPath($candidate)
+        } catch {
+            continue
+        }
         if (Test-Path -LiteralPath (Join-Path $full 'platform-tools\adb.exe') -PathType Leaf) {
             return $full
         }
@@ -103,7 +107,7 @@ function Invoke-AdbText {
     }
     $text = ($output | ForEach-Object { $_.ToString() }) -join "`n"
     if ($exitCode -ne 0 -and -not $AllowFailure) {
-        throw "adb command failed for $DeviceSerial (exit $exitCode)."
+        throw "adb command failed for $DeviceSerial (exit $exitCode): $($allArguments -join ' ')"
     }
     return [pscustomobject]@{ ExitCode = $exitCode; Text = $text.Trim() }
 }
@@ -150,7 +154,7 @@ function Save-UiTree {
     $xmlPath = "$StepRoot.xml"
     $summaryPath = "$StepRoot-summary.txt"
     Write-Utf8NoBom $xmlPath $cleanXml
-    & $python $uiSummarize $xmlPath $summaryPath
+    & $python -X utf8 $uiSummarize $xmlPath $summaryPath
     if ($LASTEXITCODE -ne 0) {
         throw "UI-tree summarization failed for $DeviceSerial."
     }
@@ -169,7 +173,7 @@ function Invoke-TreeDerivedTap {
         [string]$StepRoot
     )
     $tree = Save-UiTree $DeviceSerial $StepRoot
-    $pick = & $python $uiPick $tree.XmlPath $TargetText 2>&1
+    $pick = & $python -X utf8 $uiPick $tree.XmlPath $TargetText 2>&1
     $pickExit = $LASTEXITCODE
     if ($pickExit -ne 0 -and $tree.Text -match 'scrollable="true"') {
         [xml]$parsed = $tree.Text
@@ -183,7 +187,7 @@ function Invoke-TreeDerivedTap {
             Invoke-AdbText $DeviceSerial @('shell', 'input', 'swipe', "$x", "$fromY", "$x", "$toY", '350') | Out-Null
             Start-Sleep -Milliseconds 500
             $tree = Save-UiTree $DeviceSerial "$StepRoot-scrolled"
-            $pick = & $python $uiPick $tree.XmlPath $TargetText 2>&1
+            $pick = & $python -X utf8 $uiPick $tree.XmlPath $TargetText 2>&1
             $pickExit = $LASTEXITCODE
         }
     }
@@ -206,7 +210,7 @@ function Assert-UiContains([string]$UiText, [string]$Expected, [string]$Context)
 function Sanitize-Log([string]$Text) {
     $sanitized = $Text -replace '(?i)Bearer\s+[A-Za-z0-9._~+/=-]+', 'Bearer [REDACTED]'
     $sanitized = $sanitized -replace '\b1[3-9]\d{9}\b', '[REDACTED_PHONE]'
-    $sanitized = $sanitized -replace '(?i)(otp|验证码|code)([=: ]+)\d{4,8}', '$1$2[REDACTED_CODE]'
+    $sanitized = $sanitized -replace '(?i)(otp|验证码|verification[_ -]?code)([=: ]+)\d{4,8}', '$1$2[REDACTED_CODE]'
     return $sanitized
 }
 
@@ -258,7 +262,55 @@ $qaReports = @()
 foreach ($device in $selected) {
     $deviceRoot = Join-Path $EvidenceRoot ($device.serial -replace '[^A-Za-z0-9._-]', '_')
     New-Item -ItemType Directory -Path $deviceRoot | Out-Null
-    foreach ($app in $manifest.reports) {
+    $originalAccessibilityEnabled = (
+        Invoke-AdbText $device.serial @('shell', 'settings', 'get', 'secure', 'accessibility_enabled')
+    ).Text
+    $originalAccessibilityServices = (
+        Invoke-AdbText $device.serial @(
+            'shell', 'settings', 'get', 'secure', 'enabled_accessibility_services'
+        )
+    ).Text
+    $accessibilityMenuService =
+        'com.android.systemui.accessibility.accessibilitymenu/.AccessibilityMenuService'
+    $accessibilityTemporarilyEnabled = $false
+    try {
+        $availableServices = (
+            Invoke-AdbText $device.serial @(
+                'shell', 'cmd', 'package', 'query-services', '--brief',
+                '-a', 'android.accessibilityservice.AccessibilityService'
+            ) -AllowFailure
+        ).Text
+        if (
+            $availableServices.Contains($accessibilityMenuService) -and
+            -not $originalAccessibilityServices.Contains($accessibilityMenuService)
+        ) {
+            $serviceList = if (
+                $originalAccessibilityServices -and
+                $originalAccessibilityServices -ne 'null'
+            ) {
+                "$originalAccessibilityServices`:$accessibilityMenuService"
+            } else {
+                $accessibilityMenuService
+            }
+            Invoke-AdbText $device.serial @(
+                'shell', 'settings', 'put', 'secure',
+                'enabled_accessibility_services', $serviceList
+            ) | Out-Null
+            Invoke-AdbText $device.serial @(
+                'shell', 'settings', 'put', 'secure', 'accessibility_enabled', '1'
+            ) | Out-Null
+            $accessibilityTemporarilyEnabled = $true
+            Start-Sleep -Seconds 1
+        }
+
+        Invoke-AdbText $device.serial @('shell', 'input', 'keyevent', '82') | Out-Null
+        Invoke-AdbText $device.serial @('shell', 'wm', 'dismiss-keyguard') -AllowFailure | Out-Null
+        Start-Sleep -Milliseconds 500
+        $userState = (Invoke-AdbText $device.serial @('shell', 'dumpsys', 'user')).Text
+        if ($userState -match 'RUNNING_LOCKED') {
+            throw "Android user storage remains locked on $($device.serial)."
+        }
+        foreach ($app in $manifest.reports) {
         if (-not $expectedByRole.ContainsKey($app.role)) {
             throw "Unexpected Investor Demo role in manifest."
         }
@@ -271,12 +323,16 @@ foreach ($device in $selected) {
         Invoke-AdbText $device.serial @('install', $app.apkPath) | Out-Null
         Invoke-AdbText $device.serial @('logcat', '-c') | Out-Null
 
-        $activity = (Invoke-AdbText $device.serial @(
+        $resolvedActivity = (Invoke-AdbText $device.serial @(
             'shell', 'cmd', 'package', 'resolve-activity', '--brief', $app.appId
         )).Text
-        if (-not $activity -or $activity -match 'No activity found') {
+        $activity = @($resolvedActivity -split "`r?`n" | Where-Object {
+            $_ -match '^[A-Za-z0-9._]+/[A-Za-z0-9._$]+$'
+        } | Select-Object -Last 1)
+        if ($activity.Count -ne 1) {
             throw "Launch activity did not resolve for $($app.appId)."
         }
+        $activity = $activity[0]
         Invoke-AdbText $device.serial @('shell', 'am', 'force-stop', $app.appId) | Out-Null
         Invoke-AdbText $device.serial @('shell', 'am', 'start', '-W', '-n', $activity) | Out-Null
         Start-Sleep -Seconds 2
@@ -330,9 +386,15 @@ foreach ($device in $selected) {
         $reconnected = Save-UiTree $device.serial (Join-Path $appRoot '08-reconnected')
         Assert-UiContains $reconnected.Text $expectedByRole[$app.role].Login "$($app.role) after reconnect"
 
-        $pid = (Invoke-AdbText $device.serial @('shell', 'pidof', '-s', $app.appId) -AllowFailure).Text
-        $logcat = if ($pid) {
-            (Invoke-AdbText $device.serial @('logcat', '-d', '--pid', $pid) -AllowFailure).Text
+        $appProcessId = (
+            Invoke-AdbText $device.serial @('shell', 'pidof', '-s', $app.appId) -AllowFailure
+        ).Text
+        $logcat = if ($appProcessId) {
+            (
+                Invoke-AdbText $device.serial @(
+                    'logcat', '-d', '--pid', $appProcessId
+                ) -AllowFailure
+            ).Text
         } else {
             ''
         }
@@ -346,7 +408,10 @@ foreach ($device in $selected) {
         $sensitiveCounts = [ordered]@{
             bearer = ([regex]::Matches($logcat, '(?i)Bearer\s+[A-Za-z0-9._~+/=-]+')).Count
             fullPhone = ([regex]::Matches($logcat, '\b1[3-9]\d{9}\b')).Count
-            otp = ([regex]::Matches($logcat, '(?i)(?:otp|验证码|code)[=: ]+\d{4,8}')).Count
+            otp = ([regex]::Matches(
+                $logcat,
+                '(?i)(?:otp|验证码|verification[_ -]?code)[=: ]+\d{4,8}'
+            )).Count
         }
         $runtimeChecks = [ordered]@{
             crashLines = if ($relevantCrash) { ($relevantCrash -split "`r?`n").Count } else { 0 }
@@ -367,7 +432,7 @@ foreach ($device in $selected) {
             throw "Runtime safety checks failed for $($app.role) on $($device.serial)."
         }
 
-        $qaReports += [pscustomobject]@{
+            $qaReports += [pscustomobject]@{
             serial = $device.serial
             kind = $device.kind
             sdk = $device.sdk
@@ -384,7 +449,39 @@ foreach ($device in $selected) {
             logoutAndAuthenticatedSessionCleanup = 'HOLD_HTTPS_443_LOGIN_UNAVAILABLE'
             appInfoTap = $tapEvidence
             runtimeChecks = $runtimeChecks
-            evidenceRoot = $appRoot
+                uiTreeAccessibilityTemporarilyEnabled = $accessibilityTemporarilyEnabled
+                evidenceRoot = $appRoot
+            }
+        }
+    } finally {
+        if ($accessibilityTemporarilyEnabled) {
+            if (
+                $originalAccessibilityServices -and
+                $originalAccessibilityServices -ne 'null'
+            ) {
+                Invoke-AdbText $device.serial @(
+                    'shell', 'settings', 'put', 'secure',
+                    'enabled_accessibility_services', $originalAccessibilityServices
+                ) -AllowFailure | Out-Null
+            } else {
+                Invoke-AdbText $device.serial @(
+                    'shell', 'settings', 'delete', 'secure',
+                    'enabled_accessibility_services'
+                ) -AllowFailure | Out-Null
+            }
+            if (
+                $originalAccessibilityEnabled -and
+                $originalAccessibilityEnabled -ne 'null'
+            ) {
+                Invoke-AdbText $device.serial @(
+                    'shell', 'settings', 'put', 'secure',
+                    'accessibility_enabled', $originalAccessibilityEnabled
+                ) -AllowFailure | Out-Null
+            } else {
+                Invoke-AdbText $device.serial @(
+                    'shell', 'settings', 'delete', 'secure', 'accessibility_enabled'
+                ) -AllowFailure | Out-Null
+            }
         }
     }
 }
