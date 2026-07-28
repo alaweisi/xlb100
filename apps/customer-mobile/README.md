@@ -45,8 +45,9 @@ verified; M0 does not bypass browser security with a native HTTP bridge.
 - Application name: `喜乐帮到家`
 - Foundation version: `versionCode 1`, `versionName 0.1.0`
 - Network: `INTERNET`, `ACCESS_NETWORK_STATE`
-- Foreground location declaration: `ACCESS_COARSE_LOCATION`,
-  `ACCESS_FINE_LOCATION`
+- No Android location permission. The current Customer flow does not consume
+  device coordinates, so Investor Demo and Engineering builds stay at the
+  network-only permission minimum.
 - No background location, camera, contacts, storage, telephony, microphone,
   notification, or package-query permission is declared.
 - Location permission is declaration-only in M0; no plugin or runtime request

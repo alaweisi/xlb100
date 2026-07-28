@@ -1,11 +1,11 @@
 import { lazy, useCallback, useEffect, useState } from "react";
 import { buildHash, parseHashParams, parseView } from "../hashParams";
 import {
+  ADMIN_SESSION_EXPIRED_EVENT,
+  adminVisibleError,
   clearAdminSession,
   exchangeOaHandoff,
   hydrateOaBridgeSession,
-  isOaBridgeMode,
-  loginAdmin,
   loginAdminWithCode,
   oaReturnUrl,
   readStoredAdminSession,
@@ -14,6 +14,11 @@ import {
   adminOpsApi,
   type AdminSession,
 } from "../adminAuth";
+import {
+  adminDemoCityLabel,
+  AdminInvestorDemoNotice,
+  IS_ADMIN_INVESTOR_DEMO,
+} from "../investorDemo";
 import { AdminShell, Button, FormField, GuardrailCard, Input, ScopeBadge, SideNav, StatusTag, TopBar } from "@xlb/ui";
 import "../admin-responsive.css";
 
@@ -46,8 +51,9 @@ export function App() {
   const [view, setView] = useState(parseView);
   const [params, setParams] = useState(parseHashParams);
   const [session, setSession] = useState<AdminSession | null>(() => readStoredAdminSession());
-  const [authLoading, setAuthLoading] = useState(() => !readStoredAdminSession());
+  const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [authNotice, setAuthNotice] = useState<string | null>(null);
   const [loginUsername, setLoginUsername] = useState(() => readStoredAdminSession()?.username ?? "admin_hz");
   const [loginCode, setLoginCode] = useState("");
 
@@ -76,29 +82,7 @@ export function App() {
       })
       .catch((error) => {
         if (!cancelled) {
-          setAuthError(error instanceof Error ? error.message : "OA handoff failed");
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setAuthLoading(false);
-      });
-    return () => { cancelled = true; };
-  }, []);
-
-  useEffect(() => {
-    if (session || isOaBridgeMode()) return;
-    let cancelled = false;
-    setAuthLoading(true);
-    void loginAdmin(loginUsername)
-      .then((next) => {
-        if (!cancelled) {
-          setSession(next);
-          setAuthError(null);
-        }
-      })
-      .catch((error) => {
-        if (!cancelled) {
-          setAuthError(error instanceof Error ? error.message : "Admin login failed");
+          setAuthError(adminVisibleError(error, "授权登录未完成，请返回后重试。"));
         }
       })
       .finally(() => {
@@ -121,7 +105,7 @@ export function App() {
       .catch((error) => {
         if (!cancelled) {
           clearAdminSession();
-          setAuthError(error instanceof Error ? error.message : "OA authorization failed");
+          setAuthError(adminVisibleError(error, "账号授权信息暂时无法读取，请重新登录。"));
           setSession(null);
         }
       })
@@ -131,13 +115,46 @@ export function App() {
     return () => { cancelled = true; };
   }, [session]);
 
+  useEffect(() => {
+    const expireSession = () => {
+      clearAdminSession();
+      setSession(null);
+      setLoginCode("");
+      setAuthNotice(null);
+      setAuthError("演示登录已过期，请重新登录。");
+    };
+    window.addEventListener(ADMIN_SESSION_EXPIRED_EVENT, expireSession);
+    return () => window.removeEventListener(ADMIN_SESSION_EXPIRED_EVENT, expireSession);
+  }, []);
+
+  useEffect(() => {
+    if (!session?.expiresAt) return;
+    const remaining = session.expiresAt - Date.now();
+    if (remaining <= 0) {
+      window.dispatchEvent(new CustomEvent(ADMIN_SESSION_EXPIRED_EVENT));
+      return;
+    }
+    const timeout = window.setTimeout(
+      () => window.dispatchEvent(new CustomEvent(ADMIN_SESSION_EXPIRED_EVENT)),
+      remaining,
+    );
+    return () => window.clearTimeout(timeout);
+  }, [session]);
+
   const handleRequestCode = useCallback(async () => {
     setAuthLoading(true);
     setAuthError(null);
+    setAuthNotice(null);
     try {
-      await requestAdminLoginCode(loginUsername);
+      const result = await requestAdminLoginCode(loginUsername);
+      if (result.stagingDemoCode) {
+        setLoginCode(result.stagingDemoCode);
+        setAuthNotice(`Staging 演示验证码：${result.stagingDemoCode}`);
+      } else {
+        setAuthNotice("验证码已发送，请在有效期内完成登录。");
+      }
     } catch (error) {
-      setAuthError(error instanceof Error ? error.message : "Admin code request failed");
+      setAuthError(adminVisibleError(error, "验证码暂时无法获取，请稍后重试。"));
     } finally {
       setAuthLoading(false);
     }
@@ -149,8 +166,9 @@ export function App() {
     try {
       const next = await loginAdminWithCode(loginUsername, loginCode);
       setSession(next);
+      setAuthNotice(null);
     } catch (error) {
-      setAuthError(error instanceof Error ? error.message : "Admin login failed");
+      setAuthError(adminVisibleError(error, "登录未完成，请重新获取验证码。"));
     } finally {
       setAuthLoading(false);
     }
@@ -165,15 +183,26 @@ export function App() {
     clearAdminSession();
     setSession(null);
     setLoginCode("");
+    setAuthNotice(null);
+    setAuthError(null);
   }, [session]);
 
   const cityCode = params.get("cityCode") || undefined;
-  const can = useCallback((...permissions: NonNullable<AdminSession["permissions"]>[number][]) => (
-    session?.identity !== "oa" || permissions.some((permission) => (
+  const can = useCallback((...permissions: NonNullable<AdminSession["permissions"]>[number][]) => {
+    if (IS_ADMIN_INVESTOR_DEMO && session?.identity === "admin") {
+      const demoPermissions = new Set<NonNullable<AdminSession["permissions"]>[number]>([
+        "operations.orders.read",
+        "operations.dispatch.read",
+        "operations.dispatch.manage",
+        "reviews.read",
+      ]);
+      return permissions.some((permission) => demoPermissions.has(permission));
+    }
+    return session?.identity !== "oa" || permissions.some((permission) => (
       session.permissions?.includes(permission)
       && (!cityCode || session.permissionCityCodes?.[permission]?.includes(cityCode))
-    ))
-  ), [cityCode, session]);
+    ));
+  }, [cityCode, session]);
 
   const navigateToDetail = useCallback((statementId: string, extra?: Record<string, string>) => {
     window.location.hash = buildHash(
@@ -217,52 +246,58 @@ export function App() {
   }, [cityCode]);
 
   const viewTitle = view.page === "workerWithdrawals"
-    ? "Worker Withdrawals"
+    ? "师傅提现"
     : view.page === "support"
-    ? "Support Agent Workbench"
+    ? "客服工作台"
     : view.page === "supportQuality"
-    ? "Support Quality"
+    ? "服务质量"
     : view.page === "reviewModeration"
-    ? "Review Moderation"
+    ? "评价与申诉"
     : view.page === "marketing"
-    ? "Marketing / Coupon"
+    ? "营销与优惠券"
     : view.page === "platformOperations"
-    ? "Platform Operations"
+    ? "订单与师傅"
     : view.page === "enterprise"
-    ? "Enterprise Platform"
+    ? "企业服务"
     : view.page === "dispatch"
-    ? "LBS-lite Dispatch"
+    ? "智能派单"
     : view.page === "aftersale"
-    ? "Aftersale Operations"
+    ? "售后处理"
     : view.page === "orderTrace"
-    ? "Order Trace"
+    ? "订单全链路"
     : view.page === "governance"
-      ? "Settlement Governance"
+      ? "结算治理"
       : view.page === "exports"
-        ? "Export Review"
+        ? "导出复核"
         : view.page === "detail"
-          ? "Statement Detail"
-          : "Settlement Ops";
+          ? "结算单详情"
+          : IS_ADMIN_INVESTOR_DEMO ? "演示工作台" : "结算运营";
 
   if (!session) {
     return (
       <div style={{ alignItems: "center", background: "var(--xlb-surface-muted)", display: "grid", minHeight: "100vh", padding: 24 }}>
-        <div style={{ margin: "0 auto", maxWidth: 440, width: "100%" }}>
+        <div style={{ display: "grid", gap: 12, margin: "0 auto", maxWidth: 520, width: "100%" }}>
+          <AdminInvestorDemoNotice />
           <GuardrailCard
-            title="XLB Admin Login"
-            actions={<StatusTag tone={authLoading ? "warning" : "primary"}>{authLoading ? "checking" : "token required"}</StatusTag>}
+            title="管理端演示登录"
+            actions={<StatusTag tone={authLoading ? "warning" : "primary"}>{authLoading ? "正在验证" : "需要验证码"}</StatusTag>}
           >
             <div style={{ display: "grid", gap: 12 }}>
-              <FormField label="Username">
-                <Input value={loginUsername} onChange={(event) => setLoginUsername(event.target.value)} />
+              <FormField label="演示账号">
+                {IS_ADMIN_INVESTOR_DEMO ? (
+                  <Input aria-label="杭州演示管理员" value="杭州演示管理员" readOnly />
+                ) : (
+                  <Input value={loginUsername} onChange={(event) => setLoginUsername(event.target.value)} />
+                )}
               </FormField>
-              <FormField label="Verification code">
+              <FormField label="验证码">
                 <Input value={loginCode} onChange={(event) => setLoginCode(event.target.value)} />
               </FormField>
               <div style={{ display: "flex", gap: 8 }}>
-                <Button onClick={handleRequestCode} disabled={authLoading}>Request code</Button>
-                <Button onClick={handleLogin} disabled={authLoading || !loginCode.trim()} variant="primary">Login</Button>
+                <Button onClick={handleRequestCode} disabled={authLoading}>获取验证码</Button>
+                <Button onClick={handleLogin} disabled={authLoading || !loginCode.trim()} variant="primary">安全登录</Button>
               </div>
+              {authNotice && <p style={{ color: "#3e2772", fontSize: 13, margin: 0 }}>{authNotice}</p>}
               {authError && <p style={{ color: "#b91c1c", fontSize: 13, margin: 0 }}>{authError}</p>}
             </div>
           </GuardrailCard>
@@ -271,7 +306,16 @@ export function App() {
     );
   }
 
-  const pageAllowed = view.page === "workerWithdrawals"
+  const pageAllowed = IS_ADMIN_INVESTOR_DEMO
+    ? view.page === "dashboard"
+      || (view.page === "orderTrace" && can("operations.orders.read"))
+      || (view.page === "dispatch" && can("operations.dispatch.read"))
+      || (
+        view.page === "platformOperations"
+        && can("operations.orders.read", "operations.catalog.read", "operations.certification.read")
+      )
+      || (view.page === "reviewModeration" && can("reviews.read"))
+    : view.page === "workerWithdrawals"
     ? can("finance.withdrawal.read")
     : view.page === "support"
     ? can("support.read")
@@ -301,8 +345,16 @@ export function App() {
       )
     : !pageAllowed
     ? (
-        <GuardrailCard title="OA capability denied" actions={<StatusTag tone="danger">forbidden</StatusTag>}>
-          <p>The current OA membership has no effective permission for this page and city.</p>
+        <GuardrailCard
+          title={IS_ADMIN_INVESTOR_DEMO ? "此功能未向演示账号开放" : "OA capability denied"}
+          actions={<StatusTag tone="danger">{IS_ADMIN_INVESTOR_DEMO ? "已安全拦截" : "forbidden"}</StatusTag>}
+        >
+          <p>
+            {IS_ADMIN_INVESTOR_DEMO
+              ? "投资人演示仅开放订单、派单和评价查看，财务及其他敏感操作已关闭。"
+              : "The current OA membership has no effective permission for this page and city."}
+          </p>
+          {IS_ADMIN_INVESTOR_DEMO && <Button onClick={navigateToDashboard}>返回演示首页</Button>}
         </GuardrailCard>
       )
     : view.page === "workerWithdrawals"
@@ -339,6 +391,25 @@ export function App() {
           initialOrderId={params.get("orderId") || ""}
         />
       )
+    : view.page === "dashboard" && IS_ADMIN_INVESTOR_DEMO
+      ? (
+          <GuardrailCard
+            title="投资人演示工作台"
+            actions={<StatusTag tone="success">低权限演示账号</StatusTag>}
+          >
+            <div style={{ display: "grid", gap: 12 }}>
+              <p style={{ color: "#4b5563", lineHeight: 1.7, margin: 0 }}>
+                当前账号仅开放订单查看、派单演示和评价查看。财务、提现、营销等敏感能力不会出现在演示模式中。
+              </p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                <Button variant="primary" onClick={navigateToOrderTrace}>查看订单全链路</Button>
+                <Button onClick={navigateToDispatch}>进入智能派单</Button>
+                <Button onClick={navigateToPlatformOperations}>查看订单列表</Button>
+                <Button onClick={navigateToReviewModeration}>查看评价结果</Button>
+              </div>
+            </div>
+          </GuardrailCard>
+        )
     : view.page === "governance"
       ? <SettlementActionGovernancePage
           onBack={navigateToDashboard}
@@ -382,56 +453,62 @@ export function App() {
           items={[
             {
               key: "settlement",
-              label: "Settlement",
+              label: IS_ADMIN_INVESTOR_DEMO ? "演示首页" : "结算运营",
               active: view.page === "dashboard" || view.page === "detail",
               href: "#",
               onClick: navigateToDashboard,
             },
             {
               key: "exports",
-              label: "Export Review",
+              label: "导出复核",
               active: view.page === "exports",
               href: "#/settlement-ops/exports",
               onClick: () => navigateToExports(),
             },
             {
               key: "governance",
-              label: "Governance",
+              label: "结算治理",
               active: view.page === "governance",
               href: "#/settlement-ops/governance",
               onClick: navigateToGovernance,
             },
             {
               key: "orderTrace",
-              label: "Order Trace",
+              label: "订单全链路",
               active: view.page === "orderTrace",
               href: "#/order-trace",
               onClick: navigateToOrderTrace,
             },
             {
               key: "workerWithdrawals",
-              label: "Withdrawals",
+              label: "师傅提现",
               active: view.page === "workerWithdrawals",
               href: "#/worker-withdrawals",
               onClick: navigateToWorkerWithdrawals,
             },
             {
               key: "aftersale",
-              label: "Aftersale",
+              label: "售后处理",
               active: view.page === "aftersale",
               href: "#/aftersale",
               onClick: navigateToAftersale,
             },
-            { key:"enterprise",label:"Enterprise",active:view.page==="enterprise",href:"#/enterprise",onClick:navigateToEnterprise },
-            { key:"dispatch",label:"Dispatch",active:view.page==="dispatch",href:"#/dispatch",onClick:navigateToDispatch },
-            { key:"platformOperations",label:"Orders / SKU / Workers",active:view.page==="platformOperations",href:"#/platform-operations",onClick:navigateToPlatformOperations },
-            { key: "support", label: "Support Workbench", active: view.page === "support", href: "#/support", onClick: navigateToSupport },
-            {key:"supportQuality",label:"Support Quality",active:view.page==="supportQuality",href:"#/support-quality",onClick:navigateToSupportQuality},
-            {key:"reviewModeration",label:"Review / Reputation",active:view.page==="reviewModeration",href:"#/review-moderation",onClick:navigateToReviewModeration},
-            {key:"marketing",label:"Marketing / Coupon",active:view.page==="marketing",href:"#/marketing",onClick:navigateToMarketing},
+            { key:"enterprise",label:"企业服务",active:view.page==="enterprise",href:"#/enterprise",onClick:navigateToEnterprise },
+            { key:"dispatch",label:"智能派单",active:view.page==="dispatch",href:"#/dispatch",onClick:navigateToDispatch },
+            { key:"platformOperations",label:"订单与师傅",active:view.page==="platformOperations",href:"#/platform-operations",onClick:navigateToPlatformOperations },
+            { key: "support", label: "客服工作台", active: view.page === "support", href: "#/support", onClick: navigateToSupport },
+            {key:"supportQuality",label:"服务质量",active:view.page==="supportQuality",href:"#/support-quality",onClick:navigateToSupportQuality},
+            {key:"reviewModeration",label:"评价与申诉",active:view.page==="reviewModeration",href:"#/review-moderation",onClick:navigateToReviewModeration},
+            {key:"marketing",label:"营销与优惠券",active:view.page==="marketing",href:"#/marketing",onClick:navigateToMarketing},
           ].filter((item) => {
+            if (IS_ADMIN_INVESTOR_DEMO) {
+              if (item.key === "settlement") return true;
+              if (!["orderTrace", "dispatch", "platformOperations", "reviewModeration"].includes(item.key)) {
+                return false;
+              }
+            }
             if (item.key === "settlement" || item.key === "exports" || item.key === "governance") {
-              return can("finance.settlement.read");
+              return IS_ADMIN_INVESTOR_DEMO || can("finance.settlement.read");
             }
             if (item.key === "orderTrace") return can("operations.orders.read");
             if (item.key === "workerWithdrawals") return can("finance.withdrawal.read");
@@ -452,13 +529,12 @@ export function App() {
       topBar={
         <TopBar
           title={viewTitle}
-          subtitle="Admin / Operations / Controlled workflows"
+          subtitle={IS_ADMIN_INVESTOR_DEMO ? "管理端演示 · 受限操作范围" : "管理端 / 运营 / 受控工作流"}
           actions={
             <>
-              {cityCode && <ScopeBadge scope={`city: ${cityCode}`} />}
-              <StatusTag tone="primary">{session.userId}</StatusTag>
-              <StatusTag tone="success">{session.identity === "oa" ? "OA delegated" : "Admin session"}</StatusTag>
-              <Button onClick={handleLogout}>{session.identity === "oa" ? "Back to OA" : "Logout"}</Button>
+              {cityCode && <ScopeBadge scope={`城市：${adminDemoCityLabel(cityCode)}`} />}
+              <StatusTag tone="success">{session.identity === "oa" ? "OA 授权会话" : "已安全登录"}</StatusTag>
+              <Button onClick={handleLogout}>{session.identity === "oa" ? "返回 OA" : "退出并清除演示数据"}</Button>
             </>
           }
         />
@@ -466,17 +542,19 @@ export function App() {
       style={{ background: "var(--xlb-surface-muted)" }}
       contentStyle={{ display: "grid", gap: 16, alignContent: "start" }}
     >
+      <AdminInvestorDemoNotice />
       <GuardrailCard
-        title="Operations Guardrail"
-        actions={<StatusTag tone="warning">controlled ops</StatusTag>}
+        title={IS_ADMIN_INVESTOR_DEMO ? "演示安全边界" : "运营安全边界"}
+        actions={<StatusTag tone="warning">{IS_ADMIN_INVESTOR_DEMO ? "权限已收敛" : "受控操作"}</StatusTag>}
         style={{
           borderColor: "#ddd6fe",
           boxShadow: "0 12px 28px rgba(25, 18, 37, 0.08)",
         }}
       >
         <p style={{ color: "#4b5563", fontSize: 13, lineHeight: "20px", margin: 0 }}>
-          This console keeps settlement and governance surfaces intact. Phase 17 aftersale actions are audited state transitions;
-          compensation approval records intent only and never executes a provider refund.
+          {IS_ADMIN_INVESTOR_DEMO
+            ? "演示模式仅展示订单、派单和评价固定链路；退出、登录过期或服务返回未授权时会清除本机演示会话。"
+            : "本控制台保留结算与治理边界；售后操作均记录受控状态变化，补偿审批不会直接执行外部退款。"}
         </p>
       </GuardrailCard>
       {content}

@@ -57,4 +57,9 @@ test("Android back navigates WebView history before leaving Admin", () => {
 test("Admin release signing stays external and role-specific", () => {
   assert.match(buildGradle, /XLB_ADMIN_ANDROID/u);
   assert.match(buildGradle, /mobile-foundation\/android\/release-signing\.gradle/u);
+  assert.match(buildGradle, /XLB_ADMIN_ANDROID_DEMO/u);
+  assert.match(buildGradle, /investor-demo-signing\.gradle/u);
+  assert.match(buildGradle, /applicationIdSuffix "\.demo"/u);
+  assert.match(buildGradle, /versionCode\.set\(2\)/u);
+  assert.match(buildGradle, /喜乐帮管理演示/u);
 });

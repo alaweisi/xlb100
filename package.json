@@ -180,6 +180,8 @@
     "admin:mobile:android:debug": "pnpm --filter @xlb/admin-mobile build:debug",
     "mobile:m3:gate": "node scripts/run-vitest-projects.mjs --passWithNoTests tests/integration/phase23dWorkerLifecycleE2E.test.ts tests/integration/phase22CrossPhaseE2E.test.ts",
     "mobile:m5:release": "node scripts/mobile-m5-release.mjs",
+    "mobile:investor-demo:test": "node --test scripts/mobile-investor-demo-release.test.mjs scripts/mobile-investor-demo-branding.test.mjs scripts/mobile-investor-demo-privacy.test.mjs",
+    "mobile:investor-demo:release": "node scripts/mobile-investor-demo-release.mjs",
     "check:risk": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-lean-risk.ps1 -DiffMode WorkingTree",
     "check:migration-integrity": "node scripts/run-powershell.mjs scripts/check-migration-integrity.ps1 -DiffMode WorkingTree",
     "preflight": "node scripts/run-powershell.mjs scripts/preflight-architecture.ps1"

@@ -1,0 +1,83 @@
+import java.util.Locale
+
+if (!project.ext.has("xlbInvestorDemoSigningPrefix")) {
+    throw new GradleException(
+        "xlbInvestorDemoSigningPrefix must be set before applying investor-demo-signing.gradle"
+    )
+}
+
+def signingPrefix = project.ext.xlbInvestorDemoSigningPrefix.toString()
+def signingVariableNames = [
+    keystorePath: "${signingPrefix}_KEYSTORE_PATH",
+    storePassword: "${signingPrefix}_STORE_PASSWORD",
+    keyAlias: "${signingPrefix}_KEY_ALIAS",
+    keyPassword: "${signingPrefix}_KEY_PASSWORD",
+]
+def signingValues = signingVariableNames.collectEntries { key, variableName ->
+    [(key): System.getenv(variableName)]
+}
+def configuredCount = signingValues.values().count { value ->
+    value != null && !value.isBlank()
+}
+def isInvestorDemoArtifactTaskName = { taskName ->
+    def simpleName = taskName.tokenize(":").last().toLowerCase(Locale.ROOT)
+    simpleName ==~ /(?:assemble|bundle|package).*investordemo/
+}
+def investorDemoRequested = gradle.startParameter.taskNames.any { taskName ->
+    isInvestorDemoArtifactTaskName(taskName)
+}
+def requireCompleteInvestorDemoSigning = {
+    if (configuredCount != signingValues.size()) {
+        throw new GradleException(
+            "Investor Demo signing is required. Set ${signingVariableNames.values().join(', ')}"
+        )
+    }
+}
+
+if (
+    investorDemoRequested
+    && configuredCount > 0
+    && configuredCount < signingValues.size()
+) {
+    def missing = signingVariableNames.findAll { key, _ ->
+        signingValues[key] == null || signingValues[key].isBlank()
+    }.values()
+    throw new GradleException(
+        "Incomplete ${signingPrefix} Investor Demo signing environment; missing: ${missing.join(', ')}"
+    )
+}
+
+if (investorDemoRequested) {
+    requireCompleteInvestorDemoSigning()
+}
+
+gradle.taskGraph.whenReady { graph ->
+    def investorDemoInTaskGraph = graph.allTasks.any { task ->
+        task.project == project && isInvestorDemoArtifactTaskName(task.name)
+    }
+    if (investorDemoInTaskGraph) {
+        requireCompleteInvestorDemoSigning()
+    }
+}
+
+android {
+    signingConfigs {
+        xlbInvestorDemo
+    }
+}
+
+if (configuredCount == signingValues.size()) {
+    def keystore = file(signingValues.keystorePath).canonicalFile
+    def workspaceRoot = rootProject.projectDir.toPath().resolve("../../..").normalize().toFile().canonicalFile
+    if (!keystore.isFile()) {
+        throw new GradleException("${signingVariableNames.keystorePath} does not name an existing file")
+    }
+    if (keystore.toPath().startsWith(workspaceRoot.toPath())) {
+        throw new GradleException("Investor Demo keystores must remain outside the XLB workspace")
+    }
+
+    android.signingConfigs.xlbInvestorDemo.storeFile = keystore
+    android.signingConfigs.xlbInvestorDemo.storePassword = signingValues.storePassword
+    android.signingConfigs.xlbInvestorDemo.keyAlias = signingValues.keyAlias
+    android.signingConfigs.xlbInvestorDemo.keyPassword = signingValues.keyPassword
+}

@@ -123,11 +123,11 @@ function setRoute(path: string) {
 
 async function renderAndLogin() {
   render(<App />);
-  fireEvent.change(await screen.findByLabelText("code"), {
+  fireEvent.change(await screen.findByLabelText("验证码"), {
     target: { value: "123456" },
   });
-  fireEvent.click(screen.getByRole("button", { name: "Login" }));
-  expect(await screen.findByText(/Authenticated as worker-demo-hangzhou/)).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "登录师傅端" }));
+  expect(await screen.findByText(/当前演示师傅：worker-demo-hangzhou/)).toBeTruthy();
 }
 
 describe("Worker App API wiring", () => {
@@ -199,19 +199,19 @@ describe("Worker App API wiring", () => {
 
     fireEvent.click(await screen.findByRole(
       "button",
-      { name: "Send code" },
+      { name: "获取验证码" },
       { timeout: 5_000 },
     ));
-    expect(await screen.findByText("Code sent. It expires in 300s.")).toBeTruthy();
+    expect(await screen.findByText("验证码已发送，有效期 300 秒。")).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: "Fill debug code" }));
+    fireEvent.click(screen.getByRole("button", { name: "填入本地调试码" }));
     await waitFor(() => {
       expect(mocks.getWorkerDebugCode).toHaveBeenCalledWith("13800000001");
     });
-    expect((screen.getByLabelText("code") as HTMLInputElement).value).toBe("123456");
+    expect((screen.getByLabelText("验证码") as HTMLInputElement).value).toBe("123456");
 
-    fireEvent.click(screen.getByRole("button", { name: "Login" }));
-    expect(await screen.findByText(/Authenticated as worker-demo-hangzhou/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "登录师傅端" }));
+    expect(await screen.findByText(/当前演示师傅：worker-demo-hangzhou/)).toBeTruthy();
     expect(mocks.workerLogin).toHaveBeenCalledWith("13800000001", "123456");
   });
 
@@ -219,13 +219,13 @@ describe("Worker App API wiring", () => {
     mocks.workerLogin.mockResolvedValueOnce({ ok: false, error: "invalid_code", statusCode: 400, attemptsLeft: 4 });
     render(<App />);
 
-    fireEvent.change(await screen.findByLabelText("code"), {
+    fireEvent.change(await screen.findByLabelText("验证码"), {
       target: { value: "000000" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Login" }));
+    fireEvent.click(screen.getByRole("button", { name: "登录师傅端" }));
 
-    expect(await screen.findByText("invalid_code")).toBeTruthy();
-    expect(screen.queryByText(/Authenticated as worker-demo-hangzhou/)).toBeNull();
+    expect(await screen.findByText("登录未完成，请重新获取验证码。")).toBeTruthy();
+    expect(screen.queryByText(/当前演示师傅：worker-demo-hangzhou/)).toBeNull();
   });
 
   it("renders task pool data after worker login", async () => {
@@ -253,14 +253,14 @@ describe("Worker App API wiring", () => {
 
     await renderAndLogin();
 
-    expect(await screen.findByText("Worker Login")).toBeTruthy();
-    expect(screen.queryByText(/Authenticated as worker-demo-hangzhou/)).toBeNull();
+    expect(await screen.findByText("师傅端登录")).toBeTruthy();
+    expect(screen.queryByText(/当前演示师傅：worker-demo-hangzhou/)).toBeNull();
   });
 
   it("renders an empty task pool state", async () => {
     await renderAndLogin();
 
-    expect(await screen.findByText("No queued task")).toBeTruthy();
+    expect(await screen.findByText("暂无待接任务")).toBeTruthy();
     expect(mocks.getTaskPool).toHaveBeenCalledTimes(1);
   });
 
@@ -275,7 +275,7 @@ describe("Worker App API wiring", () => {
     await renderAndLogin();
 
     expect(await screen.findByText("ful-1")).toBeTruthy();
-    expect(screen.getByText("accepted")).toBeTruthy();
+    expect(screen.getByText("已接单")).toBeTruthy();
     expect(mocks.getMyFulfillments).toHaveBeenCalledTimes(1);
   });
 
@@ -284,7 +284,7 @@ describe("Worker App API wiring", () => {
 
     await renderAndLogin();
 
-    expect(await screen.findByText("No fulfillment yet")).toBeTruthy();
+    expect(await screen.findByText("暂无服务单")).toBeTruthy();
     expect(mocks.getMyFulfillments).toHaveBeenCalledTimes(1);
   });
 
@@ -300,13 +300,13 @@ describe("Worker App API wiring", () => {
 
     await renderAndLogin();
 
-    fireEvent.click(await screen.findByRole("button", { name: "Accept" }));
+    fireEvent.click(await screen.findByRole("button", { name: "接单" }));
 
     await waitFor(() => {
       expect(mocks.acceptTask).toHaveBeenCalledWith("dispatch-1");
     });
-    expect(await screen.findByText(/Accepted dispatch-1/)).toBeTruthy();
-    expect(await screen.findByText("No queued task")).toBeTruthy();
+    expect(await screen.findByText(/任务 dispatch-1 已接取/)).toBeTruthy();
+    expect(await screen.findByText("暂无待接任务")).toBeTruthy();
     expect(mocks.getTaskPool).toHaveBeenCalledTimes(2);
     expect(mocks.getMyFulfillments).toHaveBeenCalledTimes(1);
   });
@@ -317,10 +317,10 @@ describe("Worker App API wiring", () => {
 
     await renderAndLogin();
 
-    fireEvent.click(await screen.findByRole("button", { name: "Accept" }));
+    fireEvent.click(await screen.findByRole("button", { name: "接单" }));
 
-    expect(await screen.findByText("Accept failed")).toBeTruthy();
-    expect(screen.getByText("API POST /api/worker/tasks/dispatch-1/accept failed: 409")).toBeTruthy();
+    expect(await screen.findByText("接单未完成")).toBeTruthy();
+    expect(screen.getByText("任务状态已更新，请刷新后再试。")).toBeTruthy();
   });
 
   it("starts and completes a fulfillment, refreshing detail after each action", async () => {
@@ -332,17 +332,17 @@ describe("Worker App API wiring", () => {
 
     await renderAndLogin();
 
-    fireEvent.click(await screen.findByRole("button", { name: "Start service" }));
+    fireEvent.click(await screen.findByRole("button", { name: "开始服务" }));
     await waitFor(() => {
       expect(mocks.startFulfillment).toHaveBeenCalledWith("ful-1");
     });
-    expect(await screen.findByText(/Fulfillment ful-1 is now in_progress/)).toBeTruthy();
+    expect(await screen.findByText(/服务单 ful-1 已开始服务/)).toBeTruthy();
 
-    fireEvent.click(await screen.findByRole("button", { name: "Complete service" }));
+    fireEvent.click(await screen.findByRole("button", { name: "完成服务" }));
     await waitFor(() => {
       expect(mocks.completeFulfillment).toHaveBeenCalledWith("ful-1");
     });
-    expect(await screen.findByText(/Fulfillment ful-1 is now completed/)).toBeTruthy();
+    expect(await screen.findByText(/服务单 ful-1 已完成/)).toBeTruthy();
     expect(mocks.getFulfillment).toHaveBeenCalledTimes(3);
     expect(mocks.getTaskPool).toHaveBeenCalledTimes(2);
     expect(mocks.getMyFulfillments).toHaveBeenCalledTimes(2);
@@ -387,8 +387,8 @@ describe("Worker App API wiring", () => {
   });
 
   it.each([
-    ["Reject", mocks.rejectTask, { ok: true, task: { ...queuedTask, status: "reassigning" } }, /Rejected dispatch-1/],
-    ["Timeout", mocks.simulateTaskTimeout, { ok: true, task: { ...queuedTask, status: "reassigning" } }, /Timed out dispatch-1/],
+    ["拒绝任务", mocks.rejectTask, { ok: true, task: { ...queuedTask, status: "reassigning" } }, /Rejected dispatch-1/],
+    ["模拟超时", mocks.simulateTaskTimeout, { ok: true, task: { ...queuedTask, status: "reassigning" } }, /Timed out dispatch-1/],
   ])("runs the %s simulation control", async (button, mutation, response, notice) => {
     mocks.getTaskPool.mockResolvedValue({ ok: true, cityCode: "hangzhou", tasks: [{ ...queuedTask, status: "offering" }] });
     mutation.mockResolvedValueOnce(response);
@@ -412,9 +412,9 @@ describe("Worker App API wiring", () => {
     setRoute("/worker/tasks/ful-1");
     await renderAndLogin();
     const file = new File(["image"], "arrival.jpg", { type: "image/jpeg" });
-    fireEvent.change(await screen.findByLabelText(/Image/), { target: { files: [file] } });
-    fireEvent.change(screen.getByLabelText("Evidence note"), { target: { value: "front door" } });
-    fireEvent.click(screen.getByRole("button", { name: "Store evidence" }));
+    fireEvent.change(await screen.findByLabelText(/现场图片/), { target: { files: [file] } });
+    fireEvent.change(screen.getByLabelText("凭证说明"), { target: { value: "front door" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存服务凭证" }));
     await waitFor(() => expect(mocks.uploadFulfillmentEvidence).toHaveBeenCalledWith("ful-1", file, {
       evidenceType: "before_service", note: "front door",
     }));
@@ -430,7 +430,7 @@ describe("Worker App API wiring", () => {
     await waitFor(() => expect(mocks.createBankAccount).toHaveBeenCalledWith({
       accountHolder: "Worker", bankName: "XLB Bank", bankCardNumber: "6222021234567890",
     }));
-    fireEvent.click(screen.getByRole("button", { name: "Logout" }));
-    expect(await screen.findByText("Worker Login")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "退出并清除数据" }));
+    expect(await screen.findByText("师傅端登录")).toBeTruthy();
   });
 });

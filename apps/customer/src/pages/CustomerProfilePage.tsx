@@ -15,6 +15,7 @@ type ProfileApi = {
 export interface CustomerProfilePageProps {
   api: ProfileApi;
   cityCode: CityCode;
+  onLogout?: () => void;
 }
 
 const emptyAddress: SaveCustomerAddressRequest = {
@@ -28,7 +29,7 @@ const emptyAddress: SaveCustomerAddressRequest = {
   isDefault: false,
 };
 
-export function CustomerProfilePage({ api, cityCode }: CustomerProfilePageProps) {
+export function CustomerProfilePage({ api, cityCode, onLogout }: CustomerProfilePageProps) {
   const binding = createCustomerUiBinding({ route: "profile", cityCode });
   const [profile, setProfile] = useState<CustomerProfile | null>(null);
   const [addresses, setAddresses] = useState<CustomerAddress[]>([]);
@@ -105,13 +106,14 @@ export function CustomerProfilePage({ api, cityCode }: CustomerProfilePageProps)
 
   return (
     <CustomerProfileTemplate route="/customer/profile" cityCode={cityCode} binding={binding}>
-      <Card title="Account" actions={<StatusTag tone="success">Real API</StatusTag>}>
+      <Card title="账户信息" actions={<StatusTag tone="success">已安全连接</StatusTag>}>
         <div style={{ display: "grid", gap: 10 }}>
           <a href="/customer/notifications" className="notification-entry-link">消息中心</a>
           <a href="/customer/coupons" className="notification-entry-link">我的优惠券</a>
           <div style={{ color: "#64748b", fontSize: 13 }}>{profile?.phoneMasked ?? "Loading account"}</div>
           <FormField label="Display name"><Input value={name} onChange={(event) => setName(event.target.value)} /></FormField>
           <Button variant="primary" disabled={busy || !name.trim()} onClick={() => void saveProfile()}>Save profile</Button>
+          {onLogout && <Button onClick={onLogout}>退出登录并清除本机演示数据</Button>}
         </div>
       </Card>
 

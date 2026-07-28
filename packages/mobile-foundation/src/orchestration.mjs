@@ -104,8 +104,10 @@ export function syncCapacitorAndroid(app, options = {}) {
 }
 
 export function runGradleTask(app, task, options = {}) {
-  if (!["assembleDebug", "assembleRelease"].includes(task)) {
-    throw new Error("Expected Gradle task assembleDebug or assembleRelease");
+  if (!["assembleDebug", "assembleRelease", "assembleInvestorDemo"].includes(task)) {
+    throw new Error(
+      "Expected Gradle task assembleDebug, assembleRelease, or assembleInvestorDemo",
+    );
   }
   validateAndroidBoundaries(app);
   const environment = options.environment ?? process.env;

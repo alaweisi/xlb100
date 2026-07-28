@@ -8,7 +8,10 @@ const mocks=vi.hoisted(()=>({
   listOperationsOrders:vi.fn(),listOperationsSkus:vi.fn(),setOperationsSkuEnabled:vi.fn(),
   listWorkerCertifications:vi.fn(),approveWorkerCertification:vi.fn(),rejectWorkerCertification:vi.fn(),
 }));
-vi.mock("../../apps/admin/src/adminAuth",()=>({adminOpsApi:mocks}));
+vi.mock("../../apps/admin/src/adminAuth",()=>({
+  adminOpsApi:mocks,
+  adminVisibleError:(_error:unknown,fallback:string)=>fallback,
+}));
 
 describe("Admin platform operations page",()=>{
   afterEach(cleanup);

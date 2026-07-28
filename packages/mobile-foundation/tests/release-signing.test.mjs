@@ -6,6 +6,10 @@ const releaseSigning = fs.readFileSync(
   new URL("../android/release-signing.gradle", import.meta.url),
   "utf8",
 );
+const investorDemoSigning = fs.readFileSync(
+  new URL("../android/investor-demo-signing.gradle", import.meta.url),
+  "utf8",
+);
 
 test("release signing is complete, external, and mandatory for release tasks", () => {
   for (const suffix of [
@@ -23,4 +27,22 @@ test("release signing is complete, external, and mandatory for release tasks", (
   assert.match(releaseSigning, /requireCompleteReleaseSigning\(\)/u);
   assert.match(releaseSigning, /Release keystores must remain outside the XLB workspace/u);
   assert.match(releaseSigning, /signingConfig signingConfigs\.xlbRelease/u);
+});
+
+test("Investor Demo signing is independent, external, and fail-closed", () => {
+  for (const suffix of [
+    "_KEYSTORE_PATH",
+    "_STORE_PASSWORD",
+    "_KEY_ALIAS",
+    "_KEY_PASSWORD",
+  ]) {
+    assert.match(investorDemoSigning, new RegExp(suffix, "u"));
+  }
+  assert.match(investorDemoSigning, /investordemo/u);
+  assert.match(investorDemoSigning, /gradle\.taskGraph\.whenReady/u);
+  assert.match(
+    investorDemoSigning,
+    /Investor Demo keystores must remain outside the XLB workspace/u,
+  );
+  assert.doesNotMatch(investorDemoSigning, /signingConfigs\.xlbRelease/u);
 });

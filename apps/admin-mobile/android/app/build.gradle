@@ -2,6 +2,8 @@ apply plugin: 'com.android.application'
 
 ext.xlbReleaseSigningPrefix = "XLB_ADMIN_ANDROID"
 apply from: rootProject.file('../../../packages/mobile-foundation/android/release-signing.gradle')
+ext.xlbInvestorDemoSigningPrefix = "XLB_ADMIN_ANDROID_DEMO"
+apply from: rootProject.file('../../../packages/mobile-foundation/android/investor-demo-signing.gradle')
 
 android {
     namespace = "com.xlb100.admin"
@@ -23,6 +25,26 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+        investorDemo {
+            initWith release
+            applicationIdSuffix ".demo"
+            versionNameSuffix "-investor-demo"
+            signingConfig signingConfigs.xlbInvestorDemo
+            matchingFallbacks = ['release']
+            resValue "string", "app_name", "喜乐帮管理演示"
+            resValue "string", "title_activity_main", "喜乐帮管理演示"
+            resValue "string", "package_name", "com.xlb100.admin.demo"
+            resValue "string", "custom_url_scheme", "com.xlb100.admin.demo"
+        }
+    }
+}
+
+androidComponents {
+    onVariants(selector().withBuildType("investorDemo")) { variant ->
+        variant.outputs.each { output ->
+            output.versionCode.set(2)
+            output.versionName.set("0.2.0-investor-demo")
         }
     }
 }

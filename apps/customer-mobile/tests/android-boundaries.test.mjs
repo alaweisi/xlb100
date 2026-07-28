@@ -40,8 +40,6 @@ test("app-owned Android identity, version, permissions, and cleartext stay exact
     versionCode: 1,
     versionName: "0.1.0",
     permissions: [
-      "android.permission.ACCESS_COARSE_LOCATION",
-      "android.permission.ACCESS_FINE_LOCATION",
       "android.permission.ACCESS_NETWORK_STATE",
       "android.permission.INTERNET",
     ],
@@ -59,4 +57,9 @@ test("Android back navigates WebView history before leaving Customer", () => {
 test("Customer release signing stays external and role-specific", () => {
   assert.match(buildGradle, /XLB_CUSTOMER_ANDROID/u);
   assert.match(buildGradle, /mobile-foundation\/android\/release-signing\.gradle/u);
+  assert.match(buildGradle, /XLB_CUSTOMER_ANDROID_DEMO/u);
+  assert.match(buildGradle, /investor-demo-signing\.gradle/u);
+  assert.match(buildGradle, /applicationIdSuffix "\.demo"/u);
+  assert.match(buildGradle, /versionCode\.set\(2\)/u);
+  assert.match(buildGradle, /喜乐帮客户演示/u);
 });

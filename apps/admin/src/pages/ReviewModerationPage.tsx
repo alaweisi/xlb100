@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import type { ReviewAppealQueueItem, ReviewModerationQueueItem, ReviewVisibility } from "@xlb/types";
 import { ApiErrorPanel, Button, Card, EmptyState, Input, LoadingState, ScopeBadge, StatusTag, Table } from "@xlb/ui";
-import { adminOpsApi, readStoredAdminSession } from "../adminAuth";
+import { adminOpsApi, adminVisibleError, readStoredAdminSession } from "../adminAuth";
+import { adminDemoCityLabel, IS_ADMIN_INVESTOR_DEMO } from "../investorDemo";
 import "./review-moderation.css";
 
 export function ReviewModerationPage({
@@ -27,9 +28,9 @@ export function ReviewModerationPage({
 
   function operationError(cause: unknown, fallback: string): string {
     if (cause && typeof cause === "object" && "status" in cause && cause.status === 409) {
-      return "The review or appeal changed. Refresh the queue before retrying.";
+      return "评价状态已更新，请刷新列表后重试。";
     }
-    return cause instanceof Error ? cause.message : fallback;
+    return adminVisibleError(cause, fallback);
   }
 
   const load = useCallback(async () => {
@@ -45,7 +46,7 @@ export function ReviewModerationPage({
       setReviewNextCursor(reviewResult.nextCursor);
       setAppealNextCursor(appealResult.nextCursor);
     } catch (cause) {
-      setError(operationError(cause, "Unable to load Review moderation"));
+      setError(operationError(cause, "评价列表暂时无法加载，请稍后重试。"));
     } finally {
       setBusy(null);
     }
@@ -65,7 +66,7 @@ export function ReviewModerationPage({
       setReviews((current) => [...current, ...result.items]);
       setReviewNextCursor(result.nextCursor);
     } catch (cause) {
-      setError(operationError(cause, "Unable to load more reviews"));
+      setError(operationError(cause, "更多评价暂时无法加载，请稍后重试。"));
     } finally {
       setBusy(null);
     }
@@ -80,7 +81,7 @@ export function ReviewModerationPage({
       setAppeals((current) => [...current, ...result.items]);
       setAppealNextCursor(result.nextCursor);
     } catch (cause) {
-      setError(operationError(cause, "Unable to load more appeals"));
+      setError(operationError(cause, "更多申诉暂时无法加载，请稍后重试。"));
     } finally {
       setBusy(null);
     }
@@ -97,7 +98,7 @@ export function ReviewModerationPage({
       }
       setReviewContent((previous) => ({ ...previous, [reviewId]: result.content.comment }));
     } catch (cause) {
-      setError(operationError(cause, "Unable to read review content"));
+      setError(operationError(cause, "评价内容暂时无法读取，请稍后重试。"));
     } finally {
       setContentBusy(null);
     }
@@ -129,7 +130,7 @@ export function ReviewModerationPage({
         return next;
       });
     } catch (cause) {
-      setError(operationError(cause, "Moderation failed"));
+      setError(operationError(cause, "评价处理未完成，请刷新后重试。"));
     } finally {
       setBusy(null);
     }
@@ -160,7 +161,7 @@ export function ReviewModerationPage({
         return next;
       });
     } catch (cause) {
-      setError(operationError(cause, "Appeal resolution failed"));
+      setError(operationError(cause, "申诉处理未完成，请刷新后重试。"));
     } finally {
       setBusy(null);
     }
@@ -169,68 +170,68 @@ export function ReviewModerationPage({
   return (
     <div className="review-moderation-page">
       <Card
-        title="Review moderation"
-        actions={<><ScopeBadge scope={`city: ${cityCode}`} /><StatusTag tone={canModerate ? "success" : "warning"}>{canModerate ? "review admin" : "read-only"}</StatusTag></>}
+        title="评价与申诉"
+        actions={<><ScopeBadge scope={`城市：${adminDemoCityLabel(cityCode)}`} /><StatusTag tone={canModerate ? "success" : "warning"}>{canModerate ? "可处理" : "只读查看"}</StatusTag></>}
       >
         <div className="review-moderation-actions">
           {(["pending_moderation", "visible", "hidden"] as ReviewVisibility[]).map((value) => (
-            <Button key={value} variant={visibility === value ? "primary" : undefined} onClick={() => setVisibility(value)}>{value}</Button>
+            <Button key={value} variant={visibility === value ? "primary" : undefined} onClick={() => setVisibility(value)}>{{pending_moderation:"待审核",visible:"已展示",hidden:"已隐藏"}[value]}</Button>
           ))}
-          <Button disabled={busy !== null} onClick={() => void load()}>Refresh</Button>
+          <Button disabled={busy !== null} onClick={() => void load()}>刷新列表</Button>
         </div>
       </Card>
-      {error && <ApiErrorPanel title="Review operation failed" detail={error} action={<Button onClick={() => void load()}>Retry</Button>} />}
+      {error && <ApiErrorPanel title="评价服务暂时不可用" detail={error} action={<Button onClick={() => void load()}>重新加载</Button>} />}
       {busy === "load" && reviews.length === 0 && appeals.length === 0 && (
-        <LoadingState title="Loading review governance" description="Reading the scoped moderation and appeal queues." />
+        <LoadingState title="正在加载评价" description="正在读取当前城市的评价与申诉。" />
       )}
-      <Card title="Moderation queue" actions={<StatusTag tone="primary">{reviews.length}</StatusTag>}>
-        {busy === "load" && reviews.length === 0 ? null : reviews.length === 0 ? <EmptyState title="No reviews in this state" /> : (
+      <Card title="评价列表" actions={<StatusTag tone="primary">{reviews.length} 条</StatusTag>}>
+        {busy === "load" && reviews.length === 0 ? null : reviews.length === 0 ? <EmptyState title="当前状态下暂无评价" /> : (
           <Table
             rows={reviews}
             getRowKey={(row) => row.reviewId}
             columns={[
-              { key: "review", title: "Review", render: (row) => <div><strong>{row.rating}/5</strong><br /><small>{row.reviewId}</small></div> },
-              { key: "worker", title: "Worker", render: (row) => row.workerId },
-              { key: "content", title: "Content", render: (row) => (
+              { key: "review", title: "评分", render: (row) => <div><strong>{row.rating}/5</strong><br /><small>{row.reviewId}</small></div> },
+              { key: "worker", title: "师傅", render: (row) => IS_ADMIN_INVESTOR_DEMO ? "演示师傅" : row.workerId },
+              { key: "content", title: "评价内容", render: (row) => (
                 <div className="review-moderation-content">
                   {reviewContent[row.reviewId] !== undefined
                     ? <span className="review-moderation-text">{reviewContent[row.reviewId]}</span>
-                    : <StatusTag tone="warning">restricted</StatusTag>}
+                    : <StatusTag tone="warning">内容受权限保护</StatusTag>}
                   {canModerate && reviewContent[row.reviewId] === undefined && (
                     <Button
                       disabled={contentBusy !== null || busy !== null}
                       onClick={() => void viewContent(row.reviewId)}
                     >
-                      {contentBusy === row.reviewId ? "Loading content" : "View content"}
+                      {contentBusy === row.reviewId ? "正在读取" : "查看内容"}
                     </Button>
                   )}
                 </div>
               ) },
-              { key: "state", title: "State", render: (row) => <StatusTag tone={row.visibility === "visible" ? "success" : "warning"}>{row.visibility} v{row.moderationVersion}</StatusTag> },
-              { key: "reason", title: "Decision reason", render: (row) => <Input disabled={!canModerate} maxLength={1_000} value={reasons[row.reviewId] ?? ""} onChange={(event) => setReasons((previous) => ({ ...previous, [row.reviewId]: event.target.value }))} /> },
-              { key: "actions", title: "Actions", render: (row) => <div className="review-moderation-actions"><Button disabled={!canModerate || busy !== null || !reasons[row.reviewId]?.trim()} onClick={() => void moderate(row, "visible")}>Show</Button><Button disabled={!canModerate || busy !== null || !reasons[row.reviewId]?.trim()} onClick={() => void moderate(row, "hidden")}>Hide</Button></div> },
+              { key: "state", title: "状态", render: (row) => <StatusTag tone={row.visibility === "visible" ? "success" : "warning"}>{row.visibility === "visible" ? "已展示" : row.visibility === "hidden" ? "已隐藏" : "待审核"}</StatusTag> },
+              { key: "reason", title: "处理说明", render: (row) => <Input disabled={!canModerate} maxLength={1_000} value={reasons[row.reviewId] ?? ""} onChange={(event) => setReasons((previous) => ({ ...previous, [row.reviewId]: event.target.value }))} /> },
+              { key: "actions", title: "操作", render: (row) => <div className="review-moderation-actions"><Button disabled={!canModerate || busy !== null || !reasons[row.reviewId]?.trim()} onClick={() => void moderate(row, "visible")}>展示</Button><Button disabled={!canModerate || busy !== null || !reasons[row.reviewId]?.trim()} onClick={() => void moderate(row, "hidden")}>隐藏</Button></div> },
             ]}
           />
         )}
-        {reviewNextCursor && <div className="review-moderation-load-more"><Button disabled={busy !== null} onClick={() => void loadMoreReviews()}>Load more reviews</Button></div>}
+        {reviewNextCursor && <div className="review-moderation-load-more"><Button disabled={busy !== null} onClick={() => void loadMoreReviews()}>加载更多评价</Button></div>}
       </Card>
-      <Card title="Open appeals" actions={<StatusTag tone="primary">{appeals.length}</StatusTag>}>
-        {busy === "load" && appeals.length === 0 ? null : appeals.length === 0 ? <EmptyState title="No open appeals" /> : (
+      <Card title="待处理申诉" actions={<StatusTag tone="primary">{appeals.length} 条</StatusTag>}>
+        {busy === "load" && appeals.length === 0 ? null : appeals.length === 0 ? <EmptyState title="当前没有待处理申诉" /> : (
           <Table
             rows={appeals}
             getRowKey={(row) => row.appealId}
             columns={[
-              { key: "appeal", title: "Appeal", render: (row) => <div><strong>{row.subjectType}</strong><br /><small>{row.appealId}</small></div> },
-              { key: "review", title: "Review", render: (row) => `${row.reviewId} / moderation v${row.moderationVersion}` },
-              { key: "request", title: "Reason", render: (row) => row.detailsRestricted
-                ? <StatusTag tone="warning">restricted</StatusTag>
+              { key: "appeal", title: "申诉", render: (row) => <div><strong>{row.subjectType === "customer" ? "客户申诉" : "师傅申诉"}</strong><br /><small>{row.appealId}</small></div> },
+              { key: "review", title: "关联评价", render: (row) => row.reviewId },
+              { key: "request", title: "申诉原因", render: (row) => row.detailsRestricted
+                ? <StatusTag tone="warning">内容受权限保护</StatusTag>
                 : row.reason },
-              { key: "resolution", title: "Resolution reason", render: (row) => <Input disabled={!canModerate} maxLength={1_000} value={reasons[row.appealId] ?? ""} onChange={(event) => setReasons((previous) => ({ ...previous, [row.appealId]: event.target.value }))} /> },
-              { key: "actions", title: "Actions", render: (row) => <div className="review-moderation-actions"><Button disabled={!canModerate || busy !== null || !reasons[row.appealId]?.trim()} onClick={() => void resolveAppeal(row, "upheld")}>Uphold</Button><Button disabled={!canModerate || busy !== null || !reasons[row.appealId]?.trim()} onClick={() => void resolveAppeal(row, "rejected")}>Reject</Button></div> },
+              { key: "resolution", title: "处理说明", render: (row) => <Input disabled={!canModerate} maxLength={1_000} value={reasons[row.appealId] ?? ""} onChange={(event) => setReasons((previous) => ({ ...previous, [row.appealId]: event.target.value }))} /> },
+              { key: "actions", title: "操作", render: (row) => <div className="review-moderation-actions"><Button disabled={!canModerate || busy !== null || !reasons[row.appealId]?.trim()} onClick={() => void resolveAppeal(row, "upheld")}>支持申诉</Button><Button disabled={!canModerate || busy !== null || !reasons[row.appealId]?.trim()} onClick={() => void resolveAppeal(row, "rejected")}>驳回申诉</Button></div> },
             ]}
           />
         )}
-        {appealNextCursor && <div className="review-moderation-load-more"><Button disabled={busy !== null} onClick={() => void loadMoreAppeals()}>Load more appeals</Button></div>}
+        {appealNextCursor && <div className="review-moderation-load-more"><Button disabled={busy !== null} onClick={() => void loadMoreAppeals()}>加载更多申诉</Button></div>}
       </Card>
     </div>
   );

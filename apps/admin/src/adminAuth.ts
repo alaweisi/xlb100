@@ -9,12 +9,18 @@ import {
 } from "@xlb/api-client";
 import type { OaPermissionKey, OaPrincipal } from "@xlb/types";
 import { API_BASE } from "./apiBase";
+import {
+  ADMIN_DEMO_SESSION_TTL_MS,
+  IS_ADMIN_INVESTOR_DEMO,
+} from "./investorDemo";
 
 const TOKEN_STORAGE_KEY = "xlb.admin.token";
 const ADMIN_ID_STORAGE_KEY = "xlb.admin.userId";
 const ADMIN_ROLE_STORAGE_KEY = "xlb.admin.role";
 const ADMIN_USERNAME_STORAGE_KEY = "xlb.admin.username";
+const ADMIN_EXPIRES_AT_STORAGE_KEY = "xlb.admin.expiresAt";
 const OA_SESSION_STORAGE_KEY = "xlb.oa.session";
+export const ADMIN_SESSION_EXPIRED_EVENT = "xlb-admin-session-expired";
 const adminViteEnv = (import.meta as ImportMeta & {
   env?: { VITE_OA_ORIGIN?: string };
 }).env;
@@ -25,12 +31,40 @@ export interface AdminSession {
   role: string;
   username: string;
   identity: "admin" | "oa";
+  expiresAt?: number;
   permissions?: OaPermissionKey[];
   permissionCityCodes?: OaPrincipal["permissionCityCodes"];
 }
 
+function adminStorage(): Storage {
+  return IS_ADMIN_INVESTOR_DEMO ? window.sessionStorage : window.localStorage;
+}
+
+function clearAdminStorageKeys(storage: Storage): void {
+  const keys = Array.from({ length: storage.length }, (_, index) => storage.key(index))
+    .filter((key): key is string => Boolean(key))
+    .filter((key) => key.startsWith("xlb.admin."));
+  for (const key of keys) storage.removeItem(key);
+}
+
+export function adminVisibleError(error: unknown, fallback: string): string {
+  const status = error && typeof error === "object" && "status" in error
+    ? Number(error.status)
+    : undefined;
+  const message = error instanceof Error ? error.message : "";
+  if (status === 401 || /\b401\b/u.test(message)) return "演示登录已过期，请重新登录。";
+  if (status === 403 || /\b403\b/u.test(message)) return "当前演示账号没有执行此操作的权限。";
+  if (status === 404 || /\b404\b/u.test(message)) return "演示服务正在同步，请稍后重试。";
+  if (status === 409 || /\b409\b/u.test(message)) return "数据状态已更新，请刷新后再试。";
+  if (/network|fetch|timeout|offline|连接|网络/iu.test(message)) {
+    return "网络连接不稳定，请检查网络后重试。";
+  }
+  return fallback;
+}
+
 export function isOaBridgeMode(): boolean {
   if (typeof window === "undefined") return false;
+  if (IS_ADMIN_INVESTOR_DEMO) return false;
   const hash = window.location.hash || "";
   const queryStart = hash.indexOf("?");
   const requested = queryStart !== -1
@@ -40,6 +74,7 @@ export function isOaBridgeMode(): boolean {
 
 export function readOaHandoffTicket(): string | null {
   if (typeof window === "undefined") return null;
+  if (IS_ADMIN_INVESTOR_DEMO) return null;
   const queryStart = window.location.hash.indexOf("?");
   if (queryStart === -1) return null;
   return new URLSearchParams(window.location.hash.slice(queryStart + 1)).get("handoff");
@@ -97,32 +132,50 @@ export function readStoredAdminSession(): AdminSession | null {
       return null;
     }
   }
-  const token = window.localStorage.getItem(TOKEN_STORAGE_KEY);
-  const userId = window.localStorage.getItem(ADMIN_ID_STORAGE_KEY);
-  const role = window.localStorage.getItem(ADMIN_ROLE_STORAGE_KEY);
-  const username = window.localStorage.getItem(ADMIN_USERNAME_STORAGE_KEY) ?? "admin_hz";
+  const storage = adminStorage();
+  const token = storage.getItem(TOKEN_STORAGE_KEY);
+  const userId = storage.getItem(ADMIN_ID_STORAGE_KEY);
+  const role = storage.getItem(ADMIN_ROLE_STORAGE_KEY);
+  const username = storage.getItem(ADMIN_USERNAME_STORAGE_KEY) ?? "admin_hz";
+  const expiresAt = IS_ADMIN_INVESTOR_DEMO
+    ? Number(storage.getItem(ADMIN_EXPIRES_AT_STORAGE_KEY))
+    : undefined;
   if (!token || !userId || !role) return null;
-  return { token, userId, role, username, identity: "admin" };
+  if (
+    IS_ADMIN_INVESTOR_DEMO
+    && (!expiresAt || !Number.isFinite(expiresAt) || expiresAt <= Date.now())
+  ) {
+    clearAdminSession();
+    return null;
+  }
+  return {
+    token,
+    userId,
+    role,
+    username,
+    identity: "admin",
+    ...(expiresAt ? { expiresAt } : {}),
+  };
 }
 
 function storeAdminSession(session: AdminSession): void {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(TOKEN_STORAGE_KEY, session.token);
-  window.localStorage.setItem(ADMIN_ID_STORAGE_KEY, session.userId);
-  window.localStorage.setItem(ADMIN_ROLE_STORAGE_KEY, session.role);
-  window.localStorage.setItem(ADMIN_USERNAME_STORAGE_KEY, session.username);
+  const storage = adminStorage();
+  storage.setItem(TOKEN_STORAGE_KEY, session.token);
+  storage.setItem(ADMIN_ID_STORAGE_KEY, session.userId);
+  storage.setItem(ADMIN_ROLE_STORAGE_KEY, session.role);
+  storage.setItem(ADMIN_USERNAME_STORAGE_KEY, session.username);
+  if (session.expiresAt) {
+    storage.setItem(ADMIN_EXPIRES_AT_STORAGE_KEY, String(session.expiresAt));
+  }
 }
 
 export function clearAdminSession(): void {
   if (typeof window === "undefined") return;
-  if (isOaBridgeMode()) {
-    window.sessionStorage.removeItem(OA_SESSION_STORAGE_KEY);
-    pendingOaHandoff = null;
-    return;
-  }
-  window.localStorage.removeItem(TOKEN_STORAGE_KEY);
-  window.localStorage.removeItem(ADMIN_ID_STORAGE_KEY);
-  window.localStorage.removeItem(ADMIN_ROLE_STORAGE_KEY);
+  clearAdminStorageKeys(window.localStorage);
+  clearAdminStorageKeys(window.sessionStorage);
+  window.sessionStorage.removeItem(OA_SESSION_STORAGE_KEY);
+  pendingOaHandoff = null;
 }
 
 export function oaReturnUrl(): string {
@@ -144,7 +197,7 @@ export async function requestAdminLoginCode(username = "admin_hz") {
   const result = await auth.requestAdminLoginCode(username);
   if (!result.ok) throw new Error(result.error);
   if (typeof window !== "undefined") {
-    window.localStorage.setItem(ADMIN_USERNAME_STORAGE_KEY, username);
+    adminStorage().setItem(ADMIN_USERNAME_STORAGE_KEY, username);
   }
   return result;
 }
@@ -159,6 +212,9 @@ export async function loginAdminWithCode(username: string, code: string): Promis
     role: result.role,
     username,
     identity: "admin",
+    ...(IS_ADMIN_INVESTOR_DEMO
+      ? { expiresAt: Date.now() + ADMIN_DEMO_SESSION_TTL_MS }
+      : {}),
   };
   storeAdminSession(session);
   return session;
@@ -209,14 +265,36 @@ function domainPath(path: string): string {
   return isOaBridgeMode() ? `/api/oa/domains${path.startsWith("/") ? path : `/${path}`}` : path;
 }
 
+async function guardAdminRequest<T>(request: Promise<T>): Promise<T> {
+  try {
+    return await request;
+  } catch (error) {
+    const status = error && typeof error === "object" && "status" in error
+      ? Number(error.status)
+      : undefined;
+    if (status === 401 || (error instanceof Error && /\b401\b/u.test(error.message))) {
+      clearAdminSession();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent(ADMIN_SESSION_EXPIRED_EVENT));
+      }
+    }
+    throw error;
+  }
+}
+
 function withDomainBridge(client: ApiClient): ApiClient {
   return {
-    get: (path, options) => client.get(domainPath(path), options),
-    post: (path, body, options) => client.post(domainPath(path), body, options),
-    patch: (path, body, options) => client.patch(domainPath(path), body, options),
-    delete: (path, body, options) => client.delete(domainPath(path), body, options),
+    get: (path, options) => guardAdminRequest(client.get(domainPath(path), options)),
+    post: (path, body, options) =>
+      guardAdminRequest(client.post(domainPath(path), body, options)),
+    patch: (path, body, options) =>
+      guardAdminRequest(client.patch(domainPath(path), body, options)),
+    delete: (path, body, options) =>
+      guardAdminRequest(client.delete(domainPath(path), body, options)),
     postBinary: (path, body, binaryOptions, options) =>
-      client.postBinary(domainPath(path), body, binaryOptions, options),
+      guardAdminRequest(
+        client.postBinary(domainPath(path), body, binaryOptions, options),
+      ),
   };
 }
 

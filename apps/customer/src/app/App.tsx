@@ -1,11 +1,12 @@
-import { lazy, useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { lazy, useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import type { CatalogSnapshot, CityCode } from "@xlb/types";
 import type { CustomerOrderCreatePageProps } from "../pages/CustomerOrderCreatePage";
 import type { CustomerOrdersPageProps } from "../pages/CustomerOrdersPage";
 import type { CustomerCouponsPageProps } from "../pages/CustomerCouponsPage";
 import {
   appendOrderId,
-  clearStoredCustomerSession,
+  CUSTOMER_SESSION_EXPIRED_EVENT,
+  clearCustomerSessionAndBusinessData,
   createCustomerApiClient,
   CustomerLoadable,
   detectCustomerRoute,
@@ -19,6 +20,7 @@ import {
   type CustomerSession,
   writeCustomerCityCode,
 } from "../pages/customerPageShell";
+import { CustomerInvestorDemoNotice } from "../investorDemo";
 import { useCustomerSupportApi } from "./useCustomerSupportApi";
 
 const CustomerHomePage = lazy(() => import("../pages/CustomerHomePage").then((module) => ({ default: module.CustomerHomePage })));
@@ -30,6 +32,20 @@ const CustomerServicesPage = lazy(() => import("../pages/CustomerServicesPage").
 const CustomerSupportPage = lazy(() => import("../pages/CustomerSupportPage").then((module) => ({ default: module.CustomerSupportPage })));
 const CustomerNotificationsPage = lazy(() => import("../pages/CustomerNotificationsPage").then((module) => ({ default: module.CustomerNotificationsPage })));
 const CustomerCouponsPage = lazy(() => import("../pages/CustomerCouponsPage").then((module) => ({ default: module.CustomerCouponsPage })));
+
+function customerVisibleError(error: unknown, fallback: string): string {
+  const status = error && typeof error === "object" && "status" in error
+    ? Number(error.status)
+    : undefined;
+  const message = error instanceof Error ? error.message : "";
+  if (status === 401 || /\b401\b/u.test(message)) return "登录状态已过期，请重新验证手机号。";
+  if (status === 403 || /\b403\b/u.test(message)) return "当前演示账号暂时不能执行此操作。";
+  if (status === 404 || /\b404\b/u.test(message)) return "演示服务正在同步，请稍后重试。";
+  if (/network|fetch|timeout|offline|连接|网络/iu.test(message)) {
+    return "网络连接不稳定，请检查网络后重试。";
+  }
+  return fallback;
+}
 
 export function App() {
   const initialCityCode = useMemo(() => readCustomerCityCode(), []);
@@ -57,6 +73,12 @@ export function App() {
     () => createCustomerApiClient(cityCode, session?.token),
     [cityCode, session?.token],
   );
+  const withDemoNotice = useCallback((content: ReactNode) => (
+    <>
+      <CustomerInvestorDemoNotice />
+      {content}
+    </>
+  ), []);
   const setCityAndPersist = useCallback((next: CityCode) => {
     writeCustomerCityCode(next);
     setCityCode(next);
@@ -77,15 +99,17 @@ export function App() {
       setCatalogState({ status: "success", data: result.catalog });
     } catch (error) {
       if (isCustomerSessionUnauthorized(error)) {
-        clearStoredCustomerSession();
+        clearCustomerSessionAndBusinessData();
         setSession(null);
+        setAuthPhone("");
+        setOrderIds([]);
         setAuthStatus("idle");
         setAuthError("登录状态已过期，请重新验证手机号。");
         return;
       }
       setCatalogState({
         status: "error",
-        error: error instanceof Error ? error.message : "Unable to load catalog",
+        error: customerVisibleError(error, "服务目录暂时无法加载，请稍后重试。"),
       });
     }
   }, [api, cityCode, session?.token]);
@@ -93,6 +117,43 @@ export function App() {
   useEffect(() => {
     void loadCatalog();
   }, [loadCatalog]);
+
+  useEffect(() => {
+    const expireSession = () => {
+      clearCustomerSessionAndBusinessData();
+      setSession(null);
+      setAuthPhone("");
+      setAuthCode("");
+      setOrderIds([]);
+      setAuthStatus("idle");
+      setAuthMessage("");
+      setAuthError("登录状态已过期，请重新验证手机号。");
+    };
+    window.addEventListener(CUSTOMER_SESSION_EXPIRED_EVENT, expireSession);
+    return () => window.removeEventListener(CUSTOMER_SESSION_EXPIRED_EVENT, expireSession);
+  }, []);
+
+  useEffect(() => {
+    if (!session?.expiresAt) return;
+    const remaining = session.expiresAt - Date.now();
+    if (remaining <= 0) {
+      clearCustomerSessionAndBusinessData();
+      setSession(null);
+      setAuthPhone("");
+      setOrderIds([]);
+      setAuthError("演示登录已到期，请重新验证手机号。");
+      return;
+    }
+    const timeout = window.setTimeout(() => {
+      clearCustomerSessionAndBusinessData();
+      setSession(null);
+      setAuthPhone("");
+      setOrderIds([]);
+      setAuthStatus("idle");
+      setAuthError("演示登录已到期，请重新验证手机号。");
+    }, remaining);
+    return () => window.clearTimeout(timeout);
+  }, [session?.expiresAt]);
 
   const handleRetryCatalog = useCallback(() => {
     void loadCatalog();
@@ -119,7 +180,7 @@ export function App() {
       setAuthStatus("codeSent");
     } catch (error) {
       setAuthStatus("idle");
-      setAuthError(error instanceof Error ? error.message : "验证码发送失败，请稍后重试。");
+      setAuthError(customerVisibleError(error, "验证码暂时无法获取，请稍后重试。"));
     }
   }, [authPhone]);
 
@@ -140,7 +201,7 @@ export function App() {
       setAuthStatus("idle");
     } catch (error) {
       setAuthStatus("codeSent");
-      setAuthError(error instanceof Error ? error.message : "登录失败，请重新获取验证码。");
+      setAuthError(customerVisibleError(error, "登录未完成，请重新获取验证码。"));
     }
   }, [authCode, authPhone]);
 
@@ -154,6 +215,17 @@ export function App() {
     },
     [cityCode, setCityAndPersist],
   );
+
+  const handleLogout = useCallback(() => {
+    clearCustomerSessionAndBusinessData();
+    setSession(null);
+    setAuthPhone("");
+    setAuthCode("");
+    setOrderIds([]);
+    setAuthMessage("");
+    setAuthError("");
+    setAuthStatus("idle");
+  }, []);
 
   const orderCreateApi: CustomerOrderCreatePageProps["api"] = {
     getPriceQuote: (skuId) => api.getPriceQuote(skuId),
@@ -178,7 +250,7 @@ export function App() {
   if (!session) {
     const requesting = authStatus === "requesting";
     const signingIn = authStatus === "signingIn";
-    return (
+    return withDemoNotice(
       <main className="customer-auth-page">
         <section className="customer-auth-card" aria-labelledby="customer-auth-title">
           <div className="customer-auth-brand" aria-hidden="true">喜乐帮</div>
@@ -237,15 +309,15 @@ export function App() {
   }
 
   if (currentRoute === "home") {
-    return <CustomerHomePage cityCode={cityCode} catalogState={catalogState} onRetryCatalog={handleRetryCatalog} />;
+    return withDemoNotice(<CustomerHomePage cityCode={cityCode} catalogState={catalogState} onRetryCatalog={handleRetryCatalog} />);
   }
 
   if (currentRoute === "services") {
-    return <CustomerServicesPage cityCode={cityCode} catalogState={catalogState} onRetryCatalog={handleRetryCatalog} />;
+    return withDemoNotice(<CustomerServicesPage cityCode={cityCode} catalogState={catalogState} onRetryCatalog={handleRetryCatalog} />);
   }
 
   if (currentRoute === "createOrder") {
-    return (
+    return withDemoNotice(
       <CustomerOrderCreatePage
         api={orderCreateApi}
         catalogState={catalogState}
@@ -256,26 +328,26 @@ export function App() {
   }
 
   if (currentRoute === "orders") {
-    return <CustomerOrdersPage api={ordersApi} cityCode={cityCode} orderIds={orderIds} />;
+    return withDemoNotice(<CustomerOrdersPage api={ordersApi} cityCode={cityCode} orderIds={orderIds} />);
   }
 
   if (currentRoute === "aftersale") {
-    return <CustomerAftersalePage api={api} orderIds={orderIds} />;
+    return withDemoNotice(<CustomerAftersalePage api={api} orderIds={orderIds} />);
   }
 
   if (currentRoute === "support") {
-    return <CustomerSupportPage api={supportApi} />;
+    return withDemoNotice(<CustomerSupportPage api={supportApi} />);
   }
 
   if (currentRoute === "notifications") {
-    return <CustomerNotificationsPage api={api} />;
+    return withDemoNotice(<CustomerNotificationsPage api={api} />);
   }
 
   if (currentRoute === "coupons") {
     const couponsApi: CustomerCouponsPageProps["api"] = {
       listCouponGrants: (query) => api.listCouponGrants(query),
     };
-    return (
+    return withDemoNotice(
       <CustomerCouponsPage
         api={couponsApi}
         onSelectForQuote={(couponGrantId) => {
@@ -285,5 +357,7 @@ export function App() {
     );
   }
 
-  return <CustomerProfilePage api={api} cityCode={cityCode} />;
+  return withDemoNotice(
+    <CustomerProfilePage api={api} cityCode={cityCode} onLogout={handleLogout} />,
+  );
 }

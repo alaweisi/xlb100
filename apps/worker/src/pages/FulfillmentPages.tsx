@@ -8,7 +8,20 @@ import {
   Button, Card, EmptyState, FormField, Input, LoadingState, Select, StatusTag, Table, Textarea,
 } from "@xlb/ui";
 import { workerWorkflowActions } from "../adapters/workflowBindings";
-import { formatNullable, helperText, statusTone, workerPanelStyle } from "./pageShared";
+import { IS_WORKER_INVESTOR_DEMO, workerDemoCityLabel } from "../investorDemo";
+import { formatNullable, helperText, statusLabel, statusTone, workerPanelStyle } from "./pageShared";
+
+function evidenceTypeLabel(value: FulfillmentEvidenceType): string {
+  const labels: Partial<Record<FulfillmentEvidenceType, string>> = {
+    arrival: "到达现场",
+    before_service: "服务前",
+    diagnosis: "现场检查",
+    material: "服务材料",
+    after_service: "服务后",
+    completion: "完工凭证",
+  };
+  return labels[value] ?? "服务凭证";
+}
 
 export function RepairOrdersPage({
   repairOrders,
@@ -93,6 +106,7 @@ export function TaskDetailPage({
   evidenceError,
   evidenceBusy,
   onBack,
+  onRetry,
   onStart,
   onComplete,
   onRefreshEvidence,
@@ -110,6 +124,7 @@ export function TaskDetailPage({
   evidenceError: string | null;
   evidenceBusy: boolean;
   onBack: () => void;
+  onRetry: (fulfillmentId: string) => void;
   onStart: (fulfillmentId: string) => void;
   onComplete: (fulfillmentId: string) => void;
   onRefreshEvidence: (fulfillmentId: string) => void;
@@ -135,116 +150,110 @@ export function TaskDetailPage({
 
   const rows = fulfillment
     ? [
-        ["fulfillmentId", fulfillment.fulfillmentId],
-        ["acceptanceId", fulfillment.acceptanceId],
-        ["dispatchTaskId", fulfillment.dispatchTaskId],
-        ["orderId", fulfillment.orderId],
-        ["cityCode", fulfillment.cityCode],
-        ["workerId", fulfillment.workerId],
-        ["skuId", fulfillment.skuId],
-        ["status", fulfillment.status],
-        ["startedAt", formatNullable(fulfillment.startedAt)],
-        ["completedAt", formatNullable(fulfillment.completedAt)],
-        ["completionNote", formatNullable(fulfillment.completionNote)],
-        ["createdAt", fulfillment.createdAt],
-        ["updatedAt", fulfillment.updatedAt],
+        ["服务单号", fulfillment.fulfillmentId],
+        ["订单号", fulfillment.orderId],
+        ["服务城市", workerDemoCityLabel(fulfillment.cityCode)],
+        ["演示师傅", IS_WORKER_INVESTOR_DEMO ? "当前登录师傅" : fulfillment.workerId],
+        ["服务项目", fulfillment.skuId],
+        ["当前状态", statusLabel(fulfillment.status)],
+        ["开始时间", formatNullable(fulfillment.startedAt)],
+        ["完成时间", formatNullable(fulfillment.completedAt)],
+        ["完工说明", formatNullable(fulfillment.completionNote)],
       ]
     : [];
 
   return (
     <>
-      <Card title="Fulfillment Detail" actions={<StatusTag tone="success">Real API</StatusTag>} style={workerPanelStyle}>
-        <p style={helperText}>Source: GET /api/worker/fulfillments/{fulfillmentId}</p>
+      <Card title="服务单详情" actions={<StatusTag tone="success">演示服务已连接</StatusTag>} style={workerPanelStyle}>
+        <p style={helperText}>请按“开始服务 → 完成服务”顺序操作，并等待客户确认。</p>
       </Card>
 
-      {loading && <LoadingState title="Loading detail" description="Requesting real fulfillment detail data." />}
+      {loading && <LoadingState title="正在加载服务单" description="正在同步最新服务进度。" />}
       {error && (
-        <Card title="Load failed" actions={<StatusTag tone="danger">Error</StatusTag>} style={workerPanelStyle}>
+        <Card title="服务单加载失败" actions={<Button onClick={() => onRetry(fulfillmentId)}>重新加载</Button>} style={workerPanelStyle}>
           <p style={{ ...helperText, color: "#fda29b" }}>{error}</p>
         </Card>
       )}
       {lifecycleError && (
-        <Card title="Action failed" actions={<StatusTag tone="danger">Error</StatusTag>} style={workerPanelStyle}>
+        <Card title="操作未完成" actions={<Button onClick={() => onRetry(fulfillmentId)}>刷新服务状态</Button>} style={workerPanelStyle}>
           <p style={{ ...helperText, color: "#fda29b" }}>{lifecycleError}</p>
         </Card>
       )}
       {lifecycleNotice && (
-        <Card title="Action completed" actions={<StatusTag tone="success">Updated</StatusTag>} style={workerPanelStyle}>
+        <Card title="操作成功" actions={<StatusTag tone="success">状态已更新</StatusTag>} style={workerPanelStyle}>
           <p style={helperText}>{lifecycleNotice}</p>
         </Card>
       )}
 
       {!loading && !error && fulfillment && (
-        <Card title="Field Snapshot" style={workerPanelStyle}>
+        <Card title="服务信息" style={workerPanelStyle}>
           <Table
             rows={rows}
             getRowKey={(row) => row[0]}
             columns={[
-              { key: "field", title: "Field", render: (row) => row[0] },
-              { key: "value", title: "Value", render: (row) => row[1] },
+              { key: "field", title: "项目", render: (row) => row[0] },
+              { key: "value", title: "内容", render: (row) => row[1] },
             ]}
           />
         </Card>
       )}
 
-      <Card title="Fulfillment Evidence" actions={<StatusTag tone="primary">Local / Mock only</StatusTag>} style={workerPanelStyle}>
+      <Card title="服务凭证" actions={<StatusTag tone="primary">仅供模拟演示</StatusTag>} style={workerPanelStyle}>
         <div style={{ display: "grid", gap: 10 }}>
-          <FormField label="Evidence node">
+          <FormField label="凭证阶段">
             <Select value={evidenceType} onChange={(event) => setEvidenceType(event.target.value as FulfillmentEvidenceType)}>
-              <option value="arrival">Arrival</option><option value="before_service">Before service</option>
-              <option value="diagnosis">Diagnosis</option><option value="material">Material</option>
-              <option value="after_service">After service</option><option value="completion">Completion</option>
+              <option value="arrival">到达现场</option><option value="before_service">服务前</option>
+              <option value="diagnosis">现场检查</option><option value="material">服务材料</option>
+              <option value="after_service">服务后</option><option value="completion">完工凭证</option>
             </Select>
           </FormField>
-          <FormField label="Image (JPEG / PNG / WebP, max 5 MiB)">
+          <FormField label="现场图片（最大 5 MB）">
             <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => setEvidenceFile(event.target.files?.[0] ?? null)} />
           </FormField>
-          <FormField label="Complaint ID (optional)"><Input value={evidenceComplaintId} onChange={(event) => setEvidenceComplaintId(event.target.value)} /></FormField>
-          <FormField label="Evidence note"><Textarea value={evidenceNote} onChange={(event) => setEvidenceNote(event.target.value)} /></FormField>
+          <FormField label="关联售后单（选填）"><Input value={evidenceComplaintId} onChange={(event) => setEvidenceComplaintId(event.target.value)} /></FormField>
+          <FormField label="凭证说明"><Textarea value={evidenceNote} onChange={(event) => setEvidenceNote(event.target.value)} /></FormField>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
             <Button variant="primary" disabled={!evidenceFile || evidenceBusy} onClick={() => evidenceFile && onUploadEvidence(fulfillmentId,evidenceFile,{
               evidenceType,complaintId:evidenceComplaintId.trim()||undefined,note:evidenceNote.trim()||undefined,
-            })}>{evidenceBusy ? "Uploading" : "Store evidence"}</Button>
-            <Button disabled={evidenceLoading} onClick={() => onRefreshEvidence(fulfillmentId)}>Refresh evidence</Button>
+            })}>{evidenceBusy ? "正在上传…" : "保存服务凭证"}</Button>
+            <Button disabled={evidenceLoading} onClick={() => onRefreshEvidence(fulfillmentId)}>刷新凭证</Button>
           </div>
-          <p style={helperText}>Storage is private. Provider state is stored_local or stored_mock; externalProviderExecuted is always false.</p>
+          <p style={helperText}>凭证仅用于本次模拟演示，只保存在隔离的演示环境，不会发送到第三方服务。</p>
         </div>
       </Card>
 
-      {evidenceError && <Card title="Evidence action failed" actions={<StatusTag tone="danger">Error</StatusTag>} style={workerPanelStyle}><p style={helperText}>{evidenceError}</p></Card>}
-      {evidenceLoading && <LoadingState title="Loading evidence" description="Reading private evidence metadata." />}
+      {evidenceError && <Card title="凭证操作未完成" actions={<Button onClick={() => onRefreshEvidence(fulfillmentId)}>重新加载</Button>} style={workerPanelStyle}><p style={helperText}>{evidenceError}</p></Card>}
+      {evidenceLoading && <LoadingState title="正在加载服务凭证" description="正在读取本次服务的凭证记录。" />}
       {!evidenceLoading && evidenceAggregate && (
-        <Card title="Evidence Timeline" actions={<StatusTag tone={evidenceAggregate.confirmation?.status === "confirmed" ? "success" : "warning"}>{evidenceAggregate.confirmation?.status ?? "not completed"}</StatusTag>} style={workerPanelStyle}>
-          {evidenceAggregate.evidence.length===0?<EmptyState title="No evidence uploaded" />:<Table rows={evidenceAggregate.evidence} getRowKey={(item)=>item.evidenceId} columns={[
-            {key:"type",title:"Node",render:(item)=>item.evidenceType},
-            {key:"file",title:"File",render:(item)=>item.mediaAsset.originalFileName},
-            {key:"provider",title:"Provider",render:(item)=><StatusTag tone="primary">{item.mediaAsset.storage.providerStatus}</StatusTag>},
-            {key:"hash",title:"SHA-256",render:(item)=>item.mediaAsset.checksumSha256.slice(0,12)},
-            {key:"scan",title:"Security",render:(item)=>item.mediaAsset.securityScanStatus},
+        <Card title="凭证记录" actions={<StatusTag tone={evidenceAggregate.confirmation?.status === "confirmed" ? "success" : "warning"}>{evidenceAggregate.confirmation?.status === "confirmed" ? "客户已确认" : "等待客户确认"}</StatusTag>} style={workerPanelStyle}>
+          {evidenceAggregate.evidence.length===0?<EmptyState title="尚未上传服务凭证" />:<Table rows={evidenceAggregate.evidence} getRowKey={(item)=>item.evidenceId} columns={[
+            {key:"type",title:"阶段",render:(item)=>evidenceTypeLabel(item.evidenceType)},
+            {key:"file",title:"文件",render:(item)=>item.mediaAsset.originalFileName},
+            {key:"provider",title:"保存状态",render:()=><StatusTag tone="primary">已保存到演示环境</StatusTag>},
           ]}/>}
         </Card>
       )}
 
-      <Card title="Actions" actions={<StatusTag tone="success">Lifecycle</StatusTag>} style={workerPanelStyle}>
+      <Card title="服务操作" actions={<StatusTag tone="success">固定演示链</StatusTag>} style={workerPanelStyle}>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
           <Button
             disabled={!canStart}
             onClick={() => onStart(fulfillmentId)}
             variant="primary"
           >
-            {lifecycleAction === "start" ? "Starting" : "Start service"}
+            {lifecycleAction === "start" ? "正在开始…" : "开始服务"}
           </Button>
           <Button
             disabled={!canComplete}
             onClick={() => onComplete(fulfillmentId)}
             variant="primary"
           >
-            {lifecycleAction === "complete" ? "Completing" : "Complete service"}
+            {lifecycleAction === "complete" ? "正在提交…" : "完成服务"}
           </Button>
-          <Button onClick={onBack}>Back to list</Button>
+          <Button onClick={onBack}>返回服务单列表</Button>
         </div>
         <p style={{ ...helperText, color: "#ffd37d", marginTop: 10 }}>
-          Phase 18 keeps lifecycle actions and evidence writes separate; customer confirmation is customer-owned.
+          完成服务后，请切换到客户端进行确认与评价。
         </p>
       </Card>
     </>

@@ -36,6 +36,26 @@ export function statusTone(status: string): "primary" | "success" | "warning" | 
   return "muted";
 }
 
+export function statusLabel(status: string): string {
+  const labels: Record<string, string> = {
+    accepted: "已接单",
+    assigned: "已分配",
+    cancelled: "已取消",
+    completed: "已完成",
+    failed: "处理失败",
+    in_progress: "服务中",
+    manual_review: "待人工处理",
+    no_match: "暂无匹配师傅",
+    offering: "待接单",
+    pending: "待处理",
+    queued: "排队中",
+    reassigning: "重新调度中",
+    rejected: "已拒绝",
+    timeout: "已超时",
+  };
+  return labels[status] ?? status;
+}
+
 export function formatNullable(value: string | null | undefined): string {
   return value || "-";
 }

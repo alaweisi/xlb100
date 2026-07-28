@@ -1,9 +1,19 @@
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
-import { ApiClientError, createApiClient, createAuthApi, customerApi } from "@xlb/api-client";
+import {
+  ApiClientError,
+  type ApiClient,
+  createApiClient,
+  createAuthApi,
+  customerApi,
+} from "@xlb/api-client";
 import type { CatalogSnapshot, CityCode } from "@xlb/types";
 import { XLB_HEADERS } from "@xlb/types";
 import { BottomNav, MobileShell } from "@xlb/ui";
 import { CUSTOMER_API_BASE } from "../apiBase";
+import {
+  CUSTOMER_DEMO_SESSION_TTL_MS,
+  IS_CUSTOMER_INVESTOR_DEMO,
+} from "../investorDemo";
 
 // Phase 14: removed hardcoded CUSTOMER_ID; replaced with loginCustomer().
 // Legacy reference preserved for tests: "customer-demo-001" exists in customers table via seed 011.
@@ -15,41 +25,97 @@ export const DEFAULT_CITY: CityCode = "hangzhou";
 
 const TOKEN_STORAGE_KEY = "xlb.customer.token";
 const CUSTOMER_PHONE_KEY = "xlb.customer.phone";
+const CUSTOMER_USER_ID_KEY = "xlb.customer.userId";
+const CUSTOMER_SESSION_EXPIRES_AT_KEY = "xlb.customer.expiresAt";
+export const CUSTOMER_SESSION_EXPIRED_EVENT = "xlb-customer-session-expired";
 
 export interface CustomerSession {
   token: string;
   userId: string;
+  expiresAt?: number;
+}
+
+function customerSessionStorage(): Storage {
+  return IS_CUSTOMER_INVESTOR_DEMO
+    ? window.sessionStorage
+    : window.localStorage;
+}
+
+function removeKeys(storage: Storage, keys: readonly string[]): void {
+  for (const key of keys) storage.removeItem(key);
 }
 
 export function readStoredSession(): CustomerSession | null {
   if (typeof window === "undefined") return null;
-  const token = window.localStorage.getItem(TOKEN_STORAGE_KEY);
+  const storage = customerSessionStorage();
+  const token = storage.getItem(TOKEN_STORAGE_KEY);
   if (!token) return null;
-  // We don't verify the token here; the backend will reject expired/invalid tokens.
-  // userId is extracted from token on the backend side; we store it for UI display only.
-  const userId = window.localStorage.getItem("xlb.customer.userId") ?? "";
-  return { token, userId };
+  const userId = storage.getItem(CUSTOMER_USER_ID_KEY) ?? "";
+  const rawExpiresAt = storage.getItem(CUSTOMER_SESSION_EXPIRES_AT_KEY);
+  const expiresAt = rawExpiresAt ? Number(rawExpiresAt) : undefined;
+  if (
+    IS_CUSTOMER_INVESTOR_DEMO
+    && (!expiresAt || !Number.isFinite(expiresAt) || expiresAt <= Date.now())
+  ) {
+    clearCustomerSessionAndBusinessData();
+    return null;
+  }
+  return { token, userId, ...(expiresAt ? { expiresAt } : {}) };
 }
 
 function storeSession(session: CustomerSession): void {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(TOKEN_STORAGE_KEY, session.token);
-  window.localStorage.setItem("xlb.customer.userId", session.userId);
+  const storage = customerSessionStorage();
+  storage.setItem(TOKEN_STORAGE_KEY, session.token);
+  storage.setItem(CUSTOMER_USER_ID_KEY, session.userId);
+  if (session.expiresAt) {
+    storage.setItem(CUSTOMER_SESSION_EXPIRES_AT_KEY, String(session.expiresAt));
+  } else {
+    storage.removeItem(CUSTOMER_SESSION_EXPIRES_AT_KEY);
+  }
 }
 
 export function clearStoredCustomerSession(): void {
   if (typeof window === "undefined") return;
-  window.localStorage.removeItem(TOKEN_STORAGE_KEY);
-  window.localStorage.removeItem("xlb.customer.userId");
+  const sessionKeys = [
+    TOKEN_STORAGE_KEY,
+    CUSTOMER_USER_ID_KEY,
+    CUSTOMER_SESSION_EXPIRES_AT_KEY,
+  ] as const;
+  removeKeys(window.localStorage, sessionKeys);
+  removeKeys(window.sessionStorage, sessionKeys);
+}
+
+export function clearCustomerSessionAndBusinessData(): void {
+  if (typeof window === "undefined") return;
+  const keys = [
+    TOKEN_STORAGE_KEY,
+    CUSTOMER_USER_ID_KEY,
+    CUSTOMER_SESSION_EXPIRES_AT_KEY,
+    CUSTOMER_PHONE_KEY,
+    CITY_STORAGE_KEY,
+    ORDER_HISTORY_KEY,
+  ] as const;
+  removeKeys(window.localStorage, keys);
+  removeKeys(window.sessionStorage, keys);
 }
 
 export function readStoredCustomerPhone(): string {
   if (typeof window === "undefined") return "";
-  return window.localStorage.getItem(CUSTOMER_PHONE_KEY) ?? "";
+  return customerSessionStorage().getItem(CUSTOMER_PHONE_KEY) ?? "";
 }
 
 export function isCustomerSessionUnauthorized(error: unknown): boolean {
-  return error instanceof ApiClientError && error.status === 401;
+  return (
+    (error instanceof ApiClientError && error.status === 401)
+    || (
+      error !== null
+      && typeof error === "object"
+      && "status" in error
+      && Number(error.status) === 401
+    )
+    || (error instanceof Error && /\b401\b/u.test(error.message))
+  );
 }
 
 export async function requestCustomerCode(phone: string) {
@@ -58,10 +124,10 @@ export async function requestCustomerCode(phone: string) {
   );
   const codeRequest = await authApi.requestCustomerLoginCode(phone);
   if (!codeRequest.ok) {
-    throw new Error(`Login code request failed: ${codeRequest.error}`);
+    throw new Error(codeRequest.error);
   }
   if (typeof window !== "undefined") {
-    window.localStorage.setItem(CUSTOMER_PHONE_KEY, phone);
+    customerSessionStorage().setItem(CUSTOMER_PHONE_KEY, phone);
   }
   return codeRequest;
 }
@@ -72,9 +138,15 @@ export async function loginCustomer(phone: string, code: string): Promise<Custom
   );
   const result = await authApi.customerLogin(phone, code);
   if (!result.ok) {
-    throw new Error(`Login failed: ${result.error}`);
+    throw new Error(result.error);
   }
-  const session: CustomerSession = { token: result.token, userId: result.userId };
+  const session: CustomerSession = {
+    token: result.token,
+    userId: result.userId,
+    ...(IS_CUSTOMER_INVESTOR_DEMO
+      ? { expiresAt: Date.now() + CUSTOMER_DEMO_SESSION_TTL_MS }
+      : {}),
+  };
   storeSession(session);
   return session;
 }
@@ -199,6 +271,31 @@ export function appendOrderId(orderId: string): string[] {
 
 export type CustomerPageApi = ReturnType<typeof createCustomerApiClient>;
 
+async function guardCustomerRequest<T>(request: Promise<T>): Promise<T> {
+  try {
+    return await request;
+  } catch (error) {
+    if (isCustomerSessionUnauthorized(error)) {
+      clearCustomerSessionAndBusinessData();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent(CUSTOMER_SESSION_EXPIRED_EVENT));
+      }
+    }
+    throw error;
+  }
+}
+
+function withCustomerSessionGuard(client: ApiClient): ApiClient {
+  return {
+    get: (path, options) => guardCustomerRequest(client.get(path, options)),
+    post: (path, body, options) => guardCustomerRequest(client.post(path, body, options)),
+    patch: (path, body, options) => guardCustomerRequest(client.patch(path, body, options)),
+    delete: (path, body, options) => guardCustomerRequest(client.delete(path, body, options)),
+    postBinary: (path, body, binaryOptions, options) =>
+      guardCustomerRequest(client.postBinary(path, body, binaryOptions, options)),
+  };
+}
+
 export function createCustomerApiClient(cityCode: CityCode, token?: string) {
   const headers: Record<string, string> = {
     [XLB_HEADERS.cityCode]: cityCode,
@@ -207,10 +304,12 @@ export function createCustomerApiClient(cityCode: CityCode, token?: string) {
     headers["Authorization"] = `Bearer ${token}`;
   }
   return customerApi.forClient(
-    createApiClient({
-      baseUrl: CUSTOMER_API_BASE,
-      headers,
-    }),
+    withCustomerSessionGuard(
+      createApiClient({
+        baseUrl: CUSTOMER_API_BASE,
+        headers,
+      }),
+    ),
   );
 }
 

@@ -22,7 +22,10 @@ import {
   createWorkerApiClient,
   isUnauthorizedError,
   type WorkerSession,
+  WORKER_SESSION_EXPIRED_EVENT,
+  workerVisibleError,
 } from "./workerAuth";
+import { IS_WORKER_INVESTOR_DEMO, WorkerInvestorDemoNotice } from "../investorDemo";
 import "./worker-responsive.css";
 
 import { helperText, workerPanelStyle } from "../pages/pageShared";
@@ -77,55 +80,55 @@ const routeConfig: Record<
   { label: string; href: string; title: string; subtitle: string; icon: string; prominent?: boolean }
 > = {
   hall: {
-    label: "Pool",
+    label: "任务池",
     href: "/worker/",
-    title: "Task Pool",
-    subtitle: "Worker task pool with accept",
+    title: "待接任务",
+    subtitle: "查看并接取演示服务任务",
     icon: "P",
   },
   tasks: {
-    label: "Tasks",
+    label: "服务单",
     href: "/worker/tasks",
-    title: "My Tasks",
-    subtitle: "Fulfillment lifecycle",
+    title: "我的服务单",
+    subtitle: "开始服务并完成交付",
     icon: "T",
   },
   taskDetail: {
-    label: "Detail",
+    label: "详情",
     href: "/worker/tasks",
-    title: "Task Detail",
-    subtitle: "Start and complete service",
+    title: "服务单详情",
+    subtitle: "查看进度、上传凭证并完成服务",
     icon: "D",
   },
   repairs: {
-    label: "Repairs",
+    label: "返修",
     href: "/worker/repairs",
-    title: "Repair Visits",
-    subtitle: "Aftersale repair lifecycle",
+    title: "返修任务",
+    subtitle: "处理已分配的售后返修",
     icon: "R",
   },
   wallet: {
-    label: "Wallet",
+    label: "钱包",
     href: "/worker/wallet",
-    title: "Wallet",
-    subtitle: "Receivable balance and withdrawal requests",
+    title: "收入钱包",
+    subtitle: "查看演示应收与提现申请",
     icon: "W",
   },
-  support: { label: "Support", href: "/worker/support", title: "Support Tickets", subtitle: "Tracked help and dispute requests", icon: "S" },
-  notifications: { label: "Messages", href: "/worker/notifications", title: "Notifications", subtitle: "Same-city in-app inbox", icon: "N" },
-  reputation: { label: "Rating", href: "/worker/reputation", title: "My Reputation", subtitle: "Visible-review aggregate", icon: "★" },
+  support: { label: "客服", href: "/worker/support", title: "客服工单", subtitle: "查看帮助与争议处理进度", icon: "S" },
+  notifications: { label: "消息", href: "/worker/notifications", title: "消息中心", subtitle: "查看同城业务通知", icon: "N" },
+  reputation: { label: "评价", href: "/worker/reputation", title: "我的评价", subtitle: "查看已公开的服务评价", icon: "★" },
   profile: {
-    label: "Profile",
+    label: "我的",
     href: "/worker/profile",
-    title: "Profile",
-    subtitle: "Demo identity context",
+    title: "师傅资料",
+    subtitle: "查看演示身份与服务范围",
     icon: "M",
   },
   certification: {
-    label: "Cert",
+    label: "资质",
     href: "/worker/certification",
-    title: "Certification",
-    subtitle: "Demo qualification status",
+    title: "服务资质",
+    subtitle: "查看演示资质状态",
     icon: "+",
     prominent: true,
   },
@@ -211,7 +214,7 @@ function WorkerPageHeader({ route }: { route: WorkerRoute }) {
           </h1>
         </div>
         <StatusTag tone={isWorkerApiRoute ? "success" : "warning"}>
-          {isWorkerApiRoute ? "Real API" : "Unavailable"}
+          {isWorkerApiRoute ? "演示服务已连接" : "暂不可用"}
         </StatusTag>
       </div>
     </header>
@@ -272,6 +275,7 @@ function AppFrame({ route, children }: { route: WorkerRoute; children: ReactNode
             contentStyle={{ padding: "8px 20px 0" }}
             style={{ background: "var(--xlb-role-worker-page)", color: "var(--xlb-role-worker-text)", minHeight: 824 }}
           >
+            <WorkerInvestorDemoNotice />
             <div style={{ display: "grid", gap: 14, paddingBottom: 18 }}>{children}</div>
           </MobileShell>
         </div>
@@ -296,21 +300,25 @@ function SessionCard({
   onReload: () => void;
 }) {
   return (
-    <Card title="Worker Session" actions={<StatusTag tone="success">Logged in</StatusTag>} style={workerPanelStyle}>
+    <Card title="当前登录" actions={<StatusTag tone="success">已登录</StatusTag>} style={workerPanelStyle}>
       <div style={{ display: "grid", gap: 10 }}>
         <p style={helperText}>
-          Authenticated as {session.userId}. Worker requests use Authorization: Bearer.
+          当前演示师傅：{session.userId}。退出后会立即清除本次会话与页面数据。
         </p>
-        <FormField label="cityCode">
-          <Input value={cityCode} onChange={(event) => onCityChange(event.target.value || DEFAULT_CITY_CODE)} />
+        <FormField label="服务城市">
+          {IS_WORKER_INVESTOR_DEMO ? (
+            <Input aria-label="杭州演示区" value="杭州演示区" readOnly />
+          ) : (
+            <Input value={cityCode} onChange={(event) => onCityChange(event.target.value || DEFAULT_CITY_CODE)} />
+          )}
         </FormField>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
           <Button onClick={onReload} variant="primary">
-            Reload current view
+            刷新当前页面
           </Button>
-          <Button onClick={onLogout}>Logout</Button>
-          <Button onClick={() => onNavigate("/worker/notifications")}>Notifications</Button>
-          <Button onClick={() => onNavigate("/worker/reputation")}>My reputation</Button>
+          <Button onClick={onLogout}>退出并清除数据</Button>
+          <Button onClick={() => onNavigate("/worker/notifications")}>消息中心</Button>
+          <Button onClick={() => onNavigate("/worker/reputation")}>我的评价</Button>
         </div>
       </div>
     </Card>
@@ -372,6 +380,34 @@ export function App() {
   const simulationControlsEnabled =
     ((import.meta as ImportMeta & { env?: { MODE?: string } }).env?.MODE ?? "development") !== "production";
 
+  const clearWorkerData = useCallback(() => {
+    setTaskPool([]);
+    setFulfillments([]);
+    setRepairOrders([]);
+    setWalletBalance(null);
+    setBankAccounts([]);
+    setWithdrawals([]);
+    setWalletError(null);
+    setWorkerLocation(null);
+    setLocationError(null);
+    setRepairNotes({});
+    setTaskDetail(null);
+    setTaskEvidence(null);
+    setHallError(null);
+    setTasksError(null);
+    setRepairsError(null);
+    setDetailError(null);
+    setEvidenceError(null);
+    setEvidenceBusy(false);
+    setAcceptError(null);
+    setAcceptNotice(null);
+    setLifecycleError(null);
+    setLifecycleNotice(null);
+    setRepairBusyId(null);
+    setCertError(null);
+    setCertNotice(null);
+  }, []);
+
   const api = useMemo(
     () => (session ? createWorkerApiClient(workerCityCode, session) : null),
     [session, workerCityCode],
@@ -380,14 +416,25 @@ export function App() {
   const handleApiError = useCallback(
     (error: unknown, fallback: string, setError: (message: string) => void) => {
       if (isUnauthorizedError(error)) {
+        clearWorkerData();
         setSession(null);
-        setError("Session expired. Please login again.");
+        setError("演示登录已过期，请重新登录。");
         return;
       }
-      setError(error instanceof Error ? error.message : fallback);
+      setError(workerVisibleError(error, fallback));
     },
-    [],
+    [clearWorkerData, setSession],
   );
+
+  useEffect(() => {
+    const expireSession = () => {
+      clearWorkerData();
+      setSession(null);
+    };
+    window.addEventListener(WORKER_SESSION_EXPIRED_EVENT, expireSession);
+    return () => window.removeEventListener(WORKER_SESSION_EXPIRED_EVENT, expireSession);
+  }, [clearWorkerData, setSession]);
+
   const loadTaskPool = useCallback(async () => {
     if (!api) return;
     setLoadingHall(true);
@@ -396,7 +443,7 @@ export function App() {
       const response = await api.getTaskPool();
       setTaskPool(response.tasks);
     } catch (error) {
-      handleApiError(error, "Failed to load task pool", setHallError);
+      handleApiError(error, "任务池暂时无法加载，请点击重试。", setHallError);
       setTaskPool([]);
     } finally {
       setLoadingHall(false);
@@ -411,7 +458,7 @@ export function App() {
       const response = await api.getMyFulfillments();
       setFulfillments(response.fulfillments);
     } catch (error) {
-      handleApiError(error, "Failed to load fulfillments", setTasksError);
+      handleApiError(error, "服务单暂时无法加载，请点击重试。", setTasksError);
       setFulfillments([]);
     } finally {
       setLoadingTasks(false);
@@ -516,11 +563,11 @@ export function App() {
       try {
         const response = await api.acceptTask(dispatchTaskId);
         setAcceptNotice(
-          `Accepted ${response.acceptance.dispatchTaskId}; fulfillment ${response.fulfillment.fulfillmentId} is now ${response.fulfillment.status}.`,
+          `任务 ${response.acceptance.dispatchTaskId} 已接取，可前往“我的服务单”继续操作。`,
         );
         await Promise.all([loadTaskPool(), loadFulfillments()]);
       } catch (error) {
-        handleApiError(error, "Failed to accept task", setAcceptError);
+        handleApiError(error, "接取任务未完成，请刷新任务池后重试。", setAcceptError);
       } finally {
         setAcceptingDispatchTaskId(null);
       }
@@ -581,10 +628,10 @@ export function App() {
       setLifecycleNotice(null);
       try {
         const response = await api.startFulfillment(fulfillmentId);
-        setLifecycleNotice(`Fulfillment ${response.fulfillment.fulfillmentId} is now ${response.fulfillment.status}.`);
+        setLifecycleNotice(`服务单 ${response.fulfillment.fulfillmentId} 已开始服务。`);
         await refreshFulfillmentState(fulfillmentId);
       } catch (error) {
-        handleApiError(error, "Failed to start service", setLifecycleError);
+        handleApiError(error, "开始服务未完成，请刷新服务单后重试。", setLifecycleError);
       } finally {
         setLifecycleAction(null);
       }
@@ -600,10 +647,10 @@ export function App() {
       setLifecycleNotice(null);
       try {
         const response = await api.completeFulfillment(fulfillmentId);
-        setLifecycleNotice(`Fulfillment ${response.fulfillment.fulfillmentId} is now ${response.fulfillment.status}.`);
+        setLifecycleNotice(`服务单 ${response.fulfillment.fulfillmentId} 已完成，等待客户确认。`);
         await refreshFulfillmentState(fulfillmentId);
       } catch (error) {
-        handleApiError(error, "Failed to complete service", setLifecycleError);
+        handleApiError(error, "完成服务未提交，请刷新服务单后重试。", setLifecycleError);
       } finally {
         setLifecycleAction(null);
       }
@@ -720,34 +767,6 @@ export function App() {
     setRoute(resolveRoute());
   }, []);
 
-  const clearWorkerData = useCallback(() => {
-    setTaskPool([]);
-    setFulfillments([]);
-    setRepairOrders([]);
-    setWalletBalance(null);
-    setBankAccounts([]);
-    setWithdrawals([]);
-    setWalletError(null);
-    setWorkerLocation(null);
-    setLocationError(null);
-    setRepairNotes({});
-    setTaskDetail(null);
-    setTaskEvidence(null);
-    setHallError(null);
-    setTasksError(null);
-    setRepairsError(null);
-    setDetailError(null);
-    setEvidenceError(null);
-    setEvidenceBusy(false);
-    setAcceptError(null);
-    setAcceptNotice(null);
-    setLifecycleError(null);
-    setLifecycleNotice(null);
-    setRepairBusyId(null);
-    setCertError(null);
-    setCertNotice(null);
-  }, []);
-
   const handleLogin = useCallback(
     (nextSession: WorkerSession) => {
       clearWorkerData();
@@ -761,10 +780,25 @@ export function App() {
     setSession(null);
   }, [clearWorkerData]);
 
+  useEffect(() => {
+    if (!session?.expiresAt) return;
+    const remaining = session.expiresAt - Date.now();
+    if (remaining <= 0) {
+      clearWorkerData();
+      setSession(null);
+      return;
+    }
+    const timeout = window.setTimeout(() => {
+      clearWorkerData();
+      setSession(null);
+    }, remaining);
+    return () => window.clearTimeout(timeout);
+  }, [clearWorkerData, session?.expiresAt, setSession]);
+
   if (!session) {
     return (
       <AppFrame route="hall">
-        <Suspense fallback={<LoadingState title="Loading worker login" />}>
+        <Suspense fallback={<LoadingState title="正在打开师傅端登录" />}>
           <WorkerLoginPage cityCode={workerCityCode} onCityChange={setWorkerCityCode} onLogin={handleLogin} />
         </Suspense>
       </AppFrame>
@@ -811,6 +845,7 @@ export function App() {
         evidenceError={evidenceError}
         evidenceBusy={evidenceBusy}
         onBack={() => navigate("/worker/tasks")}
+        onRetry={(fulfillmentId) => void Promise.all([loadTaskDetail(fulfillmentId), loadTaskEvidence(fulfillmentId)])}
         onStart={(fulfillmentId) => void startFulfillment(fulfillmentId)}
         onComplete={(fulfillmentId) => void completeFulfillment(fulfillmentId)}
         onRefreshEvidence={(fulfillmentId) => void loadTaskEvidence(fulfillmentId)}
@@ -880,7 +915,7 @@ export function App() {
         onNavigate={navigate}
         onReload={reloadCurrent}
       />
-      <Suspense fallback={<LoadingState title="Loading worker page" />}>{content}</Suspense>
+      <Suspense fallback={<LoadingState title="正在加载师傅端页面" />}>{content}</Suspense>
     </AppFrame>
   );
 }
