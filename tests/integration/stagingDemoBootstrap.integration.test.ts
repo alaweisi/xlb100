@@ -59,6 +59,10 @@ describe("staging demo bootstrap database lifecycle", () => {
       "UPDATE coupon_grants SET status='revoked', available_at=NULL, version=2 WHERE coupon_grant_id=?",
       [STAGING_DEMO_IDS.couponGrantId],
     );
+    await pool.query(
+      "UPDATE order_reviews SET rating=1, comment='corrupted demo review' WHERE review_id=?",
+      [STAGING_DEMO_IDS.historyReviewId],
+    );
 
     const secondConnection = await pool.getConnection();
     try {
@@ -101,6 +105,9 @@ describe("staging demo bootstrap database lifecycle", () => {
       notification_read_at: Date | null;
       support_status: string;
       review_count: number;
+      review_rating: number;
+      review_comment: string;
+      review_status: string;
     })[]>(
       `SELECT
          (SELECT COUNT(*) FROM orders
@@ -114,7 +121,13 @@ describe("staging demo bootstrap database lifecycle", () => {
          (SELECT status FROM support_tickets
            WHERE ticket_id=?) AS support_status,
          (SELECT COUNT(*) FROM order_reviews
-           WHERE review_id=?) AS review_count`,
+           WHERE review_id=?) AS review_count,
+         (SELECT rating FROM order_reviews
+           WHERE review_id=?) AS review_rating,
+         (SELECT comment FROM order_reviews
+           WHERE review_id=?) AS review_comment,
+         (SELECT status FROM order_reviews
+           WHERE review_id=?) AS review_status`,
       [
         STAGING_DEMO_IDS.activeOrderId,
         STAGING_DEMO_IDS.historyOrderId,
@@ -123,6 +136,9 @@ describe("staging demo bootstrap database lifecycle", () => {
         STAGING_DEMO_IDS.couponGrantId,
         STAGING_DEMO_IDS.notificationStateId,
         STAGING_DEMO_IDS.supportTicketId,
+        STAGING_DEMO_IDS.historyReviewId,
+        STAGING_DEMO_IDS.historyReviewId,
+        STAGING_DEMO_IDS.historyReviewId,
         STAGING_DEMO_IDS.historyReviewId,
       ],
     );
@@ -133,6 +149,9 @@ describe("staging demo bootstrap database lifecycle", () => {
       notification_read_at: null,
       support_status: "open",
       review_count: 1,
+      review_rating: 5,
+      review_comment: "服务准时，流程清晰（演示评价）",
+      review_status: "created",
     });
   });
 
@@ -162,8 +181,14 @@ describe("staging demo bootstrap database lifecycle", () => {
       `SELECT
          (SELECT phone FROM customers WHERE id=?) AS demo_phone,
          (SELECT name FROM customers WHERE id=?) AS ordinary_name,
-         (SELECT status FROM orders WHERE order_id=?) AS demo_order_status`,
-      [STAGING_DEMO_IDS.customerId, ordinaryCustomerId, STAGING_DEMO_IDS.activeOrderId],
+         (SELECT status FROM orders WHERE order_id=?) AS demo_order_status,
+         (SELECT rating FROM order_reviews WHERE review_id=?) AS demo_review_rating`,
+      [
+        STAGING_DEMO_IDS.customerId,
+        ordinaryCustomerId,
+        STAGING_DEMO_IDS.activeOrderId,
+        STAGING_DEMO_IDS.historyReviewId,
+      ],
     );
     const connection = await pool.getConnection();
     try {
@@ -179,8 +204,14 @@ describe("staging demo bootstrap database lifecycle", () => {
       `SELECT
          (SELECT phone FROM customers WHERE id=?) AS demo_phone,
          (SELECT name FROM customers WHERE id=?) AS ordinary_name,
-         (SELECT status FROM orders WHERE order_id=?) AS demo_order_status`,
-      [STAGING_DEMO_IDS.customerId, ordinaryCustomerId, STAGING_DEMO_IDS.activeOrderId],
+         (SELECT status FROM orders WHERE order_id=?) AS demo_order_status,
+         (SELECT rating FROM order_reviews WHERE review_id=?) AS demo_review_rating`,
+      [
+        STAGING_DEMO_IDS.customerId,
+        ordinaryCustomerId,
+        STAGING_DEMO_IDS.activeOrderId,
+        STAGING_DEMO_IDS.historyReviewId,
+      ],
     );
     expect(after[0]).toEqual(before[0]);
     await pool.query("DELETE FROM customers WHERE id=?", [ordinaryCustomerId]);

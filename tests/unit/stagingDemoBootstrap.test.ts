@@ -75,33 +75,53 @@ describe("staging demo bootstrap safety", () => {
       validateStagingDemoBootstrapTarget(loadEnv()),
     );
     expect(operations.length).toBeGreaterThanOrEqual(30);
-    const sql = operations.map((operation) => operation.sql).join("\n");
+    const sql = operations
+      .filter((operation) => "sql" in operation)
+      .map((operation) => operation.sql)
+      .join("\n");
     expect(sql).not.toMatch(/\bTRUNCATE\b/iu);
     expect(sql).not.toMatch(/\bLIKE\b|\bREGEXP\b/iu);
     expect(sql).not.toMatch(/DELETE\s+FROM\s+\w+\s*(?:;|$)/iu);
-    const deletes = operations.filter((operation) => /\bDELETE\s+FROM\b/iu.test(operation.sql));
+    const deletes = operations.filter(
+      (operation) => "sql" in operation && /\bDELETE\s+FROM\b/iu.test(operation.sql),
+    );
     expect(deletes).toHaveLength(1);
-    expect(deletes[0]?.sql).toMatch(/admin_user_id=\?/u);
-    expect(deletes[0]?.sql).toMatch(/city_code<>\?/u);
-    expect(deletes[0]?.params).toEqual([
+    const deleteOperation = deletes[0];
+    expect(deleteOperation && "sql" in deleteOperation ? deleteOperation.sql : "")
+      .toMatch(/admin_user_id=\?/u);
+    expect(deleteOperation && "sql" in deleteOperation ? deleteOperation.sql : "")
+      .toMatch(/city_code<>\?/u);
+    expect(deleteOperation && "params" in deleteOperation ? deleteOperation.params : [])
+      .toEqual([
       STAGING_DEMO_IDS.adminUserId,
       "hangzhou",
     ]);
     const workerScopeCleanup = operations.find(
       (operation) => operation.label === "worker_other_city_disable",
     );
-    expect(workerScopeCleanup?.sql).toMatch(/worker_id=\?/u);
-    expect(workerScopeCleanup?.sql).toMatch(/city_code<>\?/u);
-    expect(workerScopeCleanup?.params).toEqual([
+    expect(workerScopeCleanup && "sql" in workerScopeCleanup ? workerScopeCleanup.sql : "")
+      .toMatch(/worker_id=\?/u);
+    expect(workerScopeCleanup && "sql" in workerScopeCleanup ? workerScopeCleanup.sql : "")
+      .toMatch(/city_code<>\?/u);
+    expect(workerScopeCleanup && "params" in workerScopeCleanup ? workerScopeCleanup.params : [])
+      .toEqual([
       STAGING_DEMO_IDS.workerId,
       "hangzhou",
     ]);
-    for (const operation of operations.filter((item) => /^\s*INSERT\b/iu.test(item.sql))) {
+    for (const operation of operations.filter(
+      (item) => "sql" in item && /^\s*INSERT\b/iu.test(item.sql),
+    )) {
+      if (!("sql" in operation)) throw new Error("expected SQL operation");
       expect(operation.sql).toMatch(/ON DUPLICATE KEY UPDATE/iu);
       expect(operation.entityIds.every((id) => (
         id === STAGING_DEMO_IDS.customerId || id.startsWith("investor-demo-")
       ))).toBe(true);
     }
+    const historyReview = operations.find(
+      (operation) => operation.label === "history_review",
+    );
+    expect(historyReview && "execute" in historyReview).toBe(true);
+    expect(sql).not.toMatch(/INSERT\s+INTO\s+order_reviews\b/iu);
   });
 
   it("wraps every apply in one transaction and rolls back atomically", async () => {

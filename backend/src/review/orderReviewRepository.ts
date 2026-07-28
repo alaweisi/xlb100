@@ -1,4 +1,9 @@
-import type { Pool, PoolConnection, RowDataPacket } from "mysql2/promise";
+import type {
+  Pool,
+  PoolConnection,
+  ResultSetHeader,
+  RowDataPacket,
+} from "mysql2/promise";
 import type { CityCode, OrderReview, RequestContext } from "@xlb/types";
 import { RepositoryBase } from "../dal/repositoryBase.js";
 import {
@@ -42,6 +47,8 @@ export type InsertOrderReviewInput = {
   fulfillmentId: string;
   rating: number;
   comment: string;
+  createdAt?: string;
+  restoreOnConflict?: boolean;
 };
 
 function mapReview(row: OrderReviewRow): OrderReview {
@@ -163,12 +170,17 @@ export class OrderReviewRepository extends RepositoryBase {
   async insertReview(
     connection: PoolConnection,
     input: InsertOrderReviewInput,
-  ): Promise<void> {
-    await connection.query(
+  ): Promise<ResultSetHeader> {
+    const [result] = await connection.query<ResultSetHeader>(
       `INSERT INTO order_reviews
         (review_id, city_code, order_id, customer_id, worker_id,
-         fulfillment_id, rating, comment, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'created')`,
+         fulfillment_id, rating, comment, status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'created',
+         COALESCE(?, CURRENT_TIMESTAMP(3)))
+       ON DUPLICATE KEY UPDATE
+         rating=IF(?=1, VALUES(rating), rating),
+         comment=IF(?=1, VALUES(comment), comment),
+         status=IF(?=1, 'created', status)`,
       [
         input.reviewId,
         input.cityCode,
@@ -178,8 +190,13 @@ export class OrderReviewRepository extends RepositoryBase {
         input.fulfillmentId,
         input.rating,
         input.comment,
+        input.createdAt ?? null,
+        input.restoreOnConflict ? 1 : 0,
+        input.restoreOnConflict ? 1 : 0,
+        input.restoreOnConflict ? 1 : 0,
       ],
     );
+    return result;
   }
 }
 

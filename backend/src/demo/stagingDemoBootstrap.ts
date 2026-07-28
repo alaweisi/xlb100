@@ -5,8 +5,9 @@ import type {
   RowDataPacket,
 } from "mysql2/promise";
 import { loadEnv, type EnvConfig } from "@xlb/config";
-import { INVESTOR_DEMO_IDENTITIES } from "@xlb/types";
+import { INVESTOR_DEMO_IDENTITIES, type CityCode } from "@xlb/types";
 import { getMysqlPool } from "../dal/mysqlPool.js";
+import { orderReviewRepository } from "../review/orderReviewRepository.js";
 
 export const STAGING_DEMO_RESET_CONFIRMATION = "RESET_XLB_INVESTOR_DEMO_V1";
 export const STAGING_DEMO_PREFIX = "investor-demo-";
@@ -42,13 +43,24 @@ export const STAGING_DEMO_IDS = Object.freeze({
   notificationPreferenceId: "investor-demo-notification-preference",
 });
 
-export type StagingDemoOperation = {
+type StagingDemoSqlOperation = {
   label: string;
   table: string;
   sql: string;
   params: readonly unknown[];
   entityIds: readonly string[];
 };
+
+type StagingDemoCanonicalOperation = {
+  label: string;
+  table: string;
+  execute: (connection: PoolConnection) => Promise<ResultSetHeader>;
+  entityIds: readonly string[];
+};
+
+export type StagingDemoOperation =
+  | StagingDemoSqlOperation
+  | StagingDemoCanonicalOperation;
 
 export type StagingDemoUniqueOwnershipCheck = {
   label: string;
@@ -108,6 +120,15 @@ function op(
   ...entityIds: string[]
 ): StagingDemoOperation {
   return { label, table, sql, params, entityIds };
+}
+
+function canonicalOp(
+  label: string,
+  table: string,
+  execute: (connection: PoolConnection) => Promise<ResultSetHeader>,
+  ...entityIds: string[]
+): StagingDemoCanonicalOperation {
+  return { label, table, execute, entityIds };
 }
 
 function ownershipCheck(
@@ -493,24 +514,21 @@ export function buildStagingDemoOperations(
       ],
       ids.historyFulfillmentId,
     ),
-    op(
+    canonicalOp(
       "history_review",
       "order_reviews",
-      `INSERT INTO order_reviews (
-         review_id, city_code, order_id, customer_id, worker_id, fulfillment_id,
-         rating, comment, status, created_at
-       ) VALUES (?, ?, ?, ?, ?, ?, 5, '服务准时，流程清晰（演示评价）', 'created', ?)
-       ON DUPLICATE KEY UPDATE rating=5,
-         comment='服务准时，流程清晰（演示评价）', status='created'`,
-      [
-        ids.historyReviewId,
-        target.cityCode,
-        ids.historyOrderId,
-        ids.customerId,
-        target.workerId,
-        ids.historyFulfillmentId,
-        fixedCompletedAt,
-      ],
+      (connection) => orderReviewRepository.insertReview(connection, {
+        reviewId: ids.historyReviewId,
+        cityCode: target.cityCode as CityCode,
+        orderId: ids.historyOrderId,
+        customerId: ids.customerId,
+        workerId: target.workerId,
+        fulfillmentId: ids.historyFulfillmentId,
+        rating: 5,
+        comment: "服务准时，流程清晰（演示评价）",
+        createdAt: fixedCompletedAt,
+        restoreOnConflict: true,
+      }),
       ids.historyReviewId,
     ),
     op(
@@ -1197,10 +1215,7 @@ export async function assertConnectedDatabase(
 }
 
 export async function executeStagingDemoOperations(
-  connection: Pick<
-    PoolConnection,
-    "beginTransaction" | "commit" | "rollback" | "query"
-  >,
+  connection: PoolConnection,
   target: StagingDemoBootstrapTarget,
   operations: readonly StagingDemoOperation[],
 ): Promise<Array<{
@@ -1217,10 +1232,14 @@ export async function executeStagingDemoOperations(
     );
     const results = [];
     for (const operation of operations) {
-      const [result] = await connection.query<ResultSetHeader>(
-        operation.sql,
-        [...operation.params],
-      );
+      const result = "execute" in operation
+        ? await operation.execute(connection)
+        : (
+            await connection.query<ResultSetHeader>(
+              operation.sql,
+              [...operation.params],
+            )
+          )[0];
       results.push({
         label: operation.label,
         table: operation.table,

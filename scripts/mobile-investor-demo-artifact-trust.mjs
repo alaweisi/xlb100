@@ -56,15 +56,67 @@ export function resolveAndroidVerificationTools(androidSdk) {
   throw new Error("Android build-tools with aapt and apksigner were not found");
 }
 
-function defaultRunTool(command, args) {
-  const result = spawnSync(command, args, {
+function quoteWindowsCommandArgument(value) {
+  const text = String(value);
+  if (/[\0\r\n]/u.test(text)) throw new Error("Android verification argument is invalid");
+  return `"${text.replaceAll("%", "%%").replaceAll("\"", "\"\"")}"`;
+}
+
+function sanitizeToolDiagnostic(value) {
+  return String(value ?? "")
+    .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/giu, "Bearer [REDACTED]")
+    .replace(
+      /((?:password|secret|token|pass(?:word)?)[\s]*[=:][\s]*)[^\s]+/giu,
+      "$1[REDACTED]",
+    )
+    .replace(/\b1[3-9]\d{9}\b/gu, "[REDACTED_PHONE]")
+    .trim()
+    .slice(0, 1_200);
+}
+
+export function runAndroidVerificationTool(
+  command,
+  args,
+  {
+    spawn = spawnSync,
+    platform = process.platform,
+    comspec = process.env.ComSpec || "cmd.exe",
+  } = {},
+) {
+  const isWindowsBatch = platform === "win32" && /\.(?:bat|cmd)$/iu.test(command);
+  const executable = isWindowsBatch ? comspec : command;
+  const windowsCommandLine = isWindowsBatch
+    ? [command, ...args].map(quoteWindowsCommandArgument).join(" ")
+    : "";
+  const executableArgs = isWindowsBatch
+    ? [
+        "/d",
+        "/s",
+        "/c",
+        `"${windowsCommandLine}"`,
+      ]
+    : args;
+  const result = spawn(executable, executableArgs, {
     encoding: "utf8",
     windowsHide: true,
-    shell: process.platform === "win32" && command.toLowerCase().endsWith(".bat"),
+    windowsVerbatimArguments: isWindowsBatch,
+    shell: false,
   });
-  if (result.error) throw result.error;
+  if (result.error) {
+    const diagnostic = sanitizeToolDiagnostic(result.error.message);
+    throw new Error(
+      `Android artifact verification command failed: ${path.basename(command)}`
+      + (diagnostic ? `: ${diagnostic}` : ""),
+    );
+  }
   if (result.status !== 0) {
-    throw new Error(`Android artifact verification command failed: ${path.basename(command)}`);
+    const diagnostic = sanitizeToolDiagnostic(
+      result.stderr || result.stdout || result.error?.message,
+    );
+    throw new Error(
+      `Android artifact verification command failed: ${path.basename(command)}`
+      + (diagnostic ? `: ${diagnostic}` : ""),
+    );
   }
   return `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
 }
@@ -72,7 +124,7 @@ function defaultRunTool(command, args) {
 export function verifyInvestorDemoArtifactRoot({
   artifactRoot,
   androidSdk,
-  runTool = defaultRunTool,
+  runTool = runAndroidVerificationTool,
   tools = resolveAndroidVerificationTools(androidSdk),
 }) {
   const root = fs.realpathSync(path.resolve(artifactRoot));
@@ -141,10 +193,22 @@ export function verifyInvestorDemoArtifactRoot({
       throw new Error(`Investor Demo ${report.role} aapt identity mismatch`);
     }
     const signerOutput = runTool(tools.apksigner, ["verify", "--verbose", "--print-certs", realApkPath]);
-    const signerDigests = [...signerOutput.matchAll(
-      /Signer #\d+ certificate SHA-256 digest:\s*([0-9a-f:]+)/giu,
-    )].map((match) => normalizeFingerprint(match[1]));
-    if (signerDigests.length !== 1 || signerDigests[0] !== normalizeFingerprint(report.certificateSha256)) {
+    const signerMatches = [...signerOutput.matchAll(
+      /(?:Signer #(\d+)|V\d+(?:\.\d+)? Signer):?\s+certificate SHA-256 digest:\s*([0-9a-f:]+)/giu,
+    )];
+    const signerDigests = [...new Set(
+      signerMatches.map((match) => normalizeFingerprint(match[2])),
+    )];
+    const numberedSigners = new Set(
+      signerMatches.map((match) => match[1]).filter(Boolean),
+    );
+    const signerCountMatch = /Number of signers:\s*(\d+)/iu.exec(signerOutput);
+    if (
+      (signerCountMatch && Number(signerCountMatch[1]) !== 1)
+      || numberedSigners.size > 1
+      || signerDigests.length !== 1
+      || signerDigests[0] !== normalizeFingerprint(report.certificateSha256)
+    ) {
       throw new Error(`Investor Demo ${report.role} signer certificate mismatch`);
     }
     certificates.add(signerDigests[0]);

@@ -6,6 +6,7 @@ import path from "node:path";
 import test from "node:test";
 import {
   INVESTOR_DEMO_ARTIFACT_ROLES,
+  runAndroidVerificationTool,
   verifyInvestorDemoArtifactRoot,
 } from "./mobile-investor-demo-artifact-trust.mjs";
 
@@ -59,14 +60,76 @@ test("artifact trust executable validator accepts exact role/package/hash/signat
   try {
     const result = verifyInvestorDemoArtifactRoot({
       artifactRoot: fixtureState.root,
-      tools: { version: "fixture", aapt: "aapt", apksigner: "apksigner" },
+      tools: { version: "36.1.0", aapt: "aapt", apksigner: "apksigner" },
       runTool: fakeRunTool,
     });
     assert.deepEqual(result.reports.map((report) => report.role), ["customer", "worker", "admin"]);
     assert.equal(new Set(result.reports.map((report) => report.certificateSha256)).size, 3);
+    assert.equal(result.tools.version, "36.1.0");
   } finally {
     fs.rmSync(fixtureState.root, { recursive: true, force: true });
   }
+});
+
+test("artifact trust accepts build-tools 37 V2 signer certificate output", () => {
+  fixtureState = fixture();
+  try {
+    const result = verifyInvestorDemoArtifactRoot({
+      artifactRoot: fixtureState.root,
+      tools: { version: "37.0.0", aapt: "aapt", apksigner: "apksigner.bat" },
+      runTool: (_command, args) => {
+        const apk = args.at(-1);
+        const role = path.basename(apk).split("-")[1];
+        const report = fixtureState.reports.find((candidate) => candidate.role === role);
+        return args[0] === "dump"
+          ? `package: name='${report.appId}' versionCode='2' versionName='${report.versionName}'`
+          : `Verifies\nNumber of signers: 1\nV2 Signer: certificate SHA-256 digest: ${report.certificateSha256}`;
+      },
+    });
+    assert.equal(result.tools.version, "37.0.0");
+    assert.equal(result.reports.length, 3);
+  } finally {
+    fs.rmSync(fixtureState.root, { recursive: true, force: true });
+  }
+});
+
+test("Windows batch execution avoids shell mode and sanitizes failing diagnostics", () => {
+  const calls = [];
+  const output = runAndroidVerificationTool(
+    "C:\\Android SDK\\build-tools\\37.0.0\\apksigner.bat",
+    ["verify", "C:\\candidate\\demo.apk"],
+    {
+      platform: "win32",
+      comspec: "cmd.exe",
+      spawn: (command, args, options) => {
+        calls.push({ command, args, options });
+        return { status: 0, stdout: "verified", stderr: "" };
+      },
+    },
+  );
+  assert.match(output, /verified/u);
+  assert.equal(calls[0].command, "cmd.exe");
+  assert.equal(calls[0].options.shell, false);
+  assert.equal(calls[0].options.windowsVerbatimArguments, true);
+  assert.deepEqual(calls[0].args.slice(0, 3), ["/d", "/s", "/c"]);
+
+  assert.throws(
+    () => runAndroidVerificationTool("apksigner.bat", ["verify", "demo.apk"], {
+      platform: "win32",
+      comspec: "cmd.exe",
+      spawn: () => ({
+        status: 1,
+        stdout: "",
+        stderr: "certificate parse failed; token=do-not-disclose",
+      }),
+    }),
+    (error) => {
+      assert.match(error.message, /certificate parse failed/u);
+      assert.match(error.message, /token=\[REDACTED\]/u);
+      assert.doesNotMatch(error.message, /do-not-disclose/u);
+      return true;
+    },
+  );
 });
 
 test("artifact trust fails on wrong hash, package, path escape, or reused certificate", () => {
