@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import type { RowDataPacket } from "mysql2/promise";
+import type { RequestContext } from "@xlb/types";
 import { buildApp } from "../../backend/src/app.js";
 import { getMysqlPool } from "../../backend/src/dal/mysqlPool.js";
 import { getRedisClient } from "../../backend/src/dal/redisClient.js";
@@ -9,6 +10,11 @@ import {
   STAGING_DEMO_IDS,
   type StagingDemoBootstrapTarget,
 } from "../../backend/src/demo/stagingDemoBootstrap.js";
+import { orderReviewRepository } from "../../backend/src/review/orderReviewRepository.js";
+import {
+  SupportTicketNotFoundError,
+  supportTicketService,
+} from "../../backend/src/support/ticket/supportTicketService.js";
 
 const originalEnv = { ...process.env };
 
@@ -75,6 +81,9 @@ describe("staging investor demo authentication lifecycle", () => {
     const fulfillmentTaskId = "same-city-non-demo-task-fulfillment";
     const acceptanceId = "same-city-non-demo-acceptance";
     const fulfillmentId = "same-city-non-demo-fulfillment";
+    const reviewId = "same-city-non-demo-review";
+    const visibilityStateId = "same-city-non-demo-review-state";
+    const supportTicketId = "same-city-non-demo-support-ticket";
     try {
       await pool.query(
         `INSERT INTO customers (id,phone,name,avatar_url,default_city_code)
@@ -136,6 +145,48 @@ describe("staging investor demo authentication lifecycle", () => {
           fulfillmentId,
           acceptanceId,
           fulfillmentTaskId,
+          fulfillmentOrderId,
+          STAGING_DEMO_IDS.workerId,
+        ],
+      );
+      const reviewConnection = await pool.getConnection();
+      try {
+        await orderReviewRepository.insertReview(reviewConnection, {
+          reviewId,
+          cityCode: "hangzhou",
+          orderId: fulfillmentOrderId,
+          customerId: ordinaryCustomerId,
+          workerId: STAGING_DEMO_IDS.workerId,
+          fulfillmentId,
+          rating: 1,
+          comment: "same-city non-demo review must remain isolated",
+          restoreOnConflict: true,
+        });
+      } finally {
+        reviewConnection.release();
+      }
+      await pool.query(
+        `INSERT INTO review_visibility_states (
+           visibility_state_id,city_code,review_id,visibility,moderation_version,row_version
+         ) VALUES (?,'hangzhou',?,'pending_moderation',0,1)
+         ON DUPLICATE KEY UPDATE visibility='pending_moderation',
+           moderation_version=0,current_decision_id=NULL,row_version=1`,
+        [visibilityStateId, reviewId],
+      );
+      await pool.query(
+        `INSERT INTO support_tickets (
+           ticket_id,city_code,source,requester_id,type,priority,status,subject,
+           description,related_order_id,related_worker_id,idempotency_key,version
+         ) VALUES (
+           ?,'hangzhou','customer',?,'order_question','normal','open',
+           'same-city non-demo ticket','must remain isolated',?,?,
+           'same-city-non-demo-ticket-v1',1
+         )
+         ON DUPLICATE KEY UPDATE requester_id=VALUES(requester_id),
+           subject=VALUES(subject),description=VALUES(description),status='open',version=1`,
+        [
+          supportTicketId,
+          ordinaryCustomerId,
           fulfillmentOrderId,
           STAGING_DEMO_IDS.workerId,
         ],
@@ -324,6 +375,77 @@ describe("staging investor demo authentication lifecycle", () => {
         [queuedTaskId],
       );
       expect(nonDemoTaskRows[0]?.status).toBe("queued");
+      const moderationQueue = await app.inject({
+        method: "GET",
+        url: "/api/admin/reviews/moderation",
+        headers: adminHeaders,
+      });
+      expect(moderationQueue.statusCode).toBe(200);
+      expect(moderationQueue.json().items).toEqual(expect.arrayContaining([
+        expect.objectContaining({ reviewId: STAGING_DEMO_IDS.historyReviewId }),
+      ]));
+      expect(moderationQueue.json().items).not.toEqual(expect.arrayContaining([
+        expect.objectContaining({ reviewId }),
+      ]));
+      const demoSupportTicket = await app.inject({
+        method: "GET",
+        url: `/api/internal/support/tickets/${STAGING_DEMO_IDS.supportTicketId}`,
+        headers: adminHeaders,
+      });
+      expect(demoSupportTicket.statusCode).toBe(200);
+      expect(demoSupportTicket.json().detail.ticket).toMatchObject({
+        ticketId: STAGING_DEMO_IDS.supportTicketId,
+        requesterId: STAGING_DEMO_IDS.customerId,
+      });
+      expect((await app.inject({
+        method: "GET",
+        url: `/api/internal/support/tickets/${supportTicketId}`,
+        headers: adminHeaders,
+      })).statusCode).toBe(403);
+      expect((await app.inject({
+        method: "POST",
+        url: `/api/internal/support/tickets/${STAGING_DEMO_IDS.supportTicketId}/events`,
+        headers: adminHeaders,
+        payload: {
+          content: "demo administrators remain read-only",
+          visibility: "internal",
+          idempotencyKey: "demo-admin-write-denied",
+        },
+      })).statusCode).toBe(403);
+      expect((await app.inject({
+        method: "POST",
+        url: `/api/admin/reviews/${reviewId}/moderation`,
+        headers: adminHeaders,
+        payload: {
+          decision: "visible",
+          reasonCode: "content_valid",
+          reason: "demo administrators remain read-only",
+          expectedVersion: 1,
+          idempotencyKey: "demo-admin-review-write-denied",
+        },
+      })).statusCode).toBe(403);
+      expect((await app.inject({
+        method: "POST",
+        url: `/api/internal/support/tickets/${supportTicketId}/events`,
+        headers: adminHeaders,
+        payload: {
+          content: "same-city non-demo tickets remain read-only and hidden",
+          visibility: "internal",
+          idempotencyKey: "demo-admin-non-demo-ticket-write-denied",
+        },
+      })).statusCode).toBe(403);
+      const demoAdminContext: RequestContext = {
+        traceId: "same-city-non-demo-support-scope",
+        requestStartedAt: new Date().toISOString(),
+        appType: "admin",
+        role: "operator",
+        cityCode: "hangzhou",
+        userId: STAGING_DEMO_IDS.adminUserId,
+        demo: "investor",
+      };
+      await expect(
+        supportTicketService.getAdmin(demoAdminContext, supportTicketId),
+      ).rejects.toBeInstanceOf(SupportTicketNotFoundError);
       expect((await app.inject({
         method: "POST",
         url: "/api/internal/operations/skus/sku_home_daily_2h/status",
@@ -353,6 +475,9 @@ describe("staging investor demo authentication lifecycle", () => {
       })).statusCode).toBe(401);
     } finally {
       await app.close();
+      await pool.query("DELETE FROM support_tickets WHERE ticket_id=?", [supportTicketId]);
+      await pool.query("DELETE FROM review_visibility_states WHERE visibility_state_id=?", [visibilityStateId]);
+      await pool.query("DELETE FROM order_reviews WHERE review_id=?", [reviewId]);
       await pool.query("DELETE FROM fulfillments WHERE fulfillment_id=?", [fulfillmentId]);
       await pool.query("DELETE FROM worker_task_acceptances WHERE acceptance_id=?", [acceptanceId]);
       await pool.query(

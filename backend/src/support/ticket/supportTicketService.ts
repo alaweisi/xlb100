@@ -17,6 +17,7 @@ import {
 } from "@xlb/validators";
 import { withTransaction } from "../../dal/transaction.js";
 import { assertCityScopedContext } from "../../dal/scopedExecutor.js";
+import { investorDemoCustomerId } from "../../demo/stagingDemoDataScope.js";
 import { eventOutboxRepository, type EventOutboxRepository } from "../../events/eventOutbox.js";
 import { generateEventId } from "../../events/eventIds.js";
 import { supportRoutingService, type SupportRoutingService } from "../routing/supportRoutingService.js";
@@ -376,7 +377,15 @@ export class SupportTicketService {
   async getAdmin(context: RequestContext, ticketId: string): Promise<SupportTicketDetail> {
     requireAdminRead(context);
     const cityCode = requireCity(context);
-    const ticket = await this.repository.findTicket(context, cityCode, ticketId);
+    const demoCustomerId = investorDemoCustomerId(context);
+    const ticket = await this.repository.findTicket(
+      context,
+      cityCode,
+      ticketId,
+      demoCustomerId
+        ? { source: "customer", requesterId: demoCustomerId }
+        : undefined,
+    );
     if (!ticket) throw new SupportTicketNotFoundError("support ticket was not found");
     return { ticket, events: await this.repository.listEvents(context, cityCode, ticketId, false) };
   }

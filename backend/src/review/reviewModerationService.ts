@@ -22,6 +22,7 @@ import {
 } from "@xlb/validators";
 import { assertCityScopedContext } from "../dal/scopedExecutor.js";
 import { withTransaction } from "../dal/transaction.js";
+import { investorDemoCustomerId } from "../demo/stagingDemoDataScope.js";
 import { generateEventId } from "../events/eventIds.js";
 import { EventOutboxRepository, eventOutboxRepository } from "../events/eventOutbox.js";
 import {
@@ -150,6 +151,7 @@ export class ReviewModerationService {
     if (!Number.isInteger(rawLimit) || Number(rawLimit) < 1 || Number(rawLimit) > 100) {
       throw new ReviewValidationError("limit must be an integer between 1 and 100");
     }
+    const demoCustomerId = investorDemoCustomerId(context);
     return this.transactionRunner(async (connection) => {
       const actualRole = await this.repository.requireAdminScope(connection, cityCode, userId);
       if (!actualRole || actualRole !== context.role) {
@@ -159,11 +161,14 @@ export class ReviewModerationService {
         kind: "moderation" as const,
         cityCode,
         role: actualRole,
-        filter: visibility ?? "*",
+        filter: demoCustomerId
+          ? `${visibility ?? "*"}:investor-demo:${demoCustomerId}`
+          : visibility ?? "*",
       };
       const cursor = decodeReviewQueueCursor(input.cursor, scope);
       const rows = await this.repository.listModerationQueue(
         connection, cityCode, visibility, Number(rawLimit) + 1, false, cursor,
+        demoCustomerId ?? undefined,
       );
       const items = rows.slice(0, Number(rawLimit));
       const last = items.at(-1);

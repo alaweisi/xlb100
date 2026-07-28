@@ -17,6 +17,8 @@ const ADMIN_DEMO_GET_ROUTES: readonly RegExp[] = [
   /^\/api\/internal\/dispatch\/board$/u,
   /^\/api\/dispatch\/tasks$/u,
   /^\/api\/internal\/admin\/order-traces\/[A-Za-z0-9._:-]{1,128}$/u,
+  /^\/api\/admin\/reviews\/moderation$/u,
+  /^\/api\/internal\/support\/tickets\/investor-demo-support-ticket$/u,
 ];
 
 const ADMIN_DEMO_POST_ROUTES = new Set([

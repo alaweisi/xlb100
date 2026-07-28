@@ -25,6 +25,13 @@ describe("staging demo administrator policy", () => {
     ["POST", "/api/worker/bank-accounts"],
     ["POST", "/api/internal/operations/skus/sku_home_daily_2h/status"],
     ["POST", "/api/admin/marketing/campaigns"],
+    ["GET", "/api/internal/support/tickets"],
+    ["GET", "/api/internal/support/tickets/same-city-non-demo-support-ticket"],
+    ["GET", "/api/internal/support/tickets/investor-demo-support-ticket-copy"],
+    ["POST", "/api/internal/support/tickets/investor-demo-support-ticket/events"],
+    ["POST", "/api/internal/support/tickets/investor-demo-support-ticket/claim"],
+    ["GET", "/api/admin/reviews/investor-demo-review-history/content"],
+    ["POST", "/api/admin/reviews/investor-demo-review-history/moderation"],
     ["GET", "/openapi/credentials"],
   ])("denies high-risk or unlisted access: %s %s", (method, path) => {
     expect(stagingDemoRequestPolicy(demoAdmin, method, path)).toMatchObject({
