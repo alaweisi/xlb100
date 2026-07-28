@@ -61,7 +61,23 @@ pnpm mobile:investor-demo:release
 .artifacts/investor-demo-rc/<source-commit>/
 ```
 
+需要封存到独立候选目录时，可在当前构建进程中设置绝对路径
+`XLB_INVESTOR_DEMO_ARTIFACT_BASE`；脚本仍会自动追加源码 commit，并生成
+`manifest.json`、`checksums.sha256` 与 `signing-verification.json`。该变量不含
+签名秘密，不改变 API Origin、签名失败关闭或 `published:false` 边界。
+
 同一 commit 的封存文件不可被不同内容覆盖。
+
+连接 Android 设备后，统一通过仓库内脚本完成清洁安装、冷启动、UI-tree
+驱动的应用信息展开、返回/后台/重启、断网/重连与脱敏日志证据：
+
+```powershell
+pnpm mobile:investor-demo:device-qa -- -ArtifactRoot <封存目录> -UiHelperRoot <android-emulator-qa-skill目录> -TargetType Physical -MinimumPhysicalDevices 2
+```
+
+脚本默认要求两台真实设备；数量不足时写入 `DEVICE_UAT_BLOCKED` 证据并失败
+关闭。所有 tap 坐标只来自 `uiautomator` dump 和 `ui_pick.py`，同时保存
+`ui_tree_summarize.py` 摘要。
 
 ## 固定演示身份与数据重置
 

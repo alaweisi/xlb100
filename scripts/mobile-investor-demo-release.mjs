@@ -61,6 +61,24 @@ export function investorDemoApp(app) {
   });
 }
 
+export function investorDemoArtifactRoot({
+  environment = process.env,
+  sourceCommit,
+  workspaceRoot,
+}) {
+  if (!/^[0-9a-f]{40}$/u.test(sourceCommit ?? "")) {
+    throw new Error("Investor Demo artifact source commit must be a full Git SHA");
+  }
+  const configuredBase = environment.XLB_INVESTOR_DEMO_ARTIFACT_BASE?.trim();
+  if (configuredBase && !path.isAbsolute(configuredBase)) {
+    throw new Error("XLB_INVESTOR_DEMO_ARTIFACT_BASE must be an absolute path");
+  }
+  const artifactBase = configuredBase
+    ? path.resolve(configuredBase)
+    : path.join(workspaceRoot, ".artifacts", "investor-demo-rc");
+  return path.join(artifactBase, sourceCommit);
+}
+
 function pathIsInside(parent, child) {
   const relative = path.relative(path.resolve(parent), path.resolve(child));
   return relative === "" || (
@@ -273,12 +291,11 @@ export function runInvestorDemoRelease() {
     );
   }
 
-  const artifactRoot = path.join(
-    workspaceRoot,
-    ".artifacts",
-    "investor-demo-rc",
+  const artifactRoot = investorDemoArtifactRoot({
+    environment: process.env,
     sourceCommit,
-  );
+    workspaceRoot,
+  });
   const sealedReports = reports.map((report) => {
     const targetApk = path.join(
       artifactRoot,
@@ -293,10 +310,38 @@ export function runInvestorDemoRelease() {
     published: false,
     sourceCommit,
     apiOrigin: prerequisites.apiOrigin,
+    artifactRoot,
     reports: sealedReports,
   });
   const manifestBytes = Buffer.from(`${JSON.stringify(manifest, null, 2)}\n`, "utf8");
   writeSealedFile(path.join(artifactRoot, "manifest.json"), manifestBytes);
+  const checksums = sealedReports
+    .map((report) => `${report.sha256}  ${path.basename(report.apkPath)}`)
+    .join("\n");
+  writeSealedFile(
+    path.join(artifactRoot, "checksums.sha256"),
+    Buffer.from(`${checksums}\n`, "utf8"),
+  );
+  const signingVerification = Object.freeze({
+    sourceCommit,
+    verifiedWith: "apksigner verify --verbose --print-certs",
+    signerPolicy: "exactly-one-current-signer-per-apk",
+    distinctCertificates: true,
+    distinctPublicKeys: true,
+    reports: sealedReports.map((report) => Object.freeze({
+      role: report.role,
+      appId: report.appId,
+      apk: path.basename(report.apkPath),
+      signatureValid: true,
+      certificateDn: report.certificateDn,
+      certificateSha256: report.certificateSha256,
+      publicKeySha256: report.publicKeySha256,
+    })),
+  });
+  writeSealedFile(
+    path.join(artifactRoot, "signing-verification.json"),
+    Buffer.from(`${JSON.stringify(signingVerification, null, 2)}\n`, "utf8"),
+  );
   process.stdout.write(`${JSON.stringify(manifest, null, 2)}\n`);
   process.stdout.write(`INVESTOR_DEMO_ARTIFACT_ROOT=${artifactRoot}\n`);
   return manifest;

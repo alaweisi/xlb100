@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import {
   INVESTOR_DEMO_API_ORIGIN,
   INVESTOR_DEMO_VERSION,
   assertInvestorDemoPrerequisites,
+  investorDemoArtifactRoot,
   investorDemoApp,
   requiredInvestorDemoEnvironmentNames,
 } from "./mobile-investor-demo-release.mjs";
@@ -81,5 +83,54 @@ test("Investor Demo rejects non-Staging and placeholder origins", () => {
   assert.throws(
     () => assertInvestorDemoPrerequisites({ environment, exists: () => true }),
     /pinned to Tencent Staging/u,
+  );
+});
+
+test("Investor Demo artifact sealing supports an explicit absolute base", () => {
+  const sourceCommit = "a".repeat(40);
+  const workspaceRoot = path.resolve("workspace");
+  const artifactBase = path.resolve("external-artifacts");
+  assert.equal(
+    investorDemoArtifactRoot({
+      environment: { XLB_INVESTOR_DEMO_ARTIFACT_BASE: artifactBase },
+      sourceCommit,
+      workspaceRoot,
+    }),
+    path.join(artifactBase, sourceCommit),
+  );
+  assert.throws(
+    () => investorDemoArtifactRoot({
+      environment: { XLB_INVESTOR_DEMO_ARTIFACT_BASE: "relative-artifacts" },
+      sourceCommit,
+      workspaceRoot,
+    }),
+    /must be an absolute path/u,
+  );
+  assert.throws(
+    () => investorDemoArtifactRoot({
+      environment: {},
+      sourceCommit: "short",
+      workspaceRoot,
+    }),
+    /full Git SHA/u,
+  );
+});
+
+test("Investor Demo device QA derives taps from the UI tree helpers", () => {
+  const qaScript = fs.readFileSync(
+    new URL("./mobile-investor-demo-device-qa.ps1", import.meta.url),
+    "utf8",
+  );
+  assert.match(qaScript, /uiautomator', 'dump', '\/dev\/tty'/u);
+  assert.match(qaScript, /ui_tree_summarize\.py/u);
+  assert.match(qaScript, /ui_pick\.py/u);
+  assert.match(
+    qaScript,
+    /'shell', 'input', 'tap', \$x, \$y/u,
+  );
+  assert.match(qaScript, /DEVICE_UAT_BLOCKED/u);
+  assert.doesNotMatch(
+    qaScript,
+    /'shell', 'input', 'tap', '\d+', '\d+'/u,
   );
 });
