@@ -222,13 +222,10 @@ export class ReviewModerationRepository extends RepositoryBase {
     limit: number,
     _revealComment: false,
     cursor?: ReviewQueueCursorPosition,
-    customerId?: string,
   ): Promise<ReviewModerationQueueItem[]> {
     const params: unknown[] = [cityCode];
     const filter = visibility ? " AND v.visibility=?" : "";
     if (visibility) params.push(visibility);
-    const customerFilter = customerId ? " AND r.customer_id=?" : "";
-    if (customerId) params.push(customerId);
     const cursorFilter = cursor
       ? " AND (r.created_at>? OR (r.created_at=? AND r.review_id>?))"
       : "";
@@ -247,7 +244,7 @@ export class ReviewModerationRepository extends RepositoryBase {
          FROM order_reviews r
          INNER JOIN review_visibility_states v
            ON v.city_code=r.city_code AND v.review_id=r.review_id
-        WHERE r.city_code=?${filter}${customerFilter}${cursorFilter}
+        WHERE r.city_code=?${filter}${cursorFilter}
         ORDER BY r.created_at ASC,r.review_id ASC LIMIT ?`,
       params,
     );

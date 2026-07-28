@@ -30,6 +30,10 @@ import {
   reviewModerationRepository,
 } from "./reviewModerationRepository.js";
 import {
+  StagingDemoReviewModerationReader,
+  stagingDemoReviewModerationReader,
+} from "./stagingDemoReviewModerationReader.js";
+import {
   decodeReviewQueueCursor,
   encodeReviewQueueCursor,
 } from "./reviewQueueCursorPolicy.js";
@@ -71,6 +75,7 @@ export class ReviewModerationService {
     private readonly repository: ReviewModerationRepository = reviewModerationRepository,
     private readonly transactionRunner: TransactionRunner = withTransaction,
     private readonly outbox: EventOutboxRepository = eventOutboxRepository,
+    private readonly demoReader: StagingDemoReviewModerationReader = stagingDemoReviewModerationReader,
   ) {}
 
   private async runIdempotentTransaction<T>(
@@ -166,10 +171,14 @@ export class ReviewModerationService {
           : visibility ?? "*",
       };
       const cursor = decodeReviewQueueCursor(input.cursor, scope);
-      const rows = await this.repository.listModerationQueue(
-        connection, cityCode, visibility, Number(rawLimit) + 1, false, cursor,
-        demoCustomerId ?? undefined,
-      );
+      const rows = demoCustomerId
+        ? await this.demoReader.listQueue(
+            connection, cityCode, demoCustomerId, visibility,
+            Number(rawLimit) + 1, cursor,
+          )
+        : await this.repository.listModerationQueue(
+            connection, cityCode, visibility, Number(rawLimit) + 1, false, cursor,
+          );
       const items = rows.slice(0, Number(rawLimit));
       const last = items.at(-1);
       return {
