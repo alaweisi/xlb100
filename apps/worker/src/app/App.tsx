@@ -143,6 +143,68 @@ const shellStyle = {
   color: "var(--xlb-role-worker-text)",
   minHeight: "100vh",
 } as CSSProperties;
+const phoneStatusStyle = {
+  alignItems: "center",
+  color: "#f8fbff",
+  display: "flex",
+  fontSize: 12,
+  fontWeight: 800,
+  justifyContent: "space-between",
+  lineHeight: "16px",
+} as CSSProperties;
+const workerPageHeaderStyle = {
+  display: "grid",
+  gap: 10,
+  padding: "var(--xlb-spacing-lg) var(--xlb-spacing-lg) var(--xlb-spacing-sm)",
+} as CSSProperties;
+const workerPageHeaderRowStyle = {
+  alignItems: "center",
+  display: "flex",
+  gap: 16,
+  justifyContent: "space-between",
+} as CSSProperties;
+const workerPageTitleGroupStyle = {
+  display: "grid",
+  gap: 4,
+} as CSSProperties;
+const workerPageSubtitleStyle = {
+  color: "#a9bdd0",
+  fontSize: 13,
+  fontWeight: 700,
+  lineHeight: "18px",
+} as CSSProperties;
+const workerPageTitleStyle = {
+  color: "#fffaf0",
+  fontSize: 29,
+  fontWeight: 800,
+  letterSpacing: 0,
+  lineHeight: "36px",
+  margin: 0,
+} as CSSProperties;
+const workerRouteNavStyle = {
+  background: "rgba(255, 250, 240, 0.14)",
+  borderTop: "1px solid rgba(138, 174, 210, 0.2)",
+  boxShadow: "0 -10px 26px rgba(0, 0, 0, 0.16)",
+  bottom: 0,
+  color: "#f8fbff",
+  position: "sticky",
+  zIndex: 3,
+} as CSSProperties;
+const workerDeviceStageStyle = {
+  margin: "0 auto",
+  maxWidth: 430,
+  minHeight: "100vh",
+  padding: "var(--xlb-spacing-xl) var(--xlb-spacing-lg)",
+} as CSSProperties;
+const workerDeviceFrameStyle = {
+  background: "var(--xlb-role-worker-page)",
+  border: "10px solid #1d6595",
+  borderRadius: 28,
+  boxShadow: "0 24px 54px rgba(8, 23, 43, 0.32)",
+  boxSizing: "border-box",
+  minHeight: 844,
+  overflow: "hidden",
+} as CSSProperties;
 
 function readQueryParams(): QueryParams {
   if (IS_WORKER_INVESTOR_DEMO) {
@@ -179,15 +241,7 @@ function PhoneStatusBar() {
   return (
     <div
       className="xlb-worker-preview-status"
-      style={{
-        alignItems: "center",
-        color: "#f8fbff",
-        display: "flex",
-        fontSize: 12,
-        fontWeight: 800,
-        justifyContent: "space-between",
-        lineHeight: "16px",
-      }}
+      style={phoneStatusStyle}
     >
       <span>9:41</span>
       <span>5G</span>
@@ -200,23 +254,14 @@ function WorkerPageHeader({ route }: { route: WorkerRoute }) {
   const isWorkerApiRoute = true;
 
   return (
-    <header style={{ display: "grid", gap: 10, padding: "20px 20px 8px" }}>
+    <header style={workerPageHeaderStyle}>
       <PhoneStatusBar />
-      <div style={{ alignItems: "center", display: "flex", gap: 16, justifyContent: "space-between" }}>
-        <div style={{ display: "grid", gap: 4 }}>
-          <span style={{ color: "#a9bdd0", fontSize: 13, fontWeight: 700, lineHeight: "18px" }}>
+      <div style={workerPageHeaderRowStyle}>
+        <div style={workerPageTitleGroupStyle}>
+          <span style={workerPageSubtitleStyle}>
             {config.subtitle}
           </span>
-          <h1
-            style={{
-              color: "#fffaf0",
-              fontSize: 29,
-              fontWeight: 800,
-              letterSpacing: 0,
-              lineHeight: "36px",
-              margin: 0,
-            }}
-          >
+          <h1 style={workerPageTitleStyle}>
             {config.title}
           </h1>
         </div>
@@ -239,15 +284,7 @@ function RouteNav({ activeRoute }: { activeRoute: WorkerRoute }) {
         icon: routeConfig[key].icon,
         prominent: routeConfig[key].prominent,
       }))}
-      style={{
-        background: "rgba(255, 250, 240, 0.14)",
-        borderTop: "1px solid rgba(138, 174, 210, 0.2)",
-        boxShadow: "0 -10px 26px rgba(0, 0, 0, 0.16)",
-        color: "#f8fbff",
-        position: "sticky",
-        bottom: 0,
-        zIndex: 3,
-      }}
+      style={workerRouteNavStyle}
     />
   );
 }
@@ -262,19 +299,11 @@ function AppFrame({ route, children }: { route: WorkerRoute; children: ReactNode
     >
       <div
         className="xlb-worker-device-stage"
-        style={{ margin: "0 auto", maxWidth: 430, minHeight: "100vh", padding: "28px 18px" }}
+        style={workerDeviceStageStyle}
       >
         <div
           className="xlb-worker-device-frame"
-          style={{
-            background: "var(--xlb-role-worker-page)",
-            border: "10px solid #1d6595",
-            borderRadius: 28,
-            boxShadow: "0 24px 54px rgba(8, 23, 43, 0.32)",
-            boxSizing: "border-box",
-            minHeight: 844,
-            overflow: "hidden",
-          }}
+          style={workerDeviceFrameStyle}
         >
           <MobileShell
             topBar={<WorkerPageHeader route={route} />}
