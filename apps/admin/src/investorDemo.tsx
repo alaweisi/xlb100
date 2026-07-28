@@ -46,24 +46,16 @@ export function AdminInvestorDemoNotice() {
   return (
     <aside
       aria-label="演示环境声明"
-      style={{
-        background: "#f4eeff",
-        border: "2px solid #7d5db8",
-        borderRadius: 12,
-        color: "#3e2772",
-        display: "grid",
-        gap: 8,
-        padding: "12px 14px",
-      }}
+      className="xlb-admin-investor-demo-notice"
     >
       <strong>Investor Demo · 管理端演示</strong>
       <span>仅供模拟演示，支付、短信、地图均为模拟，不得录入真实个人或支付信息。</span>
       <details>
-        <summary style={{ cursor: "pointer", fontWeight: 700 }}>应用信息</summary>
-        <dl style={{ display: "grid", gap: 4, margin: "8px 0 0" }}>
-          <div><dt style={{ display: "inline", fontWeight: 700 }}>版本：</dt><dd style={{ display: "inline", margin: 0 }}>{adminInvestorDemoInfo.version}</dd></div>
-          <div><dt style={{ display: "inline", fontWeight: 700 }}>环境：</dt><dd style={{ display: "inline", margin: 0 }}>{adminInvestorDemoInfo.environment}</dd></div>
-          <div><dt style={{ display: "inline", fontWeight: 700 }}>源码：</dt><dd style={{ display: "inline", margin: 0 }}>{adminInvestorDemoInfo.sourceCommit}</dd></div>
+        <summary className="xlb-admin-investor-demo-summary">应用信息</summary>
+        <dl className="xlb-admin-investor-demo-metadata">
+          <div><dt><strong>版本：</strong></dt><dd>{adminInvestorDemoInfo.version}</dd></div>
+          <div><dt><strong>环境：</strong></dt><dd>{adminInvestorDemoInfo.environment}</dd></div>
+          <div><dt><strong>源码：</strong></dt><dd>{adminInvestorDemoInfo.sourceCommit}</dd></div>
         </dl>
       </details>
     </aside>

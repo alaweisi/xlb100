@@ -38,3 +38,30 @@ body {
   padding-left: var(--xlb-spacing-md) !important;
   padding-right: var(--xlb-spacing-md) !important;
 }
+
+.xlb-worker-investor-demo-notice {
+  background: var(--xlb-role-worker-panel);
+  border: var(--xlb-stroke-regular) solid var(--xlb-role-accent);
+  border-radius: var(--xlb-radius-lg);
+  color: var(--xlb-role-worker-text);
+  display: grid;
+  gap: var(--xlb-spacing-sm);
+  margin-bottom: var(--xlb-spacing-sm);
+  padding: var(--xlb-spacing-md);
+}
+
+.xlb-worker-investor-demo-summary {
+  cursor: pointer;
+}
+
+.xlb-worker-investor-demo-metadata {
+  display: grid;
+  gap: var(--xlb-spacing-xs);
+  margin: var(--xlb-spacing-sm) 0 0;
+}
+
+.xlb-worker-investor-demo-metadata dt,
+.xlb-worker-investor-demo-metadata dd {
+  display: inline;
+  margin: 0;
+}

@@ -80,3 +80,50 @@ body {
   max-width: 100%;
   overflow-x: auto;
 }
+
+.xlb-admin-investor-demo-notice {
+  background: var(--xlb-role-admin-panel);
+  border: var(--xlb-stroke-regular) solid var(--xlb-role-accent);
+  border-radius: var(--xlb-radius-lg);
+  color: var(--xlb-role-admin-text);
+  display: grid;
+  gap: var(--xlb-spacing-sm);
+  padding: var(--xlb-spacing-md);
+}
+
+.xlb-admin-investor-demo-summary {
+  cursor: pointer;
+}
+
+.xlb-admin-investor-demo-metadata {
+  display: grid;
+  gap: var(--xlb-spacing-xs);
+  margin: var(--xlb-spacing-sm) 0 0;
+}
+
+.xlb-admin-investor-demo-metadata dt,
+.xlb-admin-investor-demo-metadata dd {
+  display: inline;
+  margin: 0;
+}
+
+.xlb-admin-demo-auth-notice {
+  color: var(--xlb-role-accent);
+  margin: 0;
+}
+
+.xlb-admin-demo-dashboard {
+  display: grid;
+  gap: var(--xlb-spacing-sm);
+}
+
+.xlb-admin-demo-dashboard-copy {
+  color: var(--xlb-text-secondary);
+  margin: 0;
+}
+
+.xlb-admin-demo-dashboard-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--xlb-spacing-sm);
+}

@@ -305,7 +305,7 @@ export function App() {
                 <Button onClick={handleRequestCode} disabled={authLoading}>获取验证码</Button>
                 <Button onClick={handleLogin} disabled={authLoading || !loginCode.trim()} variant="primary">安全登录</Button>
               </div>
-              {authNotice && <p style={{ color: "#3e2772", fontSize: 13, margin: 0 }}>{authNotice}</p>}
+              {authNotice && <p className="xlb-admin-demo-auth-notice">{authNotice}</p>}
               {authError && <p style={{ color: "#b91c1c", fontSize: 13, margin: 0 }}>{authError}</p>}
             </div>
           </GuardrailCard>
@@ -405,11 +405,11 @@ export function App() {
             title="投资人演示工作台"
             actions={<StatusTag tone="success">低权限演示账号</StatusTag>}
           >
-            <div style={{ display: "grid", gap: 12 }}>
-              <p style={{ color: "#4b5563", lineHeight: 1.7, margin: 0 }}>
+            <div className="xlb-admin-demo-dashboard">
+              <p className="xlb-admin-demo-dashboard-copy">
                 当前账号仅开放订单查看、派单演示和评价查看。财务、提现、营销等敏感能力不会出现在演示模式中。
               </p>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              <div className="xlb-admin-demo-dashboard-actions">
                 <Button variant="primary" onClick={navigateToOrderTrace}>查看订单全链路</Button>
                 <Button onClick={navigateToDispatch}>进入智能派单</Button>
                 <Button onClick={navigateToPlatformOperations}>查看订单列表</Button>

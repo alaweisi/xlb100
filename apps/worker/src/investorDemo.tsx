@@ -45,25 +45,16 @@ export function WorkerInvestorDemoNotice() {
   return (
     <aside
       aria-label="演示环境声明"
-      style={{
-        background: "#e9f7ff",
-        border: "2px solid #2d9bc7",
-        borderRadius: 12,
-        color: "#093d5a",
-        display: "grid",
-        gap: 8,
-        marginBottom: 12,
-        padding: "12px 14px",
-      }}
+      className="xlb-worker-investor-demo-notice"
     >
       <strong>Investor Demo · 师傅端演示</strong>
       <span>仅供模拟演示，支付、短信、地图均为模拟，不得录入真实个人或支付信息。</span>
       <details>
-        <summary style={{ cursor: "pointer", fontWeight: 700 }}>应用信息</summary>
-        <dl style={{ display: "grid", gap: 4, margin: "8px 0 0" }}>
-          <div><dt style={{ display: "inline", fontWeight: 700 }}>版本：</dt><dd style={{ display: "inline", margin: 0 }}>{workerInvestorDemoInfo.version}</dd></div>
-          <div><dt style={{ display: "inline", fontWeight: 700 }}>环境：</dt><dd style={{ display: "inline", margin: 0 }}>{workerInvestorDemoInfo.environment}</dd></div>
-          <div><dt style={{ display: "inline", fontWeight: 700 }}>源码：</dt><dd style={{ display: "inline", margin: 0 }}>{workerInvestorDemoInfo.sourceCommit}</dd></div>
+        <summary className="xlb-worker-investor-demo-summary">应用信息</summary>
+        <dl className="xlb-worker-investor-demo-metadata">
+          <div><dt><strong>版本：</strong></dt><dd>{workerInvestorDemoInfo.version}</dd></div>
+          <div><dt><strong>环境：</strong></dt><dd>{workerInvestorDemoInfo.environment}</dd></div>
+          <div><dt><strong>源码：</strong></dt><dd>{workerInvestorDemoInfo.sourceCommit}</dd></div>
         </dl>
       </details>
     </aside>
