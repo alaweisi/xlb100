@@ -2,7 +2,11 @@ import type { RowDataPacket } from "mysql2/promise";
 import { loadEnv, type EnvConfig } from "@xlb/config";
 import { getMysqlPool } from "../dal/mysqlPool.js";
 import { smsProvider } from "../providers/sms/mockSmsProvider.js";
-import { createToken, verifyToken } from "./tokenAuth.js";
+import {
+  createStagingDemoToken,
+  createToken,
+  verifyToken,
+} from "./tokenAuth.js";
 import {
   issueLoginOtp,
   readDebugLoginOtp,
@@ -10,12 +14,19 @@ import {
   type DebugLoginOtpResult,
 } from "./otpService.js";
 import { hashPhoneIdentity, validateMainlandPhone } from "./phoneIdentity.js";
+import {
+  adminHasExactDemoCity,
+  workerHasExactDemoCity,
+} from "./stagingDemoIdentity.js";
 import { oaIdentityService } from "../oa/oaIdentityService.js";
 
 // Fixed-code login has been removed. Each login now uses a random,
 // one-time Redis OTP with TTL and attempt limits.
 // SMS delivery is intentionally routed to a truthful mock provider. Real SMS
 // remains blocked until legal entity, credentials and production activation.
+
+const STAGING_DEMO_CUSTOMER_ID = "customer-demo-001";
+const INVESTOR_DEMO_ID_PREFIX = "investor-demo-";
 
 async function deliverMockLoginCode(
   scope: "customer" | "admin" | "worker" | "oa" | "dashboard",
@@ -120,6 +131,27 @@ export function stagingDemoCodeFor(
     : undefined;
 }
 
+export function stagingInvestorDemoCodeFor(
+  env: Pick<
+    EnvConfig,
+    | "nodeEnv"
+    | "stagingInvestorDemoAuthEnabled"
+    | "stagingDemoWorkerPhone"
+    | "stagingDemoAdminUsername"
+  >,
+  scope: "worker" | "admin",
+  identifier: string,
+  code: string,
+): string | undefined {
+  if (env.nodeEnv !== "staging" || !env.stagingInvestorDemoAuthEnabled) {
+    return undefined;
+  }
+  const expected = scope === "worker"
+    ? env.stagingDemoWorkerPhone
+    : env.stagingDemoAdminUsername;
+  return identifier === expected ? code : undefined;
+}
+
 export async function requestCustomerLoginCode(
   phone: string,
 ): Promise<LoginCodeRequestResult | AuthError> {
@@ -154,11 +186,19 @@ export async function requestAdminLoginCode(
   if (admin) {
     await deliverMockLoginCode("admin", username, issued.code, issued.expiresAt);
   }
+  const env = loadEnv();
+  const safeDemoAdmin = admin
+    && admin.id === env.stagingDemoAdminUserId
+    && await adminHasExactDemoCity(admin, env.stagingDemoCityCode);
+  const stagingDemoCode = safeDemoAdmin
+    ? stagingInvestorDemoCodeFor(env, "admin", username, issued.code)
+    : undefined;
   return {
     ok: true,
     expiresAt: issued.expiresAt,
     ttlSeconds: issued.ttlSeconds,
     attemptsLeft: issued.attemptsLeft,
+    ...(stagingDemoCode ? { stagingDemoCode } : {}),
   };
 }
 
@@ -196,11 +236,20 @@ export async function requestWorkerLoginCode(
   if (worker?.status === "active") {
     await deliverMockLoginCode("worker", phone, issued.code, issued.expiresAt);
   }
+  const env = loadEnv();
+  const safeDemoWorker = worker
+    && worker.status === "active"
+    && worker.id === env.stagingDemoWorkerId
+    && await workerHasExactDemoCity(worker.id, env.stagingDemoCityCode);
+  const stagingDemoCode = safeDemoWorker
+    ? stagingInvestorDemoCodeFor(env, "worker", phone, issued.code)
+    : undefined;
   return {
     ok: true,
     expiresAt: issued.expiresAt,
     ttlSeconds: issued.ttlSeconds,
     attemptsLeft: issued.attemptsLeft,
+    ...(stagingDemoCode ? { stagingDemoCode } : {}),
   };
 }
 
@@ -254,7 +303,20 @@ export async function customerLogin(
   if (!otp.ok) return otp;
 
   const customer = await findOrCreateCustomer(phone);
-  const token = createToken(customer.id, "customer", "customer");
+  const env = loadEnv();
+  const isConfiguredDemo = env.nodeEnv === "staging"
+    && env.stagingDemoCustomerAuthEnabled
+    && phone === env.stagingDemoCustomerPhone
+    && customer.id === STAGING_DEMO_CUSTOMER_ID;
+  if (
+    customer.id === STAGING_DEMO_CUSTOMER_ID
+    && !isConfiguredDemo
+  ) {
+    return { ok: false, error: "staging demo identity is disabled", statusCode: 401 };
+  }
+  const token = isConfiguredDemo
+    ? createStagingDemoToken(customer.id, "customer", "customer", env.stagingDemoCityCode)
+    : createToken(customer.id, "customer", "customer");
   return { ok: true, token, userId: customer.id, role: "customer" };
 }
 
@@ -273,7 +335,18 @@ export async function adminLogin(
     return { ok: false, error: "invalid admin credentials", statusCode: 401 };
   }
 
-  const token = createToken(admin.id, admin.role, "admin");
+  const env = loadEnv();
+  const isConfiguredDemo = env.nodeEnv === "staging"
+    && env.stagingInvestorDemoAuthEnabled
+    && username === env.stagingDemoAdminUsername
+    && admin.id === env.stagingDemoAdminUserId
+    && await adminHasExactDemoCity(admin, env.stagingDemoCityCode);
+  if (admin.id.startsWith(INVESTOR_DEMO_ID_PREFIX) && !isConfiguredDemo) {
+    return { ok: false, error: "staging demo identity is disabled", statusCode: 401 };
+  }
+  const token = isConfiguredDemo
+    ? createStagingDemoToken(admin.id, admin.role, "admin", env.stagingDemoCityCode)
+    : createToken(admin.id, admin.role, "admin");
   return { ok: true, token, userId: admin.id, role: admin.role };
 }
 
@@ -308,7 +381,18 @@ export async function workerLogin(
     return { ok: false, error: "invalid worker credentials", statusCode: 401 };
   }
 
-  const token = createToken(worker.id, "worker", "worker");
+  const env = loadEnv();
+  const isConfiguredDemo = env.nodeEnv === "staging"
+    && env.stagingInvestorDemoAuthEnabled
+    && phone === env.stagingDemoWorkerPhone
+    && worker.id === env.stagingDemoWorkerId
+    && await workerHasExactDemoCity(worker.id, env.stagingDemoCityCode);
+  if (worker.id.startsWith(INVESTOR_DEMO_ID_PREFIX) && !isConfiguredDemo) {
+    return { ok: false, error: "staging demo identity is disabled", statusCode: 401 };
+  }
+  const token = isConfiguredDemo
+    ? createStagingDemoToken(worker.id, "worker", "worker", env.stagingDemoCityCode)
+    : createToken(worker.id, "worker", "worker");
   return { ok: true, token, userId: worker.id, role: "worker" };
 }
 

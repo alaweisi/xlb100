@@ -58,7 +58,22 @@ export function buildRequestContext(
     };
   }
 
-  const cityCodeRaw = readHeader(headers, XLB_HEADERS.cityCode);
+  const requestedCityCode = readHeader(headers, XLB_HEADERS.cityCode);
+  const tokenCityCode = token.payload.demo === "investor"
+    ? token.payload.city
+    : undefined;
+  if (
+    tokenCityCode
+    && requestedCityCode
+    && requestedCityCode !== tokenCityCode
+  ) {
+    return {
+      ok: false,
+      statusCode: 401,
+      message: "staging demo token city scope mismatch",
+    };
+  }
+  const cityCodeRaw = tokenCityCode ?? requestedCityCode;
   if (requireCityCode && !cityCodeRaw) {
     return {
       ok: false,

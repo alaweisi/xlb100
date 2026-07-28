@@ -36,6 +36,13 @@ export interface EnvConfig {
   authDebugCodeEnabled: boolean;
   stagingDemoCustomerAuthEnabled: boolean;
   stagingDemoCustomerPhone: string;
+  stagingInvestorDemoAuthEnabled: boolean;
+  stagingDemoWorkerId: string;
+  stagingDemoWorkerPhone: string;
+  stagingDemoAdminUserId: string;
+  stagingDemoAdminUsername: string;
+  stagingDemoCityCode: string;
+  stagingDemoTokenTtlSeconds: number;
   paymentMockWebhookEnabled: boolean;
   paymentMockWebhookSecret: string;
 }
@@ -100,6 +107,35 @@ function validateDeploymentEnv(config: EnvConfig): void {
     }
     if (!/^1[3-9]\d{9}$/u.test(config.stagingDemoCustomerPhone)) {
       throw new Error("STAGING_DEMO_CUSTOMER_PHONE must be an explicit mainland mobile number");
+    }
+  }
+  if (config.stagingInvestorDemoAuthEnabled) {
+    if (environment !== "staging") {
+      throw new Error("STAGING_INVESTOR_DEMO_AUTH_ENABLED is permitted only in staging");
+    }
+    if (!/^investor-demo-[a-z0-9-]{3,44}$/u.test(config.stagingDemoWorkerId)) {
+      throw new Error("STAGING_DEMO_WORKER_ID must use the reserved investor-demo- prefix");
+    }
+    if (!/^1[3-9]\d{9}$/u.test(config.stagingDemoWorkerPhone)) {
+      throw new Error("STAGING_DEMO_WORKER_PHONE must be an explicit mainland mobile number");
+    }
+    if (!/^investor-demo-[a-z0-9-]{3,44}$/u.test(config.stagingDemoAdminUserId)) {
+      throw new Error("STAGING_DEMO_ADMIN_USER_ID must use the reserved investor-demo- prefix");
+    }
+    if (!/^investor_demo_[a-z0-9_]{2,40}$/u.test(config.stagingDemoAdminUsername)) {
+      throw new Error("STAGING_DEMO_ADMIN_USERNAME must use the reserved investor_demo_ prefix");
+    }
+    if (
+      !/^[a-z0-9_-]{2,64}$/u.test(config.stagingDemoCityCode)
+      || config.stagingDemoCityCode === "__global__"
+    ) {
+      throw new Error("STAGING_DEMO_CITY_CODE must identify one explicit business city");
+    }
+    if (
+      config.stagingDemoTokenTtlSeconds < 300
+      || config.stagingDemoTokenTtlSeconds > 3_600
+    ) {
+      throw new Error("STAGING_DEMO_TOKEN_TTL_SECONDS must be between 300 and 3600");
     }
   }
   if (config.rateLimitBackend !== "redis") {
@@ -279,6 +315,34 @@ export function loadEnv(): EnvConfig {
       "STAGING_DEMO_CUSTOMER_PHONE",
       "",
     ).trim(),
+    stagingInvestorDemoAuthEnabled: readEnvBool(
+      "STAGING_INVESTOR_DEMO_AUTH_ENABLED",
+      false,
+    ),
+    stagingDemoWorkerId: readEnv(
+      "STAGING_DEMO_WORKER_ID",
+      "",
+    ).trim(),
+    stagingDemoWorkerPhone: readEnv(
+      "STAGING_DEMO_WORKER_PHONE",
+      "",
+    ).trim(),
+    stagingDemoAdminUserId: readEnv(
+      "STAGING_DEMO_ADMIN_USER_ID",
+      "",
+    ).trim(),
+    stagingDemoAdminUsername: readEnv(
+      "STAGING_DEMO_ADMIN_USERNAME",
+      "",
+    ).trim(),
+    stagingDemoCityCode: readEnv(
+      "STAGING_DEMO_CITY_CODE",
+      "hangzhou",
+    ).trim(),
+    stagingDemoTokenTtlSeconds: readEnvInt(
+      "STAGING_DEMO_TOKEN_TTL_SECONDS",
+      1_800,
+    ),
     paymentMockWebhookEnabled: readEnvBool(
       "PAYMENT_MOCK_WEBHOOK_ENABLED",
       nodeEnv === "test",
@@ -306,6 +370,14 @@ export function loadEnv(): EnvConfig {
   ) {
     throw new Error(
       "STAGING_DEMO_CUSTOMER_AUTH_ENABLED is permitted only in staging",
+    );
+  }
+  if (
+    config.stagingInvestorDemoAuthEnabled
+    && config.nodeEnv !== "staging"
+  ) {
+    throw new Error(
+      "STAGING_INVESTOR_DEMO_AUTH_ENABLED is permitted only in staging",
     );
   }
   if (

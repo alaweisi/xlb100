@@ -37,7 +37,8 @@ function sendError(reply: FastifyReply, result: { statusCode: number; retryAfter
 
 export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
   const env = loadEnv();
-  const registerDebugRoutes = env.nodeEnv !== "production" && env.authDebugCodeEnabled;
+  const registerDebugRoutes = ["development", "test"].includes(env.nodeEnv)
+    && env.authDebugCodeEnabled;
   app.post(
     "/api/auth/customer/code",
     async (request: FastifyRequest, reply: FastifyReply) => {

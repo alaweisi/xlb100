@@ -32,6 +32,8 @@ export interface TokenPayload extends JwtPayload {
   mid?: string;
   oid?: string;
   av?: number;
+  demo?: "investor";
+  city?: string;
 }
 
 function isAppType(value: unknown): value is AppType {
@@ -44,6 +46,15 @@ function isRole(value: unknown): value is Role {
 
 function hasValidRoleBinding(appType: AppType, role: Role): boolean {
   return APP_ROLES[appType].includes(role);
+}
+
+function hasValidDemoBinding(payload: JwtPayload): boolean {
+  const hasDemo = payload.demo !== undefined || payload.city !== undefined;
+  if (!hasDemo) return true;
+  return payload.demo === "investor"
+    && typeof payload.city === "string"
+    && /^[a-z0-9_-]{2,64}$/u.test(payload.city)
+    && payload.city !== "__global__";
 }
 
 export function extractBearerToken(
@@ -82,11 +93,36 @@ function validatePayload(payload: JwtPayload, issuer: string, audience: string):
     typeof payload.jti !== "string" || !/^[0-9a-f-]{36}$/iu.test(payload.jti) ||
     payload.iss !== issuer || payload.aud !== audience ||
     payload.exp <= payload.iat ||
-    !hasValidBackofficeBinding
+    !hasValidBackofficeBinding ||
+    !hasValidDemoBinding(payload)
   ) {
     return null;
   }
   return payload as TokenPayload;
+}
+
+function isEnabledStagingDemoPayload(payload: TokenPayload): boolean {
+  if (payload.demo !== "investor") return true;
+  const env = loadEnv();
+  if (env.nodeEnv !== "staging" || payload.city !== env.stagingDemoCityCode) {
+    return false;
+  }
+  if (payload.appType === "customer") {
+    return env.stagingDemoCustomerAuthEnabled
+      && payload.sub === "customer-demo-001"
+      && payload.role === "customer";
+  }
+  if (payload.appType === "worker") {
+    return env.stagingInvestorDemoAuthEnabled
+      && payload.sub === env.stagingDemoWorkerId
+      && payload.role === "worker";
+  }
+  if (payload.appType === "admin") {
+    return env.stagingInvestorDemoAuthEnabled
+      && payload.sub === env.stagingDemoAdminUserId
+      && payload.role === "operator";
+  }
+  return false;
 }
 
 export function verifyToken(
@@ -123,9 +159,11 @@ export function verifyToken(
       return { ok: false, error: "invalid token payload" };
     }
     const payload = validatePayload(verified, env.jwtIssuer, env.jwtAudience);
-    return payload
-      ? { ok: true, payload }
-      : { ok: false, error: "invalid token payload" };
+    if (!payload) return { ok: false, error: "invalid token payload" };
+    if (!isEnabledStagingDemoPayload(payload)) {
+      return { ok: false, error: "staging demo token is disabled" };
+    }
+    return { ok: true, payload };
   } catch (error) {
     const errorName = error instanceof Error ? error.name : "";
     if (errorName === "TokenExpiredError") return { ok: false, error: "token expired" };
@@ -160,6 +198,65 @@ export function createToken(sub: string, role: string, appType: string): string 
       subject: sub,
       jwtid: randomUUID(),
       expiresIn: env.jwtTtlSeconds,
+    },
+  );
+}
+
+export function createStagingDemoToken(
+  sub: string,
+  role: string,
+  appType: "customer" | "worker" | "admin",
+  cityCode: string,
+): string {
+  const env = loadEnv();
+  const allowed = env.nodeEnv === "staging"
+    && cityCode === env.stagingDemoCityCode
+    && (
+      (
+        appType === "customer"
+        && role === "customer"
+        && sub === "customer-demo-001"
+        && env.stagingDemoCustomerAuthEnabled
+      )
+      || (
+        appType === "worker"
+        && role === "worker"
+        && sub === env.stagingDemoWorkerId
+        && env.stagingInvestorDemoAuthEnabled
+      )
+      || (
+        appType === "admin"
+        && role === "operator"
+        && sub === env.stagingDemoAdminUserId
+        && env.stagingInvestorDemoAuthEnabled
+      )
+    );
+  if (!allowed) {
+    throw new Error("cannot create staging demo token outside the configured staging identity");
+  }
+  if (!isRole(role) || !hasValidRoleBinding(appType, role)) {
+    throw new Error("cannot create staging demo token for invalid role binding");
+  }
+  const signingKey = env.jwtKeys[env.jwtActiveKeyId];
+  if (!signingKey) throw new Error("active JWT signing key is unavailable");
+
+  return jwt.sign(
+    {
+      role,
+      appType,
+      tokenUse: "access",
+      demo: "investor",
+      city: cityCode,
+    },
+    signingKey,
+    {
+      algorithm: "HS256",
+      header: { alg: "HS256", typ: "JWT", kid: env.jwtActiveKeyId },
+      issuer: env.jwtIssuer,
+      audience: env.jwtAudience,
+      subject: sub,
+      jwtid: randomUUID(),
+      expiresIn: env.stagingDemoTokenTtlSeconds,
     },
   );
 }

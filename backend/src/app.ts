@@ -33,6 +33,7 @@ import { registerPlannerRoutes } from "./planner/plannerRoutes.js";
 import { registerPreparationRoutes } from "./preparation/envelopeRoutes.js";
 import { registerAftersaleModule } from "./aftersale/aftersaleModule.js";
 import { registerAuthRoutes } from "./auth/authRoutes.js";
+import { stagingDemoRequestGuard } from "./auth/stagingDemoPolicy.js";
 import { registerOrderTraceRoutes } from "./order/orderTraceRoutes.js";
 import { registerOrderReviewRoutes } from "./review/orderReviewRoutes.js";
 import { registerEnterpriseRoutes } from "./enterprise/enterpriseRoutes.js";
@@ -88,6 +89,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   await app.register(websocket, { options: { maxPayload: 65_536, perMessageDeflate: false } });
 
   app.addHook("onRequest", createRateLimitGuard(options.rateLimit));
+  app.addHook("onRequest", stagingDemoRequestGuard);
   app.addHook("onSend", async (request, reply, payload) => {
     const path = request.url.split("?", 1)[0] ?? request.url;
     if (path.startsWith("/api/auth/")) {
