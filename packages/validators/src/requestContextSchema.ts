@@ -23,6 +23,7 @@ export const requestContextSchema = z.object({
   role: roleSchema,
   cityCode: cityCodeSchema.optional(),
   userId: z.string().optional(),
+  demo: z.literal("investor").optional(),
   requestStartedAt: z.string().datetime(),
   requestId: z.string().optional(),
   correlationId: z.string().optional(),

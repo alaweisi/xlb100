@@ -50,6 +50,14 @@ export type StagingDemoOperation = {
   entityIds: readonly string[];
 };
 
+export type StagingDemoUniqueOwnershipCheck = {
+  label: string;
+  table: string;
+  sql: string;
+  params: readonly unknown[];
+  expectedOwnerId: string;
+};
+
 export type StagingDemoBootstrapTarget = {
   environment: "staging";
   mysqlHost: string;
@@ -72,6 +80,7 @@ export type StagingDemoBootstrapSummary = {
     cityCode: string;
   };
   operationCount: number;
+  preflightCheckCount: number;
   affectedRows: number;
   operations: Array<{
     label: string;
@@ -99,6 +108,23 @@ function op(
   ...entityIds: string[]
 ): StagingDemoOperation {
   return { label, table, sql, params, entityIds };
+}
+
+function ownershipCheck(
+  label: string,
+  table: string,
+  ownerColumn: string,
+  where: string,
+  params: readonly unknown[],
+  expectedOwnerId: string,
+): StagingDemoUniqueOwnershipCheck {
+  return {
+    label,
+    table,
+    sql: `SELECT ${ownerColumn} AS owner_id FROM ${table} WHERE ${where} FOR UPDATE`,
+    params,
+    expectedOwnerId,
+  };
 }
 
 function requireExactString(raw: NodeJS.ProcessEnv, name: string): string {
@@ -560,6 +586,224 @@ export function buildStagingDemoOperations(
   ];
 }
 
+/**
+ * Every alternate unique key used by a bootstrap upsert is checked before the
+ * first mutation. The query projects only the owning entity ID; neither the
+ * configured phone/username/hash nor any other credential is returned.
+ */
+export function buildStagingDemoUniqueOwnershipChecks(
+  target: StagingDemoBootstrapTarget,
+): StagingDemoUniqueOwnershipCheck[] {
+  const ids = STAGING_DEMO_IDS;
+  const hash = (suffix: string) => sha256(`xlb:investor-demo:v1:${suffix}`);
+  return [
+    ownershipCheck("customer.phone", "customers", "id", "phone=?", [target.customerPhone], ids.customerId),
+    ownershipCheck("admin.username", "admin_users", "id", "username=?", [target.adminUsername], target.adminUserId),
+    ownershipCheck("worker.phone_hash", "worker_profiles", "worker_id", "phone_hash=?", [
+      workerPhoneHash(target.workerPhone, target.authPhoneHashSecret),
+    ], target.workerId),
+    ownershipCheck(
+      "address.owner_city_idempotency",
+      "customer_addresses",
+      "address_id",
+      "customer_id=? AND city_code=? AND idempotency_key='investor-demo-address-v1'",
+      [ids.customerId, target.cityCode],
+      ids.addressId,
+    ),
+    ownershipCheck("dispatch.active.source_event", "dispatch_tasks", "dispatch_task_id", "source_event_id=?", [ids.activeEventId], ids.activeDispatchTaskId),
+    ownershipCheck("dispatch.active.order", "dispatch_tasks", "dispatch_task_id", "order_id=?", [ids.activeOrderId], ids.activeDispatchTaskId),
+    ownershipCheck("dispatch.history.source_event", "dispatch_tasks", "dispatch_task_id", "source_event_id='investor-demo-event-order-history'", [], ids.historyDispatchTaskId),
+    ownershipCheck("dispatch.history.order", "dispatch_tasks", "dispatch_task_id", "order_id=?", [ids.historyOrderId], ids.historyDispatchTaskId),
+    ownershipCheck("acceptance.dispatch_task", "worker_task_acceptances", "acceptance_id", "dispatch_task_id=?", [ids.historyDispatchTaskId], ids.historyAcceptanceId),
+    ownershipCheck("fulfillment.acceptance", "fulfillments", "fulfillment_id", "acceptance_id=?", [ids.historyAcceptanceId], ids.historyFulfillmentId),
+    ownershipCheck("fulfillment.dispatch_task", "fulfillments", "fulfillment_id", "dispatch_task_id=?", [ids.historyDispatchTaskId], ids.historyFulfillmentId),
+    ownershipCheck("review.order", "order_reviews", "review_id", "city_code=? AND order_id=?", [target.cityCode, ids.historyOrderId], ids.historyReviewId),
+    ownershipCheck("review_visibility.review", "review_visibility_states", "visibility_state_id", "city_code=? AND review_id=?", [target.cityCode, ids.historyReviewId], ids.historyVisibilityId),
+    ownershipCheck(
+      "support_ticket.create_idempotency",
+      "support_tickets",
+      "ticket_id",
+      "city_code=? AND source='customer' AND requester_id=? AND idempotency_key='investor-demo-support-ticket-v1'",
+      [target.cityCode, ids.customerId],
+      ids.supportTicketId,
+    ),
+    ownershipCheck(
+      "support_event.idempotency",
+      "support_ticket_events",
+      "ticket_event_id",
+      "city_code=? AND ticket_id=? AND idempotency_key='investor-demo-support-event-v1'",
+      [target.cityCode, ids.supportTicketId],
+      ids.supportEventId,
+    ),
+    ownershipCheck(
+      "marketing_campaign.create_idempotency",
+      "marketing_campaigns",
+      "marketing_campaign_id",
+      "city_code=? AND created_by='demo-reset-service' AND create_idempotency_key_hash=?",
+      [target.cityCode, hash("coupon-campaign-idempotency")],
+      ids.marketingCampaignId,
+    ),
+    ownershipCheck(
+      "marketing_rule.campaign_revision",
+      "marketing_rule_revisions",
+      "rule_revision_id",
+      "city_code=? AND marketing_campaign_id=? AND revision=1",
+      [target.cityCode, ids.marketingCampaignId],
+      ids.marketingRuleRevisionId,
+    ),
+    ownershipCheck(
+      "marketing_rule.create_idempotency",
+      "marketing_rule_revisions",
+      "rule_revision_id",
+      "city_code=? AND marketing_campaign_id=? AND create_idempotency_key_hash=?",
+      [target.cityCode, ids.marketingCampaignId, hash("coupon-rule-idempotency")],
+      ids.marketingRuleRevisionId,
+    ),
+    ownershipCheck(
+      "coupon_definition.create_idempotency",
+      "coupon_definitions",
+      "coupon_definition_id",
+      "city_code=? AND created_by='demo-reset-service' AND create_idempotency_key_hash=?",
+      [target.cityCode, hash("coupon-definition-idempotency")],
+      ids.couponDefinitionId,
+    ),
+    ownershipCheck(
+      "coupon_grant.issuance",
+      "coupon_grants",
+      "coupon_grant_id",
+      "city_code=? AND coupon_definition_id=? AND customer_id=? AND issuance_reason='campaign_targeted' AND issuance_ref='investor-demo-bootstrap'",
+      [target.cityCode, ids.couponDefinitionId, ids.customerId],
+      ids.couponGrantId,
+    ),
+    ownershipCheck(
+      "coupon_grant.idempotency",
+      "coupon_grants",
+      "coupon_grant_id",
+      "city_code=? AND created_by='demo-reset-service' AND idempotency_key_hash=?",
+      [target.cityCode, hash("coupon-grant-idempotency")],
+      ids.couponGrantId,
+    ),
+    ownershipCheck("platform_subscriber.stable_name", "platform_event_subscribers", "subscriber_id", "stable_name='investor-demo-notification'", [], ids.notificationSubscriberId),
+    ownershipCheck(
+      "platform_subscription.exact",
+      "platform_event_subscriptions",
+      "subscription_id",
+      "city_code=? AND subscriber_id=? AND event_type='order.created' AND event_major_version=0",
+      [target.cityCode, ids.notificationSubscriberId],
+      ids.notificationSubscriptionId,
+    ),
+    ownershipCheck(
+      "platform_delivery.subscriber_event",
+      "platform_event_deliveries",
+      "delivery_id",
+      "subscriber_id=? AND event_id=?",
+      [ids.notificationSubscriberId, ids.activeEventId],
+      ids.notificationDeliveryId,
+    ),
+    ownershipCheck(
+      "notification_template.key",
+      "notification_templates",
+      "template_id",
+      "city_code=? AND template_key='investor-demo.order-created'",
+      [target.cityCode],
+      ids.notificationTemplateId,
+    ),
+    ownershipCheck(
+      "notification_template.scope",
+      "notification_templates",
+      "template_id",
+      "city_code=? AND event_type='order.created' AND recipient_type='customer' AND category_code='orders'",
+      [target.cityCode],
+      ids.notificationTemplateId,
+    ),
+    ownershipCheck(
+      "notification_revision.number",
+      "notification_template_revisions",
+      "template_revision_id",
+      "city_code=? AND template_id=? AND revision_number=1 AND locale='zh-CN'",
+      [target.cityCode, ids.notificationTemplateId],
+      ids.notificationTemplateRevisionId,
+    ),
+    ownershipCheck(
+      "notification_revision.label",
+      "notification_template_revisions",
+      "template_revision_id",
+      "city_code=? AND template_id=? AND revision_label='investor-demo-v1' AND locale='zh-CN'",
+      [target.cityCode, ids.notificationTemplateId],
+      ids.notificationTemplateRevisionId,
+    ),
+    ownershipCheck(
+      "notification_record.business",
+      "notification_records",
+      "notification_id",
+      "city_code=? AND recipient_type='customer' AND recipient_id=? AND source_event_id=? AND template_revision_id=?",
+      [target.cityCode, ids.customerId, ids.activeEventId, ids.notificationTemplateRevisionId],
+      ids.notificationId,
+    ),
+    ownershipCheck(
+      "notification_receipt.subscriber_event",
+      "notification_delivery_receipts",
+      "receipt_id",
+      "subscriber_id=? AND event_id=?",
+      [ids.notificationSubscriberId, ids.activeEventId],
+      ids.notificationReceiptId,
+    ),
+    ownershipCheck(
+      "notification_receipt.notification",
+      "notification_delivery_receipts",
+      "receipt_id",
+      "city_code=? AND notification_id=?",
+      [target.cityCode, ids.notificationId],
+      ids.notificationReceiptId,
+    ),
+    ownershipCheck(
+      "notification_state.recipient",
+      "notification_recipient_states",
+      "state_id",
+      "city_code=? AND notification_id=? AND recipient_type='customer' AND recipient_id=?",
+      [target.cityCode, ids.notificationId, ids.customerId],
+      ids.notificationStateId,
+    ),
+    ownershipCheck(
+      "notification_preference.scope",
+      "notification_recipient_preferences",
+      "preference_id",
+      "city_code=? AND recipient_type='customer' AND recipient_id=? AND category_code='orders'",
+      [target.cityCode, ids.customerId],
+      ids.notificationPreferenceId,
+    ),
+  ];
+}
+
+export async function assertStagingDemoUniqueOwnership(
+  connection: Pick<PoolConnection, "query">,
+  checks: readonly StagingDemoUniqueOwnershipCheck[],
+): Promise<void> {
+  const conflicts: Array<{ label: string; table: string; conflictingOwners: number }> = [];
+  for (const check of checks) {
+    const [rows] = await connection.query<(RowDataPacket & { owner_id: string })[]>(
+      check.sql,
+      [...check.params],
+    );
+    const conflictingOwners = rows.filter(
+      (row) => row.owner_id !== check.expectedOwnerId,
+    ).length;
+    if (conflictingOwners > 0) {
+      conflicts.push({
+        label: check.label,
+        table: check.table,
+        conflictingOwners,
+      });
+    }
+  }
+  if (conflicts.length > 0) {
+    const summary = conflicts
+      .map((item) => `${item.label}@${item.table}:${item.conflictingOwners}`)
+      .join(", ");
+    throw new Error(`staging demo unique ownership collision (${summary})`);
+  }
+}
+
 function buildOrderOperations(
   target: StagingDemoBootstrapTarget,
   input: {
@@ -952,11 +1196,12 @@ export async function assertConnectedDatabase(
   }
 }
 
-export async function applyStagingDemoOperations(
+export async function executeStagingDemoOperations(
   connection: Pick<
     PoolConnection,
     "beginTransaction" | "commit" | "rollback" | "query"
   >,
+  target: StagingDemoBootstrapTarget,
   operations: readonly StagingDemoOperation[],
 ): Promise<Array<{
   label: string;
@@ -966,6 +1211,10 @@ export async function applyStagingDemoOperations(
 }>> {
   await connection.beginTransaction();
   try {
+    await assertStagingDemoUniqueOwnership(
+      connection,
+      buildStagingDemoUniqueOwnershipChecks(target),
+    );
     const results = [];
     for (const operation of operations) {
       const [result] = await connection.query<ResultSetHeader>(
@@ -994,30 +1243,38 @@ export async function runStagingDemoBootstrap(options: {
   const env = loadEnv();
   const target = validateStagingDemoBootstrapTarget(env, options.rawEnv);
   const operations = buildStagingDemoOperations(target);
-  if (options.dryRun) {
-    return {
-      dryRun: true,
-      environment: "staging",
-      target: {
-        mysqlHost: target.mysqlHost,
-        mysqlDatabase: target.mysqlDatabase,
-        cityCode: target.cityCode,
-      },
-      operationCount: operations.length,
-      affectedRows: 0,
-      operations: operations.map((operation) => ({
-        label: operation.label,
-        table: operation.table,
-        entityIds: operation.entityIds,
-        affectedRows: 0,
-      })),
-    };
-  }
-
+  const checks = buildStagingDemoUniqueOwnershipChecks(target);
   const connection = await getMysqlPool().getConnection();
   try {
     await assertConnectedDatabase(connection, target.mysqlDatabase);
-    const applied = await applyStagingDemoOperations(connection, operations);
+    if (options.dryRun) {
+      await connection.beginTransaction();
+      try {
+        await assertStagingDemoUniqueOwnership(connection, checks);
+      } finally {
+        await connection.rollback();
+      }
+      return {
+        dryRun: true,
+        environment: "staging",
+        target: {
+          mysqlHost: target.mysqlHost,
+          mysqlDatabase: target.mysqlDatabase,
+          cityCode: target.cityCode,
+        },
+        operationCount: operations.length,
+        preflightCheckCount: checks.length,
+        affectedRows: 0,
+        operations: operations.map((operation) => ({
+          label: operation.label,
+          table: operation.table,
+          entityIds: operation.entityIds,
+          affectedRows: 0,
+        })),
+      };
+    }
+
+    const applied = await executeStagingDemoOperations(connection, target, operations);
     return {
       dryRun: false,
       environment: "staging",
@@ -1027,6 +1284,7 @@ export async function runStagingDemoBootstrap(options: {
         cityCode: target.cityCode,
       },
       operationCount: operations.length,
+      preflightCheckCount: checks.length,
       affectedRows: applied.reduce((total, item) => total + item.affectedRows, 0),
       operations: applied,
     };

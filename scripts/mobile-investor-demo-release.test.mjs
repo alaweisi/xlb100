@@ -86,7 +86,7 @@ test("Investor Demo rejects non-Staging and placeholder origins", () => {
   );
 });
 
-test("Investor Demo artifact sealing supports an explicit absolute base", () => {
+test("Investor Demo release-candidate output supports an explicit absolute base", () => {
   const sourceCommit = "a".repeat(40);
   const workspaceRoot = path.resolve("workspace");
   const artifactBase = path.resolve("external-artifacts");
@@ -129,8 +129,31 @@ test("Investor Demo device QA derives taps from the UI tree helpers", () => {
     /'shell', 'input', 'tap', \$x, \$y/u,
   );
   assert.match(qaScript, /DEVICE_UAT_BLOCKED/u);
+  assert.match(qaScript, /\[string\]\$Mode = 'FinalSeal'/u);
+  assert.match(qaScript, /mobile-investor-demo-artifact-trust\.mjs/u);
+  assert.ok(
+    qaScript.indexOf("mobile-investor-demo-artifact-trust.mjs")
+      < qaScript.indexOf("'uninstall'"),
+  );
+  assert.match(qaScript, /\$runtimeChecks\.tlsFailures -gt 0/u);
+  assert.match(qaScript, /Invoke-AuthenticatedBusinessChain/u);
+  assert.match(qaScript, /shortTtlVerification/u);
+  assert.match(qaScript, /fixedBusinessChain/u);
+  assert.match(qaScript, /\$stagingDemoCode = \$null/u);
   assert.doesNotMatch(
     qaScript,
     /'shell', 'input', 'tap', '\d+', '\d+'/u,
   );
+});
+
+test("Investor Demo release output is explicitly HOLD and unsealed", () => {
+  const releaseScript = fs.readFileSync(
+    new URL("./mobile-investor-demo-release.mjs", import.meta.url),
+    "utf8",
+  );
+  assert.match(releaseScript, /sealed:\s*false/u);
+  assert.match(releaseScript, /dispatchable:\s*false/u);
+  assert.match(releaseScript, /releaseDecision:\s*"INVESTOR_APK_HOLD"/u);
+  assert.match(releaseScript, /published:\s*false/u);
+  assert.doesNotMatch(releaseScript, /writeSealedFile/u);
 });

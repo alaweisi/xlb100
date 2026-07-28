@@ -102,6 +102,7 @@ export function buildRequestContext(
     role: token.payload.role as RequestContext["role"],
     cityCode,
     userId: token.payload.sub,
+    ...(token.payload.demo === "investor" ? { demo: "investor" as const } : {}),
     requestStartedAt: new Date().toISOString(),
     requestId: traceId,
     correlationId: traceId,

@@ -6,6 +6,7 @@ import {
   getRequestContext,
 } from "../context/requestContextMiddleware.js";
 import { authorizeRequest } from "../gateway/authz.js";
+import { investorDemoCustomerId } from "../demo/stagingDemoDataScope.js";
 
 type NullableDate = Date | null;
 
@@ -98,6 +99,7 @@ export async function registerOrderTraceRoutes(app: FastifyInstance): Promise<vo
       if (!cityCode) {
         return reply.status(400).send({ ok: false, error: "city_code is required" });
       }
+      const demoCustomerId = investorDemoCustomerId(context);
 
       const [rows] = await getMysqlPool().query<OrderTraceRow[]>(
         `SELECT o.order_id,
@@ -158,13 +160,18 @@ export async function registerOrderTraceRoutes(app: FastifyInstance): Promise<vo
             AND rev.order_id = o.order_id
           WHERE o.city_code = ?
             AND o.order_id = ?
+            ${demoCustomerId ? "AND o.customer_id = ?" : ""}
           ORDER BY p.created_at DESC,
                    dt.created_at DESC,
                    f.created_at DESC,
                    rev.created_at DESC,
                    rr.requested_at DESC
           LIMIT 1`,
-        [cityCode, orderId],
+        [
+          cityCode,
+          orderId,
+          ...(demoCustomerId ? [demoCustomerId] : []),
+        ],
       );
 
       const row = rows[0];

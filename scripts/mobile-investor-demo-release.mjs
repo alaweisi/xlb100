@@ -190,11 +190,11 @@ function sha256(bytes) {
   return createHash("sha256").update(bytes).digest("hex").toUpperCase();
 }
 
-function writeSealedFile(filePath, bytes) {
+function writeCandidateFile(filePath, bytes) {
   if (fs.existsSync(filePath)) {
     const existing = fs.readFileSync(filePath);
     if (!existing.equals(bytes)) {
-      throw new Error(`refusing to overwrite different sealed artifact: ${filePath}`);
+      throw new Error(`refusing to overwrite different release candidate artifact: ${filePath}`);
     }
     return;
   }
@@ -296,29 +296,33 @@ export function runInvestorDemoRelease() {
     sourceCommit,
     workspaceRoot,
   });
-  const sealedReports = reports.map((report) => {
+  const candidateReports = reports.map((report) => {
     const targetApk = path.join(
       artifactRoot,
       `xlb-${report.role}-investor-demo-v${report.versionCode}.apk`,
     );
-    writeSealedFile(targetApk, fs.readFileSync(report.apkPath));
+    writeCandidateFile(targetApk, fs.readFileSync(report.apkPath));
     return Object.freeze({ ...report, apkPath: targetApk });
   });
   const manifest = Object.freeze({
     profile: "investor-demo",
     releaseCandidate: true,
+    sealed: false,
+    dispatchable: false,
+    releaseDecision: "INVESTOR_APK_HOLD",
     published: false,
     sourceCommit,
     apiOrigin: prerequisites.apiOrigin,
+    sessionTtlSeconds: INVESTOR_DEMO_SESSION_TTL_SECONDS,
     artifactRoot,
-    reports: sealedReports,
+    reports: candidateReports,
   });
   const manifestBytes = Buffer.from(`${JSON.stringify(manifest, null, 2)}\n`, "utf8");
-  writeSealedFile(path.join(artifactRoot, "manifest.json"), manifestBytes);
-  const checksums = sealedReports
+  writeCandidateFile(path.join(artifactRoot, "manifest.json"), manifestBytes);
+  const checksums = candidateReports
     .map((report) => `${report.sha256}  ${path.basename(report.apkPath)}`)
     .join("\n");
-  writeSealedFile(
+  writeCandidateFile(
     path.join(artifactRoot, "checksums.sha256"),
     Buffer.from(`${checksums}\n`, "utf8"),
   );
@@ -328,7 +332,7 @@ export function runInvestorDemoRelease() {
     signerPolicy: "exactly-one-current-signer-per-apk",
     distinctCertificates: true,
     distinctPublicKeys: true,
-    reports: sealedReports.map((report) => Object.freeze({
+    reports: candidateReports.map((report) => Object.freeze({
       role: report.role,
       appId: report.appId,
       apk: path.basename(report.apkPath),
@@ -338,7 +342,7 @@ export function runInvestorDemoRelease() {
       publicKeySha256: report.publicKeySha256,
     })),
   });
-  writeSealedFile(
+  writeCandidateFile(
     path.join(artifactRoot, "signing-verification.json"),
     Buffer.from(`${JSON.stringify(signingVerification, null, 2)}\n`, "utf8"),
   );

@@ -28,6 +28,7 @@ import {
   fulfillmentEvidenceRepository,
   type FulfillmentEvidenceRepository,
 } from "./evidence/fulfillmentEvidenceRepository.js";
+import { investorDemoCustomerId } from "../demo/stagingDemoDataScope.js";
 
 export class FulfillmentNotFoundError extends Error {
   readonly statusCode = 404;
@@ -76,6 +77,7 @@ export class FulfillmentService {
       throw new FulfillmentValidationError(parsed.error.message);
     }
     const { cityCode, workerId } = this.resolveWorkerScope(context);
+    const demoCustomerId = investorDemoCustomerId(context);
 
     return this.transactionRunner(async (connection) => {
       const fulfillment = await this.repository.findByIdForWorkerForUpdate(
@@ -83,6 +85,7 @@ export class FulfillmentService {
         fulfillmentId,
         cityCode,
         workerId,
+        demoCustomerId,
       );
       if (!fulfillment) {
         throw new FulfillmentNotFoundError(fulfillmentId);
@@ -141,6 +144,7 @@ export class FulfillmentService {
       throw new FulfillmentValidationError(parsed.error.message);
     }
     const { cityCode, workerId } = this.resolveWorkerScope(context);
+    const demoCustomerId = investorDemoCustomerId(context);
 
     return this.transactionRunner(async (connection) => {
       const fulfillment = await this.repository.findByIdForWorkerForUpdate(
@@ -148,6 +152,7 @@ export class FulfillmentService {
         fulfillmentId,
         cityCode,
         workerId,
+        demoCustomerId,
       );
       if (!fulfillment) {
         throw new FulfillmentNotFoundError(fulfillmentId);
@@ -218,6 +223,7 @@ export class FulfillmentService {
   }
 
   async getFulfillmentForWorker(
+    context: RequestContext,
     fulfillmentId: string,
     cityCode: CityCode,
     workerId: string,
@@ -226,6 +232,7 @@ export class FulfillmentService {
       fulfillmentId,
       cityCode,
       workerId,
+      investorDemoCustomerId(context),
     );
     if (!fulfillment) {
       throw new FulfillmentNotFoundError(fulfillmentId);
@@ -234,10 +241,16 @@ export class FulfillmentService {
   }
 
   async listFulfillmentsForWorker(
+    context: RequestContext,
     workerId: string,
     cityCode: CityCode,
   ): Promise<Fulfillment[]> {
-    return this.repository.listByWorker(workerId, cityCode);
+    return this.repository.listByWorker(
+      workerId,
+      cityCode,
+      100,
+      investorDemoCustomerId(context),
+    );
   }
 
   async findByDispatchTaskId(

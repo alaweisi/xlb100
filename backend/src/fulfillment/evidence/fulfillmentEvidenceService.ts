@@ -33,6 +33,7 @@ import {
   fulfillmentEvidenceRepository,
   type FulfillmentEvidenceRepository,
 } from "./fulfillmentEvidenceRepository.js";
+import { investorDemoCustomerId } from "../../demo/stagingDemoDataScope.js";
 
 export class FulfillmentEvidenceValidationError extends Error { readonly statusCode=400; constructor(message:string){super(message);this.name="FulfillmentEvidenceValidationError";} }
 export class FulfillmentEvidenceForbiddenError extends Error { readonly statusCode=403; constructor(message:string){super(message);this.name="FulfillmentEvidenceForbiddenError";} }
@@ -56,7 +57,8 @@ export class FulfillmentEvidenceService {
     const parsed=createFulfillmentEvidenceMetadataSchema.safeParse(input.metadata);
     if(!parsed.success)throw new FulfillmentEvidenceValidationError(parsed.error.message);
     const file=validateEvidenceFile({bytes:input.bytes,declaredContentType:input.contentType,originalFileName:input.fileName});
-    const fulfillment=await this.fulfillmentRepo.findByIdForWorker(fulfillmentId,cityCode,context.userId!);
+    const demoCustomerId=investorDemoCustomerId(context);
+    const fulfillment=await this.fulfillmentRepo.findByIdForWorker(fulfillmentId,cityCode,context.userId!,demoCustomerId);
     if(!fulfillment)throw new FulfillmentEvidenceNotFoundError(`Fulfillment not found for worker: ${fulfillmentId}`);
     if(fulfillment.status==="cancelled")throw new FulfillmentEvidenceConflictError("cancelled fulfillment cannot accept evidence");
     if(parsed.data.complaintId){
@@ -71,7 +73,7 @@ export class FulfillmentEvidenceService {
     const envelope=await this.storage.putObject({objectKey,bytes:input.bytes,contentType:file.contentType,checksumSha256:file.checksumSha256});
     try{
       await this.transactionRunner(async(connection)=>{
-        const locked=await this.fulfillmentRepo.findByIdForWorkerForUpdate(connection,fulfillmentId,cityCode,context.userId!);
+        const locked=await this.fulfillmentRepo.findByIdForWorkerForUpdate(connection,fulfillmentId,cityCode,context.userId!,demoCustomerId);
         if(!locked)throw new FulfillmentEvidenceNotFoundError(`Fulfillment not found for worker: ${fulfillmentId}`);
         const confirmation=await this.repository.findConfirmationForUpdate(connection,cityCode,fulfillmentId);
         if(confirmation&&confirmation.status!=="pending")throw new FulfillmentEvidenceConflictError("customer confirmation is terminal; evidence is frozen");
@@ -95,7 +97,12 @@ export class FulfillmentEvidenceService {
 
   async listForWorker(context:RequestContext,fulfillmentId:string):Promise<FulfillmentEvidenceAggregate>{
     const cityCode=this.requireActor(context,"worker");
-    const fulfillment=await this.fulfillmentRepo.findByIdForWorker(fulfillmentId,cityCode,context.userId!);
+    const fulfillment=await this.fulfillmentRepo.findByIdForWorker(
+      fulfillmentId,
+      cityCode,
+      context.userId!,
+      investorDemoCustomerId(context),
+    );
     if(!fulfillment)throw new FulfillmentEvidenceNotFoundError(`Fulfillment not found for worker: ${fulfillmentId}`);
     return {fulfillmentId,orderId:fulfillment.orderId,cityCode,fulfillmentStatus:fulfillment.status,
       evidence:await this.repository.listEvidence(cityCode,fulfillmentId),confirmation:await this.repository.findConfirmation(cityCode,fulfillmentId)};
@@ -166,6 +173,8 @@ export class FulfillmentEvidenceService {
     if(!asset)throw new FulfillmentEvidenceNotFoundError(`Media asset not found: ${mediaAssetId}`);
     const access=await this.repository.findMediaAccess(cityCode,mediaAssetId);
     if(!access)throw new FulfillmentEvidenceNotFoundError(`Media access subject not found: ${mediaAssetId}`);
+    const demoCustomerId=investorDemoCustomerId(context);
+    if(demoCustomerId&&access.customerId!==demoCustomerId)throw new FulfillmentEvidenceForbiddenError("media asset access denied");
     const allowed=(context.appType==="admin"&&["admin","operator"].includes(context.role))
       ||(context.appType==="customer"&&context.role==="customer"&&context.userId===access.customerId)
       ||(context.appType==="worker"&&context.role==="worker"&&context.userId===access.workerId);

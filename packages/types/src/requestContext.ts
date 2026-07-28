@@ -9,6 +9,7 @@ export interface RequestContext {
   role: Role;
   cityCode?: CityCode;
   userId?: string;
+  demo?: "investor";
   requestStartedAt: string;
   requestId?: string;
   correlationId?: string;

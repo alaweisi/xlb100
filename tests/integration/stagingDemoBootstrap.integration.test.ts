@@ -1,9 +1,10 @@
 import type { RowDataPacket } from "mysql2/promise";
+import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { getMysqlPool } from "../../backend/src/dal/mysqlPool.js";
 import {
-  applyStagingDemoOperations,
   buildStagingDemoOperations,
+  executeStagingDemoOperations,
   STAGING_DEMO_IDS,
   type StagingDemoBootstrapTarget,
 } from "../../backend/src/demo/stagingDemoBootstrap.js";
@@ -27,7 +28,7 @@ describe("staging demo bootstrap database lifecycle", () => {
 
     const firstConnection = await pool.getConnection();
     try {
-      await applyStagingDemoOperations(firstConnection, operations);
+      await executeStagingDemoOperations(firstConnection, target, operations);
     } finally {
       firstConnection.release();
     }
@@ -46,7 +47,8 @@ describe("staging demo bootstrap database lifecycle", () => {
     );
     await pool.query(
       `INSERT INTO worker_city_bindings (worker_id, city_code, is_enabled)
-       VALUES (?, 'shanghai', 1)`,
+       VALUES (?, 'shanghai', 1)
+       ON DUPLICATE KEY UPDATE is_enabled=1`,
       [STAGING_DEMO_IDS.workerId],
     );
     await pool.query(
@@ -60,7 +62,7 @@ describe("staging demo bootstrap database lifecycle", () => {
 
     const secondConnection = await pool.getConnection();
     try {
-      await applyStagingDemoOperations(secondConnection, operations);
+      await executeStagingDemoOperations(secondConnection, target, operations);
     } finally {
       secondConnection.release();
     }
@@ -132,5 +134,55 @@ describe("staging demo bootstrap database lifecycle", () => {
       support_status: "open",
       review_count: 1,
     });
+  });
+
+  it("does not modify any row when a configured unique identity belongs to a non-demo ID", async () => {
+    const pool = getMysqlPool();
+    const suffix = randomUUID().replaceAll("-", "").slice(0, 8);
+    const ordinaryCustomerId = `collision-owner-${suffix}`;
+    const collidingPhone = `139${suffix}`;
+    const target: StagingDemoBootstrapTarget = {
+      environment: "staging",
+      mysqlHost: process.env.MYSQL_HOST ?? "127.0.0.1",
+      mysqlDatabase: process.env.MYSQL_DATABASE ?? "xlb_test_missing",
+      cityCode: "hangzhou",
+      customerPhone: collidingPhone,
+      workerPhone: "13800000011",
+      workerId: STAGING_DEMO_IDS.workerId,
+      adminUsername: "investor_demo_hz",
+      adminUserId: STAGING_DEMO_IDS.adminUserId,
+      authPhoneHashSecret: "integration-demo-phone-hash-secret-at-least-32",
+    };
+    await pool.query(
+      `INSERT INTO customers (id,phone,name,avatar_url,default_city_code)
+       VALUES (?,?,'普通同城客户',NULL,'hangzhou')`,
+      [ordinaryCustomerId, collidingPhone],
+    );
+    const [before] = await pool.query<RowDataPacket[]>(
+      `SELECT
+         (SELECT phone FROM customers WHERE id=?) AS demo_phone,
+         (SELECT name FROM customers WHERE id=?) AS ordinary_name,
+         (SELECT status FROM orders WHERE order_id=?) AS demo_order_status`,
+      [STAGING_DEMO_IDS.customerId, ordinaryCustomerId, STAGING_DEMO_IDS.activeOrderId],
+    );
+    const connection = await pool.getConnection();
+    try {
+      await expect(executeStagingDemoOperations(
+        connection,
+        target,
+        buildStagingDemoOperations(target),
+      )).rejects.toThrow("customer.phone@customers:1");
+    } finally {
+      connection.release();
+    }
+    const [after] = await pool.query<RowDataPacket[]>(
+      `SELECT
+         (SELECT phone FROM customers WHERE id=?) AS demo_phone,
+         (SELECT name FROM customers WHERE id=?) AS ordinary_name,
+         (SELECT status FROM orders WHERE order_id=?) AS demo_order_status`,
+      [STAGING_DEMO_IDS.customerId, ordinaryCustomerId, STAGING_DEMO_IDS.activeOrderId],
+    );
+    expect(after[0]).toEqual(before[0]);
+    await pool.query("DELETE FROM customers WHERE id=?", [ordinaryCustomerId]);
   });
 });

@@ -10,6 +10,7 @@ import { buildPriceQuoteBreakdown } from "../pricing/pricingRepository.js";
 import { eventOutboxRepository, EventOutboxRepository } from "../events/eventOutbox.js";
 import { buildOrderCreatedPayload } from "../events/orderPaidEvent.js";
 import { generateEventId, generateOrderId } from "../events/eventIds.js";
+import { investorDemoCustomerId } from "../demo/stagingDemoDataScope.js";
 import { assertOrderTransition } from "./orderStateMachine.js";
 import { orderRepository, OrderRepository } from "./orderRepository.js";
 import {
@@ -401,6 +402,10 @@ export class OrderService {
         !["admin", "oa", "dashboard"].includes(context.appType)
         || !["admin", "operator", "auditor"].includes(context.role)
       ) {
+        throw new OrderOwnershipError(orderId);
+      }
+      const demoCustomerId = investorDemoCustomerId(context);
+      if (demoCustomerId && order.customerId !== demoCustomerId) {
         throw new OrderOwnershipError(orderId);
       }
       return order;

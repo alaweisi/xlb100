@@ -4,6 +4,7 @@ import { AdminScopeError, assertAdminCanAccessCity } from "../dal/adminQueryGuar
 import { isAdminScopedRole } from "../city/cityScopeResolver.js";
 import { assertCityScopedContext } from "../dal/scopedExecutor.js";
 import { getMysqlPool } from "../dal/mysqlPool.js";
+import { investorDemoCustomerId } from "../demo/stagingDemoDataScope.js";
 
 export class AdminOperationsError extends Error {
   constructor(message: string, readonly statusCode: number) { super(message); this.name = "AdminOperationsError"; }
@@ -22,11 +23,15 @@ async function requireAdmin(context: RequestContext): Promise<string> {
 export class AdminOperationsService {
   async listOrders(context: RequestContext): Promise<AdminOrderSummary[]> {
     const cityCode = await requireAdmin(context);
+    const demoCustomerId = investorDemoCustomerId(context);
+    const demoClause = demoCustomerId ? " AND customer_id=?" : "";
+    const params: unknown[] = [cityCode];
+    if (demoCustomerId) params.push(demoCustomerId);
     const [rows] = await getMysqlPool().query<(RowDataPacket & {
       order_id:string;city_code:string;customer_id:string;sku_id:string;sku_name:string;status:string;
       total_amount:string;scheduled_at:Date;created_at:Date;
     })[]>(`SELECT order_id,city_code,customer_id,sku_id,sku_name,status,total_amount,scheduled_at,created_at
-            FROM orders WHERE city_code=? ORDER BY created_at DESC LIMIT 200`,[cityCode]);
+            FROM orders WHERE city_code=?${demoClause} ORDER BY created_at DESC LIMIT 200`,params);
     return rows.map(row=>({orderId:row.order_id,cityCode:row.city_code as AdminOrderSummary["cityCode"],customerId:row.customer_id,
       skuId:row.sku_id,skuName:row.sku_name,status:row.status as AdminOrderSummary["status"],totalAmount:Number(row.total_amount),
       scheduledAt:row.scheduled_at.toISOString(),createdAt:row.created_at.toISOString()}));

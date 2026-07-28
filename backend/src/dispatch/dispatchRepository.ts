@@ -13,6 +13,10 @@ import {
   assertCityScopedContext,
   buildCityScopedWhere,
 } from "../dal/scopedExecutor.js";
+import {
+  investorDemoCustomerId,
+  investorDemoWorkerId,
+} from "../demo/stagingDemoDataScope.js";
 
 type DispatchTaskRow = RowDataPacket & {
   dispatch_task_id: string;
@@ -273,12 +277,14 @@ export class DispatchRepository extends RepositoryBase {
     assertCityScopedContext(context);
 
     const where = buildCityScopedWhere(cityCode);
+    const demoCustomerId = investorDemoCustomerId(context);
     const [rows] = await this.pool.query<DispatchTaskRow[]>(
       `SELECT ${DISPATCH_TASK_SELECT}
        FROM dispatch_tasks
        WHERE ${where.clause} AND source_event_id = ?
+         ${demoCustomerId ? "AND customer_id = ?" : ""}
        LIMIT 1`,
-      [...where.params, sourceEventId],
+      [...where.params, sourceEventId, ...(demoCustomerId ? [demoCustomerId] : [])],
     );
 
     return rows[0] ? mapDispatchTaskRow(rows[0]) : null;
@@ -293,12 +299,14 @@ export class DispatchRepository extends RepositoryBase {
     assertCityScopedContext(context);
 
     const where = buildCityScopedWhere(cityCode);
+    const demoCustomerId = investorDemoCustomerId(context);
     const [rows] = await this.pool.query<DispatchTaskRow[]>(
       `SELECT ${DISPATCH_TASK_SELECT}
        FROM dispatch_tasks
        WHERE ${where.clause} AND order_id = ?
+         ${demoCustomerId ? "AND customer_id = ?" : ""}
        LIMIT 1`,
-      [...where.params, orderId],
+      [...where.params, orderId, ...(demoCustomerId ? [demoCustomerId] : [])],
     );
 
     return rows[0] ? mapDispatchTaskRow(rows[0]) : null;
@@ -316,13 +324,15 @@ export class DispatchRepository extends RepositoryBase {
     }
 
     const where = buildCityScopedWhere(cityCode);
+    const demoCustomerId = investorDemoCustomerId(context);
     const [rows] = await this.pool.query<DispatchTaskRow[]>(
       `SELECT ${DISPATCH_TASK_SELECT}
        FROM dispatch_tasks
        WHERE ${where.clause}
+         ${demoCustomerId ? "AND customer_id = ?" : ""}
        ORDER BY created_at DESC
        LIMIT ?`,
-      [...where.params, limit],
+      [...where.params, ...(demoCustomerId ? [demoCustomerId] : []), limit],
     );
 
     return rows.map(mapDispatchTaskRow);
@@ -340,13 +350,15 @@ export class DispatchRepository extends RepositoryBase {
     }
 
     const where = buildCityScopedWhere(cityCode);
+    const demoCustomerId = investorDemoCustomerId(context);
     const [rows] = await this.pool.query<DispatchTaskRow[]>(
       `SELECT ${DISPATCH_TASK_SELECT}
        FROM dispatch_tasks
        WHERE ${where.clause} AND status = 'queued'
+         ${demoCustomerId ? "AND customer_id = ?" : ""}
        ORDER BY created_at DESC, dispatch_task_id DESC
        LIMIT ?`,
-      [...where.params, limit],
+      [...where.params, ...(demoCustomerId ? [demoCustomerId] : []), limit],
     );
 
     return rows.map(mapDispatchTaskRow);
@@ -364,6 +376,7 @@ export class DispatchRepository extends RepositoryBase {
       throw new Error("city_code mismatch in dispatch task query");
     }
 
+    const demoCustomerId = investorDemoCustomerId(context);
     const [rows] = await this.pool.query<DispatchTaskRow[]>(
       `SELECT DISTINCT ${DISPATCH_TASK_SELECT_ALIASED}
        FROM dispatch_tasks dt
@@ -373,13 +386,14 @@ export class DispatchRepository extends RepositoryBase {
         AND offer.worker_id = ?
         AND offer.status = 'offering'
        WHERE dt.city_code = ?
+         ${demoCustomerId ? "AND dt.customer_id = ?" : ""}
          AND (
            dt.status = 'queued'
            OR (dt.status IN ('offering', 'reassigning') AND offer.offer_id IS NOT NULL)
          )
        ORDER BY dt.created_at DESC, dt.dispatch_task_id DESC
        LIMIT ?`,
-      [workerId, cityCode, limit],
+      [workerId, cityCode, ...(demoCustomerId ? [demoCustomerId] : []), limit],
     );
 
     return rows.map(mapDispatchTaskRow);
@@ -396,14 +410,16 @@ export class DispatchRepository extends RepositoryBase {
       throw new Error("city_code mismatch in dispatch task query");
     }
 
+    const demoCustomerId = investorDemoCustomerId(context);
     const [rows] = await this.pool.query<DispatchTaskRow[]>(
       `SELECT ${DISPATCH_TASK_SELECT}
        FROM dispatch_tasks
        WHERE city_code = ?
+         ${demoCustomerId ? "AND customer_id = ?" : ""}
          AND status IN ('queued', 'reassigning')
        ORDER BY created_at ASC, dispatch_task_id ASC
        LIMIT ?`,
-      [cityCode, limit],
+      [cityCode, ...(demoCustomerId ? [demoCustomerId] : []), limit],
     );
 
     return rows.map(mapDispatchTaskRow);
@@ -418,12 +434,14 @@ export class DispatchRepository extends RepositoryBase {
     assertCityScopedContext(context);
 
     const where = buildCityScopedWhere(cityCode);
+    const demoCustomerId = investorDemoCustomerId(context);
     const [rows] = await this.pool.query<DispatchTaskRow[]>(
       `SELECT ${DISPATCH_TASK_SELECT}
        FROM dispatch_tasks
        WHERE ${where.clause} AND dispatch_task_id = ?
+         ${demoCustomerId ? "AND customer_id = ?" : ""}
        LIMIT 1`,
-      [...where.params, dispatchTaskId],
+      [...where.params, dispatchTaskId, ...(demoCustomerId ? [demoCustomerId] : [])],
     );
 
     return rows[0] ? mapDispatchTaskRow(rows[0]) : null;
@@ -718,10 +736,12 @@ export class DispatchRepository extends RepositoryBase {
       throw new Error("city_code mismatch in worker candidate query");
     }
 
+    const demoWorkerId = investorDemoWorkerId(context);
     const exclusion =
       excludeWorkerIds.length > 0
         ? `AND wp.worker_id NOT IN (${excludeWorkerIds.map(() => "?").join(", ")})`
         : "";
+    const demoWorkerClause = demoWorkerId ? "AND wp.worker_id = ?" : "";
     const [rows] = await this.pool.query<CandidateWorkerRow[]>(
       `SELECT wp.worker_id, wp.distance_km
        FROM worker_profiles wp
@@ -741,10 +761,19 @@ export class DispatchRepository extends RepositoryBase {
        WHERE wp.status = 'active'
          AND wp.dispatch_status = 'available'
          AND wp.is_certified = 1
+         ${demoWorkerClause}
          ${exclusion}
        ORDER BY COALESCE(wp.distance_km, 9999.99) ASC, wp.worker_id ASC
        LIMIT ?`,
-      [cityCode, cityCode, cityCode, skuId, ...excludeWorkerIds, limit],
+      [
+        cityCode,
+        cityCode,
+        cityCode,
+        skuId,
+        ...(demoWorkerId ? [demoWorkerId] : []),
+        ...excludeWorkerIds,
+        limit,
+      ],
     );
 
     return rows.map((row) => ({

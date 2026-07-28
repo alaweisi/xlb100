@@ -44,6 +44,7 @@ export async function registerFulfillmentRoutes(
       try {
         await workerService.assertWorkerBoundToCity(context.userId, cityCode);
         const fulfillments = await fulfillmentService.listFulfillmentsForWorker(
+          context,
           context.userId,
           cityCode,
         );
@@ -86,6 +87,7 @@ export async function registerFulfillmentRoutes(
       try {
         await workerService.assertWorkerBoundToCity(context.userId, cityCode);
         const fulfillment = await fulfillmentService.getFulfillmentForWorker(
+          context,
           fulfillmentId,
           cityCode,
           context.userId,

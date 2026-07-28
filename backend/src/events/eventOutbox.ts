@@ -14,6 +14,7 @@ import {
   sanitizeOutboxError,
   outboxErrorCode,
 } from "./outboxDeliveryPolicy.js";
+import { investorDemoCustomerId } from "../demo/stagingDemoDataScope.js";
 
 type OutboxRow = RowDataPacket & {
   event_id: string;
@@ -138,6 +139,10 @@ export class EventOutboxRepository extends RepositoryBase {
         : kind === "fulfillment-ledger"
           ? "AND f.status='completed' AND o.status='paid'"
           : "";
+      const demoCustomerId = investorDemoCustomerId(context);
+      const demoEligibility = demoCustomerId && kind !== "event-type"
+        ? "AND o.customer_id=?"
+        : "";
       const locked: (RowDataPacket & { event_id: string })[] = [];
       // Exact status scans preserve the typed-claim index order. A combined
       // status IN (...) scan requires a merge/filesort and can lock rows beyond
@@ -151,9 +156,16 @@ export class EventOutboxRepository extends RepositoryBase {
              AND e.available_at<=CURRENT_TIMESTAMP(3)
              AND e.attempt_count<e.max_attempts
              ${eligibility}
+             ${demoEligibility}
            ORDER BY e.available_at ASC, e.created_at ASC
            LIMIT ? FOR UPDATE SKIP LOCKED`,
-          [cityCode, eventType, status, remaining],
+          [
+            cityCode,
+            eventType,
+            status,
+            ...(demoCustomerId && kind !== "event-type" ? [demoCustomerId] : []),
+            remaining,
+          ],
         );
         locked.push(...statusRows);
       }
@@ -382,6 +394,7 @@ export class EventOutboxRepository extends RepositoryBase {
     }
 
     const where = buildCityScopedWhere(cityCode, "e.city_code");
+    const demoCustomerId = investorDemoCustomerId(context);
     const [rows] = await this.pool.query<OutboxRow[]>(
       `SELECT ${OUTBOX_COLUMNS}
        FROM event_outbox e
@@ -392,9 +405,10 @@ export class EventOutboxRepository extends RepositoryBase {
          AND e.status = 'pending'
          AND e.event_type = 'order.created'
          AND o.status = 'pending_dispatch'
+         ${demoCustomerId ? "AND o.customer_id = ?" : ""}
        ORDER BY e.created_at DESC
        LIMIT ?`,
-      [...where.params, limit],
+      [...where.params, ...(demoCustomerId ? [demoCustomerId] : []), limit],
     );
 
     return rows.map(mapOutboxRow);

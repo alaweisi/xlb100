@@ -2,8 +2,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { loadEnv } from "@xlb/config";
 import {
-  applyStagingDemoOperations,
+  assertStagingDemoUniqueOwnership,
+  buildStagingDemoUniqueOwnershipChecks,
   buildStagingDemoOperations,
+  executeStagingDemoOperations,
   STAGING_DEMO_IDS,
   STAGING_DEMO_RESET_CONFIRMATION,
   validateStagingDemoBootstrapTarget,
@@ -108,11 +110,15 @@ describe("staging demo bootstrap safety", () => {
       beginTransaction: async () => { events.push("begin"); },
       commit: async () => { events.push("commit"); },
       rollback: async () => { events.push("rollback"); },
-      query: async () => {
+      query: async (sql: string) => {
         events.push("query");
-        return [{ affectedRows: 1 }];
+        return sql.startsWith("SELECT")
+          ? [[]]
+          : [{ affectedRows: 1 }];
       },
     };
+    stubBootstrapEnv();
+    const target = validateStagingDemoBootstrapTarget(loadEnv());
     const operations = [{
       label: "fixed-demo-row",
       table: "demo_table",
@@ -120,20 +126,64 @@ describe("staging demo bootstrap safety", () => {
       params: ["investor-demo-row"],
       entityIds: ["investor-demo-row"],
     }];
-    expect(await applyStagingDemoOperations(connection as never, operations))
+    expect(await executeStagingDemoOperations(connection as never, target, operations))
       .toMatchObject([{ label: "fixed-demo-row", affectedRows: 1 }]);
-    expect(events).toEqual(["begin", "query", "commit"]);
+    expect(events[0]).toBe("begin");
+    expect(events.slice(-2)).toEqual(["query", "commit"]);
+    expect(events.slice(1, -2).every((event) => event === "query")).toBe(true);
 
     events.length = 0;
+    let inserts = 0;
     const failing = {
       ...connection,
-      query: async () => {
+      query: async (sql: string) => {
         events.push("query");
+        if (sql.startsWith("SELECT")) return [[]];
+        inserts += 1;
         throw new Error("injected failure");
       },
     };
-    await expect(applyStagingDemoOperations(failing as never, operations))
+    await expect(executeStagingDemoOperations(failing as never, target, operations))
       .rejects.toThrow("injected failure");
-    expect(events).toEqual(["begin", "query", "rollback"]);
+    expect(events[0]).toBe("begin");
+    expect(events.slice(-2)).toEqual(["query", "rollback"]);
+    expect(inserts).toBe(1);
+  });
+
+  it("fails closed on a non-demo unique-key owner before transaction writes", async () => {
+    stubBootstrapEnv();
+    const target = validateStagingDemoBootstrapTarget(loadEnv());
+    const checks = buildStagingDemoUniqueOwnershipChecks(target);
+    let mutations = 0;
+    const connection = {
+      beginTransaction: async () => { mutations += 1; },
+      commit: async () => { mutations += 1; },
+      rollback: async () => { mutations += 1; },
+      query: async (sql: string) => {
+        if (sql.includes("FROM customers WHERE phone=?")) {
+          return [[{ owner_id: "ordinary-customer" }]];
+        }
+        if (!sql.startsWith("SELECT")) mutations += 1;
+        return [[]];
+      },
+    };
+    await expect(assertStagingDemoUniqueOwnership(connection as never, checks))
+      .rejects.toThrow("customer.phone@customers:1");
+    expect(mutations).toBe(0);
+    let transactionStarts = 0;
+    let transactionRollbacks = 0;
+    const guardedConnection = {
+      ...connection,
+      beginTransaction: async () => { transactionStarts += 1; },
+      rollback: async () => { transactionRollbacks += 1; },
+    };
+    await expect(executeStagingDemoOperations(
+      guardedConnection as never,
+      target,
+      buildStagingDemoOperations(target),
+    )).rejects.toThrow("staging demo unique ownership collision");
+    expect(mutations).toBe(0);
+    expect(transactionStarts).toBe(1);
+    expect(transactionRollbacks).toBe(1);
   });
 });

@@ -109,6 +109,7 @@ export class FulfillmentRepository extends RepositoryBase {
     fulfillmentId: string,
     cityCode: CityCode,
     workerId: string,
+    demoCustomerId: string | null = null,
   ): Promise<Fulfillment | null> {
     const where = buildCityScopedWhere(cityCode);
     const [rows] = await this.pool.query<FulfillmentRow[]>(
@@ -117,8 +118,14 @@ export class FulfillmentRepository extends RepositoryBase {
               created_at, updated_at
        FROM fulfillments
        WHERE fulfillment_id = ? AND worker_id = ? AND ${where.clause}
+         ${demoCustomerId ? `AND EXISTS (
+           SELECT 1 FROM orders o
+           WHERE o.city_code=fulfillments.city_code
+             AND o.order_id=fulfillments.order_id
+             AND o.customer_id=?
+         )` : ""}
        LIMIT 1`,
-      [fulfillmentId, workerId, ...where.params],
+      [fulfillmentId, workerId, ...where.params, ...(demoCustomerId ? [demoCustomerId] : [])],
     );
     return rows[0] ? mapFulfillmentRow(rows[0]) : null;
   }
@@ -128,6 +135,7 @@ export class FulfillmentRepository extends RepositoryBase {
     fulfillmentId: string,
     cityCode: CityCode,
     workerId: string,
+    demoCustomerId: string | null = null,
   ): Promise<Fulfillment | null> {
     const [rows] = await connection.query<FulfillmentRow[]>(
       `SELECT fulfillment_id, acceptance_id, dispatch_task_id, order_id, city_code,
@@ -135,8 +143,14 @@ export class FulfillmentRepository extends RepositoryBase {
               created_at, updated_at
        FROM fulfillments
        WHERE fulfillment_id = ? AND city_code = ? AND worker_id = ?
+         ${demoCustomerId ? `AND EXISTS (
+           SELECT 1 FROM orders o
+           WHERE o.city_code=fulfillments.city_code
+             AND o.order_id=fulfillments.order_id
+             AND o.customer_id=?
+         )` : ""}
        LIMIT 1 FOR UPDATE`,
-      [fulfillmentId, cityCode, workerId],
+      [fulfillmentId, cityCode, workerId, ...(demoCustomerId ? [demoCustomerId] : [])],
     );
     return rows[0] ? mapFulfillmentRow(rows[0]) : null;
   }
@@ -184,6 +198,7 @@ export class FulfillmentRepository extends RepositoryBase {
     workerId: string,
     cityCode: CityCode,
     limit = 100,
+    demoCustomerId: string | null = null,
   ): Promise<Fulfillment[]> {
     const where = buildCityScopedWhere(cityCode);
     const [rows] = await this.pool.query<FulfillmentRow[]>(
@@ -192,9 +207,15 @@ export class FulfillmentRepository extends RepositoryBase {
               created_at, updated_at
        FROM fulfillments
        WHERE worker_id = ? AND ${where.clause}
+         ${demoCustomerId ? `AND EXISTS (
+           SELECT 1 FROM orders o
+           WHERE o.city_code=fulfillments.city_code
+             AND o.order_id=fulfillments.order_id
+             AND o.customer_id=?
+         )` : ""}
        ORDER BY created_at DESC
        LIMIT ?`,
-      [workerId, ...where.params, limit],
+      [workerId, ...where.params, ...(demoCustomerId ? [demoCustomerId] : []), limit],
     );
     return rows.map(mapFulfillmentRow);
   }
