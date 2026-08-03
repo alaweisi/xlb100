@@ -2,7 +2,7 @@
 
 const securedVersions = Object.freeze({
   "brace-expansion": "5.0.8",
-  "fast-uri": "4.1.1",
+  "fast-uri": "4.1.2",
   "find-my-way": "9.7.0",
   "postcss": "8.5.23",
 });
