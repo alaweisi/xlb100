@@ -1,0 +1,16 @@
+{
+  "cityCode": "hangzhou",
+  "customer": {
+    "id": "customer-demo-001",
+    "phone": "13800000011"
+  },
+  "worker": {
+    "id": "investor-demo-worker-hz",
+    "phone": "13800000011"
+  },
+  "admin": {
+    "id": "investor-demo-admin-hz",
+    "username": "investor_demo_hz",
+    "role": "operator"
+  }
+}

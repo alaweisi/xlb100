@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { loadEnv } from "@xlb/config";
+import { INVESTOR_DEMO_IDENTITIES } from "@xlb/types";
 import {
   assertStagingDemoUniqueOwnership,
   buildStagingDemoUniqueOwnershipChecks,
@@ -22,7 +23,7 @@ function stubBootstrapEnv(): void {
   vi.stubEnv("AUTH_OTP_PEPPER", "investor-demo-otp-pepper-at-least-32-chars");
   vi.stubEnv("AUTH_DEBUG_CODE_ENABLED", "false");
   vi.stubEnv("STAGING_DEMO_CUSTOMER_AUTH_ENABLED", "true");
-  vi.stubEnv("STAGING_DEMO_CUSTOMER_PHONE", "13800000001");
+  vi.stubEnv("STAGING_DEMO_CUSTOMER_PHONE", INVESTOR_DEMO_IDENTITIES.customer.phone);
   vi.stubEnv("STAGING_INVESTOR_DEMO_AUTH_ENABLED", "true");
   vi.stubEnv("STAGING_DEMO_WORKER_ID", STAGING_DEMO_IDS.workerId);
   vi.stubEnv("STAGING_DEMO_WORKER_PHONE", "13800000011");
@@ -67,6 +68,22 @@ describe("staging demo bootstrap safety", () => {
     vi.stubEnv("STAGING_DEMO_RESET_CONFIRMATION", "wrong");
     expect(() => validateStagingDemoBootstrapTarget(loadEnv()))
       .toThrow("STAGING_DEMO_RESET_CONFIRMATION");
+  });
+
+  it("keeps the fixed Customer seed and account documentation aligned with the contract", () => {
+    const seed = readFileSync(
+      new URL("../../db/seed/011_customers_admin_users.seed.sql", import.meta.url),
+      "utf8",
+    );
+    const accountDoc = readFileSync(
+      new URL("../../docs/mobile/INVESTOR_DEMO_ANDROID.md", import.meta.url),
+      "utf8",
+    );
+    const expectedSeedTuple = `('${INVESTOR_DEMO_IDENTITIES.customer.id}', '${INVESTOR_DEMO_IDENTITIES.customer.phone}'`;
+    expect(seed.includes(expectedSeedTuple)).toBe(true);
+    expect(seed).toMatch(/ON DUPLICATE KEY UPDATE\s+phone = VALUES\(phone\)/u);
+    expect(accountDoc.includes(INVESTOR_DEMO_IDENTITIES.customer.id)).toBe(true);
+    expect(accountDoc.includes(INVESTOR_DEMO_IDENTITIES.customer.phone)).toBe(true);
   });
 
   it("builds a fixed, auditable plan without broad or fuzzy deletion", () => {

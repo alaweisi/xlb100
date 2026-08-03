@@ -8,6 +8,8 @@ function read(relativeUrl) {
 
 const customerAuth = read("../apps/customer/src/pages/customerPageShell.tsx");
 const customerApp = read("../apps/customer/src/app/App.tsx");
+const customerDemo = read("../apps/customer/src/investorDemo.tsx");
+const customerOrder = read("../apps/customer/src/pages/CustomerOrderCreatePage.tsx");
 const workerAuth = read("../apps/worker/src/app/workerAuth.ts");
 const workerStore = read("../apps/worker/src/features/auth/store.ts");
 const workerApp = read("../apps/worker/src/app/App.tsx");
@@ -52,7 +54,12 @@ test("authentication code contains no token or phone logging", () => {
   assert.doesNotMatch(workerApp, /Bearer \{session\.token\}|session\.token\.slice/u);
 });
 
-test("Worker and Admin consume the shared fixed demo identity and city contract", () => {
+test("Customer, Worker and Admin consume the shared fixed demo identity and city contract", () => {
+  assert.match(customerDemo, /INVESTOR_DEMO_IDENTITIES\.customer\.phone/u);
+  assert.match(customerDemo, /INVESTOR_DEMO_IDENTITIES\.cityCode/u);
+  assert.match(customerApp, /IS_CUSTOMER_INVESTOR_DEMO[\s\S]*CUSTOMER_INVESTOR_DEMO_PHONE/u);
+  assert.match(customerApp, /readOnly=\{IS_CUSTOMER_INVESTOR_DEMO\}/u);
+  assert.match(customerOrder, /INVESTOR_DEMO_IDENTITIES\.customer\.phone/u);
   assert.match(workerDemo, /INVESTOR_DEMO_IDENTITIES\.worker\.phone/u);
   assert.match(workerDemo, /INVESTOR_DEMO_IDENTITIES\.cityCode/u);
   assert.match(workerLogin, /IS_WORKER_INVESTOR_DEMO[\s\S]*WORKER_INVESTOR_DEMO_PHONE/u);

@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { loadEnv } from "@xlb/config";
+import { INVESTOR_DEMO_IDENTITIES } from "@xlb/types";
 
 function stubValidProductionEnv(): void {
   vi.stubEnv("NODE_ENV", "production");
@@ -117,18 +118,18 @@ describe("production environment safety", () => {
   it("allows an explicitly scoped customer demo identity only in staging", () => {
     stubValidStagingEnv();
     vi.stubEnv("STAGING_DEMO_CUSTOMER_AUTH_ENABLED", "true");
-    vi.stubEnv("STAGING_DEMO_CUSTOMER_PHONE", "13800000001");
+    vi.stubEnv("STAGING_DEMO_CUSTOMER_PHONE", INVESTOR_DEMO_IDENTITIES.customer.phone);
     expect(loadEnv()).toMatchObject({
       nodeEnv: "staging",
       stagingDemoCustomerAuthEnabled: true,
-      stagingDemoCustomerPhone: "13800000001",
+      stagingDemoCustomerPhone: INVESTOR_DEMO_IDENTITIES.customer.phone,
     });
   });
 
   it("rejects staging demo authentication in production", () => {
     stubValidProductionEnv();
     vi.stubEnv("STAGING_DEMO_CUSTOMER_AUTH_ENABLED", "true");
-    vi.stubEnv("STAGING_DEMO_CUSTOMER_PHONE", "13800000001");
+    vi.stubEnv("STAGING_DEMO_CUSTOMER_PHONE", INVESTOR_DEMO_IDENTITIES.customer.phone);
     expect(() => loadEnv()).toThrow("permitted only in staging");
   });
 

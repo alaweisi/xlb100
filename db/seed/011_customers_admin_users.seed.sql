@@ -1,8 +1,9 @@
 -- Phase 14 seed: demo customer + admin users for local dev / tests
 
 INSERT INTO customers (id, phone, name, avatar_url, default_city_code) VALUES
-  ('customer-demo-001', '13800000001', '演示用户', NULL, 'hangzhou')
+  ('customer-demo-001', '13800000011', '演示用户', NULL, 'hangzhou')
 ON DUPLICATE KEY UPDATE
+  phone = VALUES(phone),
   name = VALUES(name),
   default_city_code = VALUES(default_city_code);
 

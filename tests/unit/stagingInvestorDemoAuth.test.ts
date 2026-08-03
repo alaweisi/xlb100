@@ -20,7 +20,7 @@ function stubStagingDemoEnv(): void {
   vi.stubEnv("AUTH_OTP_PEPPER", "investor-demo-otp-pepper-at-least-32-chars");
   vi.stubEnv("AUTH_DEBUG_CODE_ENABLED", "false");
   vi.stubEnv("STAGING_DEMO_CUSTOMER_AUTH_ENABLED", "true");
-  vi.stubEnv("STAGING_DEMO_CUSTOMER_PHONE", "13800000001");
+  vi.stubEnv("STAGING_DEMO_CUSTOMER_PHONE", INVESTOR_DEMO_IDENTITIES.customer.phone);
   vi.stubEnv("STAGING_INVESTOR_DEMO_AUTH_ENABLED", "true");
   vi.stubEnv("STAGING_DEMO_WORKER_ID", "investor-demo-worker-hz");
   vi.stubEnv("STAGING_DEMO_WORKER_PHONE", "13800000011");
@@ -60,8 +60,8 @@ describe("staging investor demo authentication", () => {
     expect(stagingDemoCodeFor({
       nodeEnv: "staging",
       stagingDemoCustomerAuthEnabled: true,
-      stagingDemoCustomerPhone: "13800000001",
-    }, "13800000001", "193846")).toBe("193846");
+      stagingDemoCustomerPhone: INVESTOR_DEMO_IDENTITIES.customer.phone,
+    }, INVESTOR_DEMO_IDENTITIES.customer.phone, "193846")).toBe("193846");
   });
 
   it("issues short, city-bound demo tokens and rejects a forged app binding", () => {
@@ -130,6 +130,10 @@ describe("staging investor demo authentication", () => {
     stubStagingDemoEnv();
     expect(INVESTOR_DEMO_IDENTITIES).toMatchObject({
       cityCode: "hangzhou",
+      customer: {
+        id: "customer-demo-001",
+        phone: "13800000011",
+      },
       worker: {
         id: "investor-demo-worker-hz",
         phone: "13800000011",
@@ -140,6 +144,9 @@ describe("staging investor demo authentication", () => {
         role: "operator",
       },
     });
+    vi.stubEnv("STAGING_DEMO_CUSTOMER_PHONE", "13800000001");
+    expect(() => loadEnv()).toThrow("shared fixed manifest");
+    vi.stubEnv("STAGING_DEMO_CUSTOMER_PHONE", INVESTOR_DEMO_IDENTITIES.customer.phone);
     vi.stubEnv("STAGING_DEMO_WORKER_PHONE", "13800000012");
     expect(() => loadEnv()).toThrow("shared fixed manifest");
   });

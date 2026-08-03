@@ -10,6 +10,10 @@ const composePath = path.join(root, "deploy", "compose", "docker-compose.staging
 const examplePath = path.join(root, ".env.staging.example");
 const composeText = fs.readFileSync(composePath, "utf8");
 const exampleText = fs.readFileSync(examplePath, "utf8");
+const demoIdentities = JSON.parse(fs.readFileSync(
+  path.join(root, "packages", "types", "src", "investorDemoIdentities.json"),
+  "utf8",
+));
 const investorNames = [
   "STAGING_INVESTOR_DEMO_AUTH_ENABLED",
   "STAGING_DEMO_WORKER_ID",
@@ -37,6 +41,8 @@ test("staging Compose wires Worker/Admin Demo and a fail-closed reset profile", 
   assert.match(composeText, /STAGING_DEMO_RESET_MODE:---dry-run/u);
   assert.match(composeText, /STAGING_INVESTOR_DEMO_AUTH_ENABLED:-false/u);
   assert.match(exampleText, /^STAGING_INVESTOR_DEMO_AUTH_ENABLED=false$/mu);
+  assert.match(exampleText, /^STAGING_DEMO_CUSTOMER_PHONE=$/mu);
+  assert.match(composeText, /STAGING_DEMO_CUSTOMER_PHONE:-\}/u);
   assert.match(exampleText, /^STAGING_DEMO_RESET_ENABLED=false$/mu);
   assert.match(exampleText, /^STAGING_DEMO_RESET_MODE=--dry-run$/mu);
   for (const name of [
@@ -70,7 +76,7 @@ test("docker compose config exposes Demo variables to backend and reset tool", {
     AUTH_PHONE_HASH_SECRET: "fixture-phone-hash-at-least-32-characters",
     AUTH_OTP_PEPPER: "fixture-otp-pepper-at-least-32-characters",
     STAGING_DEMO_CUSTOMER_AUTH_ENABLED: "true",
-    STAGING_DEMO_CUSTOMER_PHONE: "13800000001",
+    STAGING_DEMO_CUSTOMER_PHONE: demoIdentities.customer.phone,
     STAGING_INVESTOR_DEMO_AUTH_ENABLED: "true",
     STAGING_DEMO_WORKER_ID: "investor-demo-worker-hz",
     STAGING_DEMO_WORKER_PHONE: "13800000011",

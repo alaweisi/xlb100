@@ -1,9 +1,12 @@
 import type { RowDataPacket } from "mysql2/promise";
 import { randomUUID } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { INVESTOR_DEMO_IDENTITIES } from "@xlb/types";
 import { getMysqlPool } from "../../backend/src/dal/mysqlPool.js";
 import {
+  assertStagingDemoUniqueOwnership,
   buildStagingDemoOperations,
+  buildStagingDemoUniqueOwnershipChecks,
   executeStagingDemoOperations,
   STAGING_DEMO_IDS,
   type StagingDemoBootstrapTarget,
@@ -13,21 +16,31 @@ import { cleanupStagingDemoFixture } from "./helpers/stagingDemoFixtureHelper.js
 beforeEach(cleanupStagingDemoFixture);
 afterEach(cleanupStagingDemoFixture);
 
+const legacyCustomerPhone = "13800000001";
+
+function uniqueNumericSuffix(): string {
+  return randomUUID().replace(/\D/gu, "").padEnd(8, "0").slice(0, 8);
+}
+
+function demoTarget(): StagingDemoBootstrapTarget {
+  return {
+    environment: "staging",
+    mysqlHost: process.env.MYSQL_HOST ?? "127.0.0.1",
+    mysqlDatabase: process.env.MYSQL_DATABASE ?? "xlb_test_missing",
+    cityCode: "hangzhou",
+    customerPhone: INVESTOR_DEMO_IDENTITIES.customer.phone,
+    workerPhone: INVESTOR_DEMO_IDENTITIES.worker.phone,
+    workerId: STAGING_DEMO_IDS.workerId,
+    adminUsername: INVESTOR_DEMO_IDENTITIES.admin.username,
+    adminUserId: STAGING_DEMO_IDS.adminUserId,
+    authPhoneHashSecret: "integration-demo-phone-hash-secret-at-least-32",
+  };
+}
+
 describe("staging demo bootstrap database lifecycle", () => {
   it("applies twice and restores the exact fixed demo state", async () => {
     const pool = getMysqlPool();
-    const target: StagingDemoBootstrapTarget = {
-      environment: "staging",
-      mysqlHost: process.env.MYSQL_HOST ?? "127.0.0.1",
-      mysqlDatabase: process.env.MYSQL_DATABASE ?? "xlb_test_missing",
-      cityCode: "hangzhou",
-      customerPhone: "13800000001",
-      workerPhone: "13800000011",
-      workerId: STAGING_DEMO_IDS.workerId,
-      adminUsername: "investor_demo_hz",
-      adminUserId: STAGING_DEMO_IDS.adminUserId,
-      authPhoneHashSecret: "integration-demo-phone-hash-secret-at-least-32",
-    };
+    const target = demoTarget();
     const operations = buildStagingDemoOperations(target);
 
     const firstConnection = await pool.getConnection();
@@ -170,65 +183,176 @@ describe("staging demo bootstrap database lifecycle", () => {
     });
   });
 
-  it("does not modify any row when a configured unique identity belongs to a non-demo ID", async () => {
+  it("ignores the preserved legacy owner and updates only the fixed Customer ID", async () => {
     const pool = getMysqlPool();
-    const suffix = randomUUID().replaceAll("-", "").slice(0, 8);
-    const ordinaryCustomerId = `collision-owner-${suffix}`;
-    const collidingPhone = `139${suffix}`;
-    const target: StagingDemoBootstrapTarget = {
-      environment: "staging",
-      mysqlHost: process.env.MYSQL_HOST ?? "127.0.0.1",
-      mysqlDatabase: process.env.MYSQL_DATABASE ?? "xlb_test_missing",
-      cityCode: "hangzhou",
-      customerPhone: collidingPhone,
-      workerPhone: "13800000011",
-      workerId: STAGING_DEMO_IDS.workerId,
-      adminUsername: "investor_demo_hz",
-      adminUserId: STAGING_DEMO_IDS.adminUserId,
-      authPhoneHashSecret: "integration-demo-phone-hash-secret-at-least-32",
-    };
-    await pool.query(
-      `INSERT INTO customers (id,phone,name,avatar_url,default_city_code)
-       VALUES (?,?,'普通同城客户',NULL,'hangzhou')`,
-      [ordinaryCustomerId, collidingPhone],
-    );
-    const [before] = await pool.query<RowDataPacket[]>(
-      `SELECT
-         (SELECT phone FROM customers WHERE id=?) AS demo_phone,
-         (SELECT name FROM customers WHERE id=?) AS ordinary_name,
-         (SELECT status FROM orders WHERE order_id=?) AS demo_order_status,
-         (SELECT rating FROM order_reviews WHERE review_id=?) AS demo_review_rating`,
-      [
-        STAGING_DEMO_IDS.customerId,
-        ordinaryCustomerId,
-        STAGING_DEMO_IDS.activeOrderId,
-        STAGING_DEMO_IDS.historyReviewId,
-      ],
-    );
-    const connection = await pool.getConnection();
+    const suffix = uniqueNumericSuffix();
+    const fixtureLegacyOwnerId = `legacy-phone-owner-${suffix}`;
+    const transitionalPhone = `137${suffix}`;
+    const target = demoTarget();
+    let removeFixtureLegacyOwner = false;
+    let legacyOwnerId = fixtureLegacyOwnerId;
     try {
-      await expect(executeStagingDemoOperations(
-        connection,
-        target,
-        buildStagingDemoOperations(target),
-      )).rejects.toThrow("customer.phone@customers:1");
+      await pool.query(
+        "UPDATE customers SET phone=? WHERE id=?",
+        [transitionalPhone, STAGING_DEMO_IDS.customerId],
+      );
+      const [existingLegacyOwners] = await pool.query<(RowDataPacket & { id: string })[]>(
+        "SELECT id FROM customers WHERE phone=?",
+        [legacyCustomerPhone],
+      );
+      if (existingLegacyOwners[0]) {
+        legacyOwnerId = existingLegacyOwners[0].id;
+        expect(legacyOwnerId).not.toBe(STAGING_DEMO_IDS.customerId);
+      } else {
+        await pool.query(
+          `INSERT INTO customers (id,phone,name,avatar_url,default_city_code)
+           VALUES (?,?,'preserved legacy owner',NULL,'hangzhou')`,
+          [legacyOwnerId, legacyCustomerPhone],
+        );
+        removeFixtureLegacyOwner = true;
+      }
+      const [legacyBefore] = await pool.query<(RowDataPacket & { fingerprint: string })[]>(
+        `SELECT SHA2(CONCAT_WS('|', id, phone, COALESCE(name, ''),
+           COALESCE(avatar_url, ''), COALESCE(default_city_code, ''),
+           CAST(created_at AS CHAR), CAST(updated_at AS CHAR)), 256) AS fingerprint
+         FROM customers WHERE id=?`,
+        [legacyOwnerId],
+      );
+      const legacyFingerprint = legacyBefore[0]?.fingerprint;
+      expect(typeof legacyFingerprint).toBe("string");
+
+      const dryRunConnection = await pool.getConnection();
+      try {
+        await dryRunConnection.beginTransaction();
+        try {
+          await expect(assertStagingDemoUniqueOwnership(
+            dryRunConnection,
+            buildStagingDemoUniqueOwnershipChecks(target),
+          )).resolves.toBeUndefined();
+        } finally {
+          await dryRunConnection.rollback();
+        }
+      } finally {
+        dryRunConnection.release();
+      }
+
+      const applyConnection = await pool.getConnection();
+      try {
+        await executeStagingDemoOperations(
+          applyConnection,
+          target,
+          buildStagingDemoOperations(target),
+        );
+      } finally {
+        applyConnection.release();
+      }
+
+      const [rows] = await pool.query<(RowDataPacket & {
+        demo_phone_matches: number;
+        legacy_owner_unchanged: number;
+        unexpected_owner_count: number;
+      })[]>(
+        `SELECT
+           (SELECT COUNT(*) FROM customers WHERE id=? AND phone=?) AS demo_phone_matches,
+           (SELECT COUNT(*) FROM customers WHERE id=? AND phone=?
+             AND SHA2(CONCAT_WS('|', id, phone, COALESCE(name, ''),
+               COALESCE(avatar_url, ''), COALESCE(default_city_code, ''),
+               CAST(created_at AS CHAR), CAST(updated_at AS CHAR)), 256)=?)
+             AS legacy_owner_unchanged,
+           (SELECT COUNT(*) FROM customers WHERE phone=? AND id<>?) AS unexpected_owner_count`,
+        [
+          STAGING_DEMO_IDS.customerId,
+          target.customerPhone,
+          legacyOwnerId,
+          legacyCustomerPhone,
+          legacyFingerprint,
+          target.customerPhone,
+          STAGING_DEMO_IDS.customerId,
+        ],
+      );
+      expect(rows[0]).toMatchObject({
+        demo_phone_matches: 1,
+        legacy_owner_unchanged: 1,
+        unexpected_owner_count: 0,
+      });
     } finally {
-      connection.release();
+      if (removeFixtureLegacyOwner) {
+        await pool.query("DELETE FROM customers WHERE id=?", [legacyOwnerId]);
+      }
     }
-    const [after] = await pool.query<RowDataPacket[]>(
-      `SELECT
-         (SELECT phone FROM customers WHERE id=?) AS demo_phone,
-         (SELECT name FROM customers WHERE id=?) AS ordinary_name,
-         (SELECT status FROM orders WHERE order_id=?) AS demo_order_status,
-         (SELECT rating FROM order_reviews WHERE review_id=?) AS demo_review_rating`,
-      [
-        STAGING_DEMO_IDS.customerId,
-        ordinaryCustomerId,
-        STAGING_DEMO_IDS.activeOrderId,
-        STAGING_DEMO_IDS.historyReviewId,
-      ],
+  });
+
+  it("fails closed with zero writes when the new fixed phone has a non-demo owner", async () => {
+    const pool = getMysqlPool();
+    const suffix = uniqueNumericSuffix();
+    const ordinaryCustomerId = `new-phone-collision-${suffix}`;
+    const transitionalPhone = `136${suffix}`;
+    const target = demoTarget();
+    await pool.query(
+      "UPDATE customers SET phone=? WHERE id=?",
+      [transitionalPhone, STAGING_DEMO_IDS.customerId],
     );
-    expect(after[0]).toEqual(before[0]);
-    await pool.query("DELETE FROM customers WHERE id=?", [ordinaryCustomerId]);
+    try {
+      await pool.query(
+        `INSERT INTO customers (id,phone,name,avatar_url,default_city_code)
+         VALUES (?,?,'new phone collision owner',NULL,'hangzhou')`,
+        [ordinaryCustomerId, target.customerPhone],
+      );
+      const [before] = await pool.query<RowDataPacket[]>(
+        `SELECT
+           (SELECT name FROM customers WHERE id=?) AS ordinary_name,
+           (SELECT COUNT(*) FROM customers WHERE id=?) AS demo_customer_count,
+           (SELECT COUNT(*) FROM orders WHERE order_id IN (?, ?)) AS demo_order_count,
+           (SELECT COUNT(*) FROM order_reviews WHERE review_id=?) AS demo_review_count`,
+        [
+          ordinaryCustomerId,
+          STAGING_DEMO_IDS.customerId,
+          STAGING_DEMO_IDS.activeOrderId,
+          STAGING_DEMO_IDS.historyOrderId,
+          STAGING_DEMO_IDS.historyReviewId,
+        ],
+      );
+      const dryRunConnection = await pool.getConnection();
+      try {
+        await dryRunConnection.beginTransaction();
+        try {
+          await expect(assertStagingDemoUniqueOwnership(
+            dryRunConnection,
+            buildStagingDemoUniqueOwnershipChecks(target),
+          )).rejects.toThrow("customer.phone@customers:1");
+        } finally {
+          await dryRunConnection.rollback();
+        }
+      } finally {
+        dryRunConnection.release();
+      }
+      const applyConnection = await pool.getConnection();
+      try {
+        await expect(executeStagingDemoOperations(
+          applyConnection,
+          target,
+          buildStagingDemoOperations(target),
+        )).rejects.toThrow("customer.phone@customers:1");
+      } finally {
+        applyConnection.release();
+      }
+      const [after] = await pool.query<RowDataPacket[]>(
+        `SELECT
+           (SELECT name FROM customers WHERE id=?) AS ordinary_name,
+           (SELECT COUNT(*) FROM customers WHERE id=?) AS demo_customer_count,
+           (SELECT COUNT(*) FROM orders WHERE order_id IN (?, ?)) AS demo_order_count,
+           (SELECT COUNT(*) FROM order_reviews WHERE review_id=?) AS demo_review_count`,
+        [
+          ordinaryCustomerId,
+          STAGING_DEMO_IDS.customerId,
+          STAGING_DEMO_IDS.activeOrderId,
+          STAGING_DEMO_IDS.historyOrderId,
+          STAGING_DEMO_IDS.historyReviewId,
+        ],
+      );
+      expect(after[0]).toEqual(before[0]);
+    } finally {
+      await pool.query("DELETE FROM customers WHERE id=?", [ordinaryCustomerId]);
+    }
   });
 });

@@ -1,16 +1,21 @@
+import identityManifest from "./investorDemoIdentities.json";
+
+type InvestorDemoIdentityManifest = Readonly<{
+  cityCode: string;
+  customer: Readonly<{ id: string; phone: string }>;
+  worker: Readonly<{ id: string; phone: string }>;
+  admin: Readonly<{
+    id: string;
+    username: string;
+    role: "operator";
+  }>;
+}>;
+
+const manifest = identityManifest as InvestorDemoIdentityManifest;
+
 export const INVESTOR_DEMO_IDENTITIES = Object.freeze({
-  cityCode: "hangzhou",
-  customer: Object.freeze({
-    id: "customer-demo-001",
-    phone: "13800000001",
-  }),
-  worker: Object.freeze({
-    id: "investor-demo-worker-hz",
-    phone: "13800000011",
-  }),
-  admin: Object.freeze({
-    id: "investor-demo-admin-hz",
-    username: "investor_demo_hz",
-    role: "operator",
-  }),
+  cityCode: manifest.cityCode,
+  customer: Object.freeze({ ...manifest.customer }),
+  worker: Object.freeze({ ...manifest.worker }),
+  admin: Object.freeze({ ...manifest.admin }),
 });

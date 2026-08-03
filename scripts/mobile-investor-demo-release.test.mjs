@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import {
+  INVESTOR_DEMO_ACCOUNTS,
   INVESTOR_DEMO_API_ORIGIN,
   INVESTOR_DEMO_VERSION,
   assertInvestorDemoPrerequisites,
@@ -42,6 +43,16 @@ test("Investor Demo identities are distinct from Engineering M5 identities", () 
   assert.ok(demoApps.every((app) => app.appName.includes("演示")));
   assert.ok(demoApps.every((app) => app.version === INVESTOR_DEMO_VERSION));
   assert.equal(INVESTOR_DEMO_VERSION.code, 2);
+  assert.deepEqual(INVESTOR_DEMO_ACCOUNTS, {
+    cityCode: "hangzhou",
+    customer: { id: "customer-demo-001", phone: "13800000011" },
+    worker: { id: "investor-demo-worker-hz", phone: "13800000011" },
+    admin: {
+      id: "investor-demo-admin-hz",
+      username: "investor_demo_hz",
+      role: "operator",
+    },
+  });
 });
 
 test("Investor Demo requires complete external role-specific signing", () => {

@@ -2,7 +2,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { spawnSync } from "node:child_process";
+import { isDeepStrictEqual } from "node:util";
 import { verifyInvestorDemoArtifactRoot } from "./mobile-investor-demo-artifact-trust.mjs";
+
+const sharedDemoAccounts = JSON.parse(fs.readFileSync(
+  new URL("../packages/types/src/investorDemoIdentities.json", import.meta.url),
+  "utf8",
+));
 
 export const INVESTOR_DEMO_SEAL_DOCUMENTS = Object.freeze([
   "INSTALLATION.md",
@@ -101,6 +107,22 @@ export function validateInvestorDemoSeal({
   }
   if (!Number.isInteger(manifest.sessionTtlSeconds) || manifest.sessionTtlSeconds > 1_800) {
     throw new Error("Investor Demo short session TTL is missing or too long");
+  }
+  if (!isDeepStrictEqual(manifest.demoAccounts, sharedDemoAccounts)) {
+    throw new Error("Investor Demo account manifest does not match the shared identity contract");
+  }
+  const accountDocument = fs.readFileSync(path.join(root, "DEMO_ACCOUNTS.md"), "utf8");
+  const publicAccountIdentifiers = [
+    sharedDemoAccounts.cityCode,
+    sharedDemoAccounts.customer.id,
+    sharedDemoAccounts.customer.phone,
+    sharedDemoAccounts.worker.id,
+    sharedDemoAccounts.worker.phone,
+    sharedDemoAccounts.admin.id,
+    sharedDemoAccounts.admin.username,
+  ];
+  if (publicAccountIdentifiers.some((identifier) => !accountDocument.includes(identifier))) {
+    throw new Error("Investor Demo account document does not match the shared identity contract");
   }
 
   const artifactTrust = artifactVerifier({ artifactRoot: root, androidSdk });

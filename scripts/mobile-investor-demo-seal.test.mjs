@@ -9,6 +9,9 @@ import {
   verifyInvestorDemoArtifactRoot,
 } from "./mobile-investor-demo-artifact-trust.mjs";
 import {
+  INVESTOR_DEMO_ACCOUNTS,
+} from "./mobile-investor-demo-release.mjs";
+import {
   INVESTOR_DEMO_SEAL_DOCUMENTS,
   sealInvestorDemoArtifact,
   validateInvestorDemoSeal,
@@ -45,6 +48,7 @@ function buildFixture() {
     sourceCommit: commit,
     apiOrigin: "https://123.207.198.136",
     sessionTtlSeconds: 1_800,
+    demoAccounts: INVESTOR_DEMO_ACCOUNTS,
     artifactRoot: root,
     reports,
   };
@@ -54,7 +58,18 @@ function buildFixture() {
     `${reports.map((report) => `${report.sha256}  ${report.apkPath}`).join("\n")}\n`,
   );
   for (const document of INVESTOR_DEMO_SEAL_DOCUMENTS) {
-    fs.writeFileSync(path.join(root, document), `# ${document}\nfixture\n`);
+    const body = document === "DEMO_ACCOUNTS.md"
+      ? `# ${document}\n${[
+          INVESTOR_DEMO_ACCOUNTS.cityCode,
+          INVESTOR_DEMO_ACCOUNTS.customer.id,
+          INVESTOR_DEMO_ACCOUNTS.customer.phone,
+          INVESTOR_DEMO_ACCOUNTS.worker.id,
+          INVESTOR_DEMO_ACCOUNTS.worker.phone,
+          INVESTOR_DEMO_ACCOUNTS.admin.id,
+          INVESTOR_DEMO_ACCOUNTS.admin.username,
+        ].join("\n")}\n`
+      : `# ${document}\nfixture\n`;
+    fs.writeFileSync(path.join(root, document), body);
   }
   fs.writeFileSync(path.join(root, "signing-verification.json"), JSON.stringify({
     sourceCommit: commit,
@@ -179,6 +194,23 @@ test("strict seal rejects a fake manifest and wrong APK hash", () => {
     } finally {
       fs.rmSync(state.base, { recursive: true, force: true });
     }
+  }
+});
+
+test("strict seal rejects stale Customer account documentation", () => {
+  state = buildFixture();
+  try {
+    fs.writeFileSync(
+      path.join(state.root, "DEMO_ACCOUNTS.md"),
+      "# stale account fixture\n",
+    );
+    assert.throws(() => validateInvestorDemoSeal({
+      artifactRoot: state.root,
+      currentCommit: commit,
+      artifactVerifier,
+    }), /account document does not match/u);
+  } finally {
+    fs.rmSync(state.base, { recursive: true, force: true });
   }
 });
 

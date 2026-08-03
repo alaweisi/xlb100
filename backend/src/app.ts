@@ -72,6 +72,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
           "body.token",
           "body.apiKey",
           "body.secret",
+          "phoneMasked",
         ],
         censor: "[REDACTED]",
       },

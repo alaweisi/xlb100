@@ -20,7 +20,11 @@ import {
   type CustomerSession,
   writeCustomerCityCode,
 } from "../pages/customerPageShell";
-import { CustomerInvestorDemoNotice } from "../investorDemo";
+import {
+  CUSTOMER_INVESTOR_DEMO_PHONE,
+  CustomerInvestorDemoNotice,
+  IS_CUSTOMER_INVESTOR_DEMO,
+} from "../investorDemo";
 import { useCustomerSupportApi } from "./useCustomerSupportApi";
 
 const CustomerHomePage = lazy(() => import("../pages/CustomerHomePage").then((module) => ({ default: module.CustomerHomePage })));
@@ -62,7 +66,11 @@ export function App() {
       : storedOrderIds;
   });
   const [session, setSession] = useState<CustomerSession | null>(() => readStoredSession());
-  const [authPhone, setAuthPhone] = useState(() => readStoredCustomerPhone());
+  const [authPhone, setAuthPhone] = useState(() => (
+    IS_CUSTOMER_INVESTOR_DEMO
+      ? CUSTOMER_INVESTOR_DEMO_PHONE
+      : readStoredCustomerPhone()
+  ));
   const [authCode, setAuthCode] = useState("");
   const [authStatus, setAuthStatus] = useState<"idle" | "requesting" | "codeSent" | "signingIn">("idle");
   const [authMessage, setAuthMessage] = useState("");
@@ -101,7 +109,7 @@ export function App() {
       if (isCustomerSessionUnauthorized(error)) {
         clearCustomerSessionAndBusinessData();
         setSession(null);
-        setAuthPhone("");
+        setAuthPhone(IS_CUSTOMER_INVESTOR_DEMO ? CUSTOMER_INVESTOR_DEMO_PHONE : "");
         setOrderIds([]);
         setAuthStatus("idle");
         setAuthError("登录状态已过期，请重新验证手机号。");
@@ -122,7 +130,7 @@ export function App() {
     const expireSession = () => {
       clearCustomerSessionAndBusinessData();
       setSession(null);
-      setAuthPhone("");
+      setAuthPhone(IS_CUSTOMER_INVESTOR_DEMO ? CUSTOMER_INVESTOR_DEMO_PHONE : "");
       setAuthCode("");
       setOrderIds([]);
       setAuthStatus("idle");
@@ -139,7 +147,7 @@ export function App() {
     if (remaining <= 0) {
       clearCustomerSessionAndBusinessData();
       setSession(null);
-      setAuthPhone("");
+      setAuthPhone(IS_CUSTOMER_INVESTOR_DEMO ? CUSTOMER_INVESTOR_DEMO_PHONE : "");
       setOrderIds([]);
       setAuthError("演示登录已到期，请重新验证手机号。");
       return;
@@ -147,7 +155,7 @@ export function App() {
     const timeout = window.setTimeout(() => {
       clearCustomerSessionAndBusinessData();
       setSession(null);
-      setAuthPhone("");
+      setAuthPhone(IS_CUSTOMER_INVESTOR_DEMO ? CUSTOMER_INVESTOR_DEMO_PHONE : "");
       setOrderIds([]);
       setAuthStatus("idle");
       setAuthError("演示登录已到期，请重新验证手机号。");
@@ -219,7 +227,7 @@ export function App() {
   const handleLogout = useCallback(() => {
     clearCustomerSessionAndBusinessData();
     setSession(null);
-    setAuthPhone("");
+    setAuthPhone(IS_CUSTOMER_INVESTOR_DEMO ? CUSTOMER_INVESTOR_DEMO_PHONE : "");
     setAuthCode("");
     setOrderIds([]);
     setAuthMessage("");
@@ -272,6 +280,7 @@ export function App() {
               placeholder="请输入 11 位手机号码"
               value={authPhone}
               onChange={(event) => setAuthPhone(event.target.value.replace(/\D/gu, ""))}
+              readOnly={IS_CUSTOMER_INVESTOR_DEMO}
               disabled={requesting || signingIn}
             />
             <button type="submit" disabled={requesting || signingIn}>

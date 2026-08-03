@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { XLB_HEADERS } from "@xlb/types";
+import { INVESTOR_DEMO_IDENTITIES, XLB_HEADERS } from "@xlb/types";
 import { getMysqlPool } from "../../../backend/src/dal/mysqlPool.js";
 import { createToken } from "../../../backend/src/auth/tokenAuth.js";
 import { hashPhoneIdentity } from "../../../backend/src/auth/phoneIdentity.js";
@@ -79,8 +79,8 @@ export async function loginCustomerHeaders(
   app: FastifyInstance,
   options: { userId?: string; phone?: string; cityCode?: string } = {},
 ): Promise<TestHeaders> {
-  const userId = options.userId ?? "customer-demo-001";
-  const phone = options.phone ?? "13800000001";
+  const userId = options.userId ?? INVESTOR_DEMO_IDENTITIES.customer.id;
+  const phone = options.phone ?? INVESTOR_DEMO_IDENTITIES.customer.phone;
   const cityCode = options.cityCode ?? "hangzhou";
   await ensureCustomer(userId, phone);
 

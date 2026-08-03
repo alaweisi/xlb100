@@ -118,6 +118,11 @@ APK 与后端共同消费 `@xlb/types` 中的固定演示身份清单。师傅�
 杭州演示师傅手机号，管理端固定使用杭州低权限演示管理员用户名；这些标识
 不是密码，实际验证码仍由 Staging 的短期、一次性 OTP 流程生成。
 
+Customer 的标准身份为 `customer-demo-001`，登录号码为 `13800000011`。该公开演示
+标识与 Worker/Admin 身份均由
+`packages/types/src/investorDemoIdentities.json` 统一维护；候选包 `manifest.json` 和
+`DEMO_ACCOUNTS.md` 必须与它一致，不得记录 OTP 或 Token。
+
 根目录提供两个明确入口：
 
 ```powershell

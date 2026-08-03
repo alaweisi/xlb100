@@ -1,4 +1,5 @@
 import type { RowDataPacket } from "mysql2/promise";
+import { INVESTOR_DEMO_IDENTITIES } from "@xlb/types";
 import { getMysqlPool } from "../../../backend/src/dal/mysqlPool.js";
 import { STAGING_DEMO_IDS } from "../../../backend/src/demo/stagingDemoBootstrap.js";
 
@@ -153,8 +154,8 @@ const cleanupSteps: readonly CleanupStep[] = [
   },
   {
     label: "dispatch events",
-    sql: "DELETE FROM dispatch_events WHERE dispatch_task_id IN (?, ?)",
-    params: demoDispatchTaskIds,
+    sql: "DELETE FROM dispatch_events WHERE dispatch_task_id IN (?, ?) OR worker_id=?",
+    params: [...demoDispatchTaskIds, ids.workerId],
   },
   {
     label: "dispatch tasks",
@@ -224,15 +225,16 @@ const cleanupSteps: readonly CleanupStep[] = [
   {
     label: "customer seed baseline",
     sql: `INSERT INTO customers (id, phone, name, avatar_url, default_city_code)
-          VALUES (?, '13800000001', '演示用户', NULL, 'hangzhou')
+          VALUES (?, ?, '演示用户', NULL, 'hangzhou')
           ON DUPLICATE KEY UPDATE phone=VALUES(phone), name=VALUES(name),
             avatar_url=VALUES(avatar_url), default_city_code=VALUES(default_city_code)`,
-    params: [ids.customerId],
+    params: [ids.customerId, INVESTOR_DEMO_IDENTITIES.customer.phone],
   },
 ];
 
 type CleanupCounts = RowDataPacket & {
   dispatch_offer_count: number;
+  dispatch_event_count: number;
   dispatch_task_count: number;
   non_queued_dispatch_task_count: number;
   worker_location_count: number;
@@ -295,6 +297,8 @@ export async function cleanupStagingDemoFixture(): Promise<void> {
       `SELECT
          (SELECT COUNT(*) FROM dispatch_offers
            WHERE dispatch_task_id IN (?, ?) OR worker_id=?) AS dispatch_offer_count,
+         (SELECT COUNT(*) FROM dispatch_events
+           WHERE dispatch_task_id IN (?, ?) OR worker_id=?) AS dispatch_event_count,
          (SELECT COUNT(*) FROM dispatch_tasks
            WHERE dispatch_task_id IN (?, ?)) AS dispatch_task_count,
          (SELECT COUNT(*) FROM dispatch_tasks
@@ -309,10 +313,12 @@ export async function cleanupStagingDemoFixture(): Promise<void> {
          (SELECT COUNT(*) FROM worker_qualifications WHERE worker_id=?)
            AS worker_qualification_count,
          1 - (SELECT COUNT(*) FROM customers
-           WHERE id=? AND phone='13800000001' AND name='演示用户'
+           WHERE id=? AND phone=? AND name='演示用户'
              AND avatar_url IS NULL AND default_city_code='hangzhou')
            AS customer_seed_drift_count`,
       [
+        ...demoDispatchTaskIds,
+        ids.workerId,
         ...demoDispatchTaskIds,
         ids.workerId,
         ...demoDispatchTaskIds,
@@ -322,6 +328,7 @@ export async function cleanupStagingDemoFixture(): Promise<void> {
         ids.workerId,
         ids.workerId,
         ids.customerId,
+        INVESTOR_DEMO_IDENTITIES.customer.phone,
       ],
     );
     const counts = rows[0];

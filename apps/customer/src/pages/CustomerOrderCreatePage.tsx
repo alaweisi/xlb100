@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import type {
-  CatalogSnapshot,
-  CityCode,
-  CouponGrant,
-  MarketingDiscountDecision,
-  Order,
-  PriceQuote,
-  ScheduledTimeSlot,
+import {
+  INVESTOR_DEMO_IDENTITIES,
+  type CatalogSnapshot,
+  type CityCode,
+  type CouponGrant,
+  type MarketingDiscountDecision,
+  type Order,
+  type PriceQuote,
+  type ScheduledTimeSlot,
 } from "@xlb/types";
 import {
   ActionDock,
@@ -146,7 +147,9 @@ export function CustomerOrderCreatePage({
   const [selectedDistrict, setSelectedDistrict] = useState(() => getOrderAddressOption(cityCode).districts[0]);
   const [detailAddress, setDetailAddress] = useState("喜乐帮演示小区 3 栋 502");
   const [contactName, setContactName] = useState("演示用户");
-  const [contactPhone, setContactPhone] = useState("13800000001");
+  const [contactPhone, setContactPhone] = useState(
+    INVESTOR_DEMO_IDENTITIES.customer.phone,
+  );
   const [scheduleDayOffset, setScheduleDayOffset] = useState(1);
   const [scheduledTimeSlot, setScheduledTimeSlot] = useState<ScheduledTimeSlot>("morning");
   const [quoteState, setQuoteState] = useState<QuoteState>({ status: "pending" });
@@ -404,7 +407,7 @@ export function CustomerOrderCreatePage({
                 value={contactPhone}
                 onChange={(event) => setContactPhone(event.target.value)}
                 inputMode="tel"
-                placeholder="13800000001"
+                placeholder={INVESTOR_DEMO_IDENTITIES.customer.phone}
               />
             </FormField>
           </div>

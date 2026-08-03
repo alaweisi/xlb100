@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { RowDataPacket } from "mysql2/promise";
-import type { RequestContext } from "@xlb/types";
+import { INVESTOR_DEMO_IDENTITIES, type RequestContext } from "@xlb/types";
 import { buildApp } from "../../backend/src/app.js";
 import { getMysqlPool } from "../../backend/src/dal/mysqlPool.js";
 import { getRedisClient } from "../../backend/src/dal/redisClient.js";
@@ -31,7 +31,7 @@ function configureStagingRuntime(): void {
   process.env.TRUST_PROXY_HOPS = "1";
   process.env.PAYMENT_MOCK_WEBHOOK_ENABLED = "false";
   process.env.STAGING_DEMO_CUSTOMER_AUTH_ENABLED = "true";
-  process.env.STAGING_DEMO_CUSTOMER_PHONE = "13800000001";
+  process.env.STAGING_DEMO_CUSTOMER_PHONE = INVESTOR_DEMO_IDENTITIES.customer.phone;
   process.env.STAGING_INVESTOR_DEMO_AUTH_ENABLED = "true";
   process.env.STAGING_DEMO_WORKER_ID = STAGING_DEMO_IDS.workerId;
   process.env.STAGING_DEMO_WORKER_PHONE = "13800000011";
@@ -59,7 +59,7 @@ describe("staging investor demo authentication lifecycle", () => {
       mysqlHost: process.env.MYSQL_HOST ?? "127.0.0.1",
       mysqlDatabase: process.env.MYSQL_DATABASE ?? "xlb_test_missing",
       cityCode: "hangzhou",
-      customerPhone: "13800000001",
+      customerPhone: INVESTOR_DEMO_IDENTITIES.customer.phone,
       workerPhone: "13800000011",
       workerId: STAGING_DEMO_IDS.workerId,
       adminUsername: "investor_demo_hz",
@@ -202,13 +202,13 @@ describe("staging investor demo authentication lifecycle", () => {
       const customerCode = await app.inject({
         method: "POST",
         url: "/api/auth/customer/code",
-        payload: { phone: "13800000001" },
+        payload: { phone: INVESTOR_DEMO_IDENTITIES.customer.phone },
       });
       const customerLogin = await app.inject({
         method: "POST",
         url: "/api/auth/customer/login",
         payload: {
-          phone: "13800000001",
+          phone: INVESTOR_DEMO_IDENTITIES.customer.phone,
           code: customerCode.json().stagingDemoCode,
         },
       });
@@ -244,7 +244,7 @@ describe("staging investor demo authentication lifecycle", () => {
       });
       expect((await app.inject({
         method: "GET",
-        url: "/api/auth/worker/debug-code?phone=13800000011",
+        url: "/api/auth/worker/debug-code",
       })).statusCode).toBe(404);
       const workerLogin = await app.inject({
         method: "POST",

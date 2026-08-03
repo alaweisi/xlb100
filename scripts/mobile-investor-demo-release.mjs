@@ -19,6 +19,16 @@ export const INVESTOR_DEMO_VERSION = Object.freeze({
   name: "0.2.0-investor-demo",
 });
 export const INVESTOR_DEMO_SESSION_TTL_SECONDS = 1_800;
+const sharedDemoAccounts = JSON.parse(fs.readFileSync(
+  new URL("../packages/types/src/investorDemoIdentities.json", import.meta.url),
+  "utf8",
+));
+export const INVESTOR_DEMO_ACCOUNTS = Object.freeze({
+  cityCode: sharedDemoAccounts.cityCode,
+  customer: Object.freeze({ ...sharedDemoAccounts.customer }),
+  worker: Object.freeze({ ...sharedDemoAccounts.worker }),
+  admin: Object.freeze({ ...sharedDemoAccounts.admin }),
+});
 
 const demoIdentityByRole = Object.freeze({
   customer: Object.freeze({
@@ -314,6 +324,7 @@ export function runInvestorDemoRelease() {
     sourceCommit,
     apiOrigin: prerequisites.apiOrigin,
     sessionTtlSeconds: INVESTOR_DEMO_SESSION_TTL_SECONDS,
+    demoAccounts: INVESTOR_DEMO_ACCOUNTS,
     artifactRoot,
     reports: candidateReports,
   });
