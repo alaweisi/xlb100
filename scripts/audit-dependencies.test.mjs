@@ -5,6 +5,7 @@ import {
   buildBulkPayload,
   bulkAdvisoryUrl,
   collectDependencyVersions,
+  resolvePnpmListInvocation,
 } from "./audit-dependencies.mjs";
 
 test("collects and deduplicates installed dependency versions", () => {
@@ -44,4 +45,32 @@ test("builds the npm Bulk Advisory endpoint without losing registry paths", () =
     bulkAdvisoryUrl("https://registry.example.test/npm"),
     "https://registry.example.test/npm/-/npm/v1/security/advisories/bulk",
   );
+});
+
+test("resolves pnpm list without spawn shell mode on every platform", () => {
+  assert.deepEqual(resolvePnpmListInvocation({
+    platform: "linux",
+    npmExecPath: undefined,
+  }), {
+    command: "pnpm",
+    args: ["list", "--recursive", "--json", "--depth", "Infinity"],
+  });
+  assert.deepEqual(resolvePnpmListInvocation({
+    platform: "win32",
+    npmExecPath: undefined,
+    comSpec: "C:\\Windows\\System32\\cmd.exe",
+  }), {
+    command: "C:\\Windows\\System32\\cmd.exe",
+    args: [
+      "/d",
+      "/s",
+      "/c",
+      "pnpm",
+      "list",
+      "--recursive",
+      "--json",
+      "--depth",
+      "Infinity",
+    ],
+  });
 });

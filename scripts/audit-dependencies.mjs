@@ -76,10 +76,26 @@ function parseAuditLevel(args) {
   return index >= 0 ? args[index + 1] : "critical";
 }
 
-function installedProjects() {
+export function resolvePnpmListInvocation({
+  platform = process.platform,
+  npmExecPath = process.env.npm_execpath,
+  comSpec = process.env.ComSpec,
+} = {}) {
   const listArgs = ["list", "--recursive", "--json", "--depth", "Infinity"];
-  const command = process.env.npm_execpath ? process.execPath : "pnpm";
-  const args = process.env.npm_execpath ? [process.env.npm_execpath, ...listArgs] : listArgs;
+  if (npmExecPath) {
+    return { command: process.execPath, args: [npmExecPath, ...listArgs] };
+  }
+  if (platform === "win32") {
+    return {
+      command: comSpec || "cmd.exe",
+      args: ["/d", "/s", "/c", "pnpm", ...listArgs],
+    };
+  }
+  return { command: "pnpm", args: listArgs };
+}
+
+function installedProjects() {
+  const { command, args } = resolvePnpmListInvocation();
   const result = spawnSync(command, args, {
     cwd: process.cwd(),
     encoding: "utf8",
