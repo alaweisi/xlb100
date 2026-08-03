@@ -29,12 +29,12 @@ export class AdminOperationsService {
     if (demoCustomerId) params.push(demoCustomerId);
     const [rows] = await getMysqlPool().query<(RowDataPacket & {
       order_id:string;city_code:string;customer_id:string;sku_id:string;sku_name:string;status:string;
-      total_amount:string;scheduled_at:Date;created_at:Date;
+      total_amount:string;scheduled_at:Date|null;created_at:Date;
     })[]>(`SELECT order_id,city_code,customer_id,sku_id,sku_name,status,total_amount,scheduled_at,created_at
             FROM orders WHERE city_code=?${demoClause} ORDER BY created_at DESC LIMIT 200`,params);
     return rows.map(row=>({orderId:row.order_id,cityCode:row.city_code as AdminOrderSummary["cityCode"],customerId:row.customer_id,
       skuId:row.sku_id,skuName:row.sku_name,status:row.status as AdminOrderSummary["status"],totalAmount:Number(row.total_amount),
-      scheduledAt:row.scheduled_at.toISOString(),createdAt:row.created_at.toISOString()}));
+      scheduledAt:row.scheduled_at?.toISOString()??"",createdAt:row.created_at.toISOString()}));
   }
 
   async listSkus(context: RequestContext): Promise<AdminSkuOperationsRow[]> {
