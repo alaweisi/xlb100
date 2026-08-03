@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import path from "node:path";
 import test from "node:test";
 import {
   advisoriesAtOrAbove,
@@ -48,18 +49,54 @@ test("builds the npm Bulk Advisory endpoint without losing registry paths", () =
 });
 
 test("resolves pnpm list without spawn shell mode on every platform", () => {
-  assert.deepEqual(resolvePnpmListInvocation({
+  const directInvocation = resolvePnpmListInvocation({
     platform: "linux",
-    npmExecPath: undefined,
-  }), {
+    npmExecPath: null,
+  });
+  assert.deepEqual(directInvocation, {
     command: "pnpm",
     args: ["list", "--recursive", "--json", "--depth", "Infinity"],
+    shell: false,
   });
-  assert.deepEqual(resolvePnpmListInvocation({
+  assert.notEqual(directInvocation.shell, true);
+
+  const trustedPnpmExecPath = path.join(
+    process.cwd(),
+    ".cache",
+    "node",
+    "corepack",
+    "v1",
+    "pnpm",
+    "9.15.0",
+    "bin",
+    "pnpm.cjs",
+  );
+  const corepackInvocation = resolvePnpmListInvocation({
+    platform: "linux",
+    npmExecPath: trustedPnpmExecPath,
+    nodeExecPath: process.execPath,
+    isRegularFile: candidatePath => candidatePath === trustedPnpmExecPath,
+  });
+  assert.deepEqual(corepackInvocation, {
+    command: process.execPath,
+    args: [
+      trustedPnpmExecPath,
+      "list",
+      "--recursive",
+      "--json",
+      "--depth",
+      "Infinity",
+    ],
+    shell: false,
+  });
+  assert.notEqual(corepackInvocation.shell, true);
+
+  const windowsInvocation = resolvePnpmListInvocation({
     platform: "win32",
-    npmExecPath: undefined,
+    npmExecPath: null,
     comSpec: "C:\\Windows\\System32\\cmd.exe",
-  }), {
+  });
+  assert.deepEqual(windowsInvocation, {
     command: "C:\\Windows\\System32\\cmd.exe",
     args: [
       "/d",
@@ -72,5 +109,22 @@ test("resolves pnpm list without spawn shell mode on every platform", () => {
       "--depth",
       "Infinity",
     ],
+    shell: false,
   });
+  assert.notEqual(windowsInvocation.shell, true);
+
+  assert.throws(
+    () => resolvePnpmListInvocation({
+      npmExecPath: path.resolve("untrusted", "pnpm.cjs"),
+      isRegularFile: () => true,
+    }),
+    /Refusing untrusted npm_execpath/,
+  );
+  assert.throws(
+    () => resolvePnpmListInvocation({
+      npmExecPath: trustedPnpmExecPath,
+      isRegularFile: () => false,
+    }),
+    /Refusing untrusted npm_execpath/,
+  );
 });

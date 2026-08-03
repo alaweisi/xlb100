@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { statSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -79,27 +80,60 @@ function parseAuditLevel(args) {
 export function resolvePnpmListInvocation({
   platform = process.platform,
   npmExecPath = process.env.npm_execpath,
+  nodeExecPath = process.execPath,
   comSpec = process.env.ComSpec,
+  isRegularFile = candidatePath => {
+    try {
+      return statSync(candidatePath).isFile();
+    } catch {
+      return false;
+    }
+  },
 } = {}) {
   const listArgs = ["list", "--recursive", "--json", "--depth", "Infinity"];
   if (npmExecPath) {
-    return { command: process.execPath, args: [npmExecPath, ...listArgs] };
+    const normalizedSegments = typeof npmExecPath === "string"
+      ? path.normalize(npmExecPath).split(path.sep).map(segment => segment.toLowerCase())
+      : [];
+    const packageSuffix = ["node_modules", "pnpm", "bin", "pnpm.cjs"];
+    const hasPackageSuffix = packageSuffix.every((segment, index) => (
+      normalizedSegments.at(index - packageSuffix.length) === segment
+    ));
+    const corepackVersion = normalizedSegments.at(-3) ?? "";
+    const hasCorepackCacheSuffix = normalizedSegments.includes("corepack")
+      && normalizedSegments.at(-4) === "pnpm"
+      && /^\d+\.\d+\.\d+(?:-.+)?$/.test(corepackVersion)
+      && normalizedSegments.at(-2) === "bin"
+      && normalizedSegments.at(-1) === "pnpm.cjs";
+    if (
+      typeof npmExecPath !== "string"
+      || !path.isAbsolute(npmExecPath)
+      || (!hasPackageSuffix && !hasCorepackCacheSuffix)
+      || !isRegularFile(npmExecPath)
+    ) {
+      throw new Error(
+        "Refusing untrusted npm_execpath; expected an existing pnpm.cjs from pnpm or Corepack",
+      );
+    }
+    return { command: nodeExecPath, args: [npmExecPath, ...listArgs], shell: false };
   }
   if (platform === "win32") {
     return {
       command: comSpec || "cmd.exe",
       args: ["/d", "/s", "/c", "pnpm", ...listArgs],
+      shell: false,
     };
   }
-  return { command: "pnpm", args: listArgs };
+  return { command: "pnpm", args: listArgs, shell: false };
 }
 
 function installedProjects() {
-  const { command, args } = resolvePnpmListInvocation();
+  const { command, args, shell } = resolvePnpmListInvocation();
   const result = spawnSync(command, args, {
     cwd: process.cwd(),
     encoding: "utf8",
     maxBuffer: 64 * 1024 * 1024,
+    shell,
   });
   if (result.error) throw result.error;
   if (result.status !== 0) {
