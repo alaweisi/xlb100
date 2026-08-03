@@ -1,4 +1,4 @@
-import identityManifest from "./investorDemoIdentities.json";
+import identityManifest from "./investorDemoIdentities.json" with { type: "json" };
 
 type InvestorDemoIdentityManifest = Readonly<{
   cityCode: string;
