@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { RowDataPacket } from "mysql2/promise";
 import type { RequestContext } from "@xlb/types";
 import { buildApp } from "../../backend/src/app.js";
@@ -15,6 +15,7 @@ import {
   SupportTicketNotFoundError,
   supportTicketService,
 } from "../../backend/src/support/ticket/supportTicketService.js";
+import { cleanupStagingDemoFixture } from "./helpers/stagingDemoFixtureHelper.js";
 
 const originalEnv = { ...process.env };
 
@@ -40,8 +41,14 @@ function configureStagingRuntime(): void {
   process.env.STAGING_DEMO_TOKEN_TTL_SECONDS = "900";
 }
 
-afterEach(() => {
-  process.env = { ...originalEnv };
+beforeEach(cleanupStagingDemoFixture);
+
+afterEach(async () => {
+  try {
+    await cleanupStagingDemoFixture();
+  } finally {
+    process.env = { ...originalEnv };
+  }
 });
 
 describe("staging investor demo authentication lifecycle", () => {
@@ -398,6 +405,18 @@ describe("staging investor demo authentication lifecycle", () => {
           external_executed: 0,
         }),
       ]);
+      const [crossScopeDemoOffers] = await pool.query<Array<RowDataPacket & {
+        dispatch_task_id: string;
+      }>>(
+        `SELECT dispatch_task_id FROM dispatch_offers
+         WHERE worker_id=? AND dispatch_task_id NOT IN (?,?)`,
+        [
+          STAGING_DEMO_IDS.workerId,
+          STAGING_DEMO_IDS.activeDispatchTaskId,
+          STAGING_DEMO_IDS.historyDispatchTaskId,
+        ],
+      );
+      expect(crossScopeDemoOffers).toEqual([]);
       const [nonDemoTaskRows] = await pool.query<Array<RowDataPacket & { status: string }>>(
         "SELECT status FROM dispatch_tasks WHERE dispatch_task_id=?",
         [queuedTaskId],
@@ -503,21 +522,6 @@ describe("staging investor demo authentication lifecycle", () => {
       })).statusCode).toBe(401);
     } finally {
       await app.close();
-      await pool.query(
-        "DELETE FROM dispatch_offers WHERE dispatch_task_id=?",
-        [STAGING_DEMO_IDS.activeDispatchTaskId],
-      );
-      await pool.query(
-        "DELETE FROM dispatch_events WHERE dispatch_task_id=?",
-        [STAGING_DEMO_IDS.activeDispatchTaskId],
-      );
-      await pool.query(
-        `UPDATE dispatch_tasks
-         SET status='queued', attempt_count=0, last_reason='staging demo reset',
-           target_latitude=NULL, target_longitude=NULL, geo_provider_envelope_json=NULL
-         WHERE dispatch_task_id=?`,
-        [STAGING_DEMO_IDS.activeDispatchTaskId],
-      );
       await pool.query("DELETE FROM support_tickets WHERE ticket_id=?", [supportTicketId]);
       await pool.query("DELETE FROM review_visibility_states WHERE visibility_state_id=?", [visibilityStateId]);
       await pool.query("DELETE FROM order_reviews WHERE review_id=?", [reviewId]);
@@ -532,6 +536,10 @@ describe("staging investor demo authentication lifecycle", () => {
         [queuedOrderId, fulfillmentOrderId],
       );
       await pool.query("DELETE FROM customers WHERE id=?", [ordinaryCustomerId]);
+      // Make the actual authenticated match lifecycle prove its own teardown;
+      // afterEach repeats this idempotently as a fallback if an earlier cleanup
+      // statement fails before control reaches this point.
+      await cleanupStagingDemoFixture();
     }
   });
 });

@@ -1,6 +1,6 @@
 import type { RowDataPacket } from "mysql2/promise";
 import { randomUUID } from "node:crypto";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { getMysqlPool } from "../../backend/src/dal/mysqlPool.js";
 import {
   buildStagingDemoOperations,
@@ -8,6 +8,10 @@ import {
   STAGING_DEMO_IDS,
   type StagingDemoBootstrapTarget,
 } from "../../backend/src/demo/stagingDemoBootstrap.js";
+import { cleanupStagingDemoFixture } from "./helpers/stagingDemoFixtureHelper.js";
+
+beforeEach(cleanupStagingDemoFixture);
+afterEach(cleanupStagingDemoFixture);
 
 describe("staging demo bootstrap database lifecycle", () => {
   it("applies twice and restores the exact fixed demo state", async () => {
