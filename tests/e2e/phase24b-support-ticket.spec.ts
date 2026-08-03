@@ -1,7 +1,35 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
+import type { RowDataPacket } from "mysql2/promise";
+import { getMysqlPool } from "../../backend/src/dal/mysqlPool.js";
 
 const backend = "http://localhost:3100";
+const customerPhone = `139${Date.now().toString().slice(-8)}`;
+const supportSubject = `Phase24B browser ${Date.now()}`;
+
+test.afterAll(async () => {
+  const pool = getMysqlPool();
+  const [customers] = await pool.query<Array<RowDataPacket & { id: string }>>(
+    "SELECT id FROM customers WHERE phone=?",
+    [customerPhone],
+  );
+  for (const customer of customers) {
+    const [tickets] = await pool.query<Array<RowDataPacket & { ticket_id: string }>>(
+      "SELECT ticket_id FROM support_tickets WHERE requester_id=? AND subject=?",
+      [customer.id, supportSubject],
+    );
+    for (const ticket of tickets) {
+      await pool.query(
+        "DELETE FROM event_outbox WHERE aggregate_type='support_ticket' AND aggregate_id=?",
+        [ticket.ticket_id],
+      );
+      await pool.query("DELETE FROM support_ticket_events WHERE ticket_id=?", [ticket.ticket_id]);
+      await pool.query("DELETE FROM support_tickets WHERE ticket_id=?", [ticket.ticket_id]);
+    }
+    await pool.query("DELETE FROM customer_addresses WHERE customer_id=?", [customer.id]);
+    await pool.query("DELETE FROM customers WHERE id=?", [customer.id]);
+  }
+});
 
 function adminHeaders(token: string) {
   return { Authorization: `Bearer ${token}`, "x-xlb-city-code": "hangzhou" };
@@ -123,7 +151,7 @@ function collectBrowserErrors(page: Page) {
 }
 
 async function customerLogin(page: Page) {
-  const phone = "13800000001";
+  const phone = customerPhone;
   expect((await page.request.post(`${backend}/api/auth/customer/code`, { data: { phone } })).ok()).toBeTruthy();
   const debug = await page.request.get(`${backend}/api/auth/customer/debug-code?phone=${phone}`);
   expect(debug.ok()).toBeTruthy();
@@ -159,7 +187,7 @@ async function adminLogin(page: Page) {
 
 test("Customer creates, Admin resolves, and Customer reads the same persisted support ticket", async ({ page }) => {
   const assertClean = collectBrowserErrors(page);
-  const subject = `Phase24B browser ${Date.now()}`;
+  const subject = supportSubject;
   await customerLogin(page);
   const adminSession = await adminLogin(page);
   await ensureSafetyRoutingGroup(page, adminSession);

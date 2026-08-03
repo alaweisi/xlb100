@@ -66,24 +66,27 @@ async function assertNoHorizontalOverflow(page: Page) {
   expect(metrics.width).toBeLessThanOrEqual(metrics.viewport + 1);
 }
 
-async function mutateThroughUi(page: Page, title: string, english: boolean) {
-  const card = () => page.locator(".notification-card").filter({ hasText: title });
+async function mutateThroughUi(page: Page, title: string, language: "en" | "zh") {
+  const card = () => page.getByRole("article").filter({ hasText: title });
+  const labels = language === "en"
+    ? { markRead: "Mark as read", archive: "Archive", archiveView: "Archive", restore: "Restore", inboxView: "Inbox" }
+    : { markRead: "标为已读", archive: "归档", archiveView: "已归档", restore: "恢复", inboxView: "收件箱" };
   await expect(card()).toHaveCount(1);
   const readResponse = page.waitForResponse((response) => response.url().includes("/notifications/") && response.url().endsWith("/read") && response.request().method() === "POST");
-  await card().locator("button").first().click();
+  await card().getByRole("button", { name: labels.markRead }).click();
   expect((await readResponse).ok()).toBeTruthy();
   await expect(card()).toHaveCount(1);
   const archiveResponse = page.waitForResponse((response) => response.url().includes("/notifications/") && response.url().endsWith("/archive") && response.request().method() === "POST");
-  await card().getByRole("button", { name: english ? "Archive" : /./ }).first().click();
+  await card().getByRole("button", { name: labels.archive }).click();
   expect((await archiveResponse).ok()).toBeTruthy();
   await expect(card()).toHaveCount(0);
-  await page.locator(".notification-view-tabs button").nth(1).click();
+  await page.getByRole("button", { name: labels.archiveView, exact: true }).click();
   await expect(card()).toHaveCount(1);
   const restoreResponse = page.waitForResponse((response) => response.url().includes("/notifications/") && response.url().endsWith("/archive") && response.request().method() === "POST");
-  await card().locator("button").first().click();
+  await card().getByRole("button", { name: labels.restore }).click();
   expect((await restoreResponse).ok()).toBeTruthy();
   await expect(card()).toHaveCount(0);
-  await page.locator(".notification-view-tabs button").first().click();
+  await page.getByRole("button", { name: labels.inboxView, exact: true }).click();
   await expect(card()).toHaveCount(1);
 }
 
@@ -153,14 +156,16 @@ test("Customer real order reaches the scoped inbox and read/archive/restore pers
   await page.setViewportSize({ width: 390, height: 844 });
   const catalogLoaded = page.waitForResponse((response) => response.url().endsWith("/api/catalog") && response.request().method() === "GET");
   await page.goto(`${customerApp}/customer/profile?cityCode=hangzhou`);
-  await expect(page.getByRole("heading", { name: "Account" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "账户信息" })).toBeVisible();
+  await expect(page.getByText("已安全连接", { exact: true })).toBeVisible();
+  await expect(page.getByRole("alert")).toHaveCount(0);
   expect((await catalogLoaded).ok()).toBeTruthy();
-  await page.locator("a[href='/customer/notifications']").click();
+  await page.getByRole("link", { name: "消息中心" }).click();
   await expect(page).toHaveURL(/\/customer\/notifications/);
-  await mutateThroughUi(page, channel.title, false);
+  await mutateThroughUi(page, channel.title, "zh");
   await assertNoHorizontalOverflow(page);
   await page.reload();
-  await expect(page.locator(".notification-card").filter({ hasText: channel.title })).toHaveCount(1);
+  await expect(page.getByRole("article").filter({ hasText: channel.title })).toHaveCount(1);
   const unread = await page.request.get(`${backend}/api/customer/notifications/unread-count`, { headers: authenticatedHeaders(session) });
   expect(await unread.json()).toEqual({ ok: true, unreadCount: 0 });
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -211,15 +216,18 @@ test("Worker real support resolution reaches the inbox without losing the UI ses
 
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(`${workerApp}/worker/profile?cityCode=hangzhou`);
-  await page.getByLabel("phone").fill(workerPhone);
-  await page.getByRole("button", { name: "Send code" }).click();
-  await page.getByRole("button", { name: "Fill debug code" }).click();
-  await page.getByRole("button", { name: "Login", exact: true }).click();
-  await expect(page.getByText("Worker Session")).toBeVisible();
-  await page.getByRole("button", { name: "Notifications" }).click();
+  await page.getByLabel("手机号码").fill(workerPhone);
+  await page.getByRole("button", { name: "获取验证码" }).click();
+  await page.getByRole("button", { name: "填入本地调试码" }).click();
+  await page.getByRole("button", { name: "登录师傅端" }).click();
+  await expect(page.getByRole("heading", { name: "当前登录" })).toBeVisible();
+  await expect(page.getByText(new RegExp(worker.userId, "u"))).toBeVisible();
+  await page.getByRole("button", { name: "消息中心" }).click();
   await expect(page).toHaveURL(/\/worker\/notifications/);
-  await expect(page.getByText(`Authenticated as ${worker.userId}.`)).toBeVisible();
-  await mutateThroughUi(page, channel.title, true);
+  await expect(page.getByRole("heading", { name: "Notifications" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "当前登录" })).toBeVisible();
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  await mutateThroughUi(page, channel.title, "en");
   await assertNoHorizontalOverflow(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await assertNoHorizontalOverflow(page);

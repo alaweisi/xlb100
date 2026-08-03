@@ -237,14 +237,14 @@ test("Customer pending review, Admin audited moderation, and Worker aggregate us
   const contentResponsePromise = page.waitForResponse((response) =>
     response.url().endsWith(`/api/admin/reviews/${reviewId}/content`),
   );
-  await row.getByRole("button", { name: "View content" }).click();
+  await row.getByRole("button", { name: "查看内容" }).click();
   expect((await contentResponsePromise).ok()).toBeTruthy();
   await expect(row.getByText(reviewComment, { exact: true })).toBeVisible();
-  await row.locator("input").fill("Phase28 browser moderator approved authentic content");
+  await row.getByRole("textbox").fill("Phase28 browser moderator approved authentic content");
   const moderationResponsePromise = page.waitForResponse((response) =>
     response.url().endsWith(`/api/admin/reviews/${reviewId}/moderation`) && response.request().method() === "POST",
   );
-  await row.getByRole("button", { name: "Show" }).click();
+  await row.getByRole("button", { name: "展示" }).click();
   expect((await moderationResponsePromise).ok()).toBeTruthy();
   await expect(page.getByText(reviewId, { exact: true })).toHaveCount(0);
   await assertNoHorizontalOverflow(page);
@@ -265,10 +265,11 @@ test("Customer pending review, Admin audited moderation, and Worker aggregate us
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`${workerApp}/worker/reputation?cityCode=hangzhou`);
-  await page.getByLabel("phone").fill(workerPhone);
-  await page.getByRole("button", { name: "Send code" }).click();
-  await page.getByRole("button", { name: "Fill debug code" }).click();
-  await page.getByRole("button", { name: "Login", exact: true }).click();
+  await page.getByLabel("手机号码").fill(workerPhone);
+  await page.getByRole("button", { name: "获取验证码" }).click();
+  await page.getByRole("button", { name: "填入本地调试码" }).click();
+  await page.getByRole("button", { name: "登录师傅端" }).click();
+  await expect(page.getByRole("heading", { name: "当前登录" })).toBeVisible();
   await expect(page.getByText("My reputation", { exact: true })).toBeVisible();
   await expect(page.getByText("5.00", { exact: true })).toBeVisible();
   await expect(page.getByText("1 visible reviews", { exact: true })).toBeVisible();

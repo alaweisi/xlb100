@@ -319,8 +319,13 @@ test("real Marketing governance, Customer coupon Order, Admin trace and Worker n
   await expect(page.getByText(phase29Fixture.ruleRevisionId, { exact: true })).toBeVisible();
   await expect(page.getByText(/published · revision 1/)).toBeVisible();
   await page.getByRole("tab", { name: "券定义" }).click();
-  await expect(page.getByText(`Browser fixed coupon ${phase29Fixture.nonce}`, { exact: true })).toBeVisible();
-  await expect(page.getByText(/active · 常规 1\/1/)).toBeVisible();
+  const couponDefinitionRow = page.getByRole("listitem").filter({
+    hasText: `Browser fixed coupon ${phase29Fixture.nonce}`,
+  });
+  await expect(couponDefinitionRow).toHaveCount(1);
+  await expect(couponDefinitionRow.getByText(
+    /^active · 常规 1\/1 · 补偿 0\/1 · v\d+$/u,
+  )).toBeVisible();
   await assertNoHorizontalOverflow(page);
 
   const traceContext = await browser.newContext();
@@ -334,28 +339,26 @@ test("real Marketing governance, Customer coupon Order, Admin trace and Worker n
   const assertTraceClean = collectBrowserFailures(tracePage);
   await tracePage.setViewportSize({ width: 1440, height: 900 });
   await tracePage.goto(`${adminApp}/#/order-trace?cityCode=hangzhou&orderId=${encodeURIComponent(phase29Fixture.orderId)}`);
-  await expect(tracePage.getByRole("heading", { name: "Order Fulfillment Trace" })).toBeVisible();
-  const marketingRow = tracePage.getByRole("row").filter({ hasText: "Marketing" });
+  await expect(tracePage.getByRole("heading", { name: "订单全链路" })).toBeVisible();
+  const marketingRow = tracePage.getByRole("row").filter({ hasText: "优惠" });
   await expect(marketingRow).toContainText(phase29Fixture.decisionId);
   await expect(marketingRow).toContainText(phase29Fixture.grantId);
-  await expect(marketingRow).toContainText(phase29Fixture.ruleRevisionId);
-  await expect(marketingRow).toContainText(phase29Fixture.reservationId);
-  await expect(marketingRow).toContainText(phase29Fixture.redemptionId);
   await expect(marketingRow).toContainText(
-    `CNY ${(grossAmountMinor / 100).toFixed(2)} - CNY ${(faceValueMinor / 100).toFixed(2)} = CNY ${((grossAmountMinor - faceValueMinor) / 100).toFixed(2)}`,
+    `¥ ${(grossAmountMinor / 100).toFixed(2)} - ¥ ${(faceValueMinor / 100).toFixed(2)} = ¥ ${((grossAmountMinor - faceValueMinor) / 100).toFixed(2)}`,
   );
+  await expect(marketingRow).toContainText("已应用订单优惠");
   await assertNoHorizontalOverflow(tracePage);
   assertTraceClean();
   await traceContext.close();
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`${workerApp}/worker/profile?cityCode=hangzhou`);
-  await page.getByRole("button", { name: "Send code" }).click();
-  await page.getByRole("button", { name: "Fill debug code" }).click();
-  await page.getByRole("button", { name: "Login", exact: true }).click();
+  await page.getByRole("button", { name: "获取验证码" }).click();
+  await page.getByRole("button", { name: "填入本地调试码" }).click();
+  await page.getByRole("button", { name: "登录师傅端" }).click();
   await expect(page.getByRole("heading", { name: "Location & Availability" })).toBeVisible();
-  await expect(page.getByText("Worker Session", { exact: true })).toBeVisible();
-  await expect(page.getByText(/Marketing \/ Coupon/)).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "当前登录" })).toBeVisible();
+  await expect(page.getByText(/Marketing \/ Coupon|营销与优惠券/u)).toHaveCount(0);
   await assertNoHorizontalOverflow(page);
   assertClean();
 });
