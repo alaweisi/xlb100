@@ -16,6 +16,24 @@ async function assertViewport(page: Page) {
   expect(layout.width).toBeLessThanOrEqual(1440);
 }
 
+async function adminHandoffState(page: Page) {
+  return page.evaluate(() => {
+    const rawHash = window.location.hash.replace(/^#/u, "");
+    const queryStart = rawHash.indexOf("?");
+    const route = queryStart === -1 ? rawHash : rawHash.slice(0, queryStart);
+    const params = new URLSearchParams(queryStart === -1 ? "" : rawHash.slice(queryStart + 1));
+    return {
+      origin: window.location.origin,
+      appPath: window.location.pathname,
+      route,
+      identity: params.get("identity"),
+      cityCode: params.get("cityCode"),
+      handoffPresent: Boolean(params.get("handoff")),
+      oaSessionPresent: window.sessionStorage.getItem("xlb.oa.session") !== null,
+    };
+  });
+}
+
 function dashboardSnapshot(observedAt = new Date().toISOString()): DashboardRealtimeSnapshot {
   const now = Date.parse(observedAt);
   return {
@@ -94,6 +112,9 @@ test("OA workbench, organization, capability and Admin handoff are healthy at 14
   page.on("console", (message) => {
     if (message.type() === "error") browserErrors.push(message.text());
   });
+  page.on("response", (response) => {
+    if (response.status() >= 500) browserErrors.push(`${response.status()} ${response.url()}`);
+  });
 
   await page.goto("http://127.0.0.1:5276/oa/");
   await page.getByLabel("账号").fill("admin_global");
@@ -122,12 +143,39 @@ test("OA workbench, organization, capability and Admin handoff are healthy at 14
   await assertViewport(page);
 
   await page.locator(".oa-scope-select select").selectOption("hangzhou");
+  const handoffCreated = page.waitForResponse((response) =>
+    response.url().endsWith("/api/oa/admin-handoffs")
+      && response.request().method() === "POST",
+  );
+  const oaSessionLoaded = page.waitForResponse((response) =>
+    response.url().endsWith("/api/oa/me")
+      && response.request().method() === "GET",
+  );
+  const operationsLoaded = page.waitForResponse((response) =>
+    response.url().includes("/api/oa/domains/api/internal/operations/orders")
+      && response.request().method() === "GET",
+  );
   await page.getByRole("link", { name: /订单与履约/u }).click();
-  await expect(page).toHaveURL(/127\.0\.0\.1:5275\/admin\/#\/platform-operations\?.*identity=oa/u);
-  await expect(page.getByText("OA delegated")).toBeVisible();
+  for (const response of await Promise.all([handoffCreated, oaSessionLoaded, operationsLoaded])) {
+    expect(response.ok(), `${response.status()} ${response.url()}`).toBeTruthy();
+  }
+  await expect.poll(() => adminHandoffState(page)).toEqual({
+    origin: "http://127.0.0.1:5275",
+    appPath: "/admin/",
+    route: "/platform-operations",
+    identity: "oa",
+    cityCode: "hangzhou",
+    handoffPresent: false,
+    oaSessionPresent: true,
+  });
+  await expect(page.getByText("OA 授权会话", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "返回 OA" })).toBeVisible();
   await expect(page.getByText("Verifying OA capability")).toHaveCount(0);
-  await expect(page.getByText("Platform Operations", { exact: true })).toHaveCount(2);
+  await expect(page.getByRole("heading", { name: "订单与师傅" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "刷新列表" })).toBeVisible();
+  await expect(page.getByText("演示权限已收敛", { exact: true })).toBeVisible();
   await expect(page.getByText("OA capability denied")).toHaveCount(0);
+  await expect(page.getByRole("alert")).toHaveCount(0);
   await page.screenshot({ path: oaArtifact("04-oa-admin-handoff-1440x1024.png"), fullPage: false });
   await assertViewport(page);
 
@@ -135,10 +183,20 @@ test("OA workbench, organization, capability and Admin handoff are healthy at 14
     response.url().includes("/api/oa/domains/api/internal/dispatch/board")
       && response.status() === 200,
   );
-  await page.getByRole("link", { name: "Dispatch" }).click();
-  await dispatchLoaded;
-  await expect(page.getByText("LBS-lite Dispatch Board")).toBeVisible();
-  await expect(page.getByText("OA delegated")).toBeVisible();
+  await page.getByRole("link", { name: "智能派单" }).click();
+  expect((await dispatchLoaded).ok()).toBeTruthy();
+  await expect.poll(() => adminHandoffState(page)).toMatchObject({
+    origin: "http://127.0.0.1:5275",
+    appPath: "/admin/",
+    route: "/dispatch",
+    cityCode: "hangzhou",
+    handoffPresent: false,
+    oaSessionPresent: true,
+  });
+  await expect(page.getByRole("heading", { name: "智能派单看板" })).toBeVisible();
+  await expect(page.getByText("OA 授权会话", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "返回 OA" })).toBeVisible();
+  await expect(page.getByRole("alert")).toHaveCount(0);
   expect(browserErrors).toEqual([]);
 });
 
