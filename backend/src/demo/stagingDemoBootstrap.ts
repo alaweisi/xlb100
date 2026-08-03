@@ -16,6 +16,7 @@ export const STAGING_DEMO_IDS = Object.freeze({
   customerId: INVESTOR_DEMO_IDENTITIES.customer.id,
   workerId: INVESTOR_DEMO_IDENTITIES.worker.id,
   adminUserId: INVESTOR_DEMO_IDENTITIES.admin.id,
+  workerLocationId: "investor-demo-worker-location",
   addressId: "investor-demo-address-hz",
   activeOrderId: "investor-demo-order-active",
   historyOrderId: "investor-demo-order-history",
@@ -327,11 +328,30 @@ export function buildStagingDemoOperations(
       `INSERT INTO worker_dispatch_preferences (
          worker_id, city_code, service_radius_km, location_sharing_enabled,
          rating_score, penalty_score
-       ) VALUES (?, ?, 10.00, 0, 5.00, 0.00)
+       ) VALUES (?, ?, 10.00, 1, 5.00, 0.00)
        ON DUPLICATE KEY UPDATE service_radius_km=10.00,
-         location_sharing_enabled=0, rating_score=5.00, penalty_score=0.00`,
+         location_sharing_enabled=1, rating_score=5.00, penalty_score=0.00`,
       [target.workerId, target.cityCode],
       target.workerId,
+    ),
+    op(
+      "worker_demo_location",
+      "worker_locations",
+      `INSERT INTO worker_locations (
+         location_id, worker_id, city_code, latitude, longitude,
+         accuracy_meters, captured_at, expires_at, source, privacy_level
+       ) VALUES (
+         ?, ?, ?, 30.274100, 120.155100, 20.00,
+         CURRENT_TIMESTAMP(3), DATE_ADD(CURRENT_TIMESTAMP(3), INTERVAL 24 HOUR),
+         'demo_reset', 'private_exact'
+       )
+       ON DUPLICATE KEY UPDATE location_id=VALUES(location_id),
+         latitude=VALUES(latitude), longitude=VALUES(longitude),
+         accuracy_meters=VALUES(accuracy_meters),
+         captured_at=VALUES(captured_at), expires_at=VALUES(expires_at),
+         source='demo_reset', privacy_level='private_exact'`,
+      [ids.workerLocationId, target.workerId, target.cityCode],
+      ids.workerLocationId,
     ),
     op(
       "worker_certification",
@@ -620,6 +640,14 @@ export function buildStagingDemoUniqueOwnershipChecks(
     ownershipCheck("worker.phone_hash", "worker_profiles", "worker_id", "phone_hash=?", [
       workerPhoneHash(target.workerPhone, target.authPhoneHashSecret),
     ], target.workerId),
+    ownershipCheck(
+      "worker_location.binding",
+      "worker_locations",
+      "location_id",
+      "worker_id=? AND city_code=?",
+      [target.workerId, target.cityCode],
+      ids.workerLocationId,
+    ),
     ownershipCheck(
       "address.owner_city_idempotency",
       "customer_addresses",

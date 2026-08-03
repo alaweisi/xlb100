@@ -161,7 +161,7 @@
     "gate:rc": "pnpm gate:engineering-rc",
     "gate:stage5": "node scripts/run-stage5-engineering-audit.mjs",
     "mobile:foundation:test": "pnpm --filter @xlb/mobile-foundation test",
-    "mobile:m0:test": "pnpm mobile:foundation:test && pnpm --filter @xlb/customer-mobile test && pnpm --filter @xlb/worker-mobile test && pnpm --filter @xlb/admin-mobile test",
+    "mobile:m0:test": "pnpm mobile:foundation:test && pnpm --filter @xlb/customer-mobile test && pnpm --filter @xlb/worker-mobile test && pnpm --filter @xlb/admin-mobile test && pnpm mobile:investor-demo:test",
     "mobile:m0:typecheck": "pnpm --filter @xlb/mobile-foundation typecheck && pnpm --filter @xlb/customer-mobile typecheck && pnpm --filter @xlb/worker-mobile typecheck && pnpm --filter @xlb/admin-mobile typecheck",
     "mobile:m0:validate": "pnpm --filter @xlb/customer-mobile mobile:validate && pnpm --filter @xlb/worker-mobile mobile:validate && pnpm --filter @xlb/admin-mobile mobile:validate",
     "mobile:m0:doctor": "pnpm --filter @xlb/customer-mobile mobile:doctor && pnpm --filter @xlb/worker-mobile mobile:doctor && pnpm --filter @xlb/admin-mobile mobile:doctor",

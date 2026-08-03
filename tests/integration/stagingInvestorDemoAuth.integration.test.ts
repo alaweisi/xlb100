@@ -364,12 +364,40 @@ describe("staging investor demo authentication lifecycle", () => {
         headers: adminHeaders,
         payload: { dispatchTaskId: queuedTaskId },
       })).statusCode).toBe(404);
-      expect((await app.inject({
+      const demoMatch = await app.inject({
         method: "POST",
         url: "/api/internal/dispatch/match-once",
         headers: adminHeaders,
         payload: { limit: 50 },
-      })).statusCode).toBe(200);
+      });
+      expect(demoMatch.statusCode).toBe(200);
+      expect(demoMatch.json().tasks).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          dispatchTaskId: STAGING_DEMO_IDS.activeDispatchTaskId,
+          status: "offering",
+        }),
+      ]));
+      const [demoOfferRows] = await pool.query<Array<RowDataPacket & {
+        worker_id: string;
+        provider: string;
+        external_executed: number;
+      }>>(
+        `SELECT worker_id,
+           JSON_UNQUOTE(JSON_EXTRACT(geo_provider_envelope_json, '$.provider')) AS provider,
+           CASE JSON_UNQUOTE(
+             JSON_EXTRACT(geo_provider_envelope_json, '$.externalProviderExecuted')
+           ) WHEN 'true' THEN 1 ELSE 0 END AS external_executed
+         FROM dispatch_offers
+         WHERE dispatch_task_id=? AND status='offering'`,
+        [STAGING_DEMO_IDS.activeDispatchTaskId],
+      );
+      expect(demoOfferRows).toEqual([
+        expect.objectContaining({
+          worker_id: STAGING_DEMO_IDS.workerId,
+          provider: "local_mock",
+          external_executed: 0,
+        }),
+      ]);
       const [nonDemoTaskRows] = await pool.query<Array<RowDataPacket & { status: string }>>(
         "SELECT status FROM dispatch_tasks WHERE dispatch_task_id=?",
         [queuedTaskId],
@@ -475,6 +503,21 @@ describe("staging investor demo authentication lifecycle", () => {
       })).statusCode).toBe(401);
     } finally {
       await app.close();
+      await pool.query(
+        "DELETE FROM dispatch_offers WHERE dispatch_task_id=?",
+        [STAGING_DEMO_IDS.activeDispatchTaskId],
+      );
+      await pool.query(
+        "DELETE FROM dispatch_events WHERE dispatch_task_id=?",
+        [STAGING_DEMO_IDS.activeDispatchTaskId],
+      );
+      await pool.query(
+        `UPDATE dispatch_tasks
+         SET status='queued', attempt_count=0, last_reason='staging demo reset',
+           target_latitude=NULL, target_longitude=NULL, geo_provider_envelope_json=NULL
+         WHERE dispatch_task_id=?`,
+        [STAGING_DEMO_IDS.activeDispatchTaskId],
+      );
       await pool.query("DELETE FROM support_tickets WHERE ticket_id=?", [supportTicketId]);
       await pool.query("DELETE FROM review_visibility_states WHERE visibility_state_id=?", [visibilityStateId]);
       await pool.query("DELETE FROM order_reviews WHERE review_id=?", [reviewId]);

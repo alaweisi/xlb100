@@ -510,7 +510,6 @@ export function App() {
             {key:"marketing",label:"营销与优惠券",active:view.page==="marketing",href:"#/marketing",onClick:navigateToMarketing},
           ].filter((item) => {
             if (IS_ADMIN_INVESTOR_DEMO) {
-              if (item.key === "settlement") return true;
               if (!["orderTrace", "dispatch", "platformOperations", "reviewModeration"].includes(item.key)) {
                 return false;
               }

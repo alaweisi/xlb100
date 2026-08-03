@@ -39,7 +39,9 @@ export function ReviewModerationPage({
     try {
       const [reviewResult, appealResult] = await Promise.all([
         adminOpsApi.review.listReviewModeration(visibility),
-        adminOpsApi.review.listReviewAppeals("open"),
+        IS_ADMIN_INVESTOR_DEMO
+          ? Promise.resolve({ items: [], nextCursor: null })
+          : adminOpsApi.review.listReviewAppeals("open"),
       ]);
       setReviews(reviewResult.items);
       setAppeals(appealResult.items);

@@ -108,6 +108,22 @@ describe("staging demo bootstrap safety", () => {
       STAGING_DEMO_IDS.workerId,
       "hangzhou",
     ]);
+    const workerLocation = operations.find(
+      (operation) => operation.label === "worker_demo_location",
+    );
+    expect(workerLocation && "sql" in workerLocation ? workerLocation.sql : "")
+      .toMatch(/INSERT\s+INTO\s+worker_locations/iu);
+    expect(workerLocation && "params" in workerLocation ? workerLocation.params : [])
+      .toEqual([
+        STAGING_DEMO_IDS.workerLocationId,
+        STAGING_DEMO_IDS.workerId,
+        "hangzhou",
+      ]);
+    const dispatchPreference = operations.find(
+      (operation) => operation.label === "worker_dispatch_preferences",
+    );
+    expect(dispatchPreference && "sql" in dispatchPreference ? dispatchPreference.sql : "")
+      .toMatch(/location_sharing_enabled=1/iu);
     for (const operation of operations.filter(
       (item) => "sql" in item && /^\s*INSERT\b/iu.test(item.sql),
     )) {

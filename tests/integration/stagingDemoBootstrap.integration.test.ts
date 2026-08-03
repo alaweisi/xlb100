@@ -108,6 +108,8 @@ describe("staging demo bootstrap database lifecycle", () => {
       review_rating: number;
       review_comment: string;
       review_status: string;
+      location_sharing_enabled: number;
+      location_is_fresh: number;
     })[]>(
       `SELECT
          (SELECT COUNT(*) FROM orders
@@ -124,10 +126,14 @@ describe("staging demo bootstrap database lifecycle", () => {
            WHERE review_id=?) AS review_count,
          (SELECT rating FROM order_reviews
            WHERE review_id=?) AS review_rating,
-         (SELECT comment FROM order_reviews
-           WHERE review_id=?) AS review_comment,
-         (SELECT status FROM order_reviews
-           WHERE review_id=?) AS review_status`,
+          (SELECT comment FROM order_reviews
+            WHERE review_id=?) AS review_comment,
+          (SELECT status FROM order_reviews
+            WHERE review_id=?) AS review_status,
+          (SELECT location_sharing_enabled FROM worker_dispatch_preferences
+            WHERE worker_id=? AND city_code='hangzhou') AS location_sharing_enabled,
+          (SELECT expires_at > CURRENT_TIMESTAMP(3) FROM worker_locations
+            WHERE location_id=? AND worker_id=? AND city_code='hangzhou') AS location_is_fresh`,
       [
         STAGING_DEMO_IDS.activeOrderId,
         STAGING_DEMO_IDS.historyOrderId,
@@ -140,6 +146,9 @@ describe("staging demo bootstrap database lifecycle", () => {
         STAGING_DEMO_IDS.historyReviewId,
         STAGING_DEMO_IDS.historyReviewId,
         STAGING_DEMO_IDS.historyReviewId,
+        STAGING_DEMO_IDS.workerId,
+        STAGING_DEMO_IDS.workerLocationId,
+        STAGING_DEMO_IDS.workerId,
       ],
     );
     expect(stateRows[0]).toMatchObject({
@@ -152,6 +161,8 @@ describe("staging demo bootstrap database lifecycle", () => {
       review_rating: 5,
       review_comment: "服务准时，流程清晰（演示评价）",
       review_status: "created",
+      location_sharing_enabled: 1,
+      location_is_fresh: 1,
     });
   });
 

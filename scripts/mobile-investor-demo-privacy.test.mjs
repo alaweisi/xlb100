@@ -16,6 +16,7 @@ const workerDemo = read("../apps/worker/src/investorDemo.tsx");
 const adminAuth = read("../apps/admin/src/adminAuth.ts");
 const adminApp = read("../apps/admin/src/app/App.tsx");
 const adminDemo = read("../apps/admin/src/investorDemo.tsx");
+const adminReviewPage = read("../apps/admin/src/pages/ReviewModerationPage.tsx");
 
 test("Investor Demo tokens are short-lived and never use persistent storage", () => {
   assert.match(customerAuth, /IS_CUSTOMER_INVESTOR_DEMO[\s\S]*window\.sessionStorage/u);
@@ -62,4 +63,16 @@ test("Worker and Admin consume the shared fixed demo identity and city contract"
   assert.match(adminApp, /IS_ADMIN_INVESTOR_DEMO[\s\S]*ADMIN_INVESTOR_DEMO_USERNAME/u);
   assert.match(adminApp, /IS_ADMIN_INVESTOR_DEMO[\s\S]*ADMIN_INVESTOR_DEMO_CITY_CODE/u);
   assert.match(adminAuth, /IS_ADMIN_INVESTOR_DEMO\) return ADMIN_INVESTOR_DEMO_CITY_CODE/u);
+});
+
+test("Admin Investor Demo keeps finance hidden and loads only the scoped review list", () => {
+  assert.doesNotMatch(adminApp, /item\.key === "settlement"\) return true/u);
+  assert.match(
+    adminApp,
+    /\["orderTrace", "dispatch", "platformOperations", "reviewModeration"\]/u,
+  );
+  assert.match(
+    adminReviewPage,
+    /IS_ADMIN_INVESTOR_DEMO[\s\S]*Promise\.resolve\(\{ items: \[\], nextCursor: null \}\)/u,
+  );
 });
